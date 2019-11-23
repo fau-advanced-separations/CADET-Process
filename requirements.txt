@@ -1,0 +1,7 @@
+numpy
+scipy
+matplotlib
+cadet
+addict
+deap
+gitpython
