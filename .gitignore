@@ -2,6 +2,6 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 docs/build/*
-*settings.py
+*settings.json
 debug*
 *.h5
