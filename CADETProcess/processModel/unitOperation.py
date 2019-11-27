@@ -452,6 +452,10 @@ class Column(TubularReactor):
         """
         return self.u0 * self.length / (2 * self.axial_dispersion)
 
+    @NTP.setter
+    def NTP(self, NTP):
+        self.axial_dispersion = self.u0 * self.length / (2 * NTP)
+
 class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     """Class CSTR.
 
