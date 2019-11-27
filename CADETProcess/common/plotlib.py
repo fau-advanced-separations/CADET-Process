@@ -91,7 +91,7 @@ def plot(x, y, plot_parameters=None, show=False, save_path=None):
                 x_position = (plot_parameters.xlim[0] + fill['end'])/2
             else:
                 x_position = (fill['start'] + fill['end'])/2
-            y_position = 0.9 * fill['y_max']
+            y_position = 0.5 * fill['y_max']
             plt.text(x_position, y_position, fill['text'],
                      horizontalalignment='center',
                      verticalalignment='center')
@@ -114,6 +114,17 @@ def plot(x, y, plot_parameters=None, show=False, save_path=None):
         locs = np.array([x_tick['loc'] for x_tick in plot_parameters.x_ticks])
         labels = [x_tick['label'] for x_tick in plot_parameters.x_ticks]
         plt.xticks(locs, labels, rotation=72, horizontalalignment='center')
+
+    if plot_parameters.annotations is not None:
+        for annotation in plot_parameters.annotations:
+            ax.annotate(annotation['text'],
+                        xy=annotation['xy'],
+                        xycoords='data',
+                        xytext=annotation['xytext'],
+                        textcoords='offset points',
+                        arrowprops=annotation['arrowstyle']
+                        )
+
 
     plt.plot(x,y)
 
@@ -142,3 +153,4 @@ class PlotParameters(metaclass=StructMeta):
     fill_regions = List()
     overlay = List()
     hlines = List()
+    annotations = List()

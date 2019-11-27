@@ -152,7 +152,7 @@ class Fractionator(EventHandler):
                 text = 'W'
             else:
                 color_index = comp_index
-                text = str(comp_index)
+                text = str(comp_index + 1)
 
             if sec.start != sec.end:
                 fill_regions.append({
@@ -162,6 +162,17 @@ class Fractionator(EventHandler):
                         'color_index': color_index,
                         'text': text
                         })
+        if end is None:
+            end = np.max(x)
+
+        if len(time_line.sections) == 0:
+            fill_regions.append({
+                'start': start,
+                'end': end,
+                'y_max': 1.1*np.max(chrom.signal),
+                'color_index': -1,
+                'text': 'W'
+                })
 
         plot_parameters = PlotParameters()
         plot_parameters.x_label = '$time~/~min$'
