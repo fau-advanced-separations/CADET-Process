@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
 
+"""
+===============================================
+Simulate Batch Chromatography of Binary Mixture
+===============================================
+"""
+
 from CADETProcess.processModel import Langmuir
 from CADETProcess.processModel import Source, Column, Sink
 from CADETProcess.processModel import FlowSheet

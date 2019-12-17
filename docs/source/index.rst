@@ -44,6 +44,7 @@ Documentation
    :maxdepth: 1
 
    reference/index
+   examples/index
    license
 
 

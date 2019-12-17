@@ -20,6 +20,9 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('../..'))
 
+from sphinx_gallery.sorting import ExplicitOrder
+import sphinx_rtd_theme
+
 
 # -- General configuration ------------------------------------------------
 
@@ -33,6 +36,7 @@ sys.path.insert(0, os.path.abspath('../..'))
 extensions = [
         'sphinx.ext.autodoc',
         'sphinx.ext.coverage',
+        'sphinx_gallery.gen_gallery',
         'sphinx.ext.mathjax',
         "sphinx.ext.napoleon",
         "sphinx.ext.todo",
@@ -41,6 +45,20 @@ extensions = [
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
+
+# https://github.com/sphinx-gallery/sphinx-gallery
+sphinx_gallery_conf = {
+    # path to your examples scripts
+    "examples_dirs": "../../examples",
+    "subsection_order": ExplicitOrder([
+            '../examples/batch_binary',
+            '../examples/batch_binary_optimization',
+            ]),
+    # path where to save gallery generated examples
+    "gallery_dirs": "examples",
+    "backreferences_dir": "modules/generated",
+    }
+
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
@@ -90,7 +108,8 @@ todo_include_todos = True
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'alabaster'
+html_theme = "sphinx_rtd_theme"
+html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the

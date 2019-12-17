@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
 
+"""
+===============================================
+Optimize Batch Chromatography of Binary Mixture
+===============================================
+
+"""
+
 from CADETProcess.simulation import Cadet, ProcessEvaluator
 from CADETProcess.optimization import OptimizationProblem
 from CADETProcess.common import RankedPerformance
