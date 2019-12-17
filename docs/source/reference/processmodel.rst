@@ -1,8 +1,8 @@
 .. _processmodel:
 
-====================
-Process Optimization
-====================
+=============
+Process Model
+=============
 
 Overview
 ========
