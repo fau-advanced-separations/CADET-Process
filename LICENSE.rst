@@ -1,3 +1,9 @@
+=======
+LICENSE
+=======
+
+CADET-Process is distributed with the GNU GPL version 3.
+
                     GNU GENERAL PUBLIC LICENSE
                        Version 3, 29 June 2007
 
