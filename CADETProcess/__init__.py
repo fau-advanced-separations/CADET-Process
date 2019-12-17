@@ -3,9 +3,16 @@ CADET-Process
 ========
 
 CADET-Process is a Python package for modelling, simulating and optimizing
-advanced chromatographic systems. It serves as an inteface for CADET, but also for other solvers.
+advanced chromatographic systems. It serves as an inteface for CADET, but also
+for other solvers.
+
+See https://cadet-process.readthedocs.io for complete documentation.
 """
-# Basic functionality
+# Version information
+name = 'CADET-Process'
+__version__ = '0.1'
+
+# Imports
 from CADETProcess.CADETProcessError import *
 
 import CADETProcess.common
