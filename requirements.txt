@@ -1,7 +1,8 @@
 numpy
 scipy
 matplotlib
+gitpython
 cadet
 addict
 deap
-gitpython
+gpyopt
