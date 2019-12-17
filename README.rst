@@ -1,5 +1,5 @@
 CADET-Process
-========
+=============
 
 CADET-Process is a Python package for modelling, simulating, evaluating and
 optimizing advanced chromatographic processes. It serves as an inteface for
