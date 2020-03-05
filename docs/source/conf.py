@@ -71,7 +71,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'CADET-Process'
-copyright = u'2019, Johannes Schmölder'
+copyright = u'2020, Johannes Schmölder'
 author = u'Johannes Schmölder'
 
 # The version info for the project you're documenting, acts as replacement for

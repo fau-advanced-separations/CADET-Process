@@ -10,4 +10,4 @@ Overview
 .. autoclass:: Process
 
 .. currentmodule:: CADETProcess.processModel
-.. autoclass:: UnitOperation
+.. autoclass:: UnitBaseClass
