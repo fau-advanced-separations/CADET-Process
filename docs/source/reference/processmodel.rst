@@ -8,3 +8,6 @@ Overview
 ========
 .. currentmodule:: CADETProcess.processModel
 .. autoclass:: Process
+
+.. currentmodule:: CADETProcess.processModel
+.. autoclass:: UnitOperation
