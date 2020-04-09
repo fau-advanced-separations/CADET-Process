@@ -795,10 +795,11 @@ class ReturnParametersGroup(ParametersGroup):
     WRITE_SOLUTION_LAST = Bool(default=True)
     WRITE_SENS_LAST = Bool(default=True)
     SPLIT_COMPONENTS_DATA = Bool(default=False)
+    SPLIT_PORTS_DATA = Bool(default=False)
 
     _parameters = [
         'WRITE_SOLUTION_TIMES', 'WRITE_SOLUTION_LAST', 'WRITE_SENS_LAST',
-        'SPLIT_COMPONENTS_DATA']
+        'SPLIT_COMPONENTS_DATA', 'SPLIT_PORTS_DATA']
 
 
 class UnitReturnParametersGroup(ParametersGroup):
