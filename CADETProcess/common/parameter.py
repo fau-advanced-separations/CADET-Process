@@ -36,6 +36,12 @@ class Parameter(Descriptor):
             return super().__get__(instance, cls)
         except KeyError:
             return self.default
+        
+    def __delete__(self, instance):
+        if self.default is not None:
+            instance.__dict__[self.name] = self.default
+        else:
+            del instance.__dict__[self.name]
 
 
 class Typed(Parameter):
@@ -59,10 +65,8 @@ class Float(Typed):
     ty = float
 
     def __set__(self, instance, value):
-        try:
+        if isinstance(value, int):
             value = float(value)
-        except (ValueError, TypeError):
-            raise TypeError("Expected {}".format(self.ty))
         super().__set__(instance, value)
 
 class String(Typed):
