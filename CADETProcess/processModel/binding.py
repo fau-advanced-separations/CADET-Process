@@ -63,7 +63,7 @@ class Linear(BindingBaseClass):
         Desorption rate constants.
     """
     adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
-    k_D = DependentlySizedUnsignedList(dep='n_comp')
+    desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -191,8 +191,8 @@ class AntiLangmuir(BindingBaseClass):
     antilangmuir : list of unsigned floats, optional.
         Anti-Langmuir coefficients. Length depends on n_comp.
     """
-    k_A  = DependentlySizedUnsignedList(dep='n_comp')
-    k_D = DependentlySizedUnsignedList(dep='n_comp')
+    adsorption_rate  = DependentlySizedUnsignedList(dep='n_comp')
+    desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     maximum_adsorption_capacity = DependentlySizedUnsignedList(dep='n_comp')
     antilangmuir = DependentlySizedUnsignedList(dep='n_comp')
 
@@ -213,9 +213,9 @@ class Kumar_Mutli_Component_Langmuir(BindingBaseClass):
 
     Attributes
     ----------
-    k_A : Parameter
+    adsorption_rate : Parameter
         Adsorption rate constants.
-    k_D : Parameter
+    desorption_rate : Parameter
         Desorption rate constants.
     activation_temp : Parameter
         Activation temperatures.
@@ -230,9 +230,9 @@ class Kumar_Mutli_Component_Langmuir(BindingBaseClass):
         super().__init__(*args, **kwargs)
 
 
-        self.k_A = DependentlySizedUnsignedList(
+        self.adsorption_rate = DependentlySizedUnsignedList(
                 [0.0]*self.n_comp.value, dependency=self.n_comp)
-        self.k_D = DependentlySizedUnsignedList(
+        self.desorption_rate = DependentlySizedUnsignedList(
                 [0.0]*self.n_comp.value, dependency=self.n_comp)
         self.activation_temp = DependentlySizedUnsignedList(
                 [0.0]*self.n_comp.value, dependency=self.n_comp)
@@ -243,7 +243,7 @@ class Kumar_Mutli_Component_Langmuir(BindingBaseClass):
         self.temperature = DependentlySizedUnsignedList(
                 [0.0]*self.n_comp.value, dependency=self.n_comp)
 
-        self._parameters += ['k_A', 'k_D', 'activation_temp',
+        self._parameters += ['adsorption_rate', 'desorption_rate', 'activation_temp',
                              'maximum_adsorption_capacity',
                              'characteristic_charge', 'temperature']
 
@@ -252,9 +252,9 @@ class Multi_Component_Spreading(BindingBaseClass):
 
     Attributes
     ----------
-    k_A : Parameter
+    adsorption_rate : Parameter
         Adsorption rate constants.
-    k_D : Parameter
+    desorption_rate : Parameter
         Desorption rate constants.
     maximum_adsorption_capacity : Parameter
         Maximum adsoprtion capacities in state-major ordering.
@@ -267,9 +267,9 @@ class Multi_Component_Spreading(BindingBaseClass):
         super().__init__(*args, **kwargs)
 
 
-        self.k_A = DependentlySizedUnsignedList(
+        self.adsorption_rate = DependentlySizedUnsignedList(
                 [0.0]*self.n_comp.value, dependency=self.n_comp)
-        self.k_D = DependentlySizedUnsignedList(
+        self.desorption_rate = DependentlySizedUnsignedList(
                 [0.0]*self.n_comp.value, dependency=self.n_comp)
         self.maximum_adsorption_capacity = DependentlySizedUnsignedList(
                 [0.0]*self.n_comp.value, dependency=self.n_comp)
@@ -278,7 +278,7 @@ class Multi_Component_Spreading(BindingBaseClass):
         self.exchange_from_2_1 = DependentlySizedUnsignedList(
                 [0.0]*self.n_comp.value, dependency=self.n_comp)
 
-        self._parameters += ['k_A', 'k_D', 'activation_temp',
+        self._parameters += ['adsorption_rate', 'desorption_rate', 'activation_temp',
                              'maximum_adsorption_capacity',
                              'exchange_from_1_2', 'exchange_from_2_1']
 
@@ -288,9 +288,9 @@ class Mobile_Phase_Modulator(BindingBaseClass):
 
     Attributes
     ----------
-    k_A : Parameter
+    adsorption_rate : Parameter
         Adsorption rate constants.
-    k_D : Parameter
+    desorption_rate : Parameter
         Desorption rate constants.
     maximum_adsorption_capacity : Parameter
         Maximum adsorption capacities.
@@ -303,9 +303,9 @@ class Mobile_Phase_Modulator(BindingBaseClass):
         super().__init__(*args, **kwargs)
 
 
-        self.k_A = DependentlySizedUnsignedList(
+        self.adsorption_rate = DependentlySizedUnsignedList(
                 [0.0]*self.n_comp.value, dependency=self.n_comp)
-        self.k_D = DependentlySizedUnsignedList(
+        self.desorption_rate = DependentlySizedUnsignedList(
                 [0.0]*self.n_comp.value, dependency=self.n_comp)
         self.maximum_adsorption_capacity = DependentlySizedUnsignedList(
                 [0.0]*self.n_comp.value, dependency=self.n_comp)
@@ -314,7 +314,7 @@ class Mobile_Phase_Modulator(BindingBaseClass):
         self.hydrophobicity = DependentlySizedUnsignedList(
                 [0.0]*self.n_comp.value, dependency=self.n_comp)
 
-        self._parameters += ['k_A', 'k_D',
+        self._parameters += ['adsorption_rate', 'desorption_rate',
                              'maximum_adsorption_capacity',
                              'ion_exchange_characteristic',
                              'hydrophobicity']
@@ -324,11 +324,11 @@ class Self_Association(BindingBaseClass):
 
     Attributes
     ----------
-    k_A : Parameter
+    adsorption_rate : Parameter
         Adsorption rate constants.
-    k_A_dimerization : Parameter
+    adsorption_rate_dimerization : Parameter
         Adsorption rate constants of dimerization.
-    k_D : Parameter
+    desorption_rate : Parameter
         Desorption rate constants.
     characteristic_charge : Parameter
         The characteristic charge v of the protein.
@@ -346,11 +346,11 @@ class Self_Association(BindingBaseClass):
         super().__init__(*args, **kwargs)
 
 
-        self.k_A = DependentlySizedUnsignedList(
+        self.adsorption_rate = DependentlySizedUnsignedList(
                 [0.0]*self.n_comp.value, dependency=self.n_comp)
-        self.k_A_dimerization = DependentlySizedUnsignedList(
+        self.adsorption_rate_dimerization = DependentlySizedUnsignedList(
                 [0.0]*self.n_comp.value, dependency=self.n_comp)
-        self.k_D = DependentlySizedUnsignedList(
+        self.desorption_rate = DependentlySizedUnsignedList(
                 [0.0]*self.n_comp.value, dependency=self.n_comp)
         self.characteristic_charge = DependentlySizedUnsignedList(
                 [0.0]*self.n_comp.value, dependency=self.n_comp)
@@ -363,7 +363,7 @@ class Self_Association(BindingBaseClass):
         self.reference_solid_phase_conc = DependentlySizedUnsignedList(
                 [0.0]*self.n_comp.value, dependency=self.n_comp)
 
-        self._parameters += ['k_A', 'k_D', 'k_A_dimerization',
+        self._parameters += ['adsorption_rate', 'desorption_rate', 'adsorption_rate_dimerization',
                              'characteristic_charge',
                              'steric_factor', 'stationary_phase_capacity',
                              'reference_liquid_phase_conc',
@@ -375,9 +375,9 @@ class Bi_Steric_Mass_Action(BindingBaseClass):
 
     Attributes
     ----------
-    k_A : Parameter
+    adsorption_rate : Parameter
         Adsorption rate constants in state-major ordering.
-    k_D : Parameter
+    desorption_rate : Parameter
         Desorption rate constants in state-major ordering.
     characteristic_charge : Parameter
         Characteristic charges v(i,j) of the it-h protein with respect to the
@@ -402,9 +402,9 @@ class Bi_Steric_Mass_Action(BindingBaseClass):
         self.n_total_state = UnsignedInteger(self.n_states.value*
                                                 self.n_comp.value)
 
-        self.k_A = DependentlySizedUnsignedList(
+        self.adsorption_rate = DependentlySizedUnsignedList(
                 [0.0]*self.n_total_state.value, dependency=self.n_total_state)
-        self.k_D = DependentlySizedUnsignedList(
+        self.desorption_rate = DependentlySizedUnsignedList(
                 [0.0]*self.n_total_state.value, dependency=self.n_total_state)
         self.characteristic_charge = DependentlySizedUnsignedList(
                 [0.0]*self.n_total_state.value, dependency=self.n_total_state)
@@ -417,7 +417,7 @@ class Bi_Steric_Mass_Action(BindingBaseClass):
         self.reference_solid_phase_conc = DependentlySizedUnsignedList(
                 [0.0]*self.n_states.value, dependency=self.n_states)
 
-        self._parameters += ['k_A', 'k_D', 'characteristic_charge',
+        self._parameters += ['adsorption_rate', 'desorption_rate', 'characteristic_charge',
                              'steric_factor',
                              'stationary_phase_capacity',
                              'reference_liquid_phase_conc',
@@ -430,10 +430,10 @@ class Multistate_Steric_Mass_Action(BindingBaseClass):
 
     Attributes
     ----------
-    k_A : Parameter
+    adsorption_rate : Parameter
         Adsorption rate constants of the components to different bound states
         in component-major ordering.
-    k_D : Parameter
+    desorption_rate : Parameter
         Desorption rate constants of the components to different bound states
         in component-major ordering.
     characteristic_charge : Parameter
@@ -457,9 +457,9 @@ class Multistate_Steric_Mass_Action(BindingBaseClass):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.k_A = DependentlySizedUnsignedList(
+        self.adsorption_rate = DependentlySizedUnsignedList(
                 [0.0]*self.n_comp.value, dependency=self.n_comp)
-        self.k_D = DependentlySizedUnsignedList(
+        self.desorption_rate = DependentlySizedUnsignedList(
                 [0.0]*self.n_comp.value, dependency=self.n_comp)
         self.characteristic_charge = DependentlySizedUnsignedList(
                 [0.0]*self.n_comp.value, dependency=self.n_comp)
@@ -474,7 +474,7 @@ class Multistate_Steric_Mass_Action(BindingBaseClass):
         self.reference_solid_phase_conc = DependentlySizedUnsignedList(
                 [0.0]*self.n_comp.value, dependency=self.n_comp)
 
-        self._parameters += ['k_A', 'k_D', 'characteristic_charge',
+        self._parameters += ['adsorption_rate', 'desorption_rate', 'characteristic_charge',
                              'steric_factor', 'conversion_rate',
                              'stationary_phase_capacity',
                              'reference_liquid_phase_conc',
@@ -488,10 +488,10 @@ class Simple_Multistate_Steric_Mass_Action(BindingBaseClass):
     stationary_phase_capacity : Parameter
         Stationary phase capacity (monovalent salt counterions): The total
         number of binding sites available on the resin surface.
-    k_A :Parameter
+    adsorption_rate :Parameter
         Adsorption rate constants of the components to different bound states
         in component-major ordering.
-    k_D : Parameter
+    desorption_rate : Parameter
         Desorption rate constants of the components to different bound states
         in component-major ordering.
     characteristic_charge_first : Parameter
@@ -539,9 +539,9 @@ class Simple_Multistate_Steric_Mass_Action(BindingBaseClass):
 
         self.stationary_phase_capacity = DependentlySizedUnsignedList(
                 [0.0]*self.n_comp.value, dependency=self.n_comp)
-        self.k_A = DependentlySizedUnsignedList(
+        self.adsorption_rate = DependentlySizedUnsignedList(
                 [0.0]*self.n_comp.value, dependency=self.n_comp)
-        self.k_D = DependentlySizedUnsignedList(
+        self.desorption_rate = DependentlySizedUnsignedList(
                 [0.0]*self.n_comp.value, dependency=self.n_comp)
         self.characteristic_charge_first = DependentlySizedUnsignedList(
                 [0.0]*self.n_comp.value, dependency=self.n_comp)
@@ -572,8 +572,8 @@ class Simple_Multistate_Steric_Mass_Action(BindingBaseClass):
         self.reference_solid_phase_conc = DependentlySizedUnsignedList(
                 [0.0]*self.n_comp.value, dependency=self.n_comp)
 
-        self._parameters += ['stationary_phase_capacity', 'k_A',
-                             'k_D', 'characteristic_charge_first',
+        self._parameters += ['stationary_phase_capacity', 'adsorption_rate',
+                             'desorption_rate', 'characteristic_charge_first',
                              'characteristic_charge_last',
                              'quadratic_modifiers_charge',
                              'steric_factor_first',
