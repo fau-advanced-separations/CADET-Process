@@ -1,29 +1,10 @@
 from collections import OrderedDict
 from inspect import Parameter, Signature
 
-class Descriptor:
-    """Base class for descriptors.
-
-    Descriptors are used to efficiently implement class attributes that require
-    checking type, value, size etc. For using Descriptors, a class must inherit
-    StructMeta.
-
-    See also
-    --------
-    StructMeta
-    Parameters
-    """
-    def __init__(self, *args, name=None, **kwargs):
-        self.name = name
-
-    def __get__(self, instance, cls):
-        return instance.__dict__[self.name]
-
-    def __set__(self, instance, value):
-        instance.__dict__[self.name] = value
-
-    def __delete__(self, instance):
-        del instance.__dict__[self.name]
+def make_signature(names):
+    return Signature(
+            Parameter(name, Parameter.POSITIONAL_OR_KEYWORD)
+            for name in names)
 
 class StructMeta(type):
     """Base class for classes that use Descriptors.
@@ -49,8 +30,28 @@ class StructMeta(type):
         setattr(clsobj, '__signature__', sig)
 
         return clsobj
+    
+class Descriptor:
+    """Base class for descriptors.
 
-def make_signature(names):
-    return Signature(
-            Parameter(name, Parameter.POSITIONAL_OR_KEYWORD)
-            for name in names)
+    Descriptors are used to efficiently implement class attributes that require
+    checking type, value, size etc. For using Descriptors, a class must inherit
+    StructMeta.
+
+    See also
+    --------
+    StructMeta
+    Parameters
+    """
+    def __init__(self, *args, name=None, **kwargs):
+        self.name = name
+
+    def __get__(self, instance, cls):
+        return instance.__dict__[self.name]
+
+    def __set__(self, instance, value):
+        instance.__dict__[self.name] = value
+
+    def __delete__(self, instance):
+        del instance.__dict__[self.name]
+
