@@ -28,8 +28,13 @@ class SolverBase(metaclass=StructMeta):
         level of detail for the simulation
     n_cycles : int
         Number of cycles to be simulated
+    n_cycles_min : int
+        If simulate_to_stationarity: Minimum number of cycles to be simulated. 
+    n_cycles_max : int
+        If simulate_to_stationarity: Maximum number of cycles to be simulated.
     simulate_to_stationarity : bool
         Simulate until stationarity is reached
+        
 
     See also
     --------
@@ -59,7 +64,7 @@ class SolverBase(metaclass=StructMeta):
 
         Parameters
         ----------
-        process: Process
+        process : Process
             Process to be simulated
         previous_results : SimulationResults
             Results of previous simulation run.
