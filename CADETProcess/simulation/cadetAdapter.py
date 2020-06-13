@@ -113,6 +113,10 @@ class Cadet(SolverBase):
         cadet.root = self.get_process_config(process)
 
         with tempfile.NamedTemporaryFile(suffix='.h5') as f:
+            if file_path is not None:
+                cadet.filename = file_path
+                cadet.save()
+                
             cadet.filename = f.name
             cadet.save()
             start = time.time()
@@ -139,6 +143,12 @@ class Cadet(SolverBase):
                 cadet.save()
 
         return results
+    
+    def save_to_h5(self, process, file_path):
+        cadet = CadetAPI()
+        cadet.root = self.get_process_config(process)
+        cadet.filename = file_path
+        cadet.save()
 
     def get_process_config(self, process):
         """Create the CADET config.
@@ -521,9 +531,10 @@ class UnitParametersGroup(ParameterWrapper):
     """
     _baseClass = UnitBaseClass
 
-    UNIT_TYPE = Switch('INLET', valid=[
-        'INLET','OUTLET','GENERAL_RATE_MODEL', 'LUMPED_RATE_MODEL_WITH_PORES',
-        'LUMPED_RATE_MODEL_WITHOUT_PORES', 'CSTR'])
+    UNIT_TYPE = Switch(valid=[
+        'INLET','OUTLET', 'MIXER_SPLITTER', 'GENERAL_RATE_MODEL', 
+        'LUMPED_RATE_MODEL_WITH_PORES', 'LUMPED_RATE_MODEL_WITHOUT_PORES', 
+        'CSTR'])
 
     _unit_models = {
         'Source': 'INLET',
@@ -533,6 +544,7 @@ class UnitParametersGroup(ParameterWrapper):
         'EDM': 'LUMPED_RATE_MODEL_WITHOUT_PORES',
         'ET': 'LUMPED_RATE_MODEL_WITHOUT_PORES',
         'Cstr': 'CSTR',
+        'MixerSplitter': 'MIXER_SPLITTER',
         'TubularReactor': 'LUMPED_RATE_MODEL_WITHOUT_PORES'
         }
 
@@ -588,6 +600,9 @@ class UnitParametersGroup(ParameterWrapper):
                 },
         'OUTLET': {
                 'NCOMP': 'n_comp',
+                },
+        'MIXER_SPLITTER': {
+                'NCOMP': 'n_comp',
                 }
         }
 
@@ -610,9 +625,9 @@ class UnitDiscretizationParametersGroup(ParametersGroup):
     NCOL = UnsignedInteger(default=100)
     NPAR = UnsignedInteger(default=5)
     NBOUND = List()
-    PAR_DISC_TYPE = Switch('EQUIDISTANT_PAR', valid=[
+    PAR_DISC_TYPE = Switch(default='EQUIDISTANT_PAR', valid=[
                 'EQUIDISTANT_PAR', 'EQUIVOLUME_PAR', 'USER_DEFINDED_PAR'])
-    PAR_DISC_VECTOR = DependentlySizedUnsignedList(dep='NPAR')
+    PAR_DISC_VECTOR = DependentlySizedUnsignedList(dep='NPAR', default=0)
     USE_ANALYTIC_JACOBIAN = Bool(default=True)
     RECONSTRUCTION = Switch(default='WENO', valid=['WENO'])
     GS_TYPE = Bool(default=True)
@@ -653,7 +668,7 @@ class AdsorptionParametersGroup(ParameterWrapper):
 
     IS_KINETIC = Bool(default=False)
 
-    ADSORPTION_MODEL = Switch('NONE', valid=[
+    ADSORPTION_MODEL = Switch(default='NONE', valid=[
         'NONE', 'LINEAR', 'MULTI_COMPONENT_LANGMUIR',
         'MULTI_COMPONENT_ANTILANGMUIR', 'MOBILE_PHASE_MODULATOR',
         'STERIC_MASS_ACTION', 'SELF_ASSOCIATION', 'SASKA',

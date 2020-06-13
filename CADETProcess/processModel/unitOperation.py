@@ -266,7 +266,7 @@ class TubularReactor(UnitBaseClass):
     diameter = UnsignedFloat()
     axial_dispersion = UnsignedFloat()
 
-    c = DependentlySizedUnsignedList(dep='n_comp')
+    c = DependentlySizedUnsignedList(dep='n_comp', default=0)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -356,8 +356,8 @@ class Column(TubularReactor):
     surface_diffusion = DependentlySizedUnsignedList(dep='n_comp')
     pore_accessibility = DependentlySizedUnsignedList(dep='n_comp')
 
-    cp = DependentlySizedUnsignedList(dep='n_comp')
-    q = DependentlySizedUnsignedList(dep='n_comp')
+    cp = DependentlySizedUnsignedList(dep='n_comp', default=0)
+    q = DependentlySizedUnsignedList(dep='n_comp', default=0)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -367,9 +367,6 @@ class Column(TubularReactor):
             'particle_radius', 'film_diffusion', 'pore_diffusion',
             'surface_diffusion'
             ]
-
-        self.cp = [0] * self.n_comp
-        self.q = [0] * self.n_comp
 
         self._initial_state += ['cp', 'q']
 
@@ -471,15 +468,12 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     V : Unsinged float
         Initival volume of the reactor.
     """
-    c = DependentlySizedUnsignedList(dep='n_comp')
-    q = DependentlySizedUnsignedList(dep='n_comp')
-    V = UnsignedFloat()
+    c = DependentlySizedUnsignedList(dep='n_comp', default=0)
+    q = DependentlySizedUnsignedList(dep='n_comp', default=0)
+    V = UnsignedFloat(default=0)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        self.c = [0] * self.n_comp
-        self.q = [0] * self.n_comp
 
         self._initial_state += ['c', 'q', 'V' ]
 
@@ -489,7 +483,7 @@ class Source(UnitBaseClass, SourceMixin):
     Describes a Source object. It inherits the Attributes of the UnitBaseClass
     and the SourceMixin. Saves the variable c to the sates list.
     """
-    c = DependentlySizedUnsignedList(dep='n_comp')
+    c = DependentlySizedUnsignedList(dep='n_comp', default=0)
     lin_gradient = DependentlySizedUnsignedList(dep='n_comp')
 
     def __init__(self, *args, **kwargs):
@@ -505,3 +499,8 @@ class Sink(UnitBaseClass, SinkMixin):
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+class MixerSplitter(UnitBaseClass):
+    """Class MixerSplitter.
+    """
+    pass

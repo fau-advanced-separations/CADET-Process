@@ -40,12 +40,11 @@ class Parameter(Descriptor):
         self._default = value
         
     def __get__(self, instance, cls):
+        """ !!!TODO!!! Consider raising ValueError if Parameter not set"""
         try:
             return Descriptor.__get__(self, instance, cls)
         except KeyError:
-            if self.default is not None:
-                return self.default
-            raise ValueError("Parameter not set")
+            return self.default
             
     def _check(self, value, recursive=False):
         return True
@@ -299,7 +298,14 @@ class Switch(Parameter):
         super().__init__(*args, **kwargs)
 
     def __set__(self, instance, value):
+        if Switch._check(self, value):
+            super().__set__(instance, value)
+        
+    def _check(self, value, recursive=False):
         if value not in self.valid:
             raise ValueError("Value has to be in {}".format(self.valid))
 
-        super().__set__(instance, value)
+        if recursive:
+            return super()._check(value, recursive)
+        
+        return True
