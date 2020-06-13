@@ -1,3 +1,4 @@
+from abc import abstractmethod
 import math
 import operator
 
@@ -6,19 +7,16 @@ import numpy as np
 from CADETProcess.common import Descriptor
 
 class Parameter(Descriptor):
-    """Parameter class for setting default values.
-
-    This class initializes default values for given parameters, when an object
-    is instantiated.
+    """Class for defining model parameters..
 
     Parameters
     ----------
     default : NoneType
-        Default value of the objcet with None as default.
-    unit : NoneType
-        unit object with None as default.
-    description : NoneType
-        Description of the object with None as default.
+        Default value of the object with None as default.
+    unit : str
+        Units of the parameter.
+    description : str
+        Description of the parameter.
 
     See also
     --------
@@ -30,27 +28,71 @@ class Parameter(Descriptor):
         self.unit = unit
         self.description = description
         super().__init__(*args, **kwargs)
-
+    
+    @property
+    def default(self):
+        return self._default
+    
+    @default.setter
+    def default(self, value):
+        if value is not None:
+            self._check(value, recursive=True)
+        self._default = value
+        
     def __get__(self, instance, cls):
         try:
-            return super().__get__(instance, cls)
+            return Descriptor.__get__(self, instance, cls)
         except KeyError:
-            return self.default
-        
-    def __delete__(self, instance):
-        if self.default is not None:
-            instance.__dict__[self.name] = self.default
-        else:
-            del instance.__dict__[self.name]
+            if self.default is not None:
+                return self.default
+            raise ValueError("Parameter not set")
+            
+    def _check(self, value, recursive=False):
+        return True
 
 
 class Typed(Parameter):
     ty = object
 
     def __set__(self, instance, value):
+        if value is None:
+            del(instance.__dict__[self.name])
+            return
+        
+        if Typed._check(self, value):
+            super().__set__(instance, value)
+        
+    def _check(self, value, recursive=False):
         if not isinstance(value, self.ty):
             raise TypeError("Expected {}".format(self.ty))
-        super().__set__(instance, value)
+        
+        if recursive:
+            return super()._check(value, recursive)
+        
+        return True
+    
+class Container(Typed):
+    @abstractmethod
+    def check_content_range():
+        return
+
+    @abstractmethod
+    def check_content_size():
+        return
+    
+    @abstractmethod
+    def get_default_values():
+        return
+    
+    def _check(self, value, recursive=False):
+        if isinstance(value, (int, float)):
+            value = self.ty((value,))
+            
+        if recursive:
+            return super()._check(value, recursive)
+        
+        return True
+    
 
 class Bool(Typed):
     ty = bool
@@ -62,18 +104,51 @@ class Tuple(Typed):
     ty = tuple
 
 class Float(Typed):
+    """Cast ints to float"""
     ty = float
 
     def __set__(self, instance, value):
+        if value is None:
+            del(instance.__dict__[self.name])
+            return
+        
         if isinstance(value, int):
             value = float(value)
         super().__set__(instance, value)
+        
+    def _check(self, value, recursive=False):
+        if isinstance(value, int):
+            value = float(value)
+            
+        if recursive:
+            return super()._check(value, recursive)
+        
+        return True
 
 class String(Typed):
     ty = str
 
-class List(Typed):
+class List(Container):
     ty = list
+    
+    def check_content_range(self, value):
+        if any(self.lb_op(i, self.lb) for i in value):
+            raise ValueError("Value exceeds lower bound")
+        elif any(self.ub_op(i, self.ub) for i in value):
+            raise ValueError("Value exceeds upper bound")
+        
+    def check_content_size(self, instance, value):
+        shape = [getattr(instance, dep) for dep in self.dep]
+        expected_length = np.prod(shape)
+        
+        if len(value) != expected_length:
+            raise ValueError("Expected size {}".format(expected_length))
+        
+    def get_default_values(self, instance):
+        shape = [getattr(instance, dep) for dep in self.dep]
+        
+        return np.prod(shape) * [super().default]
+    
 
 class Dict(Typed):
     """
@@ -83,9 +158,25 @@ class Dict(Typed):
     """
     ty = dict
 
-class NdArray(Typed):
+class NdArray(Container):
     ty = np.ndarray
+    
+    def check_content_range(self, value):
+        if np.any(self.lb_op(value,self.lb)):
+            raise ValueError("Value exceeds lower bound")
+        elif np.any(self.ub_op(value,self.ub)):
+            raise ValueError("Value exceeds upper bound")
 
+    def check_content_size(self, instance, value):
+        expected_shape = tuple([getattr(instance, dep) for dep in self.dep])
+        
+        if value.shape != expected_shape:
+            raise ValueError("Expected shape {}".format(expected_shape))
+        
+    def get_default_values(self, instance):
+        shape = tuple([getattr(instance, dep) for dep in self.dep])
+        
+        return super().default * np.ones(shape)
 
 class Ranged(Parameter):
     """Base class for Parameters with value bounds
@@ -100,28 +191,30 @@ class Ranged(Parameter):
         super().__init__(*args, **kwargs)
 
     def __set__(self, instance, value):
-        if isinstance(self, List):
-            if any(self.lb_op(i, self.lb) for i in value):
-                raise ValueError("Value exceeds lower bound")
-            elif any(self.ub_op(i, self.ub) for i in value):
-                raise ValueError("Value exceeds upper bound")
+        if value is None:
+            del(instance.__dict__[self.name])
+            return
 
-        # NdArray type
-        elif isinstance(self, NdArray):
-            if self.lb_op(value.any(), self.lb):
-                raise ValueError("Value exceeds lower bound")
-            elif self.ub_op(value.any(), self.ub):
-                raise ValueError("Value exceeds upper bound")
-
-        # Rest
+        if Ranged._check(self, value):
+            super().__set__(instance, value)
+    
+    def _check(self, value, recursive=False):
+        if isinstance(self, Container):
+            self.check_content_range(value)
         else:
             if self.lb_op(value, self.lb):
                 raise ValueError("Value exceeds lower bound")
             elif self.ub_op(value, self.ub):
                 raise ValueError("Value exceeds upper bound")
 
-        super().__set__(instance, value)
-
+        if recursive:
+            return super()._check(value, recursive)
+        
+        return True
+        
+class RangedFloat(Float, Ranged):
+    pass
+            
 class Unsigned(Ranged):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, lb=0, lb_op=operator.lt, **kwargs)
@@ -138,10 +231,14 @@ class Sized(Parameter):
         super().__init__(*args, **kwargs)
 
     def __set__(self, instance, value):
+        if value is None:
+            del(instance.__dict__[self.name])
+            return
+            
         if len(value) > self.maxlen:
             raise ValueError("Too big!")
         super().__set__(instance, value)
-
+    
 class SizedString(String, Sized):
     pass
 
@@ -150,15 +247,35 @@ class DependentlySized(Parameter):
     that is dependent on other Parameters
     """
     def __init__(self, *args, dep, **kwargs):
+        if isinstance(dep, str):
+            dep = (dep,)
+                          
         self.dep = dep
         super().__init__(*args, **kwargs)
 
     def __set__(self, instance, value):
-        expected_size = getattr(instance, self.dep)
-        if len(value) != expected_size:
-                raise ValueError("Expected size {}".format(expected_size))
+        if value is None:
+            del(instance.__dict__[self.name])
+            return
+        
+        if isinstance(self, Container):
+            self.check_content_size(instance, value)
+        else:
+            size = getattr(instance, self.dep)
+            if len(value) != size:
+                raise ValueError("Expected size {}".format(size))
+        
         super().__set__(instance, value)
 
+    def __get__(self, instance, cls):
+        if not isinstance(self, Container):
+            return super().__get__(instance, cls)
+        
+        try:
+            return Descriptor.__get__(self, instance, cls)
+        except KeyError:
+            return self.get_default_values(instance)
+        
 class DependentlySizedString(String, DependentlySized):
     pass
 

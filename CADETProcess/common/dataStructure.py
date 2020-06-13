@@ -1,3 +1,4 @@
+from abc import ABCMeta
 from collections import OrderedDict
 from inspect import Parameter, Signature
 
@@ -31,7 +32,7 @@ class StructMeta(type):
 
         return clsobj
     
-class Descriptor:
+class Descriptor(metaclass=ABCMeta):
     """Base class for descriptors.
 
     Descriptors are used to efficiently implement class attributes that require
