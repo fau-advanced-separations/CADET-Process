@@ -12,12 +12,20 @@ class TestParameters(unittest.TestCase):
         super().__init__(methodName)
         
     def setUp(self):
+        class DummyModel(metaclass=StructMeta):
+            string_var = String()
+            list_var = List()
+            unsigned_var = UnsignedInteger()
+            bound_var = RangedFloat(lb=-1, ub=1)
+            
+            dep_1 = UnsignedInteger(default=2, description='foo')
+            single_dep_var = DependentlySizedUnsignedList(dep='dep_1', default=1)
+            dep_2 = UnsignedInteger()
+            double_dep_var = DependentlySizedUnsignedNdArray(
+                dep=('dep_1', 'dep_2'), default=1)
         self.dummy = DummyModel()
         
     def test_values(self):
-        
-        with self.assertRaises(ValueError):
-            self.dummy.string_var
         self.dummy.string_var = 'sting_var'
         self.assertEqual(self.dummy.string_var, 'sting_var')
 
@@ -66,18 +74,19 @@ class TestParameters(unittest.TestCase):
         # wrong range
         with self.assertRaises(ValueError):
             self.dummy.double_dep_var = -1 * np.ones((2,3))
-        
-class DummyModel(metaclass=StructMeta):
-    string_var = String()
-    list_var = List()
-    unsigned_var = UnsignedInteger()
-    bound_var = RangedFloat(lb=-1, ub=1)
     
-    dep_1 = UnsignedInteger(default=2)
-    single_dep_var = DependentlySizedUnsignedList(dep='dep_1', default=1)
-    dep_2 = UnsignedInteger()
-    double_dep_var = DependentlySizedUnsignedNdArray(
-        dep=('dep_1', 'dep_2'), default=1)
+    def test_description(self):
+        self.assertEqual(type(self.dummy).dep_1.description, 'foo')
+        
+    def test_modified_descriptor(self):
+        try:
+            type(self.dummy).bound_var.ub = 2
+            self.dummy.bound_var = 2
+        except ValueError as e:
+            self.fail(str(e))
+        
+        
+
 
 
 if __name__ == '__main__':

@@ -35,19 +35,25 @@ class StructMeta(type):
 class Descriptor(metaclass=ABCMeta):
     """Base class for descriptors.
 
-    Descriptors are used to efficiently implement class attributes that require
-    checking type, value, size etc. For using Descriptors, a class must inherit
-    StructMeta.
+    Descriptors are used to efficiently implement class attributes that 
+    require checking type, value, size etc. 
+    For using Descriptors, a class must inherit from StructMeta.
+    
+     - ``self`` is the Descriptor managing the attribute of the ``instance``.
+     - ``instance`` is the object which holds the actual ``value``.
+     - ``value`` is the value of the ``instance`` attribute.
 
     See also
     --------
     StructMeta
     Parameters
     """
-    def __init__(self, *args, name=None, **kwargs):
-        self.name = name
+    def __init__(self, *args, **kwargs):
+        pass
 
     def __get__(self, instance, cls):
+        if instance is None:
+            return self
         return instance.__dict__[self.name]
 
     def __set__(self, instance, value):
