@@ -7,7 +7,7 @@ Simulate Batch Chromatography of Binary Mixture
 """
 
 from CADETProcess.processModel import Langmuir
-from CADETProcess.processModel import Source, Column, Sink
+from CADETProcess.processModel import Source, LumpedRateModelWithoutPores, Sink
 from CADETProcess.processModel import FlowSheet
 from CADETProcess.processModel import Process
 
@@ -26,7 +26,7 @@ feed.c = [10, 10]
 eluent = Source(n_comp=2, name='eluent')
 eluent.c = [0, 0]
 
-column = Column(n_comp=2, name='column')
+column = LumpedRateModelWithoutPores(n_comp=2, name='column')
 column.length = 0.6
 column.diameter = 0.024
 column.axial_dispersion = 4.7e-7

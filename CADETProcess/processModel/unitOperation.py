@@ -2,8 +2,8 @@ import math
 
 from CADETProcess import CADETProcessError
 from CADETProcess.common import StructMeta
-from CADETProcess.common import Bool, String, List, DependentlySizedUnsignedList,\
-    UnsignedInteger, UnsignedFloat
+from CADETProcess.common import Bool, String, List, \
+    DependentlySizedUnsignedList, UnsignedInteger, UnsignedFloat
 from CADETProcess.processModel import BindingBaseClass, NoBinding
 
 
@@ -47,6 +47,9 @@ class UnitBaseClass(metaclass=StructMeta):
     reverse_flow = Bool(default=False)
     _output_state = List()
 
+    _parameters = ['flow_rate']
+    _initial_state = []
+
     def __init__(self, n_comp, name):
         self.name = name
         self.n_comp = n_comp
@@ -56,15 +59,14 @@ class UnitBaseClass(metaclass=StructMeta):
         self.origins = dict()
         self.destinations = dict()
 
-        self._parameters = ['flow_rate', 'reverse_flow']
-        self._initial_state = []
 
 
     @property
     def parameters(self):
         """dict: Dictionary with parameter values.
         """
-        parameters = {param: getattr(self, param) for param in self._parameters}
+        parameters = {param: getattr(self, param) 
+                      for param in self._parameters}
         if not isinstance(self.binding_model, NoBinding):
             parameters['binding_model'] = self.binding_model.parameters
 
@@ -179,7 +181,8 @@ class UnitBaseClass(metaclass=StructMeta):
 
         else:
             if len(state) != state_length:
-                raise CADETProcessError('Expected length {}.'.format(state_length))
+                raise CADETProcessError(
+                    'Expected length {}.'.format(state_length))
 
             elif sum(state) != 1:
                 raise CADETProcessError('Sum of fractions must be 1')
@@ -245,12 +248,8 @@ class SinkMixin():
     pass
 
 class TubularReactor(UnitBaseClass):
-    """Parameters for a tubular reactor.
-
-    Additionally, methods for calculating the cross section area and volume are
-    implemented, as well as the dead time of the column and the number of
-    theroetical plates as a funtion of the flow rate.
-
+    """Class for tubular reactors.
+    
     Attributes
     ----------
     length : UnsignedFloat
@@ -260,32 +259,22 @@ class TubularReactor(UnitBaseClass):
     axial_dispersion : UnsignedFloat
         Dispersion rate of compnents in axial direction.
     c : List of unsinged floats. Length depends on n_comp
-        Initial concentration of the reactor
+        Initial concentration of the reactor.
     """
     length = UnsignedFloat()
     diameter = UnsignedFloat()
     axial_dispersion = UnsignedFloat()
-
+    total_porosity = 1
+    
+    _parameters = UnitBaseClass._parameters + [
+        'length', 'diameter','axial_dispersion']
+    
     c = DependentlySizedUnsignedList(dep='n_comp', default=0)
 
+    _initial_state = UnitBaseClass._initial_state + ['c']
+    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        self._parameters += ['length', 'diameter', 'axial_dispersion']
-
-        self.c = [0] * self.n_comp
-
-        self._initial_state += ['c']
-
-    @property
-    def volume(self):
-        """float: Volume of the Tubular Reactor.
-
-        See also
-        --------
-        cross_section_area
-        """
-        return self.cross_section_area * self.length
 
     @property
     def cross_section_area(self):
@@ -298,6 +287,26 @@ class TubularReactor(UnitBaseClass):
         return math.pi/4 * self.diameter**2
 
     @property
+    def cylinder_volume(self):
+        """float: Volume of the TubularReactor.
+
+        See also
+        --------
+        cross_section_area
+        """
+        return self.cross_section_area * self.length
+    
+    @property
+    def volume_liquid(self):
+        return self.total_porosity * self.cylinder_volume
+
+    @property
+    def volume_solid(self):
+        """float: Volume of the solid phase.
+        """
+        return (1 - self.total_porosity) * self.cylinder_volume
+
+    @property
     def t0(self):
         """float: Mean residence time of a (non adsorbing) volume element.
 
@@ -305,7 +314,7 @@ class TubularReactor(UnitBaseClass):
         --------
         u0
         """
-        return self.volume / self.flow_rate
+        return self.volume_liquid / self.flow_rate
 
     @property
     def u0(self):
@@ -316,20 +325,102 @@ class TubularReactor(UnitBaseClass):
         t0
         """
         return self.length/self.t0
+    
+    @property
+    def NTP(self):
+        """Returns the number of theoretical plates.
+
+        Calculated using the axial dispersion coefficient:
+        :math: NTP = \frac{u \cdot L_{Column}}{2 \cdot D_a}
+
+        Returns
+        -------
+        NTP : float
+            Number of theretical plates
+        """
+        return self.u0 * self.length / (2 * self.axial_dispersion)
+
+    @NTP.setter
+    def NTP(self, NTP):
+        self.axial_dispersion = self.u0 * self.length / (2 * NTP)
 
 
-class Column(TubularReactor):
-    """Parameters for a chromatographic column.
 
-    Additionally, methods for calculating the cross section area and volume are
-    implemented, as well as the dead time of the column and the number of
-    theroetical plates as a funtion of the flow rate.
+class LumpedRateModelWithoutPores(TubularReactor):
+    """Parameters for a lumped rate model without pores.
 
     Attributes
     ----------
     total_porosity : UnsignedFloat between 0 and 1.
-        Total porosity of the column. Calculated from bed_porosity and
-        if values are present.
+        Total porosity of the column.
+    q : List of unsinged floats. Length depends on n_comp
+        Initial concentration of the bound phase.
+    """
+    total_porosity = UnsignedFloat(ub=1)
+
+    q = DependentlySizedUnsignedList(dep='n_comp', default=0)
+
+    _parameters = TubularReactor._parameters + ['total_porosity']
+    _initial_state = TubularReactor._initial_state + ['q']
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
+class LumpedRateModelWithPores(TubularReactor):
+    """Parameters for the lumped rate model with pores.
+
+    Attributes
+    ----------
+    bed_porosity : UnsignedFloat between 0 and 1.
+        Porosity of the bed
+    particle_porosity : UnsignedFloat between 0 and 1.
+        Porosity of particles.
+    particle_radius : UnsignedFloat
+        Radius of the particles.
+    pore_diffusion : List of unsinged floats. Length depends on n_comp.
+        Diffusion rate for components in pore volume.
+    pore_accessibility : List of unsinged floats. Length depends on n_comp.
+        Accessibility of pores for components.
+    cp : List of unsinged floats. Length depends on n_comp
+        Initial concentration of the pores
+    q : List of unsinged floats. Length depends on n_comp
+        Initial concntration of the bound phase.
+    """
+    bed_porosity = UnsignedFloat(ub=1)
+    particle_porosity = UnsignedFloat(ub=1)
+    particle_radius = UnsignedFloat()
+    film_diffusion = DependentlySizedUnsignedList(dep='n_comp')
+    pore_diffusion = DependentlySizedUnsignedList(dep='n_comp')
+    pore_accessibility = DependentlySizedUnsignedList(dep='n_comp')
+
+    cp = DependentlySizedUnsignedList(dep='n_comp', default=0)
+    q = DependentlySizedUnsignedList(dep='n_comp', default=0)
+
+    _parameters = TubularReactor._parameters + [
+            'bed_porosity', 'particle_porosity', 'particle_radius', 
+            'film_diffusion', 'pore_diffusion',
+            ]
+    _parameters = TubularReactor._parameters + ['cp', 'q']
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+    
+    @property
+    def total_porosity(self):
+        """float: Total porosity of the column
+        """
+        return self.bed_porosity + \
+            (1 - self.bed_porosity) * self.particle_porosity
+
+
+
+class GeneralRateModel(TubularReactor):
+    """Parameters for the general rate model.
+
+    Attributes
+    ----------
     bed_porosity : UnsignedFloat between 0 and 1.
         Porosity of the bed
     particle_porosity : UnsignedFloat between 0 and 1.
@@ -347,7 +438,6 @@ class Column(TubularReactor):
     q : List of unsinged floats. Length depends on n_comp
         Initial concntration of the bound phase.
     """
-    _total_porosity = UnsignedFloat(ub=1)
     bed_porosity = UnsignedFloat(ub=1)
     particle_porosity = UnsignedFloat(ub=1)
     particle_radius = UnsignedFloat()
@@ -359,100 +449,23 @@ class Column(TubularReactor):
     cp = DependentlySizedUnsignedList(dep='n_comp', default=0)
     q = DependentlySizedUnsignedList(dep='n_comp', default=0)
 
+    _parameters = TubularReactor._parameters + [
+            'bed_porosity', 'particle_porosity', 'particle_radius', 
+            'film_diffusion', 'pore_diffusion', 'surface_diffusion'
+            ]
+    _parameters = TubularReactor._parameters + ['cp', 'q']
+    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        self._parameters += [
-            'total_porosity', 'bed_porosity', 'particle_porosity',
-            'particle_radius', 'film_diffusion', 'pore_diffusion',
-            'surface_diffusion'
-            ]
-
-        self._initial_state += ['cp', 'q']
-
+        
     @property
     def total_porosity(self):
-        """Defines the total porosity of a Column object.
-
-        Trys to get the total_porosity by adding the bed_porosity with 1- the
-        bed_porosity and multiplying this amount with the particle_porosity.
-        Else excepts a TypeError and ignores it. Also the total_porosity
-        can be set to a new value.
-
-        Parameters
-        ----------
-        value : float
-            The value to change the total_porosity.
-
-        Returns
-        -------
-        total_porosity : float
-            The total porosity of the column object.
+        """float: Total porosity of the column
         """
-        try:
-            self._total_porosity = (
-                    self.bed_porosity + (1 - self.bed_porosity) \
-                    * self.particle_porosity)
-        except TypeError:
-            pass
+        return self.bed_porosity + \
+            (1 - self.bed_porosity) * self.particle_porosity
 
-        return self._total_porosity
-
-    @total_porosity.setter
-    def total_porosity(self, value):
-        self._total_porosity = value
-
-
-    @property
-    def volume_solid(self):
-        """Returns the volume of the solid phase.
-
-        Calculates the volume_solid by multiplying the volume by 1- the
-        total_porosity.
-
-        Returns
-        -------
-        volume_solid : UnsignedFloat
-            The volume of the solid phase of a Column object.
-
-        See also
-        --------
-        volume
-        """
-        return ((1) - self.total_porosity) * \
-            self.volume
-
-
-    @property
-    def t0(self):
-        """Returns the time, a non adsorbing molecule needs to pass the column.
-
-        Returns
-        -------
-        t0 : float
-            Dead time of non adsorbing component
-        """
-        return self.total_porosity * self.volume / self.flow_rate
-
-
-    @property
-    def NTP(self):
-        """Returns the number of theretical plates.
-
-        Calculated using the axial dispersion coefficient:
-        :math: NTP = \frac{u \cdot L_{Column}}{2 \cdot D_a}
-
-        Returns
-        -------
-        NTP : float
-            Number of theretical plates
-        """
-        return self.u0 * self.length / (2 * self.axial_dispersion)
-
-    @NTP.setter
-    def NTP(self, NTP):
-        self.axial_dispersion = self.u0 * self.length / (2 * NTP)
-
+    
 class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     """Class CSTR.
 
@@ -471,11 +484,11 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     c = DependentlySizedUnsignedList(dep='n_comp', default=0)
     q = DependentlySizedUnsignedList(dep='n_comp', default=0)
     V = UnsignedFloat(default=0)
-
+    
+    _initial_state = UnitBaseClass._initial_state + ['c', 'q', 'V']
+    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        self._initial_state += ['c', 'q', 'V' ]
 
 class Source(UnitBaseClass, SourceMixin):
     """Class Source.
@@ -484,11 +497,14 @@ class Source(UnitBaseClass, SourceMixin):
     and the SourceMixin. Saves the variable c to the sates list.
     """
     c = DependentlySizedUnsignedList(dep='n_comp', default=0)
-    lin_gradient = DependentlySizedUnsignedList(dep='n_comp')
+    lin_gradient = Bool(default=False)
+    
+    _parameters = UnitBaseClass._parameters + ['lin_gradient']
+    _initial_state = UnitBaseClass._initial_state + ['c']
+
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._initial_state += ['c']
 
 
 class Sink(UnitBaseClass, SinkMixin):

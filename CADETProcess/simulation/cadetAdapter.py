@@ -16,7 +16,7 @@ from CADETProcess.common import TimeSignal, Chromatogram
 from CADETProcess.simulation import SolverBase
 from CADETProcess.simulation import SimulationResults
 from CADETProcess.processModel import NoBinding, BindingBaseClass
-from CADETProcess.processModel import UnitBaseClass, Column, Source
+from CADETProcess.processModel import UnitBaseClass, Source
 from CADETProcess.processModel import Process
 
 class Cadet(SolverBase):
@@ -382,10 +382,7 @@ class Cadet(SolverBase):
         --------
         get_adsorption_config
         """
-        if isinstance(unit, Column):
-            unit_parameters = UnitParametersGroup(unit, self.level_of_detail)
-        else:
-            unit_parameters = UnitParametersGroup(unit)
+        unit_parameters = UnitParametersGroup(unit)
 
         unit_config = Dict(unit_parameters.to_dict())
 
@@ -510,24 +507,12 @@ class ModelSolverParametersGroup(ParametersGroup):
 
 
 class UnitParametersGroup(ParameterWrapper):
-    """Class converting the UnitOperation parameters from CADETProcess to CADET format
-
-    Creates an intance of the UnitBaseClass. and defines several dictionaries
-    for the cadet configuration. First the UNIT_TYPE dictionary is defined, for
-    an inlet, outlet , CSTR, models like GRM, Lumped rate Model with and without
-    pores. Also the unit_model parameters are defined and saved into a
-    dictionary. The unit_models defines the Source, Sink, Cstr and the
-    level_of_detail for the UNIT_TYPES of cadet. In the unit_parameters the
-    UNIT_TYPES are described. After defining the parameters they're set.
+    """Class for converting UnitOperation parameters from CADETProcess to CADET.
 
     See also
     --------
     ParameterWrapper
     AdsorptionParametersGroup
-
-    Notes
-    ------
-    difference between UNIT_TYPE and unit_models?
     """
     _baseClass = UnitBaseClass
 
@@ -539,13 +524,12 @@ class UnitParametersGroup(ParameterWrapper):
     _unit_models = {
         'Source': 'INLET',
         'Sink': 'OUTLET',
-        'GRM': 'GENERAL_RATE_MODEL',
-        'TDM': 'LUMPED_RATE_MODEL_WITH_PORES',
-        'EDM': 'LUMPED_RATE_MODEL_WITHOUT_PORES',
-        'ET': 'LUMPED_RATE_MODEL_WITHOUT_PORES',
+        'GeneralRateModel': 'GENERAL_RATE_MODEL',
+        'LumpedRateModelWithPores': 'LUMPED_RATE_MODEL_WITH_PORES',
+        'LumpedRateModelWithoutPores': 'LUMPED_RATE_MODEL_WITHOUT_PORES',
+        'TubularReactor': 'LUMPED_RATE_MODEL_WITHOUT_PORES',
         'Cstr': 'CSTR',
         'MixerSplitter': 'MIXER_SPLITTER',
-        'TubularReactor': 'LUMPED_RATE_MODEL_WITHOUT_PORES'
         }
 
     _unit_parameters = {
@@ -612,11 +596,7 @@ class UnitParametersGroup(ParameterWrapper):
 
 
 class UnitDiscretizationParametersGroup(ParametersGroup):
-    """Class for defining the unit_disrectization_parameters
-
-    Defines several parameters as UnsignedInteger, lists, bool and
-    DependentlySizedUnsignedList with default values and save their names into
-    a list named parameters.
+    """Class for defining the unit_disrectization_parameters.
 
     See also
     --------
