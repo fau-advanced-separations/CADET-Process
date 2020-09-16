@@ -26,6 +26,7 @@ setuptools.setup(
                 'deap>=1.3.0',
                 'GPyOpt>=1.2.5',
                 'CADET>=0.2',
+                'gitpython>=3.0.0'
                 ],
         classifiers=[
                 "Programming Language :: Python :: 3",
