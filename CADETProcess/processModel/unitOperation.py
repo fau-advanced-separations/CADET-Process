@@ -401,7 +401,7 @@ class LumpedRateModelWithPores(TubularReactor):
             'bed_porosity', 'particle_porosity', 'particle_radius', 
             'film_diffusion', 'pore_diffusion',
             ]
-    _parameters = TubularReactor._parameters + ['cp', 'q']
+    _initial_state = TubularReactor._initial_state + ['cp', 'q']
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -453,7 +453,7 @@ class GeneralRateModel(TubularReactor):
             'bed_porosity', 'particle_porosity', 'particle_radius', 
             'film_diffusion', 'pore_diffusion', 'surface_diffusion'
             ]
-    _parameters = TubularReactor._parameters + ['cp', 'q']
+    _initial_state = TubularReactor._initial_state + ['cp', 'q']
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -467,19 +467,16 @@ class GeneralRateModel(TubularReactor):
 
     
 class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
-    """Class CSTR.
+    """Parameters for an ideal mixer.
 
-    Describes a CSTR object. It inherits the Attributes of the UnitBaseClass,
-    the SourceMixin and SinkMixin and saves the changig variables c, q, V as
-    DependentlySizedUnsignedList in a list sates for each component in the
-    system.
-
+    Parameters
+    ----------
     c : List of unsinged floats. Length depends on n_comp
-        Initial concentration of the reactor
+        Initial concentration of the reactor.
     q : List of unsinged floats. Length depends on n_comp
-        Initial concntration of the bound phase.
+        Initial concentration of the bound phase.
     V : Unsinged float
-        Initival volume of the reactor.
+        Initial volume of the reactor.
     """
     c = DependentlySizedUnsignedList(dep='n_comp', default=0)
     q = DependentlySizedUnsignedList(dep='n_comp', default=0)
@@ -489,6 +486,7 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
 
 class Source(UnitBaseClass, SourceMixin):
     """Class Source.
