@@ -16,6 +16,7 @@ from CADETProcess.common import TimeSignal, Chromatogram
 from CADETProcess.simulation import SolverBase
 from CADETProcess.simulation import SimulationResults
 from CADETProcess.processModel import NoBinding, BindingBaseClass
+from CADETProcess.processModel import NoReaction, ReactionBaseClass
 from CADETProcess.processModel import UnitBaseClass, Source
 from CADETProcess.processModel import Process
 
@@ -637,7 +638,7 @@ class DiscretizationWenoParametersGroup(ParametersGroup):
 
 
 class AdsorptionParametersGroup(ParameterWrapper):
-    """Class converting the binging model parameters from CADETProcess to CADET.
+    """Class for converting binding model parameters from CADETProcess to CADET.
 
     See also
     --------
@@ -701,7 +702,7 @@ class AdsorptionParametersGroup(ParameterWrapper):
     _model = ADSORPTION_MODEL
     _models = _adsorption_models
     _model_parameters = _adsorption_parameters
-
+    
 class ConsistencySolverParametersGroup(ParametersGroup):
     """Class for defining the consistency solver parameters for cadet.
 
