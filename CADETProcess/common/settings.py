@@ -1,6 +1,8 @@
 import pathlib
 ROOT_DIR = pathlib.Path(__file__).parent.parent
 
+project_directory = ('./')
+
 import logging
 import os
 LOG_PATH = os.path.join('logs/')
