@@ -1,3 +1,5 @@
+from .reaction import *
+import CADETProcess.processModel.reaction
 from .binding import *
 import CADETProcess.processModel.binding
 from .unitOperation import *

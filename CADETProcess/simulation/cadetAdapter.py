@@ -598,6 +598,7 @@ class UnitParametersGroup(ParameterWrapper):
     --------
     ParameterWrapper
     AdsorptionParametersGroup
+    ReactionParametersGroup
     """
     _baseClass = UnitBaseClass
 
@@ -755,6 +756,7 @@ class AdsorptionParametersGroup(ParameterWrapper):
     See also
     --------
     ParameterWrapper
+    ReactionParametersGroup
     UnitParametersGroup
     """
     _baseClass = BindingBaseClass
@@ -817,6 +819,41 @@ class AdsorptionParametersGroup(ParameterWrapper):
 
     _model_parameters = _adsorption_parameters
     _model_type = 'ADSORPTION_MODEL'
+    
+    
+class ReactionParametersGroup(ParameterWrapper):
+    """Class for converting reaction model parameters from CADETProcess to CADET.
+
+    See also
+    --------
+    ParameterWrapper
+    ReactionParametersGroup
+    UnitParametersGroup
+    """
+    _baseClass = ReactionBaseClass
+
+    REACTION_MODEL = Switch(default='NONE', valid=[
+        'NONE', 'MASS_ACTION_LAW'])
+
+    _reaction_models = {
+        'NoReaction': 'NONE',
+        'MassAction': 'MASS_ACTION_LAW',
+                }
+    _reaction_parameters = {
+        'NONE': {},
+        'MASS_ACTION_LAW': {
+            'MAL_KFWD' : 'forward_rate',
+            'MAL_KBWD' : 'backward_rate',
+            'MAL_STOICHIOMETRY': 'stoichiometric_matrix',
+            'MAL_EXPONENTS_FWD_MOD' : 'forward_modifier_exponent',
+            'MAL_EXPONENTS_BWD_MOD' : 'backward_modifier_exponent',
+                }
+        }
+
+    _model = REACTION_MODEL
+    _models = _reaction_models
+    _model_parameters = _reaction_parameters
+
 
 class ConsistencySolverParametersGroup(ParametersGroup):
     """Class for defining the consistency solver parameters for cadet.

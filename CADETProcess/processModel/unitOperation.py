@@ -5,14 +5,15 @@ from CADETProcess.common import StructMeta
 from CADETProcess.common import Bool, String, List, \
     DependentlySizedUnsignedList, UnsignedInteger, UnsignedFloat
 from CADETProcess.processModel import BindingBaseClass, NoBinding
+from CADETProcess.processModel import ReactionBaseClass, NoReaction
 
 
 class UnitBaseClass(metaclass=StructMeta):
     """Base class for all UnitOperation classes.
 
     A UnitOperation object stores model parameters and states (e.g. flow_rate)
-    of a unit. Every unit operation can be assotiated with a binding behavior.
-    If no binding model is set, a NoBinding instance is returned.
+    of a unit. Every unit operation can be assotiated with a binding behavior
+    and a reaction model.
     UnitOperations can be connected in a FlowSheet. Each unit stores the ingoing
     (origin) and outgoing streams (destinations) of the flow sheet.
 
@@ -37,6 +38,7 @@ class UnitBaseClass(metaclass=StructMeta):
     --------
     FlowSheet
     CADETProcess.binding
+    CADETProcess.reaction
     """
     name = String()
     n_comp = UnsignedInteger()
@@ -52,6 +54,9 @@ class UnitBaseClass(metaclass=StructMeta):
 
         self._binding_model = NoBinding()
 
+        self._bulk_reaction_model = NoReaction()
+        self._particle_reaction_model = NoReaction()
+        
         self.origins = dict()
         self.destinations = dict()
 
@@ -420,7 +425,6 @@ class LumpedRateModelWithPores(TubularReactor):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
-    
     @property
     def total_porosity(self):
         """float: Total porosity of the column
