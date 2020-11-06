@@ -13,7 +13,10 @@ from CADETProcess.common import RankedPerformance
 
 from examples.batch_binary import batch_binary
 
-process_simulator = Cadet()
+process_simulator = Cadet(
+        cadet_bin_path='/home/jo/software/cadet/cadet/bin/',
+        temp_dir='/dev/shm'
+        )
 process_simulator.evaluate_stationarity = True
 
 ranking = [1, 1]
