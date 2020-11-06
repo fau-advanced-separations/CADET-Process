@@ -24,8 +24,6 @@ class SolverBase(metaclass=StructMeta):
 
     Attributes
     ----------
-    level_of_detail: str
-        level of detail for the simulation
     n_cycles : int
         Number of cycles to be simulated
     n_cycles_min : int
@@ -41,7 +39,6 @@ class SolverBase(metaclass=StructMeta):
     Process
     StationarityEvaluator
     """
-    level_of_detail = Switch(default='EDM', valid=['ET', 'EDM', 'GRM'])
     n_cycles = UnsignedInteger(default=1)
     evaluate_stationarity = Bool(default=False)
     n_cycles_min = UnsignedInteger(default=3)
@@ -67,7 +64,7 @@ class SolverBase(metaclass=StructMeta):
         process : Process
             Process to be simulated
         previous_results : SimulationResults
-            Results of previous simulation run.
+            Results of previous simulation run for initial conditions.
 
         Returns
         -------
@@ -377,22 +374,23 @@ class SimulationResults(metaclass=StructMeta):
 
 
 class ParametersGroup(metaclass=StructMeta):
-    """Base class for grouping solver parameters
+    """Base class for grouping parameters and exporting them to a dict.
+    
+    Attributes
+    ----------
+    _parameters : List of strings
+        List of paramters to be exported.
+    
+    See also
+    --------
+    Parameter
+    Descriptor
+    ParameterWrapper
     """
     _parameters = []
 
     def to_dict(self):
-        """Returns the parameters in a dictionary.
-
-        If the obtained attribute of the parameter in the parameters list is
-        not None then the attributes for each parameter in this list are saved
-        into the parameters_dict.
-
-        Returns
-        -------
-        parameters_dict : dict
-            Dictionary, containing the attributes of each parameter in the
-            parameters list.
+        """dict: Dictionary with names and values of the parameters.
         """
         return {param: getattr(self, param) for param in self._parameters
                 if getattr(self, param) is not None}
@@ -407,24 +405,25 @@ class ParameterWrapper(ParametersGroup):
         Type constraint for wrapped object
     _wrapped_object : obj
         Object whose config is to be converted
-    level_of_detail : str
-        level of detail for simulation
 
     Raises
     ------
     CADETProcessError
         If the wrapped_object is no instance of the base_class.
+        
+    See also
+    --------
+    Parameter
+    Descriptor
+    ParametersGroup
     """
     _base_class = object
 
-    def __init__(self, wrapped_object, level_of_detail=None):
+    def __init__(self, wrapped_object):
         if not isinstance(wrapped_object, self._baseClass):
             raise CADETProcessError("Expected {}".format(self._baseClass))
 
-        if level_of_detail:
-            model = level_of_detail
-        else:
-            model = wrapped_object.__class__.__name__
+        model = wrapped_object.__class__.__name__
 
         try:
             self._model = self._models[model]
@@ -451,7 +450,7 @@ class ParameterWrapper(ParametersGroup):
             Dictionary, containing the attributes of each parameter from the
             model_parameters and the cadet_parameters.
 
-        See alos
+        See also
         --------
         ParametersGroup
         """
