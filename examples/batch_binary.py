@@ -72,7 +72,10 @@ batch_binary.feed_duration.time = 51.2
 
 if __name__ == '__main__':
     from CADETProcess.simulation import Cadet
-    process_simulator = Cadet()
+    process_simulator = Cadet(
+        cadet_bin_path='/home/jo/software/cadet/cadet/bin/',
+        temp_dir='/dev/shm'
+        )
     process_simulator.evaluate_stationarity = False
     process_simulator.n_cycles = 4
 
