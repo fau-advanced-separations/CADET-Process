@@ -1,12 +1,13 @@
-from CADETProcess.common import settings
-
+import os
+import platform
+from pathlib import Path
+import subprocess
 from subprocess import TimeoutExpired
 import time
 import tempfile
 
 from addict import Dict
 from cadet import Cadet as CadetAPI
-CadetAPI.cadet_path = settings.cadet_path
 
 from CADETProcess import CADETProcessError
 from CADETProcess.common import Bool, Switch, UnsignedFloat, UnsignedInteger, \
@@ -16,7 +17,7 @@ from CADETProcess.common import TimeSignal, Chromatogram
 from CADETProcess.simulation import SolverBase
 from CADETProcess.simulation import SimulationResults
 from CADETProcess.processModel import NoBinding, BindingBaseClass
-from CADETProcess.processModel import NoReaction, ReactionBaseClass
+# from CADETProcess.processModel import NoReaction, ReactionBaseClass
 from CADETProcess.processModel import UnitBaseClass, Source
 from CADETProcess.processModel import Process
 
@@ -25,6 +26,12 @@ class Cadet(SolverBase):
 
     Attributes
     ----------
+    cadet_bin_path : str
+        Path to the executable of CADET
+    temp_dir : str
+        Path to directory for temporary files
+    time_out : UnsignedFloat
+        Maximum duration for simulations
     model_solver_parameters : ModelSolverParametersGroup
         Container for solver parameters
     unit_discretization_parameters : UnitDiscretizationParametersGroup
@@ -57,7 +64,12 @@ class Cadet(SolverBase):
     SolverTimeIntegratorParametersGroup
     cadetInterface
     """
-    def __init__(self, *args, **kwargs):
+    timeout = UnsignedFloat(default=600)
+    
+    def __init__(self, cadet_bin_path, temp_dir=None, *args, **kwargs):
+        self.cadet_bin_path = cadet_bin_path
+        self.temp_dir = temp_dir
+        
         super().__init__(*args, **kwargs)
 
         self.model_solver_parameters = ModelSolverParametersGroup()
@@ -73,6 +85,82 @@ class Cadet(SolverBase):
 
         self.return_parameters = ReturnParametersGroup()
         self.unit_return_parameters = UnitReturnParametersGroup()
+        
+    @property
+    def cadet_bin_path(self):
+        return self._cadet_bin_path
+    
+    @cadet_bin_path.setter
+    def cadet_bin_path(self, cadet_bin_path):
+        cadet_bin_path = Path(cadet_bin_path)
+        if platform.system() == 'Windows':
+            cadet_path = cadet_bin_path / "cadet-cli.exe"
+        else:
+            cadet_path = cadet_bin_path / "cadet-cli"
+            
+        if cadet_bin_path.exists():
+            self._cadet_bin_path = cadet_bin_path
+            CadetAPI.cadet_path = cadet_path
+        else:
+            raise FileNotFoundError(
+                "CADET could not be found. Please check the bin path")
+            
+    def check_cadet(self):
+        """Wrapper around a basic CADET example for testing functionatlity"""
+        if platform.system() == 'Windows':
+            lwe_path = self.cadet_bin_path / "createLWE.exe"
+        else:
+            lwe_path = self.cadet_bin_path / "createLWE"
+        ret = subprocess.run(
+            [lwe_path.as_posix()], 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE, 
+            cwd=self.cadet_bin_path.as_posix())
+        if ret.returncode != 0:
+            if ret.stdout:
+                print('Output', ret.stdout.decode('utf-8'))
+            if ret.stderr:
+                print('Errors', ret.stderr.decode('utf-8'))
+            raise CADETProcessError(
+                "Failure: Creation of test simulation ran into problems")
+            
+        lwe_hdf5_path = self.cadet_bin_path / 'LWE.h5'
+        
+        sim = CadetAPI()
+        sim.filename = lwe_hdf5_path.as_posix()
+        data = sim.run()
+        os.remove(sim.filename)
+        
+        if data.returncode == 0:
+            print("Test simulation completed successfully")
+        else:
+            print(data)
+            raise CADETProcessError(
+                "Simulation failed")
+            
+    @property
+    def temp_dir(self):
+        if self._temp_dir is None:
+            return tempfile.gettempdir()
+        else:
+            return tempfile.tempdir
+    
+    @temp_dir.setter
+    def temp_dir(self, temp_dir):
+        if temp_dir is not None:
+            try:
+                exists = Path(temp_dir).exists()
+            except TypeError:
+                raise CADETProcessError('Not a valid path')
+            if not exists:
+                raise CADETProcessError('Not a valid path')
+        
+        self._temp_dir = temp_dir
+        
+    def get_tempfile_name(self):
+        f = next(tempfile._get_candidate_names())
+        return os.path.join(self.temp_dir, f + '.h5')
+                
 
     def run(self, process, file_path=None):
         """Interface to the solver run function
@@ -113,36 +201,39 @@ class Cadet(SolverBase):
         cadet = CadetAPI()
         cadet.root = self.get_process_config(process)
 
-        with tempfile.NamedTemporaryFile(suffix='.h5') as f:
-            if file_path is not None:
-                cadet.filename = file_path
-                cadet.save()
-                
-            cadet.filename = f.name
-            cadet.save()
+        if file_path is None:
+            
+            
+            cadet.filename = self.get_tempfile_name()
+        else:
+            cadet.filename = file_path
+
+        cadet.save()
+    
+        try:
             start = time.time()
-            try:
-                 return_information = cadet.run(timeout=600)
-            except TimeoutExpired:
-                 raise CADETProcessError('Simulator timed out')
+            return_information = cadet.run(timeout=self.timeout)
             elapsed = time.time() - start
+        except TimeoutExpired:
+             raise CADETProcessError('Simulator timed out')
+                 
+        if return_information.returncode in [1,2,3]:
+            self.logger.error(
+                'Simulation of {} with parameters {} failed.'.format(
+                    process.name, process.config))
+            raise CADETProcessError(
+                'CADET Error: {}'.format(return_information.stderr))
+        
+        try:
+            cadet.load()
+            results = self.get_simulation_results(process, cadet, elapsed)
+        except TypeError:
+            raise CADETProcessError('Unexpected error reading SimulationResults.')
 
-            if return_information.returncode in [1,2,3]:
-                self.logger.error('Simulation of {} with parameters {} failed.'\
-                                     .format(process.name, process.config))
-                raise CADETProcessError('CADET Error: {}'.format(
-                    return_information.stderr))
-
-            try:
-                cadet.load()
-                results = self.get_simulation_results(process, cadet, elapsed)
-            except TypeError:
-                raise CADETProcessError('Unexpected error reading SimulationResults.')
-
-            if file_path is not None:
-                cadet.filename = file_path
-                cadet.save()
-
+        # Remove files 
+        if file_path is None:
+            os.remove(cadet.filename)
+    
         return results
     
     def save_to_h5(self, process, file_path):
