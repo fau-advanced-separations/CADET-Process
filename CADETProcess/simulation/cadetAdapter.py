@@ -140,11 +140,8 @@ class Cadet(SolverBase):
             
     @property
     def temp_dir(self):
-        if self._temp_dir is None:
-            return tempfile.gettempdir()
-        else:
-            return tempfile.tempdir
-    
+        return tempfile.gettempdir()
+
     @temp_dir.setter
     def temp_dir(self, temp_dir):
         if temp_dir is not None:
@@ -202,8 +199,6 @@ class Cadet(SolverBase):
         cadet.root = self.get_process_config(process)
 
         if file_path is None:
-            
-            
             cadet.filename = self.get_tempfile_name()
         else:
             cadet.filename = file_path
@@ -217,7 +212,7 @@ class Cadet(SolverBase):
         except TimeoutExpired:
              raise CADETProcessError('Simulator timed out')
                  
-        if return_information.returncode in [1,2,3]:
+        if return_information.returncode != 0:
             self.logger.error(
                 'Simulation of {} with parameters {} failed.'.format(
                     process.name, process.config))
