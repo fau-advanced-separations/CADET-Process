@@ -24,6 +24,8 @@ class StructMeta(type):
 
         for name in fields:
             clsdict[name].name = name
+        
+        clsdict['descriptors'] = fields
 
         clsobj = super().__new__(cls, clsname, bases, dict(clsdict))
 
@@ -31,6 +33,7 @@ class StructMeta(type):
         setattr(clsobj, '__signature__', sig)
 
         return clsobj
+    
     
 class Descriptor(metaclass=ABCMeta):
     """Base class for descriptors.

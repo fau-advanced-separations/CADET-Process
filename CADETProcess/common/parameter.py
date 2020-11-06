@@ -111,9 +111,7 @@ class Float(Typed):
             del(instance.__dict__[self.name])
             return
         
-        if isinstance(value, int):
-            value = float(value)
-        super().__set__(instance, value)
+        super().__set__(instance, float(value))
         
     def _check(self, value, recursive=False):
         if isinstance(value, int):
@@ -167,7 +165,18 @@ class NdArray(Container):
             raise ValueError("Value exceeds upper bound")
 
     def check_content_size(self, instance, value):
-        expected_shape = tuple([getattr(instance, dep) for dep in self.dep])
+        expected_shape = []
+        
+        for dep in self.dep:
+            dim = getattr(instance, dep)
+            if isinstance(dim, np.ndarray):
+                dim = list(dim.shape)
+            elif isinstance(dim, int):
+                dim = [dim]
+            expected_shape += dim
+        
+        expected_shape = tuple(expected_shape)
+        # expected_shape = tuple([getattr(instance, dep) for dep in self.dep])
         
         if value.shape != expected_shape:
             raise ValueError("Expected shape {}".format(expected_shape))
@@ -177,6 +186,33 @@ class NdArray(Container):
         
         return super().default * np.ones(shape)
 
+class Dimensionalized(Parameter):
+    """
+    Only works for NdArrays
+    """
+    n_dim = None
+    def __init__(self, *args, **kwargs):
+        if not isinstance(self, NdArray):
+            raise Exception('Only NdArrays can have dimensions.')
+
+        super().__init__(*args, **kwargs)
+
+    def __set__(self, instance, value):
+        if value is None:
+            del(instance.__dict__[self.name])
+            return
+        
+        if self.n_dim != value.ndim:
+            raise ValueError("Expected dimensions {}".format(self.n_dim))
+        super().__set__(instance, value)
+
+class Vector(NdArray, Dimensionalized):
+    n_dim = 1
+
+
+class Matrix(NdArray, Dimensionalized):
+    n_dim = 2
+    
 class Ranged(Parameter):
     """Base class for Parameters with value bounds
     """
