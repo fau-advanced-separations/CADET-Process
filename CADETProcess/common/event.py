@@ -175,7 +175,7 @@ class EventHandler(metaclass=StructMeta):
         except KeyError:
             raise CADETProcessError("End event does not exist")
 
-        if start_event.parameter_path is not end_event.parameter_path:
+        if start_event.parameter_path != end_event.parameter_path:
             raise CADETProcessError("Event parameters don't match")
 
         dur = Duration(name, self, start_event, end_event, time)
@@ -467,7 +467,7 @@ class Event():
     fatcors : List
         List with factors for linear combination of dependencies.
     component_index : int
-        Index for compnent specific variables
+        Index for component specific variables
 
     Raises
     ------
