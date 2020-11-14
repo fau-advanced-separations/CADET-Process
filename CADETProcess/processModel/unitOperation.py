@@ -70,7 +70,7 @@ class UnitBaseClass(metaclass=StructMeta):
         if not isinstance(self.binding_model, NoBinding):
             parameters['binding_model'] = self.binding_model.parameters
 
-        if not isinstance(self, Source):
+        if not isinstance(self, Sink):
             parameters['output_state'] = self.output_state
 
         return parameters
@@ -489,10 +489,7 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
 
 
 class Source(UnitBaseClass, SourceMixin):
-    """Class Source.
-
-    Describes a Source object. It inherits the Attributes of the UnitBaseClass
-    and the SourceMixin. Saves the variable c to the sates list.
+    """Pseudo unit operation model for streams entering the system.
     """
     c = DependentlySizedUnsignedList(dep='n_comp', default=0)
     lin_gradient = Bool(default=False)
@@ -506,15 +503,12 @@ class Source(UnitBaseClass, SourceMixin):
 
 
 class Sink(UnitBaseClass, SinkMixin):
-    """Class Sink.
-
-    Describes a Sink object. It inherits the Attributes of the UnitBaseClass
-    and the SinkMixin.
+    """Pseudo unit operation model for streams leaving the system.
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
 class MixerSplitter(UnitBaseClass):
-    """Class MixerSplitter.
+    """Pseudo unit operation model for mixing/splitting streams in the system.
     """
     pass

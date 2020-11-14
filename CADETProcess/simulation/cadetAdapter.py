@@ -729,7 +729,7 @@ class UnitDiscretizationParametersGroup(ParametersGroup):
     SCHUR_SAFETY = UnsignedFloat(default=1.0e-8)
 
     _parameters = [
-        'NCOL','NPAR', 'PAR_DISC_TYPE', 'PAR_DISC_VECTOR',
+        'NCOL', 'NPAR', 'PAR_DISC_TYPE', 'PAR_DISC_VECTOR',
         'USE_ANALYTIC_JACOBIAN', 'RECONSTRUCTION', 'GS_TYPE', 'MAX_KRYLOV',
         'MAX_RESTARTS', 'SCHUR_SAFETY']
 
