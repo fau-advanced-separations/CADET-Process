@@ -76,8 +76,7 @@ class Cadet(SolverBase):
 
         self.unit_discretization_parameters = UnitDiscretizationParametersGroup()
         self.discretization_weno_parameters = DiscretizationWenoParametersGroup()
-
-        self.adsorption_consistency_solver_parameters = \
+        self.discretization_consistency_solver_parameters = \
             ConsistencySolverParametersGroup()
 
         self.solver_parameters = SolverParametersGroup()
@@ -473,29 +472,24 @@ class Cadet(SolverBase):
 
         unit_config = Dict(unit_parameters.to_dict())
 
-        unit_config['unit_type'] = unit_parameters.UNIT_TYPE
-
         unit_config['discretization'] = \
             self.unit_discretization_parameters.to_dict()
 
         unit_config['discretization']['weno'] = \
             self.discretization_weno_parameters.to_dict()
+        unit_config['discretization']['consistency_solver'] = \
+            self.discretization_consistency_solver_parameters.to_dict()
 
-        unit_config['adsorption_model'] = AdsorptionParametersGroup(
-                unit.binding_model).ADSORPTION_MODEL
+        unit_config['adsorption'] = \
+                self.get_adsorption_config(unit.binding_model)
+        unit_config['adsorption_model'] = unit_config['adsorption']['ADSORPTION_MODEL']
 
         if not isinstance(unit.binding_model, NoBinding):
-            unit_config['adsorption'] = \
-                self.get_adsorption_config(unit.binding_model)
-            unit_config['consistency_solver'] = \
-                self.adsorption_consistency_solver_parameters.to_dict()
-
             n_bound = [unit.binding_model.n_states] * unit.binding_model.n_comp
-            
             if isinstance(unit, Cstr):
-                unit_config['NBOUND'] = n_bound
+                unit_config['nbound'] = n_bound
             else:
-                unit_config['discretization']['NBOUND'] = n_bound
+                unit_config['discretization']['nbound'] = n_bound
 
         if isinstance(unit, Source):
             unit_config['inlet_type'] = 'PIECEWISE_CUBIC_POLY'
@@ -518,8 +512,6 @@ class Cadet(SolverBase):
         get_unit_config
         """
         adsorption_config = AdsorptionParametersGroup(binding).to_dict()
-        adsorption_config['consistency_solver'] = \
-                self.adsorption_consistency_solver_parameters.to_dict()
 
         return adsorption_config
 
@@ -609,24 +601,10 @@ class UnitParametersGroup(ParameterWrapper):
     """
     _baseClass = UnitBaseClass
 
-    UNIT_TYPE = Switch(valid=[
-        'INLET','OUTLET', 'MIXER_SPLITTER', 'GENERAL_RATE_MODEL', 
-        'LUMPED_RATE_MODEL_WITH_PORES', 'LUMPED_RATE_MODEL_WITHOUT_PORES', 
-        'CSTR'])
-
-    _unit_models = {
-        'Source': 'INLET',
-        'Sink': 'OUTLET',
-        'GeneralRateModel': 'GENERAL_RATE_MODEL',
-        'LumpedRateModelWithPores': 'LUMPED_RATE_MODEL_WITH_PORES',
-        'LumpedRateModelWithoutPores': 'LUMPED_RATE_MODEL_WITHOUT_PORES',
-        'TubularReactor': 'LUMPED_RATE_MODEL_WITHOUT_PORES',
-        'Cstr': 'CSTR',
-        'MixerSplitter': 'MIXER_SPLITTER',
-        }
-
     _unit_parameters = {
-        'GENERAL_RATE_MODEL': {
+        'GeneralRateModel': {
+            'name': 'GENERAL_RATE_MODEL',
+            'parameters':{
                 'NCOMP': 'n_comp',
                 'INIT_C': 'c',
                 'INIT_Q': 'q',
@@ -642,7 +620,10 @@ class UnitParametersGroup(ParameterWrapper):
                 'PAR_SURFDIFFUSION': 'surface_diffusion',
                 'CROSS_SECTION_AREA': 'cross_section_area'
                 },
-        'LUMPED_RATE_MODEL_WITH_PORES': {
+            },
+        'LumpedRateModelWithPores': {
+            'name': 'LUMPED_RATE_MODEL_WITH_PORES',
+            'parameters':{
                 'NCOMP': 'n_comp',
                 'INIT_C': 'c',
                 'INIT_CP': 'cp',
@@ -656,7 +637,10 @@ class UnitParametersGroup(ParameterWrapper):
                 'PORE_ACCESSIBILITY': 'pore_accessibility',
                 'CROSS_SECTION_AREA': 'cross_section_area'
                 },
-        'LUMPED_RATE_MODEL_WITHOUT_PORES': {
+            },
+        'LumpedRateModelWithoutPores': {
+            'name': 'LUMPED_RATE_MODEL_WITHOUT_PORES',
+            'parameters':{
                 'NCOMP': 'n_comp',
                 'INIT_C': 'c',
                 'INIT_Q': 'q',
@@ -665,27 +649,57 @@ class UnitParametersGroup(ParameterWrapper):
                 'TOTAL_POROSITY': 'total_porosity',
                 'CROSS_SECTION_AREA': 'cross_section_area'
                 },
-        'CSTR': {
+            },
+        'TubularReactor': {
+            'name': 'LUMPED_RATE_MODEL_WITHOUT_PORES',
+            'parameters':{
+                'NCOMP': 'n_comp',
+                'INIT_C': 'c',
+                'INIT_Q': 'q',
+                'COL_DISPERSION': 'axial_dispersion',
+                'COL_LENGTH': 'length',
+                'CROSS_SECTION_AREA': 'cross_section_area'
+                },
+            'fixed': {
+                'TOTAL_POROSITY': 1,
+                },
+            },
+        'Cstr': {
+            'name': 'CSTR',
+            'parameters':{
                 'NCOMP': 'n_comp',
                 'INIT_VOLUME': 'V',
                 'INIT_C': 'c',
                 'INIT_Q': 'q'
                 },
-        'INLET': {
+            },
+        'Source': {
+            'name': 'INLET',
+            'parameters':{            
                 'NCOMP': 'n_comp',
                 'CONST_COEFF': 'c'
                 },
-        'OUTLET': {
+            },
+        'Sink': {
+            'name': 'OUTLET',
+            'parameters':{             
                 'NCOMP': 'n_comp',
                 },
-        'MIXER_SPLITTER': {
+            },
+        'MixerSplitter': {
+            'name': 'CSTR',
+            'parameters':{
                 'NCOMP': 'n_comp',
-                }
+                },
+            'fixed': {
+                'INIT_VOLUME': 1e-9,
+                'INIT_C': [0]
+                },            
+            },
         }
 
-    _model = UNIT_TYPE
-    _models = _unit_models
     _model_parameters = _unit_parameters
+    _model_type = 'UNIT_TYPE'
 
 
 class UnitDiscretizationParametersGroup(ParametersGroup):
@@ -745,41 +759,40 @@ class AdsorptionParametersGroup(ParameterWrapper):
     """
     _baseClass = BindingBaseClass
 
-    ADSORPTION_MODEL = Switch(default='NONE', valid=[
-        'NONE', 'LINEAR', 'MULTI_COMPONENT_LANGMUIR',
-        'MULTI_COMPONENT_ANTILANGMUIR', 'MOBILE_PHASE_MODULATOR',
-        'STERIC_MASS_ACTION', 'SELF_ASSOCIATION', 'SASKA',
-        'MULTI_COMPONENT_BILANGMUIR', 'KUMAR_MULTI_COMPONENT_LANGMUIR',
-        'MULTI_COMPONENT_SPREADING', 'MULTISTATE_STERIC_MASS_ACTION',
-        'SIMPLE_MULTISTATE_STERIC_MASS_ACTION', 'BI_STERIC_MASS_ACTION'])
-
-    _adsorption_models = {
-        'NoBinding': 'NONE',
-        'Linear': 'LINEAR',
-        'Langmuir': 'MULTI_COMPONENT_LANGMUIR',
-        'BiLangmuir': 'MULTI_COMPONENT_BILANGMUIR',
-        'StericMassAction': 'STERIC_MASS_ACTION',
-        'AntiLangmuir': 'MULTI_COMPONENT_ANTILANGMUIR'
-                }
     _adsorption_parameters = {
-        'NONE': {},
-        'LINEAR': {
+        'NoBinding': {
+            'name': 'NONE',
+            'parameters': {},
+            },
+        'Linear': {
+            'name': 'LINEAR',
+            'parameters':{
                 'IS_KINETIC' : 'is_kinetic',
                 'LIN_KA': 'adsorption_rate',
-                'LIN_KD': 'desorption_rate'},
-        'MULTI_COMPONENT_LANGMUIR': {
+                'LIN_KD': 'desorption_rate'
+                },
+            },
+        'Langmuir': {
+            'name': 'MULTI_COMPONENT_LANGMUIR',
+            'parameters':{            
                 'IS_KINETIC' : 'is_kinetic',
                 'MCL_KA': 'adsorption_rate',
                 'MCL_KD': 'desorption_rate',
                 'MCL_QMAX': 'saturation_capacity'
                 },
-        'MULTI_COMPONENT_BILANGMUIR': {
+            },
+        'BiLangmuir': {
+            'name': 'MULTI_COMPONENT_BILANGMUIR',
+            'parameters':{             
                 'IS_KINETIC' : 'is_kinetic',
                 'MCBL_KA': 'adsorption_rate',
                 'MCBL_KD': 'desorption_rate',
                 'MCBL_QMAX': 'saturation_capacity'
                 },
-        'STERIC_MASS_ACTION': {
+            },
+        'StericMassAction': {
+            'name': 'STERIC_MASS_ACTION',
+            'parameters':{             
                 'IS_KINETIC' : 'is_kinetic',
                 'SMA_KA': 'adsorption_rate',
                 'SMA_KD': 'desorption_rate',
@@ -789,19 +802,22 @@ class AdsorptionParametersGroup(ParameterWrapper):
                 'SMA_REF0': 'reference_liquid_phase_conc',
                 'SMA_REFQ': 'reference_solid_phase_conc'
                 },
-        'MULTI_COMPONENT_ANTILANGMUIR': {
+            },
+        'AntiLangmuir': {
+            'name': 'MULTI_COMPONENT_ANTILANGMUIR',
+            'parameters':{ 
                 'IS_KINETIC' : 'is_kinetic',
                 'MCAL_KA': 'adsorption_rate',
                 'MCAL_KD': 'desorption_rate',
                 'MCAL_QMAX': 'saturation_capacity',
                 'MCAL_ANTILANGMUIR': 'antilangmuir'
-                }
+                },
+            }
         }
 
-    _model = ADSORPTION_MODEL
-    _models = _adsorption_models
     _model_parameters = _adsorption_parameters
-    
+    _model_type = 'ADSORPTION_MODEL'
+
 class ConsistencySolverParametersGroup(ParametersGroup):
     """Class for defining the consistency solver parameters for cadet.
 
