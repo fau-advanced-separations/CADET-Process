@@ -1,6 +1,6 @@
 from CADETProcess import CADETProcessError
-from CADETProcess.common import StructMeta, Bool, String, UnsignedInteger, \
-    UnsignedFloat, DependentlySizedUnsignedList
+from CADETProcess.common import (StructMeta, Bool, String, Integer,
+    UnsignedInteger, UnsignedFloat, DependentlySizedUnsignedList)
 
 class BindingBaseClass(metaclass=StructMeta):
     """Abstract base class for parameters of binding models.
@@ -17,6 +17,7 @@ class BindingBaseClass(metaclass=StructMeta):
     name = String()
     n_comp = UnsignedInteger()
     is_kinetic = Bool(default=True)
+    n_states = Integer(lb=1, ub=1, default=1)
 
     def __init__(self, n_comp, name):
         self.n_comp = n_comp

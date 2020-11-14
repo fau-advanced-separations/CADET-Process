@@ -18,7 +18,7 @@ from CADETProcess.simulation import SolverBase
 from CADETProcess.simulation import SimulationResults
 from CADETProcess.processModel import NoBinding, BindingBaseClass
 # from CADETProcess.processModel import NoReaction, ReactionBaseClass
-from CADETProcess.processModel import UnitBaseClass, Source
+from CADETProcess.processModel import UnitBaseClass, Source, Cstr
 from CADETProcess.processModel import Process
 
 class Cadet(SolverBase):
@@ -477,7 +477,7 @@ class Cadet(SolverBase):
 
         unit_config['discretization'] = \
             self.unit_discretization_parameters.to_dict()
-        unit_config['discretization']['NBOUND'] = [1] * unit.n_comp
+
         unit_config['discretization']['weno'] = \
             self.discretization_weno_parameters.to_dict()
 
@@ -490,6 +490,12 @@ class Cadet(SolverBase):
             unit_config['consistency_solver'] = \
                 self.adsorption_consistency_solver_parameters.to_dict()
 
+            n_bound = [unit.binding_model.n_states] * unit.binding_model.n_comp
+            
+            if isinstance(unit, Cstr):
+                unit_config['NBOUND'] = n_bound
+            else:
+                unit_config['discretization']['NBOUND'] = n_bound
 
         if isinstance(unit, Source):
             unit_config['inlet_type'] = 'PIECEWISE_CUBIC_POLY'
@@ -684,14 +690,20 @@ class UnitParametersGroup(ParameterWrapper):
 
 class UnitDiscretizationParametersGroup(ParametersGroup):
     """Class for defining the unit_disrectization_parameters.
+    
+    Note
+    ----
+    In CADET, the parameter unit_config['discretization'].NBOUND should be
+    moved to binding config or unit config. It is now handled separately in 
+    get_unit_config()
 
     See also
     --------
     ParametersGroup
+    get_unit_config
     """
     NCOL = UnsignedInteger(default=100)
     NPAR = UnsignedInteger(default=5)
-    NBOUND = List()
     PAR_DISC_TYPE = Switch(default='EQUIDISTANT_PAR', valid=[
                 'EQUIDISTANT_PAR', 'EQUIVOLUME_PAR', 'USER_DEFINDED_PAR'])
     PAR_DISC_VECTOR = DependentlySizedUnsignedList(dep='NPAR', default=0)
@@ -703,7 +715,7 @@ class UnitDiscretizationParametersGroup(ParametersGroup):
     SCHUR_SAFETY = UnsignedFloat(default=1.0e-8)
 
     _parameters = [
-        'NCOL','NPAR','NBOUND', 'PAR_DISC_TYPE', 'PAR_DISC_VECTOR',
+        'NCOL','NPAR', 'PAR_DISC_TYPE', 'PAR_DISC_VECTOR',
         'USE_ANALYTIC_JACOBIAN', 'RECONSTRUCTION', 'GS_TYPE', 'MAX_KRYLOV',
         'MAX_RESTARTS', 'SCHUR_SAFETY']
 
