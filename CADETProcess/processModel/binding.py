@@ -1,5 +1,5 @@
 from CADETProcess import CADETProcessError
-from CADETProcess.common import StructMeta, String, UnsignedInteger, \
+from CADETProcess.common import StructMeta, Bool, String, UnsignedInteger, \
     UnsignedFloat, DependentlySizedUnsignedList
 
 class BindingBaseClass(metaclass=StructMeta):
@@ -16,12 +16,13 @@ class BindingBaseClass(metaclass=StructMeta):
     """
     name = String()
     n_comp = UnsignedInteger()
+    is_kinetic = Bool(default=True)
 
     def __init__(self, n_comp, name):
         self.n_comp = n_comp
         self.name = name
 
-        self._parameters = []
+        self._parameters = ['is_kinetic']
 
     @property
     def parameters(self):

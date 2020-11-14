@@ -15,9 +15,11 @@ process_name = flow_sheet_name = 'batch_binary'
 
 # Binding Model
 binding_model = Langmuir(n_comp=2, name='langmuir')
+binding_model.is_kinetic = False
 binding_model.adsorption_rate = [0.02, 0.03]
 binding_model.desorption_rate = [1, 1]
 binding_model.saturation_capacity = [100, 100]
+
 
 # Unit Operations
 feed = Source(n_comp=2, name='feed')

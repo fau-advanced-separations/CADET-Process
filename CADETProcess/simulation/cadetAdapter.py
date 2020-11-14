@@ -733,8 +733,6 @@ class AdsorptionParametersGroup(ParameterWrapper):
     """
     _baseClass = BindingBaseClass
 
-    IS_KINETIC = Bool(default=False)
-
     ADSORPTION_MODEL = Switch(default='NONE', valid=[
         'NONE', 'LINEAR', 'MULTI_COMPONENT_LANGMUIR',
         'MULTI_COMPONENT_ANTILANGMUIR', 'MOBILE_PHASE_MODULATOR',
@@ -742,8 +740,6 @@ class AdsorptionParametersGroup(ParameterWrapper):
         'MULTI_COMPONENT_BILANGMUIR', 'KUMAR_MULTI_COMPONENT_LANGMUIR',
         'MULTI_COMPONENT_SPREADING', 'MULTISTATE_STERIC_MASS_ACTION',
         'SIMPLE_MULTISTATE_STERIC_MASS_ACTION', 'BI_STERIC_MASS_ACTION'])
-
-    _parameters = ['IS_KINETIC']
 
     _adsorption_models = {
         'NoBinding': 'NONE',
@@ -756,19 +752,23 @@ class AdsorptionParametersGroup(ParameterWrapper):
     _adsorption_parameters = {
         'NONE': {},
         'LINEAR': {
+                'IS_KINETIC' : 'is_kinetic',
                 'LIN_KA': 'adsorption_rate',
                 'LIN_KD': 'desorption_rate'},
         'MULTI_COMPONENT_LANGMUIR': {
+                'IS_KINETIC' : 'is_kinetic',
                 'MCL_KA': 'adsorption_rate',
                 'MCL_KD': 'desorption_rate',
                 'MCL_QMAX': 'saturation_capacity'
                 },
         'MULTI_COMPONENT_BILANGMUIR': {
+                'IS_KINETIC' : 'is_kinetic',
                 'MCBL_KA': 'adsorption_rate',
                 'MCBL_KD': 'desorption_rate',
                 'MCBL_QMAX': 'saturation_capacity'
                 },
         'STERIC_MASS_ACTION': {
+                'IS_KINETIC' : 'is_kinetic',
                 'SMA_KA': 'adsorption_rate',
                 'SMA_KD': 'desorption_rate',
                 'SMA_NU': 'nu',
@@ -778,6 +778,7 @@ class AdsorptionParametersGroup(ParameterWrapper):
                 'SMA_REFQ': 'reference_solid_phase_conc'
                 },
         'MULTI_COMPONENT_ANTILANGMUIR': {
+                'IS_KINETIC' : 'is_kinetic',
                 'MCAL_KA': 'adsorption_rate',
                 'MCAL_KD': 'desorption_rate',
                 'MCAL_QMAX': 'saturation_capacity',
