@@ -227,6 +227,7 @@ class UnitBaseClass(metaclass=StructMeta):
         """
         return self.name
 
+
 class SourceMixin():
     """Mixin class for Units that have Source-like behavior
 
@@ -237,6 +238,7 @@ class SourceMixin():
     """
     pass
 
+
 class SinkMixin():
     """Mixin class for Units that have Sink-like behavior
 
@@ -246,6 +248,7 @@ class SinkMixin():
     Cstr
     """
     pass
+
 
 class TubularReactor(UnitBaseClass):
     """Class for tubular reactors.
@@ -345,7 +348,6 @@ class TubularReactor(UnitBaseClass):
         self.axial_dispersion = self.u0 * self.length / (2 * NTP)
 
 
-
 class LumpedRateModelWithoutPores(TubularReactor):
     """Parameters for a lumped rate model without pores.
 
@@ -413,7 +415,6 @@ class LumpedRateModelWithPores(TubularReactor):
         """
         return self.bed_porosity + \
             (1 - self.bed_porosity) * self.particle_porosity
-
 
 
 class GeneralRateModel(TubularReactor):
@@ -507,6 +508,7 @@ class Sink(UnitBaseClass, SinkMixin):
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
 
 class MixerSplitter(UnitBaseClass):
     """Pseudo unit operation model for mixing/splitting streams in the system.
