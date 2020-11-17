@@ -55,7 +55,8 @@ class UnitBaseClass(metaclass=StructMeta):
         self._binding_model = NoBinding()
 
         self._bulk_reaction_model = NoReaction()
-        self._particle_reaction_model = NoReaction()
+        self._particle_liquid_reaction_model = NoReaction()
+        self._particle_solid_reaction_model = NoReaction()
         
         self.origins = dict()
         self.destinations = dict()
@@ -66,8 +67,17 @@ class UnitBaseClass(metaclass=StructMeta):
         """
         parameters = {param: getattr(self, param) 
                       for param in self._parameters}
+        
         if not isinstance(self.binding_model, NoBinding):
             parameters['binding_model'] = self.binding_model.parameters
+        if not isinstance(self.bulk_reaction_model, NoReaction):
+            parameters['bulk_reaction_model'] = self.bulk_reaction_model.parameters
+        if not isinstance(self.particle_liquid_reaction_model, NoReaction):
+            parameters['particle_liquid_reaction_model'] = \
+                self.particle_liquid_reaction_model.parameters
+        if not isinstance(self.particle_solid_reaction_model, NoReaction):
+            parameters['particle_solid_reaction_model'] = \
+                self.particle_solid_reaction_model.parameters
 
         if not isinstance(self, Sink):
             parameters['output_state'] = self.output_state
@@ -131,6 +141,78 @@ class UnitBaseClass(metaclass=StructMeta):
             raise CADETProcessError('Number of components does not match.')
 
         self._binding_model = binding_model
+        
+    @property
+    def bulk_reaction_model(self):
+        """bulk_reaction_model: Reaction model in the bulk phase
+
+        Raises
+        ------
+        TypeError
+            If binding_model object is not an instance of BindingBaseClass.
+        CADETProcessError
+            If number of components do not match.
+        """
+        return self._binding_model
+
+    @bulk_reaction_model.setter
+    def bulk_reaction_model(self, bulk_reaction_model):
+        if not isinstance(bulk_reaction_model, ReactionBaseClass):
+            raise TypeError('Expected ReactionBaseClass')
+
+        if bulk_reaction_model.n_comp != self.n_comp and not isinstance(
+                bulk_reaction_model, NoReaction):
+            raise CADETProcessError('Number of components does not match.')
+
+        self._bulk_reaction_model = bulk_reaction_model
+    
+    @property
+    def particle_liquid_reaction_model(self):
+        """particle_liquid_reaction_model: Reaction model in the particle liquid phase
+
+        Raises
+        ------
+        TypeError
+            If binding_model object is not an instance of BindingBaseClass.
+        CADETProcessError
+            If number of components do not match.
+        """
+        return self._particle_liquid_reaction_model
+
+    @particle_liquid_reaction_model.setter
+    def particle_liquid_reaction_model(self, particle_liquid_reaction_model):
+        if not isinstance(particle_liquid_reaction_model, ReactionBaseClass):
+            raise TypeError('Expected ReactionBaseClass')
+
+        if particle_liquid_reaction_model.n_comp != self.n_comp and not isinstance(
+                particle_liquid_reaction_model, ReactionBaseClass):
+            raise CADETProcessError('Number of components does not match.')
+
+        self._particle_liquid_reaction_model = particle_liquid_reaction_model
+
+    @property
+    def particle_solid_reaction_model(self):
+        """particle_solid_reaction_model: Reaction model in the particle solid phase
+
+        Raises
+        ------
+        TypeError
+            If binding_model object is not an instance of BindingBaseClass.
+        CADETProcessError
+            If number of components do not match.
+        """
+        return self._particle_liquid_reaction_model
+
+    @particle_solid_reaction_model.setter
+    def particle_solid_reaction_model(self, particle_solid_reaction_model):
+        if not isinstance(particle_solid_reaction_model, ReactionBaseClass):
+            raise TypeError('Expected ReactionBaseClass')
+
+        if particle_solid_reaction_model.n_comp != self.n_comp and not isinstance(
+                particle_solid_reaction_model, ReactionBaseClass):
+            raise CADETProcessError('Number of components does not match.')
+
+        self._particle_solid_reaction_model = particle_solid_reaction_model
 
     @property
     def output_state(self):
