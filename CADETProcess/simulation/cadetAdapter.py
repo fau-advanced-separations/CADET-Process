@@ -17,7 +17,7 @@ from CADETProcess.common import TimeSignal, Chromatogram
 from CADETProcess.simulation import SolverBase
 from CADETProcess.simulation import SimulationResults
 from CADETProcess.processModel import NoBinding, BindingBaseClass
-# from CADETProcess.processModel import NoReaction, ReactionBaseClass
+from CADETProcess.processModel import NoReaction, ReactionBaseClass
 from CADETProcess.processModel import UnitBaseClass, Source, Cstr
 from CADETProcess.processModel import Process
 
@@ -514,6 +514,9 @@ class Cadet(SolverBase):
         adsorption_config = AdsorptionParametersGroup(binding).to_dict()
 
         return adsorption_config
+    
+    def get_reaction_config(self, reaction):
+        pass
 
 
     def get_input_solver(self, process):
@@ -821,7 +824,7 @@ class AdsorptionParametersGroup(ParameterWrapper):
     _model_type = 'ADSORPTION_MODEL'
     
     
-class ReactionParametersGroup(ParameterWrapper):
+class BulkReactionParametersGroup(ParameterWrapper):
     """Class for converting reaction model parameters from CADETProcess to CADET.
 
     See also
@@ -832,27 +835,65 @@ class ReactionParametersGroup(ParameterWrapper):
     """
     _baseClass = ReactionBaseClass
 
-    REACTION_MODEL = Switch(default='NONE', valid=[
-        'NONE', 'MASS_ACTION_LAW'])
+    _reaction_models = {
+        'NoReaction': 'NONE',
+        'MassAction': 'MASS_ACTION_LAW',
+                }
+    _reaction_parameters = {
+        'NoReaction': {
+            'name': 'NONE',
+            'parameters':{},
+            },
+        'MassAction': {
+            'name': 'MASS_ACTION_LAW',
+            'parameters':{
+                'MAL_KFWD_BULK' : 'forward_rate',
+                'MAL_KBWD_BULK' : 'backward_rate',
+                'MAL_STOICHIOMETRY_BULK': 'stoichiometric_matrix',
+                'MAL_EXPONENTS_BULK_FWD' : 'forward_modifier_exponent',
+                'MAL_EXPONENTS_BULK_BWD' : 'backward_modifier_exponent',
+                }
+            }
+        }
+
+    _model_parameters = _reaction_parameters
+    _model_type = 'REACTION_MODEL'
+
+    
+class BulkReactionParametersGroup(ParameterWrapper):
+    """Class for converting reaction model parameters from CADETProcess to CADET.
+
+    See also
+    --------
+    ParameterWrapper
+    ReactionParametersGroup
+    UnitParametersGroup
+    """
+    _baseClass = ReactionBaseClass
 
     _reaction_models = {
         'NoReaction': 'NONE',
         'MassAction': 'MASS_ACTION_LAW',
                 }
     _reaction_parameters = {
-        'NONE': {},
-        'MASS_ACTION_LAW': {
-            'MAL_KFWD' : 'forward_rate',
-            'MAL_KBWD' : 'backward_rate',
-            'MAL_STOICHIOMETRY': 'stoichiometric_matrix',
-            'MAL_EXPONENTS_FWD_MOD' : 'forward_modifier_exponent',
-            'MAL_EXPONENTS_BWD_MOD' : 'backward_modifier_exponent',
+        'NoReaction': {
+            'name': 'NONE',
+            'parameters':{},
+            },
+        'MassAction': {
+            'name': 'MASS_ACTION_LAW',
+            'parameters':{
+                'MAL_KFWD_BULK' : 'forward_rate',
+                'MAL_KBWD_BULK' : 'backward_rate',
+                'MAL_STOICHIOMETRY_BULK': 'stoichiometric_matrix',
+                'MAL_EXPONENTS_BULK_FWD' : 'forward_modifier_exponent',
+                'MAL_EXPONENTS_BULK_BWD' : 'backward_modifier_exponent',
                 }
+            }
         }
 
-    _model = REACTION_MODEL
-    _models = _reaction_models
     _model_parameters = _reaction_parameters
+    _model_type = 'REACTION_MODEL'
 
 
 class ConsistencySolverParametersGroup(ParametersGroup):
