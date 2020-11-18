@@ -24,17 +24,15 @@ class UnitBaseClass(metaclass=StructMeta):
         list of parameter names.
     name : String
         name of the unit_operation.
-    state : list
-        list with the state values. Contains the values for the flow_rate
-        of an object. A default value is set to the parameter UnsignedFloat with
-        zero value.
-    binding_model : BindingBaseClass
-        binding behavior of the unit. Defaults to NoBinding.
     origins : dict
         All units connecting to the unit
     destinations : dict
         All units to which the unit connects.
-
+    output_state : list
+        split ratios of outgoing streams
+    binding_model : BindingBaseClass
+        binding behavior of the unit. Defaults to NoBinding.
+    
     See also
     --------
     FlowSheet
@@ -43,11 +41,9 @@ class UnitBaseClass(metaclass=StructMeta):
     name = String()
     n_comp = UnsignedInteger()
 
-    flow_rate = UnsignedFloat(default=0.0)
-    reverse_flow = Bool(default=False)
     _output_state = List()
 
-    _parameters = ['flow_rate']
+    _parameters = []
     _initial_state = []
 
     def __init__(self, n_comp, name):
@@ -58,8 +54,6 @@ class UnitBaseClass(metaclass=StructMeta):
 
         self.origins = dict()
         self.destinations = dict()
-
-
 
     @property
     def parameters(self):
@@ -135,33 +129,19 @@ class UnitBaseClass(metaclass=StructMeta):
 
     @property
     def output_state(self):
-        """Returns the output_state, containing the updated states in a list.
-
-        First it sets the state_length to the length of destinations. For a
-        zero length the output_state list is empty. If the state is >= the
-        state_length a CADETProcessError is raised. Else the entry of the
-        list is set to the state_length and the state is set to 1, which
-        means the flow_rate takes by 100% this way. Also the output_state
-        is set to state and the flow_rate is updated.
-
+        """list: split ratios of outgoing streams.
+            
         Parameters
         ----------
-        state :
-            dict with the flow_rates and the values of them.
+        state : int or list of floats
+            new output state of the unit. 
 
         Raises
         ------
         CADETProcessError
             If state is integer and the state >= the state_length.
-            If the length of the states is unequal the state_length
-            If the sum of the states is unequal 1
-
-        Returns
-        -------
-        output_state : NoneType, List
-            Object from class List, contains the states for each unit an
-            updates the flow_rates.
-
+            If the length of the states is unequal the state_length.
+            If the sum of the states is not equal to 1.
         """
         return self._output_state
 
@@ -191,18 +171,6 @@ class UnitBaseClass(metaclass=StructMeta):
 
         self._output_state = output_state
 
-        self.update_flow_rate()
-
-    def update_flow_rate(self):
-        """Updates the flow_rate for each index in the list output_state.
-
-        For each index and datadict of the destinations
-        the flow_rate of the data_dict is updated. Therefore the flow_rate is
-        multiplied with each index in the output_state list.
-        """
-        for index, datadict in enumerate(self.destinations.values()):
-            datadict['flow_rate'] = self.output_state[index] * self.flow_rate
-
     def __repr__(self):
         """String-depiction of the object, can be changed into an object by
         calling the method eval.
@@ -228,16 +196,16 @@ class UnitBaseClass(metaclass=StructMeta):
         return self.name
 
 
-class SourceMixin():
+class SourceMixin(metaclass=StructMeta):
     """Mixin class for Units that have Source-like behavior
-
+    
     See also
     --------
     SinkMixin
+    Source
     Cstr
     """
-    pass
-
+    
 
 class SinkMixin():
     """Mixin class for Units that have Sink-like behavior
@@ -268,12 +236,11 @@ class TubularReactor(UnitBaseClass):
     diameter = UnsignedFloat()
     axial_dispersion = UnsignedFloat()
     total_porosity = 1
-    
+    reverse_flow = Bool(default=False)
     _parameters = UnitBaseClass._parameters + [
         'length', 'diameter','axial_dispersion']
     
     c = DependentlySizedUnsignedList(dep='n_comp', default=0)
-
     _initial_state = UnitBaseClass._initial_state + ['c']
     
     def __init__(self, *args, **kwargs):
@@ -288,6 +255,10 @@ class TubularReactor(UnitBaseClass):
         cross_section_area
         """
         return math.pi/4 * self.diameter**2
+    
+    @cross_section_area.setter
+    def cross_section_area(self, cross_section_area):
+        self.diameter = (4*cross_section_area/math.pi)**0.5
 
     @property
     def cylinder_volume(self):
@@ -309,29 +280,52 @@ class TubularReactor(UnitBaseClass):
         """
         return (1 - self.total_porosity) * self.cylinder_volume
 
-    @property
-    def t0(self):
-        """float: Mean residence time of a (non adsorbing) volume element.
+    def t0(self, flow_rate):
+        """Mean residence time of a (non adsorbing) volume element.
+        
+        Parameters
+        ----------
+        flow_rate : float
+            volumetric flow rate
+
+        Returns
+        -------
+        t0 : float
+            Mean residence time    
 
         See also
         --------
         u0
         """
-        return self.volume_liquid / self.flow_rate
+        return self.volume_liquid / flow_rate
 
-    @property
-    def u0(self):
-        """float: Flow velocity of a (non adsorbint) volume element.
+    def u0(self, flow_rate):
+        """Flow velocity of a (non adsorbint) volume element.
 
+        Parameters
+        ----------
+        flow_rate : float
+            volumetric flow rate
+
+        Returns
+        -------
+        u0 : float
+            interstitial flow velocity
+            
         See also
         --------
         t0
+        NTP
         """
-        return self.length/self.t0
+        return self.length/self.t0(flow_rate)
     
-    @property
-    def NTP(self):
-        """Returns the number of theoretical plates.
+    def NTP(self, flow_rate):
+        """Number of theoretical plates.
+        
+        Parameters
+        ----------
+        flow_rate : float
+            volumetric flow rate
 
         Calculated using the axial dispersion coefficient:
         :math: NTP = \frac{u \cdot L_{Column}}{2 \cdot D_a}
@@ -342,10 +336,30 @@ class TubularReactor(UnitBaseClass):
             Number of theretical plates
         """
         return self.u0 * self.length / (2 * self.axial_dispersion)
+    
+    def set_axial_dispersion_from_NTP(self, NTP, flow_rate):
+        """
+        Parameters
+        ----------
+        NTP : float
+            Number of theroetical plates
+        flow_rate : float
+            volumetric flow rate
 
-    @NTP.setter
-    def NTP(self, NTP):
-        self.axial_dispersion = self.u0 * self.length / (2 * NTP)
+        Calculated using the axial dispersion coefficient:
+        :math: NTP = \frac{u \cdot L_{Column}}{2 \cdot D_a}
+
+        Returns
+        -------
+        NTP : float
+            Number of theretical plates
+            
+        See also
+        --------
+        u0
+        NTP
+        """
+        self.axial_dispersion = self.u0(flow_rate) * self.length / (2 * NTP)
 
 
 class LumpedRateModelWithoutPores(TubularReactor):
@@ -359,10 +373,9 @@ class LumpedRateModelWithoutPores(TubularReactor):
         Initial concentration of the bound phase.
     """
     total_porosity = UnsignedFloat(ub=1)
+    _parameters = TubularReactor._parameters + ['total_porosity']
 
     q = DependentlySizedUnsignedList(dep='n_comp', default=0)
-
-    _parameters = TubularReactor._parameters + ['total_porosity']
     _initial_state = TubularReactor._initial_state + ['q']
     
     def __init__(self, *args, **kwargs):
@@ -395,14 +408,13 @@ class LumpedRateModelWithPores(TubularReactor):
     film_diffusion = DependentlySizedUnsignedList(dep='n_comp')
     pore_diffusion = DependentlySizedUnsignedList(dep='n_comp')
     pore_accessibility = DependentlySizedUnsignedList(dep='n_comp')
-
-    cp = DependentlySizedUnsignedList(dep='n_comp', default=0)
-    q = DependentlySizedUnsignedList(dep='n_comp', default=0)
-
     _parameters = TubularReactor._parameters + [
             'bed_porosity', 'particle_porosity', 'particle_radius', 
             'film_diffusion', 'pore_diffusion',
             ]
+
+    cp = DependentlySizedUnsignedList(dep='n_comp', default=0)
+    q = DependentlySizedUnsignedList(dep='n_comp', default=0)
     _initial_state = TubularReactor._initial_state + ['cp', 'q']
     
     def __init__(self, *args, **kwargs):
@@ -446,14 +458,13 @@ class GeneralRateModel(TubularReactor):
     pore_diffusion = DependentlySizedUnsignedList(dep='n_comp')
     surface_diffusion = DependentlySizedUnsignedList(dep='n_comp')
     pore_accessibility = DependentlySizedUnsignedList(dep='n_comp')
-
-    cp = DependentlySizedUnsignedList(dep='n_comp', default=0)
-    q = DependentlySizedUnsignedList(dep='n_comp', default=0)
-
     _parameters = TubularReactor._parameters + [
             'bed_porosity', 'particle_porosity', 'particle_radius', 
             'film_diffusion', 'pore_diffusion', 'surface_diffusion'
             ]
+
+    cp = DependentlySizedUnsignedList(dep='n_comp', default=0)
+    q = DependentlySizedUnsignedList(dep='n_comp', default=0)
     _initial_state = TubularReactor._initial_state + ['cp', 'q']
     
     def __init__(self, *args, **kwargs):
@@ -479,35 +490,30 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     V : Unsinged float
         Initial volume of the reactor.
     """
+    flow_rate = UnsignedFloat(default=0.0)
+    _parameters = UnitBaseClass._parameters + ['flow_rate']
+
     c = DependentlySizedUnsignedList(dep='n_comp', default=0)
     q = DependentlySizedUnsignedList(dep='n_comp', default=0)
     V = UnsignedFloat(default=0)
-    
     _initial_state = UnitBaseClass._initial_state + ['c', 'q', 'V']
-    
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
+        
 
 class Source(UnitBaseClass, SourceMixin):
     """Pseudo unit operation model for streams entering the system.
     """
-    c = DependentlySizedUnsignedList(dep='n_comp', default=0)
+    flow_rate = UnsignedFloat(default=0.0)
     lin_gradient = Bool(default=False)
+    _parameters = UnitBaseClass._parameters + ['flow_rate', 'lin_gradient']
     
-    _parameters = UnitBaseClass._parameters + ['lin_gradient']
+    c = DependentlySizedUnsignedList(dep='n_comp', default=0)
     _initial_state = UnitBaseClass._initial_state + ['c']
-
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
 
 
 class Sink(UnitBaseClass, SinkMixin):
     """Pseudo unit operation model for streams leaving the system.
     """
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    pass
 
 
 class MixerSplitter(UnitBaseClass):

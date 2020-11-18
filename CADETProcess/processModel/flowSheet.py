@@ -1,8 +1,9 @@
+import sympy as sym
 from addict import Dict
 
 from CADETProcess import CADETProcessError
 from CADETProcess.common import StructMeta, UnsignedInteger, String
-from CADETProcess.processModel import UnitBaseClass, SourceMixin, SinkMixin
+from CADETProcess.processModel import UnitBaseClass, SourceMixin, SinkMixin, Sink
 from CADETProcess.processModel import NoBinding
 
 class FlowSheet(metaclass=StructMeta):
@@ -473,97 +474,59 @@ class FlowSheet(metaclass=StructMeta):
         update_flow_rates
         reset_flow_rates
         """
-        self.update_flow_rates()
-
-        flow_rates = Dict()
-
-        for unit in self.units:
-            flow_rates[unit.name].destinations = {
-                    dest.name: val['flow_rate']
-                    for (dest, val) in unit.destinations.items()
-                    }
-            if isinstance(unit, SinkMixin) and not isinstance(unit, SourceMixin):
-                flow_rates[unit.name].total = sum(
-                    [val['flow_rate'] for val in unit.origins.values()]
-                    )
+        unit_total_flow_symbols = sym.symbols('Q_total_0:{}'.format(self.number_of_units))
+        unit_inflow_symbols = []
+        unit_outflow_symbols = []
+        
+        unit_total_flow_eq = []
+        unit_outflow_eq = []
+        
+        for unit_index, unit in enumerate(self.units):
+            if isinstance(unit, SourceMixin):
+                unit_total_flow_eq.append(sym.Add(unit_total_flow_symbols[unit_index], -unit.flow_rate))
             else:
-                flow_rates[unit.name].total = sum(
-                    [val['flow_rate'] for val in unit.destinations.values()]
-                    )
+                unit_i_inflow_symbols = []
+                
+                for origin in unit.origins:
+                    origin_index = self.get_unit_index(origin)
+                    unit_i_inflow_symbols.append(sym.symbols('Q_{}_{}'.format(origin_index, unit_index)))
+                    
+                unit_i_total_flow_eq = sym.Add(*unit_i_inflow_symbols, -unit_total_flow_symbols[unit_index])
+                
+                unit_inflow_symbols += unit_i_inflow_symbols
+                unit_total_flow_eq.append(unit_i_total_flow_eq)
+                
+            if not isinstance(unit, Sink):
+                output_state = unit.output_state
+                unit_i_outflow_symbols = []
+                
+                for destination in unit.destinations:
+                    destination_index = self.get_unit_index(destination)
+                    unit_i_outflow_symbols.append(sym.symbols('Q_{}_{}'.format(unit_index, destination_index)))
+                    
+                unit_i_outflow_eq = [sym.Add(
+                    unit_i_outflow_symbols[dest], -unit_total_flow_symbols[unit_index]*output_state[dest])
+                                              for dest in range(len(unit.destinations))]
+                                     
+                unit_outflow_symbols += unit_i_outflow_symbols
+                unit_outflow_eq += unit_i_outflow_eq
+                
+        
+        solution = sym.solve(unit_total_flow_eq + unit_outflow_eq, 
+                                 (*unit_total_flow_symbols, *unit_inflow_symbols, *unit_outflow_symbols))
+        solution = {str(key): value for key, value in solution.items()}
+        flow_rates = Dict()
+        
+        for unit_index, unit in enumerate(self.units):
+            flow_rates[unit.name].total = \
+                float(solution['Q_total_{}'.format(unit_index)])
+            
+            for destination in unit.destinations:
+                destination_index = self.get_unit_index(destination)
+                flow_rates[unit.name].destinations[destination.name] = \
+                    float(solution['Q_{}_{}'.format(unit_index, destination_index)])
 
         return flow_rates
-
-    def reset_flow_rates(self):
-        """Resets the values of the flow_rates to a default value and updates
-        them.
-
-        If the unit is no instance of class SourceMixin the value of the
-        flow_rate is set to defeault value and updated.
-
-        See Also
-        --------
-        update_flow_rates
-        flow_rates
-        """
-        for unit in self._units:
-            if not isinstance(unit, SourceMixin):
-                unit.flow_rate = 0.0
-            unit.update_flow_rate()
-
-    def update_flow_rates(self):
-        """Updates the flow_rates of each unit in a flow sheet.
-
-        First the flow_rates are reset then a local method push_flow_rate is
-        called. This method loops through the destinations of a unit and updates
-        the flow_rates. Then also the flow_rates of the sources are adapted by
-        calling the method push_flow_rate with source as parameter.
-
-        See Also
-        --------
-        reset_flow_rates
-        flow_rates
-        """
-        def push_flow_rate(unit, visited):
-            """Update the flow_rates for succeeding units until sink is reached.
-
-            Loop through destinations of a unit and updates the corresponding
-            flow_rate depending on the output state.
-            If the unit is not in sources the flow_rate is the sum
-            of all flow_rates coming from an origin. If the destination is no
-            part of list sinks and the flow_rate is unequal zero, the method
-            push_flow_rate of the destination is called rekursiveley.
-
-            Parameters
-            ----------
-            unit : UnitBaseClass
-                 object to be added to the flow sheet.
-            """
-            # Loop through outgoing streams
-            for index, destination in enumerate(unit.destinations):
-                # Add ingoing streams if unit not source-like
-                if unit not in self.sources:
-                    unit.flow_rate = sum(
-                        [orig['flow_rate'] for orig in unit.origins.values()])
-
-                unit.update_flow_rate()
-
-                # Push flow rates of connecting nodes
-                if destination not in self.sinks \
-                    and destination not in visited \
-                    and unit.flow_rate != 0.0 \
-                    and unit.output_state[index] > 0:
-                    push_flow_rate(destination, visited)
-
-                visited.append(destination)
-
-
-        # Loop through inlets and push flow_rates
-        for source in self.sources:
-            visited = []
-            push_flow_rate(source, visited)
-
-        for unit in self.units:
-            push_flow_rate(unit, visited)
 
     @property
     def parameters(self):
