@@ -142,6 +142,9 @@ class List(Container):
             raise ValueError("Expected size {}".format(expected_length))
         
     def get_default_values(self, instance):
+        if super().default is None:
+            return None
+        
         shape = [getattr(instance, dep) for dep in self.dep]
         
         return np.prod(shape) * [super().default]
