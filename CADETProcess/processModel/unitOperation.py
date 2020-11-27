@@ -153,7 +153,7 @@ class UnitBaseClass(metaclass=StructMeta):
         CADETProcessError
             If number of components do not match.
         """
-        return self._binding_model
+        return self._bulk_reaction_model
 
     @bulk_reaction_model.setter
     def bulk_reaction_model(self, bulk_reaction_model):
@@ -201,7 +201,7 @@ class UnitBaseClass(metaclass=StructMeta):
         CADETProcessError
             If number of components do not match.
         """
-        return self._particle_liquid_reaction_model
+        return self._particle_solid_reaction_model
 
     @particle_solid_reaction_model.setter
     def particle_solid_reaction_model(self, particle_solid_reaction_model):
