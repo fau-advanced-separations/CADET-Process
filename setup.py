@@ -22,6 +22,7 @@ setuptools.setup(
                 'numpy>=1.16.2',
                 'scipy>=1.3.1',
                 'matplotlib>=3.1.1',
+                'sympy>=1.6.2',
                 'addict>=2.2.1',
                 'deap>=1.3.0',
                 'GPyOpt>=1.2.5',
