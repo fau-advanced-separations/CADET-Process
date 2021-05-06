@@ -773,8 +773,7 @@ class UnitDiscretizationParametersGroup(ParametersGroup):
     NCOL = UnsignedInteger(default=100)
     NPAR = UnsignedInteger(default=5)
     PAR_DISC_TYPE = Switch(default='EQUIDISTANT_PAR', valid=[
-                'EQUIDISTANT_PAR', 'EQUIVOLUME_PAR', 'USER_DEFINDED_PAR'])
-    PAR_DISC_VECTOR = DependentlySizedUnsignedList(dep='NPAR', default=0)
+                'EQUIDISTANT_PAR', 'EQUIVOLUME_PAR'])
     USE_ANALYTIC_JACOBIAN = Bool(default=True)
     RECONSTRUCTION = Switch(default='WENO', valid=['WENO'])
     GS_TYPE = Bool(default=True)
@@ -783,9 +782,9 @@ class UnitDiscretizationParametersGroup(ParametersGroup):
     SCHUR_SAFETY = UnsignedFloat(default=1.0e-8)
 
     _parameters = [
-        'NCOL', 'NPAR', 'PAR_DISC_TYPE', 'PAR_DISC_VECTOR',
-        'USE_ANALYTIC_JACOBIAN', 'RECONSTRUCTION', 'GS_TYPE', 'MAX_KRYLOV',
-        'MAX_RESTARTS', 'SCHUR_SAFETY']
+        'NCOL', 'NPAR', 'PAR_DISC_TYPE', 'USE_ANALYTIC_JACOBIAN', 
+        'RECONSTRUCTION', 'GS_TYPE', 'MAX_KRYLOV', 'MAX_RESTARTS', 
+        'SCHUR_SAFETY']
 
 class DiscretizationWenoParametersGroup(ParametersGroup):
     """Class for defining the disrectization_weno_parameters
@@ -851,9 +850,9 @@ class AdsorptionParametersGroup(ParameterWrapper):
                 'IS_KINETIC' : 'is_kinetic',
                 'SMA_KA': 'adsorption_rate',
                 'SMA_KD': 'desorption_rate',
-                'SMA_NU': 'nu',
-                'SMA_SIGMA': 'sigma',
-                'SMA_LAMBDA': 'lambda_',
+                'SMA_LAMBDA': 'stationary_phase_capacity',
+                'SMA_NU': 'characteristic_charge',
+                'SMA_SIGMA': 'steric_factor',
                 'SMA_REF0': 'reference_liquid_phase_conc',
                 'SMA_REFQ': 'reference_solid_phase_conc'
                 },
