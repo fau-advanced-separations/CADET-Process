@@ -46,6 +46,7 @@ class BindingBaseClass(metaclass=StructMeta):
     def __str__(self):
         return self.name
 
+
 class NoBinding(BindingBaseClass):
     """Dummy class for units that do not experience binging behavior.
 
@@ -53,6 +54,7 @@ class NoBinding(BindingBaseClass):
     """
     def __init__(self, *args, **kwargs):
         super().__init__(n_comp=0, name='NoBinding')
+
 
 class Linear(BindingBaseClass):
     """Parameters for Linear binding model.
@@ -123,7 +125,8 @@ class BiLangmuir(BindingBaseClass):
     def n_total_states(self):
         return self.n_comp * self.n_states
 
-class Steric_Mass_Action(BindingBaseClass):
+
+class StericMassAction(BindingBaseClass):
     """Parameters for Steric Mass Action Law binding model.
 
     Attributes
@@ -164,6 +167,7 @@ class Steric_Mass_Action(BindingBaseClass):
                              'reference_liquid_phase_conc',
                              'reference_solid_phase_conc']
 
+
 class AntiLangmuir(BindingBaseClass):
     """Multi Component Anti-Langmuir adsoprtion isotherm.
 
@@ -194,8 +198,7 @@ class AntiLangmuir(BindingBaseClass):
                              'maximum_adsorption_capacity', 'antilangmuir']
 
 
-
-class Kumar_Multi_Component_Langmuir(BindingBaseClass):
+class KumarMultiComponentLangmuir(BindingBaseClass):
     """Kumar Multi Component Langmuir adsoprtion isotherm.
 
     Attributes
@@ -228,7 +231,8 @@ class Kumar_Multi_Component_Langmuir(BindingBaseClass):
                              'characteristic_charge', 'activation_temp',
                              'temperature']
 
-class Multi_Component_Spreading(BindingBaseClass):
+
+class Spreading(BindingBaseClass):
     """Multi Component Spreading adsoprtion isotherm.
 
     Attributes
@@ -257,7 +261,7 @@ class Multi_Component_Spreading(BindingBaseClass):
                              'exchange_from_1_2', 'exchange_from_2_1']
 
 
-class Mobile_Phase_Modulator(BindingBaseClass):
+class MobilePhaseModulator(BindingBaseClass):
     """Mobile Phase Modulator adsoprtion isotherm.
 
     Attributes
@@ -287,7 +291,8 @@ class Mobile_Phase_Modulator(BindingBaseClass):
                              'ion_exchange_characteristic',
                              'hydrophobicity']
 
-class Self_Association(BindingBaseClass):
+
+class SelfAssociation(BindingBaseClass):
     """Self Association adsoprtion isotherm.
 
     Attributes
@@ -310,7 +315,6 @@ class Self_Association(BindingBaseClass):
     reference_solid_phase_conc : Parmater
         Reference liquid phase concentration (optional, default value = 1.0).
     """
-    
     adsorption_rate  = DependentlySizedUnsignedList(dep='n_comp')
     adsorption_rate_dimerization  = DependentlySizedUnsignedList(dep='n_comp')
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
@@ -330,7 +334,7 @@ class Self_Association(BindingBaseClass):
                              'reference_solid_phase_conc']
 
 
-class Bi_Steric_Mass_Action(BindingBaseClass):
+class BiStericMassAction(BindingBaseClass):
     """ Bi Steric Mass Action adsoprtion isotherm.
 
     Attributes
@@ -375,8 +379,7 @@ class Bi_Steric_Mass_Action(BindingBaseClass):
                              'reference_solid_phase_conc']
 
 
-
-class Multistate_Steric_Mass_Action(BindingBaseClass):
+class MultistateStericMassAction(BindingBaseClass):
     """ Multistate Steric Mass Action adsoprtion isotherm.
 
     Attributes
@@ -404,7 +407,6 @@ class Multistate_Steric_Mass_Action(BindingBaseClass):
     reference_solid_phase_conc : Parameter
         Reference solid phase concentration (optional, default value = 1.0).
     """
-    
     adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp', default=1)
     characteristic_charge = DependentlySizedUnsignedList(dep='n_comp')
@@ -423,8 +425,9 @@ class Multistate_Steric_Mass_Action(BindingBaseClass):
                              'reference_liquid_phase_conc',
                              'reference_solid_phase_conc']
 
-class Simple_Multistate_Steric_Mass_Action(BindingBaseClass):
-    """ Multistate Steric Mass Action adsoprtion isotherm.
+
+class SimplifiedMultistateSteric_Mass_Action(BindingBaseClass):
+    """ Simplified multistate Steric Mass Action adsoprtion isotherm.
 
     Attributes
     ----------
@@ -441,7 +444,7 @@ class Simple_Multistate_Steric_Mass_Action(BindingBaseClass):
         Characteristic charges of the components in the last (strongest) bound
         state.
     quadratic_modifiers_charge : Parameter
-        QUadratic modifiers of the characteristic charges of the different
+        Quadratic modifiers of the characteristic charges of the different
         components depending on the index of the bound state.
     steric_factor_first : Parameter
         Steric factor of the components in the first (weakest) bound state.
@@ -476,7 +479,6 @@ class Simple_Multistate_Steric_Mass_Action(BindingBaseClass):
     reference_solid_phase_conc : Parameter
         Reference solid phase concentration (optional, default value = 1.0).
     """
-
     adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     characteristic_charge_first = DependentlySizedUnsignedList(dep='n_comp')
@@ -494,7 +496,6 @@ class Simple_Multistate_Steric_Mass_Action(BindingBaseClass):
     quadratic_exchange_sw = DependentlySizedUnsignedList(dep='n_comp')
     reference_liquid_phase_conc = DependentlySizedUnsignedList(dep='n_comp')
     reference_solid_phase_conc = DependentlySizedUnsignedList(dep='n_comp')
-
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -515,6 +516,7 @@ class Simple_Multistate_Steric_Mass_Action(BindingBaseClass):
                              'quadratic_exchange_sw',
                              'reference_liquid_phase_conc',
                              'reference_solid_phase_conc']
+
 
 class Saska(BindingBaseClass):
     """ Multistate Steric Mass Action adsoprtion isotherm.
