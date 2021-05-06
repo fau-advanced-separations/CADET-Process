@@ -309,14 +309,7 @@ class FlowSheet(metaclass=StructMeta):
     @property
     def feed_sources(self):
         """list: List of sources considered for calculating recovery yield.
-
-        Raises
-        ------
-        CADETProcessError
-            If no feed source is set.
         """
-        if len(self._feed_sources) == 0:
-            raise CADETProcessError('No feed source set.')
         return self._feed_sources
 
     def add_feed_source(self, feed_source):
@@ -356,14 +349,7 @@ class FlowSheet(metaclass=StructMeta):
     @property
     def eluent_sources(self):
         """list: List of sources to be considered for eluent consumption.
-
-        Raises
-        ------
-        CADETProcessError
-            If no eluent source is set.
         """
-        if len(self._eluent_sources) == 0:
-            raise CADETProcessError('No eluent source set')
         return self._eluent_sources
 
     def add_eluent_source(self, eluent_source):
@@ -407,14 +393,7 @@ class FlowSheet(metaclass=StructMeta):
     @property
     def chromatogram_sinks(self):
         """list: List of sinks to be considered for fractionation.
-
-        Raises
-        ------
-        CADETProcessError
-            If no chromatogram sink is set.
         """
-        if len(self._chromatogram_sinks) == 0:
-            raise CADETProcessError('No chromatogram sink set')
         return self._chromatogram_sinks
 
     def add_chromatogram_sink(self, chromatogram_sink):
