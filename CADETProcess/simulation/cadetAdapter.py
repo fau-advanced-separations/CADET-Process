@@ -222,7 +222,9 @@ class Cadet(SolverBase):
         
         try:
             cadet.load()
-            results = self.get_simulation_results(process, cadet, elapsed)
+            results = self.get_simulation_results(
+                process, cadet, elapsed, return_information
+            )
         except TypeError:
             raise CADETProcessError('Unexpected error reading SimulationResults.')
 
@@ -263,7 +265,13 @@ class Cadet(SolverBase):
 
         return config
 
-    def get_simulation_results(self, process, cadet, time_elapsed):
+    def get_simulation_results(
+        self, 
+        process,
+        cadet,
+        time_elapsed,
+        return_information, 
+        ):
         """Saves the simulated results for each unit into the dictionary
         concentration_record for the complete simulation and splitted into each
         cycle.
@@ -283,7 +291,9 @@ class Cadet(SolverBase):
         cadet : CadetAPI
             Cadet object with simulation results.
         time_elapsed : float
-            Tof simulation.
+            Time of simulation.
+        return_information: str
+            CADET-cli return information.
 
         Returns
         -------
@@ -329,8 +339,8 @@ class Cadet(SolverBase):
         results = SimulationResults(
                 solver_name = str(self),
                 solver_parameters = dict(),
-                exit_flag = cadet.return_information.returncode,
-                exit_message = cadet.return_information.stderr.decode(),
+                exit_flag = return_information.returncode,
+                exit_message = return_information.stderr.decode(),
                 time_elapsed = time_elapsed,
                 process_name = process.name,
                 process_config = process.config,
@@ -481,19 +491,16 @@ class Cadet(SolverBase):
         unit_config['discretization']['consistency_solver'] = \
             self.discretization_consistency_solver_parameters.to_dict()
 
-        unit_config['adsorption'] = \
-                self.get_adsorption_config(unit.binding_model)
-        unit_config['adsorption_model'] = unit_config['adsorption']['ADSORPTION_MODEL']
-
         if not isinstance(unit.binding_model, NoBinding):
             n_bound = [unit.binding_model.n_states] * unit.binding_model.n_comp
-        else:
-            n_bound = unit.n_comp *[0]
-        
-        if isinstance(unit, Cstr):
-            unit_config['nbound'] = n_bound
-        else:
-            unit_config['discretization']['nbound'] = n_bound
+            unit_config['adsorption'] = \
+                    self.get_adsorption_config(unit.binding_model)
+            unit_config['adsorption_model'] = unit_config['adsorption']['ADSORPTION_MODEL']
+            
+            if isinstance(unit, Cstr):
+                unit_config['nbound'] = n_bound
+            else:
+                unit_config['discretization']['nbound'] = n_bound
 
         if not isinstance(unit.bulk_reaction_model, NoReaction):
             parameters = self.get_reaction_config(
@@ -712,7 +719,7 @@ class UnitParametersGroup(ParameterWrapper):
                 'INIT_Q': 'q',
                 'COL_DISPERSION': 'axial_dispersion',
                 'COL_LENGTH': 'length',
-                'CROSS_SECTION_AREA': 'cross_section_area'
+                'CROSS_SECTION_AREA': 'cross_section_area',
                 },
             'fixed': {
                 'TOTAL_POROSITY': 1,
@@ -724,14 +731,15 @@ class UnitParametersGroup(ParameterWrapper):
                 'NCOMP': 'n_comp',
                 'INIT_VOLUME': 'V',
                 'INIT_C': 'c',
-                'INIT_Q': 'q'
+                'INIT_Q': 'q',
+                'POROSITY': 'porosity',
                 },
             },
         'Source': {
             'name': 'INLET',
             'parameters':{            
                 'NCOMP': 'n_comp',
-                'CONST_COEFF': 'c'
+                'CONST_COEFF': 'c',
                 },
             },
         'Sink': {
@@ -742,7 +750,7 @@ class UnitParametersGroup(ParameterWrapper):
             },
         'MixerSplitter': {
             'name': 'CSTR',
-            'parameters':{
+            'parameters':{            
                 'NCOMP': 'n_comp',
                 },
             'fixed': {

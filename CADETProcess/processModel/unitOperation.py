@@ -511,6 +511,8 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         Initial concentration of the bound phase.
     V : Unsinged float
         Initial volume of the reactor.
+    total_porosity : UnsignedFloat between 0 and 1.
+        Total porosity of the column.
     """
     flow_rate = UnsignedFloat(default=0.0)
     _parameters = UnitBaseClass._parameters + ['flow_rate']
@@ -518,7 +520,15 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     c = DependentlySizedUnsignedList(dep='n_comp', default=0)
     q = DependentlySizedUnsignedList(dep='n_comp', default=0)
     V = UnsignedFloat(default=0)
+    porosity = UnsignedFloat(ub=1, default=1)
+    _parameters = UnitBaseClass._parameters + ['porosity']
     _initial_state = UnitBaseClass._initial_state + ['c', 'q', 'V']
+
+    @property
+    def volume_solid(self):
+        """float: Volume of the solid phase.
+        """
+        return (1 - self.porosity) * self.V    
         
 
 class Source(UnitBaseClass, SourceMixin):
