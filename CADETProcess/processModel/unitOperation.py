@@ -11,11 +11,10 @@ from CADETProcess.processModel import ReactionBaseClass, NoReaction
 class UnitBaseClass(metaclass=StructMeta):
     """Base class for all UnitOperation classes.
 
-    A UnitOperation object stores model parameters and states (e.g. flow_rate)
-    of a unit. Every unit operation can be assotiated with a binding behavior
-    and a reaction model.
-    UnitOperations can be connected in a FlowSheet. Each unit stores the ingoing
-    (origin) and outgoing streams (destinations) of the flow sheet.
+    A UnitOperation object stores model parameters and states of a unit. 
+    Every unit operation can be assotiated with a binding behavior and a 
+    reaction model.
+    UnitOperations can be connected in a FlowSheet. 
 
     Attributes
     ----------
@@ -25,12 +24,6 @@ class UnitBaseClass(metaclass=StructMeta):
         list of parameter names.
     name : String
         name of the unit_operation.
-    origins : dict
-        All units connecting to the unit
-    destinations : dict
-        All units to which the unit connects.
-    output_state : list
-        split ratios of outgoing streams
     binding_model : BindingBaseClass
         binding behavior of the unit. Defaults to NoBinding.
     
@@ -42,8 +35,6 @@ class UnitBaseClass(metaclass=StructMeta):
     """
     name = String()
     n_comp = UnsignedInteger()
-
-    _output_state = List()
 
     _parameters = []
     _initial_state = []
@@ -58,9 +49,6 @@ class UnitBaseClass(metaclass=StructMeta):
         self._particle_liquid_reaction_model = NoReaction()
         self._particle_solid_reaction_model = NoReaction()
         
-        self.origins = dict()
-        self.destinations = dict()
-
     @property
     def parameters(self):
         """dict: Dictionary with parameter values.
@@ -79,20 +67,12 @@ class UnitBaseClass(metaclass=StructMeta):
             parameters['particle_solid_reaction_model'] = \
                 self.particle_solid_reaction_model.parameters
 
-        if not isinstance(self, Sink):
-            parameters['output_state'] = self.output_state
-
         return parameters
 
     @parameters.setter
     def parameters(self, parameters):
         try:
             self.binding_model.parameters = parameters.pop('binding_model')
-        except KeyError:
-            pass
-
-        try:
-            self.output_state = parameters.pop('output_state')
         except KeyError:
             pass
 
@@ -213,50 +193,6 @@ class UnitBaseClass(metaclass=StructMeta):
             raise CADETProcessError('Number of components does not match.')
 
         self._particle_solid_reaction_model = particle_solid_reaction_model
-
-    @property
-    def output_state(self):
-        """list: split ratios of outgoing streams.
-            
-        Parameters
-        ----------
-        state : int or list of floats
-            new output state of the unit. 
-
-        Raises
-        ------
-        CADETProcessError
-            If state is integer and the state >= the state_length.
-            If the length of the states is unequal the state_length.
-            If the sum of the states is not equal to 1.
-        """
-        return self._output_state
-
-    @output_state.setter
-    def output_state(self, state):
-        state_length = len(self.destinations)
-
-        if state_length == 0:
-            output_state = []
-
-        if type(state) is int:
-            if state >= state_length:
-                raise CADETProcessError('Index exceeds destinations')
-
-            output_state = [0] * state_length
-            output_state[state] = 1
-
-        else:
-            if len(state) != state_length:
-                raise CADETProcessError(
-                    'Expected length {}.'.format(state_length))
-
-            elif sum(state) != 1:
-                raise CADETProcessError('Sum of fractions must be 1')
-
-            output_state = state
-
-        self._output_state = output_state
 
     def __repr__(self):
         """String-depiction of the object, can be changed into an object by

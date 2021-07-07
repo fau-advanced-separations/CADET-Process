@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 import sympy as sym
 from addict import Dict
 
@@ -7,25 +9,30 @@ from CADETProcess.processModel import UnitBaseClass, SourceMixin, SinkMixin, Sin
 from CADETProcess.processModel import NoBinding
 
 class FlowSheet(metaclass=StructMeta):
-    """ Class to design a superstructure of a chromatographic process.
+    """Class to design process flow sheet.
 
-    This class defines the number of components and saves all units for
-    generating the superstructure in a list. It can add and remove units from
-    the list, defines sources and sinks and connections between the units. The
-    flow_rate or states of each unit is adapted.
+    In this class, UnitOperation models are added and connected in a flow
+    sheet.
 
     Attributes
     ----------
     n_comp : UnsignedInteger
-        Number of components in a system.
+        Number of components of the units in the flow sheet.
     name : String
-        Name of the FlowSheet object.
+        Name of the FlowSheet.
     units : list
-        List with all the unit_operations.
+        UnitOperations in the FlowSheet.
+    connections_in : dict
+        Connections of UnitOperations.
+    connections_out : dict
+        Connections of UnitOperations.
+    output_states : dict
+        Split ratios of outgoing streams of UnitOperations.
     """
+
     name = String()
     n_comp = UnsignedInteger()
-
+    
     def __init__(self, n_comp, name):
         self.n_comp = n_comp
         self.name = name
@@ -33,6 +40,23 @@ class FlowSheet(metaclass=StructMeta):
         self._feed_sources = []
         self._eluent_sources = []
         self._chromatogram_sinks = []
+        self._connections_in = dict()
+        self._connections_out = dict()
+        self._output_states = dict()
+
+    def _unit_name_decorator(func):
+        def inner(self, unit, *args, **kwargs):
+            """Do stuff before and/or after execution of function
+            """
+            if isinstance(unit, str):
+                try:
+                    unit = self.units_dict[unit]
+                except KeyError:
+                    raise CADETProcessError('Not a valid unit')
+            func(self, unit, *args, **kwargs)
+
+        return inner
+
 
     @property
     def units(self):
@@ -149,6 +173,10 @@ class FlowSheet(metaclass=StructMeta):
             raise CADETProcessError('Number of components does not match.')
 
         self._units.append(unit)
+        self._connections_in[unit] = []
+        self._connections_out[unit] = []
+        self._output_states[unit] = []
+        
         super().__setattr__(unit.name, unit)
 
         if feed_source:
@@ -177,8 +205,8 @@ class FlowSheet(metaclass=StructMeta):
         CADETProcessError
             If unit does not exist in the flow sheet.
 
-        See also:
-        ---------
+        See Also
+        --------
         add_unit
         feed_source
         eluent_source
@@ -203,11 +231,14 @@ class FlowSheet(metaclass=StructMeta):
             self.remove_connection(unit, destination)
 
         self._units.remove(unit)
+        self._connections_in.pop(unit)
+        self._connections_out.pop(unit)
+        self._output_states.pop(unit)
         self.__dict__.pop(unit.name)
 
     @property
-    def connections(self):
-        """Returns a dictionary with all connections fo each unit.
+    def connections_in(self):
+        """Returns dictionary with all ingoing connections for each unit.
 
         Saves the the destinations as strings in a list for each unit. The
         connections are then saved in a dictionary.
@@ -220,21 +251,35 @@ class FlowSheet(metaclass=StructMeta):
 
         See Also
         --------
+        connections_out
         remove_connection
         add_connection
         """
-        return {str(unit): [str(dest) for dest in unit.destinations.keys()]
-                for unit in self.units}
+        return self._connections_in
+    
+    @property
+    def connections_out(self):
+        """Returns dictionary with all outgoing connections for each unit.
+
+        Saves the the destinations as strings in a list for each unit. The
+        connections are then saved in a dictionary.
+
+        Returns
+        -------
+        connections : dict
+            Dictionary with a list of all connections for each unit in list
+            units.
+
+        See Also
+        --------
+        connections_in
+        remove_connection
+        add_connection
+        """
+        return self._connections_out
 
     def add_connection(self, origin, destination):
         """Add a connection between units 'origin' and 'destination'.
-
-        First the origin and destination is checked of being objects in the
-        list of units and also of an already existing connection in the flow
-        sheet. For adding a connection a data_dict dictionary is generated with
-        a default flow_rate. The destination of an origin.destination and
-        conversely is assigned to the dictionary. A default vlaue for the
-        origin output_state is set.
 
         Parameters
         ----------
@@ -251,31 +296,25 @@ class FlowSheet(metaclass=StructMeta):
 
         See Also
         --------
-        connections
         remove_connection
+        connections_in
+        connections_out
+        output_state
         """
         if origin not in self._units:
             raise CADETProcessError('Origin not in flow sheet')
         if destination not in self._units:
             raise CADETProcessError('Destination not in flow sheet')
-        if destination in origin.destinations:
+        
+        if destination in self._connections_out[origin]:
             raise CADETProcessError('Connection already exists')
 
-        data_dict = dict()
-        data_dict['flow_rate'] = 0.0
-
-        origin.destinations[destination] = data_dict
-        destination.origins[origin] = data_dict
-
-        origin.output_state = 0
+        self._connections_out[origin].append(destination)
+        self._connections_in[destination].append(origin)
+        self.set_output_state(origin, 0)
 
     def remove_connection(self, origin, destination):
         """Removes a connection between units 'origin' and 'destination'.
-
-        First the origin and destination is checked of being objects in the
-        list of units. Then it tries to delete the destinaton of an
-        origin.destination and conversely. A CADETProcessError is raised, when a
-        KeyError is excepted.
 
         Parameters
         ----------
@@ -288,7 +327,7 @@ class FlowSheet(metaclass=StructMeta):
         ------
         CADETProcessError
             If origin OR destination do not exist in the current flow sheet.
-            If Connection does not exist.
+            If connection does not exists in the current flow sheet.
 
         See Also
         --------
@@ -301,10 +340,61 @@ class FlowSheet(metaclass=StructMeta):
             raise CADETProcessError('Destination not in flow sheet')
 
         try:
-            del origin.destinations[destination]
-            del destination.origins[origin]
+            self._connections_out[origin].remove(destination)
+            self._connections_in[destination].remove(origin)
         except KeyError:
             raise CADETProcessError('Connection does not exist.')
+
+    @property
+    def output_states(self):
+        return self._output_states
+    
+    @_unit_name_decorator
+    def set_output_state(self, unit, state):
+        """Set split ratio of outgoing streams for UnitOperation.
+        
+        Parameters
+        ----------
+        unit : UnitBaseClass
+            UnitOperation of flowsheet.
+        state : int or list of floats
+            new output state of the unit. 
+
+        Raises
+        ------
+        CADETProcessError
+            If unit not in flowSheet
+            If state is integer and the state >= the state_length.
+            If the length of the states is unequal the state_length.
+            If the sum of the states is not equal to 1.
+        """
+        if unit not in self._units:
+            raise CADETProcessError('Unit not in flow sheet')
+            
+        state_length = len(self.connections_out[unit])
+
+        if state_length == 0:
+            output_state = []
+
+        if type(state) is int:
+            if state >= state_length:
+                raise CADETProcessError('Index exceeds destinations')
+
+            output_state = [0] * state_length
+            output_state[state] = 1
+
+        else:
+            if len(state) != state_length:
+                raise CADETProcessError(
+                    'Expected length {}.'.format(state_length))
+
+            elif sum(state) != 1:
+                raise CADETProcessError('Sum of fractions must be 1')
+
+            output_state = state
+
+        self._output_states[unit] = output_state                    
+
 
     @property
     def feed_sources(self):
@@ -312,6 +402,7 @@ class FlowSheet(metaclass=StructMeta):
         """
         return self._feed_sources
 
+    @_unit_name_decorator
     def add_feed_source(self, feed_source):
         """Add source to list of units to be considered for recovery.
 
@@ -333,6 +424,7 @@ class FlowSheet(metaclass=StructMeta):
                     feed_source))
         self._feed_sources.append(feed_source)
 
+    @_unit_name_decorator
     def remove_feed_source(self, feed_source):
         """Remove source from list of units to be considered for recovery.
 
@@ -352,6 +444,7 @@ class FlowSheet(metaclass=StructMeta):
         """
         return self._eluent_sources
 
+    @_unit_name_decorator
     def add_eluent_source(self, eluent_source):
         """Add source to list of units to be considered for eluent consumption.
 
@@ -373,6 +466,7 @@ class FlowSheet(metaclass=StructMeta):
                     eluent_source))
         self._eluent_sources.append(eluent_source)
 
+    @_unit_name_decorator
     def remove_eluent_source(self, eluent_source):
         """Remove source from list of units to be considered eluent consumption.
 
@@ -396,6 +490,7 @@ class FlowSheet(metaclass=StructMeta):
         """
         return self._chromatogram_sinks
 
+    @_unit_name_decorator
     def add_chromatogram_sink(self, chromatogram_sink):
         """Add sink to list of units to be considered for fractionation.
 
@@ -417,6 +512,7 @@ class FlowSheet(metaclass=StructMeta):
                     chromatogram_sink))
         self._chromatogram_sinks.append(chromatogram_sink)
 
+    @_unit_name_decorator
     def remove_chromatogram_sink(self, chromatogram_sink):
         """Remove sink from list of units to be considered for fractionation.
 
@@ -437,70 +533,91 @@ class FlowSheet(metaclass=StructMeta):
 
     @property
     def flow_rates(self):
-        """Updates the flow_rates and saves them in a dictionary.
+        """Returns outgoing flow rates for each unit.
 
-        First all flow_rates are updated, then the flow_rates are saved for
-        each destination and for each unit into a dictionary.
+        Because a simple 'push' algorithm cannot be used when closed loops are
+        present in a FlowSheet (e.g. SMBs), sympy is used to set up and solve 
+        the system of equations.
+        
+        Todo
+        ----
+        Implement dynamic flow rates!
+        Make flow rates function of time and / or return polynomials.
 
         Returns
         -------
         flow_rates : dict
-            Dictionary containing for each unit the the flow_rate of each
-            connection.
+            Outgoing flow rates for each unit.
 
-        See Also
-        --------
-        update_flow_rates
-        reset_flow_rates
         """
-        unit_total_flow_symbols = sym.symbols('Q_total_0:{}'.format(self.number_of_units))
+        # Setup lists for symbols
+        unit_total_flow_symbols = sym.symbols(
+            'Q_total_0:{}'.format(self.number_of_units)
+        )
         unit_inflow_symbols = []
         unit_outflow_symbols = []
         
         unit_total_flow_eq = []
         unit_outflow_eq = []
         
+        # Setup symbolic equations
         for unit_index, unit in enumerate(self.units):
             if isinstance(unit, SourceMixin):
-                unit_total_flow_eq.append(sym.Add(unit_total_flow_symbols[unit_index], -unit.flow_rate))
+                unit_total_flow_eq.append(
+                    sym.Add(unit_total_flow_symbols[unit_index], -unit.flow_rate)
+                )
             else:
                 unit_i_inflow_symbols = []
                 
-                for origin in unit.origins:
+                for origin in self.connections_in[unit]:
                     origin_index = self.get_unit_index(origin)
-                    unit_i_inflow_symbols.append(sym.symbols('Q_{}_{}'.format(origin_index, unit_index)))
+                    unit_i_inflow_symbols.append(
+                        sym.symbols('Q_{}_{}'.format(origin_index, unit_index))
+                    )
                     
-                unit_i_total_flow_eq = sym.Add(*unit_i_inflow_symbols, -unit_total_flow_symbols[unit_index])
+                unit_i_total_flow_eq = sym.Add(
+                    *unit_i_inflow_symbols, -unit_total_flow_symbols[unit_index]
+                )
                 
                 unit_inflow_symbols += unit_i_inflow_symbols
                 unit_total_flow_eq.append(unit_i_total_flow_eq)
                 
             if not isinstance(unit, Sink):
-                output_state = unit.output_state
+                output_state = self.output_states[unit]
                 unit_i_outflow_symbols = []
                 
-                for destination in unit.destinations:
+                for destination in self.connections_out[unit]:
                     destination_index = self.get_unit_index(destination)
-                    unit_i_outflow_symbols.append(sym.symbols('Q_{}_{}'.format(unit_index, destination_index)))
+                    unit_i_outflow_symbols.append(
+                        sym.symbols('Q_{}_{}'.format(unit_index, destination_index))
+                    )
                     
-                unit_i_outflow_eq = [sym.Add(
-                    unit_i_outflow_symbols[dest], -unit_total_flow_symbols[unit_index]*output_state[dest])
-                                              for dest in range(len(unit.destinations))]
+                unit_i_outflow_eq = [
+                    sym.Add(
+                        unit_i_outflow_symbols[dest],
+                        -unit_total_flow_symbols[unit_index]*output_state[dest]
+                    )
+                    for dest in range(len(self.connections_out[unit]))
+                ]
                                      
                 unit_outflow_symbols += unit_i_outflow_symbols
                 unit_outflow_eq += unit_i_outflow_eq
                 
-        
-        solution = sym.solve(unit_total_flow_eq + unit_outflow_eq, 
-                                 (*unit_total_flow_symbols, *unit_inflow_symbols, *unit_outflow_symbols))
+        # Solve system of equations
+        solution = sym.solve(
+            unit_total_flow_eq + unit_outflow_eq, 
+            (*unit_total_flow_symbols, *unit_inflow_symbols, *unit_outflow_symbols)
+        )
         solution = {str(key): value for key, value in solution.items()}
+        
+        # Assign values to flow_rates
         flow_rates = Dict()
         
         for unit_index, unit in enumerate(self.units):
             flow_rates[unit.name].total = \
                 float(solution['Q_total_{}'.format(unit_index)])
             
-            for destination in unit.destinations:
+            for destination in self.connections_out[unit]:
                 destination_index = self.get_unit_index(destination)
                 flow_rates[unit.name].destinations[destination.name] = \
                     float(solution['Q_{}_{}'.format(unit_index, destination_index)])
@@ -510,11 +627,18 @@ class FlowSheet(metaclass=StructMeta):
     @property
     def parameters(self):
         parameters = {unit.name: unit.parameters for unit in self.units}
+        parameters['output_states'] = {
+            unit.name: self.output_states[unit] for unit in self.units}
 
         return Dict(parameters)
 
     @parameters.setter
     def parameters(self, parameters):
+        output_states = parameters.pop('output_states')
+        for unit, state in output_states.items():
+            unit = self.units_dict[unit]
+            self.set_output_state(unit, state)
+        
         for unit, params in parameters.items():
             if unit not in self.units_dict:
                 raise CADETProcessError('Not a valid unit')
@@ -566,7 +690,7 @@ class FlowSheet(metaclass=StructMeta):
             item to be searched
 
         Returns
-        --------
+        -------
         Bool : bool
             Return True if item is in list units, otherwise False.
 
