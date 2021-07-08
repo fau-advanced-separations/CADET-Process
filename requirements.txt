@@ -3,6 +3,6 @@ scipy
 matplotlib
 sympy
 gitpython
-cadet
+cadet-python
 addict
 deap

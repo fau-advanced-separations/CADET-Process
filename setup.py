@@ -25,8 +25,7 @@ setuptools.setup(
                 'sympy>=1.6.2',
                 'addict>=2.2.1',
                 'deap>=1.3.0',
-                'GPyOpt>=1.2.5',
-                'CADET>=0.2',
+                'CADET-Python>=0.2',
                 'GitPython>=3.0.0'
                 ],
         classifiers=[
