@@ -64,7 +64,7 @@ def check_nested(nested_dict, path):
 
     try:
         value = get_nested_value(nested_dict, path)
-        if isinstance(value, dict):
+        if isinstance(value, dict) or value is None:
             return False
         return True
     except:
