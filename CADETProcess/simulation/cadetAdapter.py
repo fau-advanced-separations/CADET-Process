@@ -385,6 +385,7 @@ class Cadet(SolverBase):
         """Config branch /input/model/connections
         """
         model_connections = Dict()
+        model_connections['CONNECTIONS_INCLUDE_DYNAMIC_FLOW'] = 1
         index = 0
         
         section_states = process.flow_rate_section_states

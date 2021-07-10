@@ -75,9 +75,9 @@ class Process(EventHandler):
         """ndarray: Mass of the feed components entering the system in one cycle.
         """
         feed_all = []
-        flow_rate_sections = self.flow_rate_sections
+        flow_rate_timelines = self.flow_rate_timelines
         for feed in self.flow_sheet.feed_sources:
-            feed_sections = flow_rate_sections[feed.name]
+            feed_sections = flow_rate_timelines[feed.name]
             m_i  = [integrate.quad(lambda t:
                     feed_sections.value(t) * feed.c[comp], 0, self.cycle_time,
                     points=feed_sections.section_times)[0]
@@ -92,9 +92,9 @@ class Process(EventHandler):
         """float: Volume of the eluent entering the system in one cycle.
         """
         V_all = []
-        flow_rate_sections = self.flow_rate_sections
+        flow_rate_timelines = self.flow_rate_timelines
         for eluent in self.flow_sheet.eluent_sources:
-            eluent_sections = flow_rate_sections[eluent.name]
+            eluent_sections = flow_rate_timelines[eluent.name]
             V_eluent = integrate.quad(lambda t:
                 eluent_sections.value(t), 0, self.cycle_time,
                 points=eluent_sections.section_times)[0]
@@ -122,9 +122,14 @@ class Process(EventHandler):
             for unit in self.flow_sheet.units
         }
 
-        times = list(self.timeline.keys())
+        times = self.event_times
+        
+        if len(times) == 0:
+            enumerator = {0: []}.items()
+        else:
+            enumerator = self.timeline.items()
 
-        for index, (time, events) in enumerate(self.timeline.items()):
+        for index, (time, events) in enumerate(enumerator):
             start = time
             if index < len(times)-1:
                 end = times[index+1]
@@ -149,16 +154,21 @@ class Process(EventHandler):
     def flow_rate_section_states(self):
         """dict: Lists of events for every time, one or more events occur.
         """
+        if len(self.event_times) == 0:
+            event_times = [0]
+        else:
+            event_times = self.event_times
+            
         section_states = {
             time: {
                 unit.name: {
                     'total': [],
                     'destinations': defaultdict(dict)
                 } for unit in self.flow_sheet.units
-            } for time in self.event_times
+            } for time in event_times
         }
         
-        for evt_time in self.event_times:
+        for evt_time in event_times:
             for unit, unit_flow_rates in self.flow_rate_timelines.items():
                 section_states[evt_time][unit]['total'] = \
                     unit_flow_rates['total'].coefficients(evt_time)[0,:]

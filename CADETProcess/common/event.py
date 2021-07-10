@@ -347,7 +347,7 @@ class EventHandler(metaclass=StructMeta):
     def event_times(self):
         """list: Time of events.
         """
-        return [evt.time for evt in self.events]
+        return list({evt.time for evt in self.events})
         
     @property
     def event_parameters(self):
