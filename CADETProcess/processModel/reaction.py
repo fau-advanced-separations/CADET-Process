@@ -25,6 +25,10 @@ class ReactionBaseClass(metaclass=StructMeta):
         self.name = name
 
     @property
+    def model(self):
+        return self.__class__.__name__
+
+    @property
     def parameters(self):
         """dict: Dictionary with parameter values.
         """

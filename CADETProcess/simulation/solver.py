@@ -423,7 +423,7 @@ class ParameterWrapper(ParametersGroup):
         if not isinstance(wrapped_object, self._baseClass):
             raise CADETProcessError("Expected {}".format(self._baseClass))
             
-        model = wrapped_object.__class__.__name__
+        model = wrapped_object.model
         try:
             self.model_parameters = self._model_parameters[model]
         except KeyError:

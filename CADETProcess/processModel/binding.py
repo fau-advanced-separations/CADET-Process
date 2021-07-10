@@ -26,6 +26,10 @@ class BindingBaseClass(metaclass=StructMeta):
         self._parameters = ['is_kinetic']
 
     @property
+    def model(self):
+        return self.__class__.__name__
+
+    @property
     def parameters(self):
         """dict: Dictionary with parameter values.
         """
