@@ -513,10 +513,21 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         Initial volume of the reactor.
     total_porosity : UnsignedFloat between 0 and 1.
         Total porosity of the column.
-    """
-    flow_rate = UnsignedFloat(default=0.0)
-    _parameters = UnitBaseClass._parameters + ['flow_rate']
+    flow_rate_filter: UnsignedFloat 
+        Flow rate of pure liquid without components (reduces volume)
 
+    """
+    porosity = UnsignedFloat(ub=1, default=1)
+    flow_rate_filter = UnsignedFloat(default=0)
+    _parameters = \
+        UnitBaseClass._parameters + \
+        SourceMixin._parameters + \
+        ['porosity', 'flow_rate_filter']
+    _section_dependent_parameters = \
+        UnitBaseClass._section_dependent_parameters + \
+        SourceMixin._section_dependent_parameters + \
+        ['flow_rate_filter']
+            
     c = DependentlySizedUnsignedList(dep='n_comp', default=0)
     q = DependentlySizedUnsignedList(dep='n_comp', default=0)
     V = UnsignedFloat(default=0)

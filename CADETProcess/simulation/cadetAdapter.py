@@ -733,6 +733,7 @@ class UnitParametersGroup(ParameterWrapper):
                 'INIT_C': 'c',
                 'INIT_Q': 'q',
                 'POROSITY': 'porosity',
+                'FLOWRATE_FILTER': 'flow_rate_filter',
                 },
             },
         'Source': {
