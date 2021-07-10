@@ -107,9 +107,8 @@ class Float(Typed):
     ty = float
 
     def __set__(self, instance, value):
-        if value is None:
-            del(instance.__dict__[self.name])
-            return
+        if isinstance(value, (int)):
+            value = float(value)
         
         super().__set__(instance, float(value))
         
