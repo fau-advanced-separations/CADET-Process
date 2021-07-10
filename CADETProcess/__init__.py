@@ -18,7 +18,7 @@ from CADETProcess.CADETProcessError import *
 import CADETProcess.common
 
 import CADETProcess.processModel
-from CADETProcess.processModel import unitOperation, binding
+from CADETProcess.processModel import unitOperation, binding, reaction
 from CADETProcess.processModel import FlowSheet, Process
 
 import CADETProcess.optimization

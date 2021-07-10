@@ -401,8 +401,7 @@ class Cadet(SolverBase):
                 index += 1
 
         model_connections.nswitches = index
-        model_connections.connections_include_dynamic_flow = 1
-
+        
         return model_connections
 
     def cadet_connections(self, flow_rates, flow_sheet):
@@ -523,27 +522,19 @@ class Cadet(SolverBase):
                 unit_config['discretization']['nbound'] = n_bound
 
         if not isinstance(unit.bulk_reaction_model, NoReaction):
-            parameters = self.get_reaction_config(
-                    unit.bulk_reaction_model, 'bulk')
-            if isinstance(unit, (Cstr, LumpedRateModelWithoutPores)):
-                unit_config['reaction'] = parameters
+            parameters = self.get_reaction_config(unit.bulk_reaction_model)
+            if isinstance(unit, LumpedRateModelWithoutPores):
                 unit_config['reaction_model'] = parameters['REACTION_MODEL']
+                unit_config['reaction'] = parameters
             else:
-                unit_config['reaction_bulk'] = parameters
-                unit_config['reaction_model_bulk'] = parameters['REACTION_MODEL']
+                unit_config['reaction_model'] = parameters['REACTION_MODEL']
+                unit_config['reaction_bulk'] = parameters                
     
-        if not isinstance(unit.particle_liquid_reaction_model, NoReaction):
-            parameters = self.get_reaction_config(
-                unit.particle_liquid_reaction_model, 'particle_liquid')
-            unit_config['reaction_particle'].update(parameters)
+        if not isinstance(unit.particle_reaction_model, NoReaction):
+            parameters = self.get_reaction_config(unit.particle_reaction_model)
             unit_config['reaction_model_particle'] = parameters['REACTION_MODEL']
+            unit_config['reaction_particle'].update(parameters)
             
-        if not isinstance(unit.particle_solid_reaction_model, NoReaction):
-            parameters = self.get_reaction_config(
-                unit.particle_liquid_reaction_model, 'particle_solid')
-            unit_config['reaction_particle'].update(parameters)
-            unit_config['reaction_model_particle'] = parameters['REACTION_MODEL']
-
         if isinstance(unit, Source):
             unit_config['sec_000']['const_coeff'] = unit.c[:,0]
             unit_config['sec_000']['lin_coeff'] = unit.c[:,1]
@@ -623,31 +614,20 @@ class Cadet(SolverBase):
 
         return adsorption_config
     
-    def get_reaction_config(self, reaction, reaction_phase):
+    def get_reaction_config(self, reaction):
         """Config branch /input/model/unit_xxx/reaction for individual unit
 
-        The parameters from the reaction object are extracted and converted to
-        CADET format
-        
         Parameters
         ----------
         reaction : ReactionBaseClass
             Reaction configuration object
-        reaction_phase : str
-            Phase in which reaction takes place
 
         See also
         --------
         get_unit_config
         """
-        if reaction_phase == 'bulk':
-            reaction_config = BulkReactionParametersGroup(reaction).to_dict()
-        elif reaction_phase == 'particle_liquid':
-            reaction_config = ParticleLiquidReactionParametersGroup(reaction).to_dict()
-        elif reaction_phase == 'particle_solid':
-            reaction_config = ParticleSolidReactionParametersGroup(reaction).to_dict()
-        else:
-            raise CADETProcessError('Unknown reaction pase')
+        reaction_config = ReactionParametersGroup(reaction).to_dict()
+
         return reaction_config
 
 
@@ -673,17 +653,24 @@ class Cadet(SolverBase):
         """Config branch /input/solver/sections
         """
         solver_sections = Dict()
-
-        solver_sections.nsec = process._n_cycles * len(process.timeline)
-        solver_sections.section_continuity = [0] * (solver_sections.nsec - 1)
-
-        solver_sections.section_times = [
+        
+        if len(process.event_times) == 0:
+            solver_sections.nsec = process._n_cycles
+            solver_sections.section_times = [
+                n*process.cycle_time for n in range(process._n_cycles)
+                ]
+        else:
+            solver_sections.nsec = process._n_cycles * len(process.event_times)
+            solver_sections.section_times = [
                 round((cycle*process.cycle_time + evt),1)
                 for cycle in range(process._n_cycles)
-                for evt in list(process.timeline)]
-
+                for evt in list(process.timeline)
+            ]
+        
         solver_sections.section_times.append(
-                round(process._n_cycles * process.cycle_time,1))
+            round(process._n_cycles * process.cycle_time,1)
+        )
+        solver_sections.section_continuity = [0] * (solver_sections.nsec - 1)
 
         return solver_sections
 
@@ -985,79 +972,7 @@ class AdsorptionParametersGroup(ParameterWrapper):
     _model_type = 'ADSORPTION_MODEL'
     
     
-class BulkReactionParametersGroup(ParameterWrapper):
-    """Converter for bulk reaction parameters from CADETProcess to CADET.
-
-    See also
-    --------
-    ParameterWrapper
-    ReactionParametersGroup
-    UnitParametersGroup
-    """
-    _baseClass = ReactionBaseClass
-
-    _reaction_models = {
-        'NoReaction': 'NONE',
-        'MassAction': 'MASS_ACTION_LAW',
-                }
-    _reaction_parameters = {
-        'NoReaction': {
-            'name': 'NONE',
-            'parameters':{},
-            },
-        'MassAction': {
-            'name': 'MASS_ACTION_LAW',
-            'parameters':{
-                'MAL_KFWD_BULK' : 'forward_rate',
-                'MAL_KBWD_BULK' : 'backward_rate',
-                'MAL_STOICHIOMETRY_BULK': 'stoichiometric_matrix',
-                'MAL_EXPONENTS_BULK_FWD' : 'forward_modifier_exponent',
-                'MAL_EXPONENTS_BULK_BWD' : 'backward_modifier_exponent',
-                }
-            }
-        }
-
-    _model_parameters = _reaction_parameters
-    _model_type = 'REACTION_MODEL'
-
-    
-class ParticleLiquidReactionParametersGroup(ParameterWrapper):
-    """Converter for particle liquid reaction parameters from CADETProcess to CADET.
-
-    See also
-    --------
-    ParameterWrapper
-    ReactionParametersGroup
-    UnitParametersGroup
-    """
-    _baseClass = ReactionBaseClass
-
-    _reaction_models = {
-        'NoReaction': 'NONE',
-        'MassAction': 'MASS_ACTION_LAW',
-                }
-    _reaction_parameters = {
-        'NoReaction': {
-            'name': 'NONE',
-            'parameters':{},
-            },
-        'MassAction': {
-            'name': 'MASS_ACTION_LAW',
-            'parameters':{
-                'MAL_KFWD_LIQUID' : 'forward_rate',
-                'MAL_KBWD_LIQUID' : 'backward_rate',
-                'MAL_STOICHIOMETRY_LIQUID': 'stoichiometric_matrix',
-                'MAL_EXPONENTS_LIQUID_FWD' : 'forward_modifier_exponent',
-                'MAL_EXPONENTS_LIQUID_BWD' : 'backward_modifier_exponent',
-                }
-            }
-        }
-
-    _model_parameters = _reaction_parameters
-    _model_type = 'REACTION_MODEL'
-    
-    
-class ParticleSolidReactionParametersGroup(ParameterWrapper):
+class ReactionParametersGroup(ParameterWrapper):
     """Converter for particle solid reaction parameters from CADETProcess to CADET.
 
     See also
@@ -1076,18 +991,39 @@ class ParticleSolidReactionParametersGroup(ParameterWrapper):
         'NoReaction': {
             'name': 'NONE',
             'parameters':{},
-            },
-        'MassAction': {
+        },
+        'MassActionLaw': {
             'name': 'MASS_ACTION_LAW',
             'parameters':{
-                'MAL_KFWD_SOLID' : 'forward_rate',
-                'MAL_KBWD_SOLID' : 'backward_rate',
-                'MAL_STOICHIOMETRY_SOLID': 'stoichiometric_matrix',
-                'MAL_EXPONENTS_SOLID_FWD' : 'forward_modifier_exponent',
-                'MAL_EXPONENTS_SOLID_BWD' : 'backward_modifier_exponent',
+                'mal_stoichiometry_bulk': 'stoich',
+                'mal_exponents_bulk_fwd' : 'exponents_fwd',
+                'mal_exponents_bulk_bwd' : 'exponents_bwd',
+                'mal_kfwd_bulk' : 'k_fwd',
+                'mal_kbwd_bulk' : 'k_bwd',
                 }
+        },
+        'MassActionLawPore': {
+            'name': 'MASS_ACTION_LAW',
+            'parameters':{
+                'mal_stoichiometry_liquid': 'stoich_liquid',
+                'mal_exponents_liquid_fwd' : 'exponents_fwd_liquid',
+                'mal_exponents_liquid_bwd' : 'exponents_fwd_liquid',
+                'mal_kfwd_liquid' : 'k_fwd_liquid',
+                'mal_kbwd_liquid' : 'k_bwd_liquid',
+                
+                'mal_stoichiometry_solid': 'stoich_solid',
+                'mal_exponents_solid_fwd' : 'exponents_fwd_solid',
+                'mal_exponents_solid_bwd' : 'exponents_bwd_solid',
+                'mal_kfwd_solid' : 'k_fwd_solid',
+                'mal_kbwd_solid' : 'k_bwd_solid',
+                
+                'mal_exponents_liquid_fwd_modsolid' : 'exponents_fwd_pore_modsolid',
+                'mal_exponents_liquid_bwd_modsolid' : 'exponents_bwd_pore_modsolid',
+                'mal_exponents_solid_fwd_modliquid' : 'exponents_fwd_solid_modpore',
+                'mal_exponents_solid_bwd_modliquid' : 'exponents_bwd_solid_modpore',
             }
         }
+    }
 
     _model_parameters = _reaction_parameters
     _model_type = 'REACTION_MODEL'    

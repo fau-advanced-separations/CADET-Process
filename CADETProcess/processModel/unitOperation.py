@@ -44,6 +44,9 @@ class UnitBaseClass(metaclass=StructMeta):
     _section_dependent_parameters = []
     _piecewise_polynomial_parameters = []
     _initial_state = []
+    
+    supports_bulk_reaction = False
+    supports_particle_reaction = False
 
     def __init__(self, n_comp, name):
         self.name = name
@@ -52,8 +55,7 @@ class UnitBaseClass(metaclass=StructMeta):
         self._binding_model = NoBinding()
 
         self._bulk_reaction_model = NoReaction()
-        self._particle_liquid_reaction_model = NoReaction()
-        self._particle_solid_reaction_model = NoReaction()
+        self._particle_reaction_model = NoReaction()
         
     @property
     def model(self):
@@ -70,12 +72,9 @@ class UnitBaseClass(metaclass=StructMeta):
             parameters['binding_model'] = self.binding_model.parameters
         if not isinstance(self.bulk_reaction_model, NoReaction):
             parameters['bulk_reaction_model'] = self.bulk_reaction_model.parameters
-        if not isinstance(self.particle_liquid_reaction_model, NoReaction):
-            parameters['particle_liquid_reaction_model'] = \
-                self.particle_liquid_reaction_model.parameters
-        if not isinstance(self.particle_solid_reaction_model, NoReaction):
-            parameters['particle_solid_reaction_model'] = \
-                self.particle_solid_reaction_model.parameters
+        if not isinstance(self.particle_reaction_model, NoReaction):
+            parameters['particle_reaction_model'] = \
+                self.particle_reaction_model.parameters
 
         return parameters
 
@@ -85,7 +84,15 @@ class UnitBaseClass(metaclass=StructMeta):
             self.binding_model.parameters = parameters.pop('binding_model')
         except KeyError:
             pass
-
+        try:
+            self.bulk_reaction_model.parameters = parameters.pop('bulk_reaction_model')
+        except KeyError:
+            pass        
+        try:
+            self.particle_reaction_model.parameters = parameters.pop('particle_reaction_model')
+        except KeyError:
+            pass     
+        
         for param, value in parameters.items():
             if param not in self._parameters:
                 raise CADETProcessError('Not a valid parameter')
@@ -157,6 +164,7 @@ class UnitBaseClass(metaclass=StructMeta):
         TypeError
             If binding_model object is not an instance of BindingBaseClass.
         CADETProcessError
+            If unit does not support bulk reaction model.
             If number of components do not match.
         """
         return self._bulk_reaction_model
@@ -165,6 +173,8 @@ class UnitBaseClass(metaclass=StructMeta):
     def bulk_reaction_model(self, bulk_reaction_model):
         if not isinstance(bulk_reaction_model, ReactionBaseClass):
             raise TypeError('Expected ReactionBaseClass')
+        if not self.supports_bulk_reaction:
+            raise CADETProcessError('Unit does not support bulk reactions.')
 
         if bulk_reaction_model.n_comp != self.n_comp and not isinstance(
                 bulk_reaction_model, NoReaction):
@@ -173,7 +183,7 @@ class UnitBaseClass(metaclass=StructMeta):
         self._bulk_reaction_model = bulk_reaction_model
     
     @property
-    def particle_liquid_reaction_model(self):
+    def particle_reaction_model(self):
         """particle_liquid_reaction_model: Reaction model in the particle liquid phase
 
         Raises
@@ -181,44 +191,24 @@ class UnitBaseClass(metaclass=StructMeta):
         TypeError
             If binding_model object is not an instance of BindingBaseClass.
         CADETProcessError
+            If unit does not support particle reaction model.
             If number of components do not match.
         """
-        return self._particle_liquid_reaction_model
+        return self._particle_reaction_model
 
-    @particle_liquid_reaction_model.setter
-    def particle_liquid_reaction_model(self, particle_liquid_reaction_model):
-        if not isinstance(particle_liquid_reaction_model, ReactionBaseClass):
+    @particle_reaction_model.setter
+    def particle_reaction_model(self, particle_reaction_model):
+        if not isinstance(particle_reaction_model, ReactionBaseClass):
             raise TypeError('Expected ReactionBaseClass')
+        if not self.supports_bulk_reaction:
+            raise CADETProcessError('Unit does not support particle reactions.')            
 
-        if particle_liquid_reaction_model.n_comp != self.n_comp and not isinstance(
-                particle_liquid_reaction_model, ReactionBaseClass):
+        if particle_reaction_model.n_comp != self.n_comp and not isinstance(
+                particle_reaction_model, NoReaction):
             raise CADETProcessError('Number of components does not match.')
 
-        self._particle_liquid_reaction_model = particle_liquid_reaction_model
+        self._particle_reaction_model = particle_reaction_model
 
-    @property
-    def particle_solid_reaction_model(self):
-        """particle_solid_reaction_model: Reaction model in the particle solid phase
-
-        Raises
-        ------
-        TypeError
-            If binding_model object is not an instance of BindingBaseClass.
-        CADETProcessError
-            If number of components do not match.
-        """
-        return self._particle_solid_reaction_model
-
-    @particle_solid_reaction_model.setter
-    def particle_solid_reaction_model(self, particle_solid_reaction_model):
-        if not isinstance(particle_solid_reaction_model, ReactionBaseClass):
-            raise TypeError('Expected ReactionBaseClass')
-
-        if particle_solid_reaction_model.n_comp != self.n_comp and not isinstance(
-                particle_solid_reaction_model, ReactionBaseClass):
-            raise CADETProcessError('Number of components does not match.')
-
-        self._particle_solid_reaction_model = particle_solid_reaction_model
 
     def __repr__(self):
         """String-depiction of the object, can be changed into an object by
@@ -302,6 +292,7 @@ class TubularReactor(UnitBaseClass):
     c : List of unsinged floats. Length depends on n_comp
         Initial concentration of the reactor.
     """
+    supports_bulk_reaction = True
     length = UnsignedFloat()
     diameter = UnsignedFloat()
     axial_dispersion = UnsignedFloat()
@@ -445,7 +436,16 @@ class LumpedRateModelWithoutPores(TubularReactor):
         Total porosity of the column.
     q : List of unsinged floats. Length depends on n_comp
         Initial concentration of the bound phase.
+    
+    Note
+    ----
+    Although technically the LumpedRateModelWithoutPores does not have 
+    particles, the particle reactions interface is used to support reactions 
+    in the solid phase and cross-phase reactions.
     """
+    supports_bulk_reaction = False
+    supports_particle_reaction = True
+    
     total_porosity = UnsignedFloat(ub=1)
     _parameters = TubularReactor._parameters + ['total_porosity']
 
@@ -476,6 +476,9 @@ class LumpedRateModelWithPores(TubularReactor):
     q : List of unsinged floats. Length depends on n_comp
         Initial concntration of the bound phase.
     """
+    supports_bulk_reaction = True
+    supports_particle_reaction = True
+    
     bed_porosity = UnsignedFloat(ub=1)
     particle_porosity = UnsignedFloat(ub=1)
     particle_radius = UnsignedFloat()
@@ -526,6 +529,9 @@ class GeneralRateModel(TubularReactor):
     q : List of unsinged floats. Length depends on n_comp
         Initial concntration of the bound phase.
     """
+    supports_bulk_reaction = True
+    supports_particle_reaction = True
+    
     bed_porosity = UnsignedFloat(ub=1)
     particle_porosity = UnsignedFloat(ub=1)
     particle_radius = UnsignedFloat()
@@ -572,6 +578,9 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     flow_rate_filter: UnsignedFloat 
         Flow rate of pure liquid without components (reduces volume)
     """
+    supports_bulk_reaction = True
+    supports_particle_reaction = True
+    
     porosity = UnsignedFloat(ub=1, default=1)
     flow_rate_filter = UnsignedFloat(default=0)
     _parameters = \
