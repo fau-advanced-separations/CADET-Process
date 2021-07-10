@@ -4,10 +4,10 @@ import numpy as np
 from CADETProcess import CADETProcessError
 from CADETProcess.common import StructMeta
 from CADETProcess.common import \
-    Bool, Float, String, Tuple, \
+    String, Switch, \
     UnsignedInteger, UnsignedFloat, \
     SizedTuple, \
-    DependentlySizedList, DependentlySizedUnsignedList, DependentlySizedNdArray
+    DependentlySizedUnsignedList, DependentlySizedNdArray
 from CADETProcess.processModel import BindingBaseClass, NoBinding
 from CADETProcess.processModel import ReactionBaseClass, NoReaction
 
@@ -55,6 +55,10 @@ class UnitBaseClass(metaclass=StructMeta):
         self._particle_liquid_reaction_model = NoReaction()
         self._particle_solid_reaction_model = NoReaction()
         
+    @property
+    def model(self):
+        return self.__class__.__name__
+
     @property
     def parameters(self):
         """dict: Dictionary with parameter values.
@@ -239,7 +243,7 @@ class UnitBaseClass(metaclass=StructMeta):
             like number of components and object name
         """
         return self.name
-
+    
 
 class SourceMixin(metaclass=StructMeta):
     """Mixin class for Units that have Source-like behavior
@@ -302,12 +306,12 @@ class TubularReactor(UnitBaseClass):
     diameter = UnsignedFloat()
     axial_dispersion = UnsignedFloat()
     total_porosity = 1
-    reverse_flow = Bool(default=False)
+    flow_direction = Switch(valid=[-1,1], default=1)
     _parameters = UnitBaseClass._parameters + [
-        'length', 'diameter','axial_dispersion', 'reverse_flow'
+        'length', 'diameter','axial_dispersion', 'flow_direction'
     ]
     _section_dependent_parameters = UnitBaseClass._section_dependent_parameters + [
-        'axial_dispersion', 'reverse_flow'
+        'axial_dispersion', 'flow_direction'
     ]
     
     c = DependentlySizedUnsignedList(dep='n_comp', default=0)
