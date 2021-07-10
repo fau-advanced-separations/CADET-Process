@@ -50,19 +50,12 @@ class Process(EventHandler):
 
     @property
     def flow_sheet(self):
-        """Sets the flow_sheet object for the process simulation.
-
-        Checks the type of the flow_sheet object and sets it.
-
-        Parameters
-        ----------
-        flow_sheet : FlowSheet
-            Superstructure of the chromatographic process.
+        """FlowSheet: flow sheet of the process model.
 
         Raises
         -------
         TypeError:
-            If selected flow_sheet is no instance of FlowSheet.
+            If flow_sheet is not an instance of FlowSheet.
 
         Returns
         -------
@@ -76,16 +69,6 @@ class Process(EventHandler):
         if not isinstance(flow_sheet, FlowSheet):
             raise TypeError('Expected FlowSheet')
         self._flow_sheet = flow_sheet
-
-    @property
-    def flow_sheet_sections(self):
-        flow_sheet_sections = []
-        for cycle in range(0, self._n_cycles):
-            for time_step, events in self.time_line.items():
-                [evt.perform() for evt in events]
-                flow_sheet_sections.append(copy.deepcopy(self.flow_sheet))
-        return flow_sheet_sections
-
 
     @property
     def m_feed(self):
@@ -126,15 +109,22 @@ class Process(EventHandler):
         return sum([unit.volume_solid
                        for unit in self.flow_sheet.units_with_binding])
 
+
     @property
-    def flow_rate_sections(self):
+    def flow_rate_timelines(self):
         """dict: TimeLine of flow_rate for all unit_operations.
         """
-        flow_rate_sections = defaultdict(TimeLine)
+        flow_rate_timelines = {
+            unit.name: {
+                'total': TimeLine(),
+                'destinations': defaultdict(TimeLine)
+                }
+            for unit in self.flow_sheet.units
+        }
 
-        times = list(self.time_line.keys())
+        times = list(self.timeline.keys())
 
-        for index, (time, events) in enumerate(self.time_line.items()):
+        for index, (time, events) in enumerate(self.timeline.items()):
             start = time
             if index < len(times)-1:
                 end = times[index+1]
@@ -146,38 +136,84 @@ class Process(EventHandler):
 
             flow_rates = self.flow_sheet.flow_rates
 
-            for unit in self.flow_sheet.units:
-                section = Section(start, end, flow_rates[unit.name].total)
-                flow_rate_sections[unit.name].add_section(section)
+            for unit, flow_rate in flow_rates.items():
+                section = Section(start, end, flow_rate.total)
+                flow_rate_timelines[unit]['total'].add_section(section)
+                for dest, flow_rate_dest in flow_rate.destinations.items():
+                    section = Section(start, end, flow_rate_dest)
+                    flow_rate_timelines[unit]['destinations'][dest].add_section(section)
 
-        return Dict(flow_rate_sections)
+        return Dict(flow_rate_timelines)
+    
+    @property
+    def flow_rate_section_states(self):
+        """dict: Lists of events for every time, one or more events occur.
+        """
+        section_states = {
+            time: {
+                unit.name: {
+                    'total': [],
+                    'destinations': defaultdict(dict)
+                } for unit in self.flow_sheet.units
+            } for time in self.event_times
+        }
+        
+        for evt_time in self.event_times:
+            for unit, unit_flow_rates in self.flow_rate_timelines.items():
+                section_states[evt_time][unit]['total'] = \
+                    unit_flow_rates['total'].coefficients(evt_time)[0,:]
+                
+                for dest, tl in unit_flow_rates.destinations.items():
+                    section_states[evt_time][unit]['destinations'][dest] = \
+                        tl.coefficients(evt_time)[0,:]
+
+        return Dict(section_states)
+
+
+    @property
+    def unit_flow_rate_section_states(self):
+        """dict: Lists of events for every time, one or more events occur.
+        !!! Todo Not working yet!
+        """
+        section_states = {
+            unit.name: {
+                'total': {time: None for time in self.event_times},
+                'destinations': defaultdict(dict)
+            } for unit in self.flow_sheet.units
+        }
+        
+        for evt_time in self.event_times:
+            for param, tl in self.flow_rate_timelines.items():
+                
+                section_states[evt_time][param]['total'] = tl.coefficients(evt_time)
+
+        return section_states
+
 
     @property
     def time(self):
-        """Returns time vetor for one cycle
+        """np.array: Returns time vector for one cycle
 
-        Returns
-        -------
-        time : ndarray
-            Time vector of the chromatogramm.
+        Todo
+        ----
+        Remove from Process; Check also EventHandler.plot_events()
+        
+        See Also
+        --------
+        cycle_time
+        _time_complete
         """
         cycle_time = self.cycle_time
         return np.linspace(0, cycle_time, math.ceil(cycle_time))
 
     @property
     def _time_complete(self):
-        """Defines the complete time for simulation.
-
-        First the number of cycles is set for evaluating the complete time of
-        simulation by multiplication the value of the cycle time with the
-        number of cycles. To get the number of steps for the linspace without
-        start and ending point the indices are evaluated.
-
-        Returns
-        -------
-        time_complete : ndarray
-            array of the time vector with 1 decimal-point rounded values from
-            zero to time complete with number of indices as steps.
+        """np.array: time vector for mulitple cycles of a process.
+        
+        See Also
+        --------
+        time
+        _n_cycles
         """
         complete_time = self._n_cycles * self.cycle_time
         indices = self._n_cycles*math.ceil(self.cycle_time) - (self._n_cycles-1)
@@ -210,14 +246,26 @@ class Process(EventHandler):
 
     @parameters.setter
     def parameters(self, parameters):
-
         try:
             self.flow_sheet.parameters = parameters.pop('flow_sheet')
         except KeyError:
             pass
 
         super(Process, self.__class__).parameters.fset(self, parameters)
+    
+    @property
+    def section_dependent_parameters(self):
+        parameters = Dict()
+        parameters.flow_sheet = self.flow_sheet.section_dependent_parameters
 
+        return parameters
+
+    @property
+    def piecewise_polynomial_parameters(self):
+        parameters = Dict()
+        parameters.flow_sheet = self.flow_sheet.piecewise_polynomial_parameters
+
+        return parameters        
 
     @property
     def initial_state(self):
@@ -251,19 +299,20 @@ class Process(EventHandler):
 
     @property
     def process_meta(self):
-        """Additional information required for calculating performance
-
-        Returns
-        -------
-        process_meta : ProcessMeta
-            Additional information required for calculating performance
+        """ProcessMeta: Meta information of the process.
+        
+        See Also
+        --------
+        ProcessResults
+        Performance        
         """
         return ProcessMeta(
-                cycle_time = self.cycle_time,
-                m_feed = self.m_feed,
-                V_solid = self.V_solid,
-                V_eluent = self.V_eluent,
-                )
-
+            cycle_time = self.cycle_time,
+            m_feed = self.m_feed,
+            V_solid = self.V_solid,
+            V_eluent = self.V_eluent,
+        )
+    
+            
     def __str__(self):
         return self.name

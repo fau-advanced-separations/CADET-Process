@@ -57,10 +57,7 @@ class Section():
         Each row represents the polynomial coefficients of one component
         in increasing order.
         """
-        if len(self._poly) == 1:
-            return self._poly[0].coef
-        else:
-            return np.array([p.coef for p in self._poly])
+        return np.array([p.coef for p in self._poly])
     
     @property
     def n_dim(self):
@@ -129,7 +126,7 @@ class TimeLine():
 
     @property
     def sections(self):
-        return self._sections
+        return sorted(self._sections, key=lambda sec: sec.start)
     
     def add_section(self, section):
         """Add section to TimeLine.
@@ -153,7 +150,7 @@ class TimeLine():
         if len(self.sections) > 0:
             if section.n_dim != self.n_dim:
                 raise CADETProcessError('Number of dimensions not matching')
-            if section.start != self.end:
+            if not (section.start == self.end or section.end == self.start):
                 raise CADETProcessError('Sections times must be without gaps')
 
         self._sections.append(section)
@@ -168,11 +165,12 @@ class TimeLine():
             DESCRIPTION.
 
         """
-        x = [0.0]
+        x = []
         coeffs = []
         for sec in self.sections:
             coeffs.append(np.array((sec.coeffs),ndmin=2))
-            x.append(sec.end)
+            x.append(sec.start)
+        x.append(sec.end)
             
         piecewise_poly = []
         for i in range(self.n_dim):
@@ -197,7 +195,7 @@ class TimeLine():
             time points at which to evaluate.
 
         """
-        return np.array([p(time) for p in self.piecewise_poly]).T
+        return np.array([p(time) for p in self.piecewise_poly], ndmin=2).T
     
     def coefficients(self, time):
         """Return coefficient of polynomial at given time.
@@ -215,7 +213,7 @@ class TimeLine():
         section_index = self.section_index(time)
         c = self.sections[section_index].coeffs
         y = self.value(time)
-        c[:,0] = y
+        c[:,0] = y[:,0]
         
         return c
     

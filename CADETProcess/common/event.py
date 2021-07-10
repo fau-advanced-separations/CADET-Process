@@ -1,3 +1,5 @@
+from abc import abstractmethod
+
 from addict import Dict
 import numpy as np
 from collections import defaultdict
@@ -37,38 +39,34 @@ class EventHandler(metaclass=StructMeta):
 
         self._events = []
         self._durations = []
-
+        
     @property
     def events(self):
-        """ Returns a sorted list with all events.
+        """list: All Events ordered by event time.
 
-        Returns a sorted list for all events in a process with information
-        about the performer, attribute, state and value. The list is ordered by
-        value.
+        Includes information about the event performer, attribute, and state.
 
-        Returns
-        -------
-        events : list
-            List with all events in EventHandler ordered by time.
+        See Also
+        --------
+        Events
+        add_event
+        remove_event
+        Durations
         """
         return sorted(self._events, key=lambda evt: evt.time)
 
     @property
     def events_dict(self):
-        """Returns a dictionary with all events in a process.
-
-        Returns
-        -------
-        events_dict : dict
-            Dictionary with all events and durations, indexed by Event.name.
+        """dict: Events and Durations orderd by name.
         """
         evts =  {evt.name: evt for evt in self.events}
         durs = {dur.name: dur for dur in self.durations}
         return {**evts, **durs}
 
 
-    def add_event(self, name, parameter_path, state, time=0.0,
-                  component_index=None):
+    def add_event(
+            self, name, parameter_path, state, time=0.0, component_index=None
+        ):
         """Factory function for creating and adding events.
 
         Parameters
@@ -97,8 +95,10 @@ class EventHandler(metaclass=StructMeta):
         """
         if name in self.events_dict:
             raise CADETProcessError("Event already exists")
-        evt = Event(name, self, parameter_path, state, time=time,
-                    component_index=component_index)
+        evt = Event(
+            name, self, parameter_path, state, time=time, 
+            component_index=component_index
+        )
 
         self._events.append(evt)
         super().__setattr__(name, evt)
@@ -220,7 +220,8 @@ class EventHandler(metaclass=StructMeta):
 
 
     def add_event_dependency(
-            self, dependent_event, independent_events, factors=None):
+            self, dependent_event, independent_events, factors=None
+        ):
         """Add dependency between two events.
 
         First it combines the events in the events_dict and the durations_dict
@@ -266,8 +267,9 @@ class EventHandler(metaclass=StructMeta):
             factors = [1]*len(independent_events)
 
         if len(factors) != len(independent_events):
-            raise CADETProcessError("Length of factors must be equal to length of \
-                                independent Events")
+            raise CADETProcessError(
+                "Length of factors must be equal to length of independent Events"
+            )
 
         for indep, fac in zip(independent_events, factors):
             indep = self.events_dict[indep]
@@ -314,57 +316,67 @@ class EventHandler(metaclass=StructMeta):
 
     @property
     def independent_events(self):
-        """list: List of all independent events.
+        """list: Independent Events.
         """
         return list(filter(lambda evt: evt.isIndependent, self.events))
 
 
     @property
     def dependent_events(self):
-        """list: List of all events with dependencies.
+        """list: Events with dependencies.
         """
         return list(
-                filter(lambda evt: evt.isIndependent == False, self.events))
+            filter(lambda evt: evt.isIndependent == False, self.events)
+        )
 
     @property
     def independent_durations(self):
-        """list: List of all independent durations.
+        """list: Independent Durations.
         """
         return list(filter(lambda dur: dur.isIndependent, self.durations))
 
     @property
     def dependent_durations(self):
-        """list: List of all durations with dependencies.
+        """list: Durations with dependencies.
         """
         return list(
-                filter(lambda dur: dur.isIndependent == False, self.durations))
+            filter(lambda dur: dur.isIndependent == False, self.durations)
+        )
 
     @property
-    def performer_event_lists(self):
-        """dict: list of events for every event peformer.
+    def event_times(self):
+        """list: Time of events.
         """
-        performer_event_lists = defaultdict(list)
-        for evt in self.events:
-            performer_event_lists[evt.performer].append(evt)
-
-        return Dict(performer_event_lists)
+        return [evt.time for evt in self.events]
+        
+    @property
+    def event_parameters(self):
+        """list: Event parameters.
+        """
+        return list({evt.parameter_path for evt in self.events})
+    
+    @property
+    def event_performers(self):
+        """list: Event peformers.
+        """
+        return list({evt.performer for evt in self.events})
 
     @property
-    def event_parameter_lists(self):
+    def parameter_events(self):
         """dict: list of events for every event parameter.
         """
-        event_performers_dict = defaultdict(list)
+        parameter_events = defaultdict(list)
         for evt in self.events:
-            event_performers_dict[evt.parameter_path].append(evt)
+            parameter_events[evt.parameter_path].append(evt)
 
-        return Dict(event_performers_dict)
+        return Dict(parameter_events)
 
     @property
-    def event_parameter_time_lines(self):
+    def parameter_timelines(self):
         """dict: TimeLine for every event parameter.
         """
-        parameter_time_lines = defaultdict(TimeLine)
-        for evt_parameter, events in self.event_parameter_lists.items():
+        parameter_timelines = defaultdict(TimeLine)
+        for evt_parameter, events in self.parameter_events.items():
 
             for index, evt in enumerate(events):
                 section_start = evt.time
@@ -372,29 +384,78 @@ class EventHandler(metaclass=StructMeta):
                 if index < len(events) - 1:
                     section_end = events[index + 1].time
                     section = Section(section_start, section_end, evt.state)
-                    parameter_time_lines[evt.parameter_path].add_section(section)
+                    parameter_timelines[evt.parameter_path].add_section(section)
                 else:
                     section_end = self.cycle_time
                     section = Section(section_start, section_end, evt.state)
-                    parameter_time_lines[evt.parameter_path].add_section(section)
+                    parameter_timelines[evt.parameter_path].add_section(section)
 
-                    section_start = 0
-                    section_end = events[0].time
-                    if section_start != section_end:
-                        section = Section(section_start, section_end, evt.state)
-                        parameter_time_lines[evt.parameter_path].add_section(section)
-        return Dict(parameter_time_lines)
+                    if events[0].time != 0:
+                        section = Section(0.0, events[0].time, evt.state)
+                        parameter_timelines[evt.parameter_path].add_section(section)
+        return Dict(parameter_timelines)
 
 
     @property
-    def time_line(self):
+    def performer_events(self):
+        """dict: list of events for every event peformer.
+        """
+        performer_events = defaultdict(list)
+        for evt in self.events:
+            performer_events[evt.performer].append(evt)
+
+        return Dict(performer_events)    
+
+    @property
+    def performer_timelines(self):
+        """dict: TimeLines for every event parameter of a performer.
+        """
+        performer_timelines = {performer: {} for performer in self.event_performers}
+        
+        for param, tl in self.parameter_timelines.items():
+            performer, param = param.rsplit('.',1)
+            performer_timelines[performer][param] = tl
+
+        return performer_timelines
+
+
+    @property
+    def timeline(self):
+        """dict: Lists of events for every time, one or more events occur.
+        
+        Todo
+        ----
+        Rename since name is used for Timeline class.
+        """
+        timeline = defaultdict(list)
+        for evt in self.events:
+            timeline[evt.time].append(evt)
+
+        return dict(timeline)
+
+    @property
+    def section_states(self):
         """dict: Lists of events for every time, one or more events occur.
         """
-        time_line = defaultdict(list)
-        for evt in self.events:
-            time_line[evt.time].append(evt)
-
-        return dict(time_line)
+        section_states = defaultdict(dict)
+        
+        for evt_time in self.event_times:
+            for param, tl in self.parameter_timelines.items():
+                section_states[evt_time][param] = tl.coefficients(evt_time)
+        return section_states
+    
+    @property
+    def performer_section_states(self):
+        """dict: Lists of events for every time, one or more events occur.
+        """
+        section_states = {performer: defaultdict(dict) for performer in self.event_performers}
+        
+        for evt_time in self.event_times:
+            for performer, params in self.performer_timelines.items():
+                for param, tl in params.items():
+                    section_states[performer][param][evt_time] = tl.coefficients(evt_time)
+        return Dict(section_states)
+    
 
     @property
     def parameters(self):
@@ -426,21 +487,21 @@ class EventHandler(metaclass=StructMeta):
                 raise CADETProcessError('{} is not a valid event'.format(str(evt)))
 
             evt.parameters = evt_parameters
+            
 
     def plot_events(self):
-        """Plot state as afunctio of time for all performers.
+        """Plot parameter state as function of time.
         """
-        for performer, events in self.event_performers_dict.items():
-            x = self.time/60
-            y = self.state_vector[performer]
+        for parameter, tl in self.parameter_timelines.items():
+            x = self.time
+            y = tl.value(x)
 
             plot_parameters = PlotParameters()
             plot_parameters.x_label = '$time~/~min$'
             plot_parameters.y_label = '$state$'
-            plot_parameters.title = '${}$'.format(str(performer))
-
+            plot_parameters.title = str(parameter)
             plotlib.plot(x, y, plot_parameters)
-
+            
 
 class Event():
     """Class for defining dynamic changes.
@@ -502,7 +563,9 @@ class Event():
 
     @parameter_path.setter
     def parameter_path(self, parameter_path):
-        if not check_nested(self.event_handler.parameters, parameter_path):
+        if not check_nested(
+            self.event_handler.section_dependent_parameters, parameter_path
+        ):
             raise CADETProcessError('Not a valid event parameter')
         self._parameter_path = parameter_path
 

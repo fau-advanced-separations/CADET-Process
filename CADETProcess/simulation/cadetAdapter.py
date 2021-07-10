@@ -7,6 +7,7 @@ import time
 import tempfile
 
 from addict import Dict
+import numpy as np
 from cadet import Cadet as CadetAPI
 
 from CADETProcess import CADETProcessError
@@ -153,7 +154,7 @@ class Cadet(SolverBase):
             if not exists:
                 raise CADETProcessError('Not a valid path')
         
-        self._temp_dir = temp_dir
+        tempfile.tempdir = temp_dir
         
     def get_tempfile_name(self):
         f = next(tempfile._get_candidate_names())
@@ -329,7 +330,7 @@ class Cadet(SolverBase):
 
             chromatograms = [Chromatogram(
                     process.time, solution[chrom.name][-1].signal,
-                    process.flow_rate_sections[chrom.name],
+                    process.flow_rate_timelines[chrom.name].total,
                     name = chrom.name)
                     for chrom in process.flow_sheet.chromatogram_sinks]
 
@@ -385,47 +386,64 @@ class Cadet(SolverBase):
         """
         model_connections = Dict()
         index = 0
-
-        def cadet_connections(flow_sheet):
-            table = Dict()
-            enum = 0
-
-            for origin, flow_rates in flow_sheet.flow_rates.items():
-                origin = flow_sheet[origin]
-                origin_index = flow_sheet.get_unit_index(origin)
-                for dest, flow_rate in flow_rates.destinations.items():
-                    destination = flow_sheet[dest]
-                    destination_index = flow_sheet.get_unit_index(destination)
-                    if flow_rate > 0:
-                        table[enum] = []
-                        table[enum].append(int(origin_index))
-                        table[enum].append(int(destination_index))
-                        table[enum].append(-1)
-                        table[enum].append(-1)
-                        table[enum].append(flow_rate)
-                        enum += 1
-
-            ls = []
-            for connection in table.values():
-                ls += connection
-
-            return ls
+        
+        section_states = process.flow_rate_section_states
 
         for cycle in range(0, process._n_cycles):
-            for time_step, events in process.time_line.items():
-                [evt.perform() for evt in events]
+            for flow_rates_state in section_states.values():
 
                 switch_index = 'switch' + '_{0:03d}'.format(index)
                 model_connections[switch_index].section = index
 
-                connections = cadet_connections(process.flow_sheet)
+                connections = self.cadet_connections(flow_rates_state, process.flow_sheet)
                 model_connections[switch_index].connections = \
                     connections
                 index += 1
 
         model_connections.nswitches = index
+        model_connections.connections_include_dynamic_flow = 1
 
         return model_connections
+
+    def cadet_connections(self, flow_rates, flow_sheet):
+        """list: Connections matrix for flow_rates state.
+        
+        Parameters
+        ----------
+        flow_rates : dict
+            UnitOperations with outgoing flow rates. 
+
+        flow_sheet : FlowSheet
+            Object which hosts units (for getting unit index).
+
+        Returns
+        -------
+        ls : list
+            Connections matrix for DESCRIPTION.
+        """
+        table = Dict()
+        enum = 0
+
+        for origin, unit_flow_rates in flow_rates.items():
+            origin = flow_sheet[origin]
+            origin_index = flow_sheet.get_unit_index(origin)
+            for dest, flow_rate in unit_flow_rates.destinations.items():
+                destination = flow_sheet[dest]
+                destination_index = flow_sheet.get_unit_index(destination)
+                if np.any(flow_rate):
+                    table[enum] = []
+                    table[enum].append(int(origin_index))
+                    table[enum].append(int(destination_index))
+                    table[enum].append(-1)
+                    table[enum].append(-1)
+                    table[enum] += list(flow_rate)
+                    enum += 1
+
+        ls = []
+        for connection in table.values():
+            ls += connection
+
+        return ls
 
     def get_unit_index(self, process, unit):
         """Helper function for getting unit index in CADET format unitXXX
@@ -461,8 +479,10 @@ class Cadet(SolverBase):
             unit_index = self.get_unit_index(process, unit)
             model_units[unit_index] = self.get_unit_config(unit)
 
-        return model_units
+        self.set_section_dependent_parameters(model_units, process)
 
+        return model_units
+    
     def get_unit_config(self, unit):
         """Config branch /input/model/unit_000 for individual unit
 
@@ -525,13 +545,68 @@ class Cadet(SolverBase):
             unit_config['reaction_model_particle'] = parameters['REACTION_MODEL']
 
         if isinstance(unit, Source):
-            unit_config['inlet_type'] = 'PIECEWISE_CUBIC_POLY'
-            unit_config['sec_000'] = {}
-            unit_config['sec_000']['const_coeff'] = unit.c
-            unit_config['sec_000']['lin_coeff'] = [0.0] * unit.n_comp
-            unit_config['sec_000']['quad_coeff']= [0.0] * unit.n_comp
-            unit_config['sec_000']['cube_coeff'] = [0.0] * unit.n_comp
+            unit_config['sec_000']['const_coeff'] = unit.c[:,0]
+            unit_config['sec_000']['lin_coeff'] = unit.c[:,1]
+            unit_config['sec_000']['quad_coeff']= unit.c[:,2]
+            unit_config['sec_000']['cube_coeff'] = unit.c[:,3]
+
         return unit_config
+    
+    def set_section_dependent_parameters(self, model_units, process):
+        """Add time dependent model parameters to units
+        """
+        section_states = process.section_states.values()
+        
+        section_index = 0
+        for cycle in range(0, process._n_cycles):
+            for param_states in section_states:
+                for param, state in param_states.items():
+                    param = param.split('.')
+                    unit_name = param[1]
+                    param_name = param[-1]
+                    try:
+                        unit = process.flow_sheet[unit_name]
+                    except KeyError:
+                        if param_name == 'output_state':
+                            continue
+                        else:
+                            raise CADETProcessError(
+                                'Unexpected section dependent parameter'
+                            )
+                    if param_name == 'flow_rate':
+                        continue
+                    unit_index = process.flow_sheet.get_unit_index(unit)
+                    if isinstance(unit, Source) and param_name == 'c':
+                        self.add_inlet_section(
+                            model_units, section_index, unit_index, state
+                        )
+                    else:
+                        unit_model = unit.model
+                        self.add_parameter_section(
+                            model_units, section_index, unit_index, 
+                            unit_model, param_name, state
+                        )
+                        
+                    section_index += 1
+            
+    def add_inlet_section(self, model_units, sec_index, unit_index, coeffs):
+        unit_index = 'unit' + '_{0:03d}'.format(unit_index)
+        section_index = 'sec' + '_{0:03d}'.format(sec_index)
+    
+        model_units[unit_index][section_index]['const_coeff'] = coeffs[:,0]
+        model_units[unit_index][section_index]['lin_coeff'] = coeffs[:,1]
+        model_units[unit_index][section_index]['quad_coeff']= coeffs[:,2]
+        model_units[unit_index][section_index]['cube_coeff'] = coeffs[:,3]
+    
+    def add_parameter_section(
+            self, model_units, sec_index, unit_index, unit_model, parameter, state
+        ):
+        unit_index = 'unit' + '_{0:03d}'.format(unit_index)
+        parameter_name = inv_unit_parameters_map[unit_model]['parameters'][parameter]
+        
+        if sec_index == 0:
+            model_units[unit_index][parameter_name] = []
+        model_units[unit_index][parameter_name].append(state)            
 
 
     def get_adsorption_config(self, binding):
@@ -599,13 +674,13 @@ class Cadet(SolverBase):
         """
         solver_sections = Dict()
 
-        solver_sections.nsec = process._n_cycles * len(process.time_line)
+        solver_sections.nsec = process._n_cycles * len(process.timeline)
         solver_sections.section_continuity = [0] * (solver_sections.nsec - 1)
 
         solver_sections.section_times = [
                 round((cycle*process.cycle_time + evt),1)
                 for cycle in range(process._n_cycles)
-                for evt in list(process.time_line)]
+                for evt in list(process.timeline)]
 
         solver_sections.section_times.append(
                 round(process._n_cycles * process.cycle_time,1))
@@ -650,6 +725,120 @@ class ModelSolverParametersGroup(ParametersGroup):
     SCHUR_SAFETY = UnsignedFloat(default=1.0e-8)
     _parameters = ['GS_TYPE', 'MAX_KRYLOV', 'MAX_RESTARTS', 'SCHUR_SAFETY']
 
+unit_parameters_map = {
+    'GeneralRateModel': {
+        'name': 'GENERAL_RATE_MODEL',
+        'parameters':{
+            'NCOMP': 'n_comp',
+            'INIT_C': 'c',
+            'INIT_Q': 'q',
+            'INIT_CP': 'cp',
+            'COL_DISPERSION': 'axial_dispersion',
+            'COL_LENGTH': 'length',
+            'COL_POROSITY': 'bed_porosity',
+            'FILM_DIFFUSION': 'film_diffusion',
+            'PAR_POROSITY': 'particle_porosity',
+            'PAR_RADIUS': 'particle_radius',
+            'PORE_ACCESSIBILITY': 'pore_accessibility',
+            'PAR_DIFFUSION': 'pore_diffusion',
+            'PAR_SURFDIFFUSION': 'surface_diffusion',
+            'CROSS_SECTION_AREA': 'cross_section_area',
+            'VELOCITY': 'flow_direction',
+        },
+    },
+    'LumpedRateModelWithPores': {
+        'name': 'LUMPED_RATE_MODEL_WITH_PORES',
+        'parameters':{
+            'NCOMP': 'n_comp',
+            'INIT_C': 'c',
+            'INIT_CP': 'cp',
+            'INIT_Q': 'q',
+            'COL_DISPERSION': 'axial_dispersion',
+            'COL_LENGTH': 'length',
+            'COL_POROSITY': 'bed_porosity',
+            'FILM_DIFFUSION': 'film_diffusion',
+            'PAR_POROSITY': 'particle_porosity',
+            'PAR_RADIUS': 'particle_radius',
+            'PORE_ACCESSIBILITY': 'pore_accessibility',
+            'CROSS_SECTION_AREA': 'cross_section_area',
+            'VELOCITY': 'flow_direction',
+        },
+    },
+    'LumpedRateModelWithoutPores': {
+        'name': 'LUMPED_RATE_MODEL_WITHOUT_PORES',
+        'parameters':{
+            'NCOMP': 'n_comp',
+            'INIT_C': 'c',
+            'INIT_Q': 'q',
+            'COL_DISPERSION': 'axial_dispersion',
+            'COL_LENGTH': 'length',
+            'TOTAL_POROSITY': 'total_porosity',
+            'CROSS_SECTION_AREA': 'cross_section_area',
+            'VELOCITY': 'flow_direction',
+        },
+    },
+    'TubularReactor': {
+        'name': 'LUMPED_RATE_MODEL_WITHOUT_PORES',
+        'parameters':{
+            'NCOMP': 'n_comp',
+            'INIT_C': 'c',
+            'INIT_Q': 'q',
+            'COL_DISPERSION': 'axial_dispersion',
+            'COL_LENGTH': 'length',
+            'CROSS_SECTION_AREA': 'cross_section_area',
+            'VELOCITY': 'flow_direction',
+            },
+        'fixed': {
+            'TOTAL_POROSITY': 1,
+        },
+    },
+    'Cstr': {
+        'name': 'CSTR',
+        'parameters':{
+            'NCOMP': 'n_comp',
+            'INIT_VOLUME': 'V',
+            'INIT_C': 'c',
+            'INIT_Q': 'q',
+            'POROSITY': 'porosity',
+            'FLOWRATE_FILTER': 'flow_rate_filter',
+        },
+    },
+    'Source': {
+        'name': 'INLET',
+        'parameters':{            
+            'NCOMP': 'n_comp',
+        },
+        'fixed': {
+            'INLET_TYPE': 'PIECEWISE_CUBIC_POLY',
+        },
+    },
+    'Sink': {
+        'name': 'OUTLET',
+        'parameters':{             
+            'NCOMP': 'n_comp',
+        },
+    },
+    'MixerSplitter': {
+        'name': 'CSTR',
+        'parameters':{            
+            'NCOMP': 'n_comp',
+        },
+        'fixed': {
+            'INIT_VOLUME': 1e-9,
+            'INIT_C': [0]
+        },            
+    },
+}
+
+inv_unit_parameters_map = {
+    unit: {
+        'name': values['name'],
+        'parameters': {
+            v: k for k, v in values['parameters'].items()
+        }
+    } for unit, values in unit_parameters_map.items()
+        
+}
 
 class UnitParametersGroup(ParameterWrapper):
     """Class for converting UnitOperation parameters from CADETProcess to CADET.
@@ -662,104 +851,7 @@ class UnitParametersGroup(ParameterWrapper):
     """
     _baseClass = UnitBaseClass
 
-    _unit_parameters = {
-        'GeneralRateModel': {
-            'name': 'GENERAL_RATE_MODEL',
-            'parameters':{
-                'NCOMP': 'n_comp',
-                'INIT_C': 'c',
-                'INIT_Q': 'q',
-                'INIT_CP': 'cp',
-                'COL_DISPERSION': 'axial_dispersion',
-                'COL_LENGTH': 'length',
-                'COL_POROSITY': 'bed_porosity',
-                'FILM_DIFFUSION': 'film_diffusion',
-                'PAR_POROSITY': 'particle_porosity',
-                'PAR_RADIUS': 'particle_radius',
-                'PORE_ACCESSIBILITY': 'pore_accessibility',
-                'PAR_DIFFUSION': 'pore_diffusion',
-                'PAR_SURFDIFFUSION': 'surface_diffusion',
-                'CROSS_SECTION_AREA': 'cross_section_area'
-                },
-            },
-        'LumpedRateModelWithPores': {
-            'name': 'LUMPED_RATE_MODEL_WITH_PORES',
-            'parameters':{
-                'NCOMP': 'n_comp',
-                'INIT_C': 'c',
-                'INIT_CP': 'cp',
-                'INIT_Q': 'q',
-                'COL_DISPERSION': 'axial_dispersion',
-                'COL_LENGTH': 'length',
-                'COL_POROSITY': 'bed_porosity',
-                'FILM_DIFFUSION': 'film_diffusion',
-                'PAR_POROSITY': 'particle_porosity',
-                'PAR_RADIUS': 'particle_radius',
-                'PORE_ACCESSIBILITY': 'pore_accessibility',
-                'CROSS_SECTION_AREA': 'cross_section_area'
-                },
-            },
-        'LumpedRateModelWithoutPores': {
-            'name': 'LUMPED_RATE_MODEL_WITHOUT_PORES',
-            'parameters':{
-                'NCOMP': 'n_comp',
-                'INIT_C': 'c',
-                'INIT_Q': 'q',
-                'COL_DISPERSION': 'axial_dispersion',
-                'COL_LENGTH': 'length',
-                'TOTAL_POROSITY': 'total_porosity',
-                'CROSS_SECTION_AREA': 'cross_section_area'
-                },
-            },
-        'TubularReactor': {
-            'name': 'LUMPED_RATE_MODEL_WITHOUT_PORES',
-            'parameters':{
-                'NCOMP': 'n_comp',
-                'INIT_C': 'c',
-                'INIT_Q': 'q',
-                'COL_DISPERSION': 'axial_dispersion',
-                'COL_LENGTH': 'length',
-                'CROSS_SECTION_AREA': 'cross_section_area',
-                },
-            'fixed': {
-                'TOTAL_POROSITY': 1,
-                },
-            },
-        'Cstr': {
-            'name': 'CSTR',
-            'parameters':{
-                'NCOMP': 'n_comp',
-                'INIT_VOLUME': 'V',
-                'INIT_C': 'c',
-                'INIT_Q': 'q',
-                'POROSITY': 'porosity',
-                'FLOWRATE_FILTER': 'flow_rate_filter',
-                },
-            },
-        'Source': {
-            'name': 'INLET',
-            'parameters':{            
-                'NCOMP': 'n_comp',
-                'CONST_COEFF': 'c',
-                },
-            },
-        'Sink': {
-            'name': 'OUTLET',
-            'parameters':{             
-                'NCOMP': 'n_comp',
-                },
-            },
-        'MixerSplitter': {
-            'name': 'CSTR',
-            'parameters':{            
-                'NCOMP': 'n_comp',
-                },
-            'fixed': {
-                'INIT_VOLUME': 1e-9,
-                'INIT_C': [0]
-                },            
-            },
-        }
+    _unit_parameters = unit_parameters_map
 
     _model_parameters = _unit_parameters
     _model_type = 'UNIT_TYPE'
@@ -810,6 +902,71 @@ class DiscretizationWenoParametersGroup(ParametersGroup):
     WENO_ORDER = UnsignedInteger(default=3, ub=3)
     _parameters = ['BOUNDARY_MODEL', 'WENO_EPS', 'WENO_ORDER']
 
+adsorption_parameters_map = {
+    'NoBinding': {
+        'name': 'NONE',
+        'parameters': {},
+    },
+    'Linear': {
+        'name': 'LINEAR',
+        'parameters':{
+            'IS_KINETIC' : 'is_kinetic',
+            'LIN_KA': 'adsorption_rate',
+            'LIN_KD': 'desorption_rate'
+        },
+    },
+    'Langmuir': {
+        'name': 'MULTI_COMPONENT_LANGMUIR',
+        'parameters':{            
+            'IS_KINETIC' : 'is_kinetic',
+            'MCL_KA': 'adsorption_rate',
+            'MCL_KD': 'desorption_rate',
+            'MCL_QMAX': 'saturation_capacity'
+        },
+    },
+    'BiLangmuir': {
+        'name': 'MULTI_COMPONENT_BILANGMUIR',
+        'parameters':{             
+            'IS_KINETIC' : 'is_kinetic',
+            'MCBL_KA': 'adsorption_rate',
+            'MCBL_KD': 'desorption_rate',
+            'MCBL_QMAX': 'saturation_capacity'
+        },
+    },
+    'StericMassAction': {
+        'name': 'STERIC_MASS_ACTION',
+        'parameters':{             
+            'IS_KINETIC' : 'is_kinetic',
+            'SMA_KA': 'adsorption_rate',
+            'SMA_KD': 'desorption_rate',
+            'SMA_LAMBDA': 'stationary_phase_capacity',
+            'SMA_NU': 'characteristic_charge',
+            'SMA_SIGMA': 'steric_factor',
+            'SMA_REF0': 'reference_liquid_phase_conc',
+            'SMA_REFQ': 'reference_solid_phase_conc'
+        },
+    },
+    'AntiLangmuir': {
+        'name': 'MULTI_COMPONENT_ANTILANGMUIR',
+        'parameters':{ 
+            'IS_KINETIC' : 'is_kinetic',
+            'MCAL_KA': 'adsorption_rate',
+            'MCAL_KD': 'desorption_rate',
+            'MCAL_QMAX': 'saturation_capacity',
+            'MCAL_ANTILANGMUIR': 'antilangmuir'
+        },
+    }
+}
+
+inv_adsorption_parameters_map = {
+    model: {
+        'name': values['name'],
+        'parameters': {
+            v: k for k, v in values['parameters'].items()
+        }
+    } for model, values in adsorption_parameters_map.items()
+        
+}
 
 class AdsorptionParametersGroup(ParameterWrapper):
     """Class for converting binding model parameters from CADETProcess to CADET.
@@ -822,61 +979,7 @@ class AdsorptionParametersGroup(ParameterWrapper):
     """
     _baseClass = BindingBaseClass
 
-    _adsorption_parameters = {
-        'NoBinding': {
-            'name': 'NONE',
-            'parameters': {},
-            },
-        'Linear': {
-            'name': 'LINEAR',
-            'parameters':{
-                'IS_KINETIC' : 'is_kinetic',
-                'LIN_KA': 'adsorption_rate',
-                'LIN_KD': 'desorption_rate'
-                },
-            },
-        'Langmuir': {
-            'name': 'MULTI_COMPONENT_LANGMUIR',
-            'parameters':{            
-                'IS_KINETIC' : 'is_kinetic',
-                'MCL_KA': 'adsorption_rate',
-                'MCL_KD': 'desorption_rate',
-                'MCL_QMAX': 'saturation_capacity'
-                },
-            },
-        'BiLangmuir': {
-            'name': 'MULTI_COMPONENT_BILANGMUIR',
-            'parameters':{             
-                'IS_KINETIC' : 'is_kinetic',
-                'MCBL_KA': 'adsorption_rate',
-                'MCBL_KD': 'desorption_rate',
-                'MCBL_QMAX': 'saturation_capacity'
-                },
-            },
-        'StericMassAction': {
-            'name': 'STERIC_MASS_ACTION',
-            'parameters':{             
-                'IS_KINETIC' : 'is_kinetic',
-                'SMA_KA': 'adsorption_rate',
-                'SMA_KD': 'desorption_rate',
-                'SMA_LAMBDA': 'stationary_phase_capacity',
-                'SMA_NU': 'characteristic_charge',
-                'SMA_SIGMA': 'steric_factor',
-                'SMA_REF0': 'reference_liquid_phase_conc',
-                'SMA_REFQ': 'reference_solid_phase_conc'
-                },
-            },
-        'AntiLangmuir': {
-            'name': 'MULTI_COMPONENT_ANTILANGMUIR',
-            'parameters':{ 
-                'IS_KINETIC' : 'is_kinetic',
-                'MCAL_KA': 'adsorption_rate',
-                'MCAL_KD': 'desorption_rate',
-                'MCAL_QMAX': 'saturation_capacity',
-                'MCAL_ANTILANGMUIR': 'antilangmuir'
-                },
-            }
-        }
+    _adsorption_parameters = adsorption_parameters_map
 
     _model_parameters = _adsorption_parameters
     _model_type = 'ADSORPTION_MODEL'
