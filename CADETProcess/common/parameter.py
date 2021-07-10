@@ -264,7 +264,8 @@ class UnsignedFloat(Float, Unsigned):
     pass
 
 class Sized(Parameter):
-    def __init__(self, *args, maxlen, **kwargs):
+    def __init__(self, *args, minlen, maxlen, **kwargs):
+        self.minlen = minlen
         self.maxlen = maxlen
         super().__init__(*args, **kwargs)
 
@@ -275,9 +276,14 @@ class Sized(Parameter):
             
         if len(value) > self.maxlen:
             raise ValueError("Too big!")
+        if len(value) < self.minlen:
+            raise ValueError("Too small!")
         super().__set__(instance, value)
     
 class SizedString(String, Sized):
+    pass
+
+class SizedTuple(Tuple, Sized):
     pass
 
 class DependentlySized(Parameter):
@@ -321,6 +327,9 @@ class DependentlySizedList(List, DependentlySized):
     pass
 
 class DependentlySizedUnsignedList(List, Unsigned, DependentlySized):
+    pass
+
+class DependentlySizedNdArray(NdArray, DependentlySized):
     pass
 
 class DependentlySizedUnsignedNdArray(NdArray, Unsigned, DependentlySized):
