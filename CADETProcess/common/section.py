@@ -12,36 +12,59 @@ class Section():
     start : float
         Start time of section
     end : float
-        End time of section
-    state : float or list of floats
-        StateTuple of polynomial coefficients in order of increasing degree.
+        End time of section.
+    coeffs : float or array_like
+        Polynomial coefficients of state in order of increasing degree.
+    degree : int
+        Degree of polynomial to represent state.
+    n_dim : int, optional
+        Number of state dimensions.
+        If not given, it will be inferred from the coeffs dimensions.
     """
-    def __init__(self, start, end, state):
-        if isinstance(state, bool):
-            state = int(state)
-            
-        if isinstance(state, (int, float)):
-            state = (state,)
-            
-        if not isinstance(state, tuple):
-            raise TypeError('Expected tuple')
-        
-        if len(state) <= 4:
-            missing = 4 - len(state)
-            state = state + missing*(0,)
-        else:
-            raise CADETProcessError('Only cubic polynomials are supported')
+    def __init__(self, start, end, coeffs, n_dim=1):
+        if isinstance(coeffs, bool):
+            coeffs = int(coeffs)
 
-        self._poly = np.polynomial.Polynomial(
-            state, domain=(start, end), window=(0,1)
-        )
+        if isinstance(coeffs, (int, float)):
+            coeffs = np.array((coeffs), ndmin=2)
+                
+        if isinstance(coeffs, (tuple, list)):
+            for c in coeffs:
+                if isinstance(c, (tuple, list)):
+                    missing = 4 - len(c)
+                    c += missing*(0,)
+            coeffs = np.array((coeffs), ndmin=2)
+
+        if coeffs.shape[0] > 4:
+            raise CADETProcessError('Only cubic polynomials are supported')
+        
+        _coeffs = np.zeros((coeffs.shape[0], 4))
+        _coeffs[:,0:coeffs.shape[1]] = coeffs
+
+        self._poly = []
+        for c in _coeffs:
+            poly = np.polynomial.Polynomial(
+                c, domain=(start, end), window=(0,1)
+            )   
+            self._poly.append(poly)
 
         self.start = start
         self.end = end
 
     @property
-    def state(self):
-        return self._poly.coef
+    def coeffs(self):
+        """
+        Each row represents the polynomial coefficients of one component
+        in increasing order.
+        """
+        if len(self._poly) == 1:
+            return self._poly[0].coef
+        else:
+            return np.array([p.coef for p in self._poly])
+    
+    @property
+    def n_dim(self):
+        return len(self._poly)
     
     def value(self, t):
         """Return value of function at time t.
@@ -59,12 +82,14 @@ class Section():
         Raises
         ------
         ValueError
-            If t is lower than start or higher than end of section times.
+            If t is lower than start or larger than end of section time.
         """
         if np.any(t < self.start) or np.any(self.end < t):
             raise ValueError('Time exceeds section times')
+            
+        value = np.array([p(t) for p in self._poly])
 
-        return self._poly(t)
+        return value
 
 
     def integral(self, start=None, end=None):
@@ -92,14 +117,14 @@ class Section():
         if end is None:
             end = self.end
             
-        if not (self.start <= start) & (start < end) & (end < self.end):
+        if not ((self.start <= start) & (start < end) & (end <= self.end)):
             raise ValueError('Integration bounds exceed section times')
 
-        integ = self._poly.integ(lbnd=start)
-        return integ(end)
+        integ_methods = [p.integ(lbnd=start) for p in self._poly]
+        return np.array([i(end) for i in integ_methods])
 
 class TimeLine():
-    def __init__(self):
+    def __init__(self, degree=0):
         self._sections = []
 
     @property
@@ -107,25 +132,95 @@ class TimeLine():
         return self._sections
     
     def add_section(self, section):
+        """Add section to TimeLine.
+
+        Parameters
+        ----------
+        section : Section
+            Section to be added.
+
+        Raises
+        ------
+        TypeError
+            If section is not instance of Section.
+        CADETProcessError
+            If section dimensions do not match Timeline dimensions.
+        CADETProcessError
+            If section introduces a gap.
+        """
         if not isinstance(section, Section):
-            raise CADETProcessError('Expected Section')
+            raise TypeError('Expected Section')
+        if len(self.sections) > 0:
+            if section.n_dim != self.n_dim:
+                raise CADETProcessError('Number of dimensions not matching')
+            if section.start != self.end:
+                raise CADETProcessError('Sections times must be without gaps')
 
         self._sections.append(section)
+    
+    @property
+    def piecewise_poly(self):
+        """list: scipy.interpolate.PPoly for each dimension.
 
-    def value(self, time):
+        Returns
+        -------
+        piecewise_poly : list
+            DESCRIPTION.
+
+        """
         x = [0.0]
         coeffs = []
-        
         for sec in self.sections:
-            coeffs.append(np.flip(sec.state))
+            coeffs.append(np.array((sec.coeffs),ndmin=2))
             x.append(sec.end)
+            
+        piecewise_poly = []
+        for i in range(self.n_dim):
+            c = np.array([c[i,:] for c in coeffs])
+            c_decreasing = np.fliplr(c)
+            p = scipy.interpolate.PPoly(c_decreasing.T, x)
+            piecewise_poly.append(p)
         
-        piecewise_poly = scipy.interpolate.PPoly(np.array(coeffs).T, x)
-        
-        return piecewise_poly(time)
+        return piecewise_poly
+    
+    @property
+    def n_dim(self):
+        if len(self.sections) > 0:
+            return self.sections[0].n_dim
 
+    def value(self, time):
+        """np.array: Value of parameter at given time
+
+        Parameters
+        ----------
+        time : np.float or array_like
+            time points at which to evaluate.
+
+        """
+        return np.array([p(time) for p in self.piecewise_poly]).T
+    
+    def coefficients(self, time):
+        """Return coefficient of polynomial at given time.
+
+        Parameters
+        ----------
+        time : float
+            Time at which polynomial coefficients are queried.
+
+        Returns
+        -------
+        coefficients : np.array
+            !!! Array of coefficients in ORDER !!!
+        """
+        section_index = self.section_index(time)
+        c = self.sections[section_index].coeffs
+        y = self.value(time)
+        c[:,0] = y
+        
+        return c
+    
     def integral(self, start, end):
-        """Return integral of sections in interval [start, end].
+        """Calculate integral of sections in interval [start, end].
 
         Parameters
         ----------
@@ -149,14 +244,34 @@ class TimeLine():
         if end is None:
             end = self.end
                 
-        if not (self.start <= start) & (start < end) & (end < self.end):
+        if not ((self.start <= start) & (start < end) & (end <= self.end)):
             raise ValueError('Integration bounds exceed section times')
+        
+        integral = [p.integrate(start, end) for p in self.piecewise_poly]
+        
+        return np.array(integral)
     
-
+    def section_index(self, time):
+        section_times = np.array(self.section_times)
+        
+        return np.argmin(time >= section_times) - 1
+    
     @property
     def section_times(self):
-            return [self.sections[0].start] + [sec.end for sec in self.sections]
+        return [self.sections[0].start] + [sec.end for sec in self.sections]
+
+    @property
+    def start(self):
+        return self.section_times[0]
+    
+    @property
+    def end(self):
+        return self.section_times[-1]
         
     def plot(self):
-        plt.plot(self.time, self.value(self.time))
+        start = self.sections[0].start
+        end = self.sections[-1].end
+        time = np.linspace(start, end, 1001)
+        plt.figure()
+        plt.plot(time, self.value(time))
 

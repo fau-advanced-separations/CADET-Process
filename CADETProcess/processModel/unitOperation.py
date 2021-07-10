@@ -1,9 +1,13 @@
 import math
+import numpy as np
 
 from CADETProcess import CADETProcessError
 from CADETProcess.common import StructMeta
-from CADETProcess.common import Bool, String, List, \
-    DependentlySizedUnsignedList, UnsignedInteger, UnsignedFloat
+from CADETProcess.common import \
+    Bool, Float, String, Tuple, \
+    UnsignedInteger, UnsignedFloat, \
+    SizedTuple, \
+    DependentlySizedList, DependentlySizedUnsignedList, DependentlySizedNdArray
 from CADETProcess.processModel import BindingBaseClass, NoBinding
 from CADETProcess.processModel import ReactionBaseClass, NoReaction
 
@@ -37,6 +41,8 @@ class UnitBaseClass(metaclass=StructMeta):
     n_comp = UnsignedInteger()
 
     _parameters = []
+    _section_dependent_parameters = []
+    _piecewise_polynomial_parameters = []
     _initial_state = []
 
     def __init__(self, n_comp, name):
@@ -82,6 +88,22 @@ class UnitBaseClass(metaclass=StructMeta):
             if value is not None:
                 setattr(self, param, value)
 
+    @property
+    def section_dependent_parameters(self):
+        parameters = {
+            param: getattr(self, param) 
+            for param in self._section_dependent_parameters
+        }
+        return parameters
+
+    @property
+    def piecewise_polynomial_parameters(self):
+        parameters = {
+            param: getattr(self, param) 
+            for param in self._piecewise_polynomial_parameters
+        }
+        return parameters
+        
     @property
     def initial_state(self):
         """dict: Dictionary with initial states.
@@ -228,7 +250,28 @@ class SourceMixin(metaclass=StructMeta):
     Source
     Cstr
     """
+    _flow_rate = SizedTuple(default=(0, 0, 0, 0), minlen=1, maxlen=4)
+    _parameters = ['flow_rate']
+    _section_dependent_parameters = ['flow_rate']
+    _piecewise_polynomial_parameters = \
+        UnitBaseClass._piecewise_polynomial_parameters + \
+        ['flow_rate']
+
+    @property
+    def flow_rate(self):
+        return self._flow_rate
     
+    @flow_rate.setter
+    def flow_rate(self, flow_rate):
+        if isinstance(flow_rate, (float, int)):
+            flow_rate = (flow_rate,)
+        
+        if isinstance(flow_rate, tuple) & len(flow_rate) < 4:
+            missing = 4 - len(flow_rate)
+            flow_rate = flow_rate + missing*(0,)
+        
+        self._flow_rate = flow_rate
+
 
 class SinkMixin():
     """Mixin class for Units that have Sink-like behavior
@@ -261,7 +304,11 @@ class TubularReactor(UnitBaseClass):
     total_porosity = 1
     reverse_flow = Bool(default=False)
     _parameters = UnitBaseClass._parameters + [
-        'length', 'diameter','axial_dispersion']
+        'length', 'diameter','axial_dispersion', 'reverse_flow'
+    ]
+    _section_dependent_parameters = UnitBaseClass._section_dependent_parameters + [
+        'axial_dispersion', 'reverse_flow'
+    ]
     
     c = DependentlySizedUnsignedList(dep='n_comp', default=0)
     _initial_state = UnitBaseClass._initial_state + ['c']
@@ -434,7 +481,9 @@ class LumpedRateModelWithPores(TubularReactor):
     _parameters = TubularReactor._parameters + [
             'bed_porosity', 'particle_porosity', 'particle_radius', 
             'film_diffusion', 'pore_diffusion',
-            ]
+            ]    
+    _section_dependent_parameters = TubularReactor._section_dependent_parameters + [
+        'film_diffusion', 'pore_diffusion']
 
     cp = DependentlySizedUnsignedList(dep='n_comp', default=0)
     q = DependentlySizedUnsignedList(dep='n_comp', default=0)
@@ -480,11 +529,14 @@ class GeneralRateModel(TubularReactor):
     pore_diffusion = DependentlySizedUnsignedList(dep='n_comp')
     surface_diffusion = DependentlySizedUnsignedList(dep='n_comp')
     pore_accessibility = DependentlySizedUnsignedList(dep='n_comp')
-    _parameters = TubularReactor._parameters + [
-            'bed_porosity', 'particle_porosity', 'particle_radius', 
-            'film_diffusion', 'pore_diffusion', 'surface_diffusion'
-            ]
-
+    _parameters = \
+        TubularReactor._parameters + \
+        ['bed_porosity', 'particle_porosity', 'particle_radius', 
+        'film_diffusion', 'pore_diffusion', 'surface_diffusion']
+    _section_dependent_parameters = \
+        TubularReactor._section_dependent_parameters + \
+        ['film_diffusion', 'pore_diffusion', 'surface_diffusion']
+    
     cp = DependentlySizedUnsignedList(dep='n_comp', default=0)
     q = DependentlySizedUnsignedList(dep='n_comp', default=0)
     _initial_state = TubularReactor._initial_state + ['cp', 'q']
@@ -515,7 +567,6 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         Total porosity of the column.
     flow_rate_filter: UnsignedFloat 
         Flow rate of pure liquid without components (reduces volume)
-
     """
     porosity = UnsignedFloat(ub=1, default=1)
     flow_rate_filter = UnsignedFloat(default=0)
@@ -531,9 +582,9 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     c = DependentlySizedUnsignedList(dep='n_comp', default=0)
     q = DependentlySizedUnsignedList(dep='n_comp', default=0)
     V = UnsignedFloat(default=0)
-    porosity = UnsignedFloat(ub=1, default=1)
-    _parameters = UnitBaseClass._parameters + ['porosity']
-    _initial_state = UnitBaseClass._initial_state + ['c', 'q', 'V']
+    _initial_state = \
+        UnitBaseClass._initial_state + \
+        ['c', 'q', 'V']
 
     @property
     def volume_solid(self):
@@ -545,13 +596,56 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
 class Source(UnitBaseClass, SourceMixin):
     """Pseudo unit operation model for streams entering the system.
     """
-    flow_rate = UnsignedFloat(default=0.0)
-    lin_gradient = Bool(default=False)
-    _parameters = UnitBaseClass._parameters + ['flow_rate', 'lin_gradient']
-    
-    c = DependentlySizedUnsignedList(dep='n_comp', default=0)
-    _initial_state = UnitBaseClass._initial_state + ['c']
+    _c = DependentlySizedNdArray(dep=('n_comp', '_n_poly_coeffs'), default=0)
+    _n_poly_coeffs = 4
+    _parameters = \
+        UnitBaseClass._parameters + \
+        SourceMixin._parameters + \
+        ['c']
+    _section_dependent_parameters = \
+        UnitBaseClass._section_dependent_parameters + \
+        SourceMixin._section_dependent_parameters + \
+        ['c']
+    _piecewise_polynomial_parameters = \
+        UnitBaseClass._piecewise_polynomial_parameters + \
+        SourceMixin._piecewise_polynomial_parameters + \
+        ['c']
 
+    @property
+    def c(self):
+        """np.array: Polynomial coefficients for concentration.
+        
+        Each row represents the polynomial coefficients of one component
+        in increasing order.
+        
+        Setter
+        ------
+        If scalar: set same constant concentration for all components.
+        If list: set individual constant concentration for all components.
+        If ndarray: set polynomial coefficients for all components.
+        """
+        return self._c
+    
+    @c.setter
+    def c(self, c):
+        if isinstance(c, (int, float)):
+            c = np.array((c), ndmin=2)
+                
+        if isinstance(c, (tuple, list)):
+            for i in c:
+                if isinstance(i, (tuple, list)):
+                    missing = 4 - len(i)
+                    i += missing*(0,)
+                    
+            c = np.array(c)
+            if len(c.shape) == 1:
+                c = np.array([c]).T
+        
+        _c = np.zeros((self.n_comp, self._n_poly_coeffs))
+        _c[:,0:c.shape[1]] = c
+       
+        self._c = _c
+        
 
 class Sink(UnitBaseClass, SinkMixin):
     """Pseudo unit operation model for streams leaving the system.
