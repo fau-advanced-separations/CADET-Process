@@ -573,13 +573,6 @@ class Event():
 
         self._parameters = ['time', 'state']
         
-        if check_nested(
-            self.event_handler.piecewise_polynomial_parameters, parameter_path
-        ):
-            self.degree = 4
-        else:
-            self.degree = 1
-
     @property
     def parameter_path(self):
         return self._parameter_path
