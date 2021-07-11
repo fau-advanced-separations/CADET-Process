@@ -21,7 +21,7 @@ class Section():
             state = int(state)
 
         if isinstance(state, (int, float, tuple, list)):
-            state = np.array((state), ndmin=2)
+            state = np.array((state,)).T
             
         self._state = state
 
@@ -38,7 +38,7 @@ class Section():
     
     @property
     def n_dim(self):
-        return len(self.state)    
+        return self.state.shape[0]
     
     def value(self, t):
         """Return value of function at time t.

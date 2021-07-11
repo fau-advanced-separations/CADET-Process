@@ -600,6 +600,10 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         UnitBaseClass._section_dependent_parameters + \
         SourceMixin._section_dependent_parameters + \
         ['flow_rate_filter']
+    _piecewise_polynomial_parameters = \
+        UnitBaseClass._piecewise_polynomial_parameters + \
+        SourceMixin._section_dependent_parameters + \
+        ['flow_rate_filter']        
             
     c = DependentlySizedUnsignedList(dep='n_comp', default=0)
     q = DependentlySizedUnsignedList(dep='n_comp', default=0)

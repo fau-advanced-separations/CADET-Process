@@ -504,8 +504,9 @@ class FlowSheet(metaclass=StructMeta):
                 param_name = param[-1]
                 if param_name == 'flow_rate':
                     flow_rates[unit_name] = value[0,:]
-                elif param_name == 'output_state':
-                    output_states[unit_name] = value
+                elif unit_name == 'output_states':
+                    unit = self.units_dict[param_name]
+                    output_states[unit] = list(value.ravel())
         
         def list_factory():
             return [0,0,0,0]
@@ -704,7 +705,8 @@ class FlowSheet(metaclass=StructMeta):
     def section_dependent_parameters(self):
         parameters = {unit.name: unit.section_dependent_parameters for unit in self.units}
         parameters['output_states'] = {
-            unit.name: self.output_states[unit] for unit in self.units}
+            unit.name: self.output_states[unit] for unit in self.units
+        }
 
         return Dict(parameters)
 
