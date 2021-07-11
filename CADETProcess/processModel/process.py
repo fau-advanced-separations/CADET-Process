@@ -1,4 +1,3 @@
-import copy
 from collections import defaultdict
 import math
 
@@ -73,20 +72,38 @@ class Process(EventHandler):
     @property
     def m_feed(self):
         """ndarray: Mass of the feed components entering the system in one cycle.
+        !!! Account for dynamic flow rates and concentrations!
         """
         feed_all = []
         flow_rate_timelines = self.flow_rate_timelines
         for feed in self.flow_sheet.feed_sources:
-            feed_sections = flow_rate_timelines[feed.name]
-            m_i  = [integrate.quad(lambda t:
-                    feed_sections.value(t) * feed.c[comp], 0, self.cycle_time,
-                    points=feed_sections.section_times)[0]
-                    for comp in range(self.n_comp)]
+            feed_flow_rate_time_line = flow_rate_timelines[feed.name].total
+            feed_signal_param = 'flow_sheet.{}.c'.format(feed.name)
+            if feed_signal_param in self.parameter_timelines:
+                feed_signal_time_line = self.parameter_timelines[feed_signal_param]
+            else:
+                feed_section = Section(0, self.cycle_time, feed.c)
+                feed_signal_time_line = TimeLine()
+                feed_signal_time_line.add_section(feed_section)
+
+            m_i  = [
+                integrate.quad(
+                    lambda t: \
+                        feed_flow_rate_time_line.value(t) \
+                        * feed_signal_time_line.value(t)[comp], 
+                        0, self.cycle_time, points=self.event_times
+                    )[0] for comp in range(self.n_comp)
+            ]
+            
             feed_all.append(np.array(m_i))
+            
+        if len(feed_all) == 0:
+            feed_all = np.zeros((self.n_comp,))
 
         return sum(feed_all)
-
-
+    
+    
+            
     @property
     def V_eluent(self):
         """float: Volume of the eluent entering the system in one cycle.
@@ -94,11 +111,11 @@ class Process(EventHandler):
         V_all = []
         flow_rate_timelines = self.flow_rate_timelines
         for eluent in self.flow_sheet.eluent_sources:
-            eluent_sections = flow_rate_timelines[eluent.name]
-            V_eluent = integrate.quad(lambda t:
-                eluent_sections.value(t), 0, self.cycle_time,
-                points=eluent_sections.section_times)[0]
-            V_all.append(V_eluent)
+            eluent_time_line = flow_rate_timelines[eluent.name]['total']
+            V_eluent = eluent_time_line.integral()
+            
+        if len(V_all) == 0:
+            V_all = [0]
 
         return sum(V_all)
 
@@ -106,8 +123,9 @@ class Process(EventHandler):
     def V_solid(self):
         """float: Volume of all solid phase material used in flow sheet.
         """
-        return sum([unit.volume_solid
-                       for unit in self.flow_sheet.units_with_binding])
+        return sum(
+            [unit.volume_solid for unit in self.flow_sheet.units_with_binding]
+        )
 
 
     @property
