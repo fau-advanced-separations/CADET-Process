@@ -8,7 +8,7 @@ from CADETProcess import CADETProcessError
 from CADETProcess.common import check_nested, generate_nested_dict, get_nested_value
 from CADETProcess.common import StructMeta, UnsignedFloat
 from CADETProcess.common import plotlib, PlotParameters
-from CADETProcess.common import Section, TimeLine
+from CADETProcess.common import Section, PolynomialSection, TimeLine
 
 class EventHandler(metaclass=StructMeta):
     """ Class for handling Events that change the property of an event performer.
@@ -343,12 +343,17 @@ class EventHandler(metaclass=StructMeta):
             filter(lambda dur: dur.isIndependent == False, self.durations)
         )
 
+
     @property
     def event_times(self):
-        """list: Time of events.
+        """list: Time of events, sorted by Event time.
         """
-        return list({evt.time for evt in self.events})
+        event_times = list({evt.time for evt in self.events})
+        event_times.sort()
         
+        return event_times
+    
+
     @property
     def event_parameters(self):
         """list: Event parameters.
@@ -360,6 +365,41 @@ class EventHandler(metaclass=StructMeta):
         """list: Event peformers.
         """
         return list({evt.performer for evt in self.events})
+
+    @property
+    def section_times(self):
+        """list: Section times.
+        
+        Includes 0 and cycle_time if they do not coincide with event time.
+        """
+        if len(self.event_times) == 0:
+            return [0, self.cycle_time]
+
+        section_times = self.event_times
+           
+        if section_times[0] != 0:
+            section_times = [0] + section_times
+        if section_times[-1] != self.cycle_time:
+            section_times = section_times + [self.cycle_time]
+        
+        return section_times
+
+    @property
+    def n_sections(self):
+        """int: Number of sections.
+        """
+        return len(self.section_times) - 1
+    
+    @property
+    def section_states(self):
+        """dict: state of event parameters at every section.
+        """
+        section_states = defaultdict(dict)
+        
+        for sec_time in self.section_times[0:-1]:
+            for param, tl in self.parameter_timelines.items():
+                section_states[sec_time][param] = tl.coefficients(sec_time)
+        return Dict(section_states)    
 
     @property
     def parameter_events(self):
@@ -377,21 +417,28 @@ class EventHandler(metaclass=StructMeta):
         """
         parameter_timelines = defaultdict(TimeLine)
         for evt_parameter, events in self.parameter_events.items():
+            is_polynomial = check_nested(
+                self.piecewise_polynomial_parameters, evt_parameter
+            )
+            if is_polynomial:
+                SectionClass = PolynomialSection
+            else:
+                SectionClass = Section
 
             for index, evt in enumerate(events):
                 section_start = evt.time
 
                 if index < len(events) - 1:
                     section_end = events[index + 1].time
-                    section = Section(section_start, section_end, evt.state)
+                    section = SectionClass(section_start, section_end, evt.state)
                     parameter_timelines[evt.parameter_path].add_section(section)
                 else:
                     section_end = self.cycle_time
-                    section = Section(section_start, section_end, evt.state)
+                    section = SectionClass(section_start, section_end, evt.state)
                     parameter_timelines[evt.parameter_path].add_section(section)
 
                     if events[0].time != 0:
-                        section = Section(0.0, events[0].time, evt.state)
+                        section = SectionClass(0.0, events[0].time, evt.state)
                         parameter_timelines[evt.parameter_path].add_section(section)
         return Dict(parameter_timelines)
 
@@ -418,44 +465,6 @@ class EventHandler(metaclass=StructMeta):
 
         return performer_timelines
 
-
-    @property
-    def timeline(self):
-        """dict: Lists of events for every time, one or more events occur.
-        
-        Todo
-        ----
-        Rename since name is used for Timeline class.
-        """
-        timeline = defaultdict(list)
-        for evt in self.events:
-            timeline[evt.time].append(evt)
-
-        return dict(timeline)
-
-    @property
-    def section_states(self):
-        """dict: Lists of events for every time, one or more events occur.
-        """
-        section_states = defaultdict(dict)
-        
-        for evt_time in self.event_times:
-            for param, tl in self.parameter_timelines.items():
-                section_states[evt_time][param] = tl.coefficients(evt_time)
-        return section_states
-    
-    @property
-    def performer_section_states(self):
-        """dict: Lists of events for every time, one or more events occur.
-        """
-        section_states = {performer: defaultdict(dict) for performer in self.event_performers}
-        
-        for evt_time in self.event_times:
-            for performer, params in self.performer_timelines.items():
-                for param, tl in params.items():
-                    section_states[performer][param][evt_time] = tl.coefficients(evt_time)
-        return Dict(section_states)
-    
 
     @property
     def parameters(self):
@@ -488,6 +497,13 @@ class EventHandler(metaclass=StructMeta):
 
             evt.parameters = evt_parameters
             
+    @abstractmethod
+    def section_dependent_parameters(self):
+        return
+
+    @abstractmethod
+    def piecewise_polynomial_parameters(self):
+        return
 
     def plot_events(self):
         """Plot parameter state as function of time.
@@ -556,6 +572,13 @@ class Event():
         self.time = time
 
         self._parameters = ['time', 'state']
+        
+        if check_nested(
+            self.event_handler.piecewise_polynomial_parameters, parameter_path
+        ):
+            self.degree = 4
+        else:
+            self.degree = 1
 
     @property
     def parameter_path(self):
@@ -617,9 +640,6 @@ class Event():
     def remove_dependency(self, dependency):
         """Remove dependencies of events.
 
-        Gets the index of the dependency, which has to be removed and deletes
-        the entry for this index in the list factors and dependencies.
-
         Parameters
         ----------
         dependency : Event
@@ -641,7 +661,7 @@ class Event():
 
     @property
     def dependencies(self):
-        """list : List of events on which the Event depends.
+        """list: Events on which the Event depends.
         """
         return self._dependencies
 
@@ -656,30 +676,23 @@ class Event():
 
     @property
     def factors(self):
-        """list: List of factors for linear combination of dependent events.
+        """list: Linear coefficients for dependent events.
         """
         return self._factors
 
     @property
     def time(self):
-        """Returns time when the event is executed.
+        """float: Time when the event is executed.
 
-        Getter
+        If the value is larger than the cycle time, the time modulo cycle time
+        is returned.
+        If the Event is not independent, the time is calculated from its 
+        dependencies.
+
+        Raises
         ------
-            Returns
-            -------
-            time : float
-                Returns the time modulo cycle_time, if the event is independent.
-                Otherwise, the dependent value is calculated by a linear
-                combination of its dependencies multiplied with the respective
-                factors.
-
-        Setter
-        -----
-            Raises
-            ------
-            CADETProcessError
-                If the event is not independent.
+        CADETProcessError
+            If the event is not independent.
         """
         if self.isIndependent:
             time = self._time
@@ -700,15 +713,14 @@ class Event():
             raise CADETProcessError("Cannot set time for dependent events")
 
     @property
-    def current_state(self):
-        return get_nested_value(self.event_handler.parameters, self.parameter_sequence)
-
-    @property
     def state(self):
         return self._state
 
     @state.setter
     def state(self, state):
+        current_value = get_nested_value(
+            self.event_handler.parameters, self.parameter_path
+        )
         try:
             if self.component_index is not None:
                 value_list = self.current_state
@@ -719,11 +731,9 @@ class Event():
             self.event_handler.parameters = parameters
         except (TypeError, ValueError) as e:
             raise CADETProcessError('{}'.format(str(e)))
-        self._state = get_nested_value(self.event_handler.parameters, self.parameter_path)
-
-    @property
-    def attribute(self):
-        return self.parameter_sequence[-1]
+        self._state = get_nested_value(
+            self.event_handler.parameters, self.parameter_path
+            )
 
     @property
     def performer(self):
@@ -731,17 +741,6 @@ class Event():
             return self.parameter_sequence[0]
         else:
             return ".".join(self.parameter_sequence[:-1])
-
-    def perform(self):
-        """Set the value to the attriubte of the performer.
-        """
-        if self.component_index is not None:
-            value_list = get_nested_value(self.event_handler.parameters, self.parameter_sequence)
-            value_list[self.component_index] = self.state
-            parameters = generate_nested_dict(self.parameter_sequence, value_list)
-        else:
-            parameters = generate_nested_dict(self.parameter_sequence, self.state)
-        self.event_handler.parameters = parameters
 
     @property
     def parameters(self):

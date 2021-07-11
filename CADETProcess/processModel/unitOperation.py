@@ -6,8 +6,7 @@ from CADETProcess.common import StructMeta
 from CADETProcess.common import \
     String, Switch, \
     UnsignedInteger, UnsignedFloat, \
-    SizedTuple, \
-    DependentlySizedUnsignedList, DependentlySizedNdArray
+    DependentlySizedUnsignedList, DependentlySizedNdArray, Vector
 from CADETProcess.processModel import BindingBaseClass, NoBinding
 from CADETProcess.processModel import ReactionBaseClass, NoReaction
 
@@ -244,7 +243,8 @@ class SourceMixin(metaclass=StructMeta):
     Source
     Cstr
     """
-    _flow_rate = SizedTuple(default=(0, 0, 0, 0), minlen=1, maxlen=4)
+    _n_poly_coeffs = 4
+    _flow_rate = DependentlySizedNdArray(dep=('_n_poly_coeffs'), default=0)
     _parameters = ['flow_rate']
     _section_dependent_parameters = ['flow_rate']
     _piecewise_polynomial_parameters = \
@@ -253,18 +253,27 @@ class SourceMixin(metaclass=StructMeta):
 
     @property
     def flow_rate(self):
-        return self._flow_rate
+        """np.Array: Flow rate of the UnitOperation
+        
+        Note
+        ----
+        Because Sections states expect a certain shape for polynomial 
+        parameters, it is cast as an array with ndmin=2
+        """
+        return np.array(self._flow_rate,ndmin=2)
     
     @flow_rate.setter
     def flow_rate(self, flow_rate):
-        if isinstance(flow_rate, (float, int)):
-            flow_rate = (flow_rate,)
+        if isinstance(flow_rate, (int, float, tuple, list)):
+            flow_rate = np.array((flow_rate,))
         
-        if isinstance(flow_rate, tuple) & len(flow_rate) < 4:
-            missing = 4 - len(flow_rate)
-            flow_rate = flow_rate + missing*(0,)
+        if len(flow_rate.shape) > 1:
+            flow_rate = flow_rate[0,:]
         
-        self._flow_rate = flow_rate
+        _flow_rate = np.zeros((self._n_poly_coeffs),)
+        _flow_rate[0:flow_rate.shape[0]] = flow_rate
+       
+        self._flow_rate = _flow_rate
 
 
 class SinkMixin():

@@ -13,7 +13,96 @@ class Section():
         Start time of section
     end : float
         End time of section.
-    coeffs : float or array_like
+    state : float or array_like
+        Parameter state during section
+    """
+    def __init__(self, start, end, state):
+        if isinstance(state, bool):
+            state = int(state)
+
+        if isinstance(state, (int, float, tuple, list)):
+            state = np.array((state), ndmin=2)
+            
+        self._state = state
+
+        self.start = start
+        self.end = end
+
+    @property
+    def state(self):
+        """
+        Each row represents the polynomial coefficients of one component
+        in increasing order.
+        """
+        return self._state
+    
+    @property
+    def n_dim(self):
+        return len(self.state)    
+    
+    def value(self, t):
+        """Return value of function at time t.
+
+        Parameters
+        ----------
+        t : float
+            Time at which function is evaluated.
+
+        Returns
+        -------
+        y : float
+            Value of attribute at time t.
+
+        Raises
+        ------
+        ValueError
+            If t is lower than start or larger than end of section time.
+        """
+        if np.any(t < self.start) or np.any(self.end < t):
+            raise ValueError('Time exceeds section times')
+            
+        return self.state
+    
+    def integral(self, start=None, end=None):
+        """Return integral of function in interval [start, end].
+
+        Parameters
+        ----------
+        start : float, optional
+            Lower integration bound.
+        end : float, optional
+            Upper integration bound.
+
+        Returns
+        -------
+        Y : float
+            Value of definite integral between start and end.
+
+        Raises
+        ------
+        ValueError
+            If integration bounds exceed section times.
+        """
+        if start is None:
+            start = self.start
+        if end is None:
+            end = self.end
+            
+        if not ((self.start <= start) & (start < end) & (end <= self.end)):
+            raise ValueError('Integration bounds exceed section times')
+
+        return (end - start) * self.state
+
+class PolynomialSection(Section):
+    """Helper class to store parameter state between to sections.
+
+    Attributes
+    ----------
+    start : float
+        Start time of section
+    end : float
+        End time of section.
+    state : float or array_like
         Polynomial coefficients of state in order of increasing degree.
     degree : int
         Degree of polynomial to represent state.
@@ -21,30 +110,30 @@ class Section():
         Number of state dimensions.
         If not given, it will be inferred from the coeffs dimensions.
     """
-    def __init__(self, start, end, coeffs, n_dim=1):
-        if isinstance(coeffs, bool):
-            coeffs = int(coeffs)
+    def __init__(self, start, end, state):
+        if isinstance(state, bool):
+            state = int(state)
 
-        if isinstance(coeffs, (int, float)):
-            coeffs = np.array((coeffs), ndmin=2)
+        if isinstance(state, (int, float)):
+            state = np.array((state), ndmin=2)
                 
-        if isinstance(coeffs, (tuple, list)):
-            for c in coeffs:
-                if isinstance(c, (tuple, list)):
-                    missing = 4 - len(c)
-                    c += missing*(0,)
-            coeffs = np.array((coeffs), ndmin=2)
+        if isinstance(state, (tuple, list)):
+            for s in state:
+                if isinstance(s, (tuple, list)):
+                    missing = 4 - len(s)
+                    s += missing*(0,)
+            state = np.array((state), ndmin=2)
 
-        if coeffs.shape[0] > 4:
+        if state.shape[1] > 4:
             raise CADETProcessError('Only cubic polynomials are supported')
         
-        _coeffs = np.zeros((coeffs.shape[0], 4))
-        _coeffs[:,0:coeffs.shape[1]] = coeffs
+        _state = np.zeros((state.shape[0], 4))
+        _state[:,0:state.shape[1]] = state
 
         self._poly = []
-        for c in _coeffs:
+        for s in _state:
             poly = np.polynomial.Polynomial(
-                c, domain=(start, end), window=(0,1)
+                s, domain=(start, end), window=(0,1)
             )   
             self._poly.append(poly)
 
@@ -52,7 +141,7 @@ class Section():
         self.end = end
 
     @property
-    def coeffs(self):
+    def state(self):
         """
         Each row represents the polynomial coefficients of one component
         in increasing order.
@@ -88,7 +177,6 @@ class Section():
 
         return value
 
-
     def integral(self, start=None, end=None):
         """Return integral of function in interval [start, end].
 
@@ -121,7 +209,7 @@ class Section():
         return np.array([i(end) for i in integ_methods])
 
 class TimeLine():
-    def __init__(self, degree=0):
+    def __init__(self):
         self._sections = []
 
     @property
@@ -166,15 +254,15 @@ class TimeLine():
 
         """
         x = []
-        coeffs = []
+        state = []
         for sec in self.sections:
-            coeffs.append(np.array((sec.coeffs),ndmin=2))
+            state.append(np.array((sec.state),ndmin=2))
             x.append(sec.start)
         x.append(sec.end)
             
         piecewise_poly = []
         for i in range(self.n_dim):
-            c = np.array([c[i,:] for c in coeffs])
+            c = np.array([s[i,:] for s in state])
             c_decreasing = np.fliplr(c)
             p = scipy.interpolate.PPoly(c_decreasing.T, x)
             piecewise_poly.append(p)
@@ -211,7 +299,7 @@ class TimeLine():
             !!! Array of coefficients in ORDER !!!
         """
         section_index = self.section_index(time)
-        c = self.sections[section_index].coeffs
+        c = self.sections[section_index].state
         y = self.value(time)
         c[:,0] = y[:,0]
         

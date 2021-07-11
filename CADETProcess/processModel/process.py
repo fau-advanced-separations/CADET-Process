@@ -9,7 +9,7 @@ from CADETProcess import CADETProcessError
 from CADETProcess.common import EventHandler
 from CADETProcess.common import UnsignedInteger
 from CADETProcess.common import ProcessMeta
-from CADETProcess.common import Section, TimeLine
+from CADETProcess.common import PolynomialSection, TimeLine
 from CADETProcess.processModel import FlowSheet
 
 class Process(EventHandler):
@@ -74,15 +74,16 @@ class Process(EventHandler):
         """ndarray: Mass of the feed components entering the system in one cycle.
         !!! Account for dynamic flow rates and concentrations!
         """
-        feed_all = []
         flow_rate_timelines = self.flow_rate_timelines
+
+        feed_all = np.zeros((self.n_comp,))
         for feed in self.flow_sheet.feed_sources:
             feed_flow_rate_time_line = flow_rate_timelines[feed.name].total
             feed_signal_param = 'flow_sheet.{}.c'.format(feed.name)
             if feed_signal_param in self.parameter_timelines:
                 feed_signal_time_line = self.parameter_timelines[feed_signal_param]
             else:
-                feed_section = Section(0, self.cycle_time, feed.c)
+                feed_section = PolynomialSection(0, self.cycle_time, feed.c)
                 feed_signal_time_line = TimeLine()
                 feed_signal_time_line.add_section(feed_section)
 
@@ -95,29 +96,23 @@ class Process(EventHandler):
                     )[0] for comp in range(self.n_comp)
             ]
             
-            feed_all.append(np.array(m_i))
+            feed_all += np.array(m_i)
             
-        if len(feed_all) == 0:
-            feed_all = np.zeros((self.n_comp,))
-
-        return sum(feed_all)
-    
-    
+        return feed_all
             
     @property
     def V_eluent(self):
         """float: Volume of the eluent entering the system in one cycle.
         """
-        V_all = []
         flow_rate_timelines = self.flow_rate_timelines
+
+        V_all = 0
         for eluent in self.flow_sheet.eluent_sources:
             eluent_time_line = flow_rate_timelines[eluent.name]['total']
             V_eluent = eluent_time_line.integral()
+            V_all += V_eluent
             
-        if len(V_all) == 0:
-            V_all = [0]
-
-        return sum(V_all)
+        return V_all
 
     @property
     def V_solid(self):
@@ -127,6 +122,30 @@ class Process(EventHandler):
             [unit.volume_solid for unit in self.flow_sheet.units_with_binding]
         )
 
+    @property
+    def flow_rate_section_states(self):
+        """dict: Lists of events for every time, one or more events occur.
+        """
+        section_states = {
+            time: {
+                unit.name: {
+                    'total': [],
+                    'destinations': defaultdict(dict)
+                } for unit in self.flow_sheet.units
+            } for time in self.section_times[0:-1]
+        }
+        
+        for sec_time in self.section_times[0:-1]:
+            for unit, unit_flow_rates in self.flow_rate_timelines.items():
+                section_states[sec_time][unit]['total'] = \
+                    unit_flow_rates['total'].coefficients(sec_time)[0,:]
+                
+                for dest, tl in unit_flow_rates.destinations.items():
+                    section_states[sec_time][unit]['destinations'][dest] = \
+                        tl.coefficients(sec_time)[0,:]
+
+        return Dict(section_states)
+        
 
     @property
     def flow_rate_timelines(self):
@@ -139,61 +158,43 @@ class Process(EventHandler):
                 }
             for unit in self.flow_sheet.units
         }
-
-        times = self.event_times
         
-        if len(times) == 0:
-            enumerator = {0: []}.items()
-        else:
-            enumerator = self.timeline.items()
+        for i, (time, state) in enumerate(self.section_states.items()):
+            start = self.section_times[i]
+            end = self.section_times[i+1]
 
-        for index, (time, events) in enumerate(enumerator):
-            start = time
-            if index < len(times)-1:
-                end = times[index+1]
-            else:
-                end = self.cycle_time
-
-            for evt in events:
-                evt.perform()
-
-            flow_rates = self.flow_sheet.flow_rates
+            flow_rates = self.flow_sheet.get_flow_rates(state)
 
             for unit, flow_rate in flow_rates.items():
-                section = Section(start, end, flow_rate.total)
+                section = PolynomialSection(start, end, flow_rate.total)
                 flow_rate_timelines[unit]['total'].add_section(section)
                 for dest, flow_rate_dest in flow_rate.destinations.items():
-                    section = Section(start, end, flow_rate_dest)
-                    flow_rate_timelines[unit]['destinations'][dest].add_section(section)
-
+                    section = PolynomialSection(start, end, flow_rate_dest)
+                    flow_rate_timelines[unit]['destinations'][dest].add_section(section)            
+        
         return Dict(flow_rate_timelines)
     
     @property
     def flow_rate_section_states(self):
         """dict: Lists of events for every time, one or more events occur.
         """
-        if len(self.event_times) == 0:
-            event_times = [0]
-        else:
-            event_times = self.event_times
-            
         section_states = {
             time: {
                 unit.name: {
                     'total': [],
                     'destinations': defaultdict(dict)
                 } for unit in self.flow_sheet.units
-            } for time in event_times
+            } for time in self.section_times[0:-1]
         }
         
-        for evt_time in event_times:
+        for sec_time in self.section_times[0:-1]:
             for unit, unit_flow_rates in self.flow_rate_timelines.items():
-                section_states[evt_time][unit]['total'] = \
-                    unit_flow_rates['total'].coefficients(evt_time)[0,:]
+                section_states[sec_time][unit]['total'] = \
+                    unit_flow_rates['total'].coefficients(sec_time)[0,:]
                 
                 for dest, tl in unit_flow_rates.destinations.items():
-                    section_states[evt_time][unit]['destinations'][dest] = \
-                        tl.coefficients(evt_time)[0,:]
+                    section_states[sec_time][unit]['destinations'][dest] = \
+                        tl.coefficients(sec_time)[0,:]
 
         return Dict(section_states)
 
@@ -293,7 +294,7 @@ class Process(EventHandler):
         parameters = Dict()
         parameters.flow_sheet = self.flow_sheet.piecewise_polynomial_parameters
 
-        return parameters        
+        return parameters
 
     @property
     def initial_state(self):
