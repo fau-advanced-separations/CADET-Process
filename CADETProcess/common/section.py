@@ -217,7 +217,7 @@ class TimeLine():
         
         return c
     
-    def integral(self, start, end):
+    def integral(self, start=None, end=None):
         """Calculate integral of sections in interval [start, end].
 
         Parameters
