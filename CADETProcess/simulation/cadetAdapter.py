@@ -58,6 +58,8 @@ class Cadet(SolverBase):
     with global options that are then copied for each unit in get_unit_config
     !!! Implement method for loading CADET file that have not been generated
     with CADETProcess and create Process
+    !!! Reverse flow direction of columns does currently noch work with 
+    dynamic flow rates.
 
     See also
     --------
@@ -321,7 +323,8 @@ class Cadet(SolverBase):
                     end = (cycle + 1) * (len(process.time) - 1) + 1
                     signal = solution_complete[start:end,:]
                     solution[unit.name].append(
-                            TimeSignal(time, signal, name=unit.name))
+                        TimeSignal(time, signal, name=unit.name)
+                    )
 
             system_solution = {
                     'state': cadet.root.output.last_state_y,
@@ -358,7 +361,7 @@ class Cadet(SolverBase):
 
         Note
         ----
-        !!! External profiles not implemented yet
+        !!! External functions not implemented yet
 
         See also
         --------
@@ -559,7 +562,7 @@ class Cadet(SolverBase):
                     try:
                         unit = process.flow_sheet[unit_name]
                     except KeyError:
-                        if param_name == 'output_state':
+                        if unit_name == 'output_states':
                             continue
                         else:
                             raise CADETProcessError(
@@ -593,13 +596,15 @@ class Cadet(SolverBase):
     def add_parameter_section(
             self, model_units, sec_index, unit_index, unit_model, parameter, state
         ):
+        """Add section value to parameter branch.
+        """
         unit_index = 'unit' + '_{0:03d}'.format(unit_index)
         parameter_name = inv_unit_parameters_map[unit_model]['parameters'][parameter]
         
         if sec_index == 0:
             model_units[unit_index][parameter_name] = []
-        model_units[unit_index][parameter_name].append(state)            
-
+        model_units[unit_index][parameter_name] += list(state.ravel())
+        
 
     def get_adsorption_config(self, binding):
         """Config branch /input/model/unit_xxx/adsorption for individual unit
@@ -643,7 +648,7 @@ class Cadet(SolverBase):
         input_solver = Dict()
 
         input_solver.update(self.solver_parameters.to_dict())
-        input_solver.USER_SOLUTION_TIMES = process._time_complete
+        input_solver.user_solution_times = process._time_complete
         input_solver.sections = self.get_solver_sections(process)
         input_solver.time_integrator = \
             self.time_integrator_parameters.to_dict()
@@ -655,19 +660,12 @@ class Cadet(SolverBase):
         """
         solver_sections = Dict()
         
-        if len(process.event_times) == 0:
-            solver_sections.nsec = process._n_cycles
-            solver_sections.section_times = [
-                n*process.cycle_time for n in range(process._n_cycles)
-                ]
-        else:
-            solver_sections.nsec = process._n_cycles * len(process.event_times)
-            solver_sections.section_times = [
-                round((cycle*process.cycle_time + evt),1)
-                for cycle in range(process._n_cycles)
-                for evt in list(process.timeline)
-            ]
-        
+        solver_sections.nsec = process._n_cycles * process.n_sections
+        solver_sections.section_times = [
+            round((cycle*process.cycle_time + evt),1)
+            for cycle in range(process._n_cycles)
+            for evt in process.section_times[0:-1]
+        ]
         solver_sections.section_times.append(
             round(process._n_cycles * process.cycle_time,1)
         )

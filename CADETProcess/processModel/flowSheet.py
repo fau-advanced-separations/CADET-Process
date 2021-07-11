@@ -38,9 +38,9 @@ class FlowSheet(metaclass=StructMeta):
         self._feed_sources = []
         self._eluent_sources = []
         self._chromatogram_sinks = []
-        self._connections = dict()
-        self._output_states = dict()
-        self._flow_rates = dict()
+        self._connections = Dict()
+        self._output_states = Dict()
+        self._flow_rates = Dict()
 
     def _unit_name_decorator(func):
         def wrapper(self, unit, *args, **kwargs):
@@ -122,8 +122,10 @@ class FlowSheet(metaclass=StructMeta):
         return [unit for unit in self._units
                 if not isinstance(unit.binding_model, NoBinding)]
 
-    def add_unit(self, unit, feed_source=False, eluent_source=False,
-                 chromatogram_sink=False):
+    def add_unit(
+            self, unit, 
+            feed_source=False, eluent_source=False, chromatogram_sink=False
+        ):
         """Add unit to the flow sheet.
 
         Parameters
@@ -678,7 +680,8 @@ class FlowSheet(metaclass=StructMeta):
     def parameters(self):
         parameters = {unit.name: unit.parameters for unit in self.units}
         parameters['output_states'] = {
-            unit.name: self.output_states[unit] for unit in self.units}
+            unit.name: self.output_states[unit] for unit in self.units
+        }
 
         return Dict(parameters)
 
