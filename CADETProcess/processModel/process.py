@@ -200,26 +200,6 @@ class Process(EventHandler):
 
 
     @property
-    def unit_flow_rate_section_states(self):
-        """dict: Lists of events for every time, one or more events occur.
-        !!! Todo Not working yet!
-        """
-        section_states = {
-            unit.name: {
-                'total': {time: None for time in self.event_times},
-                'destinations': defaultdict(dict)
-            } for unit in self.flow_sheet.units
-        }
-        
-        for evt_time in self.event_times:
-            for param, tl in self.flow_rate_timelines.items():
-                
-                section_states[evt_time][param]['total'] = tl.coefficients(evt_time)
-
-        return section_states
-
-
-    @property
     def time(self):
         """np.array: Returns time vector for one cycle
 
