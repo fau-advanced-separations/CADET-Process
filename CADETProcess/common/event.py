@@ -102,6 +102,8 @@ class EventHandler(metaclass=StructMeta):
 
         self._events.append(evt)
         super().__setattr__(name, evt)
+        
+        return evt
 
     def remove_event(self, evt_name):
         """Remove event from the EventHandler.
