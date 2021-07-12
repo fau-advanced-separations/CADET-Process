@@ -1,8 +1,15 @@
 import numpy as np
 
 from CADETProcess import CADETProcessError
+from CADETProcess.common import StructMeta
+from CADETProcess.common import \
+    UnsignedInteger, UnsignedFloat, \
+    DependentlySizedUnsignedList, DependentlySizedNdArray, Vector
 
-class Fraction:
+class Fraction(metaclass=StructMeta):
+    mass = Vector()
+    volume = UnsignedFloat()
+    
     def __init__(self, mass, volume):
         self.mass = mass
         self.volume = volume
@@ -13,14 +20,9 @@ class Fraction:
 
     @property
     def fraction_mass(self):
-        """Returns the sum of all collected species in the fraction.
+        """np.Array: Cumulative mass all species in the fraction.
 
-        Returns
-        -------
-        fraction_mass : float
-            Cumulative mass of all species in the fraction.
-
-        See also
+        See Also
         --------
         mass
         purity
@@ -30,16 +32,11 @@ class Fraction:
 
     @property
     def purity(self):
-        """Returns the purity of the fraction.
+        """np.Array: Purity of the fraction.
 
         Invalid values are replaced by zero.
 
-        Returns
-        -------
-        purity : ndarray
-            Purity of the fraction.
-
-        See also
+        See Also
         --------
         mass
         fraction_mass
@@ -52,43 +49,47 @@ class Fraction:
 
     @property
     def concentration(self):
-        """Returns the concentration of the fraction.
-
+        """np.Array: Component concentrations of the fraction.
+        
         Invalid values are replaced by zero.
 
-        Returns
-        -------
-        concentration : ndarray
-            Concentration of the fraction.
-
-        See also
+        See Also
         --------
         mass
         volume
         """
-        return self.mass / self.volume
+        with np.errstate(divide='ignore', invalid='ignore'):
+            concentration = self.mass / self.volume
+
+        return np.nan_to_num(concentration)        
+
 
     def __repr__(self):
-       return "%s(mass=np.%r,volume=%r)" % (self.__class__.__name__,
-                 self.mass, self.volume)
+       return "%s(mass=np.%r,volume=%r)" % (
+           self.__class__.__name__, self.mass, self.volume
+       )
 
 
 class FractionPool:
     """
     """
-    def __init__(self, n_comp):
-        self.n_comp = n_comp
+    def __init__(self):
         self._fractions = []
-
 
     def add_fraction(self, fraction):
         if not isinstance(fraction, Fraction):
             raise CADETProcessError('Expected Fraction')
 
-        if fraction.n_comp != self.n_comp:
-            raise CADETProcessError('Number of components not matching')
+        if self.n_comp is not None:
+            if fraction.n_comp != self.n_comp:
+                raise CADETProcessError('Number of components not matching')
 
         self._fractions.append(fraction)
+        
+    @property
+    def n_comp(self):
+        if len(self._fractions) > 0:
+            return self._fractions[0].n_comp
 
     @property
     def fractions(self):

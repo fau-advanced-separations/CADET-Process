@@ -312,7 +312,7 @@ class Fractionator(EventHandler):
         """
         if self._fraction_pools is None:
             self._fraction_pools = [
-                FractionPool(self.n_comp) for _ in range(self.n_comp + 1)
+                FractionPool() for _ in range(self.n_comp + 1)
             ]
 
             for chrom_index, chrom in enumerate(self.chromatograms):
