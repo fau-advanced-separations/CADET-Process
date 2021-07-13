@@ -1,4 +1,3 @@
-import logging
 import os
 
 from addict import Dict
@@ -37,13 +36,13 @@ class Fractionator(EventHandler):
 
 
     def __init__(self, process_meta, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
         self.process_meta = process_meta
         self._chromatograms = []
         self._fractionation_states = Dict()
         self._chromatogram_events = Dict()
         self.reset()
+
+        super().__init__(*args, **kwargs)
 
     def _chrom_name_decorator(func):
         def wrapper(self, chrom, *args, **kwargs):
@@ -135,7 +134,7 @@ class Fractionator(EventHandler):
             raise TypeError('Expected Chromatogram')
         if len(self._chromatograms) > 0:
             if chromatogram.n_comp != self._chromatograms[0].n_comp:
-                raise CADETProcessError('Number of components don\'t match')
+                raise CADETProcessError('Number of components does not match.')
             if chromatogram.cycle_time != self._chromatograms[0].cycle_time:
                 raise CADETProcessError('Cycle_time does not match')
         self._chromatograms.append(chromatogram)
@@ -312,7 +311,7 @@ class Fractionator(EventHandler):
         """
         if self._fraction_pools is None:
             self._fraction_pools = [
-                FractionPool() for _ in range(self.n_comp + 1)
+                FractionPool(self.n_comp) for _ in range(self.n_comp + 1)
             ]
 
             for chrom_index, chrom in enumerate(self.chromatograms):
@@ -554,122 +553,3 @@ class Fractionator(EventHandler):
                 save_path=path + '/fractionation_signal_{}.png'.format(index),
                 index=index
             )
-
-
-import warnings
-
-from CADETProcess.optimization import OptimizationProblem, COBYLA, TrustConstr
-from CADETProcess.optimization import mass, ranked_objective_decorator
-from CADETProcess.optimization import purity, nonlin_bounds_decorator
-
-def optimize_fractionation(chromatograms, process_meta, purity_required,
-                           obj_fun=None, return_results=False):
-    """Optimizing the fraction times by variation of the fractionation events.
-
-    Function creates a fractionation object and creates initial values with
-    purity_required. An OptimizationProblem is instantiated and the
-    fractionation events are set as optimization variables. The order of the
-    fractionation times is enforced by linear constraints. If no objective
-    function is provided, the mass of all components is maximized. COBYLA is
-    used to solve the optimization problem.
-
-    Parameters
-    ----------
-    chromatograms : Chromatogram or list of Chromatograms
-        Chromatogram to be fractionated
-    process_meta : ProcessMeta
-
-    purity_required :  float or array_like
-        Minimum required purity for components. If float, same value is assumed
-        for all components.
-    obj_fun : function, optional
-        Objective function used for OptimizationProblem. If None, the mass of
-        all components is maximized.
-    return_results : Bool
-        If True, also returns optimization results. For Debugging.
-
-    Raises
-    -------
-    TypeError
-        If chromatogram is not an instance of Chromatogram.
-    Warning
-        If purity requirements cannot be fulfilled.
-
-    Returns
-    -------
-    performance : Performance
-        FractionationPerformance
-    solver : OptimizationSolver
-        If return_solver is True
-
-    See also
-    --------
-    Chromatogram
-    Fractionation
-    COBYLA
-    """
-    frac = Fractionator(process_meta)
-
-    if not isinstance(chromatograms, list):
-        chromatograms = [chromatograms]
-    for chrom in chromatograms:
-        frac.add_chromatogram(chrom)
-
-    frac.initial_values(purity_required)
-
-    if len(frac.events) == 0:
-        warnings.warn("No areas found with sufficient purity. Returning")
-        return frac
-
-    opt = OptimizationProblem(frac)
-    opt.logger.setLevel(logging.WARNING)
-
-    if obj_fun is None:
-        obj_fun = ranked_objective_decorator(1)(mass)
-    opt.objective_fun = obj_fun
-
-    if isinstance(purity_required, float):
-        purity_required = [purity_required] * frac.n_comp
-    opt.nonlinear_constraint_fun = \
-        nonlin_bounds_decorator(purity_required)(purity)
-
-    for evt in frac.events:
-        opt.add_variable(evt.name + '.time', evt.name)
-
-    for chrom_index, chrom in enumerate(frac.chromatograms):
-        chrom_events = frac.chromatogram_events[chrom]
-        evt_names = [evt.name for evt in chrom_events]
-        for evt_index, evt in enumerate(chrom_events):
-            if evt_index < len(chrom_events) - 1:
-                opt.add_linear_constraint(
-                    [evt_names[evt_index], evt_names[evt_index+1]], [1,-1]
-                    )
-            else:
-                opt.add_linear_constraint(
-                    [evt_names[0], evt_names[-1]],[-1,1], frac.cycle_time)
-
-    opt.x0 = [evt.time for evt in frac.events]
-    frac.performance
-
-    if not opt.check_nonlinear_constraints(opt.x0):
-        warnings.warn("No areas found with sufficient purity. Returning")
-        return frac
-
-    solver = COBYLA()
-    solver.rhobeg = 1.0
-    try:
-        opt_results = solver.optimize(opt)
-    except CADETProcessError:
-        try:
-            solver.rhobeg = 0.01
-            opt_results = solver.optimize(opt)
-            opt.logger.info('Optimization failed, re-trying with smaller rho')
-        except CADETProcessError:
-            frac.initial_values()
-            warnings.warn('Optimization failed. Returning initial values')
-            opt_results = None
-
-    if return_results:
-        return frac, opt_results, solver, opt
-
-    return frac

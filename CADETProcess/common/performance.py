@@ -76,7 +76,7 @@ class RankedPerformance(metaclass=StructMeta):
         if isinstance(ranking, (float, int)):
             ranking = [ranking]*performance.n_comp
         elif len(ranking) != performance.n_comp:
-            raise CADETProcessError('Number of components not matching')
+            raise CADETProcessError('Number of components does not match.')
 
         self._ranking = ranking
 

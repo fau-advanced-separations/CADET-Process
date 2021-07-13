@@ -3,50 +3,54 @@ from CADETProcess.common import StructMeta
 
 from CADETProcess.processModel import Process
 from CADETProcess.simulation import SolverBase
-
-from CADETProcess.optimization import mass, ranked_objective_decorator
-from CADETProcess.fractionation import optimize_fractionation
+from CADETProcess.fractionation import FractionationOptimizer
 
 from CADETProcess.common import get_bad_performance
+
 
 class ProcessEvaluator(metaclass=StructMeta):
     """Wrapper for sequential simulation and fractionation of processes.
 
     Attributes
     ----------
-    solver : Solver
-        solver with stationarity configuration.
+    process_solver: SolverBase
+        Solver for simulating the process.
+        Can include stationarity evaluator.
+    fractionation_optimizer: FractionationOptimizer
+        Optimizer for fractionating and evaluating process solution.
 
     See also
     --------
     Process
     simulation.SolverBase
-    fractionation.optimize_fractionation
+    fractionation.FractionationOptimizer
     """
-    def __init__(self, solver, purity_required=0.95, ranking=1):
-        self.solver = solver
-        self.purity_required = purity_required
-        self.ranking = ranking
+    def __init__(self, process_solver, fractionation_optimizer):
+        self.process_solver = process_solver
+        self.fractionation_optimizer = fractionation_optimizer
 
     @property
-    def solver(self):
-        """Returns
+    def process_solver(self):
+        return self._process_solver
 
-        Parameters
-        ----------
-        solver: Solver
-            Solver with interface and stationarity configuration.
-        """
-        return self._solver
+    @process_solver.setter
+    def process_solver(self, process_solver):
+        if not isinstance(process_solver, SolverBase):
+            raise TypeError('Expected SolverBase')
+        self._process_solver = process_solver
 
-    @solver.setter
-    def solver(self, solver):
-        if not isinstance(solver, SolverBase):
-            raise TypeError('Expected Solver')
-        self._solver = solver
+    @property
+    def fractionation_optimizer(self):
+        return self._fractionation_optimizer
 
-    def evaluate(self, process, return_frac=False):
-        """Runs the process simulation and calls the fractionation optimization.
+    @fractionation_optimizer.setter
+    def fractionation_optimizer(self, fractionation_optimizer):
+        if not isinstance(fractionation_optimizer, FractionationOptimizer):
+            raise TypeError('Expected FractionationOptimizer')
+        self._fractionation_optimizer = fractionation_optimizer
+
+    def evaluate(self, process):
+        """Runs the process simulation and calls the fractionation optimizer.
 
         Parameters
         ----------
@@ -65,35 +69,14 @@ class ProcessEvaluator(metaclass=StructMeta):
         """
         if not isinstance(process, Process):
             raise TypeError('Expected Process')
-
+        
         try:
-            results = self.solver.simulate(process)
+            results = self.process_solver.simulate(process)
+            performance = self.fractionation_optimizer.optimize_fractionation(
+                results.chromatograms, process.process_meta
+            )
         except CADETProcessError:
-            return get_bad_performance(process.n_comp)
+            n_comp = process.flow_sheet.n_comp
+            performance = get_bad_performance(n_comp)
 
-        n_comp = process.flow_sheet.n_comp
-        if isinstance(self.purity_required, float):
-            purity_required = [self.purity_required] * n_comp
-        elif isinstance(self.purity_required, list) and \
-            len(self.purity_required) != n_comp:
-            raise CADETProcessError('Number of components don\' match')
-        else:
-            purity_required = self.purity_required
-
-        if isinstance(self.ranking, float):
-            ranking = [self.ranking] * n_comp
-        elif isinstance(self.ranking, list) and \
-            len(self.ranking) != n_comp:
-            raise CADETProcessError('Number of components don\' match')
-        else:
-            ranking = self.ranking
-
-        obj_fun = ranked_objective_decorator(ranking)(mass)
-        frac = optimize_fractionation(
-                results.chromatograms, process.process_meta,
-                purity_required, obj_fun)
-
-        if return_frac:
-             return frac
-        else:
-             return frac.performance
+        return performance

@@ -70,26 +70,22 @@ class Fraction(metaclass=StructMeta):
        )
 
 
-class FractionPool:
+class FractionPool(metaclass=StructMeta):
     """
     """
-    def __init__(self):
+    n_comp = UnsignedInteger()
+    def __init__(self, n_comp):
         self._fractions = []
+        self.n_comp = n_comp
 
     def add_fraction(self, fraction):
         if not isinstance(fraction, Fraction):
             raise CADETProcessError('Expected Fraction')
 
-        if self.n_comp is not None:
-            if fraction.n_comp != self.n_comp:
-                raise CADETProcessError('Number of components not matching')
+        if fraction.n_comp != self.n_comp:
+            raise CADETProcessError('Number of components does not match.')
 
         self._fractions.append(fraction)
-        
-    @property
-    def n_comp(self):
-        if len(self._fractions) > 0:
-            return self._fractions[0].n_comp
 
     @property
     def fractions(self):
