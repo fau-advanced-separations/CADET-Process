@@ -30,6 +30,8 @@ class Process(EventHandler):
     --------
     EventHandler
     FlowSheet
+    ProcessMeta
+    Simulator
     """
     _initial_states = ['system_state', 'system_state_derivative']
     _n_cycles = UnsignedInteger(default=1)
@@ -270,9 +272,9 @@ class Process(EventHandler):
         return parameters
 
     @property
-    def piecewise_polynomial_parameters(self):
+    def polynomial_parameters(self):
         parameters = Dict()
-        parameters.flow_sheet = self.flow_sheet.piecewise_polynomial_parameters
+        parameters.flow_sheet = self.flow_sheet.polynomial_parameters
 
         return parameters
 

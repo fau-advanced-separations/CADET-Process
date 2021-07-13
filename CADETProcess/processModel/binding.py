@@ -1,6 +1,8 @@
 from CADETProcess import CADETProcessError
-from CADETProcess.common import (StructMeta, Bool, String, Integer,
-    UnsignedInteger, UnsignedFloat, DependentlySizedUnsignedList)
+from CADETProcess.common import StructMeta
+from CADETProcess.common import Bool, String, Integer, \
+    UnsignedInteger, UnsignedFloat, DependentlySizedUnsignedList
+
 
 class BindingBaseClass(metaclass=StructMeta):
     """Abstract base class for parameters of binding models.

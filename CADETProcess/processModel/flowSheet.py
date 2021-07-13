@@ -8,6 +8,7 @@ from CADETProcess.common import StructMeta, UnsignedInteger, String
 from CADETProcess.processModel import UnitBaseClass, SourceMixin, SinkMixin, Sink
 from CADETProcess.processModel import NoBinding
 
+
 class FlowSheet(metaclass=StructMeta):
     """Class to design process flow sheet.
 
@@ -711,9 +712,9 @@ class FlowSheet(metaclass=StructMeta):
         return Dict(parameters)
 
     @property
-    def piecewise_polynomial_parameters(self):
+    def polynomial_parameters(self):
         parameters = {
-            unit.name: unit.piecewise_polynomial_parameters 
+            unit.name: unit.polynomial_parameters 
             for unit in self.units
         }
         return parameters
