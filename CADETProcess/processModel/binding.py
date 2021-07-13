@@ -1,9 +1,11 @@
 from CADETProcess import CADETProcessError
+from CADETProcess.common import frozen_attributes
 from CADETProcess.common import StructMeta
 from CADETProcess.common import Bool, String, Integer, \
     UnsignedInteger, UnsignedFloat, DependentlySizedUnsignedList
 
 
+@frozen_attributes
 class BindingBaseClass(metaclass=StructMeta):
     """Abstract base class for parameters of binding models.
 

@@ -1,11 +1,13 @@
 from abc import ABCMeta
 from collections import OrderedDict
 from inspect import Parameter, Signature
+from functools import wraps
 
 def make_signature(names):
     return Signature(
             Parameter(name, Parameter.POSITIONAL_OR_KEYWORD)
             for name in names)
+
 
 class StructMeta(type):
     """Base class for classes that use Descriptors.
@@ -65,3 +67,28 @@ class Descriptor(metaclass=ABCMeta):
     def __delete__(self, instance):
         del instance.__dict__[self.name]
 
+
+def frozen_attributes(cls):
+    """Decorate classes to prevent setting attributes after the init method.
+    """
+    cls._is_frozen = False
+
+    def frozensetattr(self, key, value):
+        if self._is_frozen and not hasattr(self, key):
+            raise AttributeError(
+                "{} object has no attribute {}".format(cls.__name__, key)
+            )
+        else:
+            object.__setattr__(self, key, value)
+
+    def init_decorator(func):
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            func(self, *args, **kwargs)
+            self._is_frozen = True
+        return wrapper
+
+    cls.__setattr__ = frozensetattr
+    cls.__init__ = init_decorator(cls.__init__)
+
+    return cls

@@ -6,6 +6,7 @@ from collections import defaultdict
 
 from CADETProcess import CADETProcessError
 from CADETProcess.common import check_nested, generate_nested_dict, get_nested_value
+from CADETProcess.common import frozen_attributes
 from CADETProcess.common import StructMeta, UnsignedFloat
 from CADETProcess.common import plotlib, PlotParameters
 from CADETProcess.common import Section, PolynomialSection, TimeLine
@@ -420,7 +421,7 @@ class EventHandler(metaclass=StructMeta):
         parameter_timelines = defaultdict(TimeLine)
         for evt_parameter, events in self.parameter_events.items():
             is_polynomial = check_nested(
-                self.piecewise_polynomial_parameters, evt_parameter
+                self.polynomial_parameters, evt_parameter
             )
             if is_polynomial:
                 SectionClass = PolynomialSection
@@ -504,7 +505,7 @@ class EventHandler(metaclass=StructMeta):
         return
 
     @abstractmethod
-    def piecewise_polynomial_parameters(self):
+    def polynomial_parameters(self):
         return
 
     def plot_events(self):

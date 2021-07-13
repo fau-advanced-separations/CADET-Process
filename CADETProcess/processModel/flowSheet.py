@@ -4,11 +4,13 @@ import sympy as sym
 from addict import Dict
 
 from CADETProcess import CADETProcessError
+from CADETProcess.common import frozen_attributes
 from CADETProcess.common import StructMeta, UnsignedInteger, String
 from CADETProcess.processModel import UnitBaseClass, SourceMixin, SinkMixin, Sink
 from CADETProcess.processModel import NoBinding
 
 
+@frozen_attributes
 class FlowSheet(metaclass=StructMeta):
     """Class to design process flow sheet.
 

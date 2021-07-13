@@ -2,6 +2,7 @@ import math
 import numpy as np
 
 from CADETProcess import CADETProcessError
+from CADETProcess.common import frozen_attributes
 from CADETProcess.common import StructMeta
 from CADETProcess.common import \
     String, Switch, \
@@ -11,6 +12,7 @@ from CADETProcess.processModel import BindingBaseClass, NoBinding
 from CADETProcess.processModel import ReactionBaseClass, NoReaction
 
 
+@frozen_attributes
 class UnitBaseClass(metaclass=StructMeta):
     """Base class for all UnitOperation classes.
 
