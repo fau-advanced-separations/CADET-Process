@@ -102,8 +102,9 @@ class Langmuir(BindingBaseClass):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._parameters += ['adsorption_rate', 'desorption_rate',
-                             'saturation_capacity']
+        self._parameters += [
+            'adsorption_rate', 'desorption_rate', 'saturation_capacity'
+        ]
 
 
 class BiLangmuir(BindingBaseClass):
@@ -127,8 +128,13 @@ class BiLangmuir(BindingBaseClass):
         super().__init__(*args, **kwargs)
         self.n_states = n_states
 
-        self._parameters += ['adsorption_rate', 'desorption_rate',
-                             'saturation_capacity', 'n_states']
+        self._parameters += [
+            'adsorption_rate',
+            'desorption_rate',
+            'saturation_capacity',
+            'n_states'
+        ]
+        
     @property
     def n_total_states(self):
         return self.n_comp * self.n_states
@@ -169,11 +175,15 @@ class StericMassAction(BindingBaseClass):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._parameters += ['adsorption_rate', 'desorption_rate',
-                             'characteristic_charge', 'steric_factor', 
-                             'stationary_phase_capacity',
-                             'reference_liquid_phase_conc',
-                             'reference_solid_phase_conc']
+        self._parameters += [
+            'adsorption_rate',
+            'desorption_rate',
+            'characteristic_charge',
+            'steric_factor', 
+            'stationary_phase_capacity',
+            'reference_liquid_phase_conc',
+            'reference_solid_phase_conc'
+        ]
 
 
 class AntiLangmuir(BindingBaseClass):
@@ -202,8 +212,12 @@ class AntiLangmuir(BindingBaseClass):
         self.maximum_adsorption_capacity = [0.0] * self.n_comp
         self.antilangmuir = [0.0] * self.n_comp
 
-        self._parameters += ['adsorption_rate', 'desorption_rate',
-                             'maximum_adsorption_capacity', 'antilangmuir']
+        self._parameters += [
+            'adsorption_rate',
+            'desorption_rate',
+            'maximum_adsorption_capacity',
+            'antilangmuir'
+        ]
 
 
 class KumarMultiComponentLangmuir(BindingBaseClass):
@@ -234,10 +248,14 @@ class KumarMultiComponentLangmuir(BindingBaseClass):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._parameters += ['adsorption_rate', 'desorption_rate', 
-                             'maximum_adsorption_capacity', 
-                             'characteristic_charge', 'activation_temp',
-                             'temperature']
+        self._parameters += [
+            'adsorption_rate',
+            'desorption_rate', 
+            'maximum_adsorption_capacity', 
+            'characteristic_charge',
+            'activation_temp',
+            'temperature'
+        ]
 
 
 class Spreading(BindingBaseClass):
@@ -264,9 +282,14 @@ class Spreading(BindingBaseClass):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._parameters += ['adsorption_rate', 'desorption_rate', 'activation_temp',
-                             'maximum_adsorption_capacity',
-                             'exchange_from_1_2', 'exchange_from_2_1']
+        self._parameters += [
+            'adsorption_rate',
+            'desorption_rate',
+            'activation_temp',
+            'maximum_adsorption_capacity',
+            'exchange_from_1_2',
+            'exchange_from_2_1'
+        ]
 
 
 class MobilePhaseModulator(BindingBaseClass):
@@ -295,8 +318,11 @@ class MobilePhaseModulator(BindingBaseClass):
         super().__init__(*args, **kwargs)
 
         self._parameters += [
-            'adsorption_rate', 'desorption_rate', 'maximum_adsorption_capacity',
-            'ion_exchange_characteristic', 'hydrophobicity',
+            'adsorption_rate',
+            'desorption_rate',
+            'maximum_adsorption_capacity',
+            'ion_exchange_characteristic',
+            'hydrophobicity',
         ]
 
 class ExtendedMobilePhaseModulator(BindingBaseClass):
@@ -331,8 +357,12 @@ class ExtendedMobilePhaseModulator(BindingBaseClass):
         super().__init__(*args, **kwargs)
 
         self._parameters += [
-            'adsorption_rate', 'desorption_rate', 'maximum_adsorption_capacity',
-            'ion_exchange_characteristic', 'hydrophobicity', 'component_mode'
+            'adsorption_rate',
+            'desorption_rate',
+            'maximum_adsorption_capacity',
+            'ion_exchange_characteristic',
+            'hydrophobicity',
+            'component_mode',
         ]
         
 
@@ -371,11 +401,16 @@ class SelfAssociation(BindingBaseClass):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._parameters += ['adsorption_rate', 'desorption_rate', 'adsorption_rate_dimerization',
-                             'characteristic_charge',
-                             'steric_factor', 'stationary_phase_capacity',
-                             'reference_liquid_phase_conc',
-                             'reference_solid_phase_conc']
+        self._parameters += [
+            'adsorption_rate', 
+            'adsorption_rate_dimerization', 
+            'desorption_rate', 
+            'characteristic_charge',
+            'steric_factor', 
+            'stationary_phase_capacity',
+            'reference_liquid_phase_conc', 
+            'reference_solid_phase_conc'
+        ]
 
 
 class BiStericMassAction(BindingBaseClass):
@@ -416,11 +451,15 @@ class BiStericMassAction(BindingBaseClass):
         super().__init__(*args, **kwargs)
         self.n_states = n_states
 
-        self._parameters += ['adsorption_rate', 'desorption_rate', 'characteristic_charge',
-                             'steric_factor',
-                             'stationary_phase_capacity',
-                             'reference_liquid_phase_conc',
-                             'reference_solid_phase_conc']
+        self._parameters += [
+            'adsorption_rate', 
+            'desorption_rate', 
+            'characteristic_charge',
+            'steric_factor',
+            'stationary_phase_capacity',
+            'reference_liquid_phase_conc',
+            'reference_solid_phase_conc'
+        ]
 
 
 class MultistateStericMassAction(BindingBaseClass):
@@ -463,11 +502,16 @@ class MultistateStericMassAction(BindingBaseClass):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._parameters += ['adsorption_rate', 'desorption_rate', 'characteristic_charge',
-                             'steric_factor', 'conversion_rate',
-                             'stationary_phase_capacity',
-                             'reference_liquid_phase_conc',
-                             'reference_solid_phase_conc']
+        self._parameters += [
+            'adsorption_rate',
+            'desorption_rate',
+            'characteristic_charge',
+            'steric_factor',
+            'conversion_rate',
+            'stationary_phase_capacity',
+            'reference_liquid_phase_conc',
+            'reference_solid_phase_conc'
+        ]
 
 
 class SimplifiedMultistateSteric_Mass_Action(BindingBaseClass):
@@ -544,22 +588,25 @@ class SimplifiedMultistateSteric_Mass_Action(BindingBaseClass):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._parameters += ['adsorption_rate', 'desorption_rate', 
-                             'characteristic_charge_first',
-                             'characteristic_charge_last',
-                             'quadratic_modifiers_charge',
-                             'steric_factor_first',
-                             'steric_factor_last',
-                             'quadratic_modifiers_steric',
-                             'stationary_phase_capacity',
-                             'exchange_from_weak_stronger',
-                             'linear_exchange_ws',
-                             'quadratic_exchange_ws',
-                             'exchange_from_stronger_weak',
-                             'linear_exchange_sw',
-                             'quadratic_exchange_sw',
-                             'reference_liquid_phase_conc',
-                             'reference_solid_phase_conc']
+        self._parameters += [
+            'adsorption_rate',
+            'desorption_rate', 
+            'characteristic_charge_first',
+            'characteristic_charge_last',
+            'quadratic_modifiers_charge',
+            'steric_factor_first',
+            'steric_factor_last',
+            'quadratic_modifiers_steric',
+            'stationary_phase_capacity',
+            'exchange_from_weak_stronger',
+            'linear_exchange_ws',
+            'quadratic_exchange_ws',
+            'exchange_from_stronger_weak',
+            'linear_exchange_sw',
+            'quadratic_exchange_sw',
+            'reference_liquid_phase_conc',
+            'reference_solid_phase_conc'
+        ]
 
 
 class Saska(BindingBaseClass):
