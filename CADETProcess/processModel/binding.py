@@ -294,11 +294,47 @@ class MobilePhaseModulator(BindingBaseClass):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._parameters += ['adsorption_rate', 'desorption_rate',
-                             'maximum_adsorption_capacity',
-                             'ion_exchange_characteristic',
-                             'hydrophobicity']
+        self._parameters += [
+            'adsorption_rate', 'desorption_rate', 'maximum_adsorption_capacity',
+            'ion_exchange_characteristic', 'hydrophobicity',
+        ]
 
+class ExtendedMobilePhaseModulator(BindingBaseClass):
+    """Mobile Phase Modulator adsoprtion isotherm.
+
+    Attributes
+    ----------
+    adsorption_rate : Parameter
+        Adsorption rate constants.
+    desorption_rate : Parameter
+        Desorption rate constants.
+    maximum_adsorption_capacity : Parameter
+        Maximum adsorption capacities.
+    ion_exchange_characteristic : Parameter
+        Parameters describing the ion-exchange characteristics (IEX).
+    hydrophobicity : Parameter
+        Parameters describing the hydrophobicity (HIC).
+    component_mode : Parameter
+        Mode of each component; 
+        0 denotes the modifier component, 
+        1 is linear binding, 
+        2 is modified Langmuir binding.
+    """
+    adsorption_rate  = DependentlySizedUnsignedList(dep='n_comp')
+    desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
+    maximum_adsorption_capacity = DependentlySizedUnsignedList(dep='n_comp')
+    ion_exchange_characteristic = DependentlySizedUnsignedList(dep='n_comp')
+    hydrophobicity = DependentlySizedUnsignedList(dep='n_comp')
+    component_mode = DependentlySizedUnsignedList(dep='n_comp')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self._parameters += [
+            'adsorption_rate', 'desorption_rate', 'maximum_adsorption_capacity',
+            'ion_exchange_characteristic', 'hydrophobicity', 'component_mode'
+        ]
+        
 
 class SelfAssociation(BindingBaseClass):
     """Self Association adsoprtion isotherm.
