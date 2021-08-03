@@ -12,9 +12,8 @@ from CADETProcess.common import plotlib, PlotParameters
 from CADETProcess.common import Section, PolynomialSection, TimeLine
 
 class EventHandler(metaclass=StructMeta):
-    """ Class for handling Events that change the property of an event performer.
+    """Baseclass for handling Events that change a property of an event performer.
 
-    Events
     Attributes
     ----------
     event_performers : dict
@@ -263,12 +262,16 @@ class EventHandler(metaclass=StructMeta):
         except KeyError:
             raise CADETProcessError("Cannot find dependent Event")
 
+        if not isinstance(independent_events, list):
+            independent_events = [independent_events]
         if not all(indep in self.events_dict for indep in independent_events):
             raise CADETProcessError("Cannot find one or more independent events")
 
         if factors is None:
             factors = [1]*len(independent_events)
 
+        if not isinstance(factors, list):
+            factors = [factors]
         if len(factors) != len(independent_events):
             raise CADETProcessError(
                 "Length of factors must be equal to length of independent Events"
@@ -346,7 +349,6 @@ class EventHandler(metaclass=StructMeta):
             filter(lambda dur: dur.isIndependent == False, self.durations)
         )
 
-
     @property
     def event_times(self):
         """list: Time of events, sorted by Event time.
@@ -355,7 +357,6 @@ class EventHandler(metaclass=StructMeta):
         event_times.sort()
         
         return event_times
-    
 
     @property
     def event_parameters(self):
