@@ -169,7 +169,7 @@ class StericMassAction(BindingBaseClass):
     characteristic_charge = DependentlySizedUnsignedList(dep='n_comp')
     steric_factor = DependentlySizedUnsignedList(dep='n_comp')
     stationary_phase_capacity = UnsignedFloat()
-    reference_liquid_phase_conc  = UnsignedFloat()
+    reference_liquid_phase_conc = UnsignedFloat()
     reference_solid_phase_conc = UnsignedFloat()
 
     def __init__(self, *args, **kwargs):
@@ -200,7 +200,7 @@ class AntiLangmuir(BindingBaseClass):
     antilangmuir : list of unsigned floats, optional.
         Anti-Langmuir coefficients. Length depends on n_comp.
     """
-    adsorption_rate  = DependentlySizedUnsignedList(dep='n_comp')
+    adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     maximum_adsorption_capacity = DependentlySizedUnsignedList(dep='n_comp')
     antilangmuir = DependentlySizedUnsignedList(dep='n_comp')
@@ -238,7 +238,7 @@ class KumarMultiComponentLangmuir(BindingBaseClass):
     temperature : unsigned float.
         Temperature.
     """
-    adsorption_rate  = DependentlySizedUnsignedList(dep='n_comp')
+    adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp', default=1)
     maximum_adsorption_capacity = DependentlySizedUnsignedList(dep='n_comp')
     characteristic_charge = DependentlySizedUnsignedList(dep='n_comp', default=1)
@@ -274,7 +274,7 @@ class Spreading(BindingBaseClass):
     exchange_from_2_1 : Parameter
         Exchange rates from the second to the first bound state.
     """
-    adsorption_rate  = DependentlySizedUnsignedList(dep='n_comp')
+    adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp', default=1)
     maximum_adsorption_capacity = DependentlySizedUnsignedList(dep='n_comp')
     exchange_from_1_1 = DependentlySizedUnsignedList(dep='n_comp')
@@ -308,7 +308,7 @@ class MobilePhaseModulator(BindingBaseClass):
     hydrophobicity : Parameter
         Parameters describing the hydrophobicity (HIC).
     """
-    adsorption_rate  = DependentlySizedUnsignedList(dep='n_comp')
+    adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     maximum_adsorption_capacity = DependentlySizedUnsignedList(dep='n_comp')
     ion_exchange_characteristic = DependentlySizedUnsignedList(dep='n_comp')
@@ -346,7 +346,7 @@ class ExtendedMobilePhaseModulator(BindingBaseClass):
         1 is linear binding, 
         2 is modified Langmuir binding.
     """
-    adsorption_rate  = DependentlySizedUnsignedList(dep='n_comp')
+    adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     maximum_adsorption_capacity = DependentlySizedUnsignedList(dep='n_comp')
     ion_exchange_characteristic = DependentlySizedUnsignedList(dep='n_comp')
@@ -389,10 +389,10 @@ class SelfAssociation(BindingBaseClass):
     reference_solid_phase_conc : Parmater
         Reference liquid phase concentration (optional, default value = 1.0).
     """
-    adsorption_rate  = DependentlySizedUnsignedList(dep='n_comp')
-    adsorption_rate_dimerization  = DependentlySizedUnsignedList(dep='n_comp')
+    adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
+    adsorption_rate_dimerization = DependentlySizedUnsignedList(dep='n_comp')
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
-    characteristic_charge  = DependentlySizedUnsignedList(dep='n_comp')
+    characteristic_charge = DependentlySizedUnsignedList(dep='n_comp')
     steric_factor = DependentlySizedUnsignedList(dep='n_comp')
     stationary_phase_capacity = DependentlySizedUnsignedList(dep='n_comp')
     reference_liquid_phase_conc = DependentlySizedUnsignedList(dep='n_comp')
@@ -438,10 +438,10 @@ class BiStericMassAction(BindingBaseClass):
         Reference solid phase concentration for each binding site type or one
         value for all types (optional, default value = 1.0).
     """
-    adsorption_rate  = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'))
-    adsorption_rate_dimerization  = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'))
+    adsorption_rate = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'))
+    adsorption_rate_dimerization = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'))
     desorption_rate = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'))
-    characteristic_charge  = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'))
+    characteristic_charge = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'))
     steric_factor = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'))
     stationary_phase_capacity = DependentlySizedUnsignedList(dep='n_states')
     reference_liquid_phase_conc = DependentlySizedUnsignedList(dep='n_states', default=1)
@@ -496,7 +496,7 @@ class MultistateStericMassAction(BindingBaseClass):
     steric_factor = DependentlySizedUnsignedList(dep='n_comp')
     conversion_rate = DependentlySizedUnsignedList(dep='n_comp')
     stationary_phase_capacity = DependentlySizedUnsignedList(dep='n_comp')
-    reference_liquid_phase_conc  = DependentlySizedUnsignedList(dep='n_comp', default=1)
+    reference_liquid_phase_conc = DependentlySizedUnsignedList(dep='n_comp', default=1)
     reference_solid_phase_conc = DependentlySizedUnsignedList(dep='n_comp', default=1)
 
     def __init__(self, *args, **kwargs):
@@ -575,7 +575,7 @@ class SimplifiedMultistateSteric_Mass_Action(BindingBaseClass):
     steric_factor_first = DependentlySizedUnsignedList(dep='n_comp')
     steric_factor_last = DependentlySizedUnsignedList(dep='n_comp')
     quadratic_modifiers_steric = DependentlySizedUnsignedList(dep='n_comp')
-    stationary_phase_capacity  = DependentlySizedUnsignedList(dep='n_comp')
+    stationary_phase_capacity = DependentlySizedUnsignedList(dep='n_comp')
     exchange_from_weak_stronger = DependentlySizedUnsignedList(dep='n_comp')
     linear_exchange_ws = DependentlySizedUnsignedList(dep='n_comp')
     quadratic_exchange_ws = DependentlySizedUnsignedList(dep='n_comp')
