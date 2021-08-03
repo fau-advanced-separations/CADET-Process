@@ -202,7 +202,7 @@ class PolynomialSection(Section):
         if end is None:
             end = self.end
             
-        if not ((self.start <= start) & (start < end) & (end <= self.end)):
+        if not ((self.start <= start) & (start <= end) & (end <= self.end)):
             raise ValueError('Integration bounds exceed section times')
 
         integ_methods = [p.integ(lbnd=start) for p in self._poly]
@@ -237,7 +237,7 @@ class TimeLine():
             raise TypeError('Expected Section')
         if len(self.sections) > 0:
             if section.n_dim != self.n_dim:
-                raise CADETProcessError('Number of dimensions not matching')
+                raise CADETProcessError('Number of dimensions does not match')
             if not (section.start == self.end or section.end == self.start):
                 raise CADETProcessError('Sections times must be without gaps')
 
@@ -330,7 +330,7 @@ class TimeLine():
         if end is None:
             end = self.end
                 
-        if not ((self.start <= start) & (start < end) & (end <= self.end)):
+        if not ((self.start <= start) & (start <= end) & (end <= self.end)):
             raise ValueError('Integration bounds exceed section times')
         
         integral = [p.integrate(start, end) for p in self.piecewise_poly]
