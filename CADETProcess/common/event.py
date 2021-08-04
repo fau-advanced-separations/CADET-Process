@@ -136,17 +136,13 @@ class EventHandler(metaclass=StructMeta):
         self._events.remove(evt)
         self.__dict__.pop(evt_name)
 
-    def add_duration(self, name, start_event, end_event, time=0.0):
+    def add_duration(self, name, time=0.0):
         """Add duration to the EventHandler.
 
         Parameters
         ----------
         name: str
             Name of the event.
-        start_event : str
-            Name of exsiting event for starting duration.
-        end_event : str
-            Name of existing event for stopping duration.
         time : float
             Time point for perfoming the event.
 
@@ -154,8 +150,6 @@ class EventHandler(metaclass=StructMeta):
         ------
         CADETProcessError
             If Duration already exists.
-            If Start event or End event does not exist.
-            If Parameter paths don't match.
 
         See also
         --------
@@ -168,19 +162,7 @@ class EventHandler(metaclass=StructMeta):
         if name in self.events_dict:
             raise CADETProcessError("Duration already exists")
 
-        try:
-            start_event = self.events_dict[start_event]
-        except KeyError:
-            raise CADETProcessError("Start event does not exist")
-        try:
-            end_event = self.events_dict[end_event]
-        except KeyError:
-            raise CADETProcessError("End event does not exist")
-
-        if start_event.parameter_path != end_event.parameter_path:
-            raise CADETProcessError("Event parameters don't match")
-
-        dur = Duration(name, self, start_event, end_event, time)
+        dur = Duration(name, self, time)
 
         self._durations.append(dur)
         super().__setattr__(name, dur)
@@ -335,19 +317,6 @@ class EventHandler(metaclass=StructMeta):
             filter(lambda evt: evt.isIndependent == False, self.events)
         )
 
-    @property
-    def independent_durations(self):
-        """list: Independent Durations.
-        """
-        return list(filter(lambda dur: dur.isIndependent, self.durations))
-
-    @property
-    def dependent_durations(self):
-        """list: Durations with dependencies.
-        """
-        return list(
-            filter(lambda dur: dur.isIndependent == False, self.durations)
-        )
 
     @property
     def event_times(self):
@@ -477,7 +446,7 @@ class EventHandler(metaclass=StructMeta):
         events = {evt.name: evt.parameters for evt in self.independent_events}
         parameters.update(events)
 
-        durations = {dur.name: dur.parameters for dur in self.independent_durations}
+        durations = {dur.name: dur.parameters for dur in self.durations}
         parameters.update(durations)
 
         parameters['cycle_time'] = self.cycle_time
@@ -496,7 +465,7 @@ class EventHandler(metaclass=StructMeta):
                 evt = self.events_dict[evt_name]
             except AttributeError:
                 raise CADETProcessError('Not a valid event')
-            if evt not in self.independent_events + self.independent_durations:
+            if evt not in self.independent_events + self.durations:
                 raise CADETProcessError('{} is not a valid event'.format(str(evt)))
 
             evt.parameters = evt_parameters
@@ -765,7 +734,7 @@ class Event():
                 self.__class__.__name__, self.name, self.parameter_path,
                 self.state, self.time)
 
-class Duration(Event):
+class Duration():
     """Class for representing a duration between two events in an Eventhandler.
 
     Attributes
@@ -775,18 +744,31 @@ class Duration(Event):
     end_event : str
         Name of the end event of a duration.
     """
-    def __init__(self, name, event_handler, start_event, end_event, time=0.0):
-        self.start_event = start_event
-        self.end_event = end_event
-
-        parameter_path = start_event.parameter_path
-        state = start_event.state
-        component_index = start_event.component_index
-
-        super().__init__(name, event_handler, parameter_path, state, time,
-             component_index)
-
+    def __init__(self, name, event_handler, time=0.0):
+        self.name = name
+        self.time = time
         self._parameters = ['time']
+
+    @property
+    def parameters(self):
+        """Returns the parameters in a list.
+
+        Returns
+        -------
+        parameters : dict
+            list with all the parameters.
+        """
+        return Dict({param: getattr(self, param) for param in self._parameters})
+
+    @parameters.setter
+    def parameters(self, parameters):
+        if isinstance(parameters, (float, int)):
+            self.time = parameters
+        else:
+            for param, value in parameters.items():
+                if param not in self._parameters:
+                    raise CADETProcessError('Not a valid parameter')
+                setattr(self, param, value)
 
 
     def __repr__(self):
