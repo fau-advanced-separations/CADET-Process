@@ -328,6 +328,27 @@ class TubularReactor(UnitBaseClass):
     def cross_section_area(self, cross_section_area):
         self.diameter = (4*cross_section_area/math.pi)**0.5
 
+    def set_diameter_from_interstitial_velicity(self, Q, u0):
+        """Set diamter from flow rate and interstitial velocity.
+        
+        In literature, often only the interstitial velocity is given.
+        This method, the diameter / cross section area can be inferred from 
+        the flow rate, velocity, and porosity.
+        
+
+        Parameters
+        ----------
+        Q : float
+            Volumetric flow rate.
+        u0 : float
+            Interstitial velocity.
+
+        Notes
+        -----
+        Needs to be overwritten depending on the model porosities!
+
+        """
+        self.cross_section_area = Q/(u0*self.total_porosity)
         
     @property
     def cross_section_area_interstitial(self):
@@ -576,6 +597,27 @@ class LumpedRateModelWithPores(TubularReactor):
         """        
         return self.bed_porosity * self.cross_section_area
 
+    def set_diameter_from_interstitial_velicity(self, Q, u0):
+        """Set diamter from flow rate and interstitial velocity.
+        
+        In literature, often only the interstitial velocity is given.
+        This method, the diameter / cross section area can be inferred from 
+        the flow rate, velocity, and bed porosity.
+        
+
+        Parameters
+        ----------
+        Q : float
+            Volumetric flow rate.
+        u0 : float
+            Interstitial velocity.
+
+        Notes
+        -----
+        Overwrites parent method.
+
+        """
+        self.cross_section_area = Q/(u0*self.bed_porosity)
 
 class GeneralRateModel(TubularReactor):
     """Parameters for the general rate model.
@@ -643,7 +685,28 @@ class GeneralRateModel(TubularReactor):
         """        
         return self.bed_porosity * self.cross_section_area
 
+    def set_diameter_from_interstitial_velicity(self, Q, u0):
+        """Set diamter from flow rate and interstitial velocity.
+        
+        In literature, often only the interstitial velocity is given.
+        This method, the diameter / cross section area can be inferred from 
+        the flow rate, velocity, and bed porosity.
+        
 
+        Parameters
+        ----------
+        Q : float
+            Volumetric flow rate.
+        u0 : float
+            Interstitial velocity.
+
+        Notes
+        -----
+        Overwrites parent method.
+
+        """
+        self.cross_section_area = Q/(u0*self.bed_porosity)
+        
 class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     """Parameters for an ideal mixer.
 
