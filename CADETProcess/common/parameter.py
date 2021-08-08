@@ -4,6 +4,7 @@ import operator
 
 import numpy as np
 
+from CADETProcess import CADETProcessError
 from CADETProcess.common import Descriptor
 
 class Parameter(Descriptor):
@@ -45,7 +46,15 @@ class Parameter(Descriptor):
             return Descriptor.__get__(self, instance, cls)
         except KeyError:
             return self.default
-            
+    
+    def __set__(self, instance, value):
+        super().__set__(instance, value)
+        try:
+            if self.name in instance._parameter_names:
+                instance._parameters[self.name] = value
+        except AttributeError:
+            pass
+        
     def _check(self, value, recursive=False):
         return True
 
@@ -110,7 +119,7 @@ class Float(Typed):
         if isinstance(value, (int)):
             value = float(value)
         
-        super().__set__(instance, float(value))
+        super().__set__(instance, value)
         
     def _check(self, value, recursive=False):
         if isinstance(value, int):
@@ -165,28 +174,37 @@ class NdArray(Container):
             raise ValueError("Value exceeds lower bound")
         elif np.any(self.ub_op(value,self.ub)):
             raise ValueError("Value exceeds upper bound")
-
-    def check_content_size(self, instance, value):
+    
+    def get_expected_shape(self, instance):
         expected_shape = []
         
         for dep in self.dep:
-            dim = getattr(instance, dep)
-            if isinstance(dim, np.ndarray):
-                dim = list(dim.shape)
-            elif isinstance(dim, int):
-                dim = [dim]
+            if isinstance(dep, str):
+                dim = getattr(instance, dep)
+                if isinstance(dim, np.ndarray):
+                    dim = list(dim.shape)
+                elif isinstance(dim, int):
+                    dim = [dim]
+            elif isinstance(dep, int):
+                dim = [dep]
+            else:
+                raise AttributeError("Cannot find dependency")
             expected_shape += dim
         
         expected_shape = tuple(expected_shape)
-        # expected_shape = tuple([getattr(instance, dep) for dep in self.dep])
         
+        return expected_shape
+        
+    def check_content_size(self, instance, value):
+        expected_shape = self.get_expected_shape(instance) 
+
         if value.shape != expected_shape:
             raise ValueError("Expected shape {}".format(expected_shape))
         
     def get_default_values(self, instance):
-        shape = tuple([getattr(instance, dep) for dep in self.dep])
+        expected_shape = self.get_expected_shape(instance) 
         
-        return super().default * np.ones(shape)
+        return super().default * np.ones(expected_shape)
 
 class Dimensionalized(Parameter):
     """
@@ -210,7 +228,6 @@ class Dimensionalized(Parameter):
 
 class Vector(NdArray, Dimensionalized):
     n_dim = 1
-
 
 class Matrix(NdArray, Dimensionalized):
     n_dim = 2
@@ -285,16 +302,20 @@ class SizedString(String, Sized):
 class SizedTuple(Tuple, Sized):
     pass
 
+class SizedNdArray(NdArray, Sized):
+    pass
+
 class DependentlySized(Parameter):
     """Class for checking the correct shape of Parameters with multiple entries
     that is dependent on other Parameters
     """
     def __init__(self, *args, dep, **kwargs):
-        if isinstance(dep, str):
+        if not isinstance(dep, tuple):
             dep = (dep,)
                           
         self.dep = dep
         super().__init__(*args, **kwargs)
+        
 
     def __set__(self, instance, value):
         if value is None:
@@ -334,6 +355,111 @@ class DependentlySizedNdArray(NdArray, DependentlySized):
 class DependentlySizedUnsignedNdArray(NdArray, Unsigned, DependentlySized):
     pass
 
+class Polynomial(DependentlySizedNdArray):
+    def __init__(self, *args, n_coeff=None, **kwargs):
+        if n_coeff is not None:
+            if 'dep' in kwargs:
+                raise ValueError("Duplicate entries for n_coeff")
+            kwargs['dep'] = (n_coeff,)
+        
+        kwargs['default'] = 0
+            
+        super().__init__(*args, **kwargs)
+    
+    def __set__(self, instance, value):
+        shape = self.get_expected_shape(instance)
+        degree = shape[0]
+
+        if value is None:
+            del(instance.__dict__[self.name])
+            return
+    
+        if isinstance(value, (int, float)):
+            value = np.array((value))
+                
+        if isinstance(value, (tuple, list)):
+            missing = degree - len(value)
+            value += missing*(0,)
+
+        value = np.array(value, ndmin=1)
+    
+        _value = self.get_default_values(instance)
+        _value[0:value.shape[0]] = value
+       
+        super().__set__(instance, _value)
+
+class NdPolynomial(DependentlySizedNdArray):
+    """Dependently sized polynomial for n entries.
+    
+    Important: Use [entries x n_coeff] for dependencies.
+    """
+    def __init__(self, *args, n_entries=None, n_coeff=None, **kwargs):
+        try:
+            dep = kwargs['dep']
+            if not isinstance(dep, tuple):
+                dep = (dep,)
+        except KeyError:
+            dep = (dep,)
+            pass
+        
+        if n_entries is None and n_coeff is None and len(dep) < 2:
+            raise ValueError("Missing entries for shape")
+            
+        if n_entries is not None:
+            if len(dep) > 1:
+                raise ValueError("Found duplicate n_entries for shape")
+            _n_entries = n_entries
+            if n_coeff is not None:
+                if len(dep) > 0:
+                    raise ValueError("Found duplicate n_entries for shape")
+        else:
+            _n_entries = dep[0]
+                
+        if n_coeff is not None:
+            if len(dep) > 1:
+                raise ValueError("Found duplicate n_entries for shape")
+            _n_coeff = n_coeff
+            if n_entries is not None:
+                if len(dep) > 0:
+                    raise ValueError("Found duplicate n_entries for shape")
+        else:
+            if n_entries is not None:
+                _n_coeff = dep[0]
+            else:
+                _n_coeff = dep[1]
+            
+
+        dep = (_n_entries, _n_coeff)
+            
+        kwargs['dep'] = dep
+        kwargs['default'] = 0
+        
+        super().__init__(*args, **kwargs)
+        
+    def __set__(self, instance, value):
+        n_entries, n_coeff = self.get_expected_shape(instance)
+            
+        if value is None:
+            del(instance.__dict__[self.name])
+            return
+
+        if isinstance(value, (int, float)):
+            value = n_entries * [value]
+                
+        _value = self.get_default_values(instance)
+        
+        if len(value) != n_entries:
+            raise ValueError("Number of entries does not match")
+        for i, v in enumerate(value):
+            if isinstance(v, (int, float)):
+                v = [v]
+            missing = n_coeff - len(v)
+            v += missing*(0,)
+            _value[i,:] = np.array(v)
+       
+        super().__set__(instance, _value)
+
+    
 class Switch(Parameter):
     """Class for selecting one entry from a list
     """

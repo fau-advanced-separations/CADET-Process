@@ -7,7 +7,8 @@ from CADETProcess.common import StructMeta
 from CADETProcess.common import \
     String, Switch, \
     UnsignedInteger, UnsignedFloat, \
-    DependentlySizedUnsignedList, DependentlySizedNdArray
+    DependentlySizedUnsignedList, DependentlySizedNdArray, \
+    Polynomial, NdPolynomial
 from CADETProcess.processModel import BindingBaseClass, NoBinding
 from CADETProcess.processModel import ReactionBaseClass, NoReaction
 
@@ -66,8 +67,9 @@ class UnitBaseClass(metaclass=StructMeta):
     def parameters(self):
         """dict: Dictionary with parameter values.
         """
-        parameters = {param: getattr(self, param) 
-                      for param in self._parameters}
+        parameters = {
+            param: getattr(self, param) for param in self._parameters
+        }
         
         if not isinstance(self.binding_model, NoBinding):
             parameters['binding_model'] = self.binding_model.parameters
@@ -153,8 +155,12 @@ class UnitBaseClass(metaclass=StructMeta):
         if binding_model.n_comp != self.n_comp and not isinstance(
                 binding_model, NoBinding):
             raise CADETProcessError('Number of components does not match.')
-
+            
         self._binding_model = binding_model
+        
+    @property
+    def _n_bound_states(self):
+        return self.binding_model.n_states
         
     @property
     def bulk_reaction_model(self):
@@ -246,37 +252,10 @@ class SourceMixin(metaclass=StructMeta):
     Cstr
     """
     _n_poly_coeffs = 4
-    _flow_rate = DependentlySizedNdArray(dep=('_n_poly_coeffs'), default=0)
+    flow_rate = Polynomial(dep=('_n_poly_coeffs'), default=0)
     _parameters = ['flow_rate']
     _section_dependent_parameters = ['flow_rate']
-    _polynomial_parameters = \
-        UnitBaseClass._polynomial_parameters + \
-        ['flow_rate']
-
-    @property
-    def flow_rate(self):
-        """np.Array: Flow rate of the UnitOperation
-        
-        Note
-        ----
-        Because Sections states expect a certain shape for polynomial 
-        parameters, it is cast as an array with ndmin=2
-        """
-        return np.array(self._flow_rate,ndmin=2)
-    
-    @flow_rate.setter
-    def flow_rate(self, flow_rate):
-        if isinstance(flow_rate, (int, float, tuple, list)):
-            flow_rate = np.array((flow_rate,))
-        
-        if len(flow_rate.shape) > 1:
-            flow_rate = flow_rate[0,:]
-        
-        _flow_rate = np.zeros((self._n_poly_coeffs),)
-        _flow_rate[0:flow_rate.shape[0]] = flow_rate
-       
-        self._flow_rate = _flow_rate
-
+    _polynomial_parameters = ['flow_rate']
 
 class SinkMixin():
     """Mixin class for Units that have Sink-like behavior
@@ -316,8 +295,8 @@ class TubularReactor(UnitBaseClass):
              
     """
     supports_bulk_reaction = True
-    length = UnsignedFloat()
-    diameter = UnsignedFloat()
+    length = UnsignedFloat(default=0)
+    diameter = UnsignedFloat(default=0)
     axial_dispersion = UnsignedFloat()
     total_porosity = 1
     flow_direction = Switch(valid=[-1,1], default=1)
@@ -331,9 +310,6 @@ class TubularReactor(UnitBaseClass):
     c = DependentlySizedUnsignedList(dep='n_comp', default=0)
     _initial_state = UnitBaseClass._initial_state + ['c']
     
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
         
     @property
     def cross_section_area(self):
@@ -351,6 +327,7 @@ class TubularReactor(UnitBaseClass):
     @cross_section_area.setter
     def cross_section_area(self, cross_section_area):
         self.diameter = (4*cross_section_area/math.pi)**0.5
+
         
     @property
     def cross_section_area_interstitial(self):
@@ -530,12 +507,12 @@ class LumpedRateModelWithoutPores(TubularReactor):
     total_porosity = UnsignedFloat(ub=1)
     _parameters = TubularReactor._parameters + ['total_porosity']
 
-    q = DependentlySizedUnsignedList(dep='n_comp', default=0)
+    q = DependentlySizedUnsignedList(dep=('n_comp','_n_bound_states'), default=0)
     _initial_state = TubularReactor._initial_state + ['q']
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
+        
 
 class LumpedRateModelWithPores(TubularReactor):
     """Parameters for the lumped rate model with pores.
@@ -574,7 +551,7 @@ class LumpedRateModelWithPores(TubularReactor):
         'film_diffusion', 'pore_diffusion']
 
     cp = DependentlySizedUnsignedList(dep='n_comp', default=0)
-    q = DependentlySizedUnsignedList(dep='n_comp', default=0)
+    q = DependentlySizedUnsignedList(dep=('n_comp','_n_bound_states'), default=0)
     _initial_state = TubularReactor._initial_state + ['cp', 'q']
     
     def __init__(self, *args, **kwargs):
@@ -598,6 +575,7 @@ class LumpedRateModelWithPores(TubularReactor):
         cross_section_area_solid
         """        
         return self.bed_porosity * self.cross_section_area
+
 
 class GeneralRateModel(TubularReactor):
     """Parameters for the general rate model.
@@ -640,7 +618,7 @@ class GeneralRateModel(TubularReactor):
         ['film_diffusion', 'pore_diffusion', 'surface_diffusion']
     
     cp = DependentlySizedUnsignedList(dep='n_comp', default=0)
-    q = DependentlySizedUnsignedList(dep='n_comp', default=0)
+    q = DependentlySizedUnsignedList(dep=('n_comp', '_n_bound_states'), default=0)
     _initial_state = TubularReactor._initial_state + ['cp', 'q']
     
     def __init__(self, *args, **kwargs):
@@ -664,7 +642,8 @@ class GeneralRateModel(TubularReactor):
         cross_section_area_solid
         """        
         return self.bed_porosity * self.cross_section_area
-    
+
+
 class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     """Parameters for an ideal mixer.
 
@@ -685,7 +664,7 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     supports_particle_reaction = True
     
     porosity = UnsignedFloat(ub=1, default=1)
-    _flow_rate_filter = DependentlySizedNdArray(dep=('_n_poly_coeffs'), default=0)
+    flow_rate_filter = Polynomial(dep=('_n_poly_coeffs'), default=0)
     _parameters = \
         UnitBaseClass._parameters + \
         SourceMixin._parameters + \
@@ -700,35 +679,11 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         ['flow_rate_filter']        
             
     c = DependentlySizedUnsignedList(dep='n_comp', default=0)
-    q = DependentlySizedUnsignedList(dep='n_comp', default=0)
+    q = DependentlySizedUnsignedList(dep=('n_comp', '_n_bound_states'), default=0)
     V = UnsignedFloat(default=0)
     _initial_state = \
         UnitBaseClass._initial_state + \
         ['c', 'q', 'V']
-
-    @property
-    def flow_rate_filter(self):
-        """np.Array: Flow rate of pure liquid to reduce volume.
-        
-        Note
-        ----
-        Because Sections states expect a certain shape for polynomial 
-        parameters, it is cast as an array with ndmin=2
-        """
-        return np.array(self._flow_rate_filter, ndmin=2)
-    
-    @flow_rate_filter.setter
-    def flow_rate_filter(self, flow_rate_filter):
-        if isinstance(flow_rate_filter, (int, float, tuple, list)):
-            flow_rate_filter = np.array((flow_rate_filter,))
-        
-        if len(flow_rate_filter.shape) > 1:
-            flow_rate_filter = flow_rate_filter[0,:]
-        
-        _flow_rate_filter = np.zeros((self._n_poly_coeffs),)
-        _flow_rate_filter[0:flow_rate_filter.shape[0]] = flow_rate_filter
-       
-        self._flow_rate_filter = _flow_rate_filter
 
     @property
     def volume_liquid(self):
@@ -759,13 +714,13 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         --------
         u0
         """
-        return self.volume_liquid / flow_rate        
-
+        return self.volume_liquid / flow_rate
+    
 
 class Source(UnitBaseClass, SourceMixin):
     """Pseudo unit operation model for streams entering the system.
     """
-    _c = DependentlySizedNdArray(dep=('n_comp', '_n_poly_coeffs'), default=0)
+    c = NdPolynomial(dep=('n_comp', '_n_poly_coeffs'), default=0)
     _n_poly_coeffs = 4
     _parameters = \
         UnitBaseClass._parameters + \
@@ -780,42 +735,7 @@ class Source(UnitBaseClass, SourceMixin):
         SourceMixin._polynomial_parameters + \
         ['c']
 
-    @property
-    def c(self):
-        """np.array: Polynomial coefficients for concentration.
         
-        Each row represents the polynomial coefficients of one component
-        in increasing order.
-        
-        Setter
-        ------
-        If scalar: set same constant concentration for all components.
-        If list: set individual constant concentration for all components.
-        If ndarray: set polynomial coefficients for all components.
-        """
-        return self._c
-    
-    @c.setter
-    def c(self, c):
-        if isinstance(c, (int, float)):
-            c = np.array((c), ndmin=2)
-                
-        if isinstance(c, (tuple, list)):
-            for i in c:
-                if isinstance(i, (tuple, list)):
-                    missing = 4 - len(i)
-                    i += missing*(0,)
-                    
-            c = np.array(c)
-            if len(c.shape) == 1:
-                c = np.array([c]).T
-        
-        _c = np.zeros((self.n_comp, self._n_poly_coeffs))
-        _c[:,0:c.shape[1]] = c
-       
-        self._c = _c
-        
-
 class Sink(UnitBaseClass, SinkMixin):
     """Pseudo unit operation model for streams leaving the system.
     """
