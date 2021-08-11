@@ -446,10 +446,11 @@ class NdPolynomial(DependentlySizedNdArray):
         if isinstance(value, (int, float)):
             value = n_entries * [value]
                 
-        _value = self.get_default_values(instance)
-        
         if len(value) != n_entries:
             raise ValueError("Number of entries does not match")
+        
+        _value = self.get_default_values(instance)
+        
         for i, v in enumerate(value):
             if isinstance(v, (int, float)):
                 v = [v]

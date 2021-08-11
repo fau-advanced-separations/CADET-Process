@@ -27,11 +27,11 @@ class TestParameters(unittest.TestCase):
             )
             
             n_coeff = 4
-            poly_2 = Polynomial(n_coeff=2)
-            poly_dep = Polynomial(dep=('n_coeff'))
+            poly_single_hard = Polynomial(n_coeff=2)
+            poly_single_dep = Polynomial(dep=('n_coeff'))
 
             entries = 3
-            poly_nd_2 = NdPolynomial(n_coeff=2, dep=('entries'))
+            poly_nd_hard = NdPolynomial(n_coeff=2, dep=('entries'))
             poly_nd_dep = NdPolynomial(dep=('entries', 'n_coeff'))
                                  
         self.dummy = DummyModel()
@@ -97,31 +97,31 @@ class TestParameters(unittest.TestCase):
             self.fail(str(e))
             
     def test_poly(self):
-        self.dummy.poly_2 = 1
-        np.testing.assert_equal(self.dummy.poly_2, [1,0])
-        self.dummy.poly_dep = 1
-        np.testing.assert_equal(self.dummy.poly_dep, [1,0,0,0])
+        self.dummy.poly_single_hard = 1
+        np.testing.assert_equal(self.dummy.poly_single_hard, [1,0])
+        self.dummy.poly_single_dep = 1
+        np.testing.assert_equal(self.dummy.poly_single_dep, [1,0,0,0])
         
-        self.dummy.poly_2 = [1,2]
-        np.testing.assert_equal(self.dummy.poly_2, [1,2])
-        self.dummy.poly_dep = [1,2]
-        np.testing.assert_equal(self.dummy.poly_dep, [1,2,0,0])    
+        self.dummy.poly_single_hard = [1,2]
+        np.testing.assert_equal(self.dummy.poly_single_hard, [1,2])
+        self.dummy.poly_single_dep = [1,2]
+        np.testing.assert_equal(self.dummy.poly_single_dep, [1,2,0,0])    
         
         with self.assertRaises(ValueError):
             class TestDuplicateCoeff(metaclass=StructMeta):
                 n_coeff = 2
                 faulty = Polynomial(n_coeff=2, dep=('n_coeff'))
         
-        self.dummy.poly_nd_2 = 1
-        np.testing.assert_equal(self.dummy.poly_nd_2, [[1,0], [1,0], [1,0]])
+        self.dummy.poly_nd_hard = 1
+        np.testing.assert_equal(self.dummy.poly_nd_hard, [[1,0], [1,0], [1,0]])
         self.dummy.poly_nd_dep = 1
         np.testing.assert_equal(
             self.dummy.poly_nd_dep, [[1,0,0,0], [1,0,0,0], [1,0,0,0]],
         )
         
-        self.dummy.poly_nd_2 = [1,2,3]
+        self.dummy.poly_nd_hard = [1,2,3]
         np.testing.assert_almost_equal(
-            self.dummy.poly_nd_2, [[1,0], [2,0], [3,0]]
+            self.dummy.poly_nd_hard, [[1,0], [2,0], [3,0]]
         )
         self.dummy.poly_nd_dep = [1,2,3]
         np.testing.assert_almost_equal(
@@ -139,9 +139,9 @@ class TestParameters(unittest.TestCase):
         )            
         
         with self.assertRaises(ValueError):
-            self.dummy.poly_nd_2 = [1]
+            self.dummy.poly_nd_hard = [1]
         with self.assertRaises(ValueError):
-            self.dummy.poly_nd_2 = [1,1,1,1]
+            self.dummy.poly_nd_hard = [1,1,1,1]
         
         with self.assertRaises(ValueError):
             # Missing number of entries
