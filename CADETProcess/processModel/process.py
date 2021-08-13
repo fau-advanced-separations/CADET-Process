@@ -198,11 +198,11 @@ class Process(EventHandler):
         for sec_time in self.section_times[0:-1]:
             for unit, unit_flow_rates in self.flow_rate_timelines.items():
                 section_states[sec_time][unit]['total'] = \
-                    unit_flow_rates['total'].coefficients(sec_time)
+                    unit_flow_rates['total'].coefficients(sec_time)[0]
                 
                 for dest, tl in unit_flow_rates.destinations.items():
                     section_states[sec_time][unit]['destinations'][dest] = \
-                        tl.coefficients(sec_time)
+                        tl.coefficients(sec_time)[0]
 
         return Dict(section_states)
 

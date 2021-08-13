@@ -1,4 +1,5 @@
 from abc import abstractmethod
+import copy
 
 from addict import Dict
 import numpy as np
@@ -803,7 +804,7 @@ class Event():
         if self.entry_index is not None:
             state = state[self.entry_index]
 
-        self._state = state.copy()
+        self._state = copy.deepcopy(state)
 
     @property
     def performer(self):

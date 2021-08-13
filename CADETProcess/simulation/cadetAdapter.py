@@ -399,9 +399,10 @@ class Cadet(SolverBase):
                 switch_index = 'switch' + '_{0:03d}'.format(index)
                 model_connections[switch_index].section = index
 
-                connections = self.cadet_connections(flow_rates_state, process.flow_sheet)
-                model_connections[switch_index].connections = \
-                    connections
+                connections = self.cadet_connections(
+                    flow_rates_state, process.flow_sheet
+                )
+                model_connections[switch_index].connections = connections
                 index += 1
 
         model_connections.nswitches = index
@@ -439,7 +440,7 @@ class Cadet(SolverBase):
                     table[enum].append(int(destination_index))
                     table[enum].append(-1)
                     table[enum].append(-1)
-                    table[enum] += list(flow_rate)
+                    table[enum] += flow_rate.tolist()
                     enum += 1
 
         ls = []
@@ -519,11 +520,14 @@ class Cadet(SolverBase):
             unit_config['adsorption'] = \
                     self.get_adsorption_config(unit.binding_model)
             unit_config['adsorption_model'] = unit_config['adsorption']['ADSORPTION_MODEL']
+        else:
+            n_bound = unit.n_comp*[0]
             
-            if isinstance(unit, Cstr):
-                unit_config['nbound'] = n_bound
-            else:
-                unit_config['discretization']['nbound'] = n_bound
+        if isinstance(unit, Cstr) and not isinstance(unit.binding_model, NoBinding):
+            unit_config['nbound'] = n_bound
+        else:
+            unit_config['discretization']['nbound'] = n_bound
+            
 
         if not isinstance(unit.bulk_reaction_model, NoReaction):
             parameters = self.get_reaction_config(unit.bulk_reaction_model)
@@ -708,7 +712,7 @@ class ModelSolverParametersGroup(ParametersGroup):
     GS_TYPE = UnsignedInteger(default=1, ub=1)
     MAX_KRYLOV = UnsignedInteger(default=0)
     MAX_RESTARTS = UnsignedInteger(default=10)
-    SCHUR_SAFETY = UnsignedFloat(default=1.0e-8)
+    SCHUR_SAFETY = UnsignedFloat(default=1e-8)
     _parameters = ['GS_TYPE', 'MAX_KRYLOV', 'MAX_RESTARTS', 'SCHUR_SAFETY']
 
 unit_parameters_map = {
@@ -925,7 +929,7 @@ adsorption_parameters_map = {
             'IS_KINETIC' : 'is_kinetic',
             'SMA_KA': 'adsorption_rate',
             'SMA_KD': 'desorption_rate',
-            'SMA_LAMBDA': 'stationary_phase_capacity',
+            'SMA_LAMBDA': 'capacity',
             'SMA_NU': 'characteristic_charge',
             'SMA_SIGMA': 'steric_factor',
             'SMA_REF0': 'reference_liquid_phase_conc',
@@ -1082,11 +1086,11 @@ class SolverTimeIntegratorParametersGroup(ParametersGroup):
     --------
     ParametersGroup
     """
-    ABSTOL = UnsignedFloat(default=1.0e-10)
-    ALGTOL = UnsignedFloat(default=1.0e-12)
-    RELTOL = UnsignedFloat(default=1.0e-10)
-    RELTOL_SENS = UnsignedFloat(default=1.0e-12)
-    INIT_STEP_SIZE = UnsignedFloat(default=1.0e-6)
+    ABSTOL = UnsignedFloat(default=1e-8)
+    ALGTOL = UnsignedFloat(default=1e-12)
+    RELTOL = UnsignedFloat(default=1e-6)
+    RELTOL_SENS = UnsignedFloat(default=1e-12)
+    INIT_STEP_SIZE = UnsignedFloat(default=1e-6)
     MAX_STEPS = UnsignedInteger(default=1000000)
     MAX_STEP_SIZE = UnsignedInteger(default=1000000)
     ERRORTEST_SENS = Bool(default=False)

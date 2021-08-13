@@ -386,7 +386,7 @@ class FlowSheet(metaclass=StructMeta):
                 unit_name = param[1]
                 param_name = param[-1]
                 if param_name == 'flow_rate':
-                    flow_rates[unit_name] = value
+                    flow_rates[unit_name] = value[0]
                 elif unit_name == 'output_states':
                     unit = self.units_dict[param_name]
                     output_states[unit] = list(value.ravel())
@@ -425,7 +425,6 @@ class FlowSheet(metaclass=StructMeta):
         Because a simple 'push' algorithm cannot be used when closed loops are
         present in a FlowSheet (e.g. SMBs), sympy is used to set up and solve 
         the system of equations.
-        
     
         Parameters
         ----------
@@ -446,8 +445,10 @@ class FlowSheet(metaclass=StructMeta):
         Since dynamic flow rates can be described as cubic polynomials, the
         flow rates are solved individually for all coefficients.
         """
-        coeffs = [source_flow_rates[unit.name][0,coeff] for unit in self.sources]
-        if not any(coeffs):
+        coeffs = np.array(
+            [source_flow_rates[unit.name][coeff] for unit in self.sources]
+        )
+        if not np.any(coeffs):
             return None
         
         # Setup lists for symbols
@@ -466,7 +467,7 @@ class FlowSheet(metaclass=StructMeta):
                 unit_total_flow_eq.append(
                     sym.Add(
                         unit_total_flow_symbols[unit_index], 
-                        - float(source_flow_rates[unit.name][0,coeff])
+                        - float(source_flow_rates[unit.name][coeff])
                     )
                 )
             else:

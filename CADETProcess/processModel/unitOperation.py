@@ -730,7 +730,7 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     supports_particle_reaction = True
     
     porosity = UnsignedFloat(ub=1, default=1)
-    flow_rate_filter = NdPolynomial(dep=('_n_poly_coeffs', 1), default=0)
+    flow_rate_filter = Polynomial(dep=('_n_poly_coeffs'), default=0)
     _parameter_names = \
         UnitBaseClass._parameter_names + \
         SourceMixin._parameter_names + \

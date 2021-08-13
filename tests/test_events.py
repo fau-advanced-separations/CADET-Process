@@ -64,8 +64,8 @@ class TestPerformer(metaclass=StructMeta):
 
 class TestHandler(CADETProcess.common.EventHandler):
     def __init__(self):
-        super().__init__()
         self.performer = TestPerformer()
+        super().__init__()
 
     @property
     def parameters(self):

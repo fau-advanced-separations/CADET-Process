@@ -160,7 +160,7 @@ class Test_Unit_Operation(unittest.TestCase):
 
         cstr = self.create_cstr()
 
-        ref = np.array([[1,0,0,0]])
+        ref = np.array([1,0,0,0])
         cstr.flow_rate = 1
         cstr.flow_rate_filter = 1
         np.testing.assert_equal(cstr.flow_rate, ref)
@@ -170,7 +170,7 @@ class Test_Unit_Operation(unittest.TestCase):
         np.testing.assert_equal(cstr.flow_rate, ref)
         np.testing.assert_equal(cstr.flow_rate_filter, ref)
         
-        ref = np.array([[1,1,0,0]])
+        ref = np.array([1,1,0,0])
         cstr.flow_rate = [1,1]
         cstr.flow_rate_filter = [1,1]
         np.testing.assert_equal(cstr.flow_rate, ref)
@@ -190,23 +190,23 @@ class Test_Unit_Operation(unittest.TestCase):
         """
         cstr = self.create_cstr()
         parameters_expected = {
-                'flow_rate': np.array([[1,0,0,0]]),
+                'flow_rate': np.array([1,0,0,0]),
                 'porosity': total_porosity,
-                'flow_rate_filter': np.array([[0,0,0,0]]),
+                'flow_rate_filter': np.array([0,0,0,0]),
         }
         np.testing.assert_equal(parameters_expected, cstr.parameters)
         
         sec_dep_parameters_expected = {
-                'flow_rate': np.array([[1,0,0,0]]),
-                'flow_rate_filter': np.array([[0,0,0,0]]),
+                'flow_rate': np.array([1,0,0,0]),
+                'flow_rate_filter': np.array([0,0,0,0]),
         }
         np.testing.assert_equal(
             sec_dep_parameters_expected, cstr.section_dependent_parameters
         )
         
         poly_parameters = {
-                'flow_rate': np.array([[1,0,0,0]]),
-                'flow_rate_filter': np.array([[0,0,0,0]]),
+                'flow_rate': np.array([1,0,0,0]),
+                'flow_rate_filter': np.array([0,0,0,0]),
         }
         np.testing.assert_equal(
             poly_parameters, cstr.polynomial_parameters
