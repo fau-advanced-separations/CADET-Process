@@ -42,7 +42,7 @@ class UnitBaseClass(metaclass=StructMeta):
     name = String()
     n_comp = UnsignedInteger()
 
-    _parameters = []
+    _parameter_names = []
     _section_dependent_parameters = []
     _polynomial_parameters = []
     _initial_state = []
@@ -58,6 +58,11 @@ class UnitBaseClass(metaclass=StructMeta):
 
         self._bulk_reaction_model = NoReaction()
         self._particle_reaction_model = NoReaction()
+
+        self._parameters = {
+            param: getattr(self, param)
+            for param in self._parameter_names
+        }
         
     @property
     def model(self):
@@ -67,9 +72,7 @@ class UnitBaseClass(metaclass=StructMeta):
     def parameters(self):
         """dict: Dictionary with parameter values.
         """
-        parameters = {
-            param: getattr(self, param) for param in self._parameters
-        }
+        parameters = self._parameters
         
         if not isinstance(self.binding_model, NoBinding):
             parameters['binding_model'] = self.binding_model.parameters
@@ -105,16 +108,17 @@ class UnitBaseClass(metaclass=StructMeta):
     @property
     def section_dependent_parameters(self):
         parameters = {
-            param: getattr(self, param) 
-            for param in self._section_dependent_parameters
+            key: value for key, value in self.parameters.items() 
+            if key in self._section_dependent_parameters
         }
+        
         return parameters
 
     @property
     def polynomial_parameters(self):
         parameters = {
-            param: getattr(self, param) 
-            for param in self._polynomial_parameters
+            key: value for key, value in self.parameters.items() 
+            if key in self._polynomial_parameters
         }
         return parameters
         
@@ -253,7 +257,7 @@ class SourceMixin(metaclass=StructMeta):
     """
     _n_poly_coeffs = 4
     flow_rate = Polynomial(dep=('_n_poly_coeffs'), default=0)
-    _parameters = ['flow_rate']
+    _parameter_names = ['flow_rate']
     _section_dependent_parameters = ['flow_rate']
     _polynomial_parameters = ['flow_rate']
 
@@ -300,7 +304,7 @@ class TubularReactor(UnitBaseClass):
     axial_dispersion = UnsignedFloat()
     total_porosity = 1
     flow_direction = Switch(valid=[-1,1], default=1)
-    _parameters = UnitBaseClass._parameters + [
+    _parameter_names = UnitBaseClass._parameter_names + [
         'length', 'diameter','axial_dispersion', 'flow_direction'
     ]
     _section_dependent_parameters = UnitBaseClass._section_dependent_parameters + [
@@ -526,7 +530,7 @@ class LumpedRateModelWithoutPores(TubularReactor):
     supports_particle_reaction = True
     
     total_porosity = UnsignedFloat(ub=1)
-    _parameters = TubularReactor._parameters + ['total_porosity']
+    _parameters = TubularReactor._parameter_names + ['total_porosity']
 
     q = DependentlySizedUnsignedList(dep=('n_comp','_n_bound_states'), default=0)
     _initial_state = TubularReactor._initial_state + ['q']
@@ -546,7 +550,7 @@ class LumpedRateModelWithPores(TubularReactor):
         Porosity of particles.
     particle_radius : UnsignedFloat
         Radius of the particles.
-    pore_diffusion : List of unsinged floats. Length depends on n_comp.
+    film_diffusion : List of unsinged floats. Length depends on n_comp.
         Diffusion rate for components in pore volume.
     pore_accessibility : List of unsinged floats. Length depends on n_comp.
         Accessibility of pores for components.
@@ -562,14 +566,13 @@ class LumpedRateModelWithPores(TubularReactor):
     particle_porosity = UnsignedFloat(ub=1)
     particle_radius = UnsignedFloat()
     film_diffusion = DependentlySizedUnsignedList(dep='n_comp')
-    pore_diffusion = DependentlySizedUnsignedList(dep='n_comp')
     pore_accessibility = DependentlySizedUnsignedList(dep='n_comp')
-    _parameters = TubularReactor._parameters + [
+    _parameter_names = TubularReactor._parameter_names + [
             'bed_porosity', 'particle_porosity', 'particle_radius', 
-            'film_diffusion', 'pore_diffusion',
+            'film_diffusion'
             ]    
-    _section_dependent_parameters = TubularReactor._section_dependent_parameters + [
-        'film_diffusion', 'pore_diffusion']
+    _section_dependent_parameters = \
+        TubularReactor._section_dependent_parameters + ['film_diffusion']
 
     cp = DependentlySizedUnsignedList(dep='n_comp', default=0)
     q = DependentlySizedUnsignedList(dep=('n_comp','_n_bound_states'), default=0)
@@ -652,7 +655,7 @@ class GeneralRateModel(TubularReactor):
     surface_diffusion = DependentlySizedUnsignedList(dep='n_comp')
     pore_accessibility = DependentlySizedUnsignedList(dep='n_comp')
     _parameters = \
-        TubularReactor._parameters + \
+        TubularReactor._parameter_names + \
         ['bed_porosity', 'particle_porosity', 'particle_radius', 
         'film_diffusion', 'pore_diffusion', 'surface_diffusion']
     _section_dependent_parameters = \
@@ -727,10 +730,10 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     supports_particle_reaction = True
     
     porosity = UnsignedFloat(ub=1, default=1)
-    flow_rate_filter = Polynomial(dep=('_n_poly_coeffs'), default=0)
-    _parameters = \
-        UnitBaseClass._parameters + \
-        SourceMixin._parameters + \
+    flow_rate_filter = NdPolynomial(dep=('_n_poly_coeffs', 1), default=0)
+    _parameter_names = \
+        UnitBaseClass._parameter_names + \
+        SourceMixin._parameter_names + \
         ['porosity', 'flow_rate_filter']
     _section_dependent_parameters = \
         UnitBaseClass._section_dependent_parameters + \
@@ -785,9 +788,9 @@ class Source(UnitBaseClass, SourceMixin):
     """
     c = NdPolynomial(dep=('n_comp', '_n_poly_coeffs'), default=0)
     _n_poly_coeffs = 4
-    _parameters = \
-        UnitBaseClass._parameters + \
-        SourceMixin._parameters + \
+    _parameter_names = \
+        UnitBaseClass._parameter_names + \
+        SourceMixin._parameter_names + \
         ['c']
     _section_dependent_parameters = \
         UnitBaseClass._section_dependent_parameters + \

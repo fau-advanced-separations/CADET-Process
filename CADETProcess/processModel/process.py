@@ -4,13 +4,14 @@ import math
 from addict import Dict
 import numpy as np
 from scipy import integrate
+from scipy import interpolate
 
 from CADETProcess import CADETProcessError
 from CADETProcess.common import EventHandler
 from CADETProcess.common import UnsignedInteger
 from CADETProcess.common import ProcessMeta
-from CADETProcess.common import PolynomialSection, TimeLine
-from CADETProcess.processModel import FlowSheet
+from CADETProcess.common import Section, TimeLine
+from CADETProcess.processModel import FlowSheet, Source
 
 class Process(EventHandler):
     """Class for defining the dynamic changes of a flow sheet.
@@ -85,8 +86,10 @@ class Process(EventHandler):
             if feed_signal_param in self.parameter_timelines:
                 feed_signal_time_line = self.parameter_timelines[feed_signal_param]
             else:
-                feed_section = PolynomialSection(0, self.cycle_time, feed.c)
                 feed_signal_time_line = TimeLine()
+                feed_section = Section(
+                    0, self.cycle_time, feed.c, n_entries=self.n_comp, degree=3
+                )
                 feed_signal_time_line.add_section(feed_section)
 
             m_i  = [
@@ -114,7 +117,7 @@ class Process(EventHandler):
             V_eluent = eluent_time_line.integral()
             V_all += V_eluent
             
-        return V_all
+        return float(V_all)
 
     @property
     def V_solid(self):
@@ -168,10 +171,13 @@ class Process(EventHandler):
             flow_rates = self.flow_sheet.get_flow_rates(state)
 
             for unit, flow_rate in flow_rates.items():
-                section = PolynomialSection(start, end, flow_rate.total)
+                section = Section(
+                    start, end, flow_rate.total, n_entries=1, degree=3)
                 flow_rate_timelines[unit]['total'].add_section(section)
                 for dest, flow_rate_dest in flow_rate.destinations.items():
-                    section = PolynomialSection(start, end, flow_rate_dest)
+                    section = Section(
+                        start, end, flow_rate_dest, n_entries=1, degree=3
+                    )
                     flow_rate_timelines[unit]['destinations'][dest].add_section(section)            
         
         return Dict(flow_rate_timelines)
@@ -192,11 +198,11 @@ class Process(EventHandler):
         for sec_time in self.section_times[0:-1]:
             for unit, unit_flow_rates in self.flow_rate_timelines.items():
                 section_states[sec_time][unit]['total'] = \
-                    unit_flow_rates['total'].coefficients(sec_time)[0,:]
+                    unit_flow_rates['total'].coefficients(sec_time)
                 
                 for dest, tl in unit_flow_rates.destinations.items():
                     section_states[sec_time][unit]['destinations'][dest] = \
-                        tl.coefficients(sec_time)[0,:]
+                        tl.coefficients(sec_time)
 
         return Dict(section_states)
 
@@ -324,6 +330,37 @@ class Process(EventHandler):
             V_eluent = self.V_eluent,
         )
     
+    def add_inlet_profile(self, unit, time, c, component_index=None, s=1e-6):
+        if not isinstance(unit, Source):
+            raise TypeError('Expected Source')
+        
+        if max(time) > self.cycle_time:
+            raise ValueError('Inlet profile exceeds cycle time')
+        
+        if component_index == -1:
+            # Assume same profile for all components
+            if c.ndim > 1:
+                raise ValueError('Expected single concentration profile')
+
+            c = np.column_stack([c]*2)
+            
+        elif component_index is None and c.shape[1] != self.n_comp:
+            # Assume c is given for all components
+            raise CADETProcessError('Number of components does not match')
+            
+        for comp in range(self.n_comp):
+            tck = interpolate.splrep(time, c[:,comp], s=s)
+            ppoly = interpolate.PPoly.from_spline(tck)
+        
+            for i, (t, sec) in enumerate(zip(ppoly.x, ppoly.c.T)):
+                if i < 3:
+                    continue
+                elif i > len(ppoly.x) - 5:
+                    continue
+                evt = self.add_event(
+                    f'{unit}_inlet_{comp}_{i-3}', f'flow_sheet.{unit}.c', 
+                    np.flip(sec), t, comp
+                )
             
     def __str__(self):
         return self.name

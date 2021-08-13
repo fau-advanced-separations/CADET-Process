@@ -1,3 +1,6 @@
+from collections import defaultdict
+import itertools
+
 import numpy as np
 import scipy
 import matplotlib.pyplot as plt
@@ -14,7 +17,7 @@ class Section(metaclass=StructMeta):
         Start time of section
     end : float
         End time of section.
-    state : int or float or array_like
+    coeffs : int or float or array_like
         Polynomial coefficients of state in order of increasing degree.
     n_entries : int
         Number of entries (e.g. components, output_states)
@@ -23,44 +26,51 @@ class Section(metaclass=StructMeta):
         
     Notes
     -----
-    if state is int: Set constant value for for all entries
-    if state is list: Set value per component (check length!)
-    if state is ndarray (or list of lists): set polynomial coefficients
+    if coeffs is int: Set constant value for for all entries
+    if coeffs is list: Set value per component (check length!)
+    if coeffs is ndarray (or list of lists): set polynomial coefficients
     """
-    state = NdPolynomial(dep=('n_entries', 'n_poly_coeffs'), default=0)
+    coeffs = NdPolynomial(dep=('n_entries', 'n_poly_coeffs'), default=0)
     
-    def __init__(self, start, end, state, n_entries=None, degree=0):
+    def __init__(self, start, end, coeffs, n_entries=None, degree=0):
         if n_entries is None:
-            if isinstance(state, (int, bool, float)):
+            if isinstance(coeffs, (int, bool, float)):
                 n_entries = 1
-            elif isinstance(state, (list, tuple, np.ndarray)) and degree == 0:
-                n_entries = len(state)
+            elif isinstance(coeffs, (list, tuple, np.ndarray)) and degree == 0:
+                n_entries = len(coeffs)
             else:
                 raise ValueError("Ambiguous entries for n_entries and degree")
         self.n_entries = n_entries
         
         if n_entries == 1:
-            state = [state]
+            coeffs = [coeffs]
             
         self.degree = degree
-        self.state = state
-
-        self._poly = []
-        for i in range(self.n_entries):
-            poly = np.polynomial.Polynomial(
-                self.state[i], domain=(start, end), window=(0,1)
-            )
-            self._poly.append(poly)
+        self.coeffs = coeffs
 
         self.start = start
         self.end = end
+        diff = end-start
+
+        self._poly = []
+        for i in range(self.n_entries):
+            poly = np.polynomial.polynomial.Polynomial(
+                self.coeffs[i], domain=(start, end), window=(0,diff)
+            )
+            self._poly.append(poly)
+
+        self._poly_der = []
+        for iEntry in range(self.n_entries):
+            poly_der = self._poly[iEntry].deriv(1)
+            self._poly_der.append(poly_der)
+
 
     @property
     def n_poly_coeffs(self):
         return self.degree + 1
 
     def value(self, t):
-        """Return value of function at time t.
+        """Return value of parameter section at time t.
 
         Parameters
         ----------
@@ -70,7 +80,7 @@ class Section(metaclass=StructMeta):
         Returns
         -------
         y : float
-            Value of attribute at time t.
+            Value of parameter state at time t.
 
         Raises
         ------
@@ -83,6 +93,44 @@ class Section(metaclass=StructMeta):
         value = np.array([p(t) for p in self._poly])
 
         return value
+    
+    def coefficients(self, offset=0):
+        coeffs = []
+        for i in range(self.n_entries):
+            c = self.coeffs[i].copy()
+            c[0] = self._poly[i](offset)
+            if self.degree > 0:
+                c[1] = self._poly_der[i](offset)
+            coeffs.append(c)
+        
+        return np.array(coeffs)
+    
+    def derivative(self, t, order=1):
+        """Return derivative of parameter section at time t.
+        
+        Parameters
+        ----------
+        t : float
+            Time at which function is evaluated.
+        
+        Returns
+        -------
+        y_dot : float
+            Derivative of parameter state at time t.
+        
+        Raises
+        ------
+        ValueError
+            If t is lower than start or larger than end of section time.
+        ValueError
+            If order is larger than polynomial degree
+        """
+        if np.any(t < self.start) or np.any(self.end < t):
+            raise ValueError('Time exceeds section times')
+            
+        deriv = np.array([p.deriv(t).coef for p in self._poly])
+        
+        return deriv        
 
     def integral(self, start=None, end=None):
         """Return integral of function in interval [start, end].
@@ -117,7 +165,9 @@ class Section(metaclass=StructMeta):
 
 
 class TimeLine():
-    def __init__(self):
+    def __init__(self, n_entries=None):
+        if n_entries:
+            pass
         self._sections = [] 
     
     @property
@@ -134,7 +184,7 @@ class TimeLine():
         if len(self.sections) > 0:
             return self.sections[0].n_entries
     
-    def add_section(self, section):
+    def add_section(self, section, entry_index=None):
         """Add section to TimeLine.
 
         Parameters
@@ -163,35 +213,27 @@ class TimeLine():
         self._sections.append(section)
     
         self.update_piecewise_poly()
-
+        
     def update_piecewise_poly(self):
         x = []
-        state = []
+        coeffs = []
         for sec in self.sections:
-            state.append(np.array(sec.state))
+            coeffs.append(np.array(sec.coeffs))
             x.append(sec.start)
         x.append(sec.end)
             
         piecewise_poly = []
-        for i in range(self.n_entries):
-            c = np.array([s[i,:] for s in state])
+        for iEntry in range(self.n_entries):
+            c = np.array([iCoeff[iEntry,:] for iCoeff in coeffs])
             c_decreasing = np.fliplr(c)
             p = scipy.interpolate.PPoly(c_decreasing.T, x)
             piecewise_poly.append(p)
-        c_decreasing = np.fliplr(state)
         
         self._piecewise_poly = piecewise_poly
-        
 
     @property
     def piecewise_poly(self):
         """list: scipy.interpolate.PPoly for each dimension.
-
-        Returns
-        -------
-        piecewise_poly : list
-            DESCRIPTION.
-
         """
         return self._piecewise_poly
 
@@ -220,10 +262,8 @@ class TimeLine():
             !!! Array of coefficients in ORDER !!!
         """
         section_index = self.section_index(time)
-        c = self.sections[section_index].state.copy()
-        y = self.value(time)
-        c[:,0] = y
-        
+        c = self.sections[section_index].coefficients(time)
+
         return c
     
     def integral(self, start=None, end=None):
@@ -263,12 +303,15 @@ class TimeLine():
     
     @property
     def section_times(self):
+        if len(self.sections) == 0:
+            return []
+        
         return [self.sections[0].start] + [sec.end for sec in self.sections]
 
     @property
     def start(self):
         return self.section_times[0]
-    
+
     @property
     def end(self):
         return self.section_times[-1]
@@ -290,3 +333,62 @@ class TimeLine():
             
         return ax
 
+class MultiTimeLine():
+    def __init__(self, base_state):
+        self.base_state = base_state
+        self.n_entries = len(base_state)
+        self._degree = None
+        self.time_lines = [TimeLine() for _ in range(self.n_entries)]
+        
+    @property
+    def degree(self):
+        return self._degree
+    
+    @degree.setter
+    def degree(self, degree):
+        self._degree = degree
+        
+    @property
+    def section_times(self):
+        time_line_sections = [tl.section_times for tl in self.time_lines]
+        
+        section_times = set(itertools.chain.from_iterable(time_line_sections))
+        
+        return sorted(list(section_times))
+    
+    def add_section(self, section, entry_index=None):
+        if self.degree is None:
+            self.degree = section.degree
+        
+        if section.degree != self.degree:
+            raise CADETProcessError('Polynomial degree does not match')
+
+        if entry_index is None:
+            for tl in self.time_lines:
+                tl.add_section(section)
+        else:
+            if entry_index > self.n_entries:
+                raise ValueError("Index exceeds entries.")
+        
+            self.time_lines[entry_index].add_section(section)
+
+    def combined_time_line(self):
+        tl = TimeLine()
+        
+        section_times = self.section_times
+        for iSec in range(len(section_times) - 1):
+            start = self.section_times[iSec]
+            end = self.section_times[iSec+1]
+            
+            coeffs = []
+            for i, entry in enumerate(self.time_lines):
+                if len(entry.sections) == 0:
+                    coeffs.append(self.base_state[i])
+                else:
+                    coeffs.append(entry.coefficients(start)[0])
+                    
+            section = Section(start, end, coeffs, self.n_entries, self.degree)
+            tl.add_section(section)
+        
+        return tl
+    

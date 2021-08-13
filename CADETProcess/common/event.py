@@ -9,8 +9,9 @@ from CADETProcess.common import check_nested, generate_nested_dict, get_nested_v
 from CADETProcess.common import frozen_attributes
 from CADETProcess.common import StructMeta, UnsignedFloat
 from CADETProcess.common import plotlib, PlotParameters
-from CADETProcess.common import Section, PolynomialSection, TimeLine
+from CADETProcess.common import Section, TimeLine, MultiTimeLine
 
+@frozen_attributes
 class EventHandler(metaclass=StructMeta):
     """Baseclass for handling Events that change a property of an event performer.
 
@@ -65,7 +66,7 @@ class EventHandler(metaclass=StructMeta):
 
 
     def add_event(
-            self, name, parameter_path, state, time=0.0, component_index=None
+            self, name, parameter_path, state, time=0.0, entry_index=None
         ):
         """Factory function for creating and adding events.
 
@@ -97,7 +98,7 @@ class EventHandler(metaclass=StructMeta):
             raise CADETProcessError("Event already exists")
         evt = Event(
             name, self, parameter_path, state, time=time, 
-            component_index=component_index
+            entry_index=entry_index
         )
 
         self._events.append(evt)
@@ -319,15 +320,6 @@ class EventHandler(metaclass=StructMeta):
 
 
     @property
-    def event_times(self):
-        """list: Time of events, sorted by Event time.
-        """
-        event_times = list({evt.time for evt in self.events})
-        event_times.sort()
-        
-        return event_times
-
-    @property
     def event_parameters(self):
         """list: Event parameters.
         """
@@ -339,6 +331,16 @@ class EventHandler(metaclass=StructMeta):
         """
         return list({evt.performer for evt in self.events})
 
+
+    @property
+    def event_times(self):
+        """list: Time of events, sorted by Event time.
+        """
+        event_times = list({evt.time for evt in self.events})
+        event_times.sort()
+        
+        return event_times
+    
     @property
     def section_times(self):
         """list: Section times.
@@ -377,44 +379,83 @@ class EventHandler(metaclass=StructMeta):
     @property
     def parameter_events(self):
         """dict: list of events for every event parameter.
+        
+        Notes
+        -----
+        For entry dependent events, a key is added per component.
         """
         parameter_events = defaultdict(list)
         for evt in self.events:
-            parameter_events[evt.parameter_path].append(evt)
-
+            if evt.entry_index is not None:
+                parameter_events[
+                    f'{evt.parameter_path}_{evt.entry_index}'
+                ].append(evt)
+            else:
+                parameter_events[evt.parameter_path].append(evt)
         return Dict(parameter_events)
-
+    
     @property
     def parameter_timelines(self):
         """dict: TimeLine for every event parameter.
         """
-        parameter_timelines = defaultdict(TimeLine)
+        parameter_timelines = {
+            param: TimeLine() for param in self.event_parameters
+            if param not in self.entry_dependent_parameters
+            }
+        
+        parameters = self.parameters
+        multi_timelines = {}
+        for param in self.entry_dependent_parameters:
+            base_state = get_nested_value(parameters, param)
+            multi_timelines[param] = MultiTimeLine(base_state) 
+        
         for evt_parameter, events in self.parameter_events.items():
-            is_polynomial = check_nested(
-                self.polynomial_parameters, evt_parameter
-            )
-            if is_polynomial:
-                SectionClass = PolynomialSection
-            else:
-                SectionClass = Section
-
             for index, evt in enumerate(events):
                 section_start = evt.time
 
                 if index < len(events) - 1:
                     section_end = events[index + 1].time
-                    section = SectionClass(section_start, section_end, evt.state)
-                    parameter_timelines[evt.parameter_path].add_section(section)
+                    section = Section(
+                        section_start, section_end, evt.state, 
+                        evt.n_entries, evt.degree
+                    )
+                    self._add_section(
+                        evt, section, parameter_timelines, multi_timelines
+                    )
                 else:
                     section_end = self.cycle_time
-                    section = SectionClass(section_start, section_end, evt.state)
-                    parameter_timelines[evt.parameter_path].add_section(section)
+                    section = Section(
+                        section_start, section_end, evt.state, 
+                        evt.n_entries, evt.degree
+                    )
+                    self._add_section(
+                        evt, section, parameter_timelines, multi_timelines
+                    )
 
                     if events[0].time != 0:
-                        section = SectionClass(0.0, events[0].time, evt.state)
-                        parameter_timelines[evt.parameter_path].add_section(section)
+                        section = Section(
+                            0.0, events[0].time, evt.state,
+                            evt.n_entries, evt.degree
+                        )
+                        self._add_section(
+                            evt, section, parameter_timelines, multi_timelines
+                        )
+                        
+        for param, tl in multi_timelines.items():
+            parameter_timelines[param] = tl.combined_time_line()
+                    
         return Dict(parameter_timelines)
 
+    def _add_section(self, evt, section, parameter_timelines, multi_timelines):
+        """Helper function to add sections to timelines."""
+        if evt.parameter_path in self.entry_dependent_parameters:
+            multi_timelines[evt.parameter_path].add_section(
+                section, evt.entry_index
+            )
+        else:
+            parameter_timelines[evt.parameter_path].add_section(
+                section
+            )
 
     @property
     def performer_events(self):
@@ -473,6 +514,16 @@ class EventHandler(metaclass=StructMeta):
     @abstractmethod
     def section_dependent_parameters(self):
         return
+    
+    @property
+    def entry_dependent_parameters(self):
+        parameters = {
+            evt.parameter_path for evt in self.events 
+            if evt.entry_index is not None
+        }
+        
+        return parameters
+    
 
     @abstractmethod
     def polynomial_parameters(self):
@@ -481,15 +532,15 @@ class EventHandler(metaclass=StructMeta):
     def plot_events(self):
         """Plot parameter state as function of time.
         """
+        x = np.linspace(0, self.cycle_time, 1001)
         for parameter, tl in self.parameter_timelines.items():
-            x = self.time
             y = tl.value(x)
 
             plot_parameters = PlotParameters()
             plot_parameters.x_label = '$time~/~min$'
             plot_parameters.y_label = '$state$'
             plot_parameters.title = str(parameter)
-            plotlib.plot(x, y, plot_parameters)
+            plotlib.plot(x/60, y, plot_parameters)
             
 
 class Event():
@@ -516,8 +567,8 @@ class Event():
         List of the events on which the event time depends.
     fatcors : List
         List with factors for linear combination of dependencies.
-    component_index : int
-        Index for component specific variables
+    entry_index : int
+        Index for events that only modify one entry of a parameter.
 
     Raises
     ------
@@ -530,13 +581,18 @@ class Event():
     EventHandler
     Duration
     """
-    def __init__(self, name, event_handler, parameter_path, state, time=0.0,
-                 component_index=None):
-
+    def __init__(
+            self, name, event_handler, 
+            parameter_path, state, time=0.0, entry_index=None
+        ):
         self.event_handler = event_handler
         self.parameter_path = parameter_path
-        self.component_index = component_index
+        self.entry_index = entry_index
         self.state = state
+        
+        self._is_polynomial = check_nested(
+            self.event_handler.polynomial_parameters, self.parameter_path
+        )
 
         self._dependencies = []
         self._factors = []
@@ -565,19 +621,59 @@ class Event():
         return tuple(self.parameter_path.split('.'))
 
     @property
-    def component_index(self):
-        return self._component_index
+    def parameter_shape(self):
+        parameter = get_nested_value(
+                self.event_handler.parameters, self.parameter_sequence
+            )
+        return np.array((parameter),ndmin=2).shape
+    
+    @property
+    def entry_index(self):
+        return self._entry_index
 
-    @component_index.setter
-    def component_index(self, component_index):
-        if component_index is not None:
+    @entry_index.setter
+    def entry_index(self, entry_index):
+        if entry_index is not None:
             parameter = get_nested_value(
-                    self.event_handler.parameters, self.parameter_sequence)
+                self.event_handler.parameters, self.parameter_sequence
+            )
 
-            if component_index > len(parameter)-1:
+            if entry_index > len(parameter)-1:
                 raise CADETProcessError('Index exceeds components')
-        self._component_index = component_index
+        self._entry_index = entry_index
+        
+    @property
+    def is_polynomial(self):
+        return self._is_polynomial
+    
+    @property
+    def degree(self):
+        if self.is_polynomial:
+            state = np.array(self.state, ndmin=2)
+            return state.shape[1] - 1
+        else:
+            return 0
+        
+    @property
+    def n_entries(self):
+        if self.is_polynomial:
+            state = np.array(self.state, ndmin=2)
+            return state.shape[0]
+        else:
+            state = self.state
+            if isinstance(state, (int, float, bool)):
+                return 1
+            else:
+                state = list(self.state)
+            return len(state)
 
+    @property
+    def is_entry_specific(self):
+        if self.entry_index is not None:
+            return True
+        else:
+            return False
+        
     def add_dependency(self, dependency, factor=1):
         """Add dependency of event time on other events.
 
@@ -664,7 +760,8 @@ class Event():
             time = self._time
         else:
             time = np.dot(
-                [dep.time for dep in self.dependencies], self._factors)
+                [dep.time for dep in self.dependencies], self._factors
+            )
         cycle_time = getattr(self.event_handler, 'cycle_time')
         return time % cycle_time
 
@@ -688,18 +785,25 @@ class Event():
             self.event_handler.parameters, self.parameter_path
         )
         try:
-            if self.component_index is not None:
-                value_list = self.current_state
-                value_list[self.component_index] = state
+            if self.entry_index is not None:
+                value_list = current_value
+                if isinstance(value_list, np.ndarray):
+                    value_list = value_list.tolist()
+                value_list[self.entry_index] = state
                 parameters = generate_nested_dict(self.parameter_sequence, value_list)
             else:
                 parameters = generate_nested_dict(self.parameter_sequence, state)
             self.event_handler.parameters = parameters
         except (TypeError, ValueError) as e:
             raise CADETProcessError('{}'.format(str(e)))
-        self._state = get_nested_value(
-            self.event_handler.parameters, self.parameter_path
-            )
+
+        state = get_nested_value(
+                self.event_handler.parameters, self.parameter_path
+                )
+        if self.entry_index is not None:
+            state = state[self.entry_index]
+
+        self._state = state.copy()
 
     @property
     def performer(self):
@@ -772,6 +876,4 @@ class Duration():
 
 
     def __repr__(self):
-        return '{}(name={}, parameter_path={}, state={}, time={}'.format(
-                self.__class__.__name__, self.name, self.parameter_path,
-                self.state, self.time)
+        return f'{self.__class__.__name__}(name={self.name}, time={self.time}'

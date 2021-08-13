@@ -454,8 +454,9 @@ class NdPolynomial(DependentlySizedNdArray):
         for i, v in enumerate(value):
             if isinstance(v, (int, float)):
                 v = [v]
-            missing = n_coeff - len(v)
-            v += missing*(0,)
+            if isinstance(v, (list, tuple)):
+                missing = n_coeff - len(v)
+                v += missing*(0,)
             _value[i,:] = np.array(v)
        
         super().__set__(instance, _value)

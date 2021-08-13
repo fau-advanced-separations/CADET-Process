@@ -1,5 +1,6 @@
 from collections import defaultdict
 
+import numpy as np
 import sympy as sym
 from addict import Dict
 
@@ -338,7 +339,7 @@ class FlowSheet(metaclass=StructMeta):
         if state_length == 0:
             output_state = []
 
-        if type(state) is int:
+        if isinstance(state, (int, np.int64)):
             if state >= state_length:
                 raise CADETProcessError('Index exceeds destinations')
 
@@ -358,28 +359,48 @@ class FlowSheet(metaclass=StructMeta):
         self._output_states[unit] = output_state                    
 
     
-    @property
-    def flow_rates(self):
-        """dict: Outgoing flow rates for each unit.
-
-        Because a simple 'push' algorithm cannot be used when closed loops are
-        present in a FlowSheet (e.g. SMBs), sympy is used to set up and solve 
-        the system of equations.
+    def get_flow_rates(self, state=None):
+        """Calculate flow rate for all connections.unit operation flow rates.
         
-        See Also
+        If an additional state is passed, it will b
+        
+        Parameters
+        ----------
+        state : Dict, optional
+            Output states
+
+        Returns
         -------
-        solve_flow_rates
-        output_states
+        flow_rates : Dict
+            Volumetric flow rate of each unit operation.
+
         """
+        flow_rates = {
+            unit.name: unit.flow_rate for unit in self.sources
+        }
+        output_states = self.output_states
+
+        if state is not None:
+            for param, value in state.items():
+                param = param.split('.')
+                unit_name = param[1]
+                param_name = param[-1]
+                if param_name == 'flow_rate':
+                    flow_rates[unit_name] = value
+                elif unit_name == 'output_states':
+                    unit = self.units_dict[param_name]
+                    output_states[unit] = list(value.ravel())
+        
         def list_factory():
             return [0,0,0,0]
+        
         total_flow_rates = {unit.name: list_factory() for unit in self.units}
         destination_flow_rates = {
             unit.name: defaultdict(list_factory) for unit in self.units
         }
         
         for i in range(4):
-            solution = self.solve_flow_rates(i)
+            solution = self.solve_flow_rates(flow_rates, output_states, i)
             if solution is not None:
                 for unit_index, unit in enumerate(self.units):
                     total_flow_rates[unit.name][i] = \
@@ -392,11 +413,11 @@ class FlowSheet(metaclass=StructMeta):
         
         flow_rates = Dict()
         for unit in self.units:
-            flow_rates[unit.name].total = tuple(total_flow_rates[unit.name])
+            flow_rates[unit.name].total = np.array(total_flow_rates[unit.name])
             for destination, flow_rate in destination_flow_rates[unit.name].items():
-                flow_rates[unit.name].destinations[destination] = tuple(flow_rate)
+                flow_rates[unit.name].destinations[destination] = np.array(flow_rate)
         
-        return flow_rates
+        return flow_rates                
 
     def solve_flow_rates(self, source_flow_rates, output_states, coeff=0):
         """Solve flow rates of system using sympy.
@@ -405,7 +426,7 @@ class FlowSheet(metaclass=StructMeta):
         present in a FlowSheet (e.g. SMBs), sympy is used to set up and solve 
         the system of equations.
         
-
+    
         Parameters
         ----------
         source_flow_rates: dict
@@ -414,7 +435,7 @@ class FlowSheet(metaclass=StructMeta):
             Output states of all UnitOperations.
         coeff: int
             Polynomial coefficient of flow rates to be solved.
-
+    
         Returns
         -------
         solution : dict
@@ -425,7 +446,7 @@ class FlowSheet(metaclass=StructMeta):
         Since dynamic flow rates can be described as cubic polynomials, the
         flow rates are solved individually for all coefficients.
         """
-        coeffs = [source_flow_rates[unit.name][coeff] for unit in self.sources]
+        coeffs = [source_flow_rates[unit.name][0,coeff] for unit in self.sources]
         if not any(coeffs):
             return None
         
@@ -445,7 +466,7 @@ class FlowSheet(metaclass=StructMeta):
                 unit_total_flow_eq.append(
                     sym.Add(
                         unit_total_flow_symbols[unit_index], 
-                        - source_flow_rates[unit.name][coeff]
+                        - float(source_flow_rates[unit.name][0,coeff])
                     )
                 )
             else:
@@ -493,52 +514,6 @@ class FlowSheet(metaclass=StructMeta):
         solution = {str(key): value for key, value in solution.items()}
         
         return solution
-
-    def get_flow_rates(self, state=None):
-        flow_rates = {
-            unit.name: unit.flow_rate[0,:] for unit in self.sources
-        }
-        output_states = self.output_states
-
-        if state is not None:
-            for param, value in state.items():
-                param = param.split('.')
-                unit_name = param[1]
-                param_name = param[-1]
-                if param_name == 'flow_rate':
-                    flow_rates[unit_name] = value[0,:]
-                elif unit_name == 'output_states':
-                    unit = self.units_dict[param_name]
-                    output_states[unit] = list(value.ravel())
-        
-        def list_factory():
-            return [0,0,0,0]
-        
-        total_flow_rates = {unit.name: list_factory() for unit in self.units}
-        destination_flow_rates = {
-            unit.name: defaultdict(list_factory) for unit in self.units
-        }
-        
-        for i in range(4):
-            solution = self.solve_flow_rates(flow_rates, output_states, i)
-            if solution is not None:
-                for unit_index, unit in enumerate(self.units):
-                    total_flow_rates[unit.name][i] = \
-                        float(solution['Q_total_{}'.format(unit_index)])
-                    
-                    for destination in self.connections[unit].destinations:
-                        destination_index = self.get_unit_index(destination)
-                        destination_flow_rates[unit.name][destination.name][i] = \
-                            float(solution['Q_{}_{}'.format(unit_index, destination_index)])
-        
-        flow_rates = Dict()
-        for unit in self.units:
-            flow_rates[unit.name].total = tuple(total_flow_rates[unit.name])
-            for destination, flow_rate in destination_flow_rates[unit.name].items():
-                flow_rates[unit.name].destinations[destination] = tuple(flow_rate)
-        
-        return flow_rates                
-
     
     @property
     def feed_sources(self):

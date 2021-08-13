@@ -227,8 +227,14 @@ class TestTimeLine(unittest.TestCase):
         )
 
         np.testing.assert_equal(
-            tl.coefficients(5.5), [[1, -2, 0, 0], [0.25, 0, 1, 0]]
+            tl.coefficients(5.5), [[1, -2, 0, 0], [0.25, 1, 1, 0]]
         )
+        
+    def test_section_times(self):
+        tl = self.create_time_line_constant_single()
+        
+        self.assertEqual(tl.section_times, [0, 1, 2, 3, 4, 5, 6])
+        
 
 if __name__ == '__main__':
     unittest.main()
