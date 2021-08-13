@@ -22,12 +22,17 @@ class BindingBaseClass(metaclass=StructMeta):
     n_comp = UnsignedInteger()
     is_kinetic = Bool(default=True)
     n_states = Integer(lb=1, ub=1, default=1)
+    
 
     def __init__(self, n_comp, name):
+        self._parameter_names = ['is_kinetic']
+        self._parameters = {
+            param: getattr(self, param)
+            for param in self._parameter_names
+        }
+
         self.n_comp = n_comp
         self.name = name
-
-        self._parameters = ['is_kinetic']
 
     @property
     def model(self):
@@ -37,7 +42,7 @@ class BindingBaseClass(metaclass=StructMeta):
     def parameters(self):
         """dict: Dictionary with parameter values.
         """
-        return {param: getattr(self, param) for param in self._parameters}
+        return self._parameters
 
     @parameters.setter
     def parameters(self, parameters):
@@ -74,13 +79,13 @@ class Linear(BindingBaseClass):
     desorption_rate : list of unsigned floats. Length depends on n_comp.
         Desorption rate constants.
     """
-    adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
+    adsorption_rate = DependentlySizedUnsignedList(dep='n_comp', default=0)
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp', default=1)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
-        self._parameters += ['adsorption_rate', 'desorption_rate']
+        self._parameter_names += ['adsorption_rate', 'desorption_rate']
 
 
 class Langmuir(BindingBaseClass):
@@ -102,7 +107,7 @@ class Langmuir(BindingBaseClass):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._parameters += [
+        self._parameter_names += [
             'adsorption_rate', 'desorption_rate', 'saturation_capacity'
         ]
 
@@ -121,14 +126,14 @@ class BiLangmuir(BindingBaseClass):
     """
     adsorption_rate = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'))
     desorption_rate = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'), default=1)
-    saturation_capacity = DependentlySizedUnsignedList(dep='n_comp')
+    saturation_capacity = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'))
     n_states = UnsignedInteger()
 
     def __init__(self, *args, n_states=2, **kwargs):
         super().__init__(*args, **kwargs)
         self.n_states = n_states
 
-        self._parameters += [
+        self._parameter_names += [
             'adsorption_rate',
             'desorption_rate',
             'saturation_capacity',
@@ -156,7 +161,7 @@ class StericMassAction(BindingBaseClass):
         Steric factors of the protein: The number of sites o on the surface
         that are shileded by the protein and prevented from exchange with salt
         counterions in solution.
-    stationary_phase_capacity : unsigned float.
+    capacity : unsigned float.
         Stationary phase capacity (monovalent salt counterions); The total
         number of binding sites available on the resin surface.
     reference_liquid_phase_conc : unsigned float.
@@ -168,19 +173,19 @@ class StericMassAction(BindingBaseClass):
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp', default=1)
     characteristic_charge = DependentlySizedUnsignedList(dep='n_comp')
     steric_factor = DependentlySizedUnsignedList(dep='n_comp')
-    stationary_phase_capacity = UnsignedFloat()
+    capacity = UnsignedFloat()
     reference_liquid_phase_conc = UnsignedFloat()
     reference_solid_phase_conc = UnsignedFloat()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._parameters += [
+        self._parameter_names += [
             'adsorption_rate',
             'desorption_rate',
             'characteristic_charge',
             'steric_factor', 
-            'stationary_phase_capacity',
+            'capacity',
             'reference_liquid_phase_conc',
             'reference_solid_phase_conc'
         ]
@@ -212,7 +217,7 @@ class AntiLangmuir(BindingBaseClass):
         self.maximum_adsorption_capacity = [0.0] * self.n_comp
         self.antilangmuir = [0.0] * self.n_comp
 
-        self._parameters += [
+        self._parameter_names += [
             'adsorption_rate',
             'desorption_rate',
             'maximum_adsorption_capacity',
@@ -248,7 +253,7 @@ class KumarMultiComponentLangmuir(BindingBaseClass):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._parameters += [
+        self._parameter_names += [
             'adsorption_rate',
             'desorption_rate', 
             'maximum_adsorption_capacity', 
@@ -282,7 +287,7 @@ class Spreading(BindingBaseClass):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._parameters += [
+        self._parameter_names += [
             'adsorption_rate',
             'desorption_rate',
             'activation_temp',
@@ -317,7 +322,7 @@ class MobilePhaseModulator(BindingBaseClass):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._parameters += [
+        self._parameter_names += [
             'adsorption_rate',
             'desorption_rate',
             'maximum_adsorption_capacity',
@@ -356,7 +361,7 @@ class ExtendedMobilePhaseModulator(BindingBaseClass):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._parameters += [
+        self._parameter_names += [
             'adsorption_rate',
             'desorption_rate',
             'maximum_adsorption_capacity',
@@ -381,7 +386,7 @@ class SelfAssociation(BindingBaseClass):
         The characteristic charge v of the protein.
     steric_factor : Parameter
         Steric factor of of the protein.
-    stationary_phase_capacity : Parameter
+    capacity : Parameter
         Stationary phase capacity (monovalent salt counterions); The total
         number of binding sites available on the resin surface.
     reference_liquid_phase_conc : Parmater
@@ -394,20 +399,20 @@ class SelfAssociation(BindingBaseClass):
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     characteristic_charge = DependentlySizedUnsignedList(dep='n_comp')
     steric_factor = DependentlySizedUnsignedList(dep='n_comp')
-    stationary_phase_capacity = DependentlySizedUnsignedList(dep='n_comp')
+    capacity = DependentlySizedUnsignedList(dep='n_comp')
     reference_liquid_phase_conc = DependentlySizedUnsignedList(dep='n_comp')
     reference_solid_phase_conc = DependentlySizedUnsignedList(dep='n_comp')
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._parameters += [
+        self._parameter_names += [
             'adsorption_rate', 
             'adsorption_rate_dimerization', 
             'desorption_rate', 
             'characteristic_charge',
             'steric_factor', 
-            'stationary_phase_capacity',
+            'capacity',
             'reference_liquid_phase_conc', 
             'reference_solid_phase_conc'
         ]
@@ -428,7 +433,7 @@ class BiStericMassAction(BindingBaseClass):
     steric_factor : Parameter
         Steric factor o (i,j) of the it-h protein with respect to the j-th
         binding site type in state-major ordering.
-    stationary_phase_capacity : Parameter
+    capacity : Parameter
         Stationary phase capacity (monovalent salt counterions): The total
         number of binding site types.
     reference_liquid_phase_conc : Parameter
@@ -443,7 +448,7 @@ class BiStericMassAction(BindingBaseClass):
     desorption_rate = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'))
     characteristic_charge = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'))
     steric_factor = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'))
-    stationary_phase_capacity = DependentlySizedUnsignedList(dep='n_states')
+    capacity = DependentlySizedUnsignedList(dep='n_states')
     reference_liquid_phase_conc = DependentlySizedUnsignedList(dep='n_states', default=1)
     reference_solid_phase_conc = DependentlySizedUnsignedList(dep='n_states', default=1)
     
@@ -451,12 +456,12 @@ class BiStericMassAction(BindingBaseClass):
         super().__init__(*args, **kwargs)
         self.n_states = n_states
 
-        self._parameters += [
+        self._parameter_names += [
             'adsorption_rate', 
             'desorption_rate', 
             'characteristic_charge',
             'steric_factor',
-            'stationary_phase_capacity',
+            'capacity',
             'reference_liquid_phase_conc',
             'reference_solid_phase_conc'
         ]
@@ -482,7 +487,7 @@ class MultistateStericMassAction(BindingBaseClass):
     conversion_rate : Parameter
         Conversion rates between different bound states in
         component-major ordering.
-    stationary_phase_capacity : Parameter
+    capacity : Parameter
         Stationary phase capacity (monovalent salt counterions): The total
         number of binding sites available on the resin surface.
     reference_liquid_phase_conc : Parameter
@@ -495,20 +500,20 @@ class MultistateStericMassAction(BindingBaseClass):
     characteristic_charge = DependentlySizedUnsignedList(dep='n_comp')
     steric_factor = DependentlySizedUnsignedList(dep='n_comp')
     conversion_rate = DependentlySizedUnsignedList(dep='n_comp')
-    stationary_phase_capacity = DependentlySizedUnsignedList(dep='n_comp')
+    capacity = DependentlySizedUnsignedList(dep='n_comp')
     reference_liquid_phase_conc = DependentlySizedUnsignedList(dep='n_comp', default=1)
     reference_solid_phase_conc = DependentlySizedUnsignedList(dep='n_comp', default=1)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._parameters += [
+        self._parameter_names += [
             'adsorption_rate',
             'desorption_rate',
             'characteristic_charge',
             'steric_factor',
             'conversion_rate',
-            'stationary_phase_capacity',
+            'capacity',
             'reference_liquid_phase_conc',
             'reference_solid_phase_conc'
         ]
@@ -541,7 +546,7 @@ class SimplifiedMultistateSteric_Mass_Action(BindingBaseClass):
     quadratic_modifiers_steric : Parameter
         Quadratic modifiers of the sterif factors of the different components
         depending on the index of the bound state.
-    stationary_phase_capacity : Parameter
+    capacity : Parameter
         Stationary phase capacity (monovalent salt counterions): The total
         number of binding sites available on the resin surface.
     exchange_from_weak_stronger : Parameter
@@ -575,7 +580,7 @@ class SimplifiedMultistateSteric_Mass_Action(BindingBaseClass):
     steric_factor_first = DependentlySizedUnsignedList(dep='n_comp')
     steric_factor_last = DependentlySizedUnsignedList(dep='n_comp')
     quadratic_modifiers_steric = DependentlySizedUnsignedList(dep='n_comp')
-    stationary_phase_capacity = DependentlySizedUnsignedList(dep='n_comp')
+    capacity = DependentlySizedUnsignedList(dep='n_comp')
     exchange_from_weak_stronger = DependentlySizedUnsignedList(dep='n_comp')
     linear_exchange_ws = DependentlySizedUnsignedList(dep='n_comp')
     quadratic_exchange_ws = DependentlySizedUnsignedList(dep='n_comp')
@@ -588,7 +593,7 @@ class SimplifiedMultistateSteric_Mass_Action(BindingBaseClass):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._parameters += [
+        self._parameter_names += [
             'adsorption_rate',
             'desorption_rate', 
             'characteristic_charge_first',
@@ -597,7 +602,7 @@ class SimplifiedMultistateSteric_Mass_Action(BindingBaseClass):
             'steric_factor_first',
             'steric_factor_last',
             'quadratic_modifiers_steric',
-            'stationary_phase_capacity',
+            'capacity',
             'exchange_from_weak_stronger',
             'linear_exchange_ws',
             'quadratic_exchange_ws',
@@ -625,4 +630,4 @@ class Saska(BindingBaseClass):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._parameters += ['henry_const', 'quadratic_factor']
+        self._parameter_names += ['henry_const', 'quadratic_factor']

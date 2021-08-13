@@ -20,12 +20,17 @@ class ReactionBaseClass(metaclass=StructMeta):
     name = String()
     n_comp = UnsignedInteger()
     
-    _parameters = []
+    _parameter_names = []
 
     def __init__(self, n_comp, name):
         self.n_comp = n_comp
         self.name = name
-
+        
+        self._parameters = {
+            param: getattr(self, param)
+            for param in self._parameter_names
+        }
+        
     @property
     def model(self):
         return self.__class__.__name__
@@ -34,12 +39,12 @@ class ReactionBaseClass(metaclass=StructMeta):
     def parameters(self):
         """dict: Dictionary with parameter values.
         """
-        return {param: getattr(self, param) for param in self._parameters}
+        return {param: getattr(self, param) for param in self._parameter_names}
 
     @parameters.setter
     def parameters(self, parameters):
         for param, value in parameters.items():
-            if param not in self._parameters:
+            if param not in self._parameter_names:
                 raise CADETProcessError('Not a valid parameter')
             setattr(self, param, value)
 
@@ -60,7 +65,7 @@ class NoReaction(ReactionBaseClass):
         super().__init__(n_comp=0, name='NoReaction')
 
 class MassActionLaw(ReactionBaseClass):
-    _parameters = ReactionBaseClass._parameters + [
+    _parameter_names = ReactionBaseClass._parameter_names + [
         'stoich', 'exponents_fwd', 'exponents_bwd', 'k_fwd', 'k_bwd'
     ]
     
@@ -122,7 +127,7 @@ class MassActionLaw(ReactionBaseClass):
 
 
 class MassActionLawPore(ReactionBaseClass):
-    _parameters = ReactionBaseClass._parameters + [
+    _parameter_names = ReactionBaseClass._parameter_names + [
         'stoich_liquid', 'exponents_fwd_liquid', 'exponents_bwd_liquid', 
         'k_fwd_liquid', 'k_bwd_liquid', 
         'exponents_fwd_liquid_modsolid', 'exponents_bwd_liquid_modsolid', 
