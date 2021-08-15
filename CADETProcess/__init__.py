@@ -21,6 +21,8 @@ import CADETProcess.processModel
 from CADETProcess.processModel import unitOperation, binding, reaction
 from CADETProcess.processModel import FlowSheet, Process
 
+from CADETProcess.modelBuilder import modelBuilder
+
 import CADETProcess.optimization
 
 import CADETProcess.simulation
