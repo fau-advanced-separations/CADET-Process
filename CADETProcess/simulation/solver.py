@@ -84,14 +84,16 @@ class SolverBase(metaclass=StructMeta):
         """
         if not isinstance(process, Process):
             raise TypeError('Expected Process')
-
+        
+        process.lock = True
         if not self.evaluate_stationarity:
             results = self.simulate_n_cycles(
                     process, self.n_cycles, previous_results, **kwargs)
         else:
             results = self.simulate_to_stationarity(
                     process, previous_results, **kwargs)
-
+        process.lock = False
+        
         return results
 
     @log_time('Simulation')

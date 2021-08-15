@@ -9,6 +9,7 @@ from scipy import interpolate
 from CADETProcess import CADETProcessError
 from CADETProcess.common import EventHandler
 from CADETProcess.common import UnsignedInteger
+from CADETProcess.common import CachedPropertiesMixin, cached_property_if_locked
 from CADETProcess.common import ProcessMeta
 from CADETProcess.common import Section, TimeLine
 from CADETProcess.processModel import FlowSheet, Source
@@ -127,32 +128,7 @@ class Process(EventHandler):
             [unit.volume_solid for unit in self.flow_sheet.units_with_binding]
         )
 
-    @property
-    def flow_rate_section_states(self):
-        """dict: Lists of events for every time, one or more events occur.
-        """
-        section_states = {
-            time: {
-                unit.name: {
-                    'total': [],
-                    'destinations': defaultdict(dict)
-                } for unit in self.flow_sheet.units
-            } for time in self.section_times[0:-1]
-        }
-        
-        for sec_time in self.section_times[0:-1]:
-            for unit, unit_flow_rates in self.flow_rate_timelines.items():
-                section_states[sec_time][unit]['total'] = \
-                    unit_flow_rates['total'].coefficients(sec_time)[0,:]
-                
-                for dest, tl in unit_flow_rates.destinations.items():
-                    section_states[sec_time][unit]['destinations'][dest] = \
-                        tl.coefficients(sec_time)[0,:]
-
-        return Dict(section_states)
-        
-
-    @property
+    @cached_property_if_locked
     def flow_rate_timelines(self):
         """dict: TimeLine of flow_rate for all unit_operations.
         """
@@ -182,7 +158,7 @@ class Process(EventHandler):
         
         return Dict(flow_rate_timelines)
     
-    @property
+    @cached_property_if_locked
     def flow_rate_section_states(self):
         """dict: Lists of events for every time, one or more events occur.
         """

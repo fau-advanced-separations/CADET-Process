@@ -7,13 +7,14 @@ from collections import defaultdict
 
 from CADETProcess import CADETProcessError
 from CADETProcess.common import check_nested, generate_nested_dict, get_nested_value
-from CADETProcess.common import frozen_attributes
 from CADETProcess.common import StructMeta, UnsignedFloat
+from CADETProcess.common import frozen_attributes
+from CADETProcess.common import CachedPropertiesMixin, cached_property_if_locked
 from CADETProcess.common import plotlib, PlotParameters
 from CADETProcess.common import Section, TimeLine, MultiTimeLine
 
 @frozen_attributes
-class EventHandler(metaclass=StructMeta):
+class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
     """Baseclass for handling Events that change a property of an event performer.
 
     Attributes
@@ -41,6 +42,8 @@ class EventHandler(metaclass=StructMeta):
 
         self._events = []
         self._durations = []
+        self._lock = False
+        self._parameters = None
         
     @property
     def events(self):
@@ -62,7 +65,6 @@ class EventHandler(metaclass=StructMeta):
         evts =  {evt.name: evt for evt in self.events}
         durs = {dur.name: dur for dur in self.durations}
         return {**evts, **durs}
-
 
     def add_event(
             self, name, parameter_path, state, time=0.0, entry_index=None
@@ -167,7 +169,6 @@ class EventHandler(metaclass=StructMeta):
         self._durations.append(dur)
         super().__setattr__(name, dur)
 
-
     def remove_duration(self, duration_name):
         """Remove duration from list of durations.
 
@@ -195,13 +196,11 @@ class EventHandler(metaclass=StructMeta):
         self._durations.remove(dur)
         self.__dict__.pop(duration_name)
 
-
     @property
     def durations(self):
         """List of all durations in the process
         """
         return self._durations
-
 
     def add_event_dependency(
             self, dependent_event, independent_events, factors=None
@@ -263,7 +262,6 @@ class EventHandler(metaclass=StructMeta):
             indep = self.events_dict[indep]
             evt.add_dependency(indep, fac)
 
-
     def remove_event_dependency(self, dependent_event, independent_events):
         """Remove dependency between two events.
 
@@ -301,13 +299,11 @@ class EventHandler(metaclass=StructMeta):
         for indep in independent_events:
             self.events[dependent_event].remove_dependency(indep)
 
-
     @property
     def independent_events(self):
         """list: Independent Events.
         """
         return list(filter(lambda evt: evt.isIndependent, self.events))
-
 
     @property
     def dependent_events(self):
@@ -316,7 +312,6 @@ class EventHandler(metaclass=StructMeta):
         return list(
             filter(lambda evt: evt.isIndependent == False, self.events)
         )
-
 
     @property
     def event_parameters(self):
@@ -329,7 +324,6 @@ class EventHandler(metaclass=StructMeta):
         """list: Event peformers.
         """
         return list({evt.performer for evt in self.events})
-
 
     @property
     def event_times(self):
@@ -364,18 +358,20 @@ class EventHandler(metaclass=StructMeta):
         """
         return len(self.section_times) - 1
     
-    @property
+    @cached_property_if_locked
     def section_states(self):
         """dict: state of event parameters at every section.
         """
+        parameter_timelines = self.parameter_timelines
         section_states = defaultdict(dict)
         
         for sec_time in self.section_times[0:-1]:
-            for param, tl in self.parameter_timelines.items():
+            for param, tl in parameter_timelines.items():
                 section_states[sec_time][param] = tl.coefficients(sec_time)
+        
         return Dict(section_states)    
 
-    @property
+    @cached_property_if_locked
     def parameter_events(self):
         """dict: list of events for every event parameter.
         
@@ -393,7 +389,7 @@ class EventHandler(metaclass=StructMeta):
                 parameter_events[evt.parameter_path].append(evt)
         return Dict(parameter_events)
     
-    @property
+    @cached_property_if_locked
     def parameter_timelines(self):
         """dict: TimeLine for every event parameter.
         """
@@ -466,7 +462,7 @@ class EventHandler(metaclass=StructMeta):
 
         return Dict(performer_events)    
 
-    @property
+    @cached_property_if_locked
     def performer_timelines(self):
         """dict: TimeLines for every event parameter of a performer.
         """

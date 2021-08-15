@@ -8,7 +8,7 @@ from CADETProcess import CADETProcessError
 from CADETProcess.common import Descriptor
 
 class Parameter(Descriptor):
-    """Class for defining model parameters..
+    """Class for defining model parameters.
 
     Parameters
     ----------
