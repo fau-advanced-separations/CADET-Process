@@ -586,7 +586,7 @@ class Cadet(SolverBase):
                             unit_model, param_name, state
                         )
                         
-                    section_index += 1
+                section_index += 1
             
     def add_inlet_section(self, model_units, sec_index, unit_index, coeffs):
         unit_index = 'unit' + '_{0:03d}'.format(unit_index)
