@@ -220,7 +220,6 @@ class UnitBaseClass(metaclass=StructMeta):
 
         self._particle_reaction_model = particle_reaction_model
 
-
     def __repr__(self):
         """String-depiction of the object, can be changed into an object by
         calling the method eval.
@@ -261,6 +260,7 @@ class SourceMixin(metaclass=StructMeta):
     _section_dependent_parameters = ['flow_rate']
     _polynomial_parameters = ['flow_rate']
 
+
 class SinkMixin():
     """Mixin class for Units that have Sink-like behavior
 
@@ -268,6 +268,37 @@ class SinkMixin():
     --------
     SourceMixin
     Cstr
+    """
+    pass
+
+
+class Source(UnitBaseClass, SourceMixin):
+    """Pseudo unit operation model for streams entering the system.
+    """
+    c = NdPolynomial(dep=('n_comp', '_n_poly_coeffs'), default=0)
+    _n_poly_coeffs = 4
+    _parameter_names = \
+        UnitBaseClass._parameter_names + \
+        SourceMixin._parameter_names + \
+        ['c']
+    _section_dependent_parameters = \
+        UnitBaseClass._section_dependent_parameters + \
+        SourceMixin._section_dependent_parameters + \
+        ['c']
+    _polynomial_parameters = \
+        UnitBaseClass._polynomial_parameters + \
+        SourceMixin._polynomial_parameters + \
+        ['c']
+
+        
+class Sink(UnitBaseClass, SinkMixin):
+    """Pseudo unit operation model for streams leaving the system.
+    """
+    pass
+
+
+class MixerSplitter(UnitBaseClass):
+    """Pseudo unit operation model for mixing/splitting streams in the system.
     """
     pass
 
@@ -314,7 +345,6 @@ class TubularReactor(UnitBaseClass):
     c = DependentlySizedUnsignedList(dep='n_comp', default=0)
     _initial_state = UnitBaseClass._initial_state + ['c']
     
-        
     @property
     def cross_section_area(self):
         """float: Cross section area of a Column.
@@ -622,6 +652,7 @@ class LumpedRateModelWithPores(TubularReactor):
         """
         self.cross_section_area = Q/(u0*self.bed_porosity)
 
+
 class GeneralRateModel(TubularReactor):
     """Parameters for the general rate model.
 
@@ -710,6 +741,7 @@ class GeneralRateModel(TubularReactor):
         """
         self.cross_section_area = Q/(u0*self.bed_porosity)
         
+        
 class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     """Parameters for an ideal mixer.
 
@@ -781,34 +813,3 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         u0
         """
         return self.volume_liquid / flow_rate
-    
-
-class Source(UnitBaseClass, SourceMixin):
-    """Pseudo unit operation model for streams entering the system.
-    """
-    c = NdPolynomial(dep=('n_comp', '_n_poly_coeffs'), default=0)
-    _n_poly_coeffs = 4
-    _parameter_names = \
-        UnitBaseClass._parameter_names + \
-        SourceMixin._parameter_names + \
-        ['c']
-    _section_dependent_parameters = \
-        UnitBaseClass._section_dependent_parameters + \
-        SourceMixin._section_dependent_parameters + \
-        ['c']
-    _polynomial_parameters = \
-        UnitBaseClass._polynomial_parameters + \
-        SourceMixin._polynomial_parameters + \
-        ['c']
-
-        
-class Sink(UnitBaseClass, SinkMixin):
-    """Pseudo unit operation model for streams leaving the system.
-    """
-    pass
-
-
-class MixerSplitter(UnitBaseClass):
-    """Pseudo unit operation model for mixing/splitting streams in the system.
-    """
-    pass

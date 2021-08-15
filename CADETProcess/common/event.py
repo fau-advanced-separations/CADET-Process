@@ -46,11 +46,9 @@ class EventHandler(metaclass=StructMeta):
     def events(self):
         """list: All Events ordered by event time.
 
-        Includes information about the event performer, attribute, and state.
-
         See Also
         --------
-        Events
+        Event
         add_event
         remove_event
         Durations
@@ -838,6 +836,7 @@ class Event():
         return '{}(name={}, parameter_path={}, state={}, time={}'.format(
                 self.__class__.__name__, self.name, self.parameter_path,
                 self.state, self.time)
+
 
 class Duration():
     """Class for representing a duration between two events in an Eventhandler.
