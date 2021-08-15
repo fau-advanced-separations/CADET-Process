@@ -128,7 +128,7 @@ class Section(metaclass=StructMeta):
         if np.any(t < self.start) or np.any(self.end < t):
             raise ValueError('Time exceeds section times')
             
-        deriv = np.array([p.deriv(t).coef for p in self._poly])
+        deriv = np.array([p.deriv(t).coef for p in self._poly_der])
         
         return deriv        
 
