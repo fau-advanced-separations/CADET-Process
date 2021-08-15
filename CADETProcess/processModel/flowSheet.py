@@ -45,6 +45,9 @@ class FlowSheet(metaclass=StructMeta):
         self._connections = Dict()
         self._output_states = Dict()
         self._flow_rates = Dict()
+        self._parameters = Dict()
+        self._section_dependent_parameters = Dict()
+        self._polynomial_parameters = Dict()
 
     def _unit_name_decorator(func):
         def wrapper(self, unit, *args, **kwargs):
@@ -57,6 +60,32 @@ class FlowSheet(metaclass=StructMeta):
                     raise CADETProcessError('Not a valid unit')
             return func(self, unit, *args, **kwargs)
 
+        return wrapper
+    
+    def update_parameters(self):
+        for unit in self.units:
+            self._parameters[unit.name] = unit.parameters
+            self._section_dependent_parameters[unit.name] = \
+                unit.section_dependent_parameters
+            self._polynomial_parameters[unit.name] = unit.polynomial_parameters
+        
+        self._parameters['output_states'] = {
+            unit.name: self.output_states[unit] for unit in self.units
+        }
+        
+        self._section_dependent_parameters['output_states'] = {
+            unit.name: self.output_states[unit] 
+            for unit in self.units
+        }
+        
+    def update_parameters_decorator(func):
+        def wrapper(self, *args, **kwargs):
+            """Update parameters dict to save time.
+            """
+            results = func(self, *args, **kwargs)
+            self.update_parameters()
+            
+            return results
         return wrapper
 
     @property
@@ -126,6 +155,7 @@ class FlowSheet(metaclass=StructMeta):
         return [unit for unit in self._units
                 if not isinstance(unit.binding_model, NoBinding)]
 
+    @update_parameters_decorator
     def add_unit(
             self, unit, 
             feed_source=False, eluent_source=False, chromatogram_sink=False
@@ -181,6 +211,8 @@ class FlowSheet(metaclass=StructMeta):
         if chromatogram_sink:
             self.add_chromatogram_sink(unit)
 
+
+    @update_parameters_decorator
     def remove_unit(self, unit):
         """Remove unit from flow sheet.
 
@@ -241,6 +273,7 @@ class FlowSheet(metaclass=StructMeta):
         """
         return self._connections
     
+    @update_parameters_decorator
     def add_connection(self, origin, destination):
         """Add connection between units 'origin' and 'destination'.
 
@@ -276,6 +309,7 @@ class FlowSheet(metaclass=StructMeta):
         
         self.set_output_state(origin, 0)
 
+    @update_parameters_decorator
     def remove_connection(self, origin, destination):
         """Remove connection between units 'origin' and 'destination'.
 
@@ -313,6 +347,7 @@ class FlowSheet(metaclass=StructMeta):
         return self._output_states
     
     @_unit_name_decorator
+    @update_parameters_decorator
     def set_output_state(self, unit, state):
         """Set split ratio of outgoing streams for UnitOperation.
         
@@ -658,12 +693,7 @@ class FlowSheet(metaclass=StructMeta):
 
     @property
     def parameters(self):
-        parameters = {unit.name: unit.parameters for unit in self.units}
-        parameters['output_states'] = {
-            unit.name: self.output_states[unit] for unit in self.units
-        }
-
-        return Dict(parameters)
+        return self._parameters
 
     @parameters.setter
     def parameters(self, parameters):
@@ -679,24 +709,16 @@ class FlowSheet(metaclass=StructMeta):
             if unit not in self.units_dict:
                 raise CADETProcessError('Not a valid unit')
             self.units_dict[unit].parameters = params
+            
+        self.update_parameters()
 
     @property
     def section_dependent_parameters(self):
-        parameters = {unit.name: unit.section_dependent_parameters for unit in self.units}
-        parameters['output_states'] = {
-            unit.name: self.output_states[unit] for unit in self.units
-        }
-
-        return Dict(parameters)
+        return self._section_dependent_parameters
 
     @property
     def polynomial_parameters(self):
-        parameters = {
-            unit.name: unit.polynomial_parameters 
-            for unit in self.units
-        }
-        return parameters
-    
+        return self._polynomial_parameters
 
     @property
     def initial_state(self):

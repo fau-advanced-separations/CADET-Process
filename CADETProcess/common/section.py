@@ -172,7 +172,7 @@ class TimeLine():
     
     @property
     def sections(self):
-        return sorted(self._sections, key=lambda sec: sec.start)
+        return self._sections
 
     @property
     def degree(self):
@@ -211,6 +211,7 @@ class TimeLine():
                 raise CADETProcessError('Sections times must be without gaps')
 
         self._sections.append(section)
+        self._sections = sorted(self._sections, key=lambda sec: sec.start)
     
         self.update_piecewise_poly()
         
