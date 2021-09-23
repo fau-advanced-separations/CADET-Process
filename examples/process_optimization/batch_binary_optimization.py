@@ -11,10 +11,10 @@ from CADETProcess.simulation import Cadet, ProcessEvaluator
 from CADETProcess.optimization import OptimizationProblem
 from CADETProcess.common import RankedPerformance
 
-from examples.batch_binary import batch_binary
+from examples.forward_simulation.batch_binary import batch_binary
 
 process_simulator = Cadet(
-        cadet_bin_path='/home/jo/software/cadet/cadet/bin/',
+        install_path='/home/jo/software/cadet/cadet/',
         temp_dir='/dev/shm'
         )
 process_simulator.evaluate_stationarity = True

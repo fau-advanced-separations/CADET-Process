@@ -1,6 +1,7 @@
 import os
 import platform
 from pathlib import Path
+import shutil
 import subprocess
 from subprocess import TimeoutExpired
 import time
@@ -29,8 +30,8 @@ class Cadet(SolverBase):
 
     Attributes
     ----------
-    cadet_bin_path : str
-        Path to the executable of CADET
+    install_path: str
+        Path to the installation of CADET
     temp_dir : str
         Path to directory for temporary files
     time_out : UnsignedFloat
@@ -71,8 +72,8 @@ class Cadet(SolverBase):
     """
     timeout = UnsignedFloat(default=600)
     
-    def __init__(self, cadet_bin_path, temp_dir=None, *args, **kwargs):
-        self.cadet_bin_path = cadet_bin_path
+    def __init__(self, install_path=None, temp_dir=None, *args, **kwargs):
+        self.install_path = install_path
         self.temp_dir = temp_dir
         
         super().__init__(*args, **kwargs)
@@ -91,44 +92,89 @@ class Cadet(SolverBase):
         self.unit_return_parameters = UnitReturnParametersGroup()
         
     @property
-    def cadet_bin_path(self):
-        return self._cadet_bin_path
+    def install_path(self):
+        """str: Path to the installation of CADET
+
+        Parameters
+        ----------
+        install_path : str or None
+            Path to the installation of CADET. 
+            If None, the system installation will be used. 
+
+        Raises
+        ------
+        FileNotFoundError
+            If CADET can not be found.
+            
+        See Also
+        --------
+        check_cadet()
+        """
+        return self._install_path
     
-    @cadet_bin_path.setter
-    def cadet_bin_path(self, cadet_bin_path):
-        cadet_bin_path = Path(cadet_bin_path)
+    @install_path.setter
+    def install_path(self, install_path):
+        if install_path is None:
+            try:
+                if platform.system() == 'Windows':
+                    executable_path = Path(shutil.which("cadet-cli.exe"))
+                else:
+                    executable_path = Path(shutil.which("cadet-cli"))
+            except TypeError:
+                raise FileNotFoundError(
+                    "CADET could not be found. Please set an install path"
+                )
+            install_path = executable_path.parent.parent
+            # return
+    
+                
+        install_path = Path(install_path)
         if platform.system() == 'Windows':
-            cadet_path = cadet_bin_path / "cadet-cli.exe"
+            cadet_bin_path = install_path / "bin" / "cadet-cli.exe"
         else:
-            cadet_path = cadet_bin_path / "cadet-cli"
+            cadet_bin_path = install_path / "bin" / "cadet-cli"
             
         if cadet_bin_path.exists():
-            self._cadet_bin_path = cadet_bin_path
-            CadetAPI.cadet_path = cadet_path
+            self._install_path = install_path
+            CadetAPI.cadet_path = cadet_bin_path
         else:
             raise FileNotFoundError(
-                "CADET could not be found. Please check the bin path")
+                "CADET could not be found. Please check the path"
+            )
+
+        cadet_lib_path = install_path / "lib"
+        try:
+            if cadet_lib_path.as_posix() not in os.environ['LD_LIBRARY_PATH']:
+                os.environ['LD_LIBRARY_PATH'] = \
+                    cadet_lib_path.as_posix() \
+                    + os.pathsep \
+                    + os.environ['LD_LIBRARY_PATH']
+        except KeyError:
+            os.environ['LD_LIBRARY_PATH'] = cadet_lib_path.as_posix()
+            
             
     def check_cadet(self):
-        """Wrapper around a basic CADET example for testing functionatlity"""
+        """Wrapper around a basic CADET example for testing functionality"""
         if platform.system() == 'Windows':
-            lwe_path = self.cadet_bin_path / "createLWE.exe"
+            lwe_path = self.install_path / "bin" / "createLWE.exe"
         else:
-            lwe_path = self.cadet_bin_path / "createLWE"
+            lwe_path = self.install_path / "bin" / "createLWE"
         ret = subprocess.run(
             [lwe_path.as_posix()], 
             stdout=subprocess.PIPE, 
             stderr=subprocess.PIPE, 
-            cwd=self.cadet_bin_path.as_posix())
+            cwd=self.temp_dir
+        )
         if ret.returncode != 0:
             if ret.stdout:
                 print('Output', ret.stdout.decode('utf-8'))
             if ret.stderr:
                 print('Errors', ret.stderr.decode('utf-8'))
             raise CADETProcessError(
-                "Failure: Creation of test simulation ran into problems")
+                "Failure: Creation of test simulation ran into problems"
+            )
             
-        lwe_hdf5_path = self.cadet_bin_path / 'LWE.h5'
+        lwe_hdf5_path = Path(self.temp_dir) / 'LWE.h5'
         
         sim = CadetAPI()
         sim.filename = lwe_hdf5_path.as_posix()
