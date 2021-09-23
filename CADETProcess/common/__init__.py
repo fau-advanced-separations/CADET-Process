@@ -1,4 +1,3 @@
-import CADETProcess.common.settings
 from .utils import *
 from .dataStructure import *
 from .parameter import *

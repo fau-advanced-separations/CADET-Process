@@ -6,12 +6,14 @@ import numpy as np
 from collections import defaultdict
 
 from CADETProcess import CADETProcessError
-from CADETProcess.common import check_nested, generate_nested_dict, get_nested_value
-from CADETProcess.common import StructMeta, UnsignedFloat
-from CADETProcess.common import frozen_attributes
-from CADETProcess.common import CachedPropertiesMixin, cached_property_if_locked
-from CADETProcess.common import plotlib, PlotParameters
-from CADETProcess.common import Section, TimeLine, MultiTimeLine
+
+from .utils import check_nested, generate_nested_dict, get_nested_value
+from .dataStructure import StructMeta, frozen_attributes
+from .parameter import UnsignedFloat
+from .cache import CachedPropertiesMixin, cached_property_if_locked
+from . import plotlib
+from .plotlib import PlotParameters
+from .section import Section, TimeLine, MultiTimeLine
 
 @frozen_attributes
 class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):

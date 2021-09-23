@@ -1,10 +1,14 @@
+from . import reaction
 from .reaction import *
-import CADETProcess.processModel.reaction
+
+from . import binding
 from .binding import *
-import CADETProcess.processModel.binding
+
+from . import unitOperation
 from .unitOperation import *
-import CADETProcess.processModel.unitOperation
+
+from . import flowSheet
 from .flowSheet import *
-import CADETProcess.processModel.flowSheet
+
+from . import process
 from .process import *
-import CADETProcess.processModel.process

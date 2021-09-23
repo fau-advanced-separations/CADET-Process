@@ -5,7 +5,9 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 from CADETProcess import CADETProcessError
-from CADETProcess.common import StructMeta, List, UnsignedFloat, String, Tuple
+
+from .dataStructure import StructMeta
+from .parameter import List, UnsignedFloat, String, Tuple
 
 this = sys.modules[__name__]
 

@@ -7,8 +7,8 @@ from addict import Dict
 from CADETProcess import CADETProcessError
 from CADETProcess.common import frozen_attributes
 from CADETProcess.common import StructMeta, UnsignedInteger, String
-from CADETProcess.processModel import UnitBaseClass, SourceMixin, SinkMixin, Sink
-from CADETProcess.processModel import NoBinding
+from .unitOperation import UnitBaseClass, SourceMixin, SinkMixin, Sink
+from .binding import NoBinding
 
 
 @frozen_attributes

@@ -12,7 +12,8 @@ from CADETProcess.common import UnsignedInteger
 from CADETProcess.common import CachedPropertiesMixin, cached_property_if_locked
 from CADETProcess.common import ProcessMeta
 from CADETProcess.common import Section, TimeLine
-from CADETProcess.processModel import FlowSheet, Source
+from .flowSheet import FlowSheet
+from .unitOperation import Source
 
 class Process(EventHandler):
     """Class for defining the dynamic changes of a flow sheet.

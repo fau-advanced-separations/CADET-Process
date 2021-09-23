@@ -5,7 +5,8 @@ import operator
 import numpy as np
 
 from CADETProcess import CADETProcessError
-from CADETProcess.common import Descriptor
+
+from .dataStructure import Descriptor
 
 class Parameter(Descriptor):
     """Class for defining model parameters.

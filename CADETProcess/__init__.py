@@ -13,18 +13,11 @@ name = 'CADET-Process'
 __version__ = '0.1'
 
 # Imports
-from CADETProcess.CADETProcessError import *
+from .CADETProcessError import *
 
-import CADETProcess.common
-
-import CADETProcess.processModel
-from CADETProcess.processModel import unitOperation, binding, reaction
-from CADETProcess.processModel import FlowSheet, Process
-
-from CADETProcess.modelBuilder import modelBuilder
-
-import CADETProcess.optimization
-
-import CADETProcess.simulation
-
-import CADETProcess.fractionation
+from . import common
+from . import processModel
+from . import modelBuilder
+from . import simulation
+from . import fractionation
+from . import optimization

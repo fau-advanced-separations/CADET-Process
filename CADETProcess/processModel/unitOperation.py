@@ -9,8 +9,8 @@ from CADETProcess.common import \
     UnsignedInteger, UnsignedFloat, \
     DependentlySizedUnsignedList, DependentlySizedNdArray, \
     Polynomial, NdPolynomial
-from CADETProcess.processModel import BindingBaseClass, NoBinding
-from CADETProcess.processModel import ReactionBaseClass, NoReaction
+from .binding import BindingBaseClass, NoBinding
+from .reaction import ReactionBaseClass, NoReaction
 
 
 @frozen_attributes

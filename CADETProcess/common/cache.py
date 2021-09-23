@@ -1,4 +1,5 @@
-from CADETProcess.common import StructMeta, Bool
+from .dataStructure import StructMeta
+from .parameter import Bool
 
 class cached_property_if_locked(property):
     def __get__(self, instance, cls=None):

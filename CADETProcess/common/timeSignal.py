@@ -2,8 +2,11 @@ import numpy as np
 from scipy.interpolate import InterpolatedUnivariateSpline
 
 from CADETProcess import CADETProcessError
-from CADETProcess.common import StructMeta, Float, List, NdArray, String
-from CADETProcess.common import plotlib, PlotParameters
+
+from .dataStructure import StructMeta
+from .parameter import Float, List, NdArray, String
+from . import plotlib
+from .plotlib import PlotParameters
 
 
 class TimeSignal(metaclass=StructMeta):
