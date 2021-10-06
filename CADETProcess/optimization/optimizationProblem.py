@@ -1,10 +1,11 @@
 import copy
 import math
-import random
+import warnings
 
 from addict import Dict
 import numpy as np
 from scipy import optimize
+import hopsy
 
 from CADETProcess import CADETProcessError
 from CADETProcess.common import log
@@ -100,7 +101,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def evaluator(self):
-        """Return object that evaluates evaluation object during optimization.
+        """Object that performs evaluation object during optimization.
 
         The evaluator has to implement an evaluate method that returns a
         Performance object when called with the evaluation_object. The
@@ -271,7 +272,9 @@ class OptimizationProblem(metaclass=StructMeta):
                 raise ValueError("Exceeds upper bound")
 
             if variable.component_index is not None:
-                value_list = get_nested_value(evaluation_object.parameters, variable.parameter_path)
+                value_list = get_nested_value(
+                    evaluation_object.parameters, variable.parameter_path
+                )
                 value_list[variable.component_index] = value
                 parameters = generate_nested_dict(variable.parameter_path, value_list)
             else:
@@ -306,12 +309,12 @@ class OptimizationProblem(metaclass=StructMeta):
         performance : Performance
             Performance object from fractionation.
         """
-        self.xo = x
-
+        x = np.array(x)
+        
         # Try to get cached results
         if cache is not None and not force:
             try:
-                performance = cache[str(x)]
+                performance = cache[tuple(x.tolist())]
                 return performance
             except KeyError:
                 pass
@@ -333,10 +336,13 @@ class OptimizationProblem(metaclass=StructMeta):
             performance = evaluation_object.performance
 
         if cache is not None:
-            cache[str(x)] = performance
+            cache[tuple(x.tolist())] = performance
 
         self.logger.info('{} evaluated at x={} yielded {}'.format(
-                self.evaluation_object.name, str(x), performance.to_dict()))
+                self.evaluation_object.name, 
+                tuple(x.tolist()), 
+                performance.to_dict())
+        )
 
         return performance
 
@@ -970,7 +976,7 @@ class OptimizationProblem(metaclass=StructMeta):
         self._x0 = x0
 
 
-    def create_initial_values(self):
+    def create_initial_values(self, n_samples=1):
         """Function for creating set of initial values.
 
         The function tries to find a random number between the lower and upper
@@ -985,30 +991,29 @@ class OptimizationProblem(metaclass=StructMeta):
         init : ndarray
             Initial values for starting the optimization.
         """
-        counter = 0
-        while True:
-            # uniform guess
-            init = [round(random.uniform(lb, ub),1)
-                for lb, ub in zip(self.lower_bounds, self.upper_bounds)]
-
-            # Replace values with infinite lower or upper bounds
-            min_lb = 0.75*min(np.ma.masked_invalid(self.lower_bounds))
-            max_ub = 1.25*max(np.ma.masked_invalid(self.upper_bounds))
-            init = [round(random.uniform(min_lb, max_ub),1) if np.isinf(param)
-                    else param for param in init]
-
-            flag = True
-            if not self.check_linear_constraints(init):
-                flag = False
-            if not self.check_bounds(init):
-                flag = False
-            if not self.check_nonlinear_constraints(init):
-                flag = False
-
-            if flag == True:
-                return init
-
-            counter += 1
+        model = hopsy.UniformModel()
+        
+        problem = hopsy.Problem(
+            self.A,
+            self.b,
+            model
+        )
+        problem = hopsy.add_box_constraints(
+            problem,
+            self.lower_bounds,
+            self.upper_bounds
+        )
+        
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            run = hopsy.Run(problem)
+        
+            run.starting_points = [hopsy.compute_chebyshev_center(problem)]
+        run.sample(n_samples)
+                    
+        states = np.array(run.data.states[0])
+        
+        return states
 
     @property
     def parameters(self):

@@ -46,7 +46,7 @@ class SciPyInterface(SolverBase):
                 optimization_problem.evaluate_objective_fun,
                 x0=optimization_problem.x0,
                 method=str(self),
-                jac= self.jac,
+                jac=self.jac,
                 constraints=self.get_constraint_objects(optimization_problem),
                 options=self.options
                 )

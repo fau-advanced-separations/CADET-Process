@@ -6,3 +6,4 @@ gitpython
 cadet-python
 addict
 deap
+hopsy
