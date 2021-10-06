@@ -34,16 +34,20 @@ class SciPyInterface(SolverBase):
         TrustConstr
         NelderMead
         SLSQP
-        evaluate_objective_fun
+        CADETProcess.optimization.OptimizationProblem.evaluate_objectives
         options
         scipy.optimize.minimize
         """
+        if optimization_problem.n_objectives > 1:
+            raise CADETProcessError("Can only handle single objective.")
+        objective_function = lambda x: optimization_problem.evaluate_objectives(x)[0]
+            
         start = time.time()
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore', category=OptimizeWarning)
             warnings.filterwarnings('ignore', category=RuntimeWarning)
             scipy_results = optimize.minimize(
-                optimization_problem.evaluate_objective_fun,
+                objective_function,
                 x0=optimization_problem.x0,
                 method=str(self),
                 jac=self.jac,
@@ -64,8 +68,8 @@ class SciPyInterface(SolverBase):
         else:
             frac = None
             performance = optimization_problem.evaluate(x, force=True)
-        f = optimization_problem.objective_fun(performance)
-        c = optimization_problem.evaluate_nonlinear_constraint_fun(x)
+        f = optimization_problem.objectives[0](performance)
+        c = optimization_problem.nonlinear_constraints[0](performance)
 
         results = OptimizationResults(
                 optimization_problem = optimization_problem.name,
@@ -126,7 +130,7 @@ class SciPyInterface(SolverBase):
         lineqcon = self.get_lineqcon_obj(optimization_problem)
         nonlincon = self.get_nonlincon_obj(optimization_problem)
 
-        constraints = [lincon, lineqcon, nonlincon]
+        constraints = [lincon, lineqcon, *nonlincon]
 
         return [con for con in constraints if con is not None]
 
@@ -151,8 +155,9 @@ class SciPyInterface(SolverBase):
         lb = [-np.inf]*len(optimization_problem.b)
         ub = optimization_problem.b
 
-        return optimize.LinearConstraint(optimization_problem.A,
-                                         lb, ub, keep_feasible=True)
+        return optimize.LinearConstraint(
+            optimization_problem.A, lb, ub, keep_feasible=True
+        )
 
     def get_lineqcon_obj(self, optimization_problem):
         """Returns the optimized linear equality constraints as an object.
@@ -182,8 +187,9 @@ class SciPyInterface(SolverBase):
         lb = optimization_problem.beq
         ub = optimization_problem.beq
 
-        return optimize.LinearConstraint(optimization_problem.Aeq,
-                                         lb, ub, keep_feasible=True)
+        return optimize.LinearConstraint(
+            optimization_problem.Aeq, lb, ub, keep_feasible=True
+        )
 
     def get_nonlincon_obj(self, optimization_problem):
         """Returns the optimized nonlinear constraints as an object.
@@ -215,19 +221,25 @@ class SciPyInterface(SolverBase):
         --------
         constraint_objects
         nonlinear_constraints
-        nonlinear_constraint_jacobian
-        nonlinear_constraint_fun
-        evaluate_nonlinear_constraint_fun
         """
-        if optimization_problem.nonlinear_constraint_fun is None:
+        if optimization_problem.nonlinear_constraints is None:
             return None
-
-        return optimize.NonlinearConstraint(
-                optimization_problem.evaluate_nonlinear_constraint_fun,
+        
+        def makeConstraint(i):
+            constraint_fun = lambda x: optimization_problem.evaluate_nonlinear_constraints(x)[i]
+            constr = optimize.NonlinearConstraint(
+                constraint_fun,
                 lb=-np.inf, ub=0,
                 finite_diff_rel_step=self.finite_diff_rel_step,
                 keep_feasible=True
                 )
+            return constr
+
+        constraints = []
+        for i, constr in enumerate(optimization_problem.nonlinear_constraints):
+            constraints.append(makeConstraint(i))
+
+        return constraints
 
     def __str__(self):
         return self.__class__.__name__

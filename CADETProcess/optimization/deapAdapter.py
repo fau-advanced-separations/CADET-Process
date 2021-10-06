@@ -81,21 +81,35 @@ class DEAP(SolverBase):
             toolbox.register("map", pool.map)
 
         # Functions for creating individuals and population
-        toolbox.register("individual",
-                              tools.initIterate, creator.Individual,
-                              optimization_problem.create_initial_values)
-        toolbox.register("population",
-                              tools.initRepeat, list, toolbox.individual)
+        toolbox.register(
+            "individual",
+            tools.initIterate, creator.Individual,
+            optimization_problem.create_initial_values
+        )
+        def initIndividual(icls, content):
+            return icls(content)
+        toolbox.register("individual_guess", initIndividual, creator.Individual)
+        
+        def initPopulation(pcls, ind_init, population_size):
+            population = optimization_problem.create_initial_values(population_size)
+            return pcls(ind_init(c) for c in population)
+        
+        toolbox.register(
+            "population", initPopulation, list, toolbox.individual_guess, 
+        )
 
         # Functions for evolution
-        toolbox.register("evaluate",
-                         self.evaluate, cache=cache)
-        toolbox.register("mate", tools.cxSimulatedBinaryBounded,
-                         low=lb, up=ub, eta=30.0)
-        toolbox.register("mutate", tools.mutPolynomialBounded,
-                         low=lb, up=ub, eta=20.0, indpb=1.0/n_vars)
-        toolbox.register("select", tools.selNSGA3,
-                         nd="standard", ref_points=ref_points)
+        toolbox.register("evaluate", self.evaluate, cache=cache)
+        toolbox.register(
+            "mate", tools.cxSimulatedBinaryBounded, low=lb, up=ub, eta=30.0
+        )
+        toolbox.register(
+            "mutate", tools.mutPolynomialBounded,
+             low=lb, up=ub, eta=20.0, indpb=1.0/n_vars
+        )
+        toolbox.register(
+            "select", tools.selNSGA3, nd="standard", ref_points=ref_points
+        )
 
         # Round individuals to prevent reevaluation of similar individuals
         def round_individuals():
@@ -119,8 +133,10 @@ class DEAP(SolverBase):
         statistics.register("std", np.std)
 
         # Load checkpoint if present
-        checkpoint_path = os.path.join(settings.project_directory,
-                               optimization_problem.name + '/checkpoint.pkl')
+        checkpoint_path = os.path.join(
+            settings.project_directory,
+            optimization_problem.name + '/checkpoint.pkl'
+        )
 
         if use_checkpoint and os.path.isfile(checkpoint_path):
             # A file name has been given, then load the data from the file
@@ -141,11 +157,12 @@ class DEAP(SolverBase):
 
             # Initialize random population
             random.seed(self.seed)
-            self.population = toolbox.population(n=population_size)
+            self.population = toolbox.population(population_size)
 
             # Evaluate the individuals with an invalid fitness
-            invalid_ind = [ind for ind in self.population
-                           if not ind.fitness.valid]
+            invalid_ind = [
+                ind for ind in self.population if not ind.fitness.valid
+            ]
             fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
             for ind, fit in zip(invalid_ind, fitnesses):
                 ind.fitness.values = fit
@@ -157,8 +174,9 @@ class DEAP(SolverBase):
         # Begin the generational process
         start = time.time()
         for gen in range(start_gen, n_gen):
-            self.offspring = algorithms.varAnd(self.population, toolbox,
-                                          self.cxpb, self.mutpb)
+            self.offspring = algorithms.varAnd(
+                self.population, toolbox, self.cxpb, self.mutpb
+            )
 
             # Evaluate the individuals with an invalid fitness
             invalid_ind = [ind for ind in self.offspring if not ind.fitness.valid]
@@ -167,8 +185,9 @@ class DEAP(SolverBase):
                 ind.fitness.values = fit
 
             # Select the next generation population from parents and offspring
-            self.population = toolbox.select(self.population + self.offspring,
-                                                  population_size)
+            self.population = toolbox.select(
+                self.population + self.offspring, population_size
+            )
 
             # Compile statistics about the new population
             record = statistics.compile(self.population)
@@ -176,16 +195,21 @@ class DEAP(SolverBase):
             self.halloffame.update(self.population)
 
             # Create Checkpoint file
-            cp = dict(population=self.population, generation=gen,
-                     halloffame=self.halloffame, logbook=self.logbook,
-                      rndstate=random.getstate())
+            cp = dict(
+                population=self.population, generation=gen,
+                halloffame=self.halloffame, logbook=self.logbook,
+                rndstate=random.getstate()
+            )
 
             with open(checkpoint_path, "wb") as cp_file:
                 pickle.dump(cp, cp_file)
 
             best = self.halloffame.items[0]
-            self.logger.info('Generation {}: x: {}, f: {}'.format(
-                    str(gen), str(best), str(best.fitness.values[0])))
+            self.logger.info(
+                'Generation {}: x: {}, f: {}'.format(
+                    str(gen), str(best), str(best.fitness.values[0])
+                )
+            )
 
         elapsed = time.time() - start
 
@@ -194,7 +218,8 @@ class DEAP(SolverBase):
         eval_object = optimization_problem.set_variables(x, make_copy=True)
         if self.optimization_problem.evaluator is not None:
             frac = optimization_problem.evaluator.evaluate(
-                    eval_object, return_frac=True)
+                eval_object, return_frac=True
+            )
             performance = frac.performance
         else:
             frac = None
@@ -202,24 +227,25 @@ class DEAP(SolverBase):
         f = optimization_problem.objective_fun(performance)
 
         results = OptimizationResults(
-                optimization_problem = optimization_problem,
-                evaluation_object = eval_object,
-                solver_name = str(self),
-                solver_parameters = self.options,
-                exit_flag = 1,
-                exit_message = 'DEAP terminated successfully',
-                time_elapsed = elapsed,
-                x = list(x),
-                f = f,
-                c = None,
-                frac = frac,
-                performance = performance.to_dict()
-                )
+            optimization_problem = optimization_problem,
+            evaluation_object = eval_object,
+            solver_name = str(self),
+            solver_parameters = self.options,
+            exit_flag = 1,
+            exit_message = 'DEAP terminated successfully',
+            time_elapsed = elapsed,
+            x = list(x),
+            f = f,
+            c = None,
+            frac = frac,
+            performance = performance.to_dict()
+        )
 
         return results
 
 
     def evaluate(self, ind, cache=None):
-        results = self.optimization_problem.evaluate_objective_fun(
-                ind, make_copy=True, cache=cache)
-        return (results,)
+        results = self.optimization_problem.evaluate_objectives(
+            ind, make_copy=True, cache=cache
+        )
+        return results

@@ -9,14 +9,15 @@ import hopsy
 
 from CADETProcess import CADETProcessError
 from CADETProcess.common import log
+from CADETProcess.common import frozen_attributes
 
 from CADETProcess.common import StructMeta
 from CADETProcess.common import String
 
-
 from CADETProcess.common import approximate_jac
 from CADETProcess.common import get_bad_performance
 
+@frozen_attributes
 class OptimizationProblem(metaclass=StructMeta):
     """Class for configuring optimization problems
 
@@ -34,10 +35,10 @@ class OptimizationProblem(metaclass=StructMeta):
         Object used to evaluate evaluation_object. Returns performance.
     variables : list
         List of optimization variables
-    objective_fun : function
-        Function that returns value of objective function for performance.
-    nonlinear_constraint_fun : function
-        Function that returns value of nonlinear constraints for performance.
+    objectives: list of callables
+        Functions that return value of objective function for performance.
+    nonlinear_constraints: list of callables
+        Functions that return value of nonlinear constraints for performance.
     linear_constraints : list
         List of all linear constraints of an OptimizationProblem.
     linear_equality_constraints : list
@@ -70,7 +71,8 @@ class OptimizationProblem(metaclass=StructMeta):
             self.logger = log.get_logger(self.name)
 
         self._variables = []
-        self._nonlinear_constraint_fun = None
+        self._objectives = []
+        self._nonlinear_constraints = []
         self._linear_constraints = []
         self._linear_equality_constraints = []
         self._x0 = None
@@ -90,8 +92,8 @@ class OptimizationProblem(metaclass=StructMeta):
         Evaluator
         evaluate
         Performance
-        objective_function
-        nonlinear_constraint_function
+        objectives
+        nonlinear_constraints
         """
         return self._evaluation_object
 
@@ -123,8 +125,8 @@ class OptimizationProblem(metaclass=StructMeta):
         evaluation_object
         evaluate
         Performance
-        objective_function
-        nonlinear_constraint_function
+        objectives
+        nonlinear_constraints
         """
         return self._evaluator
 
@@ -346,32 +348,34 @@ class OptimizationProblem(metaclass=StructMeta):
 
         return performance
 
-
     @property
-    def objective_fun(self):
-        """Objective function for evaluation of the fractionated results.
+    def objectives(self):
+        return self._objectives
+    
+    @property
+    def n_objectives(self):
+        return len(self.objectives)
+    
+    def add_objective(self, objective_fun):
+        """Add objective function to optimization problem.
 
-        Returns
-        -------
+        Parameters
+        ----------
         objective_fun : function
-            Nonlinear constraint function that takes Performance object as
-            argument and returns a float.
+            Objective function. Funtion should take a Performance object as
+            argument and return a scalar value.
 
         Raises
         ------
         TypeError
             If objective_fun is not callable.
         """
-        return self._objective_fun
-
-    @objective_fun.setter
-    def objective_fun(self, objective_fun):
         if not callable(objective_fun):
             raise TypeError("Expected callable object")
 
-        self._objective_fun = objective_fun
-
-    def evaluate_objective_fun(self, x, *args, **kwargs):
+        self._objectives.append(objective_fun)
+        
+    def evaluate_objectives(self, x, *args, **kwargs):
         """Function that evaluates at x and computes objective function.
 
         This function is usually presented to the optimization solver. The
@@ -385,78 +389,71 @@ class OptimizationProblem(metaclass=StructMeta):
 
         Returns
         -------
-        f : float
-            Value of the objective_fun at point x.
+        f : list
+            Values of the objective functions at point x.
 
-        See also
+        See Also
         --------
         optimization.SolverBase
-        objective_function
+        add_objective
         evaluate
         evaluate_nonlinear_constraint_fun
         """
         performance = self.evaluate(x, *args, **kwargs)
-        return self.objective_fun(performance)
+        f = [obj(performance) for obj in self.objectives]
+        return f
 
     def objective_gradient(self, x, dx=0.1):
-        """Return the gradient of the objective function at point x.
+        """Calculate the gradient of the objective functions at point x.
 
-        First defines the local variable dx as a list with the multiplication
-        of dx (default value) with the length of x. Evaluates the grad by
-        calling the aproc_fprime function of the scipy optimize package. A
-        Finite-difference approximation of the gradient of a scalar function.
+        Gradient is approximated using finite differences.
 
         Parameters
         ----------
         x : ndarray
             Value of the optimization variables.
-        optimizationProblem : OptimizationProblem
-            OptimizationProblem object to evaluate the gradient of the
-            objective function.
         dx : float
-            derivative of x, default value set to 0.1.
+            Increment to x to use for determining the function gradient.
 
         Returns
         -------
-        grad: ndarray
-            Value of the gradient at point x.
+        grad: list
+            The partial derivatives of the objective functions at point x.
 
-        See also
+        See Also
         --------
         OptimizationProblem
-        objective_fun
-        intermed_objective_fun
+        objectives
         """
         dx = [dx]*len(x)
-        grad = optimize.approx_fprime(x, self.evaluate_objective_fun, dx)
+        grad = [optimize.approx_fprime(x, obj, dx) for obj in self.objectives]
 
         return grad
 
     @property
-    def nonlinear_constraint_fun(self):
-        """Nonlinear constraint function for evaluation of fractionated results.
+    def nonlinear_constraints(self):
+        return self._nonlinear_constraints
+    
+    def add_nonlinear_constraint(self, nonlinear_constraint_fun):
+        """Add nonlinear constraint function to optimization problem.
 
-        Returns
+        Parameters
         ----------
-        nonlinear_constraint_fun : function
-            Nonlinear constraint function that takes Performance object as
-            argument and returns a float or array of floats.
+        nonlinear_constraint_fun: function
+            Nonlinear constraint function. Funtion should take a Performance 
+            object as argument and return a scalar value or an array.
 
         Raises
         ------
         TypeError
             If nonlinear_constraint_fun is not callable.
         """
-        return self._nonlinear_constraint_fun
-
-    @nonlinear_constraint_fun.setter
-    def nonlinear_constraint_fun(self, nonlinear_constraint_fun):
         if not callable(nonlinear_constraint_fun):
             raise TypeError("Expected callable object")
 
-        self._nonlinear_constraint_fun = nonlinear_constraint_fun
+        self._nonlinear_constraints.append(nonlinear_constraint_fun)
 
-    def evaluate_nonlinear_constraint_fun(self, x, *args, **kwargs):
+    def evaluate_nonlinear_constraints(self, x, *args, **kwargs):
         """Function that evaluates at x and computes nonlinear constraitns.
 
         This function is usually presented to the optimization solver. The
@@ -470,19 +467,18 @@ class OptimizationProblem(metaclass=StructMeta):
 
         Returns
         -------
-        c : array_like
-            Value(s) of the constraint function at point x.
+        c : list
+            Value(s) of the constraint functions at point x.
 
         See also
         --------
-        nonlinear_constraint_fun
+        nonlinear_constraints
         evaluate
-        optimization.SolverBase
-        evaluate_objective_fun
+        evaluate_objectives
         """
-        if self.nonlinear_constraint_fun is not None:
-            performance = self.evaluate(x, *args, **kwargs)
-            return self.nonlinear_constraint_fun(performance)
+        performance = self.evaluate(x, *args, **kwargs)
+        c = [constr(performance) for constr in self.nonlinear_constraints]
+        return c
 
     def check_nonlinear_constraints(self, x):
         """Checks if all nonlinear constraints are kept.
@@ -498,9 +494,10 @@ class OptimizationProblem(metaclass=StructMeta):
             True if all nonlinear constraints are smaller or equal to zero,
             False otherwise.
         """
-        if self.nonlinear_constraint_fun is not None \
-            and np.any(self.evaluate_nonlinear_constraint_fun(x) > 0):
-            return False
+        c = self.evaluate_nonlinear_constraints(x)
+        for constr in c:
+            if np.any(constr > 0):
+                return False
         return True
 
     def nonlinear_constraint_jacobian(self, x, dx=1e-3):
@@ -511,11 +508,11 @@ class OptimizationProblem(metaclass=StructMeta):
         x : array_like
             Value of the optimization variables
         dx : float
-            derivative of x, default value set to 1e-3.
+            Increment to x to use for determining the function gradient.
 
         Returns
         -------
-        jac_array: array_like
+        jacobian: list
             Value of the partial derivatives at point x.
 
         See also
@@ -523,7 +520,11 @@ class OptimizationProblem(metaclass=StructMeta):
         nonlinear_constraint_fun
         approximate_jac
         """
-        return approximate_jac(x, self.evaluate_nonlinear_constraint_fun, dx)
+        jacobian = [
+            approximate_jac(x, constr, dx) 
+            for constr in self.nonlinear_constraints
+        ]
+        return jacobian
 
     @property
     def lower_bounds(self):
@@ -965,14 +966,15 @@ class OptimizationProblem(metaclass=StructMeta):
             If the initial value does not match length of optimization variables
         """
         if self._x0 is None:
-            self.x0 = self.create_initial_values()
+            self._x0 = self.create_initial_values()
         return self._x0
 
     @x0.setter
     def x0(self, x0):
         if not len(x0) == len(self.variables):
             raise CADETProcessError(
-                    "Starting value must be given for all variables")
+                "Starting value must be given for all variables"
+            )
         self._x0 = x0
 
 

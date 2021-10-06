@@ -62,9 +62,10 @@ class FractionationOptimizer():
         opt = OptimizationProblem(frac)
         opt.logger.setLevel(logging.WARNING)
     
-        opt.objective_fun = self.obj_fun
-        opt.nonlinear_constraint_fun = \
+        opt.add_objective(self.obj_fun)
+        opt.add_nonlinear_constraint(
             nonlin_bounds_decorator(self.purity_required)(purity)
+        )
     
         for evt in frac.events:
             opt.add_variable(evt.name + '.time', evt.name)
