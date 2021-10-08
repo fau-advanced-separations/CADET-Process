@@ -70,7 +70,7 @@ class Cadet(SolverBase):
     SolverTimeIntegratorParametersGroup
     cadetInterface
     """
-    timeout = UnsignedFloat(default=600)
+    timeout = UnsignedFloat()
     
     def __init__(self, install_path=None, temp_dir=None, *args, **kwargs):
         self.install_path = install_path
