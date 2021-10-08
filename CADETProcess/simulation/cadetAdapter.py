@@ -1051,12 +1051,12 @@ class ReactionParametersGroup(ParameterWrapper):
                 'mal_kbwd_bulk' : 'k_bwd',
                 }
         },
-        'MassActionLawPore': {
+        'MassActionLawParticle': {
             'name': 'MASS_ACTION_LAW',
             'parameters':{
                 'mal_stoichiometry_liquid': 'stoich_liquid',
                 'mal_exponents_liquid_fwd' : 'exponents_fwd_liquid',
-                'mal_exponents_liquid_bwd' : 'exponents_fwd_liquid',
+                'mal_exponents_liquid_bwd' : 'exponents_bwd_liquid',
                 'mal_kfwd_liquid' : 'k_fwd_liquid',
                 'mal_kbwd_liquid' : 'k_bwd_liquid',
                 
@@ -1066,10 +1066,10 @@ class ReactionParametersGroup(ParameterWrapper):
                 'mal_kfwd_solid' : 'k_fwd_solid',
                 'mal_kbwd_solid' : 'k_bwd_solid',
                 
-                'mal_exponents_liquid_fwd_modsolid' : 'exponents_fwd_pore_modsolid',
-                'mal_exponents_liquid_bwd_modsolid' : 'exponents_bwd_pore_modsolid',
-                'mal_exponents_solid_fwd_modliquid' : 'exponents_fwd_solid_modpore',
-                'mal_exponents_solid_bwd_modliquid' : 'exponents_bwd_solid_modpore',
+                'mal_exponents_liquid_fwd_modsolid' : 'exponents_fwd_liquid_modsolid',
+                'mal_exponents_liquid_bwd_modsolid' : 'exponents_bwd_liquid_modsolid',
+                'mal_exponents_solid_fwd_modliquid' : 'exponents_fwd_solid_modliquid',
+                'mal_exponents_solid_bwd_modliquid' : 'exponents_bwd_solid_modliquid',
             }
         }
     }

@@ -126,7 +126,7 @@ class MassActionLaw(ReactionBaseClass):
         return [f/b for f, b in zip(self. k_fwd, self.k_bwd)]
 
 
-class MassActionLawPore(ReactionBaseClass):
+class MassActionLawParticle(ReactionBaseClass):
     _parameter_names = ReactionBaseClass._parameter_names + [
         'stoich_liquid', 'exponents_fwd_liquid', 'exponents_bwd_liquid', 
         'k_fwd_liquid', 'k_bwd_liquid', 
