@@ -65,7 +65,10 @@ class Typed(Parameter):
 
     def __set__(self, instance, value):
         if value is None:
-            del(instance.__dict__[self.name])
+            try:
+                del(instance.__dict__[self.name])
+            except KeyError:
+                pass
             return
         
         if Typed._check(self, value):
@@ -117,7 +120,7 @@ class Float(Typed):
     ty = float
 
     def __set__(self, instance, value):
-        if isinstance(value, (int)):
+        if isinstance(value, (int, np.int64)):
             value = float(value)
         
         super().__set__(instance, value)
