@@ -290,6 +290,13 @@ class Cadet(SolverBase):
         cadet.filename = file_path
         cadet.save()
 
+    def load_from_h5(self, file_path):
+        cadet = CadetAPI()
+        cadet.filename = file_path
+        cadet.load()
+        
+        return cadet
+        
     def get_process_config(self, process):
         """Create the CADET config.
 
