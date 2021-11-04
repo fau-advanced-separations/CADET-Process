@@ -125,8 +125,6 @@ class Cadet(SolverBase):
                     "CADET could not be found. Please set an install path"
                 )
             install_path = executable_path.parent.parent
-            # return
-    
                 
         install_path = Path(install_path)
         if platform.system() == 'Windows':
@@ -186,7 +184,8 @@ class Cadet(SolverBase):
         else:
             print(data)
             raise CADETProcessError(
-                "Simulation failed")
+                "Simulation failed"
+            )
             
     @property
     def temp_dir(self):
@@ -307,10 +306,12 @@ class Cadet(SolverBase):
         input_solver
         input_return
         """
+        process.lock = True
         config = Dict()
         config.input.model = self.get_input_model(process)
         config.input.solver = self.get_input_solver(process)
         config.input['return'] = self.get_input_return(process)
+        process.lock = False
 
         return config
 
