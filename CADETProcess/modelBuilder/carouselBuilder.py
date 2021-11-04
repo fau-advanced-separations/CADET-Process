@@ -92,9 +92,11 @@ class CarouselBuilder(metaclass=StructMeta):
             else:
                 flow_sheet.add_unit(unit.inlet_unit)
                 flow_sheet.add_unit(unit.outlet_unit)
-                for col in range(unit.n_columns):
+                for i_col in range(unit.n_columns):
                     col = deepcopy(self.column)
                     col.name = f'column_{col_index}'
+                    if unit.initial_state is not None:
+                        col.initial_state = unit.initial_state[i_col]
                     flow_sheet.add_unit(col)
                     col_index += 1 
                     
@@ -225,7 +227,7 @@ class CarouselBuilder(metaclass=StructMeta):
             Column position index (e.g. wash position, elute position).
         carousel_state : int
             Curent state of the carousel system.
-        n_columns : inta
+        n_columns : int
             Total number of columns in system.
         """
         return (carousel_position + carousel_state) % self.n_columns                
@@ -237,21 +239,37 @@ class ZoneBaseClass(UnitBaseClass):
     
     def __init__(
             self, 
-            n_comp, name, n_columns=1, flow_direction=1, init_state=None, 
+            n_comp, name, n_columns=1, flow_direction=1, initial_state=None, 
             *args, **kwargs
         ):
         self.n_columns = n_columns
         self.flow_direction = flow_direction
+        self.initial_state = initial_state 
 
         self._inlet_unit = Cstr(n_comp, f'{name}_inlet')
-        
         self._inlet_unit.V = 1e-6
         self._outlet_unit = Cstr(n_comp, f'{name}_outlet')
         self._outlet_unit.V = 1e-6     
         
-        
         super().__init__(n_comp, name, *args, **kwargs)
         
+    @property 
+    def initial_state(self):
+        return self._initial_state
+    
+    @initial_state.setter
+    def initial_state(self, initial_state):
+        if initial_state is None:
+            self._initial_state = initial_state
+            return
+            
+        if not isinstance(initial_state, list):
+            initial_state = self.n_columns * [initial_state]
+        
+        if len(initial_state) != self.n_columns:
+            raise CADETProcessError(f"Expected size {self.n_columns}")
+        self._initial_state = initial_state
+            
     @property
     def inlet_unit(self):
         return self._inlet_unit
@@ -265,6 +283,7 @@ class SerialZone(ZoneBaseClass):
 
 class ParallelZone(ZoneBaseClass):
     pass
+
 
 if __name__ == '__main__':
     from CADETProcess.processModel import LumpedRateModelWithoutPores, Source, Sink

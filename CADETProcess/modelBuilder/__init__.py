@@ -1,2 +1,2 @@
-from . import modelBuilder
-from .modelBuilder import CarouselBuilder, SerialZone, ParallelZone
+from . import carouselBuilder
+from .carouselBuilder import CarouselBuilder, SerialZone, ParallelZone
