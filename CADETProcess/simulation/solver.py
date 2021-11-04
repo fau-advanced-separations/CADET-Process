@@ -7,8 +7,9 @@ from CADETProcess import CADETProcessError
 from CADETProcess.common import settings
 from CADETProcess.common import log, log_time, log_results, log_exceptions
 from CADETProcess.common import StructMeta
-from CADETProcess.common import Bool, Dict, String, List, Switch, \
-                            UnsignedInteger, UnsignedFloat
+from CADETProcess.common import (
+    Bool, Dict, String, List, UnsignedInteger, UnsignedFloat
+)
 from CADETProcess.processModel import Process
 from CADETProcess.simulation import StationarityEvaluator
 from CADETProcess.common import TimeSignal
@@ -27,12 +28,12 @@ class SolverBase(metaclass=StructMeta):
     n_cycles : int
         Number of cycles to be simulated
     n_cycles_min : int
-        If simulate_to_stationarity: Minimum number of cycles to be simulated. 
+        If simulate_to_stationarity: Minimum number of cycles to be simulated.
     n_cycles_max : int
         If simulate_to_stationarity: Maximum number of cycles to be simulated.
     simulate_to_stationarity : bool
         Simulate until stationarity is reached
-        
+
 
     See also
     --------
@@ -84,16 +85,18 @@ class SolverBase(metaclass=StructMeta):
         """
         if not isinstance(process, Process):
             raise TypeError('Expected Process')
-        
+
         process.lock = True
         if not self.evaluate_stationarity:
             results = self.simulate_n_cycles(
-                    process, self.n_cycles, previous_results, **kwargs)
+                process, self.n_cycles, previous_results, **kwargs
+            )
         else:
             results = self.simulate_to_stationarity(
-                    process, previous_results, **kwargs)
+                process, previous_results, **kwargs
+            )
         process.lock = False
-        
+
         return results
 
     @log_time('Simulation')
@@ -191,9 +194,11 @@ class SolverBase(metaclass=StructMeta):
 
             stationarity = False
             for chrom_old, chrom_new in zip(
-                    results.chromatograms, results_cycle.chromatograms):
+                results.chromatograms, results_cycle.chromatograms
+            ):
                 stationarity = self.stationarity_evaluator.assert_stationarity(
-                        chrom_old, chrom_new)
+                    chrom_old, chrom_new
+                )
 
             results.update(results_cycle)
 
@@ -296,9 +301,10 @@ class SimulationResults(metaclass=StructMeta):
     system_solution = Dict()
     chromatograms = List()
 
-    def __init__(self, solver_name, solver_parameters, exit_flag, exit_message,
-                 time_elapsed, process_name, process_config, process_meta,
-                 solution, system_solution, chromatograms):
+    def __init__(
+            self, solver_name, solver_parameters, exit_flag, exit_message,
+            time_elapsed, process_name, process_config, process_meta,
+            solution, system_solution, chromatograms):
         self.solver_name = solver_name
         self.solver_parameters = solver_parameters
 
@@ -360,29 +366,32 @@ class SimulationResults(metaclass=StructMeta):
 
         for unit in units:
             self.solution[unit][-1].plot(
-                    save_path=path + '/' + unit + '_last.png',
-                    start=start, end=end)
+                save_path=path + '/' + unit + '_last.png',
+                start=start, end=end
+            )
 
         for unit in units:
             self.solution_complete[unit].plot(
-                    save_path=path + '/' + unit + '_complete.png',
-                    start=start, end=end)
+                save_path=path + '/' + unit + '_complete.png',
+                start=start, end=end
+            )
 
         for unit in units:
             self.solution[unit][-1].plot(
-                    save_path=path + '/' + unit + '_overlay.png',
-                    overlay = [cyc.signal for cyc in self.solution[unit][0:-1]],
-                    start=start, end=end)
+                save_path=path + '/' + unit + '_overlay.png',
+                overlay = [cyc.signal for cyc in self.solution[unit][0:-1]],
+                start=start, end=end
+            )
 
 
 class ParametersGroup(metaclass=StructMeta):
     """Base class for grouping parameters and exporting them to a dict.
-    
+
     Attributes
     ----------
     _parameters : List of strings
         List of paramters to be exported.
-    
+
     See also
     --------
     Parameter
@@ -394,8 +403,10 @@ class ParametersGroup(metaclass=StructMeta):
     def to_dict(self):
         """dict: Dictionary with names and values of the parameters.
         """
-        return {param: getattr(self, param) for param in self._parameters
-                if getattr(self, param) is not None}
+        return {
+            param: getattr(self, param) for param in self._parameters
+                if getattr(self, param) is not None
+        }
 
 
 class ParameterWrapper(ParametersGroup):
@@ -412,7 +423,7 @@ class ParameterWrapper(ParametersGroup):
     ------
     CADETProcessError
         If the wrapped_object is no instance of the base_class.
-        
+
     See also
     --------
     Parameter
@@ -424,13 +435,13 @@ class ParameterWrapper(ParametersGroup):
     def __init__(self, wrapped_object):
         if not isinstance(wrapped_object, self._baseClass):
             raise CADETProcessError("Expected {}".format(self._baseClass))
-            
+
         model = wrapped_object.model
         try:
             self.model_parameters = self._model_parameters[model]
         except KeyError:
             raise CADETProcessError("Model Type not defined")
-        
+
         self._wrapped_object = wrapped_object
 
     def to_dict(self):
@@ -456,17 +467,17 @@ class ParameterWrapper(ParametersGroup):
         """
         solver_parameters = super().to_dict()
         model_parameters = {}
-        
+
         model_parameters[self._model_type] = self.model_parameters['name']
-        
+
         for key, value in self.model_parameters['parameters'].items():
             value = getattr(self._wrapped_object, value)
             if value is not None:
                 model_parameters[key] = value
-        
+
         for key, value in self.model_parameters.get('fixed', dict()).items():
             if isinstance(value, list):
                 value = self._wrapped_object.n_comp * value
             model_parameters[key] = value
-                
+
         return {**solver_parameters, **model_parameters}
