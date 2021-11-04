@@ -15,6 +15,7 @@ __version__ = '0.1'
 # Imports
 from .CADETProcessError import *
 
+from . import log
 from . import dataStructure
 from . import common
 from . import dynamicEvents

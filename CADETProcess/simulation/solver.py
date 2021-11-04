@@ -5,7 +5,7 @@ import numpy as np
 
 from CADETProcess import CADETProcessError
 from CADETProcess.common import settings
-from CADETProcess.common import log, log_time, log_results, log_exceptions
+from CADETProcess.log import get_logger, log_time, log_results, log_exceptions
 from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import (
     Bool, Dict, String, List, UnsignedInteger, UnsignedFloat
@@ -46,7 +46,7 @@ class SolverBase(metaclass=StructMeta):
     n_cycles_max = UnsignedInteger(default=100)
 
     def __init__(self, stationarity_evaluator=None):
-        self.logger = log.get_logger('Simulation')
+        self.logger = get_logger('Simulation')
 
         if stationarity_evaluator is None:
             self._stationarity_evaluator = StationarityEvaluator()

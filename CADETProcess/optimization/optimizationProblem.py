@@ -12,7 +12,7 @@ import multiprocess
 import pathos
 
 from CADETProcess import CADETProcessError
-from CADETProcess.common import log
+from CADETProcess import log
 
 from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import String

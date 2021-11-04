@@ -3,7 +3,7 @@ import json
 import os
 
 from CADETProcess.common import settings
-from CADETProcess.common import log, log_time, log_results, log_exceptions
+from CADETProcess.log import get_logger, log_time, log_results, log_exceptions
 from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import (
     Dict, Float, List,NdArray, String, UnsignedInteger, UnsignedFloat
@@ -21,7 +21,7 @@ class SolverBase(metaclass=StructMeta):
     """
     _options = []
     def __init__(self):
-        self.logger = log.get_logger(str(self))
+        self.logger = get_logger(str(self))
 
     def optimize(self, optimization_problem, save_results=False, *args, **kwargs):
         """
@@ -31,8 +31,7 @@ class SolverBase(metaclass=StructMeta):
 
         if save_results:
             results_directory = optimization_problem.name
-            self.logger = log.get_logger(str(self),
-                                     log_directory=results_directory)
+            self.logger = get_logger(str(self), log_directory=results_directory)
 
         log_time('Optimization', self.logger.level)(self.run)
         log_results('Optimization', self.logger.level)(self.run)

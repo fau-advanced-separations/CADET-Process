@@ -1,4 +1,4 @@
-from . import settings
+from CADETProcess.common import settings
 
 from functools import wraps
 import os
