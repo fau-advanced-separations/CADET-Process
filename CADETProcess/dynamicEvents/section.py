@@ -319,6 +319,11 @@ class TimeLine():
         return self.section_times[-1]
         
     def plot(self, ax=None, show=True):
+        """
+        To do
+        -----
+        Call plotlib!
+        """
         if ax is None:
             fig, ax = plt.subplots()        
         start = self.sections[0].start

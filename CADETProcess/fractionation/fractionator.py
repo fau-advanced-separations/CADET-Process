@@ -6,7 +6,7 @@ import numpy as np
 from CADETProcess import CADETProcessError
 from CADETProcess.common import settings
 from CADETProcess.dataStructure import String
-from CADETProcess.common import EventHandler
+from CADETProcess.dynamicEvents import EventHandler
 from CADETProcess.common import plotlib, PlotParameters
 from CADETProcess.common import Performance
 from CADETProcess.common import Chromatogram

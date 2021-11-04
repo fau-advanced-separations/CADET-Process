@@ -36,5 +36,6 @@ class ProcessMeta(metaclass=StructMeta):
 
     def __repr__(self):
         return '{}(cycle_time={}, m_feed={}, V_solid={}, V_eluent={})'.format(
-                self.__class__.__name__, self.cycle_time,
-                np.array_repr(self.m_feed), self.V_solid, self.V_eluent)
+            self.__class__.__name__, self.cycle_time,
+            np.array_repr(self.m_feed), self.V_solid, self.V_eluent
+        )
