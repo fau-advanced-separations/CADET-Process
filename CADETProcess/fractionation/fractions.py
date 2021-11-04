@@ -1,10 +1,11 @@
 import numpy as np
 
 from CADETProcess import CADETProcessError
-from CADETProcess.common import StructMeta
-from CADETProcess.common import \
-    UnsignedInteger, UnsignedFloat, \
+from CADETProcess.dataStructure import StructMeta
+from CADETProcess.dataStructure import (
+    UnsignedInteger, UnsignedFloat, 
     DependentlySizedUnsignedList, DependentlySizedNdArray, Vector
+)
 
 class Fraction(metaclass=StructMeta):
     mass = Vector()

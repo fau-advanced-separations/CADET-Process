@@ -7,7 +7,7 @@ from scipy.optimize import OptimizeWarning
 import numpy as np
 
 from CADETProcess import CADETProcessError
-from CADETProcess.common import Bool, Switch, UnsignedInteger, UnsignedFloat
+from CADETProcess.dataStructure import Bool, Switch, UnsignedInteger, UnsignedFloat
 from CADETProcess.optimization import SolverBase, OptimizationResults
 
 class SciPyInterface(SolverBase):

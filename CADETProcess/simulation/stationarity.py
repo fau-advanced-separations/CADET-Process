@@ -2,7 +2,7 @@ import numpy as np
 from scipy.integrate import simps
 
 from CADETProcess.common import log
-from CADETProcess.common import StructMeta, Bool, UnsignedFloat
+from CADETProcess.dataStructure import StructMeta, Bool, UnsignedFloat
 from CADETProcess.common import TimeSignal
 
 

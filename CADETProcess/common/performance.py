@@ -2,8 +2,8 @@ import numpy as np
 
 from CADETProcess import CADETProcessError
 
-from .dataStructure import StructMeta
-from .parameter import NdArray
+from CADETProcess.dataStructure import StructMeta
+from CADETProcess.dataStructure import NdArray
 
 class Performance(metaclass=StructMeta):
     """Class for storing the performance parameters after fractionation.

@@ -1,5 +1,5 @@
 from CADETProcess import CADETProcessError
-from CADETProcess.common import StructMeta
+from CADETProcess.dataStructure import StructMeta
 
 from CADETProcess.processModel import Process
 from CADETProcess.simulation import SolverBase

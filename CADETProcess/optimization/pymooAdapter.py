@@ -13,9 +13,8 @@ from pymoo.optimize import minimize
 from pymoo.algorithms.moo.nsga2 import NSGA2
 from pymoo.algorithms.moo.unsga3 import UNSGA3
 
-
 from CADETProcess import CADETProcessError
-from CADETProcess.common import Bool, Switch, UnsignedInteger, UnsignedFloat
+from CADETProcess.dataStructure import Bool, Switch, UnsignedInteger, UnsignedFloat
 from CADETProcess.optimization import SolverBase, OptimizationResults
 
 

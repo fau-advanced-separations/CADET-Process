@@ -8,7 +8,7 @@ import numpy as np
 from deap import algorithms, base, creator, tools
 
 from CADETProcess.common import settings
-from CADETProcess.common import UnsignedInteger, UnsignedFloat
+from CADETProcess.dataStructure import UnsignedInteger, UnsignedFloat
 from CADETProcess.optimization import SolverBase, OptimizationResults
 
 class DEAP(SolverBase):

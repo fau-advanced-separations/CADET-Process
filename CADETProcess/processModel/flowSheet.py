@@ -5,8 +5,8 @@ import sympy as sym
 from addict import Dict
 
 from CADETProcess import CADETProcessError
-from CADETProcess.common import frozen_attributes
-from CADETProcess.common import StructMeta, UnsignedInteger, String
+from CADETProcess.dataStructure import frozen_attributes
+from CADETProcess.dataStructure import StructMeta, UnsignedInteger, String
 from .unitOperation import UnitBaseClass, SourceMixin, SinkMixin, Sink
 from .binding import NoBinding
 

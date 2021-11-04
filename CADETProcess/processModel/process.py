@@ -8,8 +8,8 @@ from scipy import interpolate
 
 from CADETProcess import CADETProcessError
 from CADETProcess.common import EventHandler
-from CADETProcess.common import UnsignedInteger
-from CADETProcess.common import CachedPropertiesMixin, cached_property_if_locked
+from CADETProcess.dataStructure import UnsignedInteger
+from CADETProcess.dataStructure import CachedPropertiesMixin, cached_property_if_locked
 from CADETProcess.common import ProcessMeta
 from CADETProcess.common import Section, TimeLine
 from .flowSheet import FlowSheet

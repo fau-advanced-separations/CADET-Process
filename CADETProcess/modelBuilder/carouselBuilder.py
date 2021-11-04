@@ -3,7 +3,8 @@ import numpy as np
 
 from CADETProcess import CADETProcessError
 
-from CADETProcess.common import StructMeta, Integer, UnsignedInteger, UnsignedFloat
+from CADETProcess.dataStructure import StructMeta
+from CADETProcess.dataStructure import Integer, UnsignedInteger, UnsignedFloat
 
 from CADETProcess.processModel import UnitBaseClass, FlowSheet, Process
 from CADETProcess.processModel import TubularReactor, Cstr

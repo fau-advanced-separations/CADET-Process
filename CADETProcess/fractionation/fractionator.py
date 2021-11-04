@@ -5,7 +5,7 @@ import numpy as np
 
 from CADETProcess import CADETProcessError
 from CADETProcess.common import settings
-from CADETProcess.common import String
+from CADETProcess.dataStructure import String
 from CADETProcess.common import EventHandler
 from CADETProcess.common import plotlib, PlotParameters
 from CADETProcess.common import Performance
@@ -31,8 +31,10 @@ class Fractionator(EventHandler):
 
     """
     name = String(default='Fractionator')
-    performance_keys = ['mass', 'concentration', 'purity', 'recovery',
-        'productivity', 'eluent_consumption']
+    performance_keys = [
+        'mass', 'concentration', 'purity', 'recovery',
+        'productivity', 'eluent_consumption'
+    ]
 
 
     def __init__(self, process_meta, *args, **kwargs):

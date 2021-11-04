@@ -6,8 +6,8 @@ import numpy as np
 from CADETProcess import CADETProcessError
 from CADETProcess.common import settings
 from CADETProcess.common import log, log_time, log_results, log_exceptions
-from CADETProcess.common import StructMeta
-from CADETProcess.common import (
+from CADETProcess.dataStructure import StructMeta
+from CADETProcess.dataStructure import (
     Bool, Dict, String, List, UnsignedInteger, UnsignedFloat
 )
 from CADETProcess.processModel import Process

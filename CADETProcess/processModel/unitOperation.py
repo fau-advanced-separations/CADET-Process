@@ -2,13 +2,14 @@ import math
 import numpy as np
 
 from CADETProcess import CADETProcessError
-from CADETProcess.common import frozen_attributes
-from CADETProcess.common import StructMeta
-from CADETProcess.common import \
-    String, Switch, \
-    UnsignedInteger, UnsignedFloat, \
-    DependentlySizedUnsignedList, DependentlySizedNdArray, \
+from CADETProcess.dataStructure import frozen_attributes
+from CADETProcess.dataStructure import StructMeta
+from CADETProcess.dataStructure import (
+    String, Switch,
+    UnsignedInteger, UnsignedFloat,
+    DependentlySizedUnsignedList, DependentlySizedNdArray,
     Polynomial, NdPolynomial
+)
 from .binding import BindingBaseClass, NoBinding
 from .reaction import ReactionBaseClass, NoReaction
 

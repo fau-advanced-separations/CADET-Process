@@ -1,7 +1,7 @@
 import numpy as np
 
-from .dataStructure import StructMeta
-from .parameter import  UnsignedFloat, NdArray
+from CADETProcess.dataStructure import StructMeta
+from CADETProcess.dataStructure.parameter import  UnsignedFloat, NdArray
 
 class ProcessMeta(metaclass=StructMeta):
     """Additional information required for calculating performance

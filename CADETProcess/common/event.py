@@ -7,10 +7,11 @@ from collections import defaultdict
 
 from CADETProcess import CADETProcessError
 
+from CADETProcess.dataStructure import StructMeta, frozen_attributes
+from CADETProcess.dataStructure import UnsignedFloat
+from CADETProcess.dataStructure import CachedPropertiesMixin, cached_property_if_locked
+
 from .utils import check_nested, generate_nested_dict, get_nested_value
-from .dataStructure import StructMeta, frozen_attributes
-from .parameter import UnsignedFloat
-from .cache import CachedPropertiesMixin, cached_property_if_locked
 from . import plotlib
 from .plotlib import PlotParameters
 from .section import Section, TimeLine, MultiTimeLine

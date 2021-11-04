@@ -6,8 +6,8 @@ import scipy
 import matplotlib.pyplot as plt
 
 from CADETProcess import CADETProcessError
-from .dataStructure import StructMeta
-from .parameter import NdPolynomial
+from CADETProcess.dataStructure import StructMeta
+from CADETProcess.dataStructure import NdPolynomial
 
 class Section(metaclass=StructMeta):
     """Helper class to store parameter states between events.

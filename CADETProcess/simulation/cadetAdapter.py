@@ -12,8 +12,10 @@ import numpy as np
 from cadet import Cadet as CadetAPI
 
 from CADETProcess import CADETProcessError
-from CADETProcess.common import Bool, Switch, UnsignedFloat, UnsignedInteger, \
-    DependentlySizedUnsignedList, List
+from CADETProcess.dataStructure import (
+    Bool, Switch, UnsignedFloat, UnsignedInteger,
+    DependentlySizedUnsignedList, List,
+)
 from CADETProcess.common import TimeSignal, Chromatogram
 
 from CADETProcess.simulation import SolverBase

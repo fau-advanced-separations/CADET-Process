@@ -27,8 +27,8 @@ import numpy as np
 
 import CADETProcess
 from CADETProcess import CADETProcessError
-from CADETProcess.common import StructMeta
-from CADETProcess.common import Float, Switch, SizedTuple
+from CADETProcess.dataStructure import StructMeta
+from CADETProcess.dataStructure import Float, Switch, SizedTuple
 
 class TestPerformer(metaclass=StructMeta):
     param_1 = Float(default=0)

@@ -2,7 +2,8 @@ from addict import Dict
 import numpy as np
 
 from CADETProcess import CADETProcessError
-from CADETProcess.common import StructMeta, String, UnsignedInteger, \
+from CADETProcess.dataStructure import StructMeta
+from CADETProcess.dataStructure import String, UnsignedInteger, \
     UnsignedFloat, DependentlySizedList, DependentlySizedUnsignedList
 
 class ReactionBaseClass(metaclass=StructMeta):

@@ -4,9 +4,10 @@ import os
 
 from CADETProcess.common import settings
 from CADETProcess.common import log, log_time, log_results, log_exceptions
-from CADETProcess.common import StructMeta
-from CADETProcess.common import Dict, Float, List,NdArray, String, \
-                            UnsignedInteger, UnsignedFloat
+from CADETProcess.dataStructure import StructMeta
+from CADETProcess.dataStructure import (
+    Dict, Float, List,NdArray, String, UnsignedInteger, UnsignedFloat
+)
 from CADETProcess.optimization import OptimizationProblem
 
 

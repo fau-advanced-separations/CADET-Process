@@ -3,8 +3,8 @@ from scipy.interpolate import InterpolatedUnivariateSpline
 
 from CADETProcess import CADETProcessError
 
-from .dataStructure import StructMeta
-from .parameter import Float, List, NdArray, String
+from CADETProcess.dataStructure  import StructMeta
+from CADETProcess.dataStructure import Float, List, NdArray, String
 from . import plotlib
 from .plotlib import PlotParameters
 

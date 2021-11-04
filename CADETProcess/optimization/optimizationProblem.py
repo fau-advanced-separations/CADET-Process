@@ -13,10 +13,10 @@ import pathos
 
 from CADETProcess import CADETProcessError
 from CADETProcess.common import log
-from CADETProcess.common import frozen_attributes
 
-from CADETProcess.common import StructMeta
-from CADETProcess.common import String
+from CADETProcess.dataStructure import StructMeta
+from CADETProcess.dataStructure import String
+from CADETProcess.dataStructure import frozen_attributes
 
 from CADETProcess.common import approximate_jac
 from CADETProcess.common import get_bad_performance
