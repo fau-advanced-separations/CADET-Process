@@ -199,13 +199,13 @@ class Fractionator(EventHandler):
         plot_purity
         """
         chrom = self.chromatograms[index]
-        time_line = self.event_parameter_time_lines[str(index)]
+        time_line = self.performer_timelines['fractionation_states'][chrom.name]
         fill_regions = []
         x = chrom.time/60
         y = chrom.signal
 
         for sec in time_line.sections:
-            comp_index = int(np.where(sec.state)[0])
+            comp_index = int(np.where(sec.coeffs)[0])
             if comp_index == self.n_comp:
                 color_index=-1
                 text = 'W'
