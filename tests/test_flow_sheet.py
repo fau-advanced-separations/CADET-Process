@@ -9,13 +9,13 @@ class Test_flow_sheet(unittest.TestCase):
 
     def create_ssr_flow_sheet(self):
         import CADETProcess
-        flow_sheet = CADETProcess.FlowSheet(n_comp=2, name='test')
+        flow_sheet = CADETProcess.processModel.FlowSheet(n_comp=2, name='test')
 
-        feed = CADETProcess.unitOperation.Source(n_comp=2, name='feed')
-        eluent = CADETProcess.unitOperation.Source(n_comp=2, name='eluent')
-        cstr = CADETProcess.unitOperation.Cstr(n_comp=2, name='cstr')
-        column = CADETProcess.unitOperation.LumpedRateModelWithoutPores(n_comp=2, name='column')
-        outlet = CADETProcess.unitOperation.Sink(n_comp=2, name='outlet')
+        feed = CADETProcess.processModel.Source(n_comp=2, name='feed')
+        eluent = CADETProcess.processModel.Source(n_comp=2, name='eluent')
+        cstr = CADETProcess.processModel.Cstr(n_comp=2, name='cstr')
+        column = CADETProcess.processModel.LumpedRateModelWithoutPores(n_comp=2, name='column')
+        outlet = CADETProcess.processModel.Sink(n_comp=2, name='outlet')
 
         flow_sheet.add_unit(feed)
         flow_sheet.add_unit(eluent)

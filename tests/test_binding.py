@@ -7,7 +7,7 @@ class Test_Binding(unittest.TestCase):
 
     def create_binding(self):
         import CADETProcess
-        binding_model = CADETProcess.binding.Langmuir(n_comp=2, name='test')
+        binding_model = CADETProcess.processModel.Langmuir(n_comp=2, name='test')
 
         binding_model.adsorption_rate = [0.02, 0.03]
         binding_model.desorption_rate = [1, 1]

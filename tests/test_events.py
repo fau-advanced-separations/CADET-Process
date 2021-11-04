@@ -62,7 +62,7 @@ class TestPerformer(metaclass=StructMeta):
             if value is not None:
                 setattr(self, param, value)
 
-class TestHandler(CADETProcess.common.EventHandler):
+class TestHandler(CADETProcess.dynamicEvents.EventHandler):
     def __init__(self):
         self.performer = TestPerformer()
         super().__init__()

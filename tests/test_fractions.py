@@ -28,15 +28,15 @@ class Test_Fractions(unittest.TestCase):
     def create_pools(self):
         fractions = self.create_fractions()
         
-        pool_waste = CADETProcess.fractionation.FractionPool()
+        pool_waste = CADETProcess.fractionation.FractionPool(n_comp=2)
         pool_waste.add_fraction(fractions[0])
         pool_waste.add_fraction(fractions[1])
         pool_waste.add_fraction(fractions[2])
         
-        pool_1 = CADETProcess.fractionation.FractionPool()
+        pool_1 = CADETProcess.fractionation.FractionPool(n_comp=2)
         pool_1.add_fraction(fractions[3])
         
-        pool_2 = CADETProcess.fractionation.FractionPool()
+        pool_2 = CADETProcess.fractionation.FractionPool(n_comp=2)
         pool_2.add_fraction(fractions[4])
         
         return pool_waste, pool_1, pool_2

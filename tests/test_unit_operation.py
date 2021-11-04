@@ -29,12 +29,12 @@ class Test_Unit_Operation(unittest.TestCase):
         super().__init__(methodName)
 
     def create_source(self):
-        source = CADETProcess.unitOperation.Source(n_comp=2, name='test')
+        source = CADETProcess.processModel.Source(n_comp=2, name='test')
 
         return source
 
     def create_cstr(self):
-        cstr = CADETProcess.unitOperation.Cstr(n_comp=2, name='test')
+        cstr = CADETProcess.processModel.Cstr(n_comp=2, name='test')
 
         cstr.porosity = total_porosity
         cstr.V = volume
@@ -44,7 +44,7 @@ class Test_Unit_Operation(unittest.TestCase):
         return cstr
 
     def create_tubular_reactor(self):
-        tube = CADETProcess.unitOperation.TubularReactor(n_comp=2, name='test')
+        tube = CADETProcess.processModel.TubularReactor(n_comp=2, name='test')
 
         tube.length = length
         tube.diameter = diameter
@@ -53,7 +53,7 @@ class Test_Unit_Operation(unittest.TestCase):
         return tube
 
     def create_lrmwop(self):
-        lrmwop = CADETProcess.unitOperation.LumpedRateModelWithoutPores(n_comp=2, name='test')
+        lrmwop = CADETProcess.processModel.LumpedRateModelWithoutPores(n_comp=2, name='test')
 
         lrmwop.length = length
         lrmwop.diameter = diameter
@@ -63,7 +63,7 @@ class Test_Unit_Operation(unittest.TestCase):
         return lrmwop
 
     def create_lrmwp(self):
-        lrmwp = CADETProcess.unitOperation.LumpedRateModelWithPores(n_comp=2, name='test')
+        lrmwp = CADETProcess.processModel.LumpedRateModelWithPores(n_comp=2, name='test')
 
         lrmwp.length = length
         lrmwp.diameter = diameter
