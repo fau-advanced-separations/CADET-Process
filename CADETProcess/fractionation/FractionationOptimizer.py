@@ -16,7 +16,7 @@ class FractionationOptimizer():
     Attributes
     ----------
     optimizer: SolverBase
-        Optimizer for optimizing the fractionation times.
+     Optimizer for optimizing the fractionaton times.
     purity_required :  float or array_like
         Minimum required purity for components. If is float, the same 
         value is assumed for all components.
@@ -129,12 +129,12 @@ class FractionationOptimizer():
             raise CADETProcessError('Number of components does not match.')
         
         frac = self.setup_fractionator(process_meta, chromatograms)
-        opt = self.setup_optimization_problem(frac)
         
         try:
+            opt = self.setup_optimization_problem(frac)
             opt_results = self.optimizer.optimize(opt)
         except CADETProcessError:
             warnings.warn('Optimization failed. Returning initial values')
             frac.initial_values()
     
-        return frac.performance
+        return frac

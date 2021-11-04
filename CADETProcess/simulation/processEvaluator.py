@@ -49,6 +49,25 @@ class ProcessEvaluator(metaclass=StructMeta):
             raise TypeError('Expected FractionationOptimizer')
         self._fractionation_optimizer = fractionation_optimizer
 
+    def simulate_and_fractionate(self, process):
+        """Runs the process simulation and calls the fractionation optimizer.
+
+        Parameters
+        -----------
+        process : Process
+            Process to be simulated
+
+        Returns
+        -------
+        frac : Fractionator
+            Fractionator object with optimized fractionation times.
+        """
+        results = self.process_solver.simulate(process)
+        frac = self.fractionation_optimizer.optimize_fractionation(
+            results.chromatograms, process.process_meta
+        )
+        return frac
+
     def evaluate(self, process):
         """Runs the process simulation and calls the fractionation optimizer.
 
@@ -69,12 +88,10 @@ class ProcessEvaluator(metaclass=StructMeta):
         """
         if not isinstance(process, Process):
             raise TypeError('Expected Process')
-        
+
         try:
-            results = self.process_solver.simulate(process)
-            performance = self.fractionation_optimizer.optimize_fractionation(
-                results.chromatograms, process.process_meta
-            )
+            frac = self.simulate_and_fractionate(process)
+            performance = frac.performance
         except CADETProcessError:
             n_comp = process.flow_sheet.n_comp
             performance = get_bad_performance(n_comp)
