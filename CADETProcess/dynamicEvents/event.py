@@ -10,8 +10,8 @@ from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import StructMeta, frozen_attributes
 from CADETProcess.dataStructure import UnsignedFloat
 from CADETProcess.dataStructure import CachedPropertiesMixin, cached_property_if_locked
+from CADETProcess.dataStructure import check_nested, generate_nested_dict, get_nested_value
 
-from CADETProcess.common import check_nested, generate_nested_dict, get_nested_value
 from CADETProcess.common import plotlib
 from CADETProcess.common.plotlib import PlotParameters
 from .section import Section, TimeLine, MultiTimeLine

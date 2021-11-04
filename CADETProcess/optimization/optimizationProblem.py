@@ -990,7 +990,7 @@ class OptimizationProblem(metaclass=StructMeta):
     def __str__(self):
         return self.name
 
-from CADETProcess.common.utils import (
+from CADETProcess.dataStructure import (
     check_nested, generate_nested_dict, get_nested_value
 )
 class OptimizationVariable():
