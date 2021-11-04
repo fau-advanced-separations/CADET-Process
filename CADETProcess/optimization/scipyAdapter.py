@@ -63,28 +63,29 @@ class SciPyInterface(SolverBase):
 
         eval_object = copy.deepcopy(optimization_problem.evaluation_object)
         if optimization_problem.evaluator is not None:
-            frac = self.evaluator.evaluate(eval_object)
+            frac = optimization_problem.evaluator.evaluate(eval_object)
             performance = frac.performance
         else:
             frac = None
             performance = optimization_problem.evaluate(x, force=True)
-        f = optimization_problem.objectives[0](performance)
-        c = optimization_problem.nonlinear_constraints[0](performance)
+
+        f = optimization_problem.evaluate_objectives(x)
+        c = optimization_problem.evaluate_nonlinear_constraints(x)
 
         results = OptimizationResults(
-                optimization_problem = optimization_problem.name,
-                evaluation_object = eval_object,
-                solver_name = str(self),
-                solver_parameters = self.options,
-                exit_flag = scipy_results.status,
-                exit_message = scipy_results.message,
-                time_elapsed = elapsed,
-                x = list(x),
-                f = f,
-                c = c,
-                frac = frac,
-                performance = performance.to_dict()
-                )
+            optimization_problem = optimization_problem,
+            evaluation_object = eval_object,
+            solver_name = str(self),
+            solver_parameters = self.options,
+            exit_flag = scipy_results.status,
+            exit_message = scipy_results.message,
+            time_elapsed = elapsed,
+            x = list(x),
+            f = f,
+            c = c,
+            frac = frac,
+            performance = performance.to_dict()
+        )
 
         return results
 

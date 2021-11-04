@@ -7,3 +7,4 @@ cadet-python
 addict
 deap
 hopsy
+pymoo

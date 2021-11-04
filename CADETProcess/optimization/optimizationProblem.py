@@ -1,11 +1,15 @@
 import copy
 import math
+import random
 import warnings
+import time
 
 from addict import Dict
 import numpy as np
 from scipy import optimize
-import hopsy
+import hopsy 
+import multiprocess
+import pathos
 
 from CADETProcess import CADETProcessError
 from CADETProcess.common import log
@@ -48,8 +52,9 @@ class OptimizationProblem(metaclass=StructMeta):
     """
     name = String()
 
-    def __init__(self, evaluation_object, evaluator=None, name=None,
-                 save_log=False):
+    def __init__(
+            self, evaluation_object, evaluator=None, name=None, save_log=False
+        ):
         if evaluator is not None:
             self.evaluator = evaluator
         else:
@@ -76,7 +81,8 @@ class OptimizationProblem(metaclass=StructMeta):
         self._linear_constraints = []
         self._linear_equality_constraints = []
         self._x0 = None
-
+        self.cache = {}
+        
     @property
     def evaluation_object(self):
         """obj : Object that contains all parameters that are optimized.
@@ -292,13 +298,6 @@ class OptimizationProblem(metaclass=StructMeta):
         already been evaluated at x and returns the results. If force is True,
         the lookup is ignored and the function is evaluated regularly.
 
-        If force is True, set to None and the str of x is a key of the
-        eval_dict dictionary the value of the eval_dict with x as the key is
-        returned. The starting point is set to x to start evaluating at given
-        point. The variables are set for point x and the results are defined by
-        calling the method evaluate of the evaluation_object. The value of the
-        key at x in the eval_dict is set to results.
-
         Parameters
         ----------
          x : array_like
@@ -329,11 +328,11 @@ class OptimizationProblem(metaclass=StructMeta):
             performance = get_bad_performance(evaluation_object.n_comp)
         # Pass evaluation_object to evaluator and evaluate
         elif self.evaluator is not None:
-             try:
-                  performance = self.evaluator.evaluate(evaluation_object)
-             except CADETProcessError:
-                  self.logger.warn('Evaluation failed. Returning bad performance')
-                  performance = get_bad_performance(evaluation_object.n_comp)
+            try:
+                performance = self.evaluator.evaluate(evaluation_object)
+            except CADETProcessError:
+                self.logger.warn('Evaluation failed. Returning bad performance')
+                performance = get_bad_performance(evaluation_object.n_comp)
         else:
             performance = evaluation_object.performance
 
@@ -347,6 +346,18 @@ class OptimizationProblem(metaclass=StructMeta):
         )
 
         return performance
+    
+    def evaluate_population(self, population):
+        manager = multiprocess.Manager()
+        cache = manager.dict()
+        
+        eval_fun = lambda ind: self.evaluate(ind, make_copy=True, cache=cache)
+        
+        with pathos.multiprocessing.ProcessPool(nodes=4) as pool:
+            pool.map(eval_fun, population)
+        
+        return cache
+        
 
     @property
     def objectives(self):
@@ -397,10 +408,10 @@ class OptimizationProblem(metaclass=StructMeta):
         optimization.SolverBase
         add_objective
         evaluate
-        evaluate_nonlinear_constraint_fun
+        evaluate_nonlinear_constraints
         """
         performance = self.evaluate(x, *args, **kwargs)
-        f = [obj(performance) for obj in self.objectives]
+        f = np.array([obj(performance) for obj in self.objectives])
         return f
 
     def objective_gradient(self, x, dx=0.1):
@@ -433,6 +444,10 @@ class OptimizationProblem(metaclass=StructMeta):
     @property
     def nonlinear_constraints(self):
         return self._nonlinear_constraints
+    
+    @property
+    def n_nonlinear_constraints(self):
+        return len(self.nonlinear_constraints)
     
     def add_nonlinear_constraint(self, nonlinear_constraint_fun):
         """Add nonlinear constraint function to optimization problem.
@@ -477,7 +492,9 @@ class OptimizationProblem(metaclass=StructMeta):
         evaluate_objectives
         """
         performance = self.evaluate(x, *args, **kwargs)
-        c = [constr(performance) for constr in self.nonlinear_constraints]
+        c = np.array(
+            [constr(performance) for constr in self.nonlinear_constraints]
+        )
         return c
 
     def check_nonlinear_constraints(self, x):
@@ -575,45 +592,47 @@ class OptimizationProblem(metaclass=StructMeta):
 
         return flag
 
+    @property
+    def linear_constraints(self):
+        """list : linear inequality constraints of OptimizationProblem
+        
+        See Also
+        --------
+        add_linear_constraint
+        remove_linear_constraint
+        linear_equality_constraints
+        """
+        return self._linear_constraints
+    
+    @property
+    def n_linear_constraints(self):
+        """int: number of linear inequality constraints
+        """
+        return len(self.linear_constraints)
 
     def add_linear_constraint(self, opt_vars, factors, b=0):
-        """Adds linear conctraints.
-
-        First checks if the required variable of the opt_vars is in the
-        variables_dict and raises an CADETProcessError if not. Also the length of
-        the list factors and opt_vars is checked for correct setting of the
-        factors. It raises a CADETProcessError if not. Then a Addict dict named
-        lincon is created and the factors, b and the opt_vars are saved into
-        the lincon dictionary.
+        """Add linear inequality constraints.
 
         Parameters
         -----------
-        opt_vars : list
-            Name as list of strings of the OptimizationVariable to be added.
-        factors : list
-            Factors as list of integers of the opt_vars
-        b : float
-            Vector form of linear constraints, default set to zero.
+        opt_vars : list of strings
+            Names of the OptimizationVariable to be added.
+        factors : list of  integers
+            Factors for OptimizationVariables.
+        b : float, optional
+            Constraint of inequality constraint; default set to zero.
 
         Raises
         -------
         CADETProcessError
-            If required variables of the opt_vars is not listed in the
-            variables_dict.
-            If the length of the factors does not match the length of the
-            opt_vars.
-
-        Returns
-        -------
-        linear_equality_constraints : list
-            List of dictionaries, containing the linear constraints of an
-            OptimizationProblem.
+            If optimization variables do not exist.
+            If length of factors does not match length of optimization variables.
 
         See also
         ---------
-        variables_dict
+        linear_constraints
         remove_linear_constraint
-        add_linear_equality_constraint
+        linear_equality_constraints
         """
         if not all(var in self.variables_dict for var in opt_vars):
             raise CADETProcessError('Variable not in variables')
@@ -629,40 +648,26 @@ class OptimizationProblem(metaclass=StructMeta):
         self._linear_constraints.append(lincon)
 
     def remove_linear_constraint(self, index):
-        """Removes linear constraints.
+        """Removes linear inequality constraint.
 
         Parameters
         ----------
         index : int
-            Index of the list, where the linear constraints has to be removed.
+            Index of the linear inequality constraint to be removed.
+        
+        See also
+        --------
+        add_linear_equality_constraint
+        linear_equality_constraint
         """
         del(self._linear_constraints[index])
-
-    @property
-    def linear_constraints(self):
-        """list : linear constraints of OptimizationProblem
-        """
-        return self._linear_constraints
+        
 
     @property
     def A(self):
-        """Matrix form of linear constraints.
+        """np.ndarray: Matrix form of linear inequality constraints.
 
-        First creates a matrix with the length of the linear_constraints for
-        the rows and the length of the variables as columns and fills the value
-        with zero. For each lincon_index and lincon in the list
-        linear_constraints and for each variable and its index in the list
-        opt_vars of the lincon dictionary the index is set with the index of
-        the list variables by the variableof the variables_dict. The index and
-        the lincon_index from matrix A is set to the var_index and factors,
-        respectively.
-
-        Returns
-        -------
-        A : ndarray
-            Matrix of the linear constraints.
-
-        See also
+        See Also
         --------
         b
         add_linear_constraint
@@ -679,18 +684,9 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def b(self):
-        """Vector form of linear constraints.
+        """list: Vector form of linear constraints.
 
-        Creates a zero-valued vector with the length of the linear_constraints.
-        The values are filled with the the dictionary lincon for each entry in
-        the linear_constraintslist and saves them into a list.
-
-        Returns
-        -------
-        b : list
-            Vector with the linear constraints.
-
-        see also
+        See Also
         --------
         A
         add_linear_constraint
@@ -700,11 +696,8 @@ class OptimizationProblem(metaclass=StructMeta):
 
         return np.array(b)
 
-    def linear_constraint_fun(self, x):
-        """Return the value of linear constraints at point x.
-
-        Returns the value of linear constraints at point x by pointwise
-        substratcion of the matrix A by b.
+    def evaluate_linear_constraints(self, x):
+        """Calculate value of linear inequality constraints at point x.
 
         Parameters
         ----------
@@ -713,22 +706,20 @@ class OptimizationProblem(metaclass=StructMeta):
 
         Returns
         -------
-        constraints: array_like
+        constraints: np.array
             Value of the linear constraints at point x
 
-        See also
+        See Also
         --------
         A
         b
         linear_constraints
         """
+        x = np.array(x)
         return self.A.dot(x) - self.b
 
     def check_linear_constraints(self, x):
-        """Checks the the value of the linear_concstraints_fun at point x.
-
-        Sets a local variable flag to True. Sets this variable to False if any
-        value of the linear_constraint_fun at point x is greater than zero.
+        """Check if linear inequality constraints are met at point x.
 
         Parameters
         ----------
@@ -738,61 +729,63 @@ class OptimizationProblem(metaclass=StructMeta):
         Returns
         -------
         flag : bool
-            Returns True for linear_constraint_fun(x) smaller zero.
-            False for linear_constraint_fun(x) greater zero.
+            Returns True if linear inequality constraints are met. False otherwise.
 
         See also:
         ---------
         linear_constraints
-        linear_equality_constraint_fun
+        evaluate_linear_constraints
         A
         b
         """
         flag = True
 
-        if np.any(self.linear_constraint_fun(x) > 0):
+        if np.any(self.evaluate_linear_constraints(x) > 0):
             flag = False
 
         return flag
+    
+    @property
+    def linear_equality_constraints(self):
+        """list: linear equality constraints of OptimizationProblem
+
+        See Also
+        --------
+        add_linear_equality_constraint
+        remove_linear_equality_constraint
+        linear_constraints
+        """
+        return self._linear_equality_constraints
+    
+    @property
+    def n_linear_equality_constraints(self):
+        """int: number of linear equality constraints
+        """
+        return len(self.linear_constraints)
 
     def add_linear_equality_constraint(self, opt_vars, factors, beq=0):
-        """Adds linear_equality_constraints.
-
-        First checks if the required variable of the opt_vars is in the
-        variables_dict and raises an CADETProcessError if not. Also the length of
-        the list factors and opt_vars is checked for correct setting of the
-        factors. It raises a CADETProcessError if not. Then a Addict dict named
-        lineqcon is created and the factors, b and the opt_vars are saved into
-        the lineqcon dictionary.
+        """Add linear equality constraints.
 
         Parameters
         -----------
-        opt_vars : list
-            Name as list of strings of the OptimizationVariable to be added.
-        factors : list
-            Factors as list of integers of the opt_vars
-        beq : andarray
-            Vector form of linear equality constraints, default set to zero.
+        opt_vars : list of strings
+            Names of the OptimizationVariable to be added.
+        factors : list of  integers
+            Factors for OptimizationVariables.
+        b_eq : float, optional
+            Constraint of equality constraint; default set to zero.
 
         Raises
         -------
         CADETProcessError
-            If required variables of the opt_vars is not listed in the
-            variables_dict.
-            If the length of the factors does not match the length of the
-            opt_vars.
-
-        Returns
-        -------
-        linear_equality_constraints : list
-            List of dictionaries, containing the linear equality constraints of
-            an OptimizationProblem.
+            If optimization variables do not exist.
+            If length of factors does not match length of optimization variables.
 
         See also
         --------
-        add_linear_constraint
-        remove_linear_equality_constraint
         linear_equality_constraints
+        remove_linear_equality_constraint
+        linear_constraints
         """
         if not all(var in self.variables for var in opt_vars):
             return CADETProcessError('Variables not in variables')
@@ -813,8 +806,7 @@ class OptimizationProblem(metaclass=StructMeta):
         Parameters
         ----------
         index : int
-            Index of the linear_equality_constraints list where the
-                linear equality contraints variable has to be removed.
+            Index of the linear equality constraint to be removed.
 
         See also
         --------
@@ -824,51 +816,22 @@ class OptimizationProblem(metaclass=StructMeta):
         del(self._linear_equality_constraints[index])
 
     @property
-    def linear_equality_constraints(self):
-        """Returns the list linear_equality constraints.
-
-        Returns
-        -------
-        linear_equality_constraints : list
-            List of dictionaries, containing the linear equality constraints of
-            an OptimizationProblem.
-
-        See also
-        --------
-        add_linear_equality_constraint
-        remove_linear_equality_constraint
-        """
-        return self._linear_equality_constraints
-
-    @property
     def Aeq(self):
-        """Matrix form of linear equality constraints.
+        """np.ndarray: Matrix form of linear equality constraints.
 
-        First creates a matrix with the length of the linear_constraints for
-        the rows and the length of the variables as columns and fills the value
-        with zero named Aeq. For each lineqcon_index and lineqcon in the list
-        linear_equality_constraints and for each variable and its index in the
-        list opt_vars of the lineqcon dictionary the index is set with the
-        index of the list variables by the variableof the variables_dict. The
-        index and the lineqcon_index from matrix A is set to the var_index and
-        factors, respectively.
-
-        Returns
-        -------
-        Aeq : ndarray
-            Matrix of the linear equality constraints.
-
-        see also
+        See Also
         --------
         beq
         add_linear_equality_constraint
         remove_linear_equality_constraint
         """
         Aeq = np.zeros(
-                (len(self.linear_equality_constraints), len(self.variables)))
+            (len(self.linear_equality_constraints), len(self.variables))
+        )
 
         for lineqcon_index, lineqcon in enumerate(
-                self.linear_equality_constraints):
+            self.linear_equality_constraints
+        ):
             for var_index, var in enumerate(lineqcon.opt_vars):
                 index = self.variables.index(var)
                 Aeq[lineqcon_index, index] = lineqcon.factors[var_index]
@@ -877,19 +840,9 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def beq(self):
-        """Vector form of linear equality constraints.
+        """list: Vector form of linear equality constraints.
 
-        Creates a zero-valued vector with the length of the
-        linear_equality_constraints. The values are filled with the the
-        dictionary lineqcon for each entry in
-        the linear_constraintslist and saves them into a list.
-
-        Returns
-        -------
-        beq : list
-            Vector with the linear equality constraints.
-
-        see also
+        See Also
         --------
         Aeq
         add_linear_equality_constraint
@@ -900,11 +853,8 @@ class OptimizationProblem(metaclass=StructMeta):
 
         return beq
 
-    def linear_equality_constraint_fun(self, x):
-        """Return the value of linear equality constraints at point x.
-
-        Returns the value of linear equality constraints at point x by
-        pointwise substratcion of the matrix Aeq by beq.
+    def evaluate_linear_equality_constraints(self, x):
+        """Calculate value of linear equality constraints at point x.
 
         Parameters
         ----------
@@ -913,24 +863,20 @@ class OptimizationProblem(metaclass=StructMeta):
 
         Returns
         -------
-        constraints: array_like
+        constraints: np.array 
             Value of the linear euqlity constraints at point x
 
-        See also
+        See Also
         --------
         Aeq
         beq
         linear_equality_constraints
         """
+        x = np.array(x)
         return self.Aeq.dot(x) - self.beq
 
     def check_linear_equality_constraints(self, x):
-        """Checks the if the value of the linear_equality_concstraints_fun at
-        point x.
-
-        Sets a local variable flag to True. Sets this variable to False if any
-        value of the linear_equality_constraint_fun at point x is greater than
-        zero.
+        """Check if linear equality constraints are met at point x.
 
         Parameters
         ----------
@@ -940,16 +886,14 @@ class OptimizationProblem(metaclass=StructMeta):
         Returns
         -------
         flag : bool
-            Returns True for linear_constraintequality_fun(x) smaller zero.
-            False for linear_equality_constraint_fun(x) greater zero.
+            Returns True if linear equality constraints are met. False otherwise.
         """
         flag = True
 
-        if np.any(self.linear_equality_constraint_fun(x) != 0):
+        if np.any(self.evaluate_linear_equality_constraints(x) != 0):
             flag = False
 
         return flag
-
 
     @property
     def x0(self):
@@ -965,8 +909,6 @@ class OptimizationProblem(metaclass=StructMeta):
         CADETProcessError
             If the initial value does not match length of optimization variables
         """
-        if self._x0 is None:
-            self._x0 = self.create_initial_values()
         return self._x0
 
     @x0.setter
@@ -978,15 +920,20 @@ class OptimizationProblem(metaclass=StructMeta):
         self._x0 = x0
 
 
-    def create_initial_values(self, n_samples=1):
-        """Function for creating set of initial values.
-
-        The function tries to find a random number between the lower and upper
-        bounds. If no bounds are set for one variable, the lowest value of all
-        other lower bounds is used as lower bounds and the highest value of all
-        other upper bounds is used instead.
-
-        The values are rounded to one decimal place.
+    def create_initial_values(self, n_samples=1, method='random'):
+        """Create initial value within parameter space.
+        
+        Uses hopsy (Highly Optimized toolbox for Polytope Sampling) to retrieve
+        uniformly distributed samples from the parameter space.
+        
+        Parameters
+        ----------
+        n_samples : int
+            Number of initial values to be drawn
+        method : str
+            Chebyshev: Return center of the minimal-radius ball enclosing the 
+                entire set .
+            random: Any random valid point in the parameter space.
 
         Returns
         -------
@@ -1008,12 +955,24 @@ class OptimizationProblem(metaclass=StructMeta):
         
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            run = hopsy.Run(problem)
-        
-            run.starting_points = [hopsy.compute_chebyshev_center(problem)]
-        run.sample(n_samples)
+                
+            starting_points = [hopsy.compute_chebyshev_center(problem)]
+            run = hopsy.Run(
+                problem,
+                starting_points=starting_points
+                )
+            run.random_seed = random.randint(0,255)
+            run.sample(n_samples)
                     
         states = np.array(run.data.states[0])
+        
+        if n_samples == 1:
+            if method == 'chebyshev':
+                states = hopsy.compute_chebyshev_center(problem)
+            elif method == 'random':
+                states = states[0]
+            else:
+                raise CADETProcessError("Unexpected method.")
         
         return states
 
@@ -1031,8 +990,9 @@ class OptimizationProblem(metaclass=StructMeta):
     def __str__(self):
         return self.name
 
-from CADETProcess.common.utils import check_nested, generate_nested_dict, \
-                                    get_nested_value
+from CADETProcess.common.utils import (
+    check_nested, generate_nested_dict, get_nested_value
+)
 class OptimizationVariable():
     """Class for setting the values for the optimization variables.
 
@@ -1123,3 +1083,4 @@ class OptimizationVariable():
                     lb={}, ub={}'.format(
                 self.__class__.__name__, self.name, self.evaluation_object.name,
                 self.parameter_path, self.lb, self.ub)
+    

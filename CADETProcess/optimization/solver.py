@@ -109,13 +109,15 @@ class OptimizationResults(metaclass=StructMeta):
     exit_message = String()
     time_elapsed = UnsignedFloat()
     x = List()
-    f = Float()
+    f = NdArray()
     c = NdArray()
     performance = Dict()
 
-    def __init__(self, optimization_problem, evaluation_object,
-                 solver_name, solver_parameters, exit_flag, exit_message,
-                 time_elapsed, x, f, c, performance, frac=None):
+    def __init__(
+            self, optimization_problem, evaluation_object,
+            solver_name, solver_parameters, exit_flag, exit_message,
+            time_elapsed, x, f, c, performance, frac=None, history=None
+        ):
 
         self.optimization_problem = optimization_problem
         self.evaluation_object = evaluation_object
@@ -135,35 +137,37 @@ class OptimizationResults(metaclass=StructMeta):
         self.performance = performance
 
         self.frac = frac
+        
+        self.history = history
 
 
     def to_dict(self):
         return {
-                'optimization_problem': self.optimization_problem.name,
-                'optimization_problem_parameters':
-                    self.optimization_problem.parameters,
-                'evaluation_object_parameters':
-                    self.evaluation_object.parameters,
-                'x0': self.optimization_problem.x0,
-                'solver_name': self.solver_name,
-                'solver_parameters': self.solver_parameters,
-                'exit_flag': self.exit_flag,
-                'exit_message': self.exit_message,
-                'time_elapsed': self.time_elapsed,
-                'x': self.x,
-                'f': self.f,
-                'c': self.c,
-                'performance': self.performance,
-                'git': {
-                        'chromapy_branch': str(settings.repo.active_branch),
-                        'chromapy_commit': settings.repo.head.object.hexsha
-                        }
-                }
+            'optimization_problem': self.optimization_problem.name,
+            'optimization_problem_parameters':
+                self.optimization_problem.parameters,
+            'evaluation_object_parameters':
+                self.evaluation_object.parameters,
+            'x0': self.optimization_problem.x0,
+            'solver_name': self.solver_name,
+            'solver_parameters': self.solver_parameters,
+            'exit_flag': self.exit_flag,
+            'exit_message': self.exit_message,
+            'time_elapsed': self.time_elapsed,
+            'x': self.x,
+            'f': self.f.tolist(),
+            'c': self.c.tolist(),
+            'performance': self.performance,
+            'git': {
+                'chromapy_branch': str(settings.repo.active_branch),
+                'chromapy_commit': settings.repo.head.object.hexsha
+            }
+        }
 
     def save(self, directory):
         path = os.path.join(settings.project_directory, directory, 'results.json')
         with open(path, 'w') as f:
-                json.dump(self.to_dict(), f, indent=4)
+            json.dump(self.to_dict(), f, indent=4)
 
     def plot_solution(self):
         pass
