@@ -764,7 +764,7 @@ class Event():
 
     @time.setter
     def time(self, time):
-        if not isinstance(time, (int, float)):
+        if not isinstance(time, (int, float, np.int64, np.float64)):
             raise TypeError("Expected {}".format(float))
 
         if self.isIndependent:
