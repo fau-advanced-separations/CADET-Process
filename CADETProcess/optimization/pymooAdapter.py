@@ -12,6 +12,7 @@ from pymoo.util.termination.default import MultiObjectiveDefaultTermination
 from pymoo.optimize import minimize
 from pymoo.algorithms.moo.nsga2 import NSGA2
 from pymoo.algorithms.moo.unsga3 import UNSGA3
+from pymoo.core.repair import Repair
 
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import Bool, Switch, UnsignedInteger, UnsignedFloat
@@ -29,6 +30,7 @@ class PymooInterface(SolverBase):
     n_last = UnsignedInteger(default=30)
     n_max_gen = UnsignedInteger(default=100)
     n_max_evals = UnsignedInteger(default=100000)
+    n_cores = UnsignedInteger(default=0)
     _options = [
         'x_tol', 'cv_tol', 'f_tol', 'nth_gen',
         'n_last', 'n_max_gen', 'n_max_evals',
@@ -64,7 +66,7 @@ class PymooInterface(SolverBase):
         ieqs = [
             lambda x: optimization_problem.evaluate_linear_constraints(x)[0]
         ]
-        
+        n_cores = self.n_cores
         class PymooProblem(Problem):
             def __init__(self, **kwargs):
                 super().__init__(
@@ -77,7 +79,7 @@ class PymooInterface(SolverBase):
                 )
         
             def _evaluate(self, x, out, *args, **kwargs):
-                cache = optimization_problem.evaluate_population(x)
+                cache = optimization_problem.evaluate_population(x, n_cores)
                 
                 f = []
                 g = []
@@ -91,7 +93,7 @@ class PymooInterface(SolverBase):
                         
                 out["F"] = np.array(f)
                 out["G"] = np.array(g)
-
+                
         problem = PymooProblem()
 
         termination = MultiObjectiveDefaultTermination(
@@ -174,7 +176,8 @@ class NSGA2(PymooInterface):
     def algorithm(self):
         algorithm = pymoo.algorithms.moo.nsga2.NSGA2(
             pop_size=self.population_size,
-            sampling=self.optimization_problem(self.population_size)
+            sampling=self.optimization_problem(self.population_size),
+            repair=RoundIndividuals(self.optimization_problem),
         )
         return algorithm
 
@@ -186,6 +189,29 @@ class U_NSGA3(PymooInterface):
             pop_size=self.population_size,
             sampling=self.optimization_problem.create_initial_values(
                 self.population_size, method='chebyshev'
-            )
+            ),
+            repair=RoundIndividuals(self.optimization_problem),
         )
         return algorithm
+
+
+class RoundIndividuals(Repair):
+    def __init__(self, optimization_problem):
+        self.optimization_problem = optimization_problem
+        
+    def _do(self, problem, pop, **kwargs):
+
+        # the packing plan for the whole population (each row one individual)
+        Z = pop.get("X")
+
+        # Round all individuals
+        Z = np.round(Z,2)
+        
+        # Check if linear constraints are met
+        for i, ind in enumerate(Z):
+            if not self.optimization_problem.check_linear_constraints(ind):
+                Z[i,:] = self.optimization_problem.create_initial_values(method='random')
+            
+        # set the design variables for the population
+        pop.set("X", Z)
+        return pop

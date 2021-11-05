@@ -324,6 +324,10 @@ class OptimizationProblem(metaclass=StructMeta):
 
         # Set bad results if constraints are not met
         if not self.check_linear_constraints(x):
+            self.logger.warn(
+                f'Linear constraints not met at {x}. Returning bad performance.\
+                cycle time: {evaluation_object.process_meta.cycle_time}'
+            )
             performance = get_bad_performance(evaluation_object.n_comp)
         # Pass evaluation_object to evaluator and evaluate
         elif self.evaluator is not None:
