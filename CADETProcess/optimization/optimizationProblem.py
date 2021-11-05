@@ -81,7 +81,6 @@ class OptimizationProblem(metaclass=StructMeta):
         self._linear_constraints = []
         self._linear_equality_constraints = []
         self._x0 = None
-        self.cache = {}
         
     @property
     def evaluation_object(self):
@@ -347,15 +346,24 @@ class OptimizationProblem(metaclass=StructMeta):
 
         return performance
     
-    def evaluate_population(self, population):
+    def evaluate_population(self, population, n_cores=0):
         manager = multiprocess.Manager()
         cache = manager.dict()
-        
+
         eval_fun = lambda ind: self.evaluate(ind, make_copy=True, cache=cache)
-        
-        with pathos.multiprocessing.ProcessPool(nodes=4) as pool:
-            pool.map(eval_fun, population)
-        
+
+        if n_cores == 1:
+           for ind in population:
+               try:
+                   eval_fun(ind)
+               except CADETProcessError:
+                   print(ind)
+        else:
+            if n_cores == 0:
+                n_cores = None
+            with pathos.multiprocessing.ProcessPool(ncpus=n_cores) as pool:
+                pool.map(eval_fun, population)
+                
         return cache
         
 
