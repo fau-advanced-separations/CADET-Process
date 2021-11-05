@@ -178,7 +178,6 @@ class Fractionator(EventHandler):
         """
         return self.chromatograms[0].cycle_time
 
-
     @property
     def time(self):
         """Shortcut property to Chromatogram time vector.
@@ -474,6 +473,9 @@ class Fractionator(EventHandler):
                     self.chromatogram.n_comp))
 
         self._events = []
+        self._chromatogram_events = Dict({
+            chrom: [] for chrom in self.chromatograms
+        })
         self.reset()
 
         for chrom_index, chrom in enumerate(self.chromatograms):
