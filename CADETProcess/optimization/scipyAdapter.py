@@ -17,6 +17,7 @@ class SciPyInterface(SolverBase):
     the jacobian matrix is defined for several solvers.
     """
     finite_diff_rel_step = UnsignedFloat(default=1e-2)
+    tol = UnsignedFloat()
     jac = '2-point'
 
     def run(self, optimization_problem):
@@ -40,7 +41,10 @@ class SciPyInterface(SolverBase):
         """
         if optimization_problem.n_objectives > 1:
             raise CADETProcessError("Can only handle single objective.")
-        objective_function = lambda x: optimization_problem.evaluate_objectives(x)[0]
+        
+        cache = dict()
+        objective_function = \
+            lambda x: optimization_problem.evaluate_objectives(x, cache=cache)[0]
             
         start = time.time()
         with warnings.catch_warnings():
@@ -50,6 +54,7 @@ class SciPyInterface(SolverBase):
                 objective_function,
                 x0=optimization_problem.x0,
                 method=str(self),
+                tol = self.tol,
                 jac=self.jac,
                 constraints=self.get_constraint_objects(optimization_problem),
                 options=self.options
@@ -103,10 +108,10 @@ class SciPyInterface(SolverBase):
             Returns the optimized bounds as an object called bounds.
         """
         return optimize.Bounds(
-                optimization_problem.lower_bounds,
-                optimization_problem.upper_bounds,
-                keep_feasible=True
-                )
+            optimization_problem.lower_bounds,
+            optimization_problem.upper_bounds,
+            keep_feasible=True
+        )
 
     def get_constraint_objects(self, optimization_problem):
         """Defines the constraints of the optimization_problem and resturns
@@ -208,7 +213,6 @@ class SciPyInterface(SolverBase):
         got by calling the method nonlinear_constraint_jacobian from the
         optimization_problem. Keep_feasible is set to True.
 
-
         Returns
         -------
         None: bool
@@ -227,9 +231,8 @@ class SciPyInterface(SolverBase):
             return None
         
         def makeConstraint(i):
-            constraint_fun = lambda x: optimization_problem.evaluate_nonlinear_constraints(x)[i]
             constr = optimize.NonlinearConstraint(
-                constraint_fun,
+                lambda x: optimization_problem.evaluate_nonlinear_constraints(x)[i],
                 lb=-np.inf, ub=0,
                 finite_diff_rel_step=self.finite_diff_rel_step,
                 keep_feasible=True
@@ -266,11 +269,13 @@ class TrustConstr(SciPyInterface):
     maxiter = UnsignedInteger(default=1000)
     verbose = UnsignedInteger(default=0)
     disp = Bool(default=False)
-    _options = ['gtol', 'xtol', 'barrier_tol', 'finite_diff_rel_step',
-                'initial_constr_penalty',
-                'initial_tr_radius', 'initial_barrier_parameter',
-                'initial_barrier_tolerance', 'factorization_method',
-                'maxiter','verbose', 'disp']
+    _options = [
+        'gtol', 'xtol', 'barrier_tol', 'finite_diff_rel_step',
+        'initial_constr_penalty',
+        'initial_tr_radius', 'initial_barrier_parameter',
+        'initial_barrier_tolerance', 'factorization_method',
+        'maxiter','verbose', 'disp'
+    ]
 
     jac = Switch(default='3-point', valid=['2-point', '3-point', 'cs'])
 
@@ -286,12 +291,11 @@ class COBYLA(SciPyInterface):
     variable options as a dictionary and implements the abstract method run for
     running the optimization.
     """
-    rhobeg = UnsignedFloat(default=1.0)
-    tol = UnsignedFloat(default=0.01)
+    rhobeg = UnsignedFloat(default=1)
     maxiter = UnsignedInteger(default=1000)
     disp = Bool(default=False)
     catol = UnsignedFloat(default=0.0002)
-    _options = ['rhobeg', 'tol', 'maxiter', 'disp', 'catol']
+    _options = ['rhobeg', 'maxiter', 'disp', 'catol']
 
 
 class NelderMead(SciPyInterface):
@@ -303,8 +307,9 @@ class NelderMead(SciPyInterface):
     xatol = UnsignedFloat(default=0.01)
     fatol = UnsignedFloat(default=0.01)
     adaptive = Bool(default=True)
-    _options = ['maxiter', 'maxfev', 'initial_simplex', 'xatol', 'fatol',
-                'adaptive']
+    _options = [
+        'maxiter', 'maxfev', 'initial_simplex', 'xatol', 'fatol', 'adaptive'
+    ]
 
 
 class SLSQP(SciPyInterface):
