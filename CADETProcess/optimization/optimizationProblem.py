@@ -932,7 +932,7 @@ class OptimizationProblem(metaclass=StructMeta):
         self._x0 = x0
 
 
-    def create_initial_values(self, n_samples=1, method='random'):
+    def create_initial_values(self, n_samples=1, method='random', seed=None):
         """Create initial value within parameter space.
         
         Uses hopsy (Highly Optimized toolbox for Polytope Sampling) to retrieve
@@ -942,10 +942,12 @@ class OptimizationProblem(metaclass=StructMeta):
         ----------
         n_samples : int
             Number of initial values to be drawn
-        method : str
-            Chebyshev: Return center of the minimal-radius ball enclosing the 
+        method : str, optional
+            chebyshev: Return center of the minimal-radius ball enclosing the 
                 entire set .
             random: Any random valid point in the parameter space.
+        seed : int, optional
+            Seed to initialize random numbers. Only used if method == 'random'
 
         Returns
         -------
@@ -973,7 +975,9 @@ class OptimizationProblem(metaclass=StructMeta):
                 problem,
                 starting_points=starting_points
                 )
-            run.random_seed = random.randint(0,255)
+            if seed is None:
+                seed = random.randint(0,255)
+            run.random_seed = seed
             run.sample(n_samples)
                     
         states = np.array(run.data.states[0])
