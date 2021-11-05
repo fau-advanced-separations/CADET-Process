@@ -1,7 +1,6 @@
-from abc import abstractmethod
-import copy
+import os
+import random
 import time
-import warnings
 
 import numpy as np
 
@@ -9,19 +8,17 @@ import pymoo
 from pymoo.core.problem import Problem
 from pymoo.factory import get_reference_directions
 from pymoo.util.termination.default import MultiObjectiveDefaultTermination
-from pymoo.optimize import minimize
-from pymoo.algorithms.moo.nsga2 import NSGA2
-from pymoo.algorithms.moo.unsga3 import UNSGA3
 from pymoo.core.repair import Repair
 
-from CADETProcess import CADETProcessError
-from CADETProcess.dataStructure import Bool, Switch, UnsignedInteger, UnsignedFloat
+from CADETProcess.common import settings
+from CADETProcess.dataStructure import UnsignedInteger, UnsignedFloat
 from CADETProcess.optimization import SolverBase, OptimizationResults
 
 
 class PymooInterface(SolverBase):
     """Wrapper around pymoo.
     """
+    seed = UnsignedInteger(default=12345)
     x_tol = UnsignedFloat(default=1e-8)
     cv_tol = UnsignedFloat(default=1e-6)
     f_tol = UnsignedFloat(default=0.0025)
@@ -36,7 +33,7 @@ class PymooInterface(SolverBase):
         'n_last', 'n_max_gen', 'n_max_evals',
     ] 
     
-    def run(self, optimization_problem):
+    def run(self, optimization_problem, use_checkpoint=True):
         """Solve the optimization problem using the functional pymoo implementation.
         
         Returns
@@ -45,78 +42,35 @@ class PymooInterface(SolverBase):
             Optimization results including optimization_problem and solver
             configuration.
 
-        See also
+        See Also
         --------
         evaluate_objectives
         options
-
-        Todo
-        ----
-        - [ ] checkpoints
-        - [ ] enforce feasibility
-        - [x] Parallelization
-        - [x] multi objective in optimization problem
-        - [x] linear constraints
-        - [x] Reference Directions
-        - [x] Initial population (using hopsy?)
-        - [x] Termination
         """
         self.optimization_problem = optimization_problem
         
         ieqs = [
             lambda x: optimization_problem.evaluate_linear_constraints(x)[0]
         ]
-        n_cores = self.n_cores
-        class PymooProblem(Problem):
-            def __init__(self, **kwargs):
-                super().__init__(
-                    n_var=optimization_problem.n_variables,
-                    n_obj=optimization_problem.n_objectives,
-                    n_constr=optimization_problem.n_linear_constraints,
-                    xl=optimization_problem.lower_bounds,
-                    xu=optimization_problem.upper_bounds,
-                    **kwargs
-                )
         
-            def _evaluate(self, x, out, *args, **kwargs):
-                cache = optimization_problem.evaluate_population(x, n_cores)
-                
-                f = []
-                g = []
-                for ind in x:
-                    f.append(
-                        optimization_problem.evaluate_objectives(ind, cache=cache)
-                    )
-                    g.append(
-                        optimization_problem.evaluate_nonlinear_constraints(ind, cache=cache)
-                    )
-                        
-                out["F"] = np.array(f)
-                out["G"] = np.array(g)
-                
-        problem = PymooProblem()
+        self.problem = PymooProblem(optimization_problem, self.n_cores)
 
-        termination = MultiObjectiveDefaultTermination(
-            x_tol=self.x_tol,
-            cv_tol=self.cv_tol,
-            f_tol=self.f_tol,
-            nth_gen=self.nth_gen,
-            n_last=self.n_last,
-            n_max_gen=self.n_max_gen,
-            n_max_evals=self.n_max_evals
-        )
-
+        if use_checkpoint and os.path.isfile(self.pymoo_checkpoint_path):
+            random.seed(self.seed)
+            algorithm, = np.load(
+                self.pymoo_checkpoint_path, allow_pickle=True
+            ).flatten()
+        else:
+            algorithm = self.setup_algorithm()
+            
         start = time.time()
-        res = minimize(
-            problem,
-            self.algorithm,
-            termination,
-            pf=problem.pareto_front(),
-            seed=1,
-            verbose=True,
-            save_history=True,
-        )
+        while algorithm.has_next():
+            algorithm.next()
+            np.save(self.pymoo_checkpoint_path, algorithm)
+            print(algorithm.result().X, algorithm.result().F)
+
         elapsed = time.time() - start
+        res = algorithm.result()
 
         x = res.X
         eval_object = optimization_problem.set_variables(x, make_copy=True)
@@ -145,7 +99,15 @@ class PymooInterface(SolverBase):
             history=res.history,
         )
         return results
-     
+    
+    @property
+    def pymoo_checkpoint_path(self):
+        pymoo_checkpoint_path = os.path.join(
+            settings.project_directory,
+            self.optimization_problem.name + '/pymoo_checkpoint.npy'
+        )
+        return pymoo_checkpoint_path
+    
     @property
     def population_size(self):
         if self.pop_size is None:
@@ -159,6 +121,34 @@ class PymooInterface(SolverBase):
             return min(100, max(10*self.optimization_problem.n_variables,40))
         else:
             return self.n_max_gen
+        
+    def setup_algorithm(self):
+        algorithm = pymoo.factory.get_algorithm(
+            str(self),
+            ref_dirs=self.ref_dirs,
+            pop_size=self.population_size,
+            sampling=self.optimization_problem.create_initial_values(
+                self.population_size, method='chebyshev', seed=self.seed
+            ),
+            repair=RoundIndividuals(self.optimization_problem),
+        )
+        algorithm.setup(
+            self.problem, termination=self.termination, seed=self.seed, verbose=True
+        )
+        return algorithm 
+    
+    @property
+    def termination(self):
+        termination = MultiObjectiveDefaultTermination(
+            x_tol=self.x_tol,
+            cv_tol=self.cv_tol,
+            f_tol=self.f_tol,
+            nth_gen=self.nth_gen,
+            n_last=self.n_last,
+            n_max_gen=self.n_max_gen,
+            n_max_evals=self.n_max_evals
+        )
+        return termination
 
     @property
     def ref_dirs(self):
@@ -172,27 +162,41 @@ class PymooInterface(SolverBase):
     
     
 class NSGA2(PymooInterface):
-    @property 
-    def algorithm(self):
-        algorithm = pymoo.algorithms.moo.nsga2.NSGA2(
-            pop_size=self.population_size,
-            sampling=self.optimization_problem(self.population_size),
-            repair=RoundIndividuals(self.optimization_problem),
-        )
-        return algorithm
+    def __str__(self):
+        return 'nsga2'
 
 class U_NSGA3(PymooInterface):
-    @property
-    def algorithm(self):
-        algorithm = pymoo.algorithms.moo.unsga3.UNSGA3(
-            ref_dirs=self.ref_dirs,
-            pop_size=self.population_size,
-            sampling=self.optimization_problem.create_initial_values(
-                self.population_size, method='chebyshev'
-            ),
-            repair=RoundIndividuals(self.optimization_problem),
+    def __str__(self):
+        return 'unsga3'
+
+class PymooProblem(Problem):
+    def __init__(self, optimization_problem, n_cores, **kwargs):
+        self.optimization_problem = optimization_problem
+        self.n_cores = n_cores
+        super().__init__(
+            n_var=optimization_problem.n_variables,
+            n_obj=optimization_problem.n_objectives,
+            n_constr=optimization_problem.n_linear_constraints,
+            xl=optimization_problem.lower_bounds,
+            xu=optimization_problem.upper_bounds,
+            **kwargs
         )
-        return algorithm
+
+    def _evaluate(self, x, out, *args, **kwargs):
+        cache = self.optimization_problem.evaluate_population(x, self.n_cores)
+        
+        f = []
+        g = []
+        for ind in x:
+            f.append(
+                self.optimization_problem.evaluate_objectives(ind, cache=cache)
+            )
+            g.append(
+                self.optimization_problem.evaluate_nonlinear_constraints(ind, cache=cache)
+            )
+                
+        out["F"] = np.array(f)
+        out["G"] = np.array(g)
 
 
 class RoundIndividuals(Repair):
@@ -200,8 +204,6 @@ class RoundIndividuals(Repair):
         self.optimization_problem = optimization_problem
         
     def _do(self, problem, pop, **kwargs):
-
-        # the packing plan for the whole population (each row one individual)
         Z = pop.get("X")
 
         # Round all individuals
