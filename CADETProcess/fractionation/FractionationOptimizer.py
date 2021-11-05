@@ -31,7 +31,9 @@ class FractionationOptimizer():
         self.obj_fun = obj_fun
         if optimizer is None:
             optimizer = COBYLA()
-            optimizer.rhobeg = 1.0
+            optimizer.tol = 0.1
+            optimizer.catol = 1
+            optimizer.rhobeg = 1
         self.optimizer = optimizer
         
     @property
@@ -77,10 +79,11 @@ class FractionationOptimizer():
                 if evt_index < len(chrom_events) - 1:
                     opt.add_linear_constraint(
                         [evt_names[evt_index], evt_names[evt_index+1]], [1,-1]
-                        )
+                    )
                 else:
                     opt.add_linear_constraint(
-                        [evt_names[0], evt_names[-1]],[-1,1], frac.cycle_time)
+                        [evt_names[0], evt_names[-1]],[-1,1], frac.cycle_time
+                    )
     
         opt.x0 = [evt.time for evt in frac.events]
         
