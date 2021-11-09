@@ -317,7 +317,9 @@ class MobilePhaseModulator(BindingBaseClass):
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     maximum_adsorption_capacity = DependentlySizedUnsignedList(dep='n_comp')
     ion_exchange_characteristic = DependentlySizedUnsignedList(dep='n_comp')
+    beta = ion_exchange_characteristic
     hydrophobicity = DependentlySizedUnsignedList(dep='n_comp')
+    gamma = hydrophobicity
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -355,7 +357,9 @@ class ExtendedMobilePhaseModulator(BindingBaseClass):
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     maximum_adsorption_capacity = DependentlySizedUnsignedList(dep='n_comp')
     ion_exchange_characteristic = DependentlySizedUnsignedList(dep='n_comp')
+    beta = ion_exchange_characteristic
     hydrophobicity = DependentlySizedUnsignedList(dep='n_comp')
+    gamma = hydrophobicity
     component_mode = DependentlySizedUnsignedList(dep='n_comp')
 
     def __init__(self, *args, **kwargs):

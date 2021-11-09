@@ -61,8 +61,6 @@ class Cadet(SolverBase):
     with global options that are then copied for each unit in get_unit_config
     !!! Implement method for loading CADET file that have not been generated
     with CADETProcess and create Process
-    !!! Reverse flow direction of columns does currently noch work with 
-    dynamic flow rates.
 
     See also
     --------
@@ -73,11 +71,11 @@ class Cadet(SolverBase):
     cadetInterface
     """
     timeout = UnsignedFloat()
-    
+
     def __init__(self, install_path=None, temp_dir=None, *args, **kwargs):
         self.install_path = install_path
         self.temp_dir = temp_dir
-        
+
         super().__init__(*args, **kwargs)
 
         self.model_solver_parameters = ModelSolverParametersGroup()
@@ -92,7 +90,7 @@ class Cadet(SolverBase):
 
         self.return_parameters = ReturnParametersGroup()
         self.unit_return_parameters = UnitReturnParametersGroup()
-        
+
     @property
     def install_path(self):
         """str: Path to the installation of CADET
@@ -100,20 +98,20 @@ class Cadet(SolverBase):
         Parameters
         ----------
         install_path : str or None
-            Path to the installation of CADET. 
-            If None, the system installation will be used. 
+            Path to the installation of CADET.
+            If None, the system installation will be used.
 
         Raises
         ------
         FileNotFoundError
             If CADET can not be found.
-            
+
         See Also
         --------
         check_cadet()
         """
         return self._install_path
-    
+
     @install_path.setter
     def install_path(self, install_path):
         if install_path is None:
@@ -127,13 +125,13 @@ class Cadet(SolverBase):
                     "CADET could not be found. Please set an install path"
                 )
             install_path = executable_path.parent.parent
-                
+
         install_path = Path(install_path)
         if platform.system() == 'Windows':
             cadet_bin_path = install_path / "bin" / "cadet-cli.exe"
         else:
             cadet_bin_path = install_path / "bin" / "cadet-cli"
-            
+
         if cadet_bin_path.exists():
             self._install_path = install_path
             CadetAPI.cadet_path = cadet_bin_path
@@ -151,8 +149,8 @@ class Cadet(SolverBase):
                     + os.environ['LD_LIBRARY_PATH']
         except KeyError:
             os.environ['LD_LIBRARY_PATH'] = cadet_lib_path.as_posix()
-            
-            
+
+
     def check_cadet(self):
         """Wrapper around a basic CADET example for testing functionality"""
         if platform.system() == 'Windows':
@@ -160,9 +158,9 @@ class Cadet(SolverBase):
         else:
             lwe_path = self.install_path / "bin" / "createLWE"
         ret = subprocess.run(
-            [lwe_path.as_posix()], 
-            stdout=subprocess.PIPE, 
-            stderr=subprocess.PIPE, 
+            [lwe_path.as_posix()],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             cwd=self.temp_dir
         )
         if ret.returncode != 0:
@@ -173,14 +171,14 @@ class Cadet(SolverBase):
             raise CADETProcessError(
                 "Failure: Creation of test simulation ran into problems"
             )
-            
+
         lwe_hdf5_path = Path(self.temp_dir) / 'LWE.h5'
-        
+
         sim = CadetAPI()
         sim.filename = lwe_hdf5_path.as_posix()
         data = sim.run()
         os.remove(sim.filename)
-        
+
         if data.returncode == 0:
             print("Test simulation completed successfully")
         else:
@@ -188,7 +186,7 @@ class Cadet(SolverBase):
             raise CADETProcessError(
                 "Simulation failed"
             )
-            
+
     @property
     def temp_dir(self):
         return tempfile.gettempdir()
@@ -202,13 +200,13 @@ class Cadet(SolverBase):
                 raise CADETProcessError('Not a valid path')
             if not exists:
                 raise CADETProcessError('Not a valid path')
-        
+
         tempfile.tempdir = temp_dir
-        
+
     def get_tempfile_name(self):
         f = next(tempfile._get_candidate_names())
         return os.path.join(self.temp_dir, f + '.h5')
-                
+
 
     def run(self, process, file_path=None):
         """Interface to the solver run function
@@ -255,21 +253,21 @@ class Cadet(SolverBase):
             cadet.filename = file_path
 
         cadet.save()
-    
+
         try:
             start = time.time()
             return_information = cadet.run(timeout=self.timeout)
             elapsed = time.time() - start
         except TimeoutExpired:
              raise CADETProcessError('Simulator timed out')
-                 
+
         if return_information.returncode != 0:
             self.logger.error(
                 'Simulation of {} with parameters {} failed.'.format(
                     process.name, process.config))
             raise CADETProcessError(
                 'CADET Error: {}'.format(return_information.stderr))
-        
+
         try:
             cadet.load()
             results = self.get_simulation_results(
@@ -278,12 +276,12 @@ class Cadet(SolverBase):
         except TypeError:
             raise CADETProcessError('Unexpected error reading SimulationResults.')
 
-        # Remove files 
+        # Remove files
         if file_path is None:
             os.remove(cadet.filename)
-    
+
         return results
-    
+
     def save_to_h5(self, process, file_path):
         cadet = CadetAPI()
         cadet.root = self.get_process_config(process)
@@ -294,9 +292,9 @@ class Cadet(SolverBase):
         cadet = CadetAPI()
         cadet.filename = file_path
         cadet.load()
-        
+
         return cadet
-        
+
     def get_process_config(self, process):
         """Create the CADET config.
 
@@ -325,11 +323,11 @@ class Cadet(SolverBase):
         return config
 
     def get_simulation_results(
-        self, 
+        self,
         process,
         cadet,
         time_elapsed,
-        return_information, 
+        return_information,
         ):
         """Saves the simulated results for each unit into the dictionary
         concentration_record for the complete simulation and splitted into each
@@ -446,7 +444,7 @@ class Cadet(SolverBase):
         model_connections = Dict()
         model_connections['CONNECTIONS_INCLUDE_DYNAMIC_FLOW'] = 1
         index = 0
-        
+
         section_states = process.flow_rate_section_states
 
         for cycle in range(0, process._n_cycles):
@@ -462,16 +460,16 @@ class Cadet(SolverBase):
                 index += 1
 
         model_connections.nswitches = index
-        
+
         return model_connections
 
     def cadet_connections(self, flow_rates, flow_sheet):
         """list: Connections matrix for flow_rates state.
-        
+
         Parameters
         ----------
         flow_rates : dict
-            UnitOperations with outgoing flow rates. 
+            UnitOperations with outgoing flow rates.
 
         flow_sheet : FlowSheet
             Object which hosts units (for getting unit index).
@@ -542,7 +540,7 @@ class Cadet(SolverBase):
         self.set_section_dependent_parameters(model_units, process)
 
         return model_units
-    
+
     def get_unit_config(self, unit):
         """Config branch /input/model/unit_000 for individual unit
 
@@ -578,12 +576,12 @@ class Cadet(SolverBase):
             unit_config['adsorption_model'] = unit_config['adsorption']['ADSORPTION_MODEL']
         else:
             n_bound = unit.n_comp*[0]
-            
+
         if isinstance(unit, Cstr) and not isinstance(unit.binding_model, NoBinding):
             unit_config['nbound'] = n_bound
         else:
             unit_config['discretization']['nbound'] = n_bound
-            
+
 
         if not isinstance(unit.bulk_reaction_model, NoReaction):
             parameters = self.get_reaction_config(unit.bulk_reaction_model)
@@ -592,13 +590,13 @@ class Cadet(SolverBase):
                 unit_config['reaction'] = parameters
             else:
                 unit_config['reaction_model'] = parameters['REACTION_MODEL']
-                unit_config['reaction_bulk'] = parameters                
-    
+                unit_config['reaction_bulk'] = parameters
+
         if not isinstance(unit.particle_reaction_model, NoReaction):
             parameters = self.get_reaction_config(unit.particle_reaction_model)
             unit_config['reaction_model_particle'] = parameters['REACTION_MODEL']
             unit_config['reaction_particle'].update(parameters)
-            
+
         if isinstance(unit, Source):
             unit_config['sec_000']['const_coeff'] = unit.c[:,0]
             unit_config['sec_000']['lin_coeff'] = unit.c[:,1]
@@ -606,12 +604,12 @@ class Cadet(SolverBase):
             unit_config['sec_000']['cube_coeff'] = unit.c[:,3]
 
         return unit_config
-    
+
     def set_section_dependent_parameters(self, model_units, process):
         """Add time dependent model parameters to units
         """
         section_states = process.section_states.values()
-        
+
         section_index = 0
         for cycle in range(0, process._n_cycles):
             for param_states in section_states:
@@ -638,21 +636,21 @@ class Cadet(SolverBase):
                     else:
                         unit_model = unit.model
                         self.add_parameter_section(
-                            model_units, section_index, unit_index, 
+                            model_units, section_index, unit_index,
                             unit_model, param_name, state
                         )
-                        
+
                 section_index += 1
-            
+
     def add_inlet_section(self, model_units, sec_index, unit_index, coeffs):
         unit_index = 'unit' + '_{0:03d}'.format(unit_index)
         section_index = 'sec' + '_{0:03d}'.format(sec_index)
-    
+
         model_units[unit_index][section_index]['const_coeff'] = coeffs[:,0]
         model_units[unit_index][section_index]['lin_coeff'] = coeffs[:,1]
         model_units[unit_index][section_index]['quad_coeff']= coeffs[:,2]
         model_units[unit_index][section_index]['cube_coeff'] = coeffs[:,3]
-    
+
     def add_parameter_section(
             self, model_units, sec_index, unit_index, unit_model, parameter, state
         ):
@@ -660,11 +658,11 @@ class Cadet(SolverBase):
         """
         unit_index = 'unit' + '_{0:03d}'.format(unit_index)
         parameter_name = inv_unit_parameters_map[unit_model]['parameters'][parameter]
-        
+
         if sec_index == 0:
             model_units[unit_index][parameter_name] = []
         model_units[unit_index][parameter_name] += list(state.ravel())
-        
+
 
     def get_adsorption_config(self, binding):
         """Config branch /input/model/unit_xxx/adsorption for individual unit
@@ -679,7 +677,7 @@ class Cadet(SolverBase):
         adsorption_config = AdsorptionParametersGroup(binding).to_dict()
 
         return adsorption_config
-    
+
     def get_reaction_config(self, reaction):
         """Config branch /input/model/unit_xxx/reaction for individual unit
 
@@ -719,7 +717,7 @@ class Cadet(SolverBase):
         """Config branch /input/solver/sections
         """
         solver_sections = Dict()
-        
+
         solver_sections.nsec = process._n_cycles * process.n_sections
         solver_sections.section_times = [
             round((cycle*process.cycle_time + evt),1)
@@ -851,7 +849,7 @@ unit_parameters_map = {
     },
     'Source': {
         'name': 'INLET',
-        'parameters':{            
+        'parameters':{
             'NCOMP': 'n_comp',
         },
         'fixed': {
@@ -860,19 +858,19 @@ unit_parameters_map = {
     },
     'Sink': {
         'name': 'OUTLET',
-        'parameters':{             
+        'parameters':{
             'NCOMP': 'n_comp',
         },
     },
     'MixerSplitter': {
         'name': 'CSTR',
-        'parameters':{            
+        'parameters':{
             'NCOMP': 'n_comp',
         },
         'fixed': {
             'INIT_VOLUME': 1e-9,
             'INIT_C': [0]
-        },            
+        },
     },
 }
 
@@ -883,7 +881,7 @@ inv_unit_parameters_map = {
             v: k for k, v in values['parameters'].items()
         }
     } for unit, values in unit_parameters_map.items()
-        
+
 }
 
 class UnitParametersGroup(ParameterWrapper):
@@ -905,11 +903,11 @@ class UnitParametersGroup(ParameterWrapper):
 
 class UnitDiscretizationParametersGroup(ParametersGroup):
     """Class for defining the unit_disrectization_parameters.
-    
+
     Note
     ----
     In CADET, the parameter unit_config['discretization'].NBOUND should be
-    moved to binding config or unit config. It is now handled separately in 
+    moved to binding config or unit config. It is now handled separately in
     get_unit_config()
 
     See also
@@ -929,8 +927,8 @@ class UnitDiscretizationParametersGroup(ParametersGroup):
     SCHUR_SAFETY = UnsignedFloat(default=1.0e-8)
 
     _parameters = [
-        'NCOL', 'NPAR', 'PAR_DISC_TYPE', 'USE_ANALYTIC_JACOBIAN', 
-        'RECONSTRUCTION', 'GS_TYPE', 'MAX_KRYLOV', 'MAX_RESTARTS', 
+        'NCOL', 'NPAR', 'PAR_DISC_TYPE', 'USE_ANALYTIC_JACOBIAN',
+        'RECONSTRUCTION', 'GS_TYPE', 'MAX_KRYLOV', 'MAX_RESTARTS',
         'SCHUR_SAFETY']
 
 class DiscretizationWenoParametersGroup(ParametersGroup):
@@ -955,7 +953,7 @@ adsorption_parameters_map = {
     },
     'Linear': {
         'name': 'LINEAR',
-        'parameters':{
+        'parameters': {
             'IS_KINETIC' : 'is_kinetic',
             'LIN_KA': 'adsorption_rate',
             'LIN_KD': 'desorption_rate'
@@ -963,7 +961,7 @@ adsorption_parameters_map = {
     },
     'Langmuir': {
         'name': 'MULTI_COMPONENT_LANGMUIR',
-        'parameters':{            
+        'parameters': {
             'IS_KINETIC' : 'is_kinetic',
             'MCL_KA': 'adsorption_rate',
             'MCL_KD': 'desorption_rate',
@@ -972,7 +970,7 @@ adsorption_parameters_map = {
     },
     'BiLangmuir': {
         'name': 'MULTI_COMPONENT_BILANGMUIR',
-        'parameters':{             
+        'parameters': {
             'IS_KINETIC' : 'is_kinetic',
             'MCBL_KA': 'adsorption_rate',
             'MCBL_KD': 'desorption_rate',
@@ -981,7 +979,7 @@ adsorption_parameters_map = {
     },
     'StericMassAction': {
         'name': 'STERIC_MASS_ACTION',
-        'parameters':{             
+        'parameters': {
             'IS_KINETIC' : 'is_kinetic',
             'SMA_KA': 'adsorption_rate',
             'SMA_KD': 'desorption_rate',
@@ -994,12 +992,35 @@ adsorption_parameters_map = {
     },
     'AntiLangmuir': {
         'name': 'MULTI_COMPONENT_ANTILANGMUIR',
-        'parameters':{ 
+        'parameters': {
             'IS_KINETIC' : 'is_kinetic',
             'MCAL_KA': 'adsorption_rate',
             'MCAL_KD': 'desorption_rate',
             'MCAL_QMAX': 'saturation_capacity',
             'MCAL_ANTILANGMUIR': 'antilangmuir'
+        },
+    },
+    'MobilePhaseModulator' : {
+        'name': 'MOBILE_PHASE_MODULATOR',
+        'parameters': {
+            'IS_KINETIC' : 'is_kinetic',
+            'MPM_KA': 'adsorption_rate',
+            'MPM_KD': 'desorption_rate',
+            'MPM_QMAX': 'maximum_adsorption_capacity',
+            'MPM_BETA': 'ion_exchange_characteristic',
+            'MPM_GAMMA': 'hydrophobicity'
+        },
+    },
+    'ExtendedMobilePhaseModulator' : {
+        'name': 'EXTENDED_MOBILE_PHASE_MODULATOR',
+        'parameters': {
+            'IS_KINETIC' : 'is_kinetic',
+            'EMPM_KA': 'adsorption_rate',
+            'EMPM_KD': 'desorption_rate',
+            'EMPM_QMAX': 'maximum_adsorption_capacity',
+            'EMPM_BETA': 'ion_exchange_characteristic',
+            'EMPM_GAMMA': 'hydrophobicity',
+            'EMPM_COMP_MODE': 'component_mode',
         },
     }
 }
@@ -1011,7 +1032,7 @@ inv_adsorption_parameters_map = {
             v: k for k, v in values['parameters'].items()
         }
     } for model, values in adsorption_parameters_map.items()
-        
+
 }
 
 class AdsorptionParametersGroup(ParameterWrapper):
@@ -1029,8 +1050,8 @@ class AdsorptionParametersGroup(ParameterWrapper):
 
     _model_parameters = _adsorption_parameters
     _model_type = 'ADSORPTION_MODEL'
-    
-    
+
+
 class ReactionParametersGroup(ParameterWrapper):
     """Converter for particle solid reaction parameters from CADETProcess to CADET.
 
@@ -1069,13 +1090,13 @@ class ReactionParametersGroup(ParameterWrapper):
                 'mal_exponents_liquid_bwd' : 'exponents_bwd_liquid',
                 'mal_kfwd_liquid' : 'k_fwd_liquid',
                 'mal_kbwd_liquid' : 'k_bwd_liquid',
-                
+
                 'mal_stoichiometry_solid': 'stoich_solid',
                 'mal_exponents_solid_fwd' : 'exponents_fwd_solid',
                 'mal_exponents_solid_bwd' : 'exponents_bwd_solid',
                 'mal_kfwd_solid' : 'k_fwd_solid',
                 'mal_kbwd_solid' : 'k_bwd_solid',
-                
+
                 'mal_exponents_liquid_fwd_modsolid' : 'exponents_fwd_liquid_modsolid',
                 'mal_exponents_liquid_bwd_modsolid' : 'exponents_bwd_liquid_modsolid',
                 'mal_exponents_solid_fwd_modliquid' : 'exponents_fwd_solid_modliquid',
@@ -1085,7 +1106,7 @@ class ReactionParametersGroup(ParameterWrapper):
     }
 
     _model_parameters = _reaction_parameters
-    _model_type = 'REACTION_MODEL'    
+    _model_type = 'REACTION_MODEL'
 
 
 class ConsistencySolverParametersGroup(ParametersGroup):
