@@ -2,6 +2,7 @@ import math
 import numpy as np
 
 from CADETProcess import CADETProcessError
+
 from CADETProcess.dataStructure import frozen_attributes
 from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import (
@@ -10,9 +11,12 @@ from CADETProcess.dataStructure import (
     DependentlySizedUnsignedList, DependentlySizedNdArray,
     Polynomial, NdPolynomial
 )
+
 from .binding import BindingBaseClass, NoBinding
 from .reaction import ReactionBaseClass, NoReaction
-
+from .discretization import (
+    NoDiscretization, LRMDiscretizationFV, LRMPDiscretizationFV, GRMDiscretizationFV
+)
 
 @frozen_attributes
 class UnitBaseClass(metaclass=StructMeta):
@@ -50,7 +54,7 @@ class UnitBaseClass(metaclass=StructMeta):
     
     supports_bulk_reaction = False
     supports_particle_reaction = False
-
+    
     def __init__(self, n_comp, name):
         self.name = name
         self.n_comp = n_comp
@@ -60,6 +64,8 @@ class UnitBaseClass(metaclass=StructMeta):
         self._bulk_reaction_model = NoReaction()
         self._particle_reaction_model = NoReaction()
 
+        self._discretization = NoDiscretization()
+        
         self._parameters = {
             param: getattr(self, param)
             for param in self._parameter_names
@@ -82,6 +88,9 @@ class UnitBaseClass(metaclass=StructMeta):
         if not isinstance(self.particle_reaction_model, NoReaction):
             parameters['particle_reaction_model'] = \
                 self.particle_reaction_model.parameters
+        if not isinstance(self.discretization, NoDiscretization):
+            parameters['discretization'] = \
+                self.discretization.parameters
 
         return parameters
 
@@ -97,6 +106,10 @@ class UnitBaseClass(metaclass=StructMeta):
             pass        
         try:
             self.particle_reaction_model.parameters = parameters.pop('particle_reaction_model')
+        except KeyError:
+            pass     
+        try:
+            self.discretization.parameters = parameters.pop('discretization')
         except KeyError:
             pass     
         
@@ -174,7 +187,7 @@ class UnitBaseClass(metaclass=StructMeta):
         Raises
         ------
         TypeError
-            If binding_model object is not an instance of BindingBaseClass.
+            If bulk_reaction_model object is not an instance of ReactionBaseClass.
         CADETProcessError
             If unit does not support bulk reaction model.
             If number of components do not match.
@@ -201,7 +214,7 @@ class UnitBaseClass(metaclass=StructMeta):
         Raises
         ------
         TypeError
-            If binding_model object is not an instance of BindingBaseClass.
+            If particle_reaction_model object is not an instance of ReactionBaseClass.
         CADETProcessError
             If unit does not support particle reaction model.
             If number of components do not match.
@@ -220,6 +233,12 @@ class UnitBaseClass(metaclass=StructMeta):
             raise CADETProcessError('Number of components does not match.')
 
         self._particle_reaction_model = particle_reaction_model
+        
+    @property
+    def discretization(self):
+        """discretization: Discretization Parameters
+        """
+        return self._discretization
 
     def __repr__(self):
         """String-depiction of the object, can be changed into an object by
@@ -346,6 +365,10 @@ class TubularReactor(UnitBaseClass):
     c = DependentlySizedUnsignedList(dep='n_comp', default=0)
     _initial_state = UnitBaseClass._initial_state + ['c']
     
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._discretization = LRMDiscretizationFV()
+        
     @property
     def cross_section_area(self):
         """float: Cross section area of a Column.
@@ -568,6 +591,7 @@ class LumpedRateModelWithoutPores(TubularReactor):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._discretization = LRMDiscretizationFV()
         
 
 class LumpedRateModelWithPores(TubularReactor):
@@ -611,6 +635,7 @@ class LumpedRateModelWithPores(TubularReactor):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._discretization = LRMPDiscretizationFV()
         
     @property
     def total_porosity(self):
@@ -700,6 +725,7 @@ class GeneralRateModel(TubularReactor):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._discretization = GRMDiscretizationFV()
         
     @property
     def total_porosity(self):
@@ -780,6 +806,7 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     c = DependentlySizedUnsignedList(dep='n_comp', default=0)
     q = DependentlySizedUnsignedList(dep=('n_comp', '_n_bound_states'), default=0)
     V = UnsignedFloat(default=0)
+    volume = V
     _initial_state = \
         UnitBaseClass._initial_state + \
         ['c', 'q', 'V']

@@ -22,9 +22,10 @@ from CADETProcess.simulation import SolverBase
 from CADETProcess.simulation import SimulationResults
 from CADETProcess.processModel import NoBinding, BindingBaseClass
 from CADETProcess.processModel import NoReaction, ReactionBaseClass
+from CADETProcess.processModel import NoDiscretization
 from CADETProcess.processModel import (
     UnitBaseClass, Source, Cstr, LumpedRateModelWithoutPores
-    )
+)
 from CADETProcess.processModel import Process
 
 class Cadet(SolverBase):
@@ -79,12 +80,6 @@ class Cadet(SolverBase):
         super().__init__(*args, **kwargs)
 
         self.model_solver_parameters = ModelSolverParametersGroup()
-
-        self.unit_discretization_parameters = UnitDiscretizationParametersGroup()
-        self.discretization_weno_parameters = DiscretizationWenoParametersGroup()
-        self.discretization_consistency_solver_parameters = \
-            ConsistencySolverParametersGroup()
-
         self.solver_parameters = SolverParametersGroup()
         self.time_integrator_parameters = SolverTimeIntegratorParametersGroup()
 
@@ -504,7 +499,7 @@ class Cadet(SolverBase):
         return ls
 
     def get_unit_index(self, process, unit):
-        """Helper function for getting unit index in CADET format unitXXX
+        """Helper function for getting unit index in CADET format unit_xxx.
 
         Parameters
         -----------
@@ -522,7 +517,7 @@ class Cadet(SolverBase):
         return 'unit' + '_{0:03d}'.format(index)
 
     def get_model_units(self, process):
-        """Config branches for all units /input/model/unit_000 ... unit_xxx
+        """Config branches for all units /input/model/unit_000 ... unit_xxx.
 
         See also
         --------
@@ -542,7 +537,7 @@ class Cadet(SolverBase):
         return model_units
 
     def get_unit_config(self, unit):
-        """Config branch /input/model/unit_000 for individual unit
+        """Config branch /input/model/unit_xxx for individual unit.
 
         The parameters from the unit are extracted and converted to CADET format
 
@@ -561,14 +556,6 @@ class Cadet(SolverBase):
 
         unit_config = Dict(unit_parameters.to_dict())
 
-        unit_config['discretization'] = \
-            self.unit_discretization_parameters.to_dict()
-
-        unit_config['discretization']['weno'] = \
-            self.discretization_weno_parameters.to_dict()
-        unit_config['discretization']['consistency_solver'] = \
-            self.discretization_consistency_solver_parameters.to_dict()
-
         if not isinstance(unit.binding_model, NoBinding):
             n_bound = [unit.binding_model.n_states] * unit.binding_model.n_comp
             unit_config['adsorption'] = \
@@ -577,11 +564,13 @@ class Cadet(SolverBase):
         else:
             n_bound = unit.n_comp*[0]
 
+        if not isinstance(unit.discretization, NoDiscretization):
+            unit_config['discretization'] = unit.discretization.parameters
+
         if isinstance(unit, Cstr) and not isinstance(unit.binding_model, NoBinding):
             unit_config['nbound'] = n_bound
         else:
             unit_config['discretization']['nbound'] = n_bound
-
 
         if not isinstance(unit.bulk_reaction_model, NoReaction):
             parameters = self.get_reaction_config(unit.bulk_reaction_model)
@@ -662,7 +651,6 @@ class Cadet(SolverBase):
         if sec_index == 0:
             model_units[unit_index][parameter_name] = []
         model_units[unit_index][parameter_name] += list(state.ravel())
-
 
     def get_adsorption_config(self, binding):
         """Config branch /input/model/unit_xxx/adsorption for individual unit
@@ -752,7 +740,7 @@ class Cadet(SolverBase):
     def __str__(self):
         return 'CADET'
 
-from CADETProcess.simulation.solver import ParametersGroup, ParameterWrapper
+from CADETProcess.dataStructure import ParametersGroup, ParameterWrapper
 class ModelSolverParametersGroup(ParametersGroup):
     """Class for defining the model_solver_parameters.
 
@@ -881,7 +869,6 @@ inv_unit_parameters_map = {
             v: k for k, v in values['parameters'].items()
         }
     } for unit, values in unit_parameters_map.items()
-
 }
 
 class UnitParametersGroup(ParameterWrapper):
@@ -900,51 +887,6 @@ class UnitParametersGroup(ParameterWrapper):
     _model_parameters = _unit_parameters
     _model_type = 'UNIT_TYPE'
 
-
-class UnitDiscretizationParametersGroup(ParametersGroup):
-    """Class for defining the unit_disrectization_parameters.
-
-    Note
-    ----
-    In CADET, the parameter unit_config['discretization'].NBOUND should be
-    moved to binding config or unit config. It is now handled separately in
-    get_unit_config()
-
-    See also
-    --------
-    ParametersGroup
-    get_unit_config
-    """
-    NCOL = UnsignedInteger(default=100)
-    NPAR = UnsignedInteger(default=5)
-    PAR_DISC_TYPE = Switch(default='EQUIDISTANT_PAR', valid=[
-                'EQUIDISTANT_PAR', 'EQUIVOLUME_PAR'])
-    USE_ANALYTIC_JACOBIAN = Bool(default=True)
-    RECONSTRUCTION = Switch(default='WENO', valid=['WENO'])
-    GS_TYPE = Bool(default=True)
-    MAX_KRYLOV = UnsignedInteger(default=0)
-    MAX_RESTARTS = UnsignedInteger(default=10)
-    SCHUR_SAFETY = UnsignedFloat(default=1.0e-8)
-
-    _parameters = [
-        'NCOL', 'NPAR', 'PAR_DISC_TYPE', 'USE_ANALYTIC_JACOBIAN',
-        'RECONSTRUCTION', 'GS_TYPE', 'MAX_KRYLOV', 'MAX_RESTARTS',
-        'SCHUR_SAFETY']
-
-class DiscretizationWenoParametersGroup(ParametersGroup):
-    """Class for defining the disrectization_weno_parameters
-
-    Defines several parameters as UnsignedInteger, UnsignedFloat and save their
-    names into a list named parameters.
-
-    See also
-    --------
-    ParametersGroup
-    """
-    BOUNDARY_MODEL = UnsignedInteger(default=0, ub=3)
-    WENO_EPS = UnsignedFloat(default=1e-10)
-    WENO_ORDER = UnsignedInteger(default=3, ub=3)
-    _parameters = ['BOUNDARY_MODEL', 'WENO_EPS', 'WENO_ORDER']
 
 adsorption_parameters_map = {
     'NoBinding': {
@@ -1032,7 +974,6 @@ inv_adsorption_parameters_map = {
             v: k for k, v in values['parameters'].items()
         }
     } for model, values in adsorption_parameters_map.items()
-
 }
 
 class AdsorptionParametersGroup(ParameterWrapper):
@@ -1109,99 +1050,66 @@ class ReactionParametersGroup(ParameterWrapper):
     _model_type = 'REACTION_MODEL'
 
 
-class ConsistencySolverParametersGroup(ParametersGroup):
-    """Class for defining the consistency solver parameters for cadet.
-
-    The class defines several parameters for the consistency solver parameters
-    with default values for cadet. The names are saved as strings in the
-    parameters list.
-
-    See also
-    --------
-    ParametersGroup
-    """
-    SOLVER_NAME = Switch(default='LEVMAR', valid=[
-        'LEVMAR', 'ATRN_RES', 'ARTN_ERR', 'COMPOSITE'])
-    INIT_DAMPING = UnsignedFloat(default=0.01)
-    MIN_DAMPING = UnsignedFloat(default=0.0001)
-    MAX_ITERATIONS = UnsignedInteger(default=50)
-    SUBSOLVERS = Switch(default='LEVMAR', valid=[
-        'LEVMAR', 'ATRN_RES', 'ARTN_ERR'])
-
-    _parameters = ['SOLVER_NAME', 'INIT_DAMPING', 'MIN_DAMPING',
-        'MAX_ITERATIONS', 'SUBSOLVERS']
-
-
 class SolverParametersGroup(ParametersGroup):
     """Class for defining the solver parameters for cadet.
 
-    The class defines several parameters for the solver parameters
-    with default values for cadet. The names are saved as strings in the
-    parameters list. For the CONSISTENT_INIT_MODE and CONSISTENT_INIT_MODE_SENS
-    also upper bounds are defined.
-
     See also
     --------
     ParametersGroup
     """
-    NTHREADS = UnsignedInteger(default=1)
-    CONSISTENT_INIT_MODE = UnsignedInteger(default=1, ub=7)
-    CONSISTENT_INIT_MODE_SENS = UnsignedInteger(default=1, ub=7)
+    nthreads = UnsignedInteger(default=1)
+    consistent_init_mode = UnsignedInteger(default=1, ub=7)
+    consistent_init_mode_sens = UnsignedInteger(default=1, ub=7)
 
     _parameters = [
-        'NTHREADS', 'CONSISTENT_INIT_MODE', 'CONSISTENT_INIT_MODE_SENS']
+        'nthreads', 'consistent_init_mode', 'consistent_init_mode_sens'
+    ]
 
 
 class SolverTimeIntegratorParametersGroup(ParametersGroup):
     """Class for defining the solver time integrator parameters for cadet.
 
-    The class defines several parameters for the solver time integrator
-    parameters with default values for cadet. The names are saved as strings in
-    the parameters list.
-
     See also
     --------
     ParametersGroup
     """
-    ABSTOL = UnsignedFloat(default=1e-8)
-    ALGTOL = UnsignedFloat(default=1e-12)
-    RELTOL = UnsignedFloat(default=1e-6)
-    RELTOL_SENS = UnsignedFloat(default=1e-12)
-    INIT_STEP_SIZE = UnsignedFloat(default=1e-6)
-    MAX_STEPS = UnsignedInteger(default=1000000)
-    MAX_STEP_SIZE = UnsignedInteger(default=1000000)
-    ERRORTEST_SENS = Bool(default=False)
-    MAX_NEWTON_ITER = UnsignedInteger(default=1000000)
-    MAX_ERRTEST_FAIL = UnsignedInteger(default=1000000)
-    MAX_CONVTEST_FAIL = UnsignedInteger(default=1000000)
-    MAX_NEWTON_ITER_SENS = UnsignedInteger(default=1000000)
+    abstol = UnsignedFloat(default=1e-8)
+    algtol = UnsignedFloat(default=1e-12)
+    reltol = UnsignedFloat(default=1e-6)
+    reltol_sens = UnsignedFloat(default=1e-12)
+    init_step_size = UnsignedFloat(default=1e-6)
+    max_steps = UnsignedInteger(default=1000000)
+    max_step_size = UnsignedInteger(default=1000000)
+    errortest_sens = Bool(default=False)
+    max_newton_iter = UnsignedInteger(default=1000000)
+    max_errtest_fail = UnsignedInteger(default=1000000)
+    max_convtest_fail = UnsignedInteger(default=1000000)
+    max_newton_iter_sens = UnsignedInteger(default=1000000)
 
     _parameters = [
-        'ABSTOL', 'ALGTOL', 'RELTOL', 'RELTOL_SENS', 'INIT_STEP_SIZE',
-        'MAX_STEPS', 'MAX_STEP_SIZE', 'ERRORTEST_SENS', 'MAX_NEWTON_ITER',
-        'MAX_ERRTEST_FAIL', 'MAX_CONVTEST_FAIL', 'MAX_NEWTON_ITER_SENS']
+        'abstol', 'algtol', 'reltol', 'reltol_sens', 'init_step_size',
+        'max_steps', 'max_step_size', 'errortest_sens', 'max_newton_iter',
+        'max_errtest_fail', 'max_convtest_fail', 'max_newton_iter_sens'
+    ]
 
 
 class ReturnParametersGroup(ParametersGroup):
     """Class for defining the return parameters for cadet.
 
-    The class defines several parameters for the return parameters as boolean
-    for cadet. The names are saved as strings in the parameters list. Each
-    default value is set True.
-
     See also
     --------
     ParametersGroup
     """
-    WRITE_SOLUTION_TIMES = Bool(default=True)
-    WRITE_SOLUTION_LAST = Bool(default=True)
-    WRITE_SENS_LAST = Bool(default=True)
-    SPLIT_COMPONENTS_DATA = Bool(default=False)
-    SPLIT_PORTS_DATA = Bool(default=False)
+    write_solution_times = Bool(default=True)
+    write_solution_last = Bool(default=True)
+    write_sens_last = Bool(default=True)
+    split_components_data = Bool(default=False)
+    split_ports_data = Bool(default=False)
 
     _parameters = [
-        'WRITE_SOLUTION_TIMES', 'WRITE_SOLUTION_LAST', 'WRITE_SENS_LAST',
-        'SPLIT_COMPONENTS_DATA', 'SPLIT_PORTS_DATA']
+        'write_solution_times', 'write_solution_last', 'write_sens_last',
+        'split_components_data', 'split_ports_data'
+    ]
 
 
 class UnitReturnParametersGroup(ParametersGroup):
@@ -1217,46 +1125,49 @@ class UnitReturnParametersGroup(ParametersGroup):
     --------
     ParametersGroup
     """
-    WRITE_SOLUTION_INLET = Bool(default=True)
-    WRITE_SOLUTION_OUTLET = Bool(default=True)
-    WRITE_SOLUTION_BULK = Bool(default=False)
-    WRITE_SOLUTION_PARTICLE = Bool(default=False)
-    WRITE_SOLUTION_SOLID = Bool(default=False)
-    WRITE_SOLUTION_FLUX = Bool(default=False)
-    WRITE_SOLUTION_VOLUME = Bool(default=True)
-    WRITE_SOLDOT_INLET = Bool(default=False)
-    WRITE_SOLDOT_OUTLET = Bool(default=False)
-    WRITE_SOLDOT_BULK = Bool(default=False)
-    WRITE_SOLDOT_PARTICLE = Bool(default=False)
-    WRITE_SOLDOT_SOLID = Bool(default=False)
-    WRITE_SOLDOT_FLUX = Bool(default=False)
-    WRITE_SOLDOT_VOLUME = Bool(default=False)
-    WRITE_SENS_INLET = Bool(default=False)
-    WRITE_SENS_OUTLET = Bool(default=False)
-    WRITE_SENS_BULK = Bool(default=False)
-    WRITE_SENS_PARTICLE = Bool(default=False)
-    WRITE_SENS_SOLID = Bool(default=False)
-    WRITE_SENS_FLUX = Bool(default=False)
-    WRITE_SENS_VOLUME = Bool(default=False)
-    WRITE_SENSDOT_INLET = Bool(default=False)
-    WRITE_SENSDOT_OUTLET = Bool(default=False)
-    WRITE_SENSDOT_BULK = Bool(default=False)
-    WRITE_SENSDOT_PARTICLE = Bool(default=False)
-    WRITE_SENSDOT_SOLID = Bool(default=False)
-    WRITE_SENSDOT_FLUX = Bool(default=False)
-    WRITE_SENSDOT_VOLUME = Bool(default=False)
+    write_coordinates = Bool(default=True)
+    write_solution_inlet = Bool(default=True)
+    write_solution_outlet = Bool(default=True)
+    write_solution_bulk = Bool(default=False)
+    write_solution_particle = Bool(default=False)
+    write_solution_solid = Bool(default=False)
+    write_solution_flux = Bool(default=False)
+    write_solution_volume = Bool(default=True)
+    write_soldot_inlet = Bool(default=False)
+    write_soldot_outlet = Bool(default=False)
+    write_soldot_bulk = Bool(default=False)
+    write_soldot_particle = Bool(default=False)
+    write_soldot_solid = Bool(default=False)
+    write_soldot_flux = Bool(default=False)
+    write_soldot_volume = Bool(default=False)
+    write_sens_inlet = Bool(default=False)
+    write_sens_outlet = Bool(default=False)
+    write_sens_bulk = Bool(default=False)
+    write_sens_particle = Bool(default=False)
+    write_sens_solid = Bool(default=False)
+    write_sens_flux = Bool(default=False)
+    write_sens_volume = Bool(default=False)
+    write_sensdot_inlet = Bool(default=False)
+    write_sensdot_outlet = Bool(default=False)
+    write_sensdot_bulk = Bool(default=False)
+    write_sensdot_particle = Bool(default=False)
+    write_sensdot_solid = Bool(default=False)
+    write_sensdot_flux = Bool(default=False)
+    write_sensdot_volume = Bool(default=False)
+    write_solution_last_unit = Bool(default=False)
 
     _parameters = [
-        'WRITE_SOLUTION_INLET', 'WRITE_SOLUTION_OUTLET', 'WRITE_SOLUTION_BULK',
-        'WRITE_SOLUTION_PARTICLE', 'WRITE_SOLUTION_SOLID', 'WRITE_SOLUTION_FLUX',
-        'WRITE_SOLUTION_VOLUME', 'WRITE_SOLDOT_INLET', 'WRITE_SOLDOT_OUTLET',
-        'WRITE_SOLDOT_BULK', 'WRITE_SOLDOT_PARTICLE', 'WRITE_SOLDOT_SOLID',
-        'WRITE_SOLDOT_FLUX', 'WRITE_SOLDOT_VOLUME', 'WRITE_SENS_INLET',
-        'WRITE_SENS_OUTLET', 'WRITE_SENS_BULK', 'WRITE_SENS_PARTICLE',
-        'WRITE_SENS_SOLID', 'WRITE_SENS_FLUX', 'WRITE_SENS_VOLUME',
-        'WRITE_SENSDOT_INLET', 'WRITE_SENSDOT_OUTLET', 'WRITE_SENSDOT_BULK',
-        'WRITE_SENSDOT_PARTICLE', 'WRITE_SENSDOT_SOLID', 'WRITE_SENSDOT_FLUX',
-        'WRITE_SENSDOT_VOLUME']
+        'write_solution_inlet', 'write_solution_outlet', 'write_solution_bulk',
+        'write_solution_particle', 'write_solution_solid', 'write_solution_flux',
+        'write_solution_volume', 'write_soldot_inlet', 'write_soldot_outlet',
+        'write_soldot_bulk', 'write_soldot_particle', 'write_soldot_solid',
+        'write_soldot_flux', 'write_soldot_volume', 'write_sens_inlet',
+        'write_sens_outlet', 'write_sens_bulk', 'write_sens_particle',
+        'write_sens_solid', 'write_sens_flux', 'write_sens_volume',
+        'write_sensdot_inlet', 'write_sensdot_outlet', 'write_sensdot_bulk',
+        'write_sensdot_particle', 'write_sensdot_solid', 'write_sensdot_flux',
+        'write_sensdot_volume'
+    ]
 
 
 class SensitivityParametersGroup(ParametersGroup):
@@ -1269,5 +1180,6 @@ class SensitivityParametersGroup(ParametersGroup):
     --------
     ParametersGroup
     """
-    NSENS = UnsignedInteger(default=0)
-    SENS_METHOD = Switch(default='ad1', valid=['ad1'])
+    nsens = UnsignedInteger(default=0)
+    sens_method = Switch(default='ad1', valid=['ad1'])
+    

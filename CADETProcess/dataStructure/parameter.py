@@ -272,6 +272,9 @@ class Ranged(Parameter):
         
 class RangedFloat(Float, Ranged):
     pass
+
+class RangedInteger(Integer, Ranged):
+    pass
             
 class Unsigned(Ranged):
     def __init__(self, *args, **kwargs):
@@ -348,6 +351,9 @@ class DependentlySizedString(String, DependentlySized):
     pass
 
 class DependentlySizedList(List, DependentlySized):
+    pass
+
+class DependentlySizedRangedList(List, Ranged, DependentlySized):
     pass
 
 class DependentlySizedUnsignedList(List, Unsigned, DependentlySized):
