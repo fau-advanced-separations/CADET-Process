@@ -7,7 +7,7 @@ from CADETProcess import CADETProcessError
 from CADETProcess.common import settings
 from CADETProcess.dataStructure import String
 from CADETProcess.dynamicEvents import EventHandler
-from CADETProcess.common import plotlib, PlotParameters
+from CADETProcess.common import plotting
 from CADETProcess.common import Performance
 from CADETProcess.common import Chromatogram
 from CADETProcess.common import ProcessMeta
@@ -15,7 +15,7 @@ from CADETProcess.common import ProcessMeta
 from CADETProcess.fractionation.fractions import Fraction, FractionPool
 
 class Fractionator(EventHandler):
-    """Class for Chromatogram Fractionation
+    """Class for Chromatogram Fractionation.
 
     To set Events for starting and ending a fractionation it inherits from the
     EventHandler class. It defines a ranking list for components as a
@@ -24,18 +24,17 @@ class Fractionator(EventHandler):
     every component is equivalently.
 
     Attributes
-    -----------
+    ----------
     chromatogram : Chromatogram
         Object of the class TimeSignal, array with the concentration over time
         for a simulated process.
-
     """
+    
     name = String(default='Fractionator')
     performance_keys = [
         'mass', 'concentration', 'purity', 'recovery',
         'productivity', 'eluent_consumption'
     ]
-
 
     def __init__(self, process_meta, *args, **kwargs):
         self.process_meta = process_meta
@@ -93,13 +92,13 @@ class Fractionator(EventHandler):
         """dict: Chromatogram names and objects.
         """
         return {chrom.name: chrom for chrom in self.chromatograms}
-    
+
     @property
     def chromatogram_names(self):
         """list: Chromatogram names
         """
         return [chrom.name for chrom in self.chromatograms]
-    
+
     @property
     def number_of_chromatograms(self):
         """int: Number of Chromatograms Fractionator.
@@ -112,12 +111,12 @@ class Fractionator(EventHandler):
             chrom: sorted(events, key=lambda evt: evt.time)
             for chrom, events in self._chromatogram_events.items()
             }
-        
+
         return chrom_events
-    
+
     def add_chromatogram(self, chromatogram):
         """Add Chromatogram to list of chromatograms to be fractionized.
-        
+
         Parameters
         ----------
         chromatogram : Chromatogram
@@ -145,7 +144,6 @@ class Fractionator(EventHandler):
 
         self.reset()
 
-        
     @property
     def process_meta(self):
         return self._process_meta
@@ -189,22 +187,41 @@ class Fractionator(EventHandler):
         """
         return self.chromatograms[0].time
 
+    @plotting.save_fig
     def plot_fraction_signal(
-            self, start=0, end=None, index=0, show=False, save_path=None
-        ):
+            self, start=0, end=None, index=0, secondary_axis=None
+            ):
         """Plot the signal without the waste fractions.
+
+        Parameters
+        ----------
+        start : float, optional
+            Start time of the plot. The default is 0.
+        end : TYPE, optional
+            End time of the plot. The default is None.
+        index : int, optional
+            Chromatogram index. The default is 0.
+
+        Returns
+        -------
+        fig, axs.
 
         See also
         --------
-        plotlib
+        CADETProcess.plot
         plot_purity
         """
         chrom = self.chromatograms[index]
         time_line = self.performer_timelines['fractionation_states'][chrom.name]
-        fill_regions = []
         x = chrom.time/60
         y = chrom.signal
+        ymax = 1.1*np.max(chrom.signal)
 
+        fig, ax = plotting.setup_figure()
+
+        ax.plot(x,y)
+
+        fill_regions = []
         for sec in time_line.sections:
             comp_index = int(np.where(sec.coeffs)[0])
             if comp_index == self.n_comp:
@@ -215,32 +232,38 @@ class Fractionator(EventHandler):
                 text = str(comp_index + 1)
 
             if sec.start != sec.end:
-                fill_regions.append({
-                    'start': sec.start/60,
-                    'end': sec.end/60,
-                    'y_max': 1.1*np.max(chrom.signal),
-                    'color_index': color_index,
-                    'text': text
-                })
+                fill_regions.append(plotting.FillRegion(
+                    start=sec.start/60,
+                    end=sec.end/60,
+                    y_max=ymax,
+                    color_index=color_index,
+                    text=text
+                    )
+                )
         if end is None:
             end = np.max(x)
 
         if len(time_line.sections) == 0:
-            fill_regions.append({
-                'start': start,
-                'end': end,
-                'y_max': 1.1*np.max(chrom.signal),
-                'color_index': -1,
-                'text': 'W'
-            })
+            fill_regions.append(plotting.FillRegion(
+                start=sec.start/60,
+                end=sec.end/60,
+                y_max=ymax,
+                color_index=-1,
+                text='W'
+                )
+            )
 
-        plot_parameters = PlotParameters()
-        plot_parameters.x_label = '$time~/~min$'
-        plot_parameters.y_label = '$c~/~mol \cdot L^{-1}$'
-        plot_parameters.fill_regions = fill_regions
-        plot_parameters.xlim = (start, end)
-        plot_parameters.ylim = (0, 1.1*np.max(chrom.signal))
-        plotlib.plot(x, y, plot_parameters, show=show, save_path=save_path)
+        plotting.add_fill_regions(ax, fill_regions, (start, end))
+
+        layout = plotting.Layout()
+        layout.x_label = '$time~/~min$'
+        layout.y_label = '$c~/~mM$'
+        layout.xlim = (start, end)
+        layout.ylim = (0, ymax)
+
+        plotting.set_layout(fig, ax, layout)
+
+        return fig, ax
 
     @property
     def fractionation_states(self):
@@ -250,17 +273,17 @@ class Fractionator(EventHandler):
         This is just a dummy variable to support interfacing with Events.
         """
         return self._fractionation_states
-    
+
     @_chrom_name_decorator
     def set_fractionation_state(self, chrom, state):
         """Set fractionation states of Chromatogram.
-        
+
         Parameters
         ----------
         chrom : Chromatogram
             Chromatogram object which is to be fractionated.
         state : int or list of floats
-            New fractionation state of the Chromatogram. 
+            New fractionation state of the Chromatogram.
 
         Raises
         ------
@@ -272,7 +295,7 @@ class Fractionator(EventHandler):
         """
         if chrom not in self._chromatograms:
             raise CADETProcessError('Chromatogram not in Fractionator')
-            
+
         state_length = self.n_comp + 1
 
         if state_length == 0:
@@ -294,7 +317,6 @@ class Fractionator(EventHandler):
             fractionation_state = state
 
         self._fractionation_states[chrom] = fractionation_state
-
 
     @property
     def fraction_pools(self):
@@ -500,7 +522,7 @@ class Fractionator(EventHandler):
                             event_name, param_path, comp, time
                         )
                         self._chromatogram_events[chrom].append(evt)
-                    
+
                     off_indices = np.where(diff[:,comp] == -1)
                     off_indices = off_indices[0]
                     for index, off_evt in enumerate(off_indices):
@@ -512,14 +534,14 @@ class Fractionator(EventHandler):
                         param_path = 'fractionation_states.{}'.format(chrom.name)
                         evt = self.add_event(
                             event_name, param_path, self.n_comp, time
-                        )                            
+                        )
                         self._chromatogram_events[chrom].append(evt)
 
     @property
     def parameters(self):
         parameters = super().parameters
         parameters['fractionation_states'] = {
-            chrom.name: self.fractionation_states[chrom] 
+            chrom.name: self.fractionation_states[chrom]
             for chrom in self.chromatograms
         }
 
@@ -535,7 +557,6 @@ class Fractionator(EventHandler):
             pass
 
         super(Fractionator, self.__class__).parameters.fset(self, parameters)
-
 
     @property
     def section_dependent_parameters(self):

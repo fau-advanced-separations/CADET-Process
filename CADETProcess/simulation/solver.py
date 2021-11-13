@@ -1,7 +1,9 @@
 from abc import abstractmethod
+import copy
 import os
 
 import numpy as np
+import addict
 
 from CADETProcess import CADETProcessError
 from CADETProcess.common import settings
@@ -209,8 +211,8 @@ class SolverBase(metaclass=StructMeta):
         return results
 
     def set_state_from_results(self, process, results):
-        process.system_state = results.system_solution['state']
-        process.system_state_derivative = results.system_solution['state_derivative']
+        process.system_state = results.system_state['state']
+        process.system_state_derivative = results.system_state['state_derivative']
         return process
 
 
@@ -278,7 +280,7 @@ class SimulationResults(metaclass=StructMeta):
         Meta information of the process.
     solution : dict
         Time signals for all cycles of all Unit Operations.
-    system_solution : dict
+    system_state : dict
         Final state and state_derivative of the system.
     chromatograms : List of chromatogram
         Solution of the final cycle of the chromatogram_sinks.
@@ -297,14 +299,15 @@ class SimulationResults(metaclass=StructMeta):
     time_elapsed = UnsignedFloat()
     process_name = String()
     process_config = Dict()
-    solution = Dict()
-    system_solution = Dict()
+    solution_cycles = Dict()
+    system_state = Dict()
     chromatograms = List()
 
     def __init__(
             self, solver_name, solver_parameters, exit_flag, exit_message,
             time_elapsed, process_name, process_config, process_meta,
-            solution, system_solution, chromatograms):
+            solution_cycles, system_state, chromatograms
+            ):
         self.solver_name = solver_name
         self.solver_parameters = solver_parameters
 
@@ -316,8 +319,8 @@ class SimulationResults(metaclass=StructMeta):
         self.process_config = process_config
         self.process_meta = process_meta
 
-        self.solution = solution
-        self.system_solution = system_solution
+        self.solution_cycles = solution_cycles
+        self.system_state = system_state
         self.chromatograms = chromatograms
 
     def update(self, new_results):
@@ -328,41 +331,66 @@ class SimulationResults(metaclass=StructMeta):
         self.exit_message = new_results.exit_message
         self.time_elapsed += new_results.time_elapsed
 
-        self.system_solution = new_results.system_solution
+        self.system_state = new_results.system_state
 
         self.chromatograms = new_results.chromatograms
-        for unit in self.solution:
-            self.solution[unit] += new_results.solution[unit]
+        for unit, solutions in self.solution_cycles.items():
+            for sol in solutions:
+                self.solution_cycles[unit][sol].append(new_results.solution[unit][sol])
 
     @property
-    def solution_complete(self):
-        time_cycle = next(iter(self.solution.values()))[0].time
+    def solution(self):
+        """Construct complete solution from individual cyles.
+        """
         cycle_time = self.process_config['parameters']['cycle_time']
 
-        time_complete = time_cycle
+        time_complete = self.time_cycle
         for i in range(1, self.n_cycles):
-            time_complete = np.hstack((time_complete, time_cycle[1:] + i*cycle_time))
+            time_complete = np.hstack((
+                time_complete, 
+                self.time_cycle[1:] + i*cycle_time
+            ))
 
-        solution_complete = Dict()
-        for unit, cycles in self.solution.items():
-            unit_complete = cycles[0].signal
-            for i in range(1, self.n_cycles):
-                unit_complete = np.vstack((unit_complete, cycles[i].signal[1:]))
-            solution_complete[unit] = TimeSignal(time_complete, unit_complete)
+        solution = addict.Dict()
+        for unit, solutions in self.solution_cycles.items():
+            for sol, cycles in solutions.items():
+                solution[unit][sol] = copy.deepcopy(cycles[0])
+                solution_complete = cycles[0].solution
+                for i in range(1, self.n_cycles):
+                    solution_complete = np.vstack((
+                        solution_complete, cycles[i].solution[1:]
+                    ))
+                solution[unit][sol].time = time_complete
+                solution[unit][sol].solution = solution_complete
 
-        return solution_complete
+        return solution
 
     @property
     def n_cycles(self):
-        return len(next(iter(self.solution.values())))
-
+        return len(self.solution_cycles[self._first_unit][self._first_solution])
+    
+    @property
+    def _first_unit(self):
+        return next(iter(self.solution_cycles))
+    
+    @property
+    def _first_solution(self):
+        return next(iter(self.solution_cycles[self._first_unit]))
+    
+    @property
+    def time_cycle(self):
+        """np.array: Solution times vector
+        """
+        return \
+            self.solution_cycles[self._first_unit][self._first_solution][0].time
+        
     def save(self, case_dir, unit=None, start=0, end=None):
         path = os.path.join(settings.project_directory, case_dir)
 
         if unit is None:
-            units = self.solution_complete.keys()
+            units = self.solution.keys()
         else:
-            units = self.solution_complete[unit]
+            units = self.solution[unit]
 
         for unit in units:
             self.solution[unit][-1].plot(

@@ -18,8 +18,11 @@ from CADETProcess.dataStructure import (
 )
 from CADETProcess.common import TimeSignal, Chromatogram
 
-from CADETProcess.simulation import SolverBase
-from CADETProcess.simulation import SimulationResults
+from .solver import SolverBase
+from .solver import SimulationResults
+from .solution import (
+    SolutionIO, SolutionBulk, SolutionParticle, SolutionSolid, SolutionVolume
+)
 from CADETProcess.processModel import NoBinding, BindingBaseClass
 from CADETProcess.processModel import NoReaction, ReactionBaseClass
 from CADETProcess.processModel import NoDiscretization
@@ -259,9 +262,12 @@ class Cadet(SolverBase):
         if return_information.returncode != 0:
             self.logger.error(
                 'Simulation of {} with parameters {} failed.'.format(
-                    process.name, process.config))
+                    process.name, process.config
+                )
+            )
             raise CADETProcessError(
-                'CADET Error: {}'.format(return_information.stderr))
+                'CADET Error: {}'.format(return_information.stderr)
+            )
 
         try:
             cadet.load()
@@ -356,52 +362,102 @@ class Cadet(SolverBase):
         -----
         !!! Implement method to read .h5 files that have no process associated.
         """
+        time = process.time
+
         solution = Dict()
+        from collections import defaultdict
         try:
             for unit in process.flow_sheet.units:
-                solution[unit.name] = []
-
+                solution[unit.name] = defaultdict(list)
                 unit_index = self.get_unit_index(process, unit)
-
-                solution_complete = \
-                    cadet.root.output.solution[unit_index].solution_outlet
-
-                time = process.time
+                unit_solution = cadet.root.output.solution[unit_index]
+                unit_coordinates = cadet.root.output.coordinates[unit_index].copy()
+                particle_coordinates = \
+                    unit_coordinates.pop('particle_coordinates_000', None)
+                        
                 for cycle in range(process._n_cycles):
                     start = cycle * (len(process.time) -1)
                     end = (cycle + 1) * (len(process.time) - 1) + 1
-                    signal = solution_complete[start:end,:]
-                    solution[unit.name].append(
-                        TimeSignal(time, signal, name=unit.name)
-                    )
+                
+                    if 'solution_inlet' in unit_solution.keys():
+                        sol_inlet = unit_solution.solution_inlet[start:end,:]
+                        solution[unit.name]['inlet'].append(
+                            SolutionIO(time, sol_inlet, unit.n_comp)
+                        )
+                    
+                    if 'solution_outlet' in unit_solution.keys():
+                        sol_outlet = unit_solution.solution_outlet[start:end,:]
+                        solution[unit.name]['outlet'].append(
+                            SolutionIO(time, sol_outlet, unit.n_comp)
+                        )
+    
+                    if 'solution_bulk' in unit_solution.keys():
+                        sol_bulk = unit_solution.solution_bulk[start:end,:]
+                        solution[unit.name]['bulk'].append(
+                            SolutionBulk(
+                                time, sol_bulk, unit.n_comp, **unit_coordinates
+                            )
+                        )
+                        
+                    if 'solution_particle' in unit_solution.keys():
+                        sol_particle = unit_solution.solution_particle[start:end,:]
+                        solution[unit.name]['particle'].append(
+                            SolutionParticle(
+                                time, sol_particle, unit.n_comp, 
+                                **unit_coordinates, 
+                                particle_coordinates=particle_coordinates
+                            )
+                        )
+    
+                    if 'solution_solid' in unit_solution.keys():
+                        sol_solid = unit_solution.solution_solid[start:end,:]
+                        solution[unit.name]['solid'].append(
+                            SolutionSolid(
+                                time, sol_solid, 
+                                unit.n_comp, unit.binding_model.n_states, 
+                                **unit_coordinates,
+                                particle_coordinates=particle_coordinates
+                            )
+                        )
+                        
+                    if 'solution_volume' in unit_solution.keys():
+                        sol_volume = unit_solution.solution_volume[start:end,:]
+                        solution[unit.name]['volume'].append(
+                            SolutionVolume(time, sol_volume)
+                        )
+                        
+            solution = Dict(solution)
+            
+            system_state = {
+                'state': cadet.root.output.last_state_y,
+                'state_derivative': cadet.root.output.last_state_ydot
+            }
 
-            system_solution = {
-                    'state': cadet.root.output.last_state_y,
-                    'state_derivative': cadet.root.output.last_state_ydot
-                    }
-
-            chromatograms = [Chromatogram(
-                    process.time, solution[chrom.name][-1].signal,
+            chromatograms = [
+                Chromatogram(
+                    process.time, solution[chrom.name].outlet[-1].solution,
                     process.flow_rate_timelines[chrom.name].total,
-                    name = chrom.name)
-                    for chrom in process.flow_sheet.chromatogram_sinks]
+                    name=chrom.name
+                )
+                for chrom in process.flow_sheet.chromatogram_sinks
+            ]
 
         except KeyError:
             raise CADETProcessError('Results don\'t match Process')
 
         results = SimulationResults(
-                solver_name = str(self),
-                solver_parameters = dict(),
-                exit_flag = return_information.returncode,
-                exit_message = return_information.stderr.decode(),
-                time_elapsed = time_elapsed,
-                process_name = process.name,
-                process_config = process.config,
-                process_meta = process.process_meta,
-                solution = solution,
-                system_solution = system_solution,
-                chromatograms = chromatograms
-                )
+            solver_name = str(self),
+            solver_parameters = dict(),
+            exit_flag = return_information.returncode,
+            exit_message = return_information.stderr.decode(),
+            time_elapsed = time_elapsed,
+            process_name = process.name,
+            process_config = process.config,
+            process_meta = process.process_meta,
+            solution_cycles = solution,
+            system_state = system_state,
+            chromatograms = chromatograms
+        )
 
         return results
 
@@ -776,6 +832,9 @@ unit_parameters_map = {
             'PAR_SURFDIFFUSION': 'surface_diffusion',
             'CROSS_SECTION_AREA': 'cross_section_area',
             'VELOCITY': 'flow_direction',
+        },
+        'fixed': {
+            'PAR_SURFDIFFUSION_MULTIPLEX': 0,
         },
     },
     'LumpedRateModelWithPores': {
@@ -1157,13 +1216,16 @@ class UnitReturnParametersGroup(ParametersGroup):
     write_solution_last_unit = Bool(default=False)
 
     _parameters = [
+        'write_coordinates',
         'write_solution_inlet', 'write_solution_outlet', 'write_solution_bulk',
         'write_solution_particle', 'write_solution_solid', 'write_solution_flux',
-        'write_solution_volume', 'write_soldot_inlet', 'write_soldot_outlet',
-        'write_soldot_bulk', 'write_soldot_particle', 'write_soldot_solid',
-        'write_soldot_flux', 'write_soldot_volume', 'write_sens_inlet',
-        'write_sens_outlet', 'write_sens_bulk', 'write_sens_particle',
-        'write_sens_solid', 'write_sens_flux', 'write_sens_volume',
+        'write_solution_volume', 
+        'write_soldot_inlet', 'write_soldot_outlet', 'write_soldot_bulk', 
+        'write_soldot_particle', 'write_soldot_solid', 'write_soldot_flux', 
+        'write_soldot_volume', 
+        'write_sens_inlet', 'write_sens_outlet', 'write_sens_bulk', 
+        'write_sens_particle', 'write_sens_solid', 'write_sens_flux', 
+        'write_sens_volume',
         'write_sensdot_inlet', 'write_sensdot_outlet', 'write_sensdot_bulk',
         'write_sensdot_particle', 'write_sensdot_solid', 'write_sensdot_flux',
         'write_sensdot_volume'

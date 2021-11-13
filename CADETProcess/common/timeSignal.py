@@ -5,9 +5,7 @@ from CADETProcess import CADETProcessError
 
 from CADETProcess.dataStructure  import StructMeta
 from CADETProcess.dataStructure import Float, List, NdArray, String
-from . import plotlib
-from .plotlib import PlotParameters
-
+from CADETProcess import plotting
 
 class TimeSignal(metaclass=StructMeta):
     """Class for storing concentration profiles after simulation.
@@ -32,8 +30,8 @@ class TimeSignal(metaclass=StructMeta):
         self.name = name
         self.cycle_time = float(max(self.time))
 
-
-    def plot(self, start=0, end=None, show=False, save_path=None, overlay=None):
+    @plotting.save_fig
+    def plot(self, start=0, end=None):
         """Plots the whole time_signal for each component.
 
         Parameters
@@ -41,7 +39,7 @@ class TimeSignal(metaclass=StructMeta):
         start : float
             start time for plotting
         end : float
-            ent time for plotting
+            end time for plotting
 
         See also
         --------
@@ -51,18 +49,18 @@ class TimeSignal(metaclass=StructMeta):
         x = self.time / 60
         y = self.signal
 
-        plot_parameters = PlotParameters()
-        plot_parameters.x_label = '$time~/~min$'
-        plot_parameters.y_label = '$c~/~mol \cdot L^{-1}$'
-        plot_parameters.xlim = (start, end)
-        plot_parameters.ylim = (0, 1.1*np.max(self.signal))
-        if overlay is not None:
-            plot_parameters.ylim = (0, 1.1*np.max(overlay))
-            plot_parameters.overlay = [(self.time, y_other)
-            for y_other in overlay]
+        fig, ax = plotting.setup_figure()
+        ax.plot(x,y)
 
-        plotlib.plot(x, y, plot_parameters, show=show, save_path=save_path)
+        layout = plotting.Layout()
+        layout.x_label = '$time~/~min$'
+        layout.y_label = '$c~/~mol \cdot L^{-1}$'
+        layout.xlim = (start, end)
+        layout.ylim = (0, 1.1*np.max(y))
+        
+        plotting.set_layout(fig, ax, layout)        
 
+        return ax
 
     @property
     def local_purity(self):
@@ -90,8 +88,9 @@ class TimeSignal(metaclass=StructMeta):
         purity = np.nan_to_num(purity)
 
         return np.nan_to_num(purity)
-
-    def plot_purity(self, start=0, end=None, show=False, save_path=None):
+    
+    @plotting.save_fig
+    def plot_purity(self, start=0, end=None):
         """Plots the local purity for each component of the concentration
         profile.
 
@@ -110,14 +109,18 @@ class TimeSignal(metaclass=StructMeta):
         x = self.time / 60
         y = self.local_purity * 100
 
-        plot_parameters = PlotParameters()
-        plot_parameters.x_label = '$time~/~min$'
-        plot_parameters.y_label = '$Purity~/~\%$'
-        plot_parameters.xlim = (start, end)
-        plot_parameters.ylim = (0, 1.1*np.max(y))
+        fig, ax = plotting.setup_figure()
+        ax.plot(x,y)
 
-        plotlib.plot(x, y, plot_parameters, show=show, save_path=save_path)
-
+        layout = plotting.Layout()
+        layout.x_label = '$time~/~min$'
+        layout.y_label = '$c~/~mol \cdot L^{-1}$'
+        layout.xlim = (start, end)
+        layout.ylim = (0, 1.1*np.max(y))
+        
+        plotting.set_layout(fig, ax, layout)        
+        
+        return ax
 
     @property
     def n_comp(self):
@@ -216,7 +219,7 @@ class Chromatogram(TimeSignal):
         is >= the state_length and an integer a CADETProcessError is raised. The
         entry of the list is set to the state_length and the
         fractionation_state is set to 1. Else it sets the fractionation_state
-        to state and raises  a CADETProcessErrorif the length of the sate unequals
+        to state and raises a CADETProcessError if the length of the sate unequals
         the state_length or the sum of the states unequals 1.
 
         Parameters
@@ -282,9 +285,12 @@ class InterpolatedSignal():
                 ]
 
     def integral(self, start, end):
-        return np.array([self._signal[comp].integral(start, end)
-                    for comp in range(len(self._signal) )])
+        return np.array([
+            self._signal[comp].integral(start, end)
+            for comp in range(len(self._signal))
+        ])
 
     def __call__(self, t):
-        return np.array([self._signal[comp](t)
-                         for comp in range(len(self._signal))])
+        return np.array([
+            self._signal[comp](t) for comp in range(len(self._signal))
+        ])

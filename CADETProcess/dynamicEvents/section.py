@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import NdPolynomial
+from CADETProcess import plotting
 
 class Section(metaclass=StructMeta):
     """Helper class to store parameter states between events.
@@ -318,27 +319,28 @@ class TimeLine():
     def end(self):
         return self.section_times[-1]
         
-    def plot(self, ax=None, show=True):
+    @plotting.save_fig
+    def plot(self):
+        """Plot section state over time.
         """
-        To do
-        -----
-        Call plotlib!
-        """
-        if ax is None:
-            fig, ax = plt.subplots()        
         start = self.sections[0].start
         end = self.sections[-1].end
-        time = np.linspace(start, end, 1001)
+        time = np.linspace(start, end, 1001)/60
+        y = self.value(time)
         
-        ax.plot(time, self.value(time))
+        fig, ax = plotting.setup_figure()
+        ax.plot(time,y)
         
-        ax.set_xlabel("time / s")
-        ax.set_ylabel("state")
+        layout = plotting.Layout()
+        layout.x_label = '$time~/~min$'
+        layout.y_label = '$state$'
+        layout.xlim = (start/60, end/60)
+        layout.ylim = (0, 1.1*np.max(y))
         
-        if show:
-            plt.show()
-            
+        plotting.set_layout(fig, ax, layout)        
+
         return ax
+
 
 class MultiTimeLine():
     def __init__(self, base_state):

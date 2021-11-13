@@ -12,8 +12,7 @@ from CADETProcess.dataStructure import UnsignedFloat
 from CADETProcess.dataStructure import CachedPropertiesMixin, cached_property_if_locked
 from CADETProcess.dataStructure import check_nested, generate_nested_dict, get_nested_value
 
-from CADETProcess.common import plotlib
-from CADETProcess.common.plotlib import PlotParameters
+from CADETProcess import plotting
 from .section import Section, TimeLine, MultiTimeLine
 
 @frozen_attributes
@@ -47,7 +46,7 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
         self._durations = []
         self._lock = False
         self._parameters = None
-        
+
     @property
     def events(self):
         """list: All Events ordered by event time.
@@ -101,13 +100,13 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
         if name in self.events_dict:
             raise CADETProcessError("Event already exists")
         evt = Event(
-            name, self, parameter_path, state, time=time, 
+            name, self, parameter_path, state, time=time,
             entry_index=entry_index
         )
 
         self._events.append(evt)
         super().__setattr__(name, evt)
-        
+
         return evt
 
     def remove_event(self, evt_name):
@@ -321,7 +320,7 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
         """list: Event parameters.
         """
         return list({evt.parameter_path for evt in self.events})
-    
+
     @property
     def event_performers(self):
         """list: Event peformers.
@@ -334,25 +333,25 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
         """
         event_times = list({evt.time for evt in self.events})
         event_times.sort()
-        
+
         return event_times
-    
+
     @property
     def section_times(self):
         """list: Section times.
-        
+
         Includes 0 and cycle_time if they do not coincide with event time.
         """
         if len(self.event_times) == 0:
             return [0, self.cycle_time]
 
         section_times = self.event_times
-           
+
         if section_times[0] != 0:
             section_times = [0] + section_times
         if section_times[-1] != self.cycle_time:
             section_times = section_times + [self.cycle_time]
-        
+
         return section_times
 
     @property
@@ -360,24 +359,24 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
         """int: Number of sections.
         """
         return len(self.section_times) - 1
-    
+
     @cached_property_if_locked
     def section_states(self):
         """dict: state of event parameters at every section.
         """
         parameter_timelines = self.parameter_timelines
         section_states = defaultdict(dict)
-        
+
         for sec_time in self.section_times[0:-1]:
             for param, tl in parameter_timelines.items():
                 section_states[sec_time][param] = tl.coefficients(sec_time)
-        
-        return Dict(section_states)    
+
+        return Dict(section_states)
 
     @cached_property_if_locked
     def parameter_events(self):
         """dict: list of events for every event parameter.
-        
+
         Notes
         -----
         For entry dependent events, a key is added per component.
@@ -391,7 +390,7 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
             else:
                 parameter_events[evt.parameter_path].append(evt)
         return Dict(parameter_events)
-    
+
     @cached_property_if_locked
     def parameter_timelines(self):
         """dict: TimeLine for every event parameter.
@@ -400,13 +399,13 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
             param: TimeLine() for param in self.event_parameters
             if param not in self.entry_dependent_parameters
             }
-        
+
         parameters = self.parameters
         multi_timelines = {}
         for param in self.entry_dependent_parameters:
             base_state = get_nested_value(parameters, param)
-            multi_timelines[param] = MultiTimeLine(base_state) 
-        
+            multi_timelines[param] = MultiTimeLine(base_state)
+
         for evt_parameter, events in self.parameter_events.items():
             for index, evt in enumerate(events):
                 section_start = evt.time
@@ -414,7 +413,7 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
                 if index < len(events) - 1:
                     section_end = events[index + 1].time
                     section = Section(
-                        section_start, section_end, evt.state, 
+                        section_start, section_end, evt.state,
                         evt.n_entries, evt.degree
                     )
                     self._add_section(
@@ -423,7 +422,7 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
                 else:
                     section_end = self.cycle_time
                     section = Section(
-                        section_start, section_end, evt.state, 
+                        section_start, section_end, evt.state,
                         evt.n_entries, evt.degree
                     )
                     self._add_section(
@@ -438,10 +437,10 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
                         self._add_section(
                             evt, section, parameter_timelines, multi_timelines
                         )
-                        
+
         for param, tl in multi_timelines.items():
             parameter_timelines[param] = tl.combined_time_line()
-                    
+
         return Dict(parameter_timelines)
 
     def _add_section(self, evt, section, parameter_timelines, multi_timelines):
@@ -463,14 +462,14 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
         for evt in self.events:
             performer_events[evt.performer].append(evt)
 
-        return Dict(performer_events)    
+        return Dict(performer_events)
 
     @cached_property_if_locked
     def performer_timelines(self):
         """dict: TimeLines for every event parameter of a performer.
         """
         performer_timelines = {performer: {} for performer in self.event_performers}
-        
+
         for param, tl in self.parameter_timelines.items():
             performer, param = param.rsplit('.',1)
             performer_timelines[performer][param] = tl
@@ -508,20 +507,20 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
                 raise CADETProcessError('{} is not a valid event'.format(str(evt)))
 
             evt.parameters = evt_parameters
-            
+
     @abstractmethod
     def section_dependent_parameters(self):
         return
-    
+
     @property
     def entry_dependent_parameters(self):
         parameters = {
-            evt.parameter_path for evt in self.events 
+            evt.parameter_path for evt in self.events
             if evt.entry_index is not None
         }
-        
+
         return parameters
-    
+
 
     @abstractmethod
     def polynomial_parameters(self):
@@ -530,17 +529,21 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
     def plot_events(self):
         """Plot parameter state as function of time.
         """
-        x = np.linspace(0, self.cycle_time, 1001)
+        time = np.linspace(0, self.cycle_time, 1001)
         for parameter, tl in self.parameter_timelines.items():
-            y = tl.value(x)
-
-            plot_parameters = PlotParameters()
-            plot_parameters.x_label = '$time~/~min$'
-            plot_parameters.y_label = '$state$'
-            plot_parameters.title = str(parameter)
-            plotlib.plot(x/60, y, plot_parameters)
+            y = tl.value(time)
             
+            fig, ax = plotting.setup_figure()
+        
+            layout = plotting.Layout()
+            layout.title = str(parameter)
+            layout.x_label = '$time~/~min$'
+            layout.y_label = '$state$'
+        
+            ax.plot(time/60, y)
 
+            plotting.set_layout(fig, ax, layout)        
+        
 class Event():
     """Class for defining dynamic changes.
 
@@ -580,14 +583,14 @@ class Event():
     Duration
     """
     def __init__(
-            self, name, event_handler, 
+            self, name, event_handler,
             parameter_path, state, time=0.0, entry_index=None
         ):
         self.event_handler = event_handler
         self.parameter_path = parameter_path
         self.entry_index = entry_index
         self.state = state
-        
+
         self._is_polynomial = check_nested(
             self.event_handler.polynomial_parameters, self.parameter_path
         )
@@ -599,7 +602,7 @@ class Event():
         self.time = time
 
         self._parameters = ['time', 'state']
-        
+
     @property
     def parameter_path(self):
         return self._parameter_path
@@ -624,7 +627,7 @@ class Event():
                 self.event_handler.parameters, self.parameter_sequence
             )
         return np.array((parameter),ndmin=2).shape
-    
+
     @property
     def entry_index(self):
         return self._entry_index
@@ -639,11 +642,11 @@ class Event():
             if entry_index > len(parameter)-1:
                 raise CADETProcessError('Index exceeds components')
         self._entry_index = entry_index
-        
+
     @property
     def is_polynomial(self):
         return self._is_polynomial
-    
+
     @property
     def degree(self):
         if self.is_polynomial:
@@ -651,7 +654,7 @@ class Event():
             return state.shape[1] - 1
         else:
             return 0
-        
+
     @property
     def n_entries(self):
         if self.is_polynomial:
@@ -671,7 +674,7 @@ class Event():
             return True
         else:
             return False
-        
+
     def add_dependency(self, dependency, factor=1):
         """Add dependency of event time on other events.
 
@@ -746,7 +749,7 @@ class Event():
 
         If the value is larger than the cycle time, the time modulo cycle time
         is returned.
-        If the Event is not independent, the time is calculated from its 
+        If the Event is not independent, the time is calculated from its
         dependencies.
 
         Raises

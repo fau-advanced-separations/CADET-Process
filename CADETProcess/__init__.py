@@ -17,6 +17,7 @@ from .CADETProcessError import *
 
 from . import log
 from . import dataStructure
+from . import plotting
 from . import common
 from . import dynamicEvents
 from . import processModel
