@@ -125,7 +125,7 @@ class MassActionLaw(ReactionBaseClass):
     @property
     def k_eq(self):
         return [f/b for f, b in zip(self. k_fwd, self.k_bwd)]
-
+    
 
 class MassActionLawParticle(ReactionBaseClass):
     _parameter_names = ReactionBaseClass._parameter_names + [

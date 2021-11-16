@@ -25,3 +25,4 @@ from . import modelBuilder
 from . import simulation
 from . import fractionation
 from . import optimization
+from . import equilibria
