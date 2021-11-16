@@ -1,7 +1,7 @@
 from CADETProcess import CADETProcessError
-from CADETProcess.dataStructure import StructMeta
+from CADETProcess.dataStructure import Structure
 
-class ParametersGroup(metaclass=StructMeta):
+class ParametersGroup(Structure):
     """Base class for grouping parameters and exporting them to a dict.
 
     Attributes

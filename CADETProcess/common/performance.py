@@ -2,10 +2,10 @@ import numpy as np
 
 from CADETProcess import CADETProcessError
 
-from CADETProcess.dataStructure import StructMeta
+from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import NdArray
 
-class Performance(metaclass=StructMeta):
+class Performance(Structure):
     """Class for storing the performance parameters after fractionation.
 
     See also
@@ -57,7 +57,7 @@ class Performance(metaclass=StructMeta):
             np.array_repr(self.eluent_consumption))
 
 
-class RankedPerformance(metaclass=StructMeta):
+class RankedPerformance():
     """Class for calculating a weighted average of the Performance
 
     See also

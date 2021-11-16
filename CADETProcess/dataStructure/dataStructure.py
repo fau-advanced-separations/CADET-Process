@@ -37,7 +37,7 @@ class StructMeta(type):
         return clsobj
     
     
-class Descriptor(metaclass=ABCMeta):
+class Descriptor():
     """Base class for descriptors.
 
     Descriptors are used to efficiently implement class attributes that 
@@ -67,6 +67,11 @@ class Descriptor(metaclass=ABCMeta):
     def __delete__(self, instance):
         del instance.__dict__[self.name]
 
+class Structure(metaclass=StructMeta):
+    def __init__(self, *args, **kwargs):
+        bound = self.__signature__.bind_partial(*args, **kwargs)
+        for name, val in bound.arguments.items():
+            setattr(self, name, val)
 
 def frozen_attributes(cls):
     """Decorate classes to prevent setting attributes after the init method.
