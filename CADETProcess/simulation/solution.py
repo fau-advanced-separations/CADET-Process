@@ -197,7 +197,7 @@ class SolutionBulk(BaseSolution):
             plotting.add_overlay(ax, overlay)
             
         layout = plotting.Layout()
-        layout.x_label = '$L~/~m$'
+        layout.x_label = '$z~/~m$'
         layout.y_label = '$c~/~mM$'
         layout.ylim = (0, ymax)
         plotting.set_layout(fig, ax, layout)        
@@ -277,15 +277,70 @@ class SolutionParticle(BaseSolution):
 
     @property
     def ncol(self):
+        if self.axial_coordinates is None:
+            return
         return len(self.axial_coordinates)
-
+        
     @property
     def nrad(self):
+        if self.radial_coordinates is None:
+            return
         return len(self.radial_coordinates)
 
     @property
     def npar(self):
+        if self.particle_coordinates is None:
+            return 
         return len(self.particle_coordinates)
+    
+    def _plot_1D(self, t, ymax):
+        x = self.axial_coordinates
+        
+        if not self.time[0] <= t <= self.time[-1]:
+            raise ValueError("Time exceeds bounds.")
+        t_i = np.where(t<=self.time)[0][0]    
+        y = self.solution[t_i,:]
+
+        if ymax is None:
+            ymax = 1.1*np.max(y)
+
+        fig, ax = plotting.setup_figure()
+        ax.plot(x,y)
+        
+        plotting.add_text(ax, f'time = {t:.2f} s')
+        
+        layout = plotting.Layout()
+        layout.x_label = '$z~/~m$'
+        layout.y_label = '$c~/~mM$'
+        layout.ylim = (0, ymax)
+        plotting.set_layout(fig, ax, layout) 
+        
+        return fig, ax
+        
+    def _plot_2D(self, t, comp, vmax):
+        x = self.axial_coordinates
+        y = self.particle_coordinates
+        
+        if not self.time[0] <= t <= self.time[-1]:
+            raise ValueError("Time exceeds bounds.")
+        i = np.where(t<=self.time)[0][0]
+        v = self.solution[i,:,:,comp].transpose()
+        
+        if vmax is None:
+            vmax = v.max()
+            
+        fig, ax = plotting.setup_figure()
+        mesh = ax.pcolormesh(x, y, v, shading='gouraud', vmin=0, vmax=vmax)
+        
+        plotting.add_text(ax, f'time = {t:.2f} s')
+        
+        layout = plotting.Layout()
+        layout.x_label = '$z~/~m$'
+        layout.y_label = '$r~/~m$'
+        plotting.set_layout(fig, ax, layout)        
+        fig.colorbar(mesh)
+        
+        return fig, ax, mesh
     
     @plotting.save_fig
     def plot_at_time(self, t, comp=0, vmax=None):
@@ -296,34 +351,16 @@ class SolutionParticle(BaseSolution):
         t : float
             time for plotting
         comp : int
-            component inde
+            component index
 
         See also
         --------
         CADETProcess.plotting
         """
-        x = np.hstack((0,self.axial_coordinates))
-        y = np.hstack((0,self.particle_coordinates))
-        
-        if not self.time[0] <= t <= self.time[-1]:
-            raise ValueError("Time exceeds bounds.")
-        i = np.where(t<=self.time)[0][0]
-        
-        v = self.solution[i,:,:,comp].transpose()
-        if vmax is None:
-            vmax = v.max()
-            
-        fig, ax = plotting.setup_figure()
-        mesh = ax.pcolormesh(x, y, v, shading='flat', vmin=0, vmax=vmax)
-        
-        plotting.add_text(ax, f'time = {t:.2f} s')
-        
-        layout = plotting.Layout()
-        layout.x_label = '$z~/~m$'
-        layout.y_label = '$r~/~m$'
-        plotting.set_layout(fig, ax, layout)        
-        fig.colorbar(mesh)
-        
+        if self.npar is None:
+            fig, ax = self._plot_1D(t, vmax)
+        else:
+            fig, ax = self._plot_2D(t, comp, vmax)
         return ax
     
 class SolutionSolid(BaseSolution):
@@ -364,48 +401,63 @@ class SolutionSolid(BaseSolution):
     
     @property
     def ncol(self):
-        return len(self.axial_coordinates)
-
+        if self.axial_coordinates is None:
+            return None
+        else:
+            return len(self.axial_coordinates)
+        
     @property
     def nrad(self):
+        if self.radial_coordinates is None:
+            return
         return len(self.radial_coordinates)
 
     @property
     def npar(self):
+        if self.particle_coordinates is None:
+            return 
         return len(self.particle_coordinates)
     
-    @plotting.save_fig
-    def plot_at_time(self, t, comp=0, state=0, vmax=None):
-        """Plot bulk solution over spce at given time.
+    
+    def _plot_1D(self, t, ymax):
+        x = self.axial_coordinates
 
-        Parameters
-        ----------
-        t : float
-            time for plotting
-        comp : int
-            component index
-        state : int
-            bound state
+        if not self.time[0] <= t <= self.time[-1]:
+            raise ValueError("Time exceeds bounds.")
+        t_i = np.where(t<=self.time)[0][0]
+        y = self.solution[t_i,:]
 
-        See also
-        --------
-        plot_at_location
-        CADETProcess.plotting
-        """
-        x = np.hstack((0,self.axial_coordinates))
-        y = np.hstack((0,self.particle_coordinates))
+        if ymax is None:
+            ymax = 1.1*np.max(y)
+
+        fig, ax = plotting.setup_figure()
+        ax.plot(x,y)
+        
+        plotting.add_text(ax, f'time = {t:.2f} s')
+        
+        layout = plotting.Layout()
+        layout.x_label = '$z~/~m$'
+        layout.y_label = '$c~/~mM$'
+        layout.ylim = (0, ymax)
+        plotting.set_layout(fig, ax, layout) 
+        
+        return fig, ax
+        
+    def _plot_2D(self, t, comp, state, vmax):
+        x = self.axial_coordinates
+        y = self.particle_coordinates
         
         if not self.time[0] <= t <= self.time[-1]:
             raise ValueError("Time exceeds bounds.")
-        i = np.where(t<=self.time)[0][0]
+        t_i = np.where(t<=self.time)[0][0]
+        c_i = comp*self.n_bound + state
+        v = self.solution[t_i,:,:,c_i].transpose()
         
-        comp_index = comp*self.nbound + state
-        v = self.solution[i,:,:,comp_index].transpose()
         if vmax is None:
             vmax = v.max()
             
         fig, ax = plotting.setup_figure()
-        mesh = ax.pcolormesh(x, y, v, shading='flat', vmin=0, vmax=vmax)
+        mesh = ax.pcolormesh(x, y, v, shading='gouraud', vmin=0, vmax=vmax)
         
         plotting.add_text(ax, f'time = {t:.2f} s')
         
@@ -416,6 +468,31 @@ class SolutionSolid(BaseSolution):
         fig.colorbar(mesh)
         
         return fig, ax, mesh
+    
+    @plotting.save_fig
+    def plot_at_time(self, t, comp=0, state=0, vmax=None):
+        """Plot bulk solution over spce at given time.
+
+        Parameters
+        ----------
+        t : float
+            time for plotting
+        comp : int, optional
+            component index
+        state : int, optional
+            bound state
+        vmax : float, optional
+            Maximum values for plotting.
+
+        See also
+        --------
+        CADETProcess.plotting
+        """
+        if self.npar is None:
+            fig, ax = self._plot_1D(t, vmax)
+        else:
+            fig, ax, mesh = self._plot_2D(t, comp, state, vmax)
+        return ax
 
 
 class SolutionVolume(BaseSolution):
