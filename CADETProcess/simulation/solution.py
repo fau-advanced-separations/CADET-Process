@@ -23,7 +23,6 @@ Flux: NCOL * NRAD * NPARTYPE * NCOMP
 """
 
 import numpy as np
-import matplotlib.pyplot as plt
 
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import StructMeta
@@ -73,6 +72,19 @@ class BaseSolution(metaclass=StructMeta):
         coordinates = tuple(len(c) for c in self.coordinates.values())
         return (self.nt,) + coordinates + (self.n_comp,)
     
+    
+    def total_concentration(self):
+        total_concentration = np.zeros(
+            self.solution_shape[0:-1] + (self.component_system.n_components,)
+        )
+        
+        counter = 0
+        for index, comp in enumerate(self.component_system.components):
+            comp_indices = slice(counter, comp.n_species)
+            total_concentration[:,index] = np.sum(self.solution[...,comp_indices], axis=1)
+        
+        return total_concentration
+    
     def transform_solution(self, fun, comp=None):
         if comp is None:
             self.solution = fun(self.solution)
@@ -108,6 +120,7 @@ class SolutionIO(BaseSolution):
         """
         x = self.time / 60
         y = self.solution
+        
         ymax = y.max()
         
         fig, ax = plotting.setup_figure()
@@ -337,6 +350,7 @@ class SolutionParticle(BaseSolution):
         layout = plotting.Layout()
         layout.x_label = '$z~/~m$'
         layout.y_label = '$r~/~m$'
+        layout.title = f'Solid phase concentration, comp={comp}, state={state}'
         plotting.set_layout(fig, ax, layout)        
         fig.colorbar(mesh)
         
@@ -438,6 +452,7 @@ class SolutionSolid(BaseSolution):
         layout = plotting.Layout()
         layout.x_label = '$z~/~m$'
         layout.y_label = '$c~/~mM$'
+        layout.labels = self.component_system.labels
         layout.ylim = (0, ymax)
         plotting.set_layout(fig, ax, layout) 
         
@@ -462,8 +477,10 @@ class SolutionSolid(BaseSolution):
         plotting.add_text(ax, f'time = {t:.2f} s')
         
         layout = plotting.Layout()
+        layout.title = f'Solid phase concentration, comp={comp}, state={state}'
         layout.x_label = '$z~/~m$'
         layout.y_label = '$r~/~m$'
+        layout.labels = self.component_system.labels[c_i]
         plotting.set_layout(fig, ax, layout)        
         fig.colorbar(mesh)
         
