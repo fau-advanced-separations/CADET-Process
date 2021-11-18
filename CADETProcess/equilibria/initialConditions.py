@@ -9,18 +9,19 @@ from CADETProcess.simulation import Cadet
 
 def simulate_solid_equilibria(binding_model, buffer, unit_model='cstr', flush=None):
     process_name = flow_sheet_name = 'initial_conditions'
-    n_comp = binding_model.n_comp
+    component_system = binding_model.component_system
+
     # Unit Operations
-    buffer_source = Source(n_comp=n_comp, name='buffer')
+    buffer_source = Source(component_system, name='buffer')
     buffer_source.c = buffer
 
     if flush is None:
         flush = buffer
-    flush_source = Source(binding_model.n_comp, 'flush')
+    flush_source = Source(component_system, 'flush')
     flush_source.c = flush
 
     if unit_model == 'cstr':
-        unit = Cstr(n_comp, 'cstr')
+        unit = Cstr(component_system, 'cstr')
         unit.porosity = 0.5
         unit.V = 1e-6
 
@@ -28,7 +29,7 @@ def simulate_solid_equilibria(binding_model, buffer, unit_model='cstr', flush=No
         cycle_time = 1000*unit.volume/Q
         unit.flow_rate = Q
     elif unit_model == 'column':
-        unit = LumpedRateModelWithoutPores(n_comp=n_comp, name='column')
+        unit = LumpedRateModelWithoutPores(component_system, name='column')
         unit.length = 0.1
         unit.diameter = 0.01
         unit.axial_dispersion = 1e-6
@@ -46,10 +47,10 @@ def simulate_solid_equilibria(binding_model, buffer, unit_model='cstr', flush=No
 
     unit.binding_model = binding_model
 
-    outlet = Sink(n_comp=n_comp, name='outlet')
+    outlet = Sink(component_system, name='outlet')
 
     # flow sheet
-    fs = FlowSheet(n_comp=n_comp, name=flow_sheet_name)
+    fs = FlowSheet(component_system, name=flow_sheet_name)
 
     fs.add_unit(buffer_source)
     fs.add_unit(flush_source)

@@ -3,8 +3,12 @@ import numpy as np
 
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import StructMeta
-from CADETProcess.dataStructure import String, UnsignedInteger, \
-    UnsignedFloat, DependentlySizedList, DependentlySizedUnsignedList
+from CADETProcess.dataStructure import (
+    String, UnsignedInteger, UnsignedFloat, 
+    DependentlySizedList, DependentlySizedUnsignedList
+)
+    
+from .componentSystem import ComponentSystem
 
 class ReactionBaseClass(metaclass=StructMeta):
     """Abstract base class for parameters of binding models.
@@ -23,8 +27,8 @@ class ReactionBaseClass(metaclass=StructMeta):
     
     _parameter_names = []
 
-    def __init__(self, n_comp, name):
-        self.n_comp = n_comp
+    def __init__(self, component_system, name=None):
+        self.component_system = component_system
         self.name = name
         
         self._parameters = {
@@ -35,7 +39,21 @@ class ReactionBaseClass(metaclass=StructMeta):
     @property
     def model(self):
         return self.__class__.__name__
+    
+    @property
+    def component_system(self):
+        return self._component_system
 
+    @component_system.setter
+    def component_system(self, component_system):
+        if not isinstance(component_system, ComponentSystem):
+            raise TypeError('Expected ComponentSystem')
+        self._component_system = component_system
+    
+    @property
+    def n_comp(self):
+        return self.component_system.n_comp
+    
     @property
     def parameters(self):
         """dict: Dictionary with parameter values.
@@ -63,7 +81,7 @@ class NoReaction(ReactionBaseClass):
     The number of components is set to zero for this class.
     """
     def __init__(self, *args, **kwargs):
-        super().__init__(n_comp=0, name='NoReaction')
+        super().__init__(ComponentSystem(), name='NoReaction')
 
 class MassActionLaw(ReactionBaseClass):
     _parameter_names = ReactionBaseClass._parameter_names + [

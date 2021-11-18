@@ -12,6 +12,7 @@ from CADETProcess.dataStructure import (
     Polynomial, NdPolynomial
 )
 
+from .componentSystem import ComponentSystem
 from .binding import BindingBaseClass, NoBinding
 from .reaction import ReactionBaseClass, NoReaction
 from .discretization import (
@@ -45,7 +46,6 @@ class UnitBaseClass(metaclass=StructMeta):
     CADETProcess.reaction
     """
     name = String()
-    n_comp = UnsignedInteger()
 
     _parameter_names = []
     _section_dependent_parameters = []
@@ -55,9 +55,9 @@ class UnitBaseClass(metaclass=StructMeta):
     supports_bulk_reaction = False
     supports_particle_reaction = False
     
-    def __init__(self, n_comp, name):
+    def __init__(self, component_system, name):
         self.name = name
-        self.n_comp = n_comp
+        self.component_system = component_system
 
         self._binding_model = NoBinding()
 
@@ -74,6 +74,20 @@ class UnitBaseClass(metaclass=StructMeta):
     @property
     def model(self):
         return self.__class__.__name__
+
+    @property
+    def component_system(self):
+        return self._component_system
+
+    @component_system.setter
+    def component_system(self, component_system):
+        if not isinstance(component_system, ComponentSystem):
+            raise TypeError('Expected ComponentSystem')
+        self._component_system = component_system
+    
+    @property
+    def n_comp(self):
+        return self.component_system.n_comp
 
     @property
     def parameters(self):
@@ -170,9 +184,8 @@ class UnitBaseClass(metaclass=StructMeta):
         if not isinstance(binding_model, BindingBaseClass):
             raise TypeError('Expected BindingBaseClass')
 
-        if binding_model.n_comp != self.n_comp and not isinstance(
-                binding_model, NoBinding):
-            raise CADETProcessError('Number of components does not match.')
+        if binding_model.component_system is not self.component_system:
+            raise CADETProcessError('Component systems do not match.')
             
         self._binding_model = binding_model
         
@@ -201,9 +214,9 @@ class UnitBaseClass(metaclass=StructMeta):
         if not self.supports_bulk_reaction:
             raise CADETProcessError('Unit does not support bulk reactions.')
 
-        if bulk_reaction_model.n_comp != self.n_comp and not isinstance(
-                bulk_reaction_model, NoReaction):
-            raise CADETProcessError('Number of components does not match.')
+        if bulk_reaction_model.component_system is not self.component_system \
+                and not isinstance(bulk_reaction_model, NoReaction):
+            raise CADETProcessError('Component systems do not match.')
 
         self._bulk_reaction_model = bulk_reaction_model
     
@@ -228,9 +241,9 @@ class UnitBaseClass(metaclass=StructMeta):
         if not self.supports_bulk_reaction:
             raise CADETProcessError('Unit does not support particle reactions.')            
 
-        if particle_reaction_model.n_comp != self.n_comp and not isinstance(
-                particle_reaction_model, NoReaction):
-            raise CADETProcessError('Number of components does not match.')
+        if particle_reaction_model.component_system is not self.component_system \
+                and not isinstance(particle_reaction_model, NoReaction):
+            raise CADETProcessError('Component systems do not match.')
 
         self._particle_reaction_model = particle_reaction_model
         

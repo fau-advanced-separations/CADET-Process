@@ -8,7 +8,11 @@ import unittest
 
 import numpy as np
 
-import CADETProcess
+from CADETProcess.processModel import ComponentSystem
+from CADETProcess.processModel import (
+    Source, Cstr,
+    TubularReactor, LumpedRateModelWithPores, LumpedRateModelWithoutPores
+)
 
 length = 0.6
 diameter = 0.024
@@ -27,24 +31,29 @@ class Test_Unit_Operation(unittest.TestCase):
 
     def __init__(self, methodName='runTest'):
         super().__init__(methodName)
+        
+    def setUp(self):
+        self.component_system = ComponentSystem()
+        self.component_system.add_component('A')
+        self.component_system.add_component('B')
 
     def create_source(self):
-        source = CADETProcess.processModel.Source(n_comp=2, name='test')
+        source = Source(self.component_system, name='test')
 
         return source
 
     def create_cstr(self):
-        cstr = CADETProcess.processModel.Cstr(n_comp=2, name='test')
+        cstr = Cstr(self.component_system, name='test')
 
         cstr.porosity = total_porosity
         cstr.V = volume
 
         cstr.flow_rate = 1
-        
+
         return cstr
 
     def create_tubular_reactor(self):
-        tube = CADETProcess.processModel.TubularReactor(n_comp=2, name='test')
+        tube = TubularReactor(self.component_system, name='test')
 
         tube.length = length
         tube.diameter = diameter
@@ -53,7 +62,7 @@ class Test_Unit_Operation(unittest.TestCase):
         return tube
 
     def create_lrmwop(self):
-        lrmwop = CADETProcess.processModel.LumpedRateModelWithoutPores(n_comp=2, name='test')
+        lrmwop = LumpedRateModelWithoutPores(self.component_system, name='test')
 
         lrmwop.length = length
         lrmwop.diameter = diameter
@@ -63,7 +72,7 @@ class Test_Unit_Operation(unittest.TestCase):
         return lrmwop
 
     def create_lrmwp(self):
-        lrmwp = CADETProcess.processModel.LumpedRateModelWithPores(n_comp=2, name='test')
+        lrmwp = LumpedRateModelWithPores(self.component_system, name='test')
 
         lrmwp.length = length
         lrmwp.diameter = diameter
@@ -128,7 +137,7 @@ class Test_Unit_Operation(unittest.TestCase):
 
         tube.set_axial_dispersion_from_NTP(1/3, 2)
         self.assertAlmostEqual(tube.axial_dispersion, 3)
-        
+
         flow_rate = 2
         lrmwp.length = 1
         lrmwp.bed_porosity = 0.5
@@ -169,7 +178,7 @@ class Test_Unit_Operation(unittest.TestCase):
         cstr.flow_rate_filter = [1,0]
         np.testing.assert_equal(cstr.flow_rate, ref)
         np.testing.assert_equal(cstr.flow_rate_filter, ref)
-        
+
         ref = np.array([1,1,0,0])
         cstr.flow_rate = [1,1]
         cstr.flow_rate_filter = [1,1]
@@ -195,7 +204,7 @@ class Test_Unit_Operation(unittest.TestCase):
                 'flow_rate_filter': np.array([0,0,0,0]),
         }
         np.testing.assert_equal(parameters_expected, cstr.parameters)
-        
+
         sec_dep_parameters_expected = {
                 'flow_rate': np.array([1,0,0,0]),
                 'flow_rate_filter': np.array([0,0,0,0]),
@@ -203,7 +212,7 @@ class Test_Unit_Operation(unittest.TestCase):
         np.testing.assert_equal(
             sec_dep_parameters_expected, cstr.section_dependent_parameters
         )
-        
+
         poly_parameters = {
                 'flow_rate': np.array([1,0,0,0]),
                 'flow_rate_filter': np.array([0,0,0,0]),
@@ -211,7 +220,7 @@ class Test_Unit_Operation(unittest.TestCase):
         np.testing.assert_equal(
             poly_parameters, cstr.polynomial_parameters
         )
-        
+
 
 if __name__ == '__main__':
     unittest.main()

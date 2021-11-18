@@ -12,15 +12,19 @@ tags:
     gradient
     
 """
+from CADETProcess.processModel import ComponentSystem
 from CADETProcess.processModel import StericMassAction
 from CADETProcess.processModel import Source, GeneralRateModel, Sink
 from CADETProcess.processModel import FlowSheet
 from CADETProcess.processModel import Process
 
-process_name = flow_sheet_name = 'lwe'
+# Component System
+component_system = ComponentSystem()
+component_system.add_component('A')
+component_system.add_component('B')
 
 # Binding Model
-binding_model = StericMassAction(n_comp=2, name='SMA')
+binding_model = StericMassAction(component_system, name='SMA')
 binding_model.is_kinetic = True
 binding_model.adsorption_rate = [0.0, 0.3]
 binding_model.desorption_rate = [0.0, 1.5]
@@ -29,16 +33,16 @@ binding_model.steric_factor = [0.0, 50.0]
 binding_model.capacity = 225.0
 
 # Unit Operations
-feed = Source(n_comp=2, name='feed')
+feed = Source(component_system, name='feed')
 feed.c = [180.0, 0.1]
 
-eluent = Source(n_comp=2, name='eluent')
+eluent = Source(component_system, name='eluent')
 eluent.c = [70.0, 0.0]
 
-eluent_salt = Source(n_comp=2, name='eluent_salt')
+eluent_salt = Source(component_system, name='eluent_salt')
 eluent_salt.c = [500.0, 0.0]
 
-column = GeneralRateModel(n_comp=2, name='column')
+column = GeneralRateModel(component_system, name='column')
 column.length = 0.25
 column.diameter = 0.0115
 column.bed_porosity = 0.37
@@ -51,10 +55,13 @@ column.surface_diffusion = [0.0, 0.0]
 
 column.binding_model = binding_model
 
-outlet = Sink(n_comp=2, name='outlet')
+column.c = [180, 0]
+column.q = [binding_model.capacity, 0]
+
+outlet = Sink(component_system, name='outlet')
 
 # flow sheet
-fs = FlowSheet(n_comp=2, name=flow_sheet_name)
+fs = FlowSheet(component_system)
 
 fs.add_unit(feed, feed_source=True)
 fs.add_unit(eluent, eluent_source=True)
@@ -68,7 +75,7 @@ fs.add_connection(eluent_salt, column)
 fs.add_connection(column, outlet)
 
 # Process
-lwe = Process(fs, name=process_name)
+lwe = Process(fs, 'lwe')
 lwe.cycle_time = 15000.0
 
 ## Create Events and Durations
@@ -80,8 +87,10 @@ gradient_slope = Q/(lwe.cycle_time - gradient_start)
 lwe.add_event('feed_on', 'flow_sheet.feed.flow_rate', Q)
 lwe.add_event('feed_off', 'flow_sheet.feed.flow_rate', 0.0)
 lwe.add_duration('feed_duration', time=feed_duration)
-
 lwe.add_event_dependency('feed_off', ['feed_on', 'feed_duration'], [1, 1])
+
+lwe.add_event('eluent_initialization', 'flow_sheet.eluent.flow_rate', 0)
+lwe.add_event('eluent_salt_initialization', 'flow_sheet.eluent_salt.flow_rate', 0)
 
 lwe.add_event(
     'wash', 'flow_sheet.eluent.flow_rate', Q, time=feed_duration
@@ -97,16 +106,9 @@ lwe.add_event(
     )
 lwe.add_event_dependency('pos_grad_start', ['neg_grad_start'])
 
-
-## Optional
-# sma_refc0 = lwe_model.root.input.model.unit_000.sec_002.lin_coeff[0] * (t_cycle - grad_start)
-# lwe_model.root.input.model.unit_001.adsorption.sma_refc0 = sma_refc0
-# lwe_model.root.input.model.unit_001.adsorption.sma_refq = lambda_
-
 if __name__ == '__main__':
     from CADETProcess.simulation import Cadet
-    process_simulator = Cadet(
-        install_path='/usr/local',
-    )
+    process_simulator = Cadet()
+
     lwe_sim_results = process_simulator.simulate(lwe)
-    lwe_sim_results.solution.outlet[0].plot()
+    lwe_sim_results.solution.outlet.outlet.plot()

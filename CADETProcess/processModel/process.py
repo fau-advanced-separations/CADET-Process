@@ -42,14 +42,14 @@ class Process(EventHandler):
     _initial_states = ['system_state', 'system_state_derivative']
     _n_cycles = UnsignedInteger(default=1)
 
-    def __init__(self, flow_sheet, name):
+    def __init__(self, flow_sheet, name, *args, **kwargs):
         self.flow_sheet = flow_sheet
         self.name = name
 
         self.system_state = None
         self.system_state_derivative = None
 
-        super().__init__()
+        super().__init__(*args, **kwargs)
 
     @property
     def n_comp(self):
@@ -158,13 +158,13 @@ class Process(EventHandler):
                     section = Section(
                         start, end, flow_rate_dest, n_entries=1, degree=3
                     )
-                    flow_rate_timelines[unit]['destinations'][dest].add_section(section)            
-        
+                    flow_rate_timelines[unit]['destinations'][dest].add_section(section)   
+                
         return Dict(flow_rate_timelines)
     
     @cached_property_if_locked
     def flow_rate_section_states(self):
-        """dict: Lists of events for every time, one or more events occur.
+        """dict: Flow rates for all units for every section time.
         """
         section_states = {
             time: {

@@ -382,20 +382,21 @@ class Cadet(SolverBase):
                     if 'solution_inlet' in unit_solution.keys():
                         sol_inlet = unit_solution.solution_inlet[start:end,:]
                         solution[unit.name]['inlet'].append(
-                            SolutionIO(time, sol_inlet, unit.n_comp)
+                            SolutionIO(unit.component_system, time, sol_inlet)
                         )
                     
                     if 'solution_outlet' in unit_solution.keys():
                         sol_outlet = unit_solution.solution_outlet[start:end,:]
                         solution[unit.name]['outlet'].append(
-                            SolutionIO(time, sol_outlet, unit.n_comp)
+                            SolutionIO(unit.component_system, time, sol_outlet)
                         )
     
                     if 'solution_bulk' in unit_solution.keys():
                         sol_bulk = unit_solution.solution_bulk[start:end,:]
                         solution[unit.name]['bulk'].append(
                             SolutionBulk(
-                                time, sol_bulk, unit.n_comp, **unit_coordinates
+                                unit.component_system, time, sol_bulk, 
+                                **unit_coordinates
                             )
                         )
                         
@@ -403,7 +404,7 @@ class Cadet(SolverBase):
                         sol_particle = unit_solution.solution_particle[start:end,:]
                         solution[unit.name]['particle'].append(
                             SolutionParticle(
-                                time, sol_particle, unit.n_comp, 
+                                unit.component_system, time, sol_particle,
                                 **unit_coordinates, 
                                 particle_coordinates=particle_coordinates
                             )
@@ -413,8 +414,8 @@ class Cadet(SolverBase):
                         sol_solid = unit_solution.solution_solid[start:end,:]
                         solution[unit.name]['solid'].append(
                             SolutionSolid(
+                                unit.component_system, unit.binding_model.n_states, 
                                 time, sol_solid, 
-                                unit.n_comp, unit.binding_model.n_states, 
                                 **unit_coordinates,
                                 particle_coordinates=particle_coordinates
                             )
@@ -423,7 +424,7 @@ class Cadet(SolverBase):
                     if 'solution_volume' in unit_solution.keys():
                         sol_volume = unit_solution.solution_volume[start:end,:]
                         solution[unit.name]['volume'].append(
-                            SolutionVolume(time, sol_volume)
+                            SolutionVolume(unit.component_system, time, sol_volume)
                         )
                         
             solution = Dict(solution)

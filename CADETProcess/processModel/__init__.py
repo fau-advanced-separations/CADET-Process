@@ -1,3 +1,6 @@
+from . import componentSystem
+from .componentSystem import  *
+
 from . import reaction
 from .reaction import *
 

@@ -7,6 +7,7 @@ from addict import Dict
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import frozen_attributes
 from CADETProcess.dataStructure import StructMeta, UnsignedInteger, String
+from .componentSystem import ComponentSystem
 from .unitOperation import UnitBaseClass, SourceMixin, SinkMixin, Sink
 from .binding import NoBinding
 
@@ -35,8 +36,8 @@ class FlowSheet(metaclass=StructMeta):
     name = String()
     n_comp = UnsignedInteger()
     
-    def __init__(self, n_comp, name):
-        self.n_comp = n_comp
+    def __init__(self, component_system, name=None):
+        self.component_system = component_system
         self.name = name
         self._units = []
         self._feed_sources = []
@@ -49,6 +50,20 @@ class FlowSheet(metaclass=StructMeta):
         self._section_dependent_parameters = Dict()
         self._polynomial_parameters = Dict()
 
+    @property
+    def component_system(self):
+        return self._component_system
+
+    @component_system.setter
+    def component_system(self, component_system):
+        if not isinstance(component_system, ComponentSystem):
+            raise TypeError('Expected ComponentSystem')
+        self._component_system = component_system
+        
+    @property
+    def n_comp(self):
+        return self.component_system.n_comp
+            
     def _unit_name_decorator(func):
         def wrapper(self, unit, *args, **kwargs):
             """Enable calling functions with unit object or unit name.
@@ -191,8 +206,8 @@ class FlowSheet(metaclass=StructMeta):
         if unit in self._units:
             raise CADETProcessError('Unit already part of System')
 
-        if unit.n_comp != self.n_comp:
-            raise CADETProcessError('Number of components does not match.')
+        if unit.component_system is not self.component_system:
+            raise CADETProcessError('Component systems do not match.')
 
         self._units.append(unit)
         self._connections[unit] = Dict({

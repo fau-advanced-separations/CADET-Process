@@ -2,20 +2,30 @@ import unittest
 
 import numpy as np
 
+from CADETProcess.processModel import ComponentSystem
+from CADETProcess.processModel import (
+    Source, Cstr, LumpedRateModelWithoutPores, Sink
+) 
+from CADETProcess.processModel import FlowSheet
+
 class Test_flow_sheet(unittest.TestCase):
 
     def __init__(self, methodName='runTest'):
         super().__init__(methodName)
+    
+    def setUp(self):
+        self.component_system = ComponentSystem()
+        self.component_system.add_component('A')
+        self.component_system.add_component('B')
 
     def create_ssr_flow_sheet(self):
-        import CADETProcess
-        flow_sheet = CADETProcess.processModel.FlowSheet(n_comp=2, name='test')
+        flow_sheet = FlowSheet(self.component_system)
 
-        feed = CADETProcess.processModel.Source(n_comp=2, name='feed')
-        eluent = CADETProcess.processModel.Source(n_comp=2, name='eluent')
-        cstr = CADETProcess.processModel.Cstr(n_comp=2, name='cstr')
-        column = CADETProcess.processModel.LumpedRateModelWithoutPores(n_comp=2, name='column')
-        outlet = CADETProcess.processModel.Sink(n_comp=2, name='outlet')
+        feed = Source(self.component_system, name='feed')
+        eluent = Source(self.component_system, name='eluent')
+        cstr = Cstr(self.component_system, name='cstr')
+        column = LumpedRateModelWithoutPores(self.component_system, name='column')
+        outlet = Sink(self.component_system, name='outlet')
 
         flow_sheet.add_unit(feed)
         flow_sheet.add_unit(eluent)
@@ -230,12 +240,11 @@ class Test_flow_sheet(unittest.TestCase):
         np.testing.assert_equal(flow_sheet.get_flow_rates(), expected_flow_rates)
 
     def create_clr_flow_sheet(self):
-        import CADETProcess
-        flow_sheet = CADETProcess.FlowSheet(n_comp=2, name='test')
+        flow_sheet = FlowSheet(n_comp=2, name='test')
 
-        feed = CADETProcess.unitOperation.Source(n_comp=2, name='feed')
-        column = CADETProcess.unitOperation.LumpedRateModelWithoutPores(n_comp=2, name='column')
-        outlet = CADETProcess.unitOperation.Sink(n_comp=2, name='outlet')
+        feed = Source(n_comp=2, name='feed')
+        column = LumpedRateModelWithoutPores(n_comp=2, name='column')
+        outlet = Sink(n_comp=2, name='outlet')
 
         flow_sheet.add_unit(feed)
         flow_sheet.add_unit(column)

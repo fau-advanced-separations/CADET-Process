@@ -1,9 +1,11 @@
 from CADETProcess import CADETProcessError
+
 from CADETProcess.dataStructure import frozen_attributes
 from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import Bool, String, Integer, \
     UnsignedInteger, UnsignedFloat, DependentlySizedUnsignedList
 
+from .componentSystem import ComponentSystem
 
 @frozen_attributes
 class BindingBaseClass(metaclass=StructMeta):
@@ -19,25 +21,37 @@ class BindingBaseClass(metaclass=StructMeta):
         name of the binding model.
     """
     name = String()
-    n_comp = UnsignedInteger()
     is_kinetic = Bool(default=True)
     n_states = Integer(lb=1, ub=1, default=1)
-    
 
-    def __init__(self, n_comp, name):
+    def __init__(self, component_system, name=None):
         self._parameter_names = ['is_kinetic']
         self._parameters = {
             param: getattr(self, param)
             for param in self._parameter_names
         }
 
-        self.n_comp = n_comp
+        self.component_system = component_system
         self.name = name
 
     @property
     def model(self):
         return self.__class__.__name__
 
+    @property
+    def component_system(self):
+        return self._component_system
+
+    @component_system.setter
+    def component_system(self, component_system):
+        if not isinstance(component_system, ComponentSystem):
+            raise TypeError('')
+        self._component_system = component_system
+    
+    @property
+    def n_comp(self):
+        return self.component_system.n_comp
+    
     @property
     def parameters(self):
         """dict: Dictionary with parameter values.
@@ -53,8 +67,9 @@ class BindingBaseClass(metaclass=StructMeta):
 
 
     def __repr__(self):
-        return '{}(n_comp={}, name=\'{}\')'.format(self.__class__.__name__,
-            self.n_comp, self.name)
+        return '{}(n_comp={}, name=\'{}\')'.format(
+            self.__class__.__name__, self.n_comp, self.name
+        )
 
     def __str__(self):
         return self.name
@@ -66,7 +81,7 @@ class NoBinding(BindingBaseClass):
     The number of components is set to zero for this class.
     """
     def __init__(self, *args, **kwargs):
-        super().__init__(n_comp=0, name='NoBinding')
+        super().__init__(ComponentSystem(), name='NoBinding')
 
 
 class Linear(BindingBaseClass):

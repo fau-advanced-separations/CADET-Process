@@ -3,6 +3,7 @@ import unittest
 import numpy as np
 
 from CADETProcess.processModel import MassActionLaw
+from CADETProcess.processModel import ComponentSystem
 
 from CADETProcess import equilibria
 
@@ -12,16 +13,24 @@ class TestReactionEquilibrium(unittest.TestCase):
         super().__init__(methodName)
         
     def setUp(self):
-        self.single_0 = MassActionLaw(n_comp=2, name='simple')
+        component_system = ComponentSystem()
+        component_system.add_component('A')
+        component_system.add_component('B')
+        
+        self.single_0 = MassActionLaw(component_system, name='simple')
         self.single_0.add_reaction(
             [0, 1], [-1, 1], 2, k_bwd=2
         )
         
-        self.single_1 = MassActionLaw(n_comp=2, name='simple')
+        self.single_1 = MassActionLaw(component_system, name='simple')
         self.single_1.add_reaction(
             [0, 1], [-1, 1], 1, k_bwd=1
         )
         
+        component_system = ComponentSystem()
+        component_system.add_component('A')
+        component_system.add_component('B')
+        component_system.add_component('C')
         self.single_2 = MassActionLaw(n_comp=3, name='simple')
         self.single_2.add_reaction(
             [0, 1], [-1, 1], 1, k_bwd=1

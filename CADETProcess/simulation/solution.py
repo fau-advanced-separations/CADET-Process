@@ -1,14 +1,5 @@
-from abc import ABCMeta, abstractmethod, abstractproperty
+"""Store and plot solution of simulation.
 
-import numpy as np
-import matplotlib.pyplot as plt
-
-from CADETProcess import CADETProcessError
-from CADETProcess.dataStructure import StructMeta
-from CADETProcess.dataStructure import UnsignedInteger, Vector, DependentlySizedNdArray
-from CADETProcess import plotting
-
-"""
 NCOL/N_Z: Number of axial cells
 z: Axial position
 
@@ -24,19 +15,41 @@ j: Particle type index
 NPAR/N_R: Number of particle cells
 r: Radial position (particle)
 
+IO: NCOL * NRAD
 Bulk/Interstitial: NCOL * NRAD * NCOMP
-Particle: NCOL * NRAD * sum_j^NPARTYPE{(NCOMP + NBOUND,j) * NPAR,j}
-Particle_liquid: NCOL * NRAD * sum_j^NPARTYPE{NCOMP * NPAR,j}
-Particle_solid: NCOL * NRAD * sum_j^NPARTYPE{NBOUND,j * NPAR,j}
+Particle_liquid: NCOL * NRAD * sum_{j}^{NPARTYPE}{NCOMP * NPAR,j}
+Particle_solid: NCOL * NRAD * sum_{j}^{NPARTYPE}{NBOUND,j * NPAR,j}
 Flux: NCOL * NRAD * NPARTYPE * NCOMP
 """
 
+import numpy as np
+import matplotlib.pyplot as plt
+
+from CADETProcess import CADETProcessError
+from CADETProcess.dataStructure import StructMeta
+from CADETProcess.dataStructure import UnsignedInteger, Vector, DependentlySizedNdArray
+from CADETProcess.processModel import ComponentSystem
+from CADETProcess import plotting
+
 class BaseSolution(metaclass=StructMeta):
-    ncomp = UnsignedInteger()
     time = Vector()
     solution = DependentlySizedNdArray(dep='solution_shape')
     
     _coordinates = []
+    
+    @property
+    def component_system(self):
+        return self._component_system
+
+    @component_system.setter
+    def component_system(self, component_system):
+        if not isinstance(component_system, ComponentSystem):
+            raise TypeError('Expected ComponentSystem')
+        self._component_system = component_system
+    
+    @property
+    def n_comp(self):
+        return self.component_system.n_comp
 
     @property
     def nt(self):
@@ -58,7 +71,7 @@ class BaseSolution(metaclass=StructMeta):
         """tuple: (Expected) shape of the solution
         """
         coordinates = tuple(len(c) for c in self.coordinates.values())
-        return (self.nt,) + coordinates + (self.ncomp,)
+        return (self.nt,) + coordinates + (self.n_comp,)
     
     def transform_solution(self, fun, comp=None):
         if comp is None:
@@ -68,9 +81,13 @@ class BaseSolution(metaclass=StructMeta):
         
             
 class SolutionIO(BaseSolution):
-    def __init__(self, time, solution, ncomp):
+    """Solution at unit inlet or outlet.
+    
+    IO: NCOL * NRAD
+    """
+    def __init__(self, component_system, time, solution):
+        self.component_system = component_system
         self.time = time
-        self.ncomp = ncomp
         self.solution = solution
         
     @plotting.save_fig
@@ -113,15 +130,20 @@ class SolutionIO(BaseSolution):
     
         
 class SolutionBulk(BaseSolution):
+    """Interstitial solution.
+    
+    Bulk/Interstitial: NCOL * NRAD * NCOMP
+    """
     _coordinates = ['axial_coordinates', 'radial_coordinates']
 
     def __init__(
             self,
-            time, solution, ncomp,
+            component_system,
+            time, solution, 
             axial_coordinates=None, radial_coordinates=None
             ):
+        self.component_system = component_system
         self.time = time
-        self.ncomp = ncomp
         self.axial_coordinates = axial_coordinates
         # Account for dimension reduction in case of only one cell (e.g. LRMP)
         if radial_coordinates is not None and len(radial_coordinates) == 1:
@@ -225,17 +247,23 @@ class SolutionBulk(BaseSolution):
     
     
 class SolutionParticle(BaseSolution):
+    """Mobile phase solution inside the particles.
+    
+    Particle_liquid: NCOL * NRAD * sum_{j}^{NPARTYPE}{NCOMP * NPAR,j}
+    """
+    
     _coordinates = ['axial_coordinates', 'radial_coordinates', 'particle_coordinates']
 
     def __init__(
             self,
-            time, solution, ncomp,
+            component_system,
+            time, solution, 
             axial_coordinates=None,
             radial_coordinates=None,
             particle_coordinates=None
             ):
+        self.component_system = component_system
         self.time = time
-        self.ncomp = ncomp
         self.axial_coordinates = axial_coordinates
         # Account for dimension reduction in case of only one cell (e.g. LRMP)
         if radial_coordinates is not None and len(radial_coordinates) == 1:
@@ -299,20 +327,26 @@ class SolutionParticle(BaseSolution):
         return ax
     
 class SolutionSolid(BaseSolution):
-    nbound = BaseSolution.ncomp
+    """Solid phase solution inside the particles.
+    
+    Particle_solid: NCOL * NRAD * sum_{j}^{NPARTYPE}{NBOUND,j * NPAR,j}
+    """
+    
+    n_bound = UnsignedInteger()
 
     _coordinates = ['axial_coordinates', 'radial_coordinates', 'particle_coordinates']
 
     def __init__(
             self,
-            time, solution, ncomp, nbound,
+            component_system, n_bound,
+            time, solution, 
             axial_coordinates=None,
             radial_coordinates=None,
             particle_coordinates=None
             ):
+        self.component_system = component_system
+        self.n_bound = n_bound
         self.time = time
-        self._ncomp = ncomp
-        self.nbound = nbound
         self.axial_coordinates = axial_coordinates
         # Account for dimension reduction in case of only one cell (e.g. LRMP)
         if radial_coordinates is not None and len(radial_coordinates) == 1:
@@ -325,8 +359,8 @@ class SolutionSolid(BaseSolution):
         self.solution = solution
         
     @property
-    def ncomp(self):
-        return self._ncomp * self.nbound
+    def n_comp(self):
+        return self.component_system.n_comp * self.n_bound
     
     @property
     def ncol(self):
@@ -385,7 +419,9 @@ class SolutionSolid(BaseSolution):
 
 
 class SolutionVolume(BaseSolution):
-    def __init__(self, time, solution, ncomp=None):
+    """Volume solution (of e.g. CSTR).
+    """
+    def __init__(self, component_system, time, solution):
         self.time = time
         self.solution = solution
         
