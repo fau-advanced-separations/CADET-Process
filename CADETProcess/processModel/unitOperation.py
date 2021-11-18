@@ -629,7 +629,7 @@ class LumpedRateModelWithPores(TubularReactor):
     _section_dependent_parameters = \
         TubularReactor._section_dependent_parameters + ['film_diffusion']
 
-    cp = DependentlySizedUnsignedList(dep='n_comp', default=0)
+    _cp = DependentlySizedUnsignedList(dep='n_comp')
     q = DependentlySizedUnsignedList(dep=('n_comp','_n_bound_states'), default=0)
     _initial_state = TubularReactor._initial_state + ['cp', 'q']
     
@@ -678,6 +678,15 @@ class LumpedRateModelWithPores(TubularReactor):
         """
         self.cross_section_area = Q/(u0*self.bed_porosity)
 
+    @property
+    def cp(self):
+        if self._cp is None:
+            return self.c
+
+    @cp.setter
+    def cp(self, cp):
+        self._cp = cp
+
 
 class GeneralRateModel(TubularReactor):
     """Parameters for the general rate model.
@@ -709,7 +718,7 @@ class GeneralRateModel(TubularReactor):
     particle_radius = UnsignedFloat()
     film_diffusion = DependentlySizedUnsignedList(dep='n_comp')
     pore_diffusion = DependentlySizedUnsignedList(dep='n_comp')
-    surface_diffusion = DependentlySizedUnsignedList(dep='n_comp')
+    surface_diffusion = DependentlySizedUnsignedList(dep=('n_comp','_n_bound_states'))
     pore_accessibility = DependentlySizedUnsignedList(dep='n_comp')
     _parameters = \
         TubularReactor._parameter_names + \
@@ -719,7 +728,7 @@ class GeneralRateModel(TubularReactor):
         TubularReactor._section_dependent_parameters + \
         ['film_diffusion', 'pore_diffusion', 'surface_diffusion']
     
-    cp = DependentlySizedUnsignedList(dep='n_comp', default=0)
+    _cp = DependentlySizedUnsignedList(dep='n_comp')
     q = DependentlySizedUnsignedList(dep=('n_comp', '_n_bound_states'), default=0)
     _initial_state = TubularReactor._initial_state + ['cp', 'q']
     
@@ -768,6 +777,14 @@ class GeneralRateModel(TubularReactor):
         """
         self.cross_section_area = Q/(u0*self.bed_porosity)
         
+    @property
+    def cp(self):
+        if self._cp is None:
+            return self.c
+
+    @cp.setter
+    def cp(self, cp):
+        self._cp = cp
         
 class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     """Parameters for an ideal mixer.
