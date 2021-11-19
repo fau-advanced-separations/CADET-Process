@@ -2,6 +2,8 @@ numpy
 scipy
 matplotlib
 sympy
+pathos
+multiprocess
 gitpython
 cadet-python
 addict
