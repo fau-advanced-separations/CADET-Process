@@ -6,9 +6,9 @@ import matplotlib.pyplot as plt
 
 from CADETProcess import CADETProcessError
 
-from CADETProcess.dataStructure import StructMeta
+from CADETProcess.dataStructure import StructMeta, Structure
 from CADETProcess.dataStructure import (
-    Integer, List, String, Tuple, UnsignedInteger, UnsignedFloat
+    Integer, List, String, Tuple, Callable, UnsignedInteger, UnsignedFloat
 )
 
 this = sys.modules[__name__]
@@ -67,9 +67,6 @@ def set_style(style='medium'):
         raise CADETProcessError('Not a valid style')
 
 
-from CADETProcess.dataStructure import Structure
-
-    
 def setup_figure(style=None):
     fig, ax = plt.subplots()
     
@@ -78,6 +75,11 @@ def setup_figure(style=None):
     set_style(style)
     
     return fig, ax
+
+class SecondaryAxis(Structure):
+    component_indices = List()    
+    y_label = String()
+    transform = Callable()
 
 class Layout(Structure):
     style = String()
@@ -89,7 +91,13 @@ class Layout(Structure):
     xlim = Tuple()
     ylim = Tuple()
     
-def set_layout(fig, ax, layout):
+def set_layout(
+        fig, ax, 
+        layout, 
+        show_legend=True, 
+        ax_secondary=None, secondary_layout=None
+        ):
+    
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     
@@ -104,7 +112,20 @@ def set_layout(fig, ax, layout):
     if layout.y_ticks is not None:
         set_yticks(layout.y_ticks)
         
-        fig.tight_layout()
+    lines, labels = ax.get_legend_handles_labels()
+    
+    if ax_secondary is not None:
+        ax_secondary.set_ylabel(secondary_layout.y_label)
+        ax_secondary.set_xlim(secondary_layout.xlim)
+        ax_secondary.set_ylim(secondary_layout.ylim)
+        
+        lines_secondary, labels_secondary = ax_secondary.get_legend_handles_labels()
+        if show_legend:
+            ax_secondary.legend(lines_secondary + lines, labels_secondary + labels , loc=0)
+    else:
+        ax.legend(lines, labels, loc=0)
+
+    fig.tight_layout()
     
 class Tick(Structure):
     location: Tuple()

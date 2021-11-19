@@ -80,8 +80,9 @@ class BaseSolution(metaclass=StructMeta):
         
         counter = 0
         for index, comp in enumerate(self.component_system.components):
-            comp_indices = slice(counter, comp.n_species)
+            comp_indices = slice(counter, counter+comp.n_species)
             total_concentration[:,index] = np.sum(self.solution[...,comp_indices], axis=1)
+            counter += comp.n_species
         
         return total_concentration
     
@@ -103,7 +104,15 @@ class SolutionIO(BaseSolution):
         self.solution = solution
         
     @plotting.save_fig
-    def plot(self, start=0, end=None, overlay=None):
+    def plot(
+            self, 
+            start=0, end=None, ymax=None, 
+            ax=None, layout=None,
+            only_plot_total_concentrations=False, 
+            alpha=1, hide_labels=False, 
+            secondary_axis=None, secondary_layout=None,
+            show_legend=True
+            ):
         """Plots the whole time_signal for each component.
 
         Parameters
@@ -118,28 +127,28 @@ class SolutionIO(BaseSolution):
         plotlib
         plot_purity
         """
-        x = self.time / 60
-        y = self.solution
+        if ymax is None:
+            ymax = self.solution.max()
         
-        ymax = y.max()
-        
-        fig, ax = plotting.setup_figure()
-        
-        ax.plot(x,y)
-
-        if overlay is not None:
-            ymax = np.max(overlay)
-            plotting.add_overlay(ax, overlay)
-            
         layout = plotting.Layout()
         layout.x_label = '$time~/~min$'
         layout.y_label = '$c~/~mM$'
         layout.xlim = (start, end)
         layout.ylim = (0, ymax)
-            
-        plotting.set_layout(fig, ax, layout)        
         
-        return ax
+        ax, fig = plot_solution_1D(
+            self, 
+            ax=None,
+            layout=layout,
+            only_plot_total_concentrations=only_plot_total_concentrations,
+            alpha=alpha,
+            hide_labels=hide_labels,
+            secondary_axis=secondary_axis,
+            secondary_layout=secondary_layout,
+            show_legend=show_legend,
+        )
+        
+        return ax, fig
     
         
 class SolutionBulk(BaseSolution):
@@ -350,7 +359,7 @@ class SolutionParticle(BaseSolution):
         layout = plotting.Layout()
         layout.x_label = '$z~/~m$'
         layout.y_label = '$r~/~m$'
-        layout.title = f'Solid phase concentration, comp={comp}, state={state}'
+        layout.title = f'Solid phase concentration, comp={comp}'
         plotting.set_layout(fig, ax, layout)        
         fig.colorbar(mesh)
         
@@ -562,3 +571,89 @@ class SolutionVolume(BaseSolution):
         
         return ax
     
+def plot_solution_1D(
+        solution, 
+        ax=None, layout=None,
+        only_plot_total_concentrations=False, 
+        alpha=1, hide_labels=False, hide_species_labels=True,
+        secondary_axis=None, secondary_layout=None,
+        show_legend=True
+        ):
+    
+    time = solution.time / 60
+    sol = solution.solution
+        
+    if ax is None:
+        fig, ax = plotting.setup_figure()
+    
+    total_concentration = solution.total_concentration()
+    
+    if secondary_axis is not None:
+        ax_secondary = ax.twinx()
+    else:
+        ax_secondary = None
+    
+    species_index = 0
+    for i, comp in enumerate(solution.component_system.components):
+        if hide_labels:
+            label = None
+        else: 
+            label = comp.name
+        
+        if secondary_axis is not None and i in secondary_axis.component_indices:
+            a = ax_secondary
+        else:
+            a = ax
+            
+        if secondary_axis is not None \
+                and secondary_axis.transform is not None \
+                and i in secondary_axis.component_indices:
+            y = secondary_axis.transform(total_concentration[...,i])
+        else:
+            y = total_concentration[...,i]
+
+        a.plot(
+            time, y, 
+            label=label, 
+            color=plotting.color_list[i],
+            alpha=alpha
+        )
+
+        if not only_plot_total_concentrations:
+            if comp.n_species == 1:
+                species_index += 1
+                continue
+
+            for s, species in enumerate(comp.species):
+                if hide_species_labels:
+                    label = None
+                else: 
+                    label = s
+                if secondary_axis is not None and i in secondary_axis.component_indices:
+                    a = ax_secondary
+                else:
+                    a = ax
+                    
+                if secondary_axis is not None \
+                        and secondary_axis.transform is not None \
+                        and i in secondary_axis.component_indices:
+                    y = secondary_axis.transform(sol[...,species_index])
+                else:
+                    y = sol[...,species_index]
+                    
+                a.plot(
+                    time, y, '--', 
+                    label=label,
+                    color=plotting.color_list[i],
+                    alpha=alpha
+                )
+                species_index += 1
+                
+    if layout is not None:
+        plotting.set_layout(
+            fig, ax, 
+            layout, 
+            show_legend, ax_secondary, secondary_layout
+        )
+
+    return ax, fig

@@ -60,6 +60,21 @@ class Parameter(Descriptor):
         return True
 
 
+class Callable(Parameter):
+    def __set__(self, instance, value):
+        if value is None:
+            try:
+                del(instance.__dict__[self.name])
+            except KeyError:
+                pass
+            return
+        
+        if not callable(value):
+            raise TypeError("Expected obect to be callable")
+        
+        super().__set__(instance, value)
+    
+
 class Typed(Parameter):
     ty = object
 
@@ -169,7 +184,7 @@ class Dict(Typed):
     !!! Name might collide with addict.Dict!
     """
     ty = dict
-
+    
 class NdArray(Container):
     ty = np.ndarray
     
