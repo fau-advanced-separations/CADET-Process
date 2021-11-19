@@ -69,7 +69,8 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
         return {**evts, **durs}
 
     def add_event(
-            self, name, parameter_path, state, time=0.0, entry_index=None
+            self, name, parameter_path, state, time=0.0, entry_index=None,
+            dependencies=None, factors=None, 
         ):
         """Factory function for creating and adding events.
 
@@ -106,6 +107,9 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
 
         self._events.append(evt)
         super().__setattr__(name, evt)
+        
+        if dependencies is not None:
+            self.add_event_dependency(evt.name, dependencies, factors)
 
         return evt
 
