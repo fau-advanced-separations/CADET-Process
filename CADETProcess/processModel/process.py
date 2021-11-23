@@ -144,7 +144,13 @@ class Process(EventHandler):
             for unit in self.flow_sheet.units
         }
         
-        for i, (time, state) in enumerate(self.section_states.items()):
+        # Create dummy section state for Processes without events
+        if len(self.section_states) == 0:
+            it = [(None, {})]
+        else:
+            it = self.section_states.items()
+        
+        for i, (time, state) in enumerate(it):
             start = self.section_times[i]
             end = self.section_times[i+1]
 
@@ -152,7 +158,8 @@ class Process(EventHandler):
 
             for unit, flow_rate in flow_rates.items():
                 section = Section(
-                    start, end, flow_rate.total, n_entries=1, degree=3)
+                    start, end, flow_rate.total, n_entries=1, degree=3
+                )
                 flow_rate_timelines[unit]['total'].add_section(section)
                 for dest, flow_rate_dest in flow_rate.destinations.items():
                     section = Section(
