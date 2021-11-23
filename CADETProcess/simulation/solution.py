@@ -595,6 +595,7 @@ def plot_solution_1D(
     
     species_index = 0
     for i, comp in enumerate(solution.component_system.components):
+        color = next(ax._get_lines.prop_cycler)['color']
         if hide_labels:
             label = None
         else: 
@@ -615,7 +616,7 @@ def plot_solution_1D(
         a.plot(
             time, y, 
             label=label, 
-            color=plotting.color_list[i],
+            color=color,
             alpha=alpha
         )
 
@@ -644,7 +645,7 @@ def plot_solution_1D(
                 a.plot(
                     time, y, '--', 
                     label=label,
-                    color=plotting.color_list[i],
+                    color=color,
                     alpha=alpha
                 )
                 species_index += 1
