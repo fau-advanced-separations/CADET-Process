@@ -135,7 +135,7 @@ class Float(Typed):
     ty = float
 
     def __set__(self, instance, value):
-        if isinstance(value, (int, np.int64)):
+        if isinstance(value, (int, np.number)):
             value = float(value)
         
         super().__set__(instance, value)
@@ -477,7 +477,7 @@ class NdPolynomial(DependentlySizedNdArray):
         _value = self.get_default_values(instance)
         
         for i, v in enumerate(value):
-            if isinstance(v, (int, float)):
+            if isinstance(v, (int, float, np.number)):
                 v = [v]
             if isinstance(v, (list, tuple)):
                 missing = n_coeff - len(v)
