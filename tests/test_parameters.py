@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from CADETProcess.common import StructMeta, \
+from CADETProcess.dataStructure import StructMeta, \
     String, List, RangedFloat, UnsignedInteger, \
     DependentlySizedUnsignedNdArray, DependentlySizedUnsignedList, \
     Polynomial, NdPolynomial

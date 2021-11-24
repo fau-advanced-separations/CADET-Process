@@ -13,9 +13,7 @@ class TestReactionEquilibrium(unittest.TestCase):
         super().__init__(methodName)
         
     def setUp(self):
-        component_system = ComponentSystem()
-        component_system.add_component('A')
-        component_system.add_component('B')
+        component_system = ComponentSystem(2)
         
         self.single_0 = MassActionLaw(component_system, name='simple')
         self.single_0.add_reaction(
@@ -27,16 +25,13 @@ class TestReactionEquilibrium(unittest.TestCase):
             [0, 1], [-1, 1], 1, k_bwd=1
         )
         
-        component_system = ComponentSystem()
-        component_system.add_component('A')
-        component_system.add_component('B')
-        component_system.add_component('C')
-        self.single_2 = MassActionLaw(n_comp=3, name='simple')
+        component_system = ComponentSystem(3)
+        self.single_2 = MassActionLaw(component_system, name='simple')
         self.single_2.add_reaction(
             [0, 1], [-1, 1], 1, k_bwd=1
         )
         
-        self.multi = MassActionLaw(n_comp=3, name='simple')
+        self.multi = MassActionLaw(component_system, name='simple')
         self.multi.add_reaction(
             [0, 1], [-1, 1], 1, k_bwd=1
         )
@@ -44,15 +39,15 @@ class TestReactionEquilibrium(unittest.TestCase):
             [1, 2], [-1, 1], 1, k_bwd=1
         )
         
-        self.multi = MassActionLaw(n_comp=3, name='simple')
-        self.multi.add_reaction(
-            [0, 1], [-1, 1], 1, k_bwd=1
+        component_system_lysine = ComponentSystem()
+        component_system_lysine.add_component(
+            'Lysine', 
+            species=['Lys2+', 'Lys+', 'Lys', 'Lys-'],
         )
-        self.multi.add_reaction(
-            [1, 2], [-1, 1], 1, k_bwd=1
+        component_system_lysine.add_component(
+            'H+', 
         )
-        
-        self.lysine = MassActionLaw(n_comp=5, name='Lysine')
+        self.lysine = MassActionLaw(component_system_lysine, name='Lysine')
         self.lysine.add_reaction(
             [0, 1, -1], [-1, 1, 1], 10**(-2.20)*1e3, is_kinetic=False
         )
@@ -180,15 +175,22 @@ class TestAdsorptionEquilibrium(unittest.TestCase):
         super().__init__(methodName)
         
     def setUp(self):
-        self.linear = Linear(1, 'linear')
+        component_system_mono = ComponentSystem()
+        component_system_mono.add_component('A')
+
+        component_system_di = ComponentSystem()
+        component_system_di.add_component('A')
+        component_system_di.add_component('B')
+        
+        self.linear = Linear(component_system_mono, 'linear')
         self.linear.adsorption_rate = [1]
         
-        self.langmuir = Langmuir(2, 'langmuir')
+        self.langmuir = Langmuir(component_system_di, 'langmuir')
         self.langmuir.adsorption_rate = [2,1]
         self.langmuir.desorption_rate = [1,1]
         self.langmuir.saturation_capacity = [10, 10]
         
-        self.sma = StericMassAction(2, 'SMA')
+        self.sma = StericMassAction(component_system_di, 'SMA')
         self.sma.adsorption_rate = [1, 2]
         self.sma.desorption_rate = [1,1]
         self.sma.characteristic_charge = [1, 1]

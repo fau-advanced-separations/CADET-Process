@@ -1,6 +1,5 @@
 import unittest
 
-import CADETProcess
 from CADETProcess.processModel import ComponentSystem, Langmuir
 
 class Test_Binding(unittest.TestCase):
@@ -10,9 +9,7 @@ class Test_Binding(unittest.TestCase):
 
     def setUp(self):
         
-        component_system = ComponentSystem()
-        component_system.add_component('A')
-        component_system.add_component('B')
+        component_system = ComponentSystem(2)
         
         binding_model = Langmuir(component_system, name='test')
 

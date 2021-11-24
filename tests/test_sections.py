@@ -4,7 +4,7 @@ import numpy as np
 from scipy import integrate
 
 from CADETProcess import CADETProcessError
-from CADETProcess.common import Section, TimeLine
+from CADETProcess.dynamicEvents import Section, TimeLine
 
 
 class TestSection(unittest.TestCase):

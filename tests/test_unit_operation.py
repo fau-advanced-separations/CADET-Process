@@ -33,9 +33,7 @@ class Test_Unit_Operation(unittest.TestCase):
         super().__init__(methodName)
         
     def setUp(self):
-        self.component_system = ComponentSystem()
-        self.component_system.add_component('A')
-        self.component_system.add_component('B')
+        self.component_system = ComponentSystem(2)
 
     def create_source(self):
         source = Source(self.component_system, name='test')

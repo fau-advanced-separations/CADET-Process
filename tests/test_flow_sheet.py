@@ -14,9 +14,7 @@ class Test_flow_sheet(unittest.TestCase):
         super().__init__(methodName)
     
     def setUp(self):
-        self.component_system = ComponentSystem()
-        self.component_system.add_component('A')
-        self.component_system.add_component('B')
+        self.component_system = ComponentSystem(2)
 
     def create_ssr_flow_sheet(self):
         flow_sheet = FlowSheet(self.component_system)

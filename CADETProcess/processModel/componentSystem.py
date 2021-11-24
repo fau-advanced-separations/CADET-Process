@@ -4,7 +4,7 @@ from CADETProcess.dataStructure import List, String, DependentlySizedList
 class ComponentSystem(metaclass=StructMeta):
     name = String()
 
-    def __init__(self, name=None, n_comp=None):
+    def __init__(self, n_comp=None, name=None):
         self.name = name
         self._components = []
 
@@ -25,6 +25,7 @@ class ComponentSystem(metaclass=StructMeta):
         return sum([comp.n_species for comp in self.components])
 
     def add_component(self, *args, **kwargs):
+        """Todo: check duplicates"""
         component = Component(*args, **kwargs)
         self._components.append(component)
 
