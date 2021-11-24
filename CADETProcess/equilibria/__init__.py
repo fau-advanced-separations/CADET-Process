@@ -1,3 +1,3 @@
 from .ptc import *
-from .reactionEquilibria import *
-from .initialConditions import *
+from .reaction_equilibria import *
+from .initial_conditions import *
