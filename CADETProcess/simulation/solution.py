@@ -72,19 +72,9 @@ class BaseSolution(metaclass=StructMeta):
         coordinates = tuple(len(c) for c in self.coordinates.values())
         return (self.nt,) + coordinates + (self.n_comp,)
     
-    
+    @property
     def total_concentration(self):
-        total_concentration = np.zeros(
-            self.solution_shape[0:-1] + (self.component_system.n_components,)
-        )
-        
-        counter = 0
-        for index, comp in enumerate(self.component_system.components):
-            comp_indices = slice(counter, counter+comp.n_species)
-            total_concentration[:,index] = np.sum(self.solution[...,comp_indices], axis=1)
-            counter += comp.n_species
-        
-        return total_concentration
+        return self.component_system.total_concentration(self.solution)
     
     def transform_solution(self, fun, comp=None):
         if comp is None:
