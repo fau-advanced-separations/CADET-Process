@@ -142,7 +142,7 @@ class MassActionLaw(ReactionBaseClass):
 
     @property
     def k_eq(self):
-        return [f/b for f, b in zip(self. k_fwd, self.k_bwd)]
+        return [r.k_eq for r in self.reactions]
     
 
 class MassActionLawParticle(ReactionBaseClass):
@@ -229,7 +229,7 @@ class MassActionLawParticle(ReactionBaseClass):
     
     @property
     def k_eq_liquid(self):
-        return [f/b for f, b in zip(self. k_fwd_liquid, self.k_bwd_liquid)]
+        return [r.k_eq for r in self.liquid_reactions]
 
     ## Solid
     @property
@@ -285,8 +285,8 @@ class MassActionLawParticle(ReactionBaseClass):
         return [r.k_bwd for r in self.solid_reactions]
     
     @property
-    def k_eq_solid(self):
-        return [f/b for f, b in zip(self. k_fwd_solid, self.k_bwd_solid)]
+    def k_eq_liquid(self):
+        return [r.k_eq for r in self.solid_reactions]
 
     ## Cross Phase
     @property
@@ -386,6 +386,10 @@ class Reaction():
             return self._exponents_bwd
         else:
             return np.maximum(np.zeros((self.n_comp,)), self.stoich)
+        
+    @property
+    def k_eq(self):
+        return self.k_fwd/self.k_bwd
             
 
 class CrossPhaseReaction():
@@ -462,6 +466,9 @@ class CrossPhaseReaction():
         else:
             return np.maximum(np.zeros((self.n_comp,)), self.stoich_solid)            
 
+    @property
+    def k_eq(self):
+        return self.k_fwd/self.k_bwd
 
 def scale_to_rapid_equilibrium(k_eq, k_fwd_min=10):
     """Scale forward and backward reaction rates if only k_eq is known.
