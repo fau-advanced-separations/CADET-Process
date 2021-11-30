@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from CADETProcess import CADETProcessError
+from CADETProcess import plotting
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess.processModel import MassActionLaw
 
@@ -25,12 +26,44 @@ from CADETProcess.processModel import MassActionLaw
 #     return c, k, b
 
 
-# def nu(c_acid_M, c_H_M):
-#     n = len(c_acid_M)-1
-#     nu = c_acid_M[0]/c_H_M**n
+def preprocessing(reaction_system, buffer, pH, components):
+    buffer_M = np.array([c*1e-3 for c in buffer])
 
-#     return nu
+    pH = np.asarray(pH, dtype=float)
+    scalar_input = False
+    if pH.ndim == 0:
+        pH = pH[None]  # Makes x 1D
+        scalar_input = True
 
+    component_system = copy.deepcopy(reaction_system.component_system)
+
+    indices = component_system.indices
+    if components is not None:
+        for comp in indices.copy():
+            if comp not in components:
+               indices.pop(comp)
+
+    try:
+        proton_index = indices.pop('H+')
+    except ValueError:
+        raise CADETProcessError("Could not find proton in component system")
+
+    pKa = defaultdict(list)
+    for r in reaction_system.reactions:
+        reaction_indices = np.where(r.stoich)[0]
+        for comp, i in indices.items():
+            if not all(r_i in i + proton_index for r_i in reaction_indices):
+                continue
+
+            pKa[comp].append(-np.log10(r.k_eq*1e-3))
+
+    c_acids_M = {
+        comp: buffer_M[i].tolist()
+        for comp, i in indices.items()
+    }
+    
+    return pKa, c_acids_M, pH, indices, scalar_input
+    
 
 def c_species_nu(pKa, pH):
     """Compute normalized acid species concentration at given pH.
@@ -38,7 +71,7 @@ def c_species_nu(pKa, pH):
     Parameters
     ----------
     pKa : list
-        List of pKa values
+        List of pKa values.
     pH : float or list of floats.
         pH value
 
@@ -113,6 +146,90 @@ def eta(pKa, pH):
     """
     return z_total_nu(pKa, pH)/c_total_nu(pKa, pH)
 
+def charge_distribution(
+        reaction_system,
+        pH,
+        components=None,
+        ):
+    """Calculate charge distribution at given pH.
+
+    Parameters
+    ----------
+    reaction_system : ReactionModel
+        Reaction system with deprotonation reactions.
+    buffer : list
+        Acid concentrations in mM.
+    pH : float or array
+        pH value of buffer.
+    components : list, optional
+        List of components to be considered in buffer capacity calculation.
+        If None, all components are considerd.
+
+    Returns
+    -------
+    buffer_capacity : np.array
+        Buffer capacity in mM for individual acid components.
+        To get overall buffer capacity, component capacities must be summed up.
+    """
+    buffer = reaction_system.n_comp * [1]
+    pKa, c_acids_M, pH, indices, scalar_input = preprocessing(
+        reaction_system, buffer, pH, components
+    )
+    
+    z = np.zeros((len(pH), reaction_system.n_comp - 1))
+
+    for comp, ind in indices.items():
+        z_comp = alpha(pKa[comp], pH)
+        for j, i in enumerate(ind):
+            z[:,i] = z_comp[j,:]
+
+    if scalar_input:
+        return np.squeeze(z)
+
+    return z
+
+def cummulative_charge_distribution(
+        reaction_system,
+        pH,
+        components=None,
+        ):
+    """Calculate cummulative charge at given pH.
+
+    Parameters
+    ----------
+    reaction_system : ReactionModel
+        Reaction system with deprotonation reactions.
+    buffer : list
+        Acid concentrations in mM.
+    pH : float or array
+        pH value of buffer.
+    components : list, optional
+        List of components to be considered in buffer capacity calculation.
+        If None, all components are considerd.
+
+    Returns
+    -------
+    buffer_capacity : np.array
+        Buffer capacity in mM for individual acid components.
+        To get overall buffer capacity, component capacities must be summed up.
+    """
+    buffer = reaction_system.n_comp * [1]
+    pKa, c_acids_M, pH, indices, scalar_input = preprocessing(
+        reaction_system, buffer, pH, components
+    )
+    
+    z_cum = np.zeros((len(pH), len(indices)))
+    
+    for i, (comp, ind) in enumerate(indices.items()):
+        charges = np.array(reaction_system.component_system.charges)[ind]
+        max_charge = max(charges)
+        z_cum[:,i] = max_charge - eta(pKa[comp], pH)
+
+    if scalar_input:
+        return np.squeeze(z_cum)
+
+    return z_cum
+
 def alpha(pKa, pH):
     """Compute degree of protolysis at given pH.
 
@@ -182,7 +299,7 @@ def buffer_capacity(
         components=None,
         ):
     """Calculate buffer capacity at given buffer concentration and pH.
-    
+
     Parameters
     ----------
     reaction_system : ReactionModel
@@ -201,51 +318,21 @@ def buffer_capacity(
         Buffer capacity in mM for individual acid components.
         To get overall buffer capacity, component capacities must be summed up.
     """
-    buffer_M = np.array([c*1e-3 for c in buffer])
+    pKa, c_acids_M, pH, indices, scalar_input = preprocessing(
+        reaction_system, buffer, pH, components
+    )
 
-    pH = np.asarray(pH)
-    scalar_input = False
-    if pH.ndim == 0:
-        pH = pH[None]  # Makes x 1D
-        scalar_input = True
-
-    component_system = copy.deepcopy(reaction_system.component_system)
-
-    indices = component_system.indices
-    if components is not None:
-        for comp in indices.copy():
-            if comp not in components:
-               indices.pop(comp) 
-
-    try:
-        proton_index = indices.pop('H+')
-    except ValueError:
-        raise CADETProcessError("Could not find proton in component system")
-        
-    pKa = defaultdict(list)
-    for r in reaction_system.reactions:
-        reaction_indices = np.where(r.stoich)[0]
-        for comp, i in indices.items():
-            if not all(r_i in i + proton_index for r_i in reaction_indices):
-                continue
-
-            pKa[comp].append(-np.log10(r.k_eq*1e-3))
-        
-    c_acids_M = {
-        comp: buffer_M[i].tolist()
-        for comp, i in indices.items()
-    }
-    
     buffer_capacity = np.zeros((len(pH), len(c_acids_M)+1))
-    buffer_capacity[:,0] = beta_water(pH)
 
     for i, comp in enumerate(indices):
-        buffer_capacity[:,i+1] = beta(c_acids_M[comp], pKa[comp], pH)
-        
+        buffer_capacity[:,i] = beta(c_acids_M[comp], pKa[comp], pH)
+
+    buffer_capacity[:,-1] = beta_water(pH)
+
     buffer_capacity *= 1e3
     if scalar_input:
         return np.squeeze(buffer_capacity)
-    
+
     return buffer_capacity
 
 def ionic_strength(component_system, buffer):
@@ -273,23 +360,85 @@ def ionic_strength(component_system, buffer):
     z = np.asarray(component_system.charges)
     return 1/2 * np.sum(buffer*z**2)
 
-def plot_buffer_capacity(pH, buffer_capacity, title=None):
-    plt.figure()
+@plotting.save_fig
+def plot_buffer_capacity(reaction_system, buffer, pH=None):
+    """Plot buffer capacity of reaction system over pH at given concentration.
 
-    for i in range(buffer_capacity.shape[0]):
-        plt.plot(pH, buffer_capacity[i, :])
+    Parameters
+    ----------
+    reaction_system : MassActionLaw
+        Reaction system with stoichiometric coefficients and reaction rates.
+    buffer : list
+        Buffer concentration in mM.
+    pH : np.array, optional
+        Range of pH to be plotted.
 
-    plt.plot(pH, np.sum(buffer_capacity, 0), 'k*')
+    Returns
+    -------
+    ax : Axes
+        The new axes.
+    """
+    if pH is None:
+        pH = np.linspace(0,14,101)
 
-    plt.xlabel('pH')
-    plt.ylabel('Buffer capacity / mM')
+    b = buffer_capacity(reaction_system, buffer, pH)
+    b_total = np.sum(b, axis=1)
 
-    if title is not None:
-        plt.title(title)
+    fig, ax = plotting.setup_figure()
+    ax.plot(pH, b_total, 'k*', label='Total buffer capacity')
+    for i in range(reaction_system.component_system.n_components - 1):
+        ax.plot(pH, b[:,i], label=reaction_system.component_system.components[i].name)
+    ax.plot(pH, b[:,-1], label='Water')
 
+    layout = plotting.Layout()
+    layout.x_label = '$pH$'
+    layout.y_label = '$buffer capacity~/~mM$'
+    layout.ylim = (0, 1.1*np.max(b_total))
 
-if __name__ == '__main__':
-    foo = ionic_strength(np.array([0.1, 0.05, 0.02, 0.02]),
-                   np.array([1, -2, 1, -1]))
-    print(foo)
+    plotting.set_layout(fig, ax, layout)
+    
+    return ax
 
+@plotting.save_fig
+def plot_charge_distribution(reaction_system, pH=None, plot_cumulative=False):
+    """Plot charge distribution of components over pH.
+
+    Parameters
+    ----------
+    reaction_system : MassActionLaw
+        Reaction system with stoichiometric coefficients and reaction rates.
+    buffer : list
+        Buffer concentration in mM.
+    pH : np.array, optional
+        Range of pH to be plotted.
+
+    Returns
+    -------
+    ax : Axes
+        The new axes.
+    """
+    if pH is None:
+        pH = np.linspace(0,14,101)
+
+    if plot_cumulative:
+        c = cummulative_charge_distribution(reaction_system, pH)
+    else:
+        c = charge_distribution(reaction_system, pH)
+
+    fig, ax = plotting.setup_figure()
+    if plot_cumulative:
+        labels = reaction_system.component_system.names
+    else:
+        labels = reaction_system.component_system.labels
+
+    for i, l in zip(c.T, labels): 
+        ax.plot(pH, i, label=l)
+
+    layout = plotting.Layout()
+    layout.x_label = '$pH$'
+    layout.y_label = '$cumulative charge$'
+    layout.ylim = (1.1*np.min(c), 1.1*np.max(c))
+
+    plotting.set_layout(fig, ax, layout)
+    
+    return ax

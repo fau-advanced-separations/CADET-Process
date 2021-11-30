@@ -79,7 +79,6 @@ class TestBufferCapacity(unittest.TestCase):
             [4, 5, -1], [-1, 1, 1], 10**(-10.28)*1e3, is_kinetic=False
         )
         
-
     def test_ionic_strength(self):
         c = [1,1]
         i_excpected = 2.5
@@ -107,26 +106,26 @@ class TestBufferCapacity(unittest.TestCase):
         i = equilibria.ionic_strength(self.components_ammonia, c)
         np.testing.assert_almost_equal(i, i_excpected)
         
-        
-        
-    # def test_
     def test_buffer_capacity(self):
-        pH = np.linspace(0,14,101)
+        pH = np.linspace(0, 14, 101)
         
-        buffer = [1000, 0, 0]
+        buffer = [0, 1000, 0]
+        b = equilibria.buffer_capacity(self.reaction_ammonia, buffer, 0)
+        b = equilibria.buffer_capacity(self.reaction_ammonia, buffer, 7)
+        b = equilibria.buffer_capacity(self.reaction_ammonia, buffer, 14)
+
         b = equilibria.buffer_capacity(self.reaction_ammonia, buffer, pH)
-        plt.figure()
-        plt.plot(pH, b)
         
-        buffer = [0, 0, 1000, 0, 0]
-        b = equilibria.buffer_capacity(self.reaction_lys, buffer, pH)
-        plt.figure()
-        plt.plot(pH, b)
+    def test_eta(self):
+        pH = np.linspace(0, 14, 101)
+
+        # equilibria.plot_charge_distribution(self.reaction_ammonia, pH)
         
-        buffer = [1000, 0, 0, 0, 1000, 0, 0]
-        b = equilibria.buffer_capacity(self.reaction_ammonia_lys, buffer, pH)
-        plt.figure()
-        plt.plot(pH, b)
+        # equilibria.plot_charge_distribution(self.reaction_lys, pH)
+        
+        # equilibria.plot_charge_distribution(self.reaction_ammonia_lys, pH)
+        equilibria.plot_charge_distribution(self.reaction_ammonia_lys, plot_cumulative=True)
+        equilibria.plot_charge_distribution(self.reaction_ammonia_lys, plot_cumulative=False)
         
         # c = [1,1]
         # i_excpected = 1

@@ -70,6 +70,10 @@ class ComponentSystem(metaclass=StructMeta):
         return Dict(indices)
 
     @property
+    def names(self):
+        return [comp.name for comp in self.components]
+    
+    @property
     def labels(self):
         labels = []
         index = 0
@@ -99,6 +103,7 @@ class ComponentSystem(metaclass=StructMeta):
             molecular_weights += comp.molecular_weight
 
         return molecular_weights
+    
 
 class Component(metaclass=StructMeta):
     name = String()
