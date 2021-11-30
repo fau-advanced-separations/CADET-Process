@@ -20,9 +20,9 @@ class Test_Reaction(unittest.TestCase):
     def create_simple_bulk_reaction(self, is_kinetic=True, k_fwd_min=100):
         # 0: NH4+(aq) <=> NH3(aq) + H+(aq)
         component_system = ComponentSystem()
-        component_system.add_component('H+', charges=[1])
+        component_system.add_component('H+', charge=1)
         component_system.add_component(
-            'Ammonia', species=['NH4+', 'NH3'], charges=[1,0]
+            'Ammonia', species=['NH4+', 'NH3'], charge=[1,0]
         )
         reaction_model = MassActionLaw(component_system, 'simple')
         reaction_model.add_reaction(
@@ -41,19 +41,19 @@ class Test_Reaction(unittest.TestCase):
         # 5: Arg+ <=> Arg + H+
         # 6: Arg <=> Arg- + H+
         component_system = ComponentSystem()
-        component_system.add_component('H+', charges=[1])
+        component_system.add_component('H+', charge=1)
         component_system.add_component(
-            'Ammonia', species=['NH4+', 'NH3'], charges=[1,0]
+            'Ammonia', species=['NH4+', 'NH3'], charge=[1,0]
         )
         component_system.add_component(
             'Lysine',
             species=['Lys2+', 'Lys+', 'Lys', 'Lys-'],
-            charges=[2,1,0,-1]
+            charge=[2,1,0,-1]
         )
         component_system.add_component(
             'Arginine',
             species=['Arg2+', 'Arg+', 'Arg', 'Arg-'],
-            charges=[2,1,0,-1]
+            charge=[2,1,0,-1]
         )
         reaction_model = MassActionLaw(component_system, 'complex')
         reaction_model.add_reaction(
@@ -147,14 +147,14 @@ class Test_Reaction(unittest.TestCase):
     def create_cross_phase_reaction(self):
         component_system = ComponentSystem()
         component_system.add_component(
-            'Ammonia', species=['NH4+', 'NH3'], charges=[1,0]
+            'Ammonia', species=['NH4+', 'NH3'], charge=[1,0]
         )
         component_system.add_component(
             'Lysine',
             species=['Lys2+', 'Lys+', 'Lys', 'Lys-'],
-            charges=[2,1,0,-1]
+            charge=[2,1,0,-1]
         )
-        component_system.add_component('H+', charges=[1])
+        component_system.add_component('H+', charge=1)
 
         reaction_model = MassActionLawParticle(component_system, 'complex')
 
@@ -164,16 +164,16 @@ class Test_Reaction(unittest.TestCase):
         # 2: Lys+(aq) <=> Lys(aq) + H+(aq)
         # 3: Lys(aq) <=> Lys-(aq) + H+(aq)
         reaction_model.add_liquid_reaction(
-            [1, 2, 0], [-1, 1, 1], 10**(-9.2)*1e3, is_kinetic=False
+            [0, 1, -1], [-1, 1, 1], 10**(-9.2)*1e3, is_kinetic=False
         )
         reaction_model.add_liquid_reaction(
-            [3, 4, 0], [-1, 1, 1], 10**(-2.20)*1e3, is_kinetic=False
+            [2, 3, -1], [-1, 1, 1], 10**(-2.20)*1e3, is_kinetic=False
         )
         reaction_model.add_liquid_reaction(
-            [4, 5, 0], [-1, 1, 1], 10**(-8.90)*1e3, is_kinetic=False
+            [3, 4, -1], [-1, 1, 1], 10**(-8.90)*1e3, is_kinetic=False
         )
         reaction_model.add_liquid_reaction(
-            [5, 6, 0], [-1, 1, 1], 10**(-10.28)*1e3, is_kinetic=False
+            [4, 5, -1], [-1, 1, 1], 10**(-10.28)*1e3, is_kinetic=False
         )
 
         # Adsorption
@@ -181,30 +181,30 @@ class Test_Reaction(unittest.TestCase):
         # 0: NH4+(aq) + H+(s) <=> NH4+(s) + H+(aq)
         # 1: NH4+(s) <=> NH3(aq) + H+(s)
         reaction_model.add_cross_phase_reaction(
-            [1, 0, 1, 0], [-1, -1, 1, 1], [0, 1, 1, 0], 1/1.5,
+            [0, -1, 0, -1], [-1, -1, 1, 1], [0, 1, 1, 0], 1/1.5,
             k_fwd_min=k_fwd_min_ads
         )
         reaction_model.add_cross_phase_reaction(
-            [1, 2, 0], [-1, 1, 1], [1, 0, 1], 1.5, k_fwd_min=k_fwd_min_ads
+            [0, 1, -1], [-1, 1, 1], [1, 0, 1], 1.5, k_fwd_min=k_fwd_min_ads
         )
         # 2: Lys2+(aq) + 2H+(s) <=> Lys2+(s) + 2H+(aq)
         # 3: Lys2+(s) <=> Lys+(aq) + H+(s)
         reaction_model.add_cross_phase_reaction(
-            [3, 0, 3, 0], [-1, -2, 1, 2], [0, 1, 1, 0], 1/5,
+            [2, -1, 2, -1], [-1, -2, 1, 2], [0, 1, 1, 0], 1/5,
             k_fwd_min=k_fwd_min_ads
         )
         reaction_model.add_cross_phase_reaction(
-            [3, 2, 0], [-1, 1, 1], [1, 0, 1], 5,
+            [2, 3, -1], [-1, 1, 1], [1, 0, 1], 5,
             k_fwd_min=k_fwd_min_ads
         )
         # 4: Lys+(aq) + H+(s) <=> Lys+(s) + H+(aq)
         # 5: Lys+(s) <=> Lys(aq) + H+(s)
         reaction_model.add_cross_phase_reaction(
-            [4, 0, 4, 0], [-1, -1, 1, 1], [0, 1, 1, 0], 1/0.75,
+            [3, -1, 3, -1], [-1, -1, 1, 1], [0, 1, 1, 0], 1/0.75,
             k_fwd_min=k_fwd_min_ads
         )
         reaction_model.add_cross_phase_reaction(
-            [4, 5, 0], [-1, 1, 1], [1, 0, 1], 0.75,
+            [3, 4, -1], [-1, 1, 1], [1, 0, 1], 0.75,
             k_fwd_min=k_fwd_min_ads
         )
 
@@ -214,31 +214,48 @@ class Test_Reaction(unittest.TestCase):
         cross_phase_model = self.create_cross_phase_reaction()
 
         stoich_liquid_expected = np.array([
-            [ 1.,  1.,  1.,  1.,  1.,  0.,  2.,  0.,  1.,  0.],
             [-1.,  0.,  0.,  0., -1.,  0.,  0.,  0.,  0.,  0.],
-            [ 1.,  0.,  0.,  0.,  0.,  1.,  0.,  1.,  0.,  0.],
+            [ 1.,  0.,  0.,  0.,  0.,  1.,  0.,  0.,  0.,  0.],
             [ 0., -1.,  0.,  0.,  0.,  0., -1.,  0.,  0.,  0.],
-            [ 0.,  1., -1.,  0.,  0.,  0.,  0.,  0., -1.,  0.],
+            [ 0.,  1., -1.,  0.,  0.,  0.,  0.,  1., -1.,  0.],
             [ 0.,  0.,  1., -1.,  0.,  0.,  0.,  0.,  0.,  1.],
             [ 0.,  0.,  0.,  1.,  0.,  0.,  0.,  0.,  0.,  0.],
+            [ 1.,  1.,  1.,  1.,  1.,  0.,  2.,  0.,  1.,  0.],
         ])
         np.testing.assert_array_equal(
             stoich_liquid_expected, cross_phase_model.stoich_liquid
         )
 
         stoich_solid_expected = np.array([
-            [-1.,  1., -2.,  1., -1.,  1.],
             [ 1., -1.,  0.,  0.,  0.,  0.],
             [ 0.,  0.,  0.,  0.,  0.,  0.],
             [ 0.,  0.,  1., -1.,  0.,  0.],
             [ 0.,  0.,  0.,  0.,  1., -1.],
             [ 0.,  0.,  0.,  0.,  0.,  0.],
             [ 0.,  0.,  0.,  0.,  0.,  0.],
+            [-1.,  1., -2.,  1., -1.,  1.]
         ])
         np.testing.assert_array_equal(
             stoich_solid_expected, cross_phase_model.stoich_solid
         )
-
+        
+    def test_str(self):
+        reaction_system = self.create_complex_bulk_reaction()
+        str_expected = 'NH4+ <=>[6.31E-07][1.00E+00] H+ + NH3'
+        _str = str(reaction_system.reactions[0])
+        self.assertEqual(str_expected, _str)
+        
+        reaction_system = self.create_complex_bulk_reaction(is_kinetic=False)
+        str_expected = 'NH4+ <=>[6.31E-07] H+ + NH3'
+        _str = str(reaction_system.reactions[0])
+        self.assertEqual(str_expected, _str)
+        
+        reaction_system = self.create_cross_phase_reaction()
+        str_expected = 'NH4+(l) + H+(s) <=>[6.67E-01][1.00E+00] H+(l) + NH4+(s)'
+        _str = str(reaction_system.cross_phase_reactions[0])
+        self.assertEqual(str_expected, _str)
+        
+        
 
 if __name__ == '__main__':
     unittest.main()

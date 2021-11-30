@@ -94,7 +94,7 @@ class MassActionLaw(ReactionBaseClass):
         super().__init__(*args, **kwargs)
     
     def add_reaction(self, *args, **kwargs):
-        r = Reaction(self.n_comp, *args, **kwargs)
+        r = Reaction(self.component_system, *args, **kwargs)
         self._reactions.append(r)
 
     @property
@@ -163,15 +163,15 @@ class MassActionLawParticle(ReactionBaseClass):
         super().__init__(*args, **kwargs)
     
     def add_liquid_reaction(self, *args, **kwargs):
-        r = Reaction(self.n_comp, *args, **kwargs)
+        r = Reaction(self.component_system, *args, **kwargs)
         self._liquid_reactions.append(r)
 
     def add_solid_reaction(self, *args, **kwargs):
-        r = Reaction(self.n_comp, *args, **kwargs)
+        r = Reaction(self.component_system, *args, **kwargs)
         self._solid_reactions.append(r)
 
     def add_cross_phase_reaction(self, *args, **kwargs):
-        r = CrossPhaseReaction(self.n_comp, *args, **kwargs)
+        r = CrossPhaseReaction(self.component_system, *args, **kwargs)
         self._cross_phase_reactions.append(r)
 
     ## Pore Liquid
@@ -354,16 +354,18 @@ class Reaction():
     """Helper class to store information about individual MAL reactions
     """
     def __init__(
-            self, n_comp, indices, coefficients, 
+            self, component_system, indices, coefficients, 
             k_fwd, k_bwd=1, is_kinetic=True, k_fwd_min=100,
-            exponents_fwd=None, exponents_bwd=None):
+            exponents_fwd=None, exponents_bwd=None
+            ):
         
-        self.n_comp = n_comp
+        self.component_system = component_system
         
-        self.stoich = np.zeros((n_comp,))
+        self.stoich = np.zeros((self.n_comp,))
         for i, c in zip(indices, coefficients):
             self.stoich[i] = c
 
+        self.is_kinetic = is_kinetic
         if not is_kinetic:
             self.k_fwd, self.k_bwd = scale_to_rapid_equilibrium(k_fwd, k_fwd_min)
         else:
@@ -373,6 +375,10 @@ class Reaction():
         self._exponents_fwd = exponents_fwd
         self._exponents_bwd = exponents_bwd
         
+    @property
+    def n_comp(self):
+        return self.component_system.n_comp
+    
     @property
     def exponents_fwd(self):
         if self._exponents_fwd is not None:
@@ -390,25 +396,47 @@ class Reaction():
     @property
     def k_eq(self):
         return self.k_fwd/self.k_bwd
+    
+    def __str__(self):
+        educts = []
+        products = []
+        for i, nu in enumerate(self.stoich):
+            if nu < 0:
+                if nu == - 1:
+                    educts.append(f"{self.component_system.labels[i]}")
+                else:
+                    educts.append(f"{abs(nu)} {self.component_system.labels[i]}")
+            elif nu > 0:
+                if nu == 1:
+                    products.append(f"{self.component_system.labels[i]}")
+                else:
+                    products.append(f"{nu} {self.component_system.labels[i]}")
+        
+        if self.is_kinetic:
+            reaction_operator = f' <=>[{self.k_fwd:.2E}][{self.k_bwd:.2E}] '
+        else:
+            reaction_operator = f' <=>[{self.k_eq:.2E}] '
+            
+        return " + ".join(educts) + reaction_operator + " + ".join(products) 
             
 
 class CrossPhaseReaction():
     """Helper class to store information about individual cross-phase MAL reactions
     """
     def __init__(
-            self, n_comp, indices, coefficients, phases, 
+            self, component_system, indices, coefficients, phases, 
             k_fwd, k_bwd=1, is_kinetic=True, k_fwd_min=100,
             exponents_fwd_liquid=None, exponents_bwd_liquid=None,
             exponents_fwd_solid=None, exponents_bwd_solid=None,):
         
-        self.n_comp = n_comp
+        self.component_system = component_system
 
-        self.stoich_liquid = np.zeros((n_comp,))
-        self.stoich_solid = np.zeros((n_comp,))
-        self.exponents_fwd_solid_modliquid = np.zeros((n_comp,))
-        self.exponents_bwd_solid_modliquid = np.zeros((n_comp,))
-        self.exponents_fwd_liquid_modsolid = np.zeros((n_comp,))
-        self.exponents_bwd_liquid_modsolid = np.zeros((n_comp,))
+        self.stoich_liquid = np.zeros((self.n_comp,))
+        self.stoich_solid = np.zeros((self.n_comp,))
+        self.exponents_fwd_solid_modliquid = np.zeros((self.n_comp,))
+        self.exponents_bwd_solid_modliquid = np.zeros((self.n_comp,))
+        self.exponents_fwd_liquid_modsolid = np.zeros((self.n_comp,))
+        self.exponents_bwd_liquid_modsolid = np.zeros((self.n_comp,))
 
         if phases is None:
             phases = [0 for n in indices]
@@ -427,6 +455,7 @@ class CrossPhaseReaction():
                 elif c > 0:
                     self.exponents_bwd_liquid_modsolid[i] = c
 
+        self.is_kinetic = is_kinetic       
         if not is_kinetic:
             self.k_fwd, self.k_bwd = scale_to_rapid_equilibrium(k_fwd, k_fwd_min)
         else:
@@ -438,6 +467,10 @@ class CrossPhaseReaction():
         self._exponents_fwd_solid = exponents_fwd_solid
         self._exponents_bwd_solid = exponents_bwd_solid
         
+    @property
+    def n_comp(self):
+        return self.component_system.n_comp
+    
     @property
     def exponents_fwd_liquid(self):
         if self._exponents_fwd_liquid is not None:
@@ -469,6 +502,43 @@ class CrossPhaseReaction():
     @property
     def k_eq(self):
         return self.k_fwd/self.k_bwd
+    
+    def __str__(self):
+        educts = []
+        products = []
+        for i, nu in enumerate(self.stoich_liquid):
+            if nu < 0:
+                if nu == - 1:
+                    educts.append(f"{self.component_system.labels[i]}(l)")
+                else:
+                    educts.append(
+                        f"{abs(nu)} {self.component_system.labels[i]}(l)"
+                    )
+            elif nu > 0:
+                if nu == 1:
+                    products.append(f"{self.component_system.labels[i]}(l)")
+                else:
+                    products.append(f"{nu} {self.component_system.labels[i]}(l)")
+        for i, nu in enumerate(self.stoich_solid):
+            if nu < 0:
+                if nu == - 1:
+                    educts.append(f"{self.component_system.labels[i]}(s)")
+                else:
+                    educts.append(
+                        f"{abs(nu)} {self.component_system.labels[i]}(s)"
+                    )
+            elif nu > 0:
+                if nu == 1:
+                    products.append(f"{self.component_system.labels[i]}(s)")
+                else:
+                    products.append(f"{nu} {self.component_system.labels[i]}(s)")
+        
+        if self.is_kinetic:
+            reaction_operator = f' <=>[{self.k_fwd:.2E}][{self.k_bwd:.2E}] '
+        else:
+            reaction_operator = f' <=>[{self.k_eq:.2E}] '
+            
+        return " + ".join(educts) + reaction_operator + " + ".join(products) 
 
 def scale_to_rapid_equilibrium(k_eq, k_fwd_min=10):
     """Scale forward and backward reaction rates if only k_eq is known.
@@ -476,13 +546,13 @@ def scale_to_rapid_equilibrium(k_eq, k_fwd_min=10):
     Parameters
     ----------
     k_eq : float
-        Equilibrium constant.
+       Equilibrium constant.
     k_fwd_min : float, optional
         Minimum value for forwards reaction. The default is 10.
 
     Returns
     -------
-    k_fwd : float
+   k_fwd : float
         Forward reaction rate.
     k_bwd : float
         Backward reaction rate.
