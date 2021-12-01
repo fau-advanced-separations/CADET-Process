@@ -45,7 +45,7 @@ class BindingBaseClass(metaclass=StructMeta):
     @component_system.setter
     def component_system(self, component_system):
         if not isinstance(component_system, ComponentSystem):
-            raise TypeError('')
+            raise TypeError('Expected ComponentSystem')
         self._component_system = component_system
     
     @property
