@@ -385,14 +385,14 @@ def plot_buffer_capacity(reaction_system, buffer, pH=None):
     b_total = np.sum(b, axis=1)
 
     fig, ax = plotting.setup_figure()
-    ax.plot(pH, b_total, 'k*', label='Total buffer capacity')
     for i in range(reaction_system.component_system.n_components - 1):
         ax.plot(pH, b[:,i], label=reaction_system.component_system.components[i].name)
     ax.plot(pH, b[:,-1], label='Water')
+    ax.plot(pH, b_total, 'k--', label='Total buffer capacity')
 
     layout = plotting.Layout()
     layout.x_label = '$pH$'
-    layout.y_label = '$buffer capacity~/~mM$'
+    layout.y_label = 'buffer capacity / mM'
     layout.ylim = (0, 1.1*np.max(b_total))
 
     plotting.set_layout(fig, ax, layout)
@@ -407,10 +407,10 @@ def plot_charge_distribution(reaction_system, pH=None, plot_cumulative=False):
     ----------
     reaction_system : MassActionLaw
         Reaction system with stoichiometric coefficients and reaction rates.
-    buffer : list
-        Buffer concentration in mM.
     pH : np.array, optional
         Range of pH to be plotted.
+    plot_cumulative : Bool
+        If True, only plot cumulative charge of each acid.
 
     Returns
     -------
@@ -419,11 +419,15 @@ def plot_charge_distribution(reaction_system, pH=None, plot_cumulative=False):
     """
     if pH is None:
         pH = np.linspace(0,14,101)
+        
+    layout = plotting.Layout()
 
     if plot_cumulative:
         c = cummulative_charge_distribution(reaction_system, pH)
+        layout.y_label = 'cumulative charge'
     else:
         c = charge_distribution(reaction_system, pH)
+        layout.y_label = 'charge'
 
     fig, ax = plotting.setup_figure()
     if plot_cumulative:
@@ -434,9 +438,7 @@ def plot_charge_distribution(reaction_system, pH=None, plot_cumulative=False):
     for i, l in zip(c.T, labels): 
         ax.plot(pH, i, label=l)
 
-    layout = plotting.Layout()
     layout.x_label = '$pH$'
-    layout.y_label = '$cumulative charge$'
     layout.ylim = (1.1*np.min(c), 1.1*np.max(c))
 
     plotting.set_layout(fig, ax, layout)
