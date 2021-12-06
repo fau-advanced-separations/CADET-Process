@@ -8,7 +8,7 @@ from CADETProcess.fractionation import FractionationOptimizer
 from CADETProcess.common import get_bad_performance
 
 
-class ProcessEvaluator(metaclass=StructMeta):
+class SimulateAndFractionate(metaclass=StructMeta):
     """Wrapper for sequential simulation and fractionation of processes.
 
     Attributes
