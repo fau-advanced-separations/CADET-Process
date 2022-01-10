@@ -812,7 +812,14 @@ class ModelSolverParametersGroup(ParametersGroup):
     MAX_KRYLOV = UnsignedInteger(default=0)
     MAX_RESTARTS = UnsignedInteger(default=10)
     SCHUR_SAFETY = UnsignedFloat(default=1e-8)
-    _parameters = ['GS_TYPE', 'MAX_KRYLOV', 'MAX_RESTARTS', 'SCHUR_SAFETY']
+    LINEAR_SOLUTION_MODE = UnsignedInteger(default=2, ub=2)
+    _parameters = [
+        'GS_TYPE', 
+        'MAX_KRYLOV',
+        'MAX_RESTARTS',
+        'SCHUR_SAFETY',
+        'LINEAR_SOLUTION_MODE',
+    ]
 
 unit_parameters_map = {
     'GeneralRateModel': {
