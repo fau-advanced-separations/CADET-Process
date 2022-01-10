@@ -576,7 +576,7 @@ def plot_solution_1D(
     if ax is None:
         fig, ax = plotting.setup_figure()
     
-    total_concentration = solution.total_concentration()
+    total_concentration = solution.total_concentration
     
     if secondary_axis is not None:
         ax_secondary = ax.twinx()
