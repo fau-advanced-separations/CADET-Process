@@ -238,7 +238,7 @@ class UnitBaseClass(metaclass=StructMeta):
     def particle_reaction_model(self, particle_reaction_model):
         if not isinstance(particle_reaction_model, ReactionBaseClass):
             raise TypeError('Expected ReactionBaseClass')
-        if not self.supports_bulk_reaction:
+        if not self.supports_particle_reaction:
             raise CADETProcessError('Unit does not support particle reactions.')            
 
         if particle_reaction_model.component_system is not self.component_system \
