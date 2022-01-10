@@ -13,10 +13,10 @@ from CADETProcess.processModel import TubularReactor, Cstr
 class CarouselBuilder(metaclass=StructMeta):
     switch_time = UnsignedFloat()
     
-    def __init__(self, n_comp, name):
-        self.n_comp = n_comp
+    def __init__(self, component_system, name):
+        self.component_system = component_system
         self.name = name
-        self._flow_sheet = FlowSheet(n_comp, name)
+        self._flow_sheet = FlowSheet(component_system, name)
         self._column = None
             
     @property
@@ -31,7 +31,7 @@ class CarouselBuilder(metaclass=StructMeta):
     def column(self, column):
         if not isinstance(column, TubularReactor):
             raise TypeError
-        if not self.n_comp == column.n_comp:
+        if self.component_system is not column.component_system:
             raise CADETProcessError('Number of components does not match.')
         self._column = column
         
@@ -78,7 +78,7 @@ class CarouselBuilder(metaclass=StructMeta):
         return sum([zone.n_columns for zone in self.zones])
 
     def build_flow_sheet(self):
-        flow_sheet = FlowSheet(self.n_comp, self.name)
+        flow_sheet = FlowSheet(self.component_system, self.name)
         self.add_units(flow_sheet)
         self.add_inter_zone_connections(flow_sheet)
         self.add_intra_zone_connections(flow_sheet)
@@ -95,6 +95,7 @@ class CarouselBuilder(metaclass=StructMeta):
                 flow_sheet.add_unit(unit.outlet_unit)
                 for i_col in range(unit.n_columns):
                     col = deepcopy(self.column)
+                    col.component_system = self.component_system
                     col.name = f'column_{col_index}'
                     if unit.initial_state is not None:
                         col.initial_state = unit.initial_state[i_col]
@@ -240,19 +241,19 @@ class ZoneBaseClass(UnitBaseClass):
     
     def __init__(
             self, 
-            n_comp, name, n_columns=1, flow_direction=1, initial_state=None, 
+            component_system, name, n_columns=1, flow_direction=1, initial_state=None, 
             *args, **kwargs
         ):
         self.n_columns = n_columns
         self.flow_direction = flow_direction
         self.initial_state = initial_state 
 
-        self._inlet_unit = Cstr(n_comp, f'{name}_inlet')
-        self._inlet_unit.V = 1e-6
-        self._outlet_unit = Cstr(n_comp, f'{name}_outlet')
-        self._outlet_unit.V = 1e-6     
+        self._inlet_unit = Cstr(component_system, f'{name}_inlet')
+        self._inlet_unit.V = 1e-12
+        self._outlet_unit = Cstr(component_system, f'{name}_outlet')
+        self._outlet_unit.V = 1e-12     
         
-        super().__init__(n_comp, name, *args, **kwargs)
+        super().__init__(component_system, name, *args, **kwargs)
         
     @property 
     def initial_state(self):
@@ -284,89 +285,3 @@ class SerialZone(ZoneBaseClass):
 
 class ParallelZone(ZoneBaseClass):
     pass
-
-
-if __name__ == '__main__':
-    from CADETProcess.processModel import LumpedRateModelWithoutPores, Source, Sink
-    from CADETProcess.processModel import Linear
-
-    feed = Source(n_comp=2, name='feed')
-    feed.c = [0.003,0.003]
-    feed.flow_rate = 0.98e-7
-    
-    eluent = Source(n_comp=2, name='eluent')
-    eluent.c = [0,0]
-    eluent.flow_rate = 1.96e-7
-
-    raffinate = Sink(n_comp=2, name='raffinate')
-    extract = Sink(n_comp=2, name='extract')
-
-    column = LumpedRateModelWithoutPores(n_comp=2, name='column')
-    column.length = 0.25
-    column.cross_section_area = 3.141592653589793E-4
-    column.axial_dispersion = 4.7e-7
-    column.total_porosity = 0.83    
-
-    binding_model = Linear(n_comp=2, name='linear')
-    binding_model.adsorption_rate = [5.72, 7.7]
-    binding_model.desorption_rate = [1, 1]    
-    
-    column.binding_model = binding_model
-
-    z0 = SerialZone(2, 'zone0', 1)
-    z1 = SerialZone(2, 'zone1', 1)
-    z2 = SerialZone(2, 'zone2', 1)
-    z3 = SerialZone(2, 'zone3', 1)
-
-    sys = CarouselBuilder(2, 'SMB')
-    
-    sys.add_unit(feed)
-    sys.add_unit(eluent)
-    sys.add_unit(z0)
-    sys.add_unit(z1)
-    sys.add_unit(z2)
-    sys.add_unit(z3)
-    sys.add_unit(raffinate)
-    sys.add_unit(extract)
-    
-    sys.column = column
-
-    sys.add_connection(feed, z0)
-    sys.add_connection(eluent, z2)
-    sys.add_connection(z0, raffinate)
-    sys.add_connection(z2, extract)
-    sys.add_connection(z0, z1)
-    sys.add_connection(z1, z2)
-    sys.add_connection(z2, z3)
-    sys.add_connection(z3, z0)
-    
-    
-    f_42 = 1.4e-7
-    f_45 = 7.66e-7
-    w_r = f_42/(f_42 + f_45)
-    
-    f_63 = 1.54e-7
-    f_67 = 8.08e-7
-    
-    w_e = f_63/(f_63 + f_67)
-    
-    sys.set_output_state(z0, [w_r,  1-w_r])
-    sys.set_output_state(z2, [w_e,  1-w_e])
-    
-    sys.switch_time = 180
-
-    fs = sys.build_flow_sheet()
-    proc = sys.build_process()
-
-    from CADETProcess.simulation import Cadet
-    process_simulator = Cadet(
-        cadet_bin_path='/home/jo/software/cadet/cadet4.2.0/bin/',
-        temp_dir='/dev/shm'
-        )
-    process_simulator.evaluate_stationarity = True
-    process_simulator.n_cycles = 1
-    process_simulator.solver_parameters.NTHREADS = 1
-
-
-    proc_results = process_simulator.simulate(proc, file_path = 'new.h5')
-
