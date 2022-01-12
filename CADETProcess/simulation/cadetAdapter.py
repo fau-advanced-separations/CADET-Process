@@ -765,12 +765,12 @@ class Cadet(SolverBase):
 
         solver_sections.nsec = process._n_cycles * process.n_sections
         solver_sections.section_times = [
-            round((cycle*process.cycle_time + evt),1)
+            cycle*process.cycle_time + evt
             for cycle in range(process._n_cycles)
             for evt in process.section_times[0:-1]
         ]
         solver_sections.section_times.append(
-            round(process._n_cycles * process.cycle_time,1)
+            process._n_cycles * process.cycle_time
         )
         solver_sections.section_continuity = [0] * (solver_sections.nsec - 1)
 
