@@ -540,7 +540,7 @@ class SolutionVolume(BaseSolution):
         CADETProcess.plot
         """
         x = self.time / 60
-        y = self.solution / 1000
+        y = self.solution * 1000
         ymax = np.max(y)
 
         fig, ax = plotting.setup_figure()
