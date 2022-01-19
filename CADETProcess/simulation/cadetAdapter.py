@@ -974,7 +974,7 @@ adsorption_parameters_map = {
             'IS_KINETIC' : 'is_kinetic',
             'MCL_KA': 'adsorption_rate',
             'MCL_KD': 'desorption_rate',
-            'MCL_QMAX': 'saturation_capacity'
+            'MCL_QMAX': 'capacity'
         },
     },
     'BiLangmuir': {
@@ -983,7 +983,7 @@ adsorption_parameters_map = {
             'IS_KINETIC' : 'is_kinetic',
             'MCBL_KA': 'adsorption_rate',
             'MCBL_KD': 'desorption_rate',
-            'MCBL_QMAX': 'saturation_capacity'
+            'MCBL_QMAX': 'capacity'
         },
     },
     'StericMassAction': {
@@ -1005,7 +1005,7 @@ adsorption_parameters_map = {
             'IS_KINETIC' : 'is_kinetic',
             'MCAL_KA': 'adsorption_rate',
             'MCAL_KD': 'desorption_rate',
-            'MCAL_QMAX': 'saturation_capacity',
+            'MCAL_QMAX': 'capacity',
             'MCAL_ANTILANGMUIR': 'antilangmuir'
         },
     },
@@ -1015,7 +1015,7 @@ adsorption_parameters_map = {
             'IS_KINETIC' : 'is_kinetic',
             'MPM_KA': 'adsorption_rate',
             'MPM_KD': 'desorption_rate',
-            'MPM_QMAX': 'maximum_adsorption_capacity',
+            'MPM_QMAX': 'capacity',
             'MPM_BETA': 'ion_exchange_characteristic',
             'MPM_GAMMA': 'hydrophobicity'
         },
@@ -1026,7 +1026,7 @@ adsorption_parameters_map = {
             'IS_KINETIC' : 'is_kinetic',
             'EMPM_KA': 'adsorption_rate',
             'EMPM_KD': 'desorption_rate',
-            'EMPM_QMAX': 'maximum_adsorption_capacity',
+            'EMPM_QMAX': 'capacity',
             'EMPM_BETA': 'ion_exchange_characteristic',
             'EMPM_GAMMA': 'hydrophobicity',
             'EMPM_COMP_MODE': 'component_mode',

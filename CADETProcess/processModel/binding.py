@@ -111,15 +111,15 @@ class Langmuir(BindingBaseClass):
         Adsorption rate constants.
     desorption_rate : list of unsigned floats. Length depends on n_comp.
         Desorption rate constants.
-    saturation_capacity : list of unsigned floats. Length depends on n_comp.
+    capacity : list of unsigned floats. Length depends on n_comp.
         Maximum adsorption capacities.
     """
     adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp', default=1)
-    saturation_capacity = DependentlySizedUnsignedList(dep='n_comp')
+    capacity = DependentlySizedUnsignedList(dep='n_comp')
 
     _parameter_names = BindingBaseClass._parameter_names + [
-        'adsorption_rate', 'desorption_rate', 'saturation_capacity'
+        'adsorption_rate', 'desorption_rate', 'capacity'
     ]
 
 class BiLangmuir(BindingBaseClass):
@@ -131,18 +131,18 @@ class BiLangmuir(BindingBaseClass):
         Adsorption rate constants.
     desorption_rate : list of unsigned floats. Length depends on n_comp.
         Desorption rate constants
-    saturation_capacity : list of unsigned floats. Length depends on n_comp.
+    capacity : list of unsigned floats. Length depends on n_comp.
         Maximum adsorption capacities.
     """
     adsorption_rate = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'))
     desorption_rate = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'), default=1)
-    saturation_capacity = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'))
+    capacity = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'))
     n_states = UnsignedInteger()
 
     _parameter_names = BindingBaseClass._parameter_names + [
             'adsorption_rate',
             'desorption_rate',
-            'saturation_capacity',
+            'capacity',
             'n_states'
         ]
     def __init__(self, *args, n_states=2, **kwargs):
@@ -207,27 +207,27 @@ class AntiLangmuir(BindingBaseClass):
         Adsorption rate constants. Length depends on n_comp.
     desorption_rate : list of unsigned floats. Length depends on n_comp.
         Desorption rate constants. Length depends on n_comp.
-    maximum_adsorption_capacity : list of unsigned floats.
+    capacity : list of unsigned floats.
         Maximum adsorption capacities. Length depends on n_comp.
     antilangmuir : list of unsigned floats, optional.
         Anti-Langmuir coefficients. Length depends on n_comp.
     """
     adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
-    maximum_adsorption_capacity = DependentlySizedUnsignedList(dep='n_comp')
+    capacity = DependentlySizedUnsignedList(dep='n_comp')
     antilangmuir = DependentlySizedUnsignedList(dep='n_comp')
 
     _parameter_names = BindingBaseClass._parameter_names + [
         'adsorption_rate',
         'desorption_rate',
-        'maximum_adsorption_capacity',
+        'capacity',
         'antilangmuir'
     ]
 
     def __init__(self, *args, **kwargs):
         self.adsorption_rate = [0.0] * self.n_comp
         self.desorption_rate = [0.0] * self.n_comp
-        self.maximum_adsorption_capacity = [0.0] * self.n_comp
+        self.capacity = [0.0] * self.n_comp
         self.antilangmuir = [0.0] * self.n_comp
 
         super().__init__(*args, **kwargs)
@@ -238,22 +238,22 @@ class KumarMultiComponentLangmuir(BindingBaseClass):
 
     Attributes
     ----------
-    adsorption_rate : Parameter
+    adsorption_rate : list of unsigned floats.
         Adsorption rate constants.
-    desorption_rate : Parameter
+    desorption_rate : list of unsigned floats.
         Desorption rate constants.
-    maximum_adsorption_capacity : Parameter
+    capacity : list of unsigned floats.
         Maximum adsoprtion capacities.
-    characteristic_charge: Parameter
+    characteristic_charge: list of unsigned floats.
         Salt exponents/characteristic charges.
-    activation_temp : Parameter
+    activation_temp : list of unsigned floats.
         Activation temperatures.
     temperature : unsigned float.
         Temperature.
     """
     adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp', default=1)
-    maximum_adsorption_capacity = DependentlySizedUnsignedList(dep='n_comp')
+    capacity = DependentlySizedUnsignedList(dep='n_comp')
     characteristic_charge = DependentlySizedUnsignedList(dep='n_comp', default=1)
     activation_temp = DependentlySizedUnsignedList(dep='n_comp')
     temperature = UnsignedFloat()
@@ -261,7 +261,7 @@ class KumarMultiComponentLangmuir(BindingBaseClass):
     _parameter_names = BindingBaseClass._parameter_names + [
         'adsorption_rate',
         'desorption_rate',
-        'maximum_adsorption_capacity',
+        'capacity',
         'characteristic_charge',
         'activation_temp',
         'temperature'
@@ -273,20 +273,20 @@ class Spreading(BindingBaseClass):
 
     Attributes
     ----------
-    adsorption_rate : Parameter
+    adsorption_rate : list of unsigned floats.
         Adsorption rate constants.
-    desorption_rate : Parameter
+    desorption_rate : list of unsigned floats.
         Desorption rate constants.
-    maximum_adsorption_capacity : Parameter
+    capacity : list of unsigned floats.
         Maximum adsoprtion capacities in state-major ordering.
-    exchange_from_1_2 : Parameter
+    exchange_from_1_2 : list of unsigned floats.
         Exchange rates from the first to the second bound state.
-    exchange_from_2_1 : Parameter
+    exchange_from_2_1 : list of unsigned floats.
         Exchange rates from the second to the first bound state.
     """
     adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp', default=1)
-    maximum_adsorption_capacity = DependentlySizedUnsignedList(dep='n_comp')
+    capacity = DependentlySizedUnsignedList(dep='n_comp')
     exchange_from_1_1 = DependentlySizedUnsignedList(dep='n_comp')
     exchange_from_2_1 = DependentlySizedUnsignedList(dep='n_comp')
 
@@ -294,7 +294,7 @@ class Spreading(BindingBaseClass):
         'adsorption_rate',
         'desorption_rate',
         'activation_temp',
-        'maximum_adsorption_capacity',
+        'capacity',
         'exchange_from_1_2',
         'exchange_from_2_1'
     ]
@@ -305,20 +305,20 @@ class MobilePhaseModulator(BindingBaseClass):
 
     Attributes
     ----------
-    adsorption_rate : Parameter
+    adsorption_rate : list of unsigned floats.
         Adsorption rate constants.
-    desorption_rate : Parameter
+    desorption_rate : list of unsigned floats.
         Desorption rate constants.
-    maximum_adsorption_capacity : Parameter
+    capacity : list of unsigned floats.
         Maximum adsorption capacities.
-    ion_exchange_characteristic : Parameter
+    ion_exchange_characteristic : list of unsigned floats.
         Parameters describing the ion-exchange characteristics (IEX).
-    hydrophobicity : Parameter
+    hydrophobicity : list of unsigned floats.
         Parameters describing the hydrophobicity (HIC).
     """
     adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
-    maximum_adsorption_capacity = DependentlySizedUnsignedList(dep='n_comp')
+    capacity = DependentlySizedUnsignedList(dep='n_comp')
     ion_exchange_characteristic = DependentlySizedUnsignedList(dep='n_comp')
     beta = ion_exchange_characteristic
     hydrophobicity = DependentlySizedUnsignedList(dep='n_comp')
@@ -327,7 +327,7 @@ class MobilePhaseModulator(BindingBaseClass):
     _parameter_names = BindingBaseClass._parameter_names + [
         'adsorption_rate',
         'desorption_rate',
-        'maximum_adsorption_capacity',
+        'capacity',
         'ion_exchange_characteristic',
         'hydrophobicity',
     ]
@@ -337,17 +337,17 @@ class ExtendedMobilePhaseModulator(BindingBaseClass):
 
     Attributes
     ----------
-    adsorption_rate : Parameter
+    adsorption_rate : list of unsigned floats.
         Adsorption rate constants.
-    desorption_rate : Parameter
+    desorption_rate : list of unsigned floats.
         Desorption rate constants.
-    maximum_adsorption_capacity : Parameter
+    capacity : list of unsigned floats.
         Maximum adsorption capacities.
-    ion_exchange_characteristic : Parameter
+    ion_exchange_characteristic : list of unsigned floats.
         Parameters describing the ion-exchange characteristics (IEX).
-    hydrophobicity : Parameter
+    hydrophobicity : list of unsigned floats.
         Parameters describing the hydrophobicity (HIC).
-    component_mode : Parameter
+    component_mode : list of unsigned floats.
         Mode of each component;
         0 denotes the modifier component,
         1 is linear binding,
@@ -355,7 +355,7 @@ class ExtendedMobilePhaseModulator(BindingBaseClass):
     """
     adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
-    maximum_adsorption_capacity = DependentlySizedUnsignedList(dep='n_comp')
+    capacity = DependentlySizedUnsignedList(dep='n_comp')
     ion_exchange_characteristic = DependentlySizedUnsignedList(dep='n_comp')
     beta = ion_exchange_characteristic
     hydrophobicity = DependentlySizedUnsignedList(dep='n_comp')
@@ -365,7 +365,7 @@ class ExtendedMobilePhaseModulator(BindingBaseClass):
     _parameter_names = BindingBaseClass._parameter_names + [
         'adsorption_rate',
         'desorption_rate',
-        'maximum_adsorption_capacity',
+        'capacity',
         'ion_exchange_characteristic',
         'hydrophobicity',
         'component_mode',
@@ -377,17 +377,17 @@ class SelfAssociation(BindingBaseClass):
 
     Attributes
     ----------
-    adsorption_rate : Parameter
+    adsorption_rate : list of unsigned floats.
         Adsorption rate constants.
-    adsorption_rate_dimerization : Parameter
+    adsorption_rate_dimerization : list of unsigned floats.
         Adsorption rate constants of dimerization.
-    desorption_rate : Parameter
+    desorption_rate : list of unsigned floats.
         Desorption rate constants.
-    characteristic_charge : Parameter
+    characteristic_charge : list of unsigned floats.
         The characteristic charge v of the protein.
-    steric_factor : Parameter
+    steric_factor : list of unsigned floats.
         Steric factor of of the protein.
-    capacity : Parameter
+    capacity : list of unsigned floats.
         Stationary phase capacity (monovalent salt counterions); The total
         number of binding sites available on the resin surface.
     reference_liquid_phase_conc : Parmater
@@ -421,23 +421,23 @@ class BiStericMassAction(BindingBaseClass):
 
     Attributes
     ----------
-    adsorption_rate : Parameter
+    adsorption_rate : list of unsigned floats.
         Adsorption rate constants in state-major ordering.
-    desorption_rate : Parameter
+    desorption_rate : list of unsigned floats.
         Desorption rate constants in state-major ordering.
-    characteristic_charge : Parameter
+    characteristic_charge : list of unsigned floats.
         Characteristic charges v(i,j) of the it-h protein with respect to the
         j-th binding site type in state-major ordering.
-    steric_factor : Parameter
+    steric_factor : list of unsigned floats.
         Steric factor o (i,j) of the it-h protein with respect to the j-th
         binding site type in state-major ordering.
-    capacity : Parameter
+    capacity : list of unsigned floats.
         Stationary phase capacity (monovalent salt counterions): The total
         number of binding site types.
-    reference_liquid_phase_conc : Parameter
+    reference_liquid_phase_conc : list of unsigned floats.
         Reference liquid phase concentration for each binding site type or one
         value for all types (optional, default value = 1.0).
-    reference_solid_phase_conc : Parameter
+    reference_solid_phase_conc : list of unsigned floats.
         Reference solid phase concentration for each binding site type or one
         value for all types (optional, default value = 1.0).
     """
@@ -470,27 +470,27 @@ class MultistateStericMassAction(BindingBaseClass):
 
     Attributes
     ----------
-    adsorption_rate : Parameter
+    adsorption_rate : list of unsigned floats.
         Adsorption rate constants of the components to different bound states
         in component-major ordering.
-    desorption_rate : Parameter
+    desorption_rate : list of unsigned floats.
         Desorption rate constants of the components to different bound states
         in component-major ordering.
-    characteristic_charge : Parameter
+    characteristic_charge : list of unsigned floats.
         Characteristic charges of the components to different bound states in
         component-major ordering.
-    steric_factor : Parameter
+    steric_factor : list of unsigned floats.
         Steric factor of the components to different bound states in
         component-major ordering.
-    conversion_rate : Parameter
+    conversion_rate : list of unsigned floats.
         Conversion rates between different bound states in
         component-major ordering.
-    capacity : Parameter
+    capacity : list of unsigned floats.
         Stationary phase capacity (monovalent salt counterions): The total
         number of binding sites available on the resin surface.
-    reference_liquid_phase_conc : Parameter
+    reference_liquid_phase_conc : list of unsigned floats.
         Reference liquid phase concentration (optional, default value = 1.0).
-    reference_solid_phase_conc : Parameter
+    reference_solid_phase_conc : list of unsigned floats.
         Reference solid phase concentration (optional, default value = 1.0).
     """
     adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
@@ -519,52 +519,52 @@ class SimplifiedMultistateSteric_Mass_Action(BindingBaseClass):
 
     Attributes
     ----------
-    adsorption_rate :Parameter
+    adsorption_rate :list of unsigned floats.
         Adsorption rate constants of the components to different bound states
         in component-major ordering.
-    desorption_rate : Parameter
+    desorption_rate : list of unsigned floats.
         Desorption rate constants of the components to different bound states
         in component-major ordering.
-    characteristic_charge_first : Parameter
+    characteristic_charge_first : list of unsigned floats.
         Characteristic charges of the components in the first (weakest) bound
         state.
-    characteristic_charge_last : Parameter
+    characteristic_charge_last : list of unsigned floats.
         Characteristic charges of the components in the last (strongest) bound
         state.
-    quadratic_modifiers_charge : Parameter
+    quadratic_modifiers_charge : list of unsigned floats.
         Quadratic modifiers of the characteristic charges of the different
         components depending on the index of the bound state.
-    steric_factor_first : Parameter
+    steric_factor_first : list of unsigned floats.
         Steric factor of the components in the first (weakest) bound state.
-    steric_factor_last : Parameter
+    steric_factor_last : list of unsigned floats.
         Steric factor of the components in the last (strongest) bound state.
-    quadratic_modifiers_steric : Parameter
+    quadratic_modifiers_steric : list of unsigned floats.
         Quadratic modifiers of the sterif factors of the different components
         depending on the index of the bound state.
-    capacity : Parameter
+    capacity : list of unsigned floats.
         Stationary phase capacity (monovalent salt counterions): The total
         number of binding sites available on the resin surface.
-    exchange_from_weak_stronger : Parameter
+    exchange_from_weak_stronger : list of unsigned floats.
         Exchangde rated from a weakly bound state to the next stronger bound
         state.
-    linear_exchange_ws : Parameter
+    linear_exchange_ws : list of unsigned floats.
         Linear exchange rate coefficients from a weakly bound state to the next
         stronger bound state.
-    quadratic_exchange_ws : Parameter
+    quadratic_exchange_ws : list of unsigned floats.
         Quadratic exchange rate coefficients from a weakly bound state to the
         next stronger bound state.
-    exchange_from_stronger_weak : Parameter
+    exchange_from_stronger_weak : list of unsigned floats.
         Exchange rate coefficients from a strongly bound state to the next
         weaker bound state.
-    linear_exchange_sw : Parameter
+    linear_exchange_sw : list of unsigned floats.
         Linear exchange rate coefficients from a strongly bound state to the
         next weaker bound state.
-    quadratic_exchange_sw : Parameter
+    quadratic_exchange_sw : list of unsigned floats.
         Quadratic exchange rate coefficients from a strongly bound state to the
         next weaker bound state.
-    reference_liquid_phase_conc : Parameter
+    reference_liquid_phase_conc : list of unsigned floats.
         Reference liquid phase concentration (optional, default value = 1.0).
-    reference_solid_phase_conc : Parameter
+    reference_solid_phase_conc : list of unsigned floats.
         Reference solid phase concentration (optional, default value = 1.0).
     """
     adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
@@ -611,9 +611,9 @@ class Saska(BindingBaseClass):
 
     Attributes
     ----------
-    henry_const : Parameter
+    henry_const : list of unsigned floats.
         The Henry coefficient.
-    quadratic_factor : Parameter
+    quadratic_factor : list of unsigned floats.
         Quadratic factors.
     """
     henry_const = DependentlySizedUnsignedList(dep='n_comp')

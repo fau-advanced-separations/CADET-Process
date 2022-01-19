@@ -26,7 +26,7 @@ def simulate_solid_equilibria(binding_model, buffer, unit_model='cstr', flush=No
         unit.V = 1e-6
 
         Q = 1e-6
-        cycle_time = 1000*unit.volume/Q
+        cycle_time = np.round(1000*unit.volume/Q)
         unit.flow_rate = Q
     elif unit_model == 'column':
         unit = LumpedRateModelWithoutPores(component_system, name='column')
@@ -36,11 +36,15 @@ def simulate_solid_equilibria(binding_model, buffer, unit_model='cstr', flush=No
         unit.total_porosity = 0.7
 
         Q = 60/(60*1e6)
-        cycle_time = 10*unit.volume/Q
+        cycle_time = np.round(10*unit.volume/Q)
 
     try:
         q = binding_model.n_comp * binding_model.n_states * [0]
-        q[0] = binding_model.capacity
+        capacity = binding_model.capacity
+        if isinstance(capacity, list):
+            capacity = capacity[0]
+
+        q[0] = capacity
         unit.q = q
     except AttributeError:
         pass
@@ -63,7 +67,6 @@ def simulate_solid_equilibria(binding_model, buffer, unit_model='cstr', flush=No
 
     # Process
     proc = Process(fs, name=process_name)
-
     proc.cycle_time = cycle_time
 
     ## Create Events and Durations
@@ -85,4 +88,5 @@ def simulate_solid_equilibria(binding_model, buffer, unit_model='cstr', flush=No
     elif unit_model == 'column':
         init_q = proc_results.solution[unit.name].solid.solution[-1,0,:]
 
+    init_q = np.round(init_q, 14)
     return init_q.tolist()

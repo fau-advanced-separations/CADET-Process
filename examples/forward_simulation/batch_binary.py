@@ -22,7 +22,7 @@ binding_model = Langmuir(component_system, name='langmuir')
 binding_model.is_kinetic = False
 binding_model.adsorption_rate = [0.02, 0.03]
 binding_model.desorption_rate = [1, 1]
-binding_model.saturation_capacity = [100, 100]
+binding_model.capacity = [100, 100]
 
 # Unit Operations
 feed = Source(component_system, name='feed')

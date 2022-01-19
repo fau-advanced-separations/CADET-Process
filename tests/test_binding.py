@@ -15,7 +15,7 @@ class Test_Binding(unittest.TestCase):
 
         binding_model.adsorption_rate = [0.02, 0.03]
         binding_model.desorption_rate = [1, 1]
-        binding_model.saturation_capacity = [100, 100]
+        binding_model.capacity = [100, 100]
 
         self.binding_model = binding_model
 
@@ -38,7 +38,7 @@ class Test_Binding(unittest.TestCase):
                 'is_kinetic': True,
                 'adsorption_rate': [0.02, 0.03],
                 'desorption_rate': [1.0, 1.0],
-                'saturation_capacity': [100.0, 100.0]
+                'capacity': [100.0, 100.0]
                 }
         parameters = self.binding_model.parameters
         self.assertDictEqual(parameters_expected, parameters)

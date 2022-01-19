@@ -188,7 +188,7 @@ class TestAdsorptionEquilibrium(unittest.TestCase):
         self.langmuir = Langmuir(component_system_di, 'langmuir')
         self.langmuir.adsorption_rate = [2,1]
         self.langmuir.desorption_rate = [1,1]
-        self.langmuir.saturation_capacity = [10, 10]
+        self.langmuir.capacity = [10, 10]
         
         self.sma = StericMassAction(component_system_di, 'SMA')
         self.sma.adsorption_rate = [1, 2]
