@@ -75,6 +75,7 @@ class Cadet(SolverBase):
     cadetInterface
     """
     timeout = UnsignedFloat()
+    _force_constant_flow_rate = False
 
     def __init__(self, install_path=None, temp_dir=None, *args, **kwargs):
         self.install_path = install_path
@@ -494,7 +495,11 @@ class Cadet(SolverBase):
         """Config branch /input/model/connections
         """
         model_connections = Dict()
-        model_connections['CONNECTIONS_INCLUDE_DYNAMIC_FLOW'] = 1
+        if self._force_constant_flow_rate:
+            model_connections['CONNECTIONS_INCLUDE_DYNAMIC_FLOW'] = 0
+        else: 
+            model_connections['CONNECTIONS_INCLUDE_DYNAMIC_FLOW'] = 1
+
         index = 0
 
         section_states = process.flow_rate_section_states
@@ -546,7 +551,11 @@ class Cadet(SolverBase):
                     table[enum].append(int(destination_index))
                     table[enum].append(-1)
                     table[enum].append(-1)
-                    table[enum] += flow_rate.tolist()
+                    Q = flow_rate.tolist()
+                    if self._force_constant_flow_rate:
+                        table[enum] += [Q[0]]
+                    else:
+                        table[enum] += Q
                     enum += 1
 
         ls = []
