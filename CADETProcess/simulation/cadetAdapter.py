@@ -328,8 +328,8 @@ class Cadet(SolverBase):
         self,
         process,
         cadet,
-        time_elapsed,
-        return_information,
+        time_elapsed=None,
+        return_information=None,
         ):
         """Saves the simulated results for each unit into the dictionary
         concentration_record for the complete simulation and splitted into each
@@ -363,7 +363,15 @@ class Cadet(SolverBase):
         -----
         !!! Implement method to read .h5 files that have no process associated.
         """
+        if time_elapsed is None:
+            time_elapsed = cadet.root.meta.time_sim
         time = process.time
+        if return_information is None:
+            exit_flag = None
+            exit_message = None
+        else:
+            exit_flag = return_information.returncode
+            exit_message = return_information.stderr.decode()
 
         solution = Dict()
         from collections import defaultdict
@@ -450,8 +458,8 @@ class Cadet(SolverBase):
         results = SimulationResults(
             solver_name = str(self),
             solver_parameters = dict(),
-            exit_flag = return_information.returncode,
-            exit_message = return_information.stderr.decode(),
+            exit_flag = exit_flag,
+            exit_message = exit_message,
             time_elapsed = time_elapsed,
             process_name = process.name,
             process_config = process.config,
