@@ -169,23 +169,15 @@ class Test_Unit_Operation(unittest.TestCase):
 
         ref = np.array([1,0,0,0])
         cstr.flow_rate = 1
-        cstr.flow_rate_filter = 1
         np.testing.assert_equal(cstr.flow_rate, ref)
-        np.testing.assert_equal(cstr.flow_rate_filter, ref)
         cstr.flow_rate = [1,0]
-        cstr.flow_rate_filter = [1,0]
         np.testing.assert_equal(cstr.flow_rate, ref)
-        np.testing.assert_equal(cstr.flow_rate_filter, ref)
 
         ref = np.array([1,1,0,0])
         cstr.flow_rate = [1,1]
-        cstr.flow_rate_filter = [1,1]
         np.testing.assert_equal(cstr.flow_rate, ref)
-        np.testing.assert_equal(cstr.flow_rate_filter, ref)
         cstr.flow_rate = ref
-        cstr.flow_rate_filter = ref
         np.testing.assert_equal(cstr.flow_rate, ref)
-        np.testing.assert_equal(cstr.flow_rate_filter, ref)
 
 
     def test_parameters(self):
