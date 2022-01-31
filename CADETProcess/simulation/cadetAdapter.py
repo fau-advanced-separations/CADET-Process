@@ -994,6 +994,15 @@ adsorption_parameters_map = {
             'MCL_QMAX': 'capacity'
         },
     },
+    'LangmuirLDF': {
+        'name': 'MULTI_COMPONENT_LANGMUIR_LDF',
+        'parameters': {
+            'IS_KINETIC' : 'is_kinetic',
+            'MCLDF_KEQ': 'equilibrium_constant',
+            'MCLDF_KKIN': 'driving_force_coefficient',
+            'MCLDF_QMAX': 'capacity'
+        },
+    },
     'BiLangmuir': {
         'name': 'MULTI_COMPONENT_BILANGMUIR',
         'parameters': {
@@ -1001,6 +1010,24 @@ adsorption_parameters_map = {
             'MCBL_KA': 'adsorption_rate',
             'MCBL_KD': 'desorption_rate',
             'MCBL_QMAX': 'capacity'
+        },
+    },
+    'BiLangmuirLDF': {
+        'name': 'MULTI_COMPONENT_BILANGMUIR_LDF',
+        'parameters': {
+            'IS_KINETIC' : 'is_kinetic',
+            'MCBLDF_KEQ': 'equilibrium_constant',
+            'MCBLDF_KKIN': 'driving_force_coefficient',
+            'MCBLDF_QMAX': 'capacity'
+        },
+    },
+    'FreundlichLDF': {
+        'name': 'FREUNDLICH_LDF',
+        'parameters': {
+            'IS_KINETIC' : 'is_kinetic',
+            'FLDF_KKIN': 'driving_force_coefficient',
+            'FLDF_KF': 'freundlich_coefficient',
+            'FLDF_N': 'exponent'
         },
     },
     'StericMassAction': {

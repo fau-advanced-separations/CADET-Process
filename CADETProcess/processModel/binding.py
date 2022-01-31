@@ -75,7 +75,6 @@ class BindingBaseClass(metaclass=StructMeta):
     def __str__(self):
         return self.name
 
-
 class NoBinding(BindingBaseClass):
     """Dummy class for units that do not experience binging behavior.
 
@@ -83,7 +82,6 @@ class NoBinding(BindingBaseClass):
     """
     def __init__(self, *args, **kwargs):
         super().__init__(ComponentSystem(), name='NoBinding')
-
 
 class Linear(BindingBaseClass):
     """Parameters for Linear binding model.
@@ -121,6 +119,28 @@ class Langmuir(BindingBaseClass):
     _parameter_names = BindingBaseClass._parameter_names + [
         'adsorption_rate', 'desorption_rate', 'capacity'
     ]
+    
+class LangmuirLDF(BindingBaseClass):
+    """Parameters for Multi Component Langmuir binding model.
+
+    Attributes
+    ----------
+    equilibrium_constant : list of unsigned floats. Length depends on n_comp.
+        Adsorption rate constants.
+    driving_force_coefficient : list of unsigned floats. Length depends on n_comp.
+        Desorption rate constants
+    capacity : list of unsigned floats. Length depends on n_comp.
+        Maximum adsorption capacities.
+    """
+    equilibrium_constant = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'))
+    driving_force_coefficient = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'), default=1)
+    capacity = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'))
+
+    _parameter_names = BindingBaseClass._parameter_names + [
+        'equilibrium_constant',
+        'driving_force_coefficient',
+        'capacity',
+    ]
 
 class BiLangmuir(BindingBaseClass):
     """Parameters for Multi Component Bi-Langmuir binding model.
@@ -140,11 +160,12 @@ class BiLangmuir(BindingBaseClass):
     n_states = UnsignedInteger()
 
     _parameter_names = BindingBaseClass._parameter_names + [
-            'adsorption_rate',
-            'desorption_rate',
-            'capacity',
-            'n_states'
-        ]
+        'adsorption_rate',
+        'desorption_rate',
+        'capacity',
+        'n_states'
+    ]
+    
     def __init__(self, *args, n_states=2, **kwargs):
         self.n_states = n_states
 
@@ -154,6 +175,60 @@ class BiLangmuir(BindingBaseClass):
     def n_total_states(self):
         return self.n_comp * self.n_states
 
+class BiLangmuirLDF(BindingBaseClass):
+    """Parameters for Multi Component Bi-Langmuir binding model.
+
+    Attributes
+    ----------
+    equilibrium_constant : list of unsigned floats. Length depends on n_comp.
+        Adsorption rate constants.
+    driving_force_coefficient : list of unsigned floats. Length depends on n_comp.
+        Desorption rate constants
+    capacity : list of unsigned floats. Length depends on n_comp.
+        Maximum adsorption capacities.
+    """
+    equilibrium_constant = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'))
+    driving_force_coefficient = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'), default=1)
+    capacity = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'))
+    n_states = UnsignedInteger()
+
+    _parameter_names = BindingBaseClass._parameter_names + [
+        'equilibrium_constant',
+        'driving_force_coefficient',
+        'capacity',
+        'n_states'
+    ]
+    
+    def __init__(self, *args, n_states=2, **kwargs):
+        self.n_states = n_states
+
+        super().__init__(*args, **kwargs)
+
+    @property
+    def n_total_states(self):
+        return self.n_comp * self.n_states
+
+class FreundlichLDF(BindingBaseClass):
+    """Parameters for the Freundlich isotherm model.
+
+    Attributes
+    ----------
+    driving_force_coefficient : list of unsigned floats. 
+        Adsorption rate constants. Length depends on n_comp.
+    freundlich_coefficient : list of unsigned floats.
+        Freundlich coefficient for each component. Length depends on n_comp.
+    exponent : list of unsigned floats.
+        Exponent for each component. Length depends on n_comp.
+    """
+    driving_force_coefficient = DependentlySizedUnsignedList(dep='n_comp')
+    freundlich_coefficient = DependentlySizedUnsignedList(dep='n_comp')
+    exponent = DependentlySizedUnsignedList(dep='n_comp')
+
+    _parameter_names = BindingBaseClass._parameter_names + [
+        'driving_force_coefficient',
+        'freundlich_coefficient',
+        'exponent',
+    ]
 
 class StericMassAction(BindingBaseClass):
     """Parameters for Steric Mass Action Law binding model.
