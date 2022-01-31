@@ -648,17 +648,17 @@ class Cadet(SolverBase):
 
         if not isinstance(unit.bulk_reaction_model, NoReaction):
             parameters = self.get_reaction_config(unit.bulk_reaction_model)
+            unit_config['reaction_model'] = parameters['REACTION_MODEL']
+            unit_config['reaction_bulk'] = parameters
+
+        if not isinstance(unit.particle_reaction_model, NoReaction):
+            parameters = self.get_reaction_config(unit.particle_reaction_model)
             if isinstance(unit, LumpedRateModelWithoutPores):
                 unit_config['reaction_model'] = parameters['REACTION_MODEL']
                 unit_config['reaction'] = parameters
             else:
-                unit_config['reaction_model'] = parameters['REACTION_MODEL']
-                unit_config['reaction_bulk'] = parameters
-
-        if not isinstance(unit.particle_reaction_model, NoReaction):
-            parameters = self.get_reaction_config(unit.particle_reaction_model)
-            unit_config['reaction_model_particle'] = parameters['REACTION_MODEL']
-            unit_config['reaction_particle'].update(parameters)
+                unit_config['reaction_model_particle'] = parameters['REACTION_MODEL']
+                unit_config['reaction_particle'].update(parameters)
 
         if isinstance(unit, Source):
             unit_config['sec_000']['const_coeff'] = unit.c[:,0]
