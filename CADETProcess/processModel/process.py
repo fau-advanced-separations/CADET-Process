@@ -241,22 +241,12 @@ class Process(EventHandler):
         time
         _n_cycles
         """
-        end = self._n_cycles * self.cycle_time
-        solution_times = np.arange(0, end, self.time_resolution)
+        time = self.time
+        solution_times = np.array([])
+        for i in range(self._n_cycles):
+            solution_times = np.append(solution_times, (i)*self.cycle_time + time)
         
-        solution_times = np.append(solution_times, self._section_times_complete)
-        solution_times = np.sort(solution_times)
         solution_times = np.unique(solution_times)
-        
-        diff = np.where(np.diff(solution_times) < self.resolution_cutoff)[0]
-        indices = []
-        for d in diff:
-            if solution_times[d] in self._section_times_complete:
-                indices.append(d+1)
-            else:
-                indices.append(d)
-        
-        solution_times = np.delete(solution_times, indices)
         
         return solution_times
     
