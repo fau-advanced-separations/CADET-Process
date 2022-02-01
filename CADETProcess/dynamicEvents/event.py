@@ -772,8 +772,8 @@ class Event():
 
     @time.setter
     def time(self, time):
-        if not isinstance(time, (int, float, np.int64, np.float64)):
-            raise TypeError("Expected {}".format(float))
+        if not np.isscalar(time):
+            raise TypeError("Expected scalar value")
 
         if self.isIndependent:
             self._time = time

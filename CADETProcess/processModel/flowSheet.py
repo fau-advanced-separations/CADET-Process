@@ -389,7 +389,7 @@ class FlowSheet(metaclass=StructMeta):
         if state_length == 0:
             output_state = []
 
-        if isinstance(state, (int, np.int64)):
+        if isinstance(state, (int, np.integer)):
             if state >= state_length:
                 raise CADETProcessError('Index exceeds destinations')
 
