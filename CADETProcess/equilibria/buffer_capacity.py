@@ -10,22 +10,6 @@ from CADETProcess.processModel import ComponentSystem
 from CADETProcess.processModel import MassActionLaw
 
 
-# def check_charges(charges):
-#     c_min = min(charges)
-#     c_max = max(charges)
-#     c_comparison = set(range(c_min, c_max+1))
-
-#     if len(c_comparison) != len(charges) or set(charges) != c_comparison:
-#         raise CADETProcessError("Charges are not valid")
-
-# def order_by_charge(charges, k_eq, buffer):
-#     indices = np.argsort(charges)
-
-#     c, k, b = zip(*sorted(zip(charges, k_eq, buffer)))
-
-#     return c, k, b
-
-
 def preprocessing(reaction_system, buffer, pH, components):
     buffer_M = np.array([c*1e-3 for c in buffer])
 
@@ -270,7 +254,6 @@ def beta(c_acid, pKa, pH):
     n = len(c_acid)
     for j in range(1, n):
         for i in range(0, j):
-            print(f"j:{j}, i:{i}")
             beta += (j-i)**2 * a[j] * a[i]
 
     beta *= np.log(10) * sum(c_acid)

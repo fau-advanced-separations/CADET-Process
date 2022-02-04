@@ -107,40 +107,48 @@ class TestBufferCapacity(unittest.TestCase):
         np.testing.assert_almost_equal(i, i_excpected)
         
     def test_buffer_capacity(self):
-        pH = np.linspace(0, 14, 101)
-        
         buffer = [0, 1000, 0]
-        b = equilibria.buffer_capacity(self.reaction_ammonia, buffer, 0)
-        b = equilibria.buffer_capacity(self.reaction_ammonia, buffer, 7)
-        b = equilibria.buffer_capacity(self.reaction_ammonia, buffer, 14)
-
+        
+        pH = 0
+        b_expected = np.array([1.4528329738818527e-06, 2302.585092994069])
         b = equilibria.buffer_capacity(self.reaction_ammonia, buffer, pH)
+        np.testing.assert_almost_equal(b_expected, b)
         
-    def test_eta(self):
-        pH = np.linspace(0, 14, 101)
+        pH = 7
+        b_expected = np.array([14.346715296419855, 0.0004605170185988092])
+        b = equilibria.buffer_capacity(self.reaction_ammonia, buffer, pH)
+        np.testing.assert_almost_equal(b_expected, b)
+        
+        pH = 10
+        b_expected = np.array([271.9140324242618, 0.23025873955791384])
+        b = equilibria.buffer_capacity(self.reaction_ammonia, buffer, pH)
+        np.testing.assert_almost_equal(b_expected, b)
+        
+        pH = 14
+        b_expected = np.array([0.03649235765053616, 2302.585092994069])
+        b = equilibria.buffer_capacity(self.reaction_ammonia, buffer, pH)
+        np.testing.assert_almost_equal(b_expected, b)
+        
+    def test_charge_distribution(self):
+        pH = 0
+        eta_expected = np.array([0.9999999993690426, 6.30957344082087e-10])
+        eta = equilibria.charge_distribution(self.reaction_ammonia, pH)
+        np.testing.assert_almost_equal(eta_expected, eta)
+        
+        pH = 7
+        eta_expected = np.array([0.9937299876585661, 0.006270012341433852])
+        eta = equilibria.charge_distribution(self.reaction_ammonia, pH)
+        np.testing.assert_almost_equal(eta_expected, eta)
+        
+        pH = 10
+        eta_expected = np.array([0.13680688860320983, 0.8631931113967902])
+        eta = equilibria.charge_distribution(self.reaction_ammonia, pH)
+        np.testing.assert_almost_equal(eta_expected, eta)
+        
+        pH = 14
+        eta_expected = np.array([1.5848680739948967e-05, 0.99998415131926])
+        eta = equilibria.charge_distribution(self.reaction_ammonia, pH)
+        np.testing.assert_almost_equal(eta_expected, eta)
 
-        # equilibria.plot_charge_distribution(self.reaction_ammonia, pH)
-        
-        # equilibria.plot_charge_distribution(self.reaction_lys, pH)
-        
-        # equilibria.plot_charge_distribution(self.reaction_ammonia_lys, pH)
-        equilibria.plot_charge_distribution(self.reaction_ammonia_lys, plot_cumulative=True)
-        equilibria.plot_charge_distribution(self.reaction_ammonia_lys, plot_cumulative=False)
-        
-        # c = [1,1]
-        # i_excpected = 1
-        # i = equilibria.ionic_strength(self.component_system_2, c)
-        # np.testing.assert_almost_equal(i, i_excpected)
-        
-        # c = [1,1]
-        # i_excpected = 1.5
-        # i = equilibria.ionic_strength(self.component_system_2, c)
-        # np.testing.assert_almost_equal(i, i_excpected)
-        
-        
-
-        
-        
-        
 if __name__ == '__main__':
     unittest.main()    
