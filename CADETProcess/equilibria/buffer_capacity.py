@@ -45,9 +45,9 @@ def preprocessing(reaction_system, buffer, pH, components):
         comp: buffer_M[i].tolist()
         for comp, i in indices.items()
     }
-    
+
     return pKa, c_acids_M, pH, indices, scalar_input
-    
+
 
 def c_species_nu(pKa, pH):
     """Compute normalized acid species concentration at given pH.
@@ -159,7 +159,7 @@ def charge_distribution(
     pKa, c_acids_M, pH, indices, scalar_input = preprocessing(
         reaction_system, buffer, pH, components
     )
-    
+
     z = np.zeros((len(pH), reaction_system.n_comp - 1))
 
     for comp, ind in indices.items():
@@ -201,9 +201,9 @@ def cummulative_charge_distribution(
     pKa, c_acids_M, pH, indices, scalar_input = preprocessing(
         reaction_system, buffer, pH, components
     )
-    
+
     z_cum = np.zeros((len(pH), len(indices)))
-    
+
     for i, (comp, ind) in enumerate(indices.items()):
         charges = np.array(reaction_system.component_system.charges)[ind]
         max_charge = max(charges)
@@ -379,7 +379,7 @@ def plot_buffer_capacity(reaction_system, buffer, pH=None):
     layout.ylim = (0, 1.1*np.max(b_total))
 
     plotting.set_layout(fig, ax, layout)
-    
+
     return ax
 
 @plotting.save_fig
@@ -402,7 +402,7 @@ def plot_charge_distribution(reaction_system, pH=None, plot_cumulative=False):
     """
     if pH is None:
         pH = np.linspace(0,14,101)
-        
+
     layout = plotting.Layout()
 
     if plot_cumulative:
@@ -418,12 +418,12 @@ def plot_charge_distribution(reaction_system, pH=None, plot_cumulative=False):
     else:
         labels = reaction_system.component_system.labels
 
-    for i, l in zip(c.T, labels): 
+    for i, l in zip(c.T, labels):
         ax.plot(pH, i, label=l)
 
     layout.x_label = '$pH$'
     layout.ylim = (1.1*np.min(c), 1.1*np.max(c))
 
     plotting.set_layout(fig, ax, layout)
-    
+
     return ax

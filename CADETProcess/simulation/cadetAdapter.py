@@ -323,13 +323,13 @@ class Cadet(SolverBase):
         process.lock = False
 
         return config
-    
+
     def load_simulation_results(self, process, file_path):
         cadet = self.load_from_h5(file_path)
         results = self.get_simulation_results(process, cadet)
-        
+
         return results
-        
+
 
     def get_simulation_results(
         self,
@@ -390,61 +390,61 @@ class Cadet(SolverBase):
                 unit_coordinates = cadet.root.output.coordinates[unit_index].copy()
                 particle_coordinates = \
                     unit_coordinates.pop('particle_coordinates_000', None)
-                        
+
                 for cycle in range(process._n_cycles):
                     start = cycle * (len(process.time) -1)
                     end = (cycle + 1) * (len(process.time) - 1) + 1
-                
+
                     if 'solution_inlet' in unit_solution.keys():
                         sol_inlet = unit_solution.solution_inlet[start:end,:]
                         solution[unit.name]['inlet'].append(
                             SolutionIO(unit.component_system, time, sol_inlet)
                         )
-                    
+
                     if 'solution_outlet' in unit_solution.keys():
                         sol_outlet = unit_solution.solution_outlet[start:end,:]
                         solution[unit.name]['outlet'].append(
                             SolutionIO(unit.component_system, time, sol_outlet)
                         )
-    
+
                     if 'solution_bulk' in unit_solution.keys():
                         sol_bulk = unit_solution.solution_bulk[start:end,:]
                         solution[unit.name]['bulk'].append(
                             SolutionBulk(
-                                unit.component_system, time, sol_bulk, 
+                                unit.component_system, time, sol_bulk,
                                 **unit_coordinates
                             )
                         )
-                        
+
                     if 'solution_particle' in unit_solution.keys():
                         sol_particle = unit_solution.solution_particle[start:end,:]
                         solution[unit.name]['particle'].append(
                             SolutionParticle(
                                 unit.component_system, time, sol_particle,
-                                **unit_coordinates, 
-                                particle_coordinates=particle_coordinates
-                            )
-                        )
-    
-                    if 'solution_solid' in unit_solution.keys():
-                        sol_solid = unit_solution.solution_solid[start:end,:]
-                        solution[unit.name]['solid'].append(
-                            SolutionSolid(
-                                unit.component_system, unit.binding_model.n_states, 
-                                time, sol_solid, 
                                 **unit_coordinates,
                                 particle_coordinates=particle_coordinates
                             )
                         )
-                        
+
+                    if 'solution_solid' in unit_solution.keys():
+                        sol_solid = unit_solution.solution_solid[start:end,:]
+                        solution[unit.name]['solid'].append(
+                            SolutionSolid(
+                                unit.component_system, unit.binding_model.n_states,
+                                time, sol_solid,
+                                **unit_coordinates,
+                                particle_coordinates=particle_coordinates
+                            )
+                        )
+
                     if 'solution_volume' in unit_solution.keys():
                         sol_volume = unit_solution.solution_volume[start:end,:]
                         solution[unit.name]['volume'].append(
                             SolutionVolume(unit.component_system, time, sol_volume)
                         )
-                        
+
             solution = Dict(solution)
-            
+
             system_state = {
                 'state': cadet.root.output.last_state_y,
                 'state_derivative': cadet.root.output.last_state_ydot
@@ -512,7 +512,7 @@ class Cadet(SolverBase):
         model_connections = Dict()
         if self._force_constant_flow_rate:
             model_connections['CONNECTIONS_INCLUDE_DYNAMIC_FLOW'] = 0
-        else: 
+        else:
             model_connections['CONNECTIONS_INCLUDE_DYNAMIC_FLOW'] = 1
 
         index = 0
@@ -838,7 +838,7 @@ class ModelSolverParametersGroup(ParametersGroup):
     SCHUR_SAFETY = UnsignedFloat(default=1e-8)
     LINEAR_SOLUTION_MODE = UnsignedInteger(default=2, ub=2)
     _parameters = [
-        'GS_TYPE', 
+        'GS_TYPE',
         'MAX_KRYLOV',
         'MAX_RESTARTS',
         'SCHUR_SAFETY',
@@ -1278,12 +1278,12 @@ class UnitReturnParametersGroup(ParametersGroup):
         'write_coordinates',
         'write_solution_inlet', 'write_solution_outlet', 'write_solution_bulk',
         'write_solution_particle', 'write_solution_solid', 'write_solution_flux',
-        'write_solution_volume', 
-        'write_soldot_inlet', 'write_soldot_outlet', 'write_soldot_bulk', 
-        'write_soldot_particle', 'write_soldot_solid', 'write_soldot_flux', 
-        'write_soldot_volume', 
-        'write_sens_inlet', 'write_sens_outlet', 'write_sens_bulk', 
-        'write_sens_particle', 'write_sens_solid', 'write_sens_flux', 
+        'write_solution_volume',
+        'write_soldot_inlet', 'write_soldot_outlet', 'write_soldot_bulk',
+        'write_soldot_particle', 'write_soldot_solid', 'write_soldot_flux',
+        'write_soldot_volume',
+        'write_sens_inlet', 'write_sens_outlet', 'write_sens_bulk',
+        'write_sens_particle', 'write_sens_solid', 'write_sens_flux',
         'write_sens_volume',
         'write_sensdot_inlet', 'write_sensdot_outlet', 'write_sensdot_bulk',
         'write_sensdot_particle', 'write_sensdot_solid', 'write_sensdot_flux',
@@ -1303,4 +1303,3 @@ class SensitivityParametersGroup(ParametersGroup):
     """
     nsens = UnsignedInteger(default=0)
     sens_method = Switch(default='ad1', valid=['ad1'])
-    

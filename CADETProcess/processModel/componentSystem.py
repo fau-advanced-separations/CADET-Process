@@ -11,13 +11,13 @@ class ComponentSystem(metaclass=StructMeta):
     name = String()
 
     def __init__(
-            self, components=None, name=None, 
+            self, components=None, name=None,
             charges=None, molecular_weights=None
             ):
         self.name = name
-        
+
         self._components = []
-        
+
         if components is None:
             return
         elif isinstance(components, int):
@@ -27,12 +27,12 @@ class ComponentSystem(metaclass=StructMeta):
             n_comp = len(components)
         else:
             raise CADETProcessError("Could not determine number of components")
-        
+
         if charges is None:
             charges = n_comp * [None]
         if molecular_weights is None:
             molecular_weights = n_comp * [None]
-        
+
         for i, comp in enumerate(components):
             self.add_component(
                 species=comp,
@@ -56,7 +56,7 @@ class ComponentSystem(metaclass=StructMeta):
         """Todo: check duplicates"""
         component = Component(*args, **kwargs)
         self._components.append(component)
-        
+
     @property
     def indices(self):
         indices = defaultdict(list)
@@ -66,13 +66,13 @@ class ComponentSystem(metaclass=StructMeta):
             for spec in comp.species:
                 indices[comp.name].append(index)
                 index += 1
-                
+
         return Dict(indices)
 
     @property
     def names(self):
         return [comp.name for comp in self.components]
-    
+
     @property
     def labels(self):
         labels = []
@@ -83,7 +83,7 @@ class ComponentSystem(metaclass=StructMeta):
                     labels.append(str(index))
                 else:
                    labels.append(label)
-               
+
                 index += 1
 
         return labels
@@ -103,14 +103,14 @@ class ComponentSystem(metaclass=StructMeta):
             molecular_weights += comp.molecular_weight
 
         return molecular_weights
-    
+
     def total_concentration(self, solution):
-        """Compute total concentration of components by summing up species.        
+        """Compute total concentration of components by summing up species.
 
         Parameters
         ----------
         solution : np.array
-            Solution array. 
+            Solution array.
 
         Returns
         -------
@@ -121,13 +121,13 @@ class ComponentSystem(metaclass=StructMeta):
         total_concentration = np.zeros(
             solution.shape[0:-1] + (self.n_components,)
         )
-        
+
         counter = 0
         for index, comp in enumerate(self.components):
             comp_indices = slice(counter, counter+comp.n_species)
             total_concentration[:,index] = np.sum(solution[...,comp_indices], axis=1)
             counter += comp.n_species
-        
+
         return total_concentration
 
 
@@ -153,11 +153,11 @@ class Component(metaclass=StructMeta):
                 self.add_species(spec, charge[i], molecular_weight[i])
         else:
             raise CADETProcessError("Could not determine number of species")
-                
+
     @property
     def species(self):
         return self._species
-            
+
     def add_species(self, name, charge, molecular_weight):
         species = Species(name, charge, molecular_weight)
         self._species.append(species)
@@ -165,11 +165,11 @@ class Component(metaclass=StructMeta):
     @property
     def n_species(self):
         return len(self.species)
-    
+
     @property
     def label(self):
         return [spec.name for spec in self.species]
-    
+
     @property
     def charge(self):
         return [spec.charge for spec in self.species]
@@ -177,10 +177,8 @@ class Component(metaclass=StructMeta):
     @property
     def molecular_weight(self):
         return [spec.molecular_weight for spec in self.molecular_weight]
-    
+
 class Species(Structure):
     name = String()
     charge = Integer(default=0)
     molecular_weight = UnsignedFloat()
-    
-    

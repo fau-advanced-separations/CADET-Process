@@ -1,5 +1,6 @@
-from addict import Dict
 import numpy as np
+
+from CADETProcess import CADETProcessError
 
 from CADETProcess.processModel import Source, Sink
 from CADETProcess.processModel import Cstr, LumpedRateModelWithoutPores
@@ -37,6 +38,8 @@ def simulate_solid_equilibria(binding_model, buffer, unit_model='cstr', flush=No
 
         Q = 60/(60*1e6)
         cycle_time = np.round(10*unit.volume/Q)
+    else:
+        raise CADETProcessError("Unknown unit model for initial conditions")
 
     try:
         q = binding_model.n_comp * binding_model.n_states * [0]
@@ -46,6 +49,9 @@ def simulate_solid_equilibria(binding_model, buffer, unit_model='cstr', flush=No
 
         q[0] = capacity
         unit.q = q
+        c = binding_model.n_comp * [0]
+        c[0] = buffer[0]
+        unit.c = c
     except AttributeError:
         pass
 
@@ -81,7 +87,7 @@ def simulate_solid_equilibria(binding_model, buffer, unit_model='cstr', flush=No
     process_simulator.unit_return_parameters.write_solution_bulk = True
     process_simulator.unit_return_parameters.write_solution_solid = True
 
-    proc_results = process_simulator.simulate(proc)
+    proc_results = process_simulator.run(proc)
 
     if unit_model == 'cstr':
         init_q = proc_results.solution[unit.name].solid.solution[-1,:]

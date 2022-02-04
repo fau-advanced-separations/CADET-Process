@@ -137,7 +137,7 @@ class OptimizationResults(metaclass=StructMeta):
         self.performance = performance
 
         self.frac = frac
-        
+
         self.history = history
 
 

@@ -7,7 +7,7 @@ import time
 from addict import Dict
 import numpy as np
 from scipy import optimize
-import hopsy 
+import hopsy
 import multiprocess
 import pathos
 
@@ -81,7 +81,7 @@ class OptimizationProblem(metaclass=StructMeta):
         self._linear_constraints = []
         self._linear_equality_constraints = []
         self._x0 = None
-        
+
     @property
     def evaluation_object(self):
         """obj : Object that contains all parameters that are optimized.
@@ -310,7 +310,7 @@ class OptimizationProblem(metaclass=StructMeta):
             Performance object from fractionation.
         """
         x = np.array(x)
-        
+
         # Try to get cached results
         if cache is not None and not force:
             try:
@@ -343,13 +343,13 @@ class OptimizationProblem(metaclass=StructMeta):
             cache[tuple(x.tolist())] = performance
 
         self.logger.info('{} evaluated at x={} yielded {}'.format(
-                self.evaluation_object.name, 
-                tuple(x.tolist()), 
+                self.evaluation_object.name,
+                tuple(x.tolist()),
                 performance.to_dict())
         )
 
         return performance
-    
+
     def evaluate_population(self, population, n_cores=0):
         manager = multiprocess.Manager()
         cache = manager.dict()
@@ -367,18 +367,18 @@ class OptimizationProblem(metaclass=StructMeta):
                 n_cores = None
             with pathos.multiprocessing.ProcessPool(ncpus=n_cores) as pool:
                 pool.map(eval_fun, population)
-                
+
         return cache
-        
+
 
     @property
     def objectives(self):
         return self._objectives
-    
+
     @property
     def n_objectives(self):
         return len(self.objectives)
-    
+
     def add_objective(self, objective_fun):
         """Add objective function to optimization problem.
 
@@ -397,7 +397,7 @@ class OptimizationProblem(metaclass=StructMeta):
             raise TypeError("Expected callable object")
 
         self._objectives.append(objective_fun)
-        
+
     def evaluate_objectives(self, x, *args, **kwargs):
         """Function that evaluates at x and computes objective function.
 
@@ -456,18 +456,18 @@ class OptimizationProblem(metaclass=StructMeta):
     @property
     def nonlinear_constraints(self):
         return self._nonlinear_constraints
-    
+
     @property
     def n_nonlinear_constraints(self):
         return len(self.nonlinear_constraints)
-    
+
     def add_nonlinear_constraint(self, nonlinear_constraint_fun):
         """Add nonlinear constraint function to optimization problem.
 
         Parameters
         ----------
         nonlinear_constraint_fun: function
-            Nonlinear constraint function. Funtion should take a Performance 
+            Nonlinear constraint function. Funtion should take a Performance
             object as argument and return a scalar value or an array.
 
         Raises
@@ -550,7 +550,7 @@ class OptimizationProblem(metaclass=StructMeta):
         approximate_jac
         """
         jacobian = [
-            approximate_jac(x, constr, dx) 
+            approximate_jac(x, constr, dx)
             for constr in self.nonlinear_constraints
         ]
         return jacobian
@@ -607,7 +607,7 @@ class OptimizationProblem(metaclass=StructMeta):
     @property
     def linear_constraints(self):
         """list : linear inequality constraints of OptimizationProblem
-        
+
         See Also
         --------
         add_linear_constraint
@@ -615,7 +615,7 @@ class OptimizationProblem(metaclass=StructMeta):
         linear_equality_constraints
         """
         return self._linear_constraints
-    
+
     @property
     def n_linear_constraints(self):
         """int: number of linear inequality constraints
@@ -666,14 +666,14 @@ class OptimizationProblem(metaclass=StructMeta):
         ----------
         index : int
             Index of the linear inequality constraint to be removed.
-        
+
         See also
         --------
         add_linear_equality_constraint
         linear_equality_constraint
         """
         del(self._linear_constraints[index])
-        
+
 
     @property
     def A(self):
@@ -756,7 +756,7 @@ class OptimizationProblem(metaclass=StructMeta):
             flag = False
 
         return flag
-    
+
     @property
     def linear_equality_constraints(self):
         """list: linear equality constraints of OptimizationProblem
@@ -768,7 +768,7 @@ class OptimizationProblem(metaclass=StructMeta):
         linear_constraints
         """
         return self._linear_equality_constraints
-    
+
     @property
     def n_linear_equality_constraints(self):
         """int: number of linear equality constraints
@@ -875,7 +875,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
         Returns
         -------
-        constraints: np.array 
+        constraints: np.array
             Value of the linear euqlity constraints at point x
 
         See Also
@@ -934,16 +934,16 @@ class OptimizationProblem(metaclass=StructMeta):
 
     def create_initial_values(self, n_samples=1, method='random', seed=None):
         """Create initial value within parameter space.
-        
+
         Uses hopsy (Highly Optimized toolbox for Polytope Sampling) to retrieve
         uniformly distributed samples from the parameter space.
-        
+
         Parameters
         ----------
         n_samples : int
             Number of initial values to be drawn
         method : str, optional
-            chebyshev: Return center of the minimal-radius ball enclosing the 
+            chebyshev: Return center of the minimal-radius ball enclosing the
                 entire set .
             random: Any random valid point in the parameter space.
         seed : int, optional
@@ -955,7 +955,7 @@ class OptimizationProblem(metaclass=StructMeta):
             Initial values for starting the optimization.
         """
         model = hopsy.UniformModel()
-        
+
         problem = hopsy.Problem(
             self.A,
             self.b,
@@ -966,10 +966,10 @@ class OptimizationProblem(metaclass=StructMeta):
             self.lower_bounds,
             self.upper_bounds
         )
-        
+
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-                
+
             starting_points = [hopsy.compute_chebyshev_center(problem)]
             run = hopsy.Run(
                 problem,
@@ -979,9 +979,9 @@ class OptimizationProblem(metaclass=StructMeta):
                 seed = random.randint(0,255)
             run.random_seed = seed
             run.sample(n_samples)
-                    
+
         states = np.array(run.data.states[0])
-        
+
         if n_samples == 1:
             if method == 'chebyshev':
                 states = hopsy.compute_chebyshev_center(problem)
@@ -989,7 +989,7 @@ class OptimizationProblem(metaclass=StructMeta):
                 states = states[0]
             else:
                 raise CADETProcessError("Unexpected method.")
-        
+
         return states
 
     @property
@@ -1099,4 +1099,3 @@ class OptimizationVariable():
                     lb={}, ub={}'.format(
                 self.__class__.__name__, self.name, self.evaluation_object.name,
                 self.parameter_path, self.lb, self.ub)
-    

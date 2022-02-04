@@ -67,4 +67,3 @@ def set_nested_value(nested_dict, path, value):
     if isinstance(path, str):
         path = path.split('.')
     get_nested_value(nested_dict, path[:-1])[path[-1]] = value
-    

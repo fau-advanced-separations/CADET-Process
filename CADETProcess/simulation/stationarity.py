@@ -5,7 +5,6 @@ from CADETProcess import log
 from CADETProcess.dataStructure import StructMeta, Bool, UnsignedFloat
 from CADETProcess.common import TimeSignal
 
-
 class StationarityEvaluator(metaclass=StructMeta):
     """Class for checking two succeding chromatograms for stationarity
 

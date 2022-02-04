@@ -3,14 +3,14 @@ import numpy as np
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import (
-    UnsignedInteger, UnsignedFloat, 
+    UnsignedInteger, UnsignedFloat,
     DependentlySizedUnsignedList, DependentlySizedNdArray, Vector
 )
 
 class Fraction(metaclass=StructMeta):
     mass = Vector()
     volume = UnsignedFloat()
-    
+
     def __init__(self, mass, volume):
         self.mass = mass
         self.volume = volume
@@ -51,7 +51,7 @@ class Fraction(metaclass=StructMeta):
     @property
     def concentration(self):
         """np.Array: Component concentrations of the fraction.
-        
+
         Invalid values are replaced by zero.
 
         See Also
@@ -62,7 +62,7 @@ class Fraction(metaclass=StructMeta):
         with np.errstate(divide='ignore', invalid='ignore'):
             concentration = self.mass / self.volume
 
-        return np.nan_to_num(concentration)        
+        return np.nan_to_num(concentration)
 
 
     def __repr__(self):

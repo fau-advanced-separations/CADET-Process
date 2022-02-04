@@ -119,7 +119,7 @@ class Langmuir(BindingBaseClass):
     _parameter_names = BindingBaseClass._parameter_names + [
         'adsorption_rate', 'desorption_rate', 'capacity'
     ]
-    
+
 class LangmuirLDF(BindingBaseClass):
     """Parameters for Multi Component Langmuir binding model.
 
@@ -165,7 +165,7 @@ class BiLangmuir(BindingBaseClass):
         'capacity',
         'n_states'
     ]
-    
+
     def __init__(self, *args, n_states=2, **kwargs):
         self.n_states = n_states
 
@@ -198,7 +198,7 @@ class BiLangmuirLDF(BindingBaseClass):
         'capacity',
         'n_states'
     ]
-    
+
     def __init__(self, *args, n_states=2, **kwargs):
         self.n_states = n_states
 
@@ -213,7 +213,7 @@ class FreundlichLDF(BindingBaseClass):
 
     Attributes
     ----------
-    driving_force_coefficient : list of unsigned floats. 
+    driving_force_coefficient : list of unsigned floats.
         Adsorption rate constants. Length depends on n_comp.
     freundlich_coefficient : list of unsigned floats.
         Freundlich coefficient for each component. Length depends on n_comp.
@@ -697,3 +697,116 @@ class Saska(BindingBaseClass):
     _parameter_names = BindingBaseClass._parameter_names + [
         'henry_const', 'quadratic_factor'
     ]
+
+class GeneralizedIonExchange(BindingBaseClass):
+    """Generalized Ion Exchange isotherm model.
+
+    Attributes
+    ----------
+    adsorption_rate : list of unsigned floats. Length depends on n_comp.
+        Adsorption rate constants.
+    adsorption_rate_linear : list of unsigned floats. Length depends on n_comp.
+        Linear dependence coefficient of adsorption rate on modifier component
+    adsorption_rate_quadratic : list of unsigned floats. Length depends on n_comp.
+        Quadratic dependence coefficient of adsorption rate on modifier component.
+    adsorption_rate_cubic : list of unsigned floats. Length depends on n_comp.
+        Cubic dependence coefficient of adsorption rate on modifier component.
+    adsorption_rate_salt : list of unsigned floats. Length depends on n_comp.
+        Salt coefficient of adsorption rate;
+        difference of water-protein and salt-protein interactions.
+    adsorption_rate_protein : list of unsigned floats. Length depends on n_comp.
+        Protein coefficient of adsorption rate;
+        difference of water-protein and protein-protein interactions.
+    desorption_rate : list of unsigned floats. Length depends on n_comp.
+        Desorption rate constants.
+    desorption_rate_linear : list of unsigned floats. Length depends on n_comp.
+        Linear dependence coefficient of desorption rate on modifier component.
+    desorption_rate_quadratic : list of unsigned floats. Length depends on n_comp.
+        Quadratic dependence coefficient of desorption rate on modifier component.
+    desorption_rate_cubic : list of unsigned floats. Length depends on n_comp.
+        Cubic dependence coefficient of desorption rate on modifier component.
+    desorption_rate_salt : list of unsigned floats. Length depends on n_comp.
+        Salt coefficient of desorption rate;
+        difference of water-protein and salt-protein interactions.
+    desorption_rate_protein : list of unsigned floats. Length depends on n_comp.
+        Protein coefficient of desorption rate;
+        difference of water-protein and protein-protein interactions
+    characteristic_charge : list of unsigned floats. Length depends on n_comp.
+        The characteristic charge of the protein: The number sites v that
+        protein interacts on the resin surface.
+    characteristic_charge_linear : list of unsigned floats. Length depends on n_comp.
+        Linear dependence coefficient of characteristic charge on modifier component.
+    characteristic_charge_quadratic : list of unsigned floats. Length depends on n_comp.
+        Quadratic dependence coefficient of characteristic charge on modifier component.
+    characteristic_charge_cubic : list of unsigned floats. Length depends on n_comp.
+        Cubic dependence coefficient of characteristic charge on modifier component .
+    characteristic_charge_breaks : list of unsigned floats. Length depends on n_comp.
+        Cubic dependence coefficient of characteristic charge on modifier component .
+    steric_factor : list of unsigned floats. Length depends on n_comp.
+        Steric factors of the protein: The number of sites o on the surface
+        that are shileded by the protein and prevented from exchange with salt
+        counterions in solution.
+    capacity : unsigned float.
+        Stationary phase capacity (monovalent salt counterions); The total
+        number of binding sites available on the resin surface.
+    reference_liquid_phase_conc : unsigned float.
+        Reference liquid phase concentration (optional, default value = 1.0).
+    reference_solid_phase_conc : unsigned float.
+        Reference liquid phase concentration (optional, default value = 1.0).
+    """
+    adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
+    adsorption_rate_linear = DependentlySizedUnsignedList(dep='n_comp')
+    adsorption_rate_quadratic = DependentlySizedUnsignedList(dep='n_comp', default=0)
+    adsorption_rate_cubic = DependentlySizedUnsignedList(dep='n_comp', default=0)
+    adsorption_rate_salt = DependentlySizedUnsignedList(dep='n_comp', default=0)
+    adsorption_rate_protein = DependentlySizedUnsignedList(dep='n_comp', default=0)
+    desorption_rate = DependentlySizedUnsignedList(dep='n_comp', default=1)
+    desorption_rate_linear = DependentlySizedUnsignedList(dep='n_comp', default=0)
+    desorption_rate_quadratic = DependentlySizedUnsignedList(dep='n_comp', default=0)
+    desorption_rate_cubic = DependentlySizedUnsignedList(dep='n_comp', default=0)
+    desorption_rate_salt = DependentlySizedUnsignedList(dep='n_comp', default=0)
+    desorption_rate_protein = DependentlySizedUnsignedList(dep='n_comp', default=0)
+    characteristic_charge = DependentlySizedUnsignedList(dep='_break_length', default=1)
+    characteristic_charge_linear = DependentlySizedUnsignedList(dep='characteristic_charge', default=0)
+    characteristic_charge_quadratic = DependentlySizedUnsignedList(dep='characteristic_charge', default=0)
+    characteristic_charge_cubic = DependentlySizedUnsignedList(dep='characteristic_charge', default=0)
+    characteristic_charge_breaks = DependentlySizedUnsignedList(dep='_break_length', default=0)
+    steric_factor = DependentlySizedUnsignedList(dep='n_comp')
+    capacity = UnsignedFloat()
+    reference_liquid_phase_conc = UnsignedFloat()
+    reference_solid_phase_conc = UnsignedFloat()
+
+    _parameter_names = BindingBaseClass._parameter_names + [
+        'adsorption_rate',
+        'adsorption_rate_linear',
+        'adsorption_rate_quadratic',
+        'adsorption_rate_cubic',
+        'adsorption_rate_salt',
+        'adsorption_rate_protein',
+        'desorption_rate',
+        'desorption_rate_linear',
+        'desorption_rate_quadratic',
+        'desorption_rate_cubic',
+        'desorption_rate_salt',
+        'desorption_rate_protein',
+        'characteristic_charge',
+        'characteristic_charge_linear',
+        'characteristic_charge_quadratic',
+        'characteristic_charge_cubic',
+        'characteristic_charge_breaks',
+        'steric_factor',
+        'capacity',
+        'reference_liquid_phase_conc',
+        'reference_solid_phase_conc',
+    ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    @property
+    def _multiples(self):
+        pass
+
+    @property
+    def _break_length(self):
+        return len(self.characteristic_charge) + 1

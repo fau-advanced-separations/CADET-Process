@@ -29,7 +29,7 @@ class Fractionator(EventHandler):
         Object of the class TimeSignal, array with the concentration over time
         for a simulated process.
     """
-    
+
     name = String(default='Fractionator')
     performance_keys = [
         'mass', 'concentration', 'purity', 'recovery',

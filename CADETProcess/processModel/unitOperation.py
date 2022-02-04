@@ -23,10 +23,10 @@ from .discretization import (
 class UnitBaseClass(metaclass=StructMeta):
     """Base class for all UnitOperation classes.
 
-    A UnitOperation object stores model parameters and states of a unit. 
-    Every unit operation can be assotiated with a binding behavior and a 
+    A UnitOperation object stores model parameters and states of a unit.
+    Every unit operation can be assotiated with a binding behavior and a
     reaction model.
-    UnitOperations can be connected in a FlowSheet. 
+    UnitOperations can be connected in a FlowSheet.
 
     Attributes
     ----------
@@ -38,7 +38,7 @@ class UnitBaseClass(metaclass=StructMeta):
         name of the unit_operation.
     binding_model : BindingBaseClass
         binding behavior of the unit. Defaults to NoBinding.
-    
+
     See also
     --------
     FlowSheet
@@ -51,10 +51,10 @@ class UnitBaseClass(metaclass=StructMeta):
     _section_dependent_parameters = []
     _polynomial_parameters = []
     _initial_state = []
-    
+
     supports_bulk_reaction = False
     supports_particle_reaction = False
-    
+
     def __init__(self, component_system, name):
         self.name = name
         self.component_system = component_system
@@ -65,12 +65,12 @@ class UnitBaseClass(metaclass=StructMeta):
         self._particle_reaction_model = NoReaction()
 
         self._discretization = NoDiscretization()
-        
+
         self._parameters = {
             param: getattr(self, param)
             for param in self._parameter_names
         }
-        
+
     @property
     def model(self):
         return self.__class__.__name__
@@ -84,7 +84,7 @@ class UnitBaseClass(metaclass=StructMeta):
         if not isinstance(component_system, ComponentSystem):
             raise TypeError('Expected ComponentSystem')
         self._component_system = component_system
-    
+
     @property
     def n_comp(self):
         return self.component_system.n_comp
@@ -94,7 +94,7 @@ class UnitBaseClass(metaclass=StructMeta):
         """dict: Dictionary with parameter values.
         """
         parameters = self._parameters
-        
+
         if not isinstance(self.binding_model, NoBinding):
             parameters['binding_model'] = self.binding_model.parameters
         if not isinstance(self.bulk_reaction_model, NoReaction):
@@ -117,16 +117,16 @@ class UnitBaseClass(metaclass=StructMeta):
         try:
             self.bulk_reaction_model.parameters = parameters.pop('bulk_reaction_model')
         except KeyError:
-            pass        
+            pass
         try:
             self.particle_reaction_model.parameters = parameters.pop('particle_reaction_model')
         except KeyError:
-            pass     
+            pass
         try:
             self.discretization.parameters = parameters.pop('discretization')
         except KeyError:
-            pass     
-        
+            pass
+
         for param, value in parameters.items():
             if param not in self._parameters:
                 raise CADETProcessError('Not a valid parameter')
@@ -136,20 +136,20 @@ class UnitBaseClass(metaclass=StructMeta):
     @property
     def section_dependent_parameters(self):
         parameters = {
-            key: value for key, value in self.parameters.items() 
+            key: value for key, value in self.parameters.items()
             if key in self._section_dependent_parameters
         }
-        
+
         return parameters
 
     @property
     def polynomial_parameters(self):
         parameters = {
-            key: value for key, value in self.parameters.items() 
+            key: value for key, value in self.parameters.items()
             if key in self._polynomial_parameters
         }
         return parameters
-        
+
     @property
     def initial_state(self):
         """dict: Dictionary with initial states.
@@ -186,13 +186,13 @@ class UnitBaseClass(metaclass=StructMeta):
 
         if binding_model.component_system is not self.component_system:
             raise CADETProcessError('Component systems do not match.')
-            
+
         self._binding_model = binding_model
-        
+
     @property
     def _n_bound_states(self):
         return self.binding_model.n_states
-        
+
     @property
     def bulk_reaction_model(self):
         """bulk_reaction_model: Reaction model in the bulk phase
@@ -219,7 +219,7 @@ class UnitBaseClass(metaclass=StructMeta):
             raise CADETProcessError('Component systems do not match.')
 
         self._bulk_reaction_model = bulk_reaction_model
-    
+
     @property
     def particle_reaction_model(self):
         """particle_liquid_reaction_model: Reaction model in the particle liquid phase
@@ -239,14 +239,14 @@ class UnitBaseClass(metaclass=StructMeta):
         if not isinstance(particle_reaction_model, ReactionBaseClass):
             raise TypeError('Expected ReactionBaseClass')
         if not self.supports_particle_reaction:
-            raise CADETProcessError('Unit does not support particle reactions.')            
+            raise CADETProcessError('Unit does not support particle reactions.')
 
         if particle_reaction_model.component_system is not self.component_system \
                 and not isinstance(particle_reaction_model, NoReaction):
             raise CADETProcessError('Component systems do not match.')
 
         self._particle_reaction_model = particle_reaction_model
-        
+
     @property
     def discretization(self):
         """discretization: Discretization Parameters
@@ -276,11 +276,11 @@ class UnitBaseClass(metaclass=StructMeta):
             like number of components and object name
         """
         return self.name
-    
+
 
 class SourceMixin(metaclass=StructMeta):
     """Mixin class for Units that have Source-like behavior
-    
+
     See also
     --------
     SinkMixin
@@ -323,7 +323,7 @@ class Source(UnitBaseClass, SourceMixin):
         SourceMixin._polynomial_parameters + \
         ['c']
 
-        
+
 class Sink(UnitBaseClass, SinkMixin):
     """Pseudo unit operation model for streams leaving the system.
     """
@@ -338,16 +338,16 @@ class MixerSplitter(UnitBaseClass):
 
 class TubularReactor(UnitBaseClass):
     """Class for tubular reactors.
-    
+
     Class can be used for a regular tubular reactor. Also serves as parent for
     other tubular models like the GRM by providing methods for calculating
     geometric properties such as the cross section area and volume, as well as
     methods for convective and dispersive properties like mean residence time
     or NTP.
-    
+
     Notes
     -----
-    For subclassing, check that the total porosity and interstitial cross 
+    For subclassing, check that the total porosity and interstitial cross
     section area are computed correctly depending on the model porosities!
 
     Attributes
@@ -360,7 +360,7 @@ class TubularReactor(UnitBaseClass):
         Dispersion rate of compnents in axial direction.
     c : List of unsinged floats. Length depends on n_comp
         Initial concentration of the reactor.
-             
+
     """
     supports_bulk_reaction = True
     length = UnsignedFloat(default=0)
@@ -374,18 +374,18 @@ class TubularReactor(UnitBaseClass):
     _section_dependent_parameters = UnitBaseClass._section_dependent_parameters + [
         'axial_dispersion', 'flow_direction'
     ]
-    
+
     c = DependentlySizedUnsignedList(dep='n_comp', default=0)
     _initial_state = UnitBaseClass._initial_state + ['c']
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._discretization = LRMDiscretizationFV()
-        
+
     @property
     def cross_section_area(self):
         """float: Cross section area of a Column.
-        
+
         See also
         --------
         volume
@@ -394,18 +394,18 @@ class TubularReactor(UnitBaseClass):
         cross_section_area_solid
         """
         return math.pi/4 * self.diameter**2
-    
+
     @cross_section_area.setter
     def cross_section_area(self, cross_section_area):
         self.diameter = (4*cross_section_area/math.pi)**0.5
 
     def set_diameter_from_interstitial_velicity(self, Q, u0):
         """Set diamter from flow rate and interstitial velocity.
-        
+
         In literature, often only the interstitial velocity is given.
-        This method, the diameter / cross section area can be inferred from 
+        This method, the diameter / cross section area can be inferred from
         the flow rate, velocity, and porosity.
-        
+
 
         Parameters
         ----------
@@ -420,48 +420,48 @@ class TubularReactor(UnitBaseClass):
 
         """
         self.cross_section_area = Q/(u0*self.total_porosity)
-        
+
     @property
     def cross_section_area_interstitial(self):
         """float: Interstitial area between particles.
-        
+
         Notes
         -----
         Needs to be overwritten depending on the model porosities!
-        
+
         See also
         --------
         cross_section_area
         cross_section_area_liquid
         cross_section_area_solid
-        """        
+        """
         return self.total_porosity * self.cross_section_area
-    
+
     @property
     def cross_section_area_liquid(self):
         """float: Liquid fraction of column cross section area.
-        
+
         See also
         --------
         cross_section_area
         cross_section_area_interstitial
         cross_section_area_solid
         volume
-        """        
+        """
         return self.total_porosity * self.cross_section_area
 
     @property
     def cross_section_area_solid(self):
         """float: Liquid fraction of column cross section area.
-        
-        
+
+
         See also
         --------
         cross_section_area
         cross_section_area_interstitial
         cross_section_area_liquid
-        """        
-        return (1 - self.total_porosity) * self.cross_section_area    
+        """
+        return (1 - self.total_porosity) * self.cross_section_area
 
     @property
     def volume(self):
@@ -472,7 +472,7 @@ class TubularReactor(UnitBaseClass):
         cross_section_area
         """
         return self.cross_section_area * self.length
-    
+
     @property
     def volume_interstitial(self):
         """float: Interstitial volume between particles.
@@ -480,7 +480,7 @@ class TubularReactor(UnitBaseClass):
         See also
         --------
         cross_section_area
-        """        
+        """
         return self.cross_section_area_interstitial * self.length
 
     @property
@@ -488,7 +488,7 @@ class TubularReactor(UnitBaseClass):
         """float: Volume of the liquid phase.
         """
         return self.cross_section_area_liquid * self.length
-    
+
     @property
     def volume_solid(self):
         """float: Volume of the solid phase.
@@ -497,7 +497,7 @@ class TubularReactor(UnitBaseClass):
 
     def t0(self, flow_rate):
         """Mean residence time of a (non adsorbing) volume element.
-        
+
         Parameters
         ----------
         flow_rate : float
@@ -506,7 +506,7 @@ class TubularReactor(UnitBaseClass):
         Returns
         -------
         t0 : float
-            Mean residence time    
+            Mean residence time
 
         See also
         --------
@@ -526,17 +526,17 @@ class TubularReactor(UnitBaseClass):
         -------
         u0 : float
             interstitial flow velocity
-            
+
         See also
         --------
         t0
         NTP
         """
         return self.length/self.t0(flow_rate)
-    
+
     def NTP(self, flow_rate):
         """Number of theoretical plates.
-        
+
         Parameters
         ----------
         flow_rate : float
@@ -551,7 +551,7 @@ class TubularReactor(UnitBaseClass):
             Number of theretical plates
         """
         return self.u0(flow_rate) * self.length / (2 * self.axial_dispersion)
-    
+
     def set_axial_dispersion_from_NTP(self, NTP, flow_rate):
         """
         Parameters
@@ -568,7 +568,7 @@ class TubularReactor(UnitBaseClass):
         -------
         NTP : float
             Number of theretical plates
-            
+
         See also
         --------
         u0
@@ -586,26 +586,26 @@ class LumpedRateModelWithoutPores(TubularReactor):
         Total porosity of the column.
     q : List of unsinged floats. Length depends on n_comp
         Initial concentration of the bound phase.
-    
+
     Notes
     -----
-    Although technically the LumpedRateModelWithoutPores does not have 
-    particles, the particle reactions interface is used to support reactions 
+    Although technically the LumpedRateModelWithoutPores does not have
+    particles, the particle reactions interface is used to support reactions
     in the solid phase and cross-phase reactions.
     """
     supports_bulk_reaction = False
     supports_particle_reaction = True
-    
+
     total_porosity = UnsignedFloat(ub=1)
     _parameters = TubularReactor._parameter_names + ['total_porosity']
 
     q = DependentlySizedUnsignedList(dep=('n_comp','_n_bound_states'), default=0)
     _initial_state = TubularReactor._initial_state + ['q']
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._discretization = LRMDiscretizationFV()
-        
+
 
 class LumpedRateModelWithPores(TubularReactor):
     """Parameters for the lumped rate model with pores.
@@ -629,27 +629,27 @@ class LumpedRateModelWithPores(TubularReactor):
     """
     supports_bulk_reaction = True
     supports_particle_reaction = True
-    
+
     bed_porosity = UnsignedFloat(ub=1)
     particle_porosity = UnsignedFloat(ub=1)
     particle_radius = UnsignedFloat()
     film_diffusion = DependentlySizedUnsignedList(dep='n_comp')
     pore_accessibility = DependentlySizedUnsignedList(dep='n_comp')
     _parameter_names = TubularReactor._parameter_names + [
-            'bed_porosity', 'particle_porosity', 'particle_radius', 
+            'bed_porosity', 'particle_porosity', 'particle_radius',
             'film_diffusion'
-            ]    
+            ]
     _section_dependent_parameters = \
         TubularReactor._section_dependent_parameters + ['film_diffusion']
 
     _cp = DependentlySizedUnsignedList(dep='n_comp')
     q = DependentlySizedUnsignedList(dep=('n_comp','_n_bound_states'), default=0)
     _initial_state = TubularReactor._initial_state + ['cp', 'q']
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._discretization = LRMPDiscretizationFV()
-        
+
     @property
     def total_porosity(self):
         """float: Total porosity of the column
@@ -660,22 +660,22 @@ class LumpedRateModelWithPores(TubularReactor):
     @property
     def cross_section_area_interstitial(self):
         """float: Interstitial area between particles.
-        
+
         See also
         --------
         cross_section_area
         cross_section_area_liquid
         cross_section_area_solid
-        """        
+        """
         return self.bed_porosity * self.cross_section_area
 
     def set_diameter_from_interstitial_velicity(self, Q, u0):
         """Set diamter from flow rate and interstitial velocity.
-        
+
         In literature, often only the interstitial velocity is given.
-        This method, the diameter / cross section area can be inferred from 
+        This method, the diameter / cross section area can be inferred from
         the flow rate, velocity, and bed porosity.
-        
+
 
         Parameters
         ----------
@@ -725,7 +725,7 @@ class GeneralRateModel(TubularReactor):
     """
     supports_bulk_reaction = True
     supports_particle_reaction = True
-    
+
     bed_porosity = UnsignedFloat(ub=1)
     particle_porosity = UnsignedFloat(ub=1)
     particle_radius = UnsignedFloat()
@@ -735,20 +735,20 @@ class GeneralRateModel(TubularReactor):
     pore_accessibility = DependentlySizedUnsignedList(dep='n_comp')
     _parameters = \
         TubularReactor._parameter_names + \
-        ['bed_porosity', 'particle_porosity', 'particle_radius', 
+        ['bed_porosity', 'particle_porosity', 'particle_radius',
         'film_diffusion', 'pore_diffusion', 'surface_diffusion']
     _section_dependent_parameters = \
         TubularReactor._section_dependent_parameters + \
         ['film_diffusion', 'pore_diffusion', 'surface_diffusion']
-    
+
     _cp = DependentlySizedUnsignedList(dep='n_comp')
     q = DependentlySizedUnsignedList(dep=('n_comp', '_n_bound_states'), default=0)
     _initial_state = TubularReactor._initial_state + ['cp', 'q']
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._discretization = GRMDiscretizationFV()
-        
+
     @property
     def total_porosity(self):
         """float: Total porosity of the column
@@ -759,22 +759,22 @@ class GeneralRateModel(TubularReactor):
     @property
     def cross_section_area_interstitial(self):
         """float: Interstitial area between particles.
-        
+
         See also
         --------
         cross_section_area
         cross_section_area_liquid
         cross_section_area_solid
-        """        
+        """
         return self.bed_porosity * self.cross_section_area
 
     def set_diameter_from_interstitial_velicity(self, Q, u0):
         """Set diamter from flow rate and interstitial velocity.
-        
+
         In literature, often only the interstitial velocity is given.
-        This method, the diameter / cross section area can be inferred from 
+        This method, the diameter / cross section area can be inferred from
         the flow rate, velocity, and bed porosity.
-        
+
 
         Parameters
         ----------
@@ -789,7 +789,7 @@ class GeneralRateModel(TubularReactor):
 
         """
         self.cross_section_area = Q/(u0*self.bed_porosity)
-        
+
     @property
     def cp(self):
         if self._cp is None:
@@ -798,7 +798,7 @@ class GeneralRateModel(TubularReactor):
     @cp.setter
     def cp(self, cp):
         self._cp = cp
-        
+
 class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     """Parameters for an ideal mixer.
 
@@ -812,12 +812,12 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         Initial volume of the reactor.
     total_porosity : UnsignedFloat between 0 and 1.
         Total porosity of the column.
-    flow_rate_filter: np.Array 
+    flow_rate_filter: np.Array
         Flow rate of pure liquid without components to reduce volume.
     """
     supports_bulk_reaction = True
     supports_particle_reaction = True
-    
+
     porosity = UnsignedFloat(ub=1, default=1)
     flow_rate_filter = UnsignedFloat(default=0)
     _parameter_names = \
@@ -831,8 +831,8 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     _polynomial_parameters = \
         UnitBaseClass._polynomial_parameters + \
         SourceMixin._polynomial_parameters + \
-        ['flow_rate_filter']        
-            
+        ['flow_rate_filter']
+
     c = DependentlySizedUnsignedList(dep='n_comp', default=0)
     q = DependentlySizedUnsignedList(dep=('n_comp', '_n_bound_states'), default=0)
     V = UnsignedFloat(default=0)
@@ -845,17 +845,17 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     def volume_liquid(self):
         """float: Volume of the liquid phase.
         """
-        return self.porosity * self.V    
-    
+        return self.porosity * self.V
+
     @property
     def volume_solid(self):
         """float: Volume of the solid phase.
         """
-        return (1 - self.porosity) * self.V    
+        return (1 - self.porosity) * self.V
 
     def t0(self, flow_rate):
         """Mean residence time of a (non adsorbing) volume element.
-        
+
         Parameters
         ----------
         flow_rate : float
@@ -864,7 +864,7 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         Returns
         -------
         t0 : float
-            Mean residence time    
+            Mean residence time
 
         See also
         --------

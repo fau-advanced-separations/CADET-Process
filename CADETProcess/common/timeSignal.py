@@ -57,8 +57,8 @@ class TimeSignal(metaclass=StructMeta):
         layout.y_label = '$c~/~mol \cdot L^{-1}$'
         layout.xlim = (start, end)
         layout.ylim = (0, 1.1*np.max(y))
-        
-        plotting.set_layout(fig, ax, layout)        
+
+        plotting.set_layout(fig, ax, layout)
 
         return ax
 
@@ -88,7 +88,7 @@ class TimeSignal(metaclass=StructMeta):
         purity = np.nan_to_num(purity)
 
         return np.nan_to_num(purity)
-    
+
     @plotting.save_fig
     def plot_purity(self, start=0, end=None):
         """Plots the local purity for each component of the concentration
@@ -117,9 +117,9 @@ class TimeSignal(metaclass=StructMeta):
         layout.y_label = '$c~/~mol \cdot L^{-1}$'
         layout.xlim = (start, end)
         layout.ylim = (0, 1.1*np.max(y))
-        
-        plotting.set_layout(fig, ax, layout)        
-        
+
+        plotting.set_layout(fig, ax, layout)
+
         return ax
 
     @property

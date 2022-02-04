@@ -31,11 +31,11 @@ class PymooInterface(SolverBase):
     _options = [
         'x_tol', 'cv_tol', 'f_tol', 'nth_gen',
         'n_last', 'n_max_gen', 'n_max_evals',
-    ] 
-    
+    ]
+
     def run(self, optimization_problem, use_checkpoint=True):
         """Solve the optimization problem using the functional pymoo implementation.
-        
+
         Returns
         -------
         results : OptimizationResults
@@ -48,11 +48,11 @@ class PymooInterface(SolverBase):
         options
         """
         self.optimization_problem = optimization_problem
-        
+
         ieqs = [
             lambda x: optimization_problem.evaluate_linear_constraints(x)[0]
         ]
-        
+
         self.problem = PymooProblem(optimization_problem, self.n_cores)
 
         if use_checkpoint and os.path.isfile(self.pymoo_checkpoint_path):
@@ -62,7 +62,7 @@ class PymooInterface(SolverBase):
             ).flatten()
         else:
             algorithm = self.setup_algorithm()
-            
+
         start = time.time()
         while algorithm.has_next():
             algorithm.next()
@@ -82,7 +82,7 @@ class PymooInterface(SolverBase):
         else:
             frac = None
             performance = optimization_problem.evaluate(x, force=True)
-        
+
         results = OptimizationResults(
             optimization_problem=optimization_problem,
             evaluation_object=eval_object,
@@ -99,7 +99,7 @@ class PymooInterface(SolverBase):
             history=res.history,
         )
         return results
-    
+
     @property
     def pymoo_checkpoint_path(self):
         pymoo_checkpoint_path = os.path.join(
@@ -107,7 +107,7 @@ class PymooInterface(SolverBase):
             self.optimization_problem.name + '/pymoo_checkpoint.npy'
         )
         return pymoo_checkpoint_path
-    
+
     @property
     def population_size(self):
         if self.pop_size is None:
@@ -121,7 +121,7 @@ class PymooInterface(SolverBase):
             return min(100, max(10*self.optimization_problem.n_variables,40))
         else:
             return self.n_max_gen
-        
+
     def setup_algorithm(self):
         algorithm = pymoo.factory.get_algorithm(
             str(self),
@@ -135,8 +135,8 @@ class PymooInterface(SolverBase):
         algorithm.setup(
             self.problem, termination=self.termination, seed=self.seed, verbose=True
         )
-        return algorithm 
-    
+        return algorithm
+
     @property
     def termination(self):
         termination = MultiObjectiveDefaultTermination(
@@ -153,14 +153,14 @@ class PymooInterface(SolverBase):
     @property
     def ref_dirs(self):
         ref_dirs = get_reference_directions(
-            "energy", 
+            "energy",
             self.optimization_problem.n_objectives,
             self.population_size,
             seed=1
         )
         return ref_dirs
-    
-    
+
+
 class NSGA2(PymooInterface):
     def __str__(self):
         return 'nsga2'
@@ -184,7 +184,7 @@ class PymooProblem(Problem):
 
     def _evaluate(self, x, out, *args, **kwargs):
         cache = self.optimization_problem.evaluate_population(x, self.n_cores)
-        
+
         f = []
         g = []
         for ind in x:
@@ -194,7 +194,7 @@ class PymooProblem(Problem):
             g.append(
                 self.optimization_problem.evaluate_nonlinear_constraints(ind, cache=cache)
             )
-                
+
         out["F"] = np.array(f)
         out["G"] = np.array(g)
 
@@ -202,18 +202,18 @@ class PymooProblem(Problem):
 class RoundIndividuals(Repair):
     def __init__(self, optimization_problem):
         self.optimization_problem = optimization_problem
-        
+
     def _do(self, problem, pop, **kwargs):
         Z = pop.get("X")
 
         # Round all individuals
         Z = np.round(Z,2)
-        
+
         # Check if linear constraints are met
         for i, ind in enumerate(Z):
             if not self.optimization_problem.check_linear_constraints(ind):
                 Z[i,:] = self.optimization_problem.create_initial_values(method='random')
-            
+
         # set the design variables for the population
         pop.set("X", Z)
         return pop

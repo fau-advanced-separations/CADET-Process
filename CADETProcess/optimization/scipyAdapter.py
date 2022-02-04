@@ -41,11 +41,11 @@ class SciPyInterface(SolverBase):
         """
         if optimization_problem.n_objectives > 1:
             raise CADETProcessError("Can only handle single objective.")
-        
+
         cache = dict()
         objective_function = \
             lambda x: optimization_problem.evaluate_objectives(x, cache=cache)[0]
-            
+
         start = time.time()
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore', category=OptimizeWarning)
@@ -229,7 +229,7 @@ class SciPyInterface(SolverBase):
         """
         if optimization_problem.nonlinear_constraints is None:
             return None
-        
+
         def makeConstraint(i):
             constr = optimize.NonlinearConstraint(
                 lambda x: optimization_problem.evaluate_nonlinear_constraints(x)[i],

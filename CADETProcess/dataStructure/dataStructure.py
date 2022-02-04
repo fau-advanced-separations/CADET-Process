@@ -26,7 +26,7 @@ class StructMeta(type):
 
         for name in fields:
             clsdict[name].name = name
-        
+
         clsdict['descriptors'] = fields
 
         clsobj = super().__new__(cls, clsname, bases, dict(clsdict))
@@ -35,15 +35,15 @@ class StructMeta(type):
         setattr(clsobj, '__signature__', sig)
 
         return clsobj
-    
-    
+
+
 class Descriptor():
     """Base class for descriptors.
 
-    Descriptors are used to efficiently implement class attributes that 
-    require checking type, value, size etc. 
+    Descriptors are used to efficiently implement class attributes that
+    require checking type, value, size etc.
     For using Descriptors, a class must inherit from StructMeta.
-    
+
      - ``self`` is the Descriptor managing the attribute of the ``instance``.
      - ``instance`` is the object which holds the actual ``value``.
      - ``value`` is the value of the ``instance`` attribute.

@@ -347,7 +347,7 @@ class SimulationResults(metaclass=StructMeta):
         time_complete = self.time_cycle
         for i in range(1, self.n_cycles):
             time_complete = np.hstack((
-                time_complete, 
+                time_complete,
                 self.time_cycle[1:] + i*cycle_time
             ))
 
@@ -368,22 +368,22 @@ class SimulationResults(metaclass=StructMeta):
     @property
     def n_cycles(self):
         return len(self.solution_cycles[self._first_unit][self._first_solution])
-    
+
     @property
     def _first_unit(self):
         return next(iter(self.solution_cycles))
-    
+
     @property
     def _first_solution(self):
         return next(iter(self.solution_cycles[self._first_unit]))
-    
+
     @property
     def time_cycle(self):
         """np.array: Solution times vector
         """
         return \
             self.solution_cycles[self._first_unit][self._first_solution][0].time
-        
+
     def save(self, case_dir, unit=None, start=0, end=None):
         path = os.path.join(settings.project_directory, case_dir)
 

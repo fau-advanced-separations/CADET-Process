@@ -24,7 +24,7 @@ class ParametersGroup(Structure):
             param: getattr(self, param) for param in self._parameters
                 if getattr(self, param) is not None
         }
-    
+
     @property
     def parameters(self):
         """dict: Dictionary with names and values of the parameters.
@@ -33,7 +33,7 @@ class ParametersGroup(Structure):
             param: getattr(self, param) for param in self._parameters
                 if getattr(self, param) is not None
         }
-    
+
     @parameters.setter
     def parameters(self, parameters):
         for param, value in parameters.items():
@@ -41,7 +41,7 @@ class ParametersGroup(Structure):
                 raise CADETProcessError('Not a valid parameter')
             if value is not None:
                 setattr(self, param, value)
-    
+
 
 class ParameterWrapper(ParametersGroup):
     """Base class for converting the config from objects such as units.
@@ -115,4 +115,3 @@ class ParameterWrapper(ParametersGroup):
             model_parameters[key] = value
 
         return {**solver_parameters, **model_parameters}
-    

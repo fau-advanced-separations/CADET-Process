@@ -56,7 +56,7 @@ def ptc(x, f, jacF, tau, tol, scale=None, maxIter=50, maxNonMonotone=5, quiet=Tr
         maxNonMonotone: Maximum number of iterations with non-decreasing residual in a row
         quiet: Determines whether iteration number, norm of step, scaled root mean
             square residual, and step size are printed on each iteration.
-        variant: Determines whether (1/tau * I - F'(x)) * dx = F(x) is solved (True) or 
+        variant: Determines whether (1/tau * I - F'(x)) * dx = F(x) is solved (True) or
             (I - tau * F'(x)) * dx = F(x) is solved (False).
 
     Returns:
@@ -112,7 +112,7 @@ def ptc(x, f, jacF, tau, tol, scale=None, maxIter=50, maxNonMonotone=5, quiet=Tr
         fxk = f(x)
         normfkp1 = scaled_norm2(fxk, scale)
 
-        # Protect against ZeroDivisionError 
+        # Protect against ZeroDivisionError
         if normfkp1 == 0.0:
             return (0, x, normfkp1, k)
 

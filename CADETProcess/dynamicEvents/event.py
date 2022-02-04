@@ -70,7 +70,7 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
 
     def add_event(
             self, name, parameter_path, state, time=0.0, entry_index=None,
-            dependencies=None, factors=None, 
+            dependencies=None, factors=None,
         ):
         """Factory function for creating and adding events.
 
@@ -107,7 +107,7 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
 
         self._events.append(evt)
         super().__setattr__(name, evt)
-        
+
         if dependencies is not None:
             self.add_event_dependency(evt.name, dependencies, factors)
 
@@ -536,18 +536,18 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
         time = np.linspace(0, self.cycle_time, 1001)
         for parameter, tl in self.parameter_timelines.items():
             y = tl.value(time)
-            
+
             fig, ax = plotting.setup_figure()
-        
+
             layout = plotting.Layout()
             layout.title = str(parameter)
             layout.x_label = '$time~/~min$'
             layout.y_label = '$state$'
-        
+
             ax.plot(time/60, y)
 
-            plotting.set_layout(fig, ax, layout)        
-        
+            plotting.set_layout(fig, ax, layout)
+
 class Event():
     """Class for defining dynamic changes.
 

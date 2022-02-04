@@ -35,7 +35,7 @@ class FlowSheet(metaclass=StructMeta):
 
     name = String()
     n_comp = UnsignedInteger()
-    
+
     def __init__(self, component_system, name=None):
         self.component_system = component_system
         self.name = name
@@ -59,11 +59,11 @@ class FlowSheet(metaclass=StructMeta):
         if not isinstance(component_system, ComponentSystem):
             raise TypeError('Expected ComponentSystem')
         self._component_system = component_system
-        
+
     @property
     def n_comp(self):
         return self.component_system.n_comp
-            
+
     def _unit_name_decorator(func):
         def wrapper(self, unit, *args, **kwargs):
             """Enable calling functions with unit object or unit name.
@@ -76,30 +76,30 @@ class FlowSheet(metaclass=StructMeta):
             return func(self, unit, *args, **kwargs)
 
         return wrapper
-    
+
     def update_parameters(self):
         for unit in self.units:
             self._parameters[unit.name] = unit.parameters
             self._section_dependent_parameters[unit.name] = \
                 unit.section_dependent_parameters
             self._polynomial_parameters[unit.name] = unit.polynomial_parameters
-        
+
         self._parameters['output_states'] = {
             unit.name: self.output_states[unit] for unit in self.units
         }
-        
+
         self._section_dependent_parameters['output_states'] = {
-            unit.name: self.output_states[unit] 
+            unit.name: self.output_states[unit]
             for unit in self.units
         }
-        
+
     def update_parameters_decorator(func):
         def wrapper(self, *args, **kwargs):
             """Update parameters dict to save time.
             """
             results = func(self, *args, **kwargs)
             self.update_parameters()
-            
+
             return results
         return wrapper
 
@@ -114,13 +114,13 @@ class FlowSheet(metaclass=StructMeta):
         """dict: Unit names and objects.
         """
         return {unit.name: unit for unit in self.units}
-    
+
     @property
     def unit_names(self):
         """list: Unit names
         """
         return [unit.name for unit in self.units]
-    
+
     @property
     def number_of_units(self):
         """int: Number of unit operations in the FlowSheet.
@@ -172,7 +172,7 @@ class FlowSheet(metaclass=StructMeta):
 
     @update_parameters_decorator
     def add_unit(
-            self, unit, 
+            self, unit,
             feed_source=False, eluent_source=False, chromatogram_sink=False
         ):
         """Add unit to the flow sheet.
@@ -211,12 +211,12 @@ class FlowSheet(metaclass=StructMeta):
 
         self._units.append(unit)
         self._connections[unit] = Dict({
-            'origins': [], 
+            'origins': [],
             'destinations': [],
         })
         self._output_states[unit] = []
         self._flow_rates[unit] = []
-        
+
         super().__setattr__(unit.name, unit)
 
         if feed_source:
@@ -287,7 +287,7 @@ class FlowSheet(metaclass=StructMeta):
         remove_connection
         """
         return self._connections
-    
+
     @update_parameters_decorator
     def add_connection(self, origin, destination):
         """Add connection between units 'origin' and 'destination'.
@@ -315,13 +315,13 @@ class FlowSheet(metaclass=StructMeta):
             raise CADETProcessError('Origin not in flow sheet')
         if destination not in self._units:
             raise CADETProcessError('Destination not in flow sheet')
-        
+
         if destination in self.connections[origin].destinations:
             raise CADETProcessError('Connection already exists')
 
         self._connections[origin].destinations.append(destination)
-        self._connections[destination].origins.append(origin)        
-        
+        self._connections[destination].origins.append(origin)
+
         self.set_output_state(origin, 0)
 
     @update_parameters_decorator
@@ -360,18 +360,18 @@ class FlowSheet(metaclass=StructMeta):
     @property
     def output_states(self):
         return self._output_states
-    
+
     @_unit_name_decorator
     @update_parameters_decorator
     def set_output_state(self, unit, state):
         """Set split ratio of outgoing streams for UnitOperation.
-        
+
         Parameters
         ----------
         unit : UnitBaseClass
             UnitOperation of flowsheet.
         state : int or list of floats
-            new output state of the unit. 
+            new output state of the unit.
 
         Raises
         ------
@@ -383,7 +383,7 @@ class FlowSheet(metaclass=StructMeta):
         """
         if unit not in self._units:
             raise CADETProcessError('Unit not in flow sheet')
-            
+
         state_length = len(self.connections[unit].destinations)
 
         if state_length == 0:
@@ -406,14 +406,14 @@ class FlowSheet(metaclass=StructMeta):
 
             output_state = state
 
-        self._output_states[unit] = output_state                    
+        self._output_states[unit] = output_state
 
-    
+
     def get_flow_rates(self, state=None):
         """Calculate flow rate for all connections.unit operation flow rates.
-        
+
         If an additional state is passed, it will b
-        
+
         Parameters
         ----------
         state : Dict, optional
@@ -440,42 +440,42 @@ class FlowSheet(metaclass=StructMeta):
                 elif unit_name == 'output_states':
                     unit = self.units_dict[param_name]
                     output_states[unit] = list(value.ravel())
-        
+
         def list_factory():
             return [0,0,0,0]
-        
+
         total_flow_rates = {unit.name: list_factory() for unit in self.units}
         destination_flow_rates = {
             unit.name: defaultdict(list_factory) for unit in self.units
         }
-        
+
         for i in range(4):
             solution = self.solve_flow_rates(flow_rates, output_states, i)
             if solution is not None:
                 for unit_index, unit in enumerate(self.units):
                     total_flow_rates[unit.name][i] = \
                         float(solution['Q_total_{}'.format(unit_index)])
-                    
+
                     for destination in self.connections[unit].destinations:
                         destination_index = self.get_unit_index(destination)
                         destination_flow_rates[unit.name][destination.name][i] = \
                             float(solution['Q_{}_{}'.format(unit_index, destination_index)])
-        
+
         flow_rates = Dict()
         for unit in self.units:
             flow_rates[unit.name].total = np.array(total_flow_rates[unit.name])
             for destination, flow_rate in destination_flow_rates[unit.name].items():
                 flow_rates[unit.name].destinations[destination] = np.array(flow_rate)
-        
-        return flow_rates                
+
+        return flow_rates
 
     def solve_flow_rates(self, source_flow_rates, output_states, coeff=0):
         """Solve flow rates of system using sympy.
-        
+
         Because a simple 'push' algorithm cannot be used when closed loops are
-        present in a FlowSheet (e.g. SMBs), sympy is used to set up and solve 
+        present in a FlowSheet (e.g. SMBs), sympy is used to set up and solve
         the system of equations.
-    
+
         Parameters
         ----------
         source_flow_rates: dict
@@ -484,12 +484,12 @@ class FlowSheet(metaclass=StructMeta):
             Output states of all UnitOperations.
         coeff: int
             Polynomial coefficient of flow rates to be solved.
-    
+
         Returns
         -------
         solution : dict
             Solution of the flow rates in the system
-            
+
         Note
         ----
         Since dynamic flow rates can be described as cubic polynomials, the
@@ -500,52 +500,52 @@ class FlowSheet(metaclass=StructMeta):
         )
         if not np.any(coeffs):
             return None
-        
+
         # Setup lists for symbols
         unit_total_flow_symbols = sym.symbols(
             'Q_total_0:{}'.format(self.number_of_units)
         )
         unit_inflow_symbols = []
         unit_outflow_symbols = []
-        
+
         unit_total_flow_eq = []
         unit_outflow_eq = []
-        
+
         # Setup symbolic equations
         for unit_index, unit in enumerate(self.units):
             if isinstance(unit, SourceMixin):
                 unit_total_flow_eq.append(
                     sym.Add(
-                        unit_total_flow_symbols[unit_index], 
+                        unit_total_flow_symbols[unit_index],
                         - float(source_flow_rates[unit.name][coeff])
                     )
                 )
             else:
                 unit_i_inflow_symbols = []
-                
+
                 for origin in self.connections[unit].origins:
                     origin_index = self.get_unit_index(origin)
                     unit_i_inflow_symbols.append(
                         sym.symbols('Q_{}_{}'.format(origin_index, unit_index))
                     )
-                    
+
                 unit_i_total_flow_eq = sym.Add(
                     *unit_i_inflow_symbols, -unit_total_flow_symbols[unit_index]
                 )
-                
+
                 unit_inflow_symbols += unit_i_inflow_symbols
                 unit_total_flow_eq.append(unit_i_total_flow_eq)
-                
+
             if not isinstance(unit, Sink):
                 output_state = output_states[unit]
                 unit_i_outflow_symbols = []
-                
+
                 for destination in self.connections[unit].destinations:
                     destination_index = self.get_unit_index(destination)
                     unit_i_outflow_symbols.append(
                         sym.symbols('Q_{}_{}'.format(unit_index, destination_index))
                     )
-                    
+
                 unit_i_outflow_eq = [
                     sym.Add(
                         unit_i_outflow_symbols[dest],
@@ -553,19 +553,19 @@ class FlowSheet(metaclass=StructMeta):
                     )
                     for dest in range(len(self.connections[unit].destinations))
                 ]
-                                     
+
                 unit_outflow_symbols += unit_i_outflow_symbols
                 unit_outflow_eq += unit_i_outflow_eq
-                
+
         # Solve system of equations
         solution = sym.solve(
-            unit_total_flow_eq + unit_outflow_eq, 
+            unit_total_flow_eq + unit_outflow_eq,
             (*unit_total_flow_symbols, *unit_inflow_symbols, *unit_outflow_symbols)
         )
         solution = {str(key): value for key, value in solution.items()}
-        
+
         return solution
-    
+
     @property
     def feed_sources(self):
         """list: List of sources considered for calculating recovery yield.
@@ -645,7 +645,7 @@ class FlowSheet(metaclass=StructMeta):
         ----------
         eluent_source : SourceMixin
             Unit to be added to list of eluent sources.
-        
+
         Raises
         ------
         CADETProcessError
@@ -719,12 +719,12 @@ class FlowSheet(metaclass=StructMeta):
                 self.set_output_state(unit, state)
         except KeyError:
             pass
-        
+
         for unit, params in parameters.items():
             if unit not in self.units_dict:
                 raise CADETProcessError('Not a valid unit')
             self.units_dict[unit].parameters = params
-            
+
         self.update_parameters()
 
     @property
@@ -747,8 +747,8 @@ class FlowSheet(metaclass=StructMeta):
             if unit not in self.units_dict:
                 raise CADETProcessError('Not a valid unit')
             self.units_dict[unit].initial_state = st
-            
-            
+
+
     def __getitem__(self, unit_name):
         """Make FlowSheet substriptable s.t. units can be used as keys.
 

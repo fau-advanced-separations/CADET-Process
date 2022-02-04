@@ -8,14 +8,14 @@ class cached_property_if_locked(property):
                 return instance.cached_properties[self.name]
             except KeyError:
                 pass
-        
+
         value = super().__get__(instance, cls)
-        
+
         if instance.lock:
             instance.cached_properties[self.name] = value
-            
+
         return value
-    
+
     @property
     def name(self):
         return self.fget.__name__

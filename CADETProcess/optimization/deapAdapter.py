@@ -89,13 +89,13 @@ class DEAP(SolverBase):
         def initIndividual(icls, content):
             return icls(content)
         toolbox.register("individual_guess", initIndividual, creator.Individual)
-        
+
         def initPopulation(pcls, ind_init, population_size):
             population = optimization_problem.create_initial_values(population_size)
             return pcls(ind_init(c) for c in population)
-        
+
         toolbox.register(
-            "population", initPopulation, list, toolbox.individual_guess, 
+            "population", initPopulation, list, toolbox.individual_guess,
         )
 
         # Functions for evolution

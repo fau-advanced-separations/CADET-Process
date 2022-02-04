@@ -34,7 +34,7 @@ class Process(EventHandler):
     time_resolution : float
         Time interval for user solution times. Default is 1 s.
     resolution_cutoff : float
-        To avoid IDAS errors, user solution times are removed if they are 
+        To avoid IDAS errors, user solution times are removed if they are
         closer than the cutoff value. Default is 1e-3 s.
 
     See also
@@ -46,7 +46,7 @@ class Process(EventHandler):
     """
     _initial_states = ['system_state', 'system_state_derivative']
     _n_cycles = UnsignedInteger(default=1)
-    
+
     time_resolution = UnsignedFloat(default=1)
     resolution_cutoff = UnsignedFloat(default=1e-1)
 
@@ -109,15 +109,15 @@ class Process(EventHandler):
                 integrate.quad(
                     lambda t: \
                         feed_flow_rate_time_line.value(t) \
-                        * feed_signal_time_line.value(t)[comp], 
+                        * feed_signal_time_line.value(t)[comp],
                         0, self.cycle_time, points=self.event_times
                     )[0] for comp in range(self.n_comp)
             ]
-            
+
             feed_all += np.array(m_i)
-            
+
         return feed_all
-            
+
     @property
     def V_eluent(self):
         """float: Volume of the eluent entering the system in one cycle.
@@ -129,7 +129,7 @@ class Process(EventHandler):
             eluent_time_line = flow_rate_timelines[eluent.name]['total']
             V_eluent = eluent_time_line.integral()
             V_all += V_eluent
-            
+
         return float(V_all)
 
     @property
@@ -151,13 +151,13 @@ class Process(EventHandler):
                 }
             for unit in self.flow_sheet.units
         }
-        
+
         # Create dummy section state for Processes without events
         if len(self.section_states) == 0:
             it = [(None, {})]
         else:
             it = self.section_states.items()
-        
+
         for i, (time, state) in enumerate(it):
             start = self.section_times[i]
             end = self.section_times[i+1]
@@ -173,10 +173,10 @@ class Process(EventHandler):
                     section = Section(
                         start, end, flow_rate_dest, n_entries=1, degree=3
                     )
-                    flow_rate_timelines[unit]['destinations'][dest].add_section(section)   
-                
+                    flow_rate_timelines[unit]['destinations'][dest].add_section(section)
+
         return Dict(flow_rate_timelines)
-    
+
     @cached_property_if_locked
     def flow_rate_section_states(self):
         """dict: Flow rates for all units for every section time.
@@ -189,12 +189,12 @@ class Process(EventHandler):
                 } for unit in self.flow_sheet.units
             } for time in self.section_times[0:-1]
         }
-        
+
         for sec_time in self.section_times[0:-1]:
             for unit, unit_flow_rates in self.flow_rate_timelines.items():
                 section_states[sec_time][unit]['total'] = \
                     unit_flow_rates['total'].coefficients(sec_time)[0]
-                
+
                 for dest, tl in unit_flow_rates.destinations.items():
                     section_states[sec_time][unit]['destinations'][dest] = \
                         tl.coefficients(sec_time)[0]
@@ -209,7 +209,7 @@ class Process(EventHandler):
         Todo
         ----
         Remove from Process; Check also EventHandler.plot_events()
-        
+
         See Also
         --------
         cycle_time
@@ -219,7 +219,7 @@ class Process(EventHandler):
         solution_times = np.append(solution_times, self.section_times)
         solution_times = np.sort(solution_times)
         solution_times = np.unique(solution_times)
-        
+
         diff = np.where(np.diff(solution_times) < self.resolution_cutoff)[0]
         indices = []
         for d in diff:
@@ -227,15 +227,15 @@ class Process(EventHandler):
                 indices.append(d+1)
             else:
                 indices.append(d)
-        
+
         solution_times = np.delete(solution_times, indices)
-        
+
         return solution_times
 
     @property
     def _time_complete(self):
         """np.array: time vector for mulitple cycles of a process.
-        
+
         See Also
         --------
         time
@@ -245,11 +245,11 @@ class Process(EventHandler):
         solution_times = np.array([])
         for i in range(self._n_cycles):
             solution_times = np.append(solution_times, (i)*self.cycle_time + time)
-        
+
         solution_times = np.unique(solution_times)
-        
+
         return solution_times
-    
+
     @property
     def _section_times_complete(self):
         section_times_complete = [
@@ -294,7 +294,7 @@ class Process(EventHandler):
             pass
 
         super(Process, self.__class__).parameters.fset(self, parameters)
-    
+
     @property
     def section_dependent_parameters(self):
         parameters = Dict()
@@ -342,11 +342,11 @@ class Process(EventHandler):
     @property
     def process_meta(self):
         """ProcessMeta: Meta information of the process.
-        
+
         See Also
         --------
         ProcessResults
-        Performance        
+        Performance
         """
         return ProcessMeta(
             cycle_time = self.cycle_time,
@@ -354,38 +354,38 @@ class Process(EventHandler):
             V_solid = self.V_solid,
             V_eluent = self.V_eluent,
         )
-    
+
     def add_inlet_profile(self, unit, time, c, component_index=None, s=1e-6):
         if not isinstance(unit, Source):
             raise TypeError('Expected Source')
-        
+
         if max(time) > self.cycle_time:
             raise ValueError('Inlet profile exceeds cycle time')
-        
+
         if component_index == -1:
             # Assume same profile for all components
             if c.ndim > 1:
                 raise ValueError('Expected single concentration profile')
 
             c = np.column_stack([c]*2)
-            
+
         elif component_index is None and c.shape[1] != self.n_comp:
             # Assume c is given for all components
             raise CADETProcessError('Number of components does not match')
-            
+
         for comp in range(self.n_comp):
             tck = interpolate.splrep(time, c[:,comp], s=s)
             ppoly = interpolate.PPoly.from_spline(tck)
-        
+
             for i, (t, sec) in enumerate(zip(ppoly.x, ppoly.c.T)):
                 if i < 3:
                     continue
                 elif i > len(ppoly.x) - 5:
                     continue
                 evt = self.add_event(
-                    f'{unit}_inlet_{comp}_{i-3}', f'flow_sheet.{unit}.c', 
+                    f'{unit}_inlet_{comp}_{i-3}', f'flow_sheet.{unit}.c',
                     np.flip(sec), t, comp
                 )
-            
+
     def __str__(self):
         return self.name
