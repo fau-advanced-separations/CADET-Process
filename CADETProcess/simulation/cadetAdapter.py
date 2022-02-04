@@ -323,6 +323,13 @@ class Cadet(SolverBase):
         process.lock = False
 
         return config
+    
+    def load_simulation_results(self, process, file_path):
+        cadet = self.load_from_h5(file_path)
+        results = self.get_simulation_results(process, cadet)
+        
+        return results
+        
 
     def get_simulation_results(
         self,
