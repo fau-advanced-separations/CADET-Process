@@ -79,6 +79,7 @@ def setup_figure(style=None):
 class SecondaryAxis(Structure):
     component_indices = List()    
     y_label = String()
+    y_lim = Tuple()
     transform = Callable()
 
 class Layout(Structure):
@@ -88,14 +89,15 @@ class Layout(Structure):
     x_ticks = List()
     y_label = String()
     y_ticks = List()
-    xlim = Tuple()
-    ylim = Tuple()
+    x_lim = Tuple()
+    y_lim = Tuple()
     
 def set_layout(
         fig, ax, 
         layout, 
         show_legend=True, 
-        ax_secondary=None, secondary_layout=None
+        ax_secondary=None,
+        secondary_layout=None
         ):
     
     ax.spines['top'].set_visible(False)
@@ -103,8 +105,8 @@ def set_layout(
     
     ax.set_xlabel(layout.x_label)
     ax.set_ylabel(layout.y_label)
-    ax.set_xlim(layout.xlim)
-    ax.set_ylim(layout.ylim)
+    ax.set_xlim(layout.x_lim)
+    ax.set_ylim(layout.y_lim)
     ax.set_title(layout.title)
     
     if layout.x_ticks is not None:
@@ -116,12 +118,13 @@ def set_layout(
     
     if ax_secondary is not None:
         ax_secondary.set_ylabel(secondary_layout.y_label)
-        ax_secondary.set_xlim(secondary_layout.xlim)
-        ax_secondary.set_ylim(secondary_layout.ylim)
+        ax_secondary.set_ylim(secondary_layout.y_lim)
         
-        lines_secondary, labels_secondary = ax_secondary.get_legend_handles_labels()
         if show_legend:
-            ax_secondary.legend(lines_secondary + lines, labels_secondary + labels , loc=0)
+            lines_secondary, labels_secondary = ax_secondary.get_legend_handles_labels()
+            ax_secondary.legend(
+                lines_secondary + lines, labels_secondary + labels , loc=0
+            )
     else:
         ax.legend(lines, labels, loc=0)
 
@@ -182,7 +185,7 @@ class FillRegion(Structure):
     
     text = String()
 
-def add_fill_regions(ax, fill_regions, xlim=None):
+def add_fill_regions(ax, fill_regions, x_lim=None):
     for fill in fill_regions:
         color = color_list[fill.color_index]
         ax.fill_between(
@@ -191,8 +194,8 @@ def add_fill_regions(ax, fill_regions, xlim=None):
         )
         
         if fill.text is not None:
-            if xlim is None or fill.start < xlim[0]:
-                x_position = (xlim[0] + fill.end)/2
+            if x_lim is None or fill.start < x_lim[0]:
+                x_position = (x_lim[0] + fill.end)/2
             else:
                 x_position = (fill.start + fill.end)/2
             y_position = 0.5 * fill.y_max
@@ -213,20 +216,24 @@ def add_hlines(ax, hlines):
         ax.hlines(line.y, line.x_min, line.x_max)
 
 def save_fig(func):
-    def wrapper(*args, show=True, filename=None, **kwargs):
+    def wrapper(*args, show=True, file_name=None, **kwargs):
         """Wrapper around plot function.
 
         Parameters
         ----------
         show : bool, optional
             If True, show plot. The default is False.
-        save_path : str, optional
-            Path for saving figure. The default is None.
+        file_name : str, optional
+            Path for saving figure. If None, figure is not saved.
         """
         artist = func(*args, **kwargs)
         if show: 
             plt.show()
-        if filename is not None: 
-            plt.savefig(filename)
+
+        if file_name is not None: 
+            plt.savefig(file_name)
+        
+        plt.tight_layout()
+        
         return artist
     return wrapper

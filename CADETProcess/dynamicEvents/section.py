@@ -334,8 +334,8 @@ class TimeLine():
         layout = plotting.Layout()
         layout.x_label = '$time~/~min$'
         layout.y_label = '$state$'
-        layout.xlim = (start/60, end/60)
-        layout.ylim = (0, 1.1*np.max(y))
+        layout.x_lim = (start/60, end/60)
+        layout.y_lim = (np.min(y), 1.1*np.max(y))
 
         plotting.set_layout(fig, ax, layout)
 

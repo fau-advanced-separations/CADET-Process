@@ -215,7 +215,8 @@ class Fractionator(EventHandler):
         time_line = self.performer_timelines['fractionation_states'][chrom.name]
         x = chrom.time/60
         y = chrom.signal
-        ymax = 1.1*np.max(chrom.signal)
+        y_min = np.min(chrom.signal)
+        y_max = 1.1*np.max(chrom.signal)
 
         fig, ax = plotting.setup_figure()
 
@@ -235,7 +236,7 @@ class Fractionator(EventHandler):
                 fill_regions.append(plotting.FillRegion(
                     start=sec.start/60,
                     end=sec.end/60,
-                    y_max=ymax,
+                    y_max=y_max,
                     color_index=color_index,
                     text=text
                     )
@@ -247,7 +248,7 @@ class Fractionator(EventHandler):
             fill_regions.append(plotting.FillRegion(
                 start=sec.start/60,
                 end=sec.end/60,
-                y_max=ymax,
+                y_max=y_max,
                 color_index=-1,
                 text='W'
                 )
@@ -258,8 +259,8 @@ class Fractionator(EventHandler):
         layout = plotting.Layout()
         layout.x_label = '$time~/~min$'
         layout.y_label = '$c~/~mM$'
-        layout.xlim = (start, end)
-        layout.ylim = (0, ymax)
+        layout.x_lim = (start, end)
+        layout.y_lim = (y_min, y_max)
 
         plotting.set_layout(fig, ax, layout)
 

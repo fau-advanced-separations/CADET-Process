@@ -96,8 +96,9 @@ class SolutionIO(BaseSolution):
     @plotting.save_fig
     def plot(
             self,
-            start=0, end=None, ymax=None,
-            ax=None, layout=None,
+            ax,
+            start=0, end=None, y_max=None,
+            layout=None,
             only_plot_total_concentrations=False,
             alpha=1, hide_labels=False,
             secondary_axis=None, secondary_layout=None,
@@ -117,14 +118,11 @@ class SolutionIO(BaseSolution):
         plotlib
         plot_purity
         """
-        if ymax is None:
-            ymax = self.solution.max()
-
-        layout = plotting.Layout()
-        layout.x_label = '$time~/~min$'
-        layout.y_label = '$c~/~mM$'
-        layout.xlim = (start, end)
-        layout.ylim = (0, ymax)
+        if layout is None:
+            layout = plotting.Layout()
+            layout.x_label = '$time~/~min$'
+            layout.y_label = '$c~/~mM$'
+            layout.x_lim = (start, end)
 
         ax, fig = plot_solution_1D(
             self,
@@ -175,8 +173,8 @@ class SolutionBulk(BaseSolution):
             return
         return len(self.radial_coordinates)
 
-    @plotting.save_fig
-    def plot_at_time(self, t, overlay=None, ymax=None):
+    @plotting.create_and_save_figure
+    def plot_at_time(self, ax, t, overlay=None, y_min=None, y_max=None):
         """Plot bulk solution over space at given time.
 
         Parameters
@@ -196,8 +194,10 @@ class SolutionBulk(BaseSolution):
         t_i = np.where(t<=self.time)[0][0]
 
         y = self.solution[t_i,:]
-        if ymax is None:
-            ymax = 1.1*np.max(y)
+        if y_max is None:
+            y_max = 1.1*np.max(y)
+        if y_min is None:
+            y_min = min(0, np.min(y))
 
         fig, ax = plotting.setup_figure()
         ax.plot(x,y)
@@ -211,13 +211,13 @@ class SolutionBulk(BaseSolution):
         layout = plotting.Layout()
         layout.x_label = '$z~/~m$'
         layout.y_label = '$c~/~mM$'
-        layout.ylim = (0, ymax)
-        plotting.set_layout(fig, ax, layout)
+        layout.y_lim = (y_min, y_max)
+        plotting.set_layout(ax, layout)
 
         return ax
 
-    @plotting.save_fig
-    def plot_at_location(self, z, overlay=None, ymax=None):
+    @plotting.create_and_save_figure
+    def plot_at_location(self, ax, z, overlay=None, y_min=None, y_max=None):
         """Plot bulk solution over time at given location.
 
         Parameters
@@ -237,8 +237,10 @@ class SolutionBulk(BaseSolution):
         z_i = np.where(z<=self.axial_coordinates)[0][0]
 
         y = self.solution[:,z_i]
-        if ymax is None:
-            ymax = 1.1*np.max(y)
+        if y_max is None:
+            y_max = 1.1*np.max(y)
+        if y_min is None:
+            y_min = min(0, np.min(y))
 
         fig, ax = plotting.setup_figure()
         ax.plot(x,y)
@@ -246,14 +248,14 @@ class SolutionBulk(BaseSolution):
         plotting.add_text(ax, f'z = {z:.2f} m')
 
         if overlay is not None:
-            ymax = np.max(overlay)
+            y_max = np.max(overlay)
             plotting.add_overlay(ax, overlay)
 
         layout = plotting.Layout()
         layout.x_label = '$time~/~min$'
         layout.y_label = '$c~/~mM$'
-        layout.ylim = (0, ymax)
-        plotting.set_layout(fig, ax, layout)
+        layout.y_lim = (y_min, y_max)
+        plotting.set_layout(ax, layout)
 
         return ax
 
@@ -324,8 +326,8 @@ class SolutionParticle(BaseSolution):
         layout = plotting.Layout()
         layout.x_label = '$z~/~m$'
         layout.y_label = '$c~/~mM$'
-        layout.ylim = (0, ymax)
-        plotting.set_layout(fig, ax, layout)
+        layout.y_lim = (0, ymax)
+        plotting.set_layout(ax, layout)
 
         return fig, ax
 
@@ -340,9 +342,11 @@ class SolutionParticle(BaseSolution):
 
         if vmax is None:
             vmax = v.max()
-
-        fig, ax = plotting.setup_figure()
-        mesh = ax.pcolormesh(x, y, v, shading='gouraud', vmin=0, vmax=vmax)
+        try:
+            mesh = ax.get_children()[0]
+            mesh.set_array(v.flatten())
+        except:
+            mesh = ax.pcolormesh(x, y, v, shading='gouraud', vmin=0, vmax=vmax)
 
         plotting.add_text(ax, f'time = {t:.2f} s')
 
@@ -350,10 +354,11 @@ class SolutionParticle(BaseSolution):
         layout.x_label = '$z~/~m$'
         layout.y_label = '$r~/~m$'
         layout.title = f'Solid phase concentration, comp={comp}'
-        plotting.set_layout(fig, ax, layout)
-        fig.colorbar(mesh)
 
-        return fig, ax, mesh
+        plotting.set_layout(ax, layout)
+        plt.colorbar(mesh)
+        
+        return ax
 
     @plotting.save_fig
     def plot_at_time(self, t, comp=0, vmax=None):
@@ -373,7 +378,7 @@ class SolutionParticle(BaseSolution):
         if self.npar is None:
             fig, ax = self._plot_1D(t, vmax)
         else:
-            fig, ax = self._plot_2D(t, comp, vmax)
+            ax = self._plot_2D(ax, t, comp, vmax)
         return ax
 
 class SolutionSolid(BaseSolution):
@@ -432,7 +437,7 @@ class SolutionSolid(BaseSolution):
         return len(self.particle_coordinates)
 
 
-    def _plot_1D(self, t, ymax):
+    def _plot_1D(self, ax, t, y_min=None, y_max=None):
         x = self.axial_coordinates
 
         if not self.time[0] <= t <= self.time[-1]:
@@ -440,10 +445,11 @@ class SolutionSolid(BaseSolution):
         t_i = np.where(t<=self.time)[0][0]
         y = self.solution[t_i,:]
 
-        if ymax is None:
-            ymax = 1.1*np.max(y)
-
-        fig, ax = plotting.setup_figure()
+        if y_max is None:
+            y_max = 1.1*np.max(y)
+        if y_min is None:
+            y_min = min(0, np.min(y))
+        
         ax.plot(x,y)
 
         plotting.add_text(ax, f'time = {t:.2f} s')
@@ -452,8 +458,8 @@ class SolutionSolid(BaseSolution):
         layout.x_label = '$z~/~m$'
         layout.y_label = '$c~/~mM$'
         layout.labels = self.component_system.labels
-        layout.ylim = (0, ymax)
-        plotting.set_layout(fig, ax, layout)
+        layout.y_lim = (y_min, y_max)
+        plotting.set_layout(ax, layout)
 
         return fig, ax
 
@@ -541,7 +547,9 @@ class SolutionVolume(BaseSolution):
         """
         x = self.time / 60
         y = self.solution * 1000
-        ymax = np.max(y)
+        
+        y_min = np.min(y)
+        y_max = np.max(y)
 
         fig, ax = plotting.setup_figure()
 
@@ -549,15 +557,15 @@ class SolutionVolume(BaseSolution):
         ax.plot(x,y)
 
         if overlay is not None:
-            ymax = 1.1*np.max(overlay)
+            y_max = 1.1*np.max(overlay)
             plotting.add_overlay(ax, overlay)
 
         layout = plotting.Layout()
         layout.x_label = '$time~/~min$'
         layout.y_label = '$V~/~L$'
-        layout.xlim = (start, end)
-        layout.ylim = (0, ymax)
-        plotting.set_layout(fig, ax, layout)
+        layout.x_lim = (start, end)
+        layout.y_lim = (y_min, y_max)
+        plotting.set_layout(ax, layout)
 
         return ax
 
@@ -584,6 +592,10 @@ def plot_solution_1D(
         ax_secondary = None
 
     species_index = 0
+    y_min = 0
+    y_max = 0
+    y_min_sec = 0
+    y_max_sec = 0
     for i, comp in enumerate(solution.component_system.components):
         color = next(ax._get_lines.prop_cycler)['color']
         if hide_labels:
@@ -602,7 +614,14 @@ def plot_solution_1D(
             y = secondary_axis.transform(total_concentration[...,i])
         else:
             y = total_concentration[...,i]
-
+        
+        if secondary_axis is not None and i in secondary_axis.component_indices:
+            y_min_sec = min(min(y), y_min_sec)
+            y_max_sec = max(max(y), y_max_sec)
+        else:
+            y_min = min(min(y), y_min)
+            y_max = max(max(y), y_max)
+            
         a.plot(
             time, y,
             label=label,
@@ -640,11 +659,20 @@ def plot_solution_1D(
                 )
                 species_index += 1
 
-    if layout is not None:
-        plotting.set_layout(
-            fig, ax,
-            layout,
-            show_legend, ax_secondary, secondary_layout
-        )
+    if layout.y_lim is None:
+        layout.y_lim = (y_min, 1.1*y_max)
+        
+    if secondary_axis is not None and secondary_layout is None:
+        secondary_layout = plotting.Layout()
+        secondary_layout.y_label = secondary_axis.y_label
+        secondary_layout.y_lim = (y_min_sec, 1.1*y_max_sec)
 
-    return ax, fig
+    plotting.set_layout(
+        ax,
+        layout,
+        show_legend, 
+        ax_secondary,
+        secondary_layout,
+    )
+    
+    return ax
