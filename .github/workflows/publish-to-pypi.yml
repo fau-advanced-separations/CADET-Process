@@ -7,7 +7,7 @@ on:
 jobs:
   build-and-publish:
     name: Build and publish CADET-Process to PyPI
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@master
     - name: Set up Python 3.9
