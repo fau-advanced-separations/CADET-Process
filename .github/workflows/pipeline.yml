@@ -1,0 +1,29 @@
+name: pipeline
+
+on: [push, pull_request]
+
+jobs:
+  test-job:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.7", "3.8", "3.9"]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+    - name: Test 
+      run: |
+		python -m unittest discover tests/
+    - name: Test Wheel install and import
+      run: |
+        pip install wheel
+        python setup.py bdist_wheel
+        cd dist
+        pip install CADETProcess*.whl
+        python -c "import CADETProcess; print(CADETProcess.__version__)"
