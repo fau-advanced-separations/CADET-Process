@@ -641,6 +641,8 @@ def plot_solution_1D(
                 species_index += 1
 
     if layout is not None:
+        if secondary_layout is None:
+            ax_secondary =  None
         plotting.set_layout(
             fig, ax,
             layout,
