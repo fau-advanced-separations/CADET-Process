@@ -356,7 +356,7 @@ class FlowSheet(metaclass=StructMeta):
             self._connections[destination].origins.remove(origin)
         except KeyError:
             raise CADETProcessError('Connection does not exist.')
-
+            
     @property
     def output_states(self):
         return self._output_states
@@ -444,8 +444,10 @@ class FlowSheet(metaclass=StructMeta):
         def list_factory():
             return [0,0,0,0]
 
-        total_flow_rates = {unit.name: list_factory() for unit in self.units}
         destination_flow_rates = {
+            unit.name: defaultdict(list_factory) for unit in self.units
+        }
+        origin_flow_rates = {
             unit.name: defaultdict(list_factory) for unit in self.units
         }
 
@@ -453,22 +455,33 @@ class FlowSheet(metaclass=StructMeta):
             solution = self.solve_flow_rates(flow_rates, output_states, i)
             if solution is not None:
                 for unit_index, unit in enumerate(self.units):
-                    total_flow_rates[unit.name][i] = \
-                        float(solution['Q_total_{}'.format(unit_index)])
-
                     for destination in self.connections[unit].destinations:
                         destination_index = self.get_unit_index(destination)
-                        destination_flow_rates[unit.name][destination.name][i] = \
-                            float(solution['Q_{}_{}'.format(unit_index, destination_index)])
+                        value = float(
+                            solution['Q_{}_{}'.format(unit_index, destination_index)]
+                        ) 
+                        destination_flow_rates[unit.name][destination.name][i] = value
+                        origin_flow_rates[destination.name][unit.name][i] = value
 
         flow_rates = Dict()
         for unit in self.units:
-            flow_rates[unit.name].total = np.array(total_flow_rates[unit.name])
             for destination, flow_rate in destination_flow_rates[unit.name].items():
                 flow_rates[unit.name].destinations[destination] = np.array(flow_rate)
+            for origin, flow_rate in origin_flow_rates[unit.name].items():
+                flow_rates[unit.name].origins[origin] = np.array(flow_rate)
+
+        for unit in self.units:
+            if not isinstance(unit, Source):
+                flow_rates[unit.name].total_in = np.sum(
+                    list(flow_rates[unit.name].origins.values()),axis=0
+                )
+            if not isinstance(unit, Sink):
+                flow_rates[unit.name].total_out = np.sum(
+                    list(flow_rates[unit.name].destinations.values()),axis=0
+                )
 
         return flow_rates
-
+    
     def solve_flow_rates(self, source_flow_rates, output_states, coeff=0):
         """Solve flow rates of system using sympy.
 

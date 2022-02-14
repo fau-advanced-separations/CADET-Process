@@ -458,7 +458,7 @@ class Cadet(SolverBase):
             chromatograms = [
                 Chromatogram(
                     process.time, solution[chrom.name].outlet[-1].solution,
-                    process.flow_rate_timelines[chrom.name].total,
+                    process.flow_rate_timelines[chrom.name].total_in,
                     name=chrom.name
                 )
                 for chrom in process.flow_sheet.chromatogram_sinks

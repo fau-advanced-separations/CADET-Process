@@ -5,18 +5,17 @@ import numpy as np
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess.processModel import (
     Source, Cstr, LumpedRateModelWithoutPores, Sink
-) 
+)
 from CADETProcess.processModel import FlowSheet
 
 class Test_flow_sheet(unittest.TestCase):
 
     def __init__(self, methodName='runTest'):
         super().__init__(methodName)
-    
+
     def setUp(self):
         self.component_system = ComponentSystem(2)
 
-    def create_ssr_flow_sheet(self):
         flow_sheet = FlowSheet(self.component_system)
 
         feed = Source(self.component_system, name='feed')
@@ -41,33 +40,26 @@ class Test_flow_sheet(unittest.TestCase):
         flow_sheet.add_feed_source(feed)
         flow_sheet.add_chromatogram_sink(outlet)
 
-        return flow_sheet
+        self.flow_sheet = flow_sheet
 
     def test_unit_names(self):
-        flow_sheet = self.create_ssr_flow_sheet()
         unit_names = ['feed', 'eluent', 'cstr', 'column', 'outlet']
 
-        self.assertEqual(list(flow_sheet.units_dict.keys()), unit_names)
+        self.assertEqual(list(self.flow_sheet.units_dict.keys()), unit_names)
 
 
     def test_sources(self):
-        flow_sheet = self.create_ssr_flow_sheet()
-
-        self.assertIn(flow_sheet.feed, flow_sheet.sources)
-        self.assertIn(flow_sheet.eluent, flow_sheet.sources)
-        self.assertIn(flow_sheet.cstr, flow_sheet.sources)
+        self.assertIn(self.flow_sheet.feed, self.flow_sheet.sources)
+        self.assertIn(self.flow_sheet.eluent, self.flow_sheet.sources)
+        self.assertIn(self.flow_sheet.cstr, self.flow_sheet.sources)
 
 
     def test_sinks(self):
-        flow_sheet = self.create_ssr_flow_sheet()
-
-        self.assertIn(flow_sheet.cstr, flow_sheet.sinks)
-        self.assertIn(flow_sheet.outlet, flow_sheet.sinks)
+        self.assertIn(self.flow_sheet.cstr, self.flow_sheet.sinks)
+        self.assertIn(self.flow_sheet.outlet, self.flow_sheet.sinks)
 
 
     def test_connections(self):
-        flow_sheet = self.create_ssr_flow_sheet()
-
         expected_connections = {
                 'feed': ['cstr'],
                 'eluent': ['column'],
@@ -75,167 +67,226 @@ class Test_flow_sheet(unittest.TestCase):
                 'column': ['cstr', 'outlet'],
                 'outlet': []}
 
-        # self.assertDictEqual(flow_sheet.connections_out, expected_connections)
+        # self.assertDictEqual(self.flow_sheet.connections_out, expected_connections)
 
 
     def test_ssr_flow_rates(self):
-        flow_sheet = self.create_ssr_flow_sheet()
-
         # Injection
-        flow_sheet.feed.flow_rate = 0
-        flow_sheet.eluent.flow_rate = 0
-        flow_sheet.cstr.flow_rate = 1
-        flow_sheet.set_output_state('column', 1)
+        self.flow_sheet.feed.flow_rate = 0
+        self.flow_sheet.eluent.flow_rate = 0
+        self.flow_sheet.cstr.flow_rate = 1
+        self.flow_sheet.set_output_state('column', 1)
 
         expected_flow_rates = {
             'feed': {
-                'total': (0, 0, 0, 0),
+                'total_out': (0, 0, 0, 0),
                 'destinations': {
                     'cstr': (0, 0, 0, 0),
                 },
             },
             'eluent': {
-                'total': (0, 0, 0, 0),
+                'total_out': (0, 0, 0, 0),
                 'destinations': {
                     'column': (0, 0, 0, 0),
                 },
             },
             'cstr': {
-                'total': (1.0, 0, 0, 0),
+                'total_in': (0.0, 0, 0, 0),
+                'total_out': (1.0, 0, 0, 0),
+                'origins': {
+                    'feed': (0, 0, 0, 0),
+                    'column': (0, 0, 0, 0),
+                },
                 'destinations': {
                     'column': (1.0, 0, 0, 0),
                 },
-            },            
+            },
             'column': {
-                'total': (1.0, 0, 0, 0),
-                'destinations': {
+                'total_in': (1.0, 0, 0, 0),
+                'total_out': (1.0, 0, 0, 0),
+                'origins': {
+                    'cstr': (1.0, 0, 0, 0),
+                    'eluent': (0, 0, 0, 0),
+                },
+                 'destinations': {
                     'cstr': (0, 0, 0, 0),
                     'outlet': (1.0, 0, 0, 0),
                 },
             },
             'outlet': {
-                'total': (1.0, 0, 0, 0),
+                'origins': {
+                    'column': (1.0, 0, 0, 0),
                 },
-        }        
+                'total_in': (1.0, 0, 0, 0),
+                },
+        }
 
-        np.testing.assert_equal(flow_sheet.get_flow_rates(), expected_flow_rates)
+        np.testing.assert_equal(
+            self.flow_sheet.get_flow_rates(), expected_flow_rates
+        )
 
         # Elution and Feed
-        flow_sheet.feed.flow_rate = 1
-        flow_sheet.eluent.flow_rate = 1
-        flow_sheet.cstr.flow_rate = 0
-        flow_sheet.set_output_state('column', 1)
+        self.flow_sheet.feed.flow_rate = 1
+        self.flow_sheet.eluent.flow_rate = 1
+        self.flow_sheet.cstr.flow_rate = 0
+        self.flow_sheet.set_output_state('column', 1)
 
         expected_flow_rates = {
             'feed': {
-                'total': (1.0, 0, 0, 0),
+                'total_out': (1, 0, 0, 0),
                 'destinations': {
-                    'cstr': (1.0, 0, 0, 0),
+                    'cstr': (1, 0, 0, 0),
                 },
             },
             'eluent': {
-                'total': (1.0, 0, 0, 0),
+                'total_out': (1, 0, 0, 0),
                 'destinations': {
-                    'column': (1.0, 0, 0, 0),
+                    'column': (1, 0, 0, 0),
                 },
             },
             'cstr': {
-                'total': (0, 0, 0, 0),
-                'destinations': {
+                'total_in': (1.0, 0, 0, 0),
+                'total_out': (0.0, 0, 0, 0),
+                'origins': {
+                    'feed': (1, 0, 0, 0),
                     'column': (0, 0, 0, 0),
                 },
-            },            
-            'column': {
-                'total': (1.0, 0, 0, 0),
                 'destinations': {
+                    'column': (0.0, 0, 0, 0),
+                },
+            },
+            'column': {
+                'total_in': (1.0, 0, 0, 0),
+                'total_out': (1.0, 0, 0, 0),
+                'origins': {
+                    'cstr': (0, 0, 0, 0),
+                    'eluent': (1, 0, 0, 0),
+                },
+                 'destinations': {
                     'cstr': (0, 0, 0, 0),
                     'outlet': (1.0, 0, 0, 0),
                 },
             },
             'outlet': {
-                'total': (1.0, 0, 0, 0),
+                'origins': {
+                    'column': (1.0, 0, 0, 0),
                 },
-        }        
-        
-        np.testing.assert_equal(flow_sheet.get_flow_rates(), expected_flow_rates)
+                'total_in': (1.0, 0, 0, 0),
+                },
+        }
+        np.testing.assert_equal(
+            self.flow_sheet.get_flow_rates(), expected_flow_rates
+        )
 
         # Elution
-        flow_sheet.feed.flow_rate = 0
-        flow_sheet.eluent.flow_rate = 1
-        flow_sheet.cstr.flow_rate = 0
-        flow_sheet.set_output_state('column', 1)
+        self.flow_sheet.feed.flow_rate = 0
+        self.flow_sheet.eluent.flow_rate = 1
+        self.flow_sheet.cstr.flow_rate = 0
+        self.flow_sheet.set_output_state('column', 1)
+
 
         expected_flow_rates = {
             'feed': {
-                'total': (0, 0, 0, 0),
+                'total_out': (0, 0, 0, 0),
                 'destinations': {
                     'cstr': (0, 0, 0, 0),
                 },
             },
             'eluent': {
-                'total': (1.0, 0, 0, 0),
+                'total_out': (1, 0, 0, 0),
                 'destinations': {
-                    'column': (1.0, 0, 0, 0),
+                    'column': (1, 0, 0, 0),
                 },
             },
             'cstr': {
-                'total': (0, 0, 0, 0),
-                'destinations': {
+                'total_in': (0.0, 0, 0, 0),
+                'total_out': (0.0, 0, 0, 0),
+                'origins': {
+                    'feed': (0, 0, 0, 0),
                     'column': (0, 0, 0, 0),
                 },
-            },            
-            'column': {
-                'total': (1.0, 0, 0, 0),
                 'destinations': {
+                    'column': (0.0, 0, 0, 0),
+                },
+            },
+            'column': {
+                'total_in': (1.0, 0, 0, 0),
+                'total_out': (1.0, 0, 0, 0),
+                'origins': {
+                    'cstr': (0, 0, 0, 0),
+                    'eluent': (1, 0, 0, 0),
+                },
+                 'destinations': {
                     'cstr': (0, 0, 0, 0),
                     'outlet': (1.0, 0, 0, 0),
                 },
             },
             'outlet': {
-                'total': (1.0, 0, 0, 0),
+                'origins': {
+                    'column': (1.0, 0, 0, 0),
+                },
+                'total_in': (1.0, 0, 0, 0),
                 },
         }
 
-        np.testing.assert_equal(flow_sheet.get_flow_rates(), expected_flow_rates)
+        np.testing.assert_equal(
+            self.flow_sheet.get_flow_rates(), expected_flow_rates
+        )
 
         # Recycle
-        flow_sheet.feed.flow_rate = 0
-        flow_sheet.eluent.flow_rate = 1
-        flow_sheet.cstr.flow_rate = 0
-        flow_sheet.set_output_state('column', 0)
+        self.flow_sheet.feed.flow_rate = 0
+        self.flow_sheet.eluent.flow_rate = 1
+        self.flow_sheet.cstr.flow_rate = 0
+        self.flow_sheet.set_output_state('column', 0)
+
 
         expected_flow_rates = {
             'feed': {
-                'total': (0, 0, 0, 0),
+                'total_out': (0, 0, 0, 0),
                 'destinations': {
                     'cstr': (0, 0, 0, 0),
                 },
             },
             'eluent': {
-                'total': (1.0, 0, 0, 0),
+                'total_out': (1, 0, 0, 0),
                 'destinations': {
-                    'column': (1.0, 0, 0, 0),
+                    'column': (1, 0, 0, 0),
                 },
             },
             'cstr': {
-                'total': (0, 0, 0, 0),
-                'destinations': {
-                    'column': (0, 0, 0, 0),
+                'total_in': (1.0, 0, 0, 0),
+                'total_out': (0.0, 0, 0, 0),
+                'origins': {
+                    'feed': (0, 0, 0, 0),
+                    'column': (1, 0, 0, 0),
                 },
-            },            
-            'column': {
-                'total': (1.0, 0, 0, 0),
                 'destinations': {
-                    'cstr': (1.0, 0, 0, 0),
-                    'outlet': (0, 0, 0, 0),
+                    'column': (0.0, 0, 0, 0),
+                },
+            },
+            'column': {
+                'total_in': (1.0, 0, 0, 0),
+                'total_out': (1.0, 0, 0, 0),
+                'origins': {
+                    'cstr': (0, 0, 0, 0),
+                    'eluent': (1, 0, 0, 0),
+                },
+                 'destinations': {
+                    'cstr': (1, 0, 0, 0),
+                    'outlet': (0.0, 0, 0, 0),
                 },
             },
             'outlet': {
-                'total': (0, 0, 0, 0),
+                'origins': {
+                    'column': (0, 0, 0, 0),
+                },
+                'total_in': (0, 0, 0, 0),
                 },
         }
 
-        np.testing.assert_equal(flow_sheet.get_flow_rates(), expected_flow_rates)
+        np.testing.assert_equal(
+            self.flow_sheet.get_flow_rates(), expected_flow_rates
+        )
 
     def create_clr_flow_sheet(self):
         flow_sheet = FlowSheet(n_comp=2, name='test')
@@ -255,7 +306,7 @@ class Test_flow_sheet(unittest.TestCase):
         return flow_sheet
 
     def test_clr_flow_rates(self):
-        """Currently not working in CADET-Process; Must be implemented with 
+        """Currently not working in CADET-Process; Must be implemented with
         CSTR/Recycle Pump
         """
         # flow_sheet = self.create_clr_flow_sheet()
@@ -275,7 +326,7 @@ class Test_flow_sheet(unittest.TestCase):
         #         'total': (1.0, 0, 0, 0),
         #         'destinations': {
         #             'outlet': (1.0, 0, 0, 0),
-        #             'column': (0, 0, 0, 0),                    
+        #             'column': (0, 0, 0, 0),
         #         },
         #     },
         #     'outlet': {
@@ -300,7 +351,7 @@ class Test_flow_sheet(unittest.TestCase):
         #         'total': (1.0, 0, 0, 0),
         #         'destinations': {
         #             'outlet': (0, 0, 0, 0),
-        #             'column': (1.0, 0, 0, 0),                    
+        #             'column': (1.0, 0, 0, 0),
         #         },
         #     },
         #     'outlet': {
@@ -325,13 +376,13 @@ class Test_flow_sheet(unittest.TestCase):
         #         'total': (1.0, 0, 0, 0),
         #         'destinations': {
         #             'outlet': (1.0, 0, 0, 0),
-        #             'column': (0, 0, 0, 0),                    
+        #             'column': (0, 0, 0, 0),
         #         },
         #     },
         #     'outlet': {
         #         'total': (1.0, 0, 0, 0),
         #         },
-        # } 
+        # }
 
         # np.testing.assert_equal(flow_sheet.get_flow_rates(), expected_flow_rates)
 

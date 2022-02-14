@@ -16,7 +16,7 @@ from CADETProcess.dynamicEvents import Section, TimeLine
 from CADETProcess.common import ProcessMeta
 
 from .flowSheet import FlowSheet
-from .unitOperation import Source
+from .unitOperation import Source, Sink
 
 class Process(EventHandler):
     """Class for defining the dynamic changes of a flow sheet.
@@ -94,7 +94,7 @@ class Process(EventHandler):
 
         feed_all = np.zeros((self.n_comp,))
         for feed in self.flow_sheet.feed_sources:
-            feed_flow_rate_time_line = flow_rate_timelines[feed.name].total
+            feed_flow_rate_time_line = flow_rate_timelines[feed.name].total_out
             feed_signal_param = 'flow_sheet.{}.c'.format(feed.name)
             if feed_signal_param in self.parameter_timelines:
                 feed_signal_time_line = self.parameter_timelines[feed_signal_param]
@@ -126,7 +126,7 @@ class Process(EventHandler):
 
         V_all = 0
         for eluent in self.flow_sheet.eluent_sources:
-            eluent_time_line = flow_rate_timelines[eluent.name]['total']
+            eluent_time_line = flow_rate_timelines[eluent.name]['total_out']
             V_eluent = eluent_time_line.integral()
             V_all += V_eluent
 
@@ -146,7 +146,9 @@ class Process(EventHandler):
         """
         flow_rate_timelines = {
             unit.name: {
-                'total': TimeLine(),
+                'total_in': TimeLine(),
+                'origins': defaultdict(TimeLine),
+                'total_out': TimeLine(),
                 'destinations': defaultdict(TimeLine)
                 }
             for unit in self.flow_sheet.units
@@ -165,15 +167,27 @@ class Process(EventHandler):
             flow_rates = self.flow_sheet.get_flow_rates(state)
 
             for unit, flow_rate in flow_rates.items():
-                section = Section(
-                    start, end, flow_rate.total, n_entries=1, degree=3
-                )
-                flow_rate_timelines[unit]['total'].add_section(section)
-                for dest, flow_rate_dest in flow_rate.destinations.items():
+                if not isinstance(self.flow_sheet[unit], Source):
                     section = Section(
-                        start, end, flow_rate_dest, n_entries=1, degree=3
+                        start, end, flow_rate.total_in, n_entries=1, degree=3
                     )
-                    flow_rate_timelines[unit]['destinations'][dest].add_section(section)
+                    flow_rate_timelines[unit]['total_in'].add_section(section)
+                    for orig, flow_rate_orig in flow_rate.origins.items():
+                        section = Section(
+                            start, end, flow_rate_orig, n_entries=1, degree=3
+                        )
+                        flow_rate_timelines[unit]['origins'][orig].add_section(section)
+
+                if not isinstance(self.flow_sheet[unit], Sink):
+                    section = Section(
+                        start, end, flow_rate.total_out, n_entries=1, degree=3
+                    )
+                    flow_rate_timelines[unit]['total_out'].add_section(section)
+                    for dest, flow_rate_dest in flow_rate.destinations.items():
+                        section = Section(
+                            start, end, flow_rate_dest, n_entries=1, degree=3
+                        )
+                        flow_rate_timelines[unit]['destinations'][dest].add_section(section)
 
         return Dict(flow_rate_timelines)
 
@@ -184,20 +198,31 @@ class Process(EventHandler):
         section_states = {
             time: {
                 unit.name: {
-                    'total': [],
-                    'destinations': defaultdict(dict)
+                    'total_in': [],
+                    'origins': defaultdict(dict),
+                    'total_out': [],
+                    'destinations': defaultdict(dict),
                 } for unit in self.flow_sheet.units
             } for time in self.section_times[0:-1]
         }
 
         for sec_time in self.section_times[0:-1]:
             for unit, unit_flow_rates in self.flow_rate_timelines.items():
-                section_states[sec_time][unit]['total'] = \
-                    unit_flow_rates['total'].coefficients(sec_time)[0]
+                if not isinstance(self.flow_sheet[unit], Source):
+                    section_states[sec_time][unit]['total_in'] = \
+                        unit_flow_rates['total_in'].coefficients(sec_time)[0]
 
-                for dest, tl in unit_flow_rates.destinations.items():
-                    section_states[sec_time][unit]['destinations'][dest] = \
-                        tl.coefficients(sec_time)[0]
+                    for orig, tl in unit_flow_rates.origins.items():
+                        section_states[sec_time][unit]['origins'][orig] = \
+                            tl.coefficients(sec_time)[0]
+
+                if not isinstance(self.flow_sheet[unit], Sink):
+                    section_states[sec_time][unit]['total_out'] = \
+                        unit_flow_rates['total_out'].coefficients(sec_time)[0]
+
+                    for dest, tl in unit_flow_rates.destinations.items():
+                        section_states[sec_time][unit]['destinations'][dest] = \
+                            tl.coefficients(sec_time)[0]
 
         return Dict(section_states)
 
