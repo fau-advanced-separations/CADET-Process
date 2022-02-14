@@ -187,9 +187,9 @@ class Fractionator(EventHandler):
         """
         return self.chromatograms[0].time
 
-    @plotting.save_fig
+    @plotting.create_and_save_figure
     def plot_fraction_signal(
-            self, start=0, end=None, index=0, secondary_axis=None
+            self, start=0, end=None, index=0, secondary_axis=None, ax=None
             ):
         """Plot the signal without the waste fractions.
 
@@ -197,14 +197,17 @@ class Fractionator(EventHandler):
         ----------
         start : float, optional
             Start time of the plot. The default is 0.
-        end : TYPE, optional
+        end : float, optional
             End time of the plot. The default is None.
         index : int, optional
             Chromatogram index. The default is 0.
+        ax : Axes
+            Axes to plot on.
 
         Returns
         -------
-        fig, axs.
+        ax : Axes
+            Axes with plot of parameter state.
 
         See also
         --------
@@ -217,8 +220,6 @@ class Fractionator(EventHandler):
         y = chrom.signal
         y_min = np.min(chrom.signal)
         y_max = 1.1*np.max(chrom.signal)
-
-        fig, ax = plotting.setup_figure()
 
         ax.plot(x,y)
 
@@ -262,9 +263,9 @@ class Fractionator(EventHandler):
         layout.x_lim = (start, end)
         layout.y_lim = (y_min, y_max)
 
-        plotting.set_layout(fig, ax, layout)
+        plotting.set_layout(ax, layout)
 
-        return fig, ax
+        return ax
 
     @property
     def fractionation_states(self):

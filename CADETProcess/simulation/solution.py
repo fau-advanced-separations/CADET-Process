@@ -23,6 +23,7 @@ Flux: NCOL * NRAD * NPARTYPE * NCOMP
 """
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import StructMeta
@@ -93,17 +94,17 @@ class SolutionIO(BaseSolution):
         self.time = time
         self.solution = solution
 
-    @plotting.save_fig
+    @plotting.create_and_save_figure
     def plot(
             self,
-            ax,
             start=0, end=None, y_max=None,
             layout=None,
             only_plot_total_concentrations=False,
             alpha=1, hide_labels=False,
             secondary_axis=None, secondary_layout=None,
-            show_legend=True
-            ):
+            show_legend=True,
+            ax=None
+        ):
         """Plots the whole time_signal for each component.
 
         Parameters
@@ -112,6 +113,13 @@ class SolutionIO(BaseSolution):
             start time for plotting
         end : float
             end time for plotting
+        ax : Axes
+            Axes to plot on.
+            
+        Returns
+        -------
+        ax : Axes
+            Axes object with buffer capacity plot.
 
         See also
         --------
@@ -124,9 +132,8 @@ class SolutionIO(BaseSolution):
             layout.y_label = '$c~/~mM$'
             layout.x_lim = (start, end)
 
-        ax, fig = plot_solution_1D(
+        ax = _plot_solution_1D(
             self,
-            ax=None,
             layout=layout,
             only_plot_total_concentrations=only_plot_total_concentrations,
             alpha=alpha,
@@ -134,9 +141,10 @@ class SolutionIO(BaseSolution):
             secondary_axis=secondary_axis,
             secondary_layout=secondary_layout,
             show_legend=show_legend,
+            ax=ax,
         )
 
-        return ax, fig
+        return ax
 
 
 class SolutionBulk(BaseSolution):
@@ -174,13 +182,15 @@ class SolutionBulk(BaseSolution):
         return len(self.radial_coordinates)
 
     @plotting.create_and_save_figure
-    def plot_at_time(self, ax, t, overlay=None, y_min=None, y_max=None):
+    def plot_at_time(self, t, overlay=None, y_min=None, y_max=None, ax=None):
         """Plot bulk solution over space at given time.
 
         Parameters
         ----------
         t : float
             time for plotting
+        ax : Axes
+            Axes to plot on.
 
         See also
         --------
@@ -199,13 +209,12 @@ class SolutionBulk(BaseSolution):
         if y_min is None:
             y_min = min(0, np.min(y))
 
-        fig, ax = plotting.setup_figure()
         ax.plot(x,y)
 
         plotting.add_text(ax, f'time = {t:.2f} s')
 
         if overlay is not None:
-            ymax = np.max(overlay)
+            y_max = np.max(overlay)
             plotting.add_overlay(ax, overlay)
 
         layout = plotting.Layout()
@@ -217,13 +226,15 @@ class SolutionBulk(BaseSolution):
         return ax
 
     @plotting.create_and_save_figure
-    def plot_at_location(self, ax, z, overlay=None, y_min=None, y_max=None):
+    def plot_at_location(self, z, overlay=None, y_min=None, y_max=None, ax=None):
         """Plot bulk solution over time at given location.
 
         Parameters
         ----------
         z : float
             space for plotting
+        ax : Axes
+            Axes to plot on.
 
         See also
         --------
@@ -242,7 +253,6 @@ class SolutionBulk(BaseSolution):
         if y_min is None:
             y_min = min(0, np.min(y))
 
-        fig, ax = plotting.setup_figure()
         ax.plot(x,y)
 
         plotting.add_text(ax, f'z = {z:.2f} m')
@@ -307,7 +317,7 @@ class SolutionParticle(BaseSolution):
             return
         return len(self.particle_coordinates)
 
-    def _plot_1D(self, t, ymax):
+    def _plot_1D(self, t, ymax, ax=None):
         x = self.axial_coordinates
 
         if not self.time[0] <= t <= self.time[-1]:
@@ -318,7 +328,6 @@ class SolutionParticle(BaseSolution):
         if ymax is None:
             ymax = 1.1*np.max(y)
 
-        fig, ax = plotting.setup_figure()
         ax.plot(x,y)
 
         plotting.add_text(ax, f'time = {t:.2f} s')
@@ -329,9 +338,9 @@ class SolutionParticle(BaseSolution):
         layout.y_lim = (0, ymax)
         plotting.set_layout(ax, layout)
 
-        return fig, ax
+        return ax
 
-    def _plot_2D(self, t, comp, vmax):
+    def _plot_2D(self, t, comp, vmax, ax=None):
         x = self.axial_coordinates
         y = self.particle_coordinates
 
@@ -360,8 +369,8 @@ class SolutionParticle(BaseSolution):
         
         return ax
 
-    @plotting.save_fig
-    def plot_at_time(self, t, comp=0, vmax=None):
+    @plotting.create_and_save_figure
+    def plot_at_time(self, t, comp=0, vmax=None, ax=None):
         """Plot particle liquid solution over space at given time.
 
         Parameters
@@ -370,15 +379,18 @@ class SolutionParticle(BaseSolution):
             time for plotting
         comp : int
             component index
+        ax : Axes
+            Axes to plot on.
 
         See also
         --------
         CADETProcess.plotting
         """
         if self.npar is None:
-            fig, ax = self._plot_1D(t, vmax)
+            ax = self._plot_1D(ax, t, vmax)
         else:
             ax = self._plot_2D(ax, t, comp, vmax)
+
         return ax
 
 class SolutionSolid(BaseSolution):
@@ -437,7 +449,7 @@ class SolutionSolid(BaseSolution):
         return len(self.particle_coordinates)
 
 
-    def _plot_1D(self, ax, t, y_min=None, y_max=None):
+    def _plot_1D(self, t, y_min=None, y_max=None, ax=None):
         x = self.axial_coordinates
 
         if not self.time[0] <= t <= self.time[-1]:
@@ -449,7 +461,7 @@ class SolutionSolid(BaseSolution):
             y_max = 1.1*np.max(y)
         if y_min is None:
             y_min = min(0, np.min(y))
-        
+
         ax.plot(x,y)
 
         plotting.add_text(ax, f'time = {t:.2f} s')
@@ -461,9 +473,9 @@ class SolutionSolid(BaseSolution):
         layout.y_lim = (y_min, y_max)
         plotting.set_layout(ax, layout)
 
-        return fig, ax
+        return ax
 
-    def _plot_2D(self, t, comp, state, vmax):
+    def _plot_2D(self, t, comp, state, vmax, ax=None):
         x = self.axial_coordinates
         y = self.particle_coordinates
 
@@ -476,7 +488,6 @@ class SolutionSolid(BaseSolution):
         if vmax is None:
             vmax = v.max()
 
-        fig, ax = plotting.setup_figure()
         mesh = ax.pcolormesh(x, y, v, shading='gouraud', vmin=0, vmax=vmax)
 
         plotting.add_text(ax, f'time = {t:.2f} s')
@@ -486,14 +497,13 @@ class SolutionSolid(BaseSolution):
         layout.x_label = '$z~/~m$'
         layout.y_label = '$r~/~m$'
         layout.labels = self.component_system.labels[c_i]
-        plotting.set_layout(fig, ax, layout)
-        fig.colorbar(mesh)
+        plotting.set_layout(ax, layout)
 
-        return fig, ax, mesh
+        return ax, mesh
 
-    @plotting.save_fig
-    def plot_at_time(self, t, comp=0, state=0, vmax=None):
-        """Plot bulk solution over spce at given time.
+    @plotting.create_and_save_figure
+    def plot_at_time(self, t, comp=0, state=0, vmax=None, ax=None):
+        """Plot particle solid solution over space at given time.
 
         Parameters
         ----------
@@ -505,17 +515,20 @@ class SolutionSolid(BaseSolution):
             bound state
         vmax : float, optional
             Maximum values for plotting.
+        ax : Axes
+            Axes to plot on.
 
         See also
         --------
         CADETProcess.plotting
         """
         if self.npar is None:
-            fig, ax = self._plot_1D(t, vmax)
+            ax = self._plot_1D(ax, t, vmax)
         else:
-            fig, ax, mesh = self._plot_2D(t, comp, state, vmax)
+            ax, mesh = self._plot_2D(ax, t, comp, vmax)
+            plt.colorbar(mesh, ax)
         return ax
-
+    
 
 class SolutionVolume(BaseSolution):
     """Volume solution (of e.g. CSTR).
@@ -530,8 +543,8 @@ class SolutionVolume(BaseSolution):
         """
         return (self.nt, 1)
 
-    @plotting.save_fig
-    def plot(self, start=0, end=None, overlay=None):
+    @plotting.create_and_save_figure
+    def plot(self, start=0, end=None, overlay=None, ax=None):
         """Plots the whole time_signal for each component.
 
         Parameters
@@ -540,6 +553,8 @@ class SolutionVolume(BaseSolution):
             start time for plotting
         end : float
             end time for plotting
+        ax : Axes
+            Axes to plot on.
 
         See also
         --------
@@ -550,9 +565,6 @@ class SolutionVolume(BaseSolution):
         
         y_min = np.min(y)
         y_max = np.max(y)
-
-        fig, ax = plotting.setup_figure()
-
 
         ax.plot(x,y)
 
@@ -569,20 +581,18 @@ class SolutionVolume(BaseSolution):
 
         return ax
 
-def plot_solution_1D(
-        solution,
-        ax=None, layout=None,
+def _plot_solution_1D(
+        solution, 
+        layout=None,
         only_plot_total_concentrations=False,
         alpha=1, hide_labels=False, hide_species_labels=True,
         secondary_axis=None, secondary_layout=None,
-        show_legend=True
+        show_legend=True,
+        ax=None,
         ):
 
     time = solution.time / 60
     sol = solution.solution
-
-    if ax is None:
-        fig, ax = plotting.setup_figure()
 
     total_concentration = solution.total_concentration
 

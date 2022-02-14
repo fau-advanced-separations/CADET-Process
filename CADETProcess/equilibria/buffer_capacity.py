@@ -343,8 +343,8 @@ def ionic_strength(component_system, buffer):
     z = np.asarray(component_system.charges)
     return 1/2 * np.sum(buffer*z**2)
 
-@plotting.save_fig
-def plot_buffer_capacity(reaction_system, buffer, pH=None):
+@plotting.create_and_save_figure
+def plot_buffer_capacity(reaction_system, buffer, pH=None, ax=None):
     """Plot buffer capacity of reaction system over pH at given concentration.
 
     Parameters
@@ -355,11 +355,13 @@ def plot_buffer_capacity(reaction_system, buffer, pH=None):
         Buffer concentration in mM.
     pH : np.array, optional
         Range of pH to be plotted.
+    ax : Axes
+        Axes to plot on.
 
     Returns
     -------
     ax : Axes
-        The new axes.
+        Axes object with buffer capacity plot.
     """
     if pH is None:
         pH = np.linspace(0,14,101)
@@ -367,7 +369,6 @@ def plot_buffer_capacity(reaction_system, buffer, pH=None):
     b = buffer_capacity(reaction_system, buffer, pH)
     b_total = np.sum(b, axis=1)
 
-    fig, ax = plotting.setup_figure()
     for i in range(reaction_system.component_system.n_components - 1):
         ax.plot(pH, b[:,i], label=reaction_system.component_system.components[i].name)
     ax.plot(pH, b[:,-1], label='Water')
@@ -378,12 +379,12 @@ def plot_buffer_capacity(reaction_system, buffer, pH=None):
     layout.y_label = 'buffer capacity / mM'
     layout.y_lim = (0, 1.1*np.max(b_total))
 
-    plotting.set_layout(fig, ax, layout)
+    plotting.set_layout(ax, layout)
 
     return ax
 
-@plotting.save_fig
-def plot_charge_distribution(reaction_system, pH=None, plot_cumulative=False):
+@plotting.create_and_save_figure
+def plot_charge_distribution(reaction_system, pH=None, plot_cumulative=False, ax=None):
     """Plot charge distribution of components over pH.
 
     Parameters
@@ -394,11 +395,13 @@ def plot_charge_distribution(reaction_system, pH=None, plot_cumulative=False):
         Range of pH to be plotted.
     plot_cumulative : Bool
         If True, only plot cumulative charge of each acid.
+    ax : Axes
+        Axes to plot on.
 
     Returns
     -------
     ax : Axes
-        The new axes.
+        Axes object with charge distribution plot.
     """
     if pH is None:
         pH = np.linspace(0,14,101)
@@ -412,7 +415,6 @@ def plot_charge_distribution(reaction_system, pH=None, plot_cumulative=False):
         c = charge_distribution(reaction_system, pH)
         layout.y_label = 'charge'
 
-    fig, ax = plotting.setup_figure()
     if plot_cumulative:
         labels = reaction_system.component_system.names
     else:
@@ -424,6 +426,6 @@ def plot_charge_distribution(reaction_system, pH=None, plot_cumulative=False):
     layout.x_label = '$pH$'
     layout.y_lim = (1.1*np.min(c), 1.1*np.max(c))
 
-    plotting.set_layout(fig, ax, layout)
+    plotting.set_layout(ax, layout)
 
     return ax
