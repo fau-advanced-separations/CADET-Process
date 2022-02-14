@@ -2,6 +2,7 @@ import unittest
 
 import numpy as np
 
+from CADETProcess import CADETProcessError
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess.processModel import (
     Source, Cstr, LumpedRateModelWithoutPores, Sink
@@ -14,8 +15,28 @@ class Test_flow_sheet(unittest.TestCase):
         super().__init__(methodName)
 
     def setUp(self):
+        # Batch
         self.component_system = ComponentSystem(2)
 
+        flow_sheet = FlowSheet(self.component_system)
+
+        feed = Source(self.component_system, name='feed')
+        eluent = Source(self.component_system, name='eluent')
+        column = LumpedRateModelWithoutPores(self.component_system, name='column')
+        outlet = Sink(self.component_system, name='outlet')
+
+        flow_sheet.add_unit(feed)
+        flow_sheet.add_unit(eluent)
+        flow_sheet.add_unit(column)
+        flow_sheet.add_unit(outlet)
+
+        flow_sheet.add_connection(feed, column)
+        flow_sheet.add_connection(eluent, column)
+        flow_sheet.add_connection(column, outlet)
+
+        self.batch_flow_sheet = flow_sheet
+
+        # SSR
         flow_sheet = FlowSheet(self.component_system)
 
         feed = Source(self.component_system, name='feed')
@@ -40,42 +61,60 @@ class Test_flow_sheet(unittest.TestCase):
         flow_sheet.add_feed_source(feed)
         flow_sheet.add_chromatogram_sink(outlet)
 
-        self.flow_sheet = flow_sheet
+        self.ssr_flow_sheet = flow_sheet
 
     def test_unit_names(self):
         unit_names = ['feed', 'eluent', 'cstr', 'column', 'outlet']
 
-        self.assertEqual(list(self.flow_sheet.units_dict.keys()), unit_names)
+        self.assertEqual(list(self.ssr_flow_sheet.units_dict.keys()), unit_names)
 
 
     def test_sources(self):
-        self.assertIn(self.flow_sheet.feed, self.flow_sheet.sources)
-        self.assertIn(self.flow_sheet.eluent, self.flow_sheet.sources)
-        self.assertIn(self.flow_sheet.cstr, self.flow_sheet.sources)
-
+        self.assertIn(self.ssr_flow_sheet.feed, self.ssr_flow_sheet.sources)
+        self.assertIn(self.ssr_flow_sheet.eluent, self.ssr_flow_sheet.sources)
+        self.assertIn(self.ssr_flow_sheet.cstr, self.ssr_flow_sheet.sources)
 
     def test_sinks(self):
-        self.assertIn(self.flow_sheet.cstr, self.flow_sheet.sinks)
-        self.assertIn(self.flow_sheet.outlet, self.flow_sheet.sinks)
-
+        self.assertIn(self.ssr_flow_sheet.cstr, self.ssr_flow_sheet.sinks)
+        self.assertIn(self.ssr_flow_sheet.outlet, self.ssr_flow_sheet.sinks)
 
     def test_connections(self):
+        feed = self.ssr_flow_sheet['feed']
+        eluent = self.ssr_flow_sheet['eluent']
+        cstr = self.ssr_flow_sheet['cstr']
+        column = self.ssr_flow_sheet['column']
+        outlet = self.ssr_flow_sheet['outlet']
         expected_connections = {
-                'feed': ['cstr'],
-                'eluent': ['column'],
-                'cstr': ['column'],
-                'column': ['cstr', 'outlet'],
-                'outlet': []}
+            feed: {
+                'origins': [],
+                'destinations': [cstr],
+            },
+            eluent: {
+                'origins': [],
+                'destinations': [column],
+            },
+            cstr: {
+                'origins': [feed, column],
+                'destinations': [column],
+            },
+            column: {
+                'origins': [cstr, eluent],
+                'destinations': [cstr, outlet],
+            },
+            outlet: {
+                'origins': [column],
+                'destinations': [],
+            },
+        }
 
-        # self.assertDictEqual(self.flow_sheet.connections_out, expected_connections)
+        self.assertDictEqual(self.ssr_flow_sheet.connections, expected_connections)
 
-
-    def test_ssr_flow_rates(self):
+    def test_flow_rates(self):
         # Injection
-        self.flow_sheet.feed.flow_rate = 0
-        self.flow_sheet.eluent.flow_rate = 0
-        self.flow_sheet.cstr.flow_rate = 1
-        self.flow_sheet.set_output_state('column', 1)
+        self.ssr_flow_sheet.feed.flow_rate = 0
+        self.ssr_flow_sheet.eluent.flow_rate = 0
+        self.ssr_flow_sheet.cstr.flow_rate = 1
+        self.ssr_flow_sheet.set_output_state('column', 1)
 
         expected_flow_rates = {
             'feed': {
@@ -122,14 +161,14 @@ class Test_flow_sheet(unittest.TestCase):
         }
 
         np.testing.assert_equal(
-            self.flow_sheet.get_flow_rates(), expected_flow_rates
+            self.ssr_flow_sheet.get_flow_rates(), expected_flow_rates
         )
 
         # Elution and Feed
-        self.flow_sheet.feed.flow_rate = 1
-        self.flow_sheet.eluent.flow_rate = 1
-        self.flow_sheet.cstr.flow_rate = 0
-        self.flow_sheet.set_output_state('column', 1)
+        self.ssr_flow_sheet.feed.flow_rate = 1
+        self.ssr_flow_sheet.eluent.flow_rate = 1
+        self.ssr_flow_sheet.cstr.flow_rate = 0
+        self.ssr_flow_sheet.set_output_state('column', 1)
 
         expected_flow_rates = {
             'feed': {
@@ -175,15 +214,14 @@ class Test_flow_sheet(unittest.TestCase):
                 },
         }
         np.testing.assert_equal(
-            self.flow_sheet.get_flow_rates(), expected_flow_rates
+            self.ssr_flow_sheet.get_flow_rates(), expected_flow_rates
         )
 
         # Elution
-        self.flow_sheet.feed.flow_rate = 0
-        self.flow_sheet.eluent.flow_rate = 1
-        self.flow_sheet.cstr.flow_rate = 0
-        self.flow_sheet.set_output_state('column', 1)
-
+        self.ssr_flow_sheet.feed.flow_rate = 0
+        self.ssr_flow_sheet.eluent.flow_rate = 1
+        self.ssr_flow_sheet.cstr.flow_rate = 0
+        self.ssr_flow_sheet.set_output_state('column', 1)
 
         expected_flow_rates = {
             'feed': {
@@ -230,14 +268,14 @@ class Test_flow_sheet(unittest.TestCase):
         }
 
         np.testing.assert_equal(
-            self.flow_sheet.get_flow_rates(), expected_flow_rates
+            self.ssr_flow_sheet.get_flow_rates(), expected_flow_rates
         )
 
         # Recycle
-        self.flow_sheet.feed.flow_rate = 0
-        self.flow_sheet.eluent.flow_rate = 1
-        self.flow_sheet.cstr.flow_rate = 0
-        self.flow_sheet.set_output_state('column', 0)
+        self.ssr_flow_sheet.feed.flow_rate = 0
+        self.ssr_flow_sheet.eluent.flow_rate = 1
+        self.ssr_flow_sheet.cstr.flow_rate = 0
+        self.ssr_flow_sheet.set_output_state('column', 0)
 
 
         expected_flow_rates = {
@@ -285,107 +323,14 @@ class Test_flow_sheet(unittest.TestCase):
         }
 
         np.testing.assert_equal(
-            self.flow_sheet.get_flow_rates(), expected_flow_rates
+            self.ssr_flow_sheet.get_flow_rates(), expected_flow_rates
         )
-
-    def create_clr_flow_sheet(self):
-        flow_sheet = FlowSheet(n_comp=2, name='test')
-
-        feed = Source(n_comp=2, name='feed')
-        column = LumpedRateModelWithoutPores(n_comp=2, name='column')
-        outlet = Sink(n_comp=2, name='outlet')
-
-        flow_sheet.add_unit(feed)
-        flow_sheet.add_unit(column)
-        flow_sheet.add_unit(outlet)
-
-        flow_sheet.add_connection(feed, column)
-        flow_sheet.add_connection(column, outlet)
-        flow_sheet.add_connection(column, column)
-
-        return flow_sheet
-
-    def test_clr_flow_rates(self):
-        """Currently not working in CADET-Process; Must be implemented with
-        CSTR/Recycle Pump
-        """
-        # flow_sheet = self.create_clr_flow_sheet()
-
-        # # Injection
-        # flow_sheet.feed.flow_rate = 1
-        # flow_sheet.set_output_state('column', 0)
-
-        # expected_flow_rates = {
-        #     'feed': {
-        #         'total': (1.0, 0, 0, 0),
-        #         'destinations': {
-        #             'column': (1.0, 0, 0, 0),
-        #         },
-        #     },
-        #     'column': {
-        #         'total': (1.0, 0, 0, 0),
-        #         'destinations': {
-        #             'outlet': (1.0, 0, 0, 0),
-        #             'column': (0, 0, 0, 0),
-        #         },
-        #     },
-        #     'outlet': {
-        #         'total': (1.0, 0, 0, 0),
-        #         },
-        # }
-
-        # np.testing.assert_equal(flow_sheet.get_flow_rates(), expected_flow_rates)
-
-        # # Recycle
-        # flow_sheet.feed.flow_rate = 0
-        # flow_sheet.set_output_state('column', [0, 1])
-
-        # expected_flow_rates = {
-        #     'feed': {
-        #         'total': (0, 0, 0, 0),
-        #         'destinations': {
-        #             'column': (0, 0, 0, 0),
-        #         },
-        #     },
-        #     'column': {
-        #         'total': (1.0, 0, 0, 0),
-        #         'destinations': {
-        #             'outlet': (0, 0, 0, 0),
-        #             'column': (1.0, 0, 0, 0),
-        #         },
-        #     },
-        #     'outlet': {
-        #         'total': (0, 0, 0, 0),
-        #         },
-        # }
-
-        # np.testing.assert_equal(flow_sheet.get_flow_rates(), expected_flow_rates)
-
-        # # Elution
-        # flow_sheet.feed.flow_rate = 1
-        # flow_sheet.set_output_state('column', 0)
-
-        # expected_flow_rates = {
-        #     'feed': {
-        #         'total': (1.0, 0, 0, 0),
-        #         'destinations': {
-        #             'column': (1.0, 0, 0, 0),
-        #         },
-        #     },
-        #     'column': {
-        #         'total': (1.0, 0, 0, 0),
-        #         'destinations': {
-        #             'outlet': (1.0, 0, 0, 0),
-        #             'column': (0, 0, 0, 0),
-        #         },
-        #     },
-        #     'outlet': {
-        #         'total': (1.0, 0, 0, 0),
-        #         },
-        # }
-
-        # np.testing.assert_equal(flow_sheet.get_flow_rates(), expected_flow_rates)
-
-
+        
+    def test_connectivity(self):
+        self.batch_flow_sheet.remove_unit('outlet')
+        
+        with self.assertRaises(CADETProcessError):
+            self.batch_flow_sheet.check_connections()
+            
 if __name__ == '__main__':
     unittest.main()
