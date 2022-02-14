@@ -9,7 +9,7 @@ from CADETProcess.dataStructure import (
     String, Switch,
     UnsignedInteger, UnsignedFloat,
     DependentlySizedUnsignedList, DependentlySizedNdArray,
-    Polynomial, NdPolynomial
+    Polynomial, NdPolynomial, DependentlySizedList
 )
 
 from .componentSystem import ComponentSystem
@@ -375,7 +375,7 @@ class TubularReactor(UnitBaseClass):
         'axial_dispersion', 'flow_direction'
     ]
 
-    c = DependentlySizedUnsignedList(dep='n_comp', default=0)
+    c = DependentlySizedList(dep='n_comp', default=0)
     _initial_state = UnitBaseClass._initial_state + ['c']
 
     def __init__(self, *args, **kwargs):
