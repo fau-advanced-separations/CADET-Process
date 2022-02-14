@@ -289,6 +289,11 @@ class Cadet(SolverBase):
         cadet.root = self.get_process_config(process)
         cadet.filename = file_path
         cadet.save()
+        
+    def run_h5(self, file_path):
+        cadet = CadetAPI()
+        cadet.filename = file_path
+        cadet.run(timeout=self.timeout)
 
     def load_from_h5(self, file_path):
         cadet = CadetAPI()
