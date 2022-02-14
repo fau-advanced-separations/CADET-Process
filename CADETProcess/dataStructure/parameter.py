@@ -187,11 +187,20 @@ class Dict(Typed):
 
 class NdArray(Container):
     ty = np.ndarray
+    
+    def _check(self, value, recursive=False):
+        if isinstance(value, (int, float)):
+            value = np.array((value,))
+
+        if recursive:
+            return super()._check(value, recursive)
+
+        return True
 
     def check_content_range(self, value):
-        if np.any(self.lb_op(value,self.lb)):
+        if np.any(self.lb_op(value, self.lb)):
             raise ValueError("Value exceeds lower bound")
-        elif np.any(self.ub_op(value,self.ub)):
+        elif np.any(self.ub_op(value, self.ub)):
             raise ValueError("Value exceeds upper bound")
 
     def get_expected_shape(self, instance):
@@ -222,8 +231,11 @@ class NdArray(Container):
 
     def get_default_values(self, instance):
         expected_shape = self.get_expected_shape(instance)
-
-        return super().default * np.ones(expected_shape)
+        
+        if super().default is None:
+            return
+        else:
+            return super().default * np.ones(expected_shape)
 
 class Dimensionalized(Parameter):
     """
