@@ -74,6 +74,8 @@ def setup_figure(style=None):
         style = this.style
     set_style(style)
     
+    fig.tight_layout()
+    
     return fig, ax
 
 class SecondaryAxis(Structure):
@@ -93,7 +95,7 @@ class Layout(Structure):
     y_lim = Tuple()
     
 def set_layout(
-        fig, ax, 
+        ax, 
         layout, 
         show_legend=True, 
         ax_secondary=None,
@@ -128,8 +130,6 @@ def set_layout(
     else:
         ax.legend(lines, labels, loc=0)
 
-    fig.tight_layout()
-    
 class Tick(Structure):
     location: Tuple()
     label: String()
@@ -215,18 +215,25 @@ def add_hlines(ax, hlines):
     for line in hlines:
         ax.hlines(line.y, line.x_min, line.x_max)
 
-def save_fig(func):
-    def wrapper(*args, show=True, file_name=None, **kwargs):
+from functools import wraps
+def create_and_save_figure(func):
+    @wraps(func)
+    def wrapper(*args, ax=None, show=True, file_name=None, style='medium', **kwargs):
         """Wrapper around plot function.
 
         Parameters
         ----------
+        ax : Axes, optional
+           Axes to plot on. If None, a new standard figure will be created.
         show : bool, optional
             If True, show plot. The default is False.
         file_name : str, optional
             Path for saving figure. If None, figure is not saved.
         """
-        artist = func(*args, **kwargs)
+        if ax is None:
+            fig, ax = setup_figure()
+            
+        artist = func(*args, ax=ax, **kwargs)
         if show: 
             plt.show()
 
@@ -237,3 +244,4 @@ def save_fig(func):
         
         return artist
     return wrapper
+

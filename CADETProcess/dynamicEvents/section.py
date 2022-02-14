@@ -319,16 +319,24 @@ class TimeLine():
     def end(self):
         return self.section_times[-1]
 
-    @plotting.save_fig
-    def plot(self):
+    @plotting.create_and_save_figure
+    def plot(self, ax):
         """Plot section state over time.
+        Parameters
+        ----------
+        ax : Axes
+            Axes to plot on.
+
+        Returns
+        -------
+        ax : Axes
+            Axes with plot of parameter state.
         """
         start = self.sections[0].start
         end = self.sections[-1].end
         time = np.linspace(start, end, 1001)/60
         y = self.value(time)
 
-        fig, ax = plotting.setup_figure()
         ax.plot(time,y)
 
         layout = plotting.Layout()
@@ -337,7 +345,7 @@ class TimeLine():
         layout.x_lim = (start/60, end/60)
         layout.y_lim = (np.min(y), 1.1*np.max(y))
 
-        plotting.set_layout(fig, ax, layout)
+        plotting.set_layout(ax, layout)
 
         return ax
 

@@ -30,8 +30,8 @@ class TimeSignal(metaclass=StructMeta):
         self.name = name
         self.cycle_time = float(max(self.time))
 
-    @plotting.save_fig
-    def plot(self, start=0, end=None):
+    @plotting.create_and_save_figure
+    def plot(self, start=0, end=None, ax=None):
         """Plots the whole time_signal for each component.
 
         Parameters
@@ -40,6 +40,13 @@ class TimeSignal(metaclass=StructMeta):
             start time for plotting
         end : float
             end time for plotting
+        ax : Axes
+            Axes to plot on.
+
+        Returns
+        -------
+        ax : Axes
+            Axes with plot of time signal.
 
         See also
         --------
@@ -49,7 +56,6 @@ class TimeSignal(metaclass=StructMeta):
         x = self.time / 60
         y = self.signal
 
-        fig, ax = plotting.setup_figure()
         ax.plot(x,y)
 
         layout = plotting.Layout()
@@ -58,7 +64,7 @@ class TimeSignal(metaclass=StructMeta):
         layout.x_lim = (start, end)
         layout.y_lim = (np.min(y), 1.1*np.max(y))
 
-        plotting.set_layout(fig, ax, layout)
+        plotting.set_layout(ax, layout)
 
         return ax
 
@@ -89,8 +95,8 @@ class TimeSignal(metaclass=StructMeta):
 
         return np.nan_to_num(purity)
 
-    @plotting.save_fig
-    def plot_purity(self, start=0, end=None):
+    @plotting.create_and_save_figure
+    def plot_purity(self, start=0, end=None, ax=None):
         """Plots the local purity for each component of the concentration
         profile.
 
@@ -99,7 +105,14 @@ class TimeSignal(metaclass=StructMeta):
         start : float
             start time for plotting
         end : float
-            ent time for plotting
+            end time for plotting
+        ax : Axes
+            Axes to plot on.
+
+        Returns
+        -------
+        ax : Axes
+            Axes with plot of purity over time.
 
         See also
         --------
@@ -109,7 +122,6 @@ class TimeSignal(metaclass=StructMeta):
         x = self.time / 60
         y = self.local_purity * 100
 
-        fig, ax = plotting.setup_figure()
         ax.plot(x,y)
 
         layout = plotting.Layout()
@@ -118,7 +130,7 @@ class TimeSignal(metaclass=StructMeta):
         layout.x_lim = (start, end)
         layout.y_lim = (np.min(y), 1.1*np.max(y))
 
-        plotting.set_layout(fig, ax, layout)
+        plotting.set_layout(ax, layout)
 
         return ax
 

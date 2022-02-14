@@ -532,12 +532,25 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
 
     def plot_events(self):
         """Plot parameter state as function of time.
+
+        Parameters
+        ----------
+        ax : Axes
+            Axes to plot on.
+
+        Returns
+        -------
+        ax : Axes
+            Axes with plot of parameter state.
         """
         time = np.linspace(0, self.cycle_time, 1001)
-        for parameter, tl in self.parameter_timelines.items():
-            y = tl.value(time)
 
+        axs = []
+
+        for parameter, tl in self.parameter_timelines.items():
             fig, ax = plotting.setup_figure()
+
+            y = tl.value(time)
 
             layout = plotting.Layout()
             layout.title = str(parameter)
@@ -546,7 +559,11 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
 
             ax.plot(time/60, y)
 
-            plotting.set_layout(fig, ax, layout)
+            plotting.set_layout(ax, layout)
+            
+            axs.append(ax)
+
+        return axs
 
 class Event():
     """Class for defining dynamic changes.
