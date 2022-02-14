@@ -8,7 +8,9 @@ from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import frozen_attributes
 from CADETProcess.dataStructure import StructMeta, UnsignedInteger, String
 from .componentSystem import ComponentSystem
-from .unitOperation import UnitBaseClass, SourceMixin, SinkMixin, Sink
+from .unitOperation import (
+    UnitBaseClass, Source, SourceMixin, Sink, SinkMixin, Cstr
+)
 from .binding import NoBinding
 
 
@@ -227,6 +229,7 @@ class FlowSheet(metaclass=StructMeta):
             self.add_chromatogram_sink(unit)
 
 
+    @_unit_name_decorator
     @update_parameters_decorator
     def remove_unit(self, unit):
         """Remove unit from flow sheet.
@@ -357,6 +360,38 @@ class FlowSheet(metaclass=StructMeta):
         except KeyError:
             raise CADETProcessError('Connection does not exist.')
             
+    def check_connections(self):
+        for unit, connections in self.connections.items():
+            if isinstance(unit, Source):
+                if len(connections.origins) != 0:
+                    raise CADETProcessError(
+                        "Inlet unit cannot have ingoing stream."
+                    )
+                if len(connections.destinations) == 0:
+                    raise CADETProcessError(
+                        f" Unit '{unit.name}' does not have outgoing stream."
+                    )
+            elif isinstance(unit, Sink):
+                if len(connections.destinations) != 0:
+                    raise CADETProcessError(
+                        "Outlet unit cannot have outgoing stream."
+                    )
+                if len(connections.origins) == 0:
+                    raise CADETProcessError(
+                        f"Unit '{unit.name}' does not have ingoing stream."
+                    )
+            elif isinstance(unit, Cstr):
+                continue
+            else:
+                if len(connections.origins) == 0:
+                    raise CADETProcessError(
+                        f"Unit '{unit.name}' does not have ingoing stream."
+                    )
+                if len(connections.destinations) == 0:
+                    raise CADETProcessError(
+                        f" Unit '{unit.name}' does not have outgoing stream."
+                    )
+
     @property
     def output_states(self):
         return self._output_states
@@ -579,6 +614,16 @@ class FlowSheet(metaclass=StructMeta):
 
         return solution
 
+    def check_flow_rates(self, state=None):
+        flow_rates = self.get_flow_rates(state)
+        for unit, q in flow_rates.items():
+            if isinstance(unit, (SourceMixin, SinkMixin)):
+                continue
+            if not np.all(q.total_in == q.total_out):
+                raise CADETProcessError(
+                    f"Unbalanced flow rate for unit '{unit}'."
+                )
+        
     @property
     def feed_sources(self):
         """list: List of sources considered for calculating recovery yield.
