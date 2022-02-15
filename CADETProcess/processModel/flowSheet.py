@@ -436,7 +436,7 @@ class FlowSheet(metaclass=StructMeta):
                 raise CADETProcessError(
                     'Expected length {}.'.format(state_length))
 
-            elif sum(state) != 1:
+            elif not np.isclose(sum(state), 1):
                 raise CADETProcessError('Sum of fractions must be 1')
 
             output_state = state
