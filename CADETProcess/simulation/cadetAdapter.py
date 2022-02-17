@@ -588,7 +588,7 @@ class Cadet(SolverBase):
         """Helper function for getting unit index in CADET format unit_xxx.
 
         Parameters
-        -----------
+        ----------
         process : Process
             process to be simulated
         unit : UnitOperation

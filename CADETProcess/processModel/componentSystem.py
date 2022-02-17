@@ -129,6 +129,9 @@ class ComponentSystem(metaclass=StructMeta):
             counter += comp.n_species
 
         return total_concentration
+    
+    def __repr__(self):
+        return f'{self.__class__.__name__}({self.names})'
 
 
 class Component(metaclass=StructMeta):

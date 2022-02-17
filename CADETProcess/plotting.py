@@ -65,7 +65,7 @@ def set_style(style='medium'):
         plt.rcParams['axes.prop_cycle'] = chromapy_cycler
     else:
         raise CADETProcessError('Not a valid style')
-
+set_style()
 
 def setup_figure(style=None):
     fig, ax = plt.subplots()
@@ -231,7 +231,7 @@ def create_and_save_figure(func):
             Path for saving figure. If None, figure is not saved.
         """
         if ax is None:
-            fig, ax = setup_figure()
+            fig, ax = setup_figure(style)
             
         artist = func(*args, ax=ax, **kwargs)
         if show: 

@@ -626,7 +626,7 @@ class OptimizationProblem(metaclass=StructMeta):
         """Add linear inequality constraints.
 
         Parameters
-        -----------
+        ----------
         opt_vars : list of strings
             Names of the OptimizationVariable to be added.
         factors : list of  integers
@@ -635,13 +635,13 @@ class OptimizationProblem(metaclass=StructMeta):
             Constraint of inequality constraint; default set to zero.
 
         Raises
-        -------
+        ------
         CADETProcessError
             If optimization variables do not exist.
             If length of factors does not match length of optimization variables.
 
         See also
-        ---------
+        --------
         linear_constraints
         remove_linear_constraint
         linear_equality_constraints
@@ -743,8 +743,8 @@ class OptimizationProblem(metaclass=StructMeta):
         flag : bool
             Returns True if linear inequality constraints are met. False otherwise.
 
-        See also:
-        ---------
+        See Also
+        --------
         linear_constraints
         evaluate_linear_constraints
         A
@@ -779,7 +779,7 @@ class OptimizationProblem(metaclass=StructMeta):
         """Add linear equality constraints.
 
         Parameters
-        -----------
+        ----------
         opt_vars : list of strings
             Names of the OptimizationVariable to be added.
         factors : list of  integers
@@ -788,7 +788,7 @@ class OptimizationProblem(metaclass=StructMeta):
             Constraint of equality constraint; default set to zero.
 
         Raises
-        -------
+        ------
         CADETProcessError
             If optimization variables do not exist.
             If length of factors does not match length of optimization variables.
@@ -1017,7 +1017,7 @@ class OptimizationVariable():
     Raises a CADETProcessErrorif the attribute to be set is not valid.
 
     Attributes
-    -----------
+    ----------
     evaluation_object :  obj
         Object to be evaluated, can be a wrapped process or a fractionation
         object.

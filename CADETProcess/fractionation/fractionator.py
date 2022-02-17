@@ -481,7 +481,7 @@ class Fractionator(EventHandler):
         local purity profile is higher than the purity required.
 
         Parameters
-        -----------
+        ----------
         purity_required : float or list of floats
             Minimum purity required for the components in the fractionation
 
