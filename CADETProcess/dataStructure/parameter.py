@@ -123,6 +123,12 @@ class Container(Typed):
 
 class Bool(Typed):
     ty = bool
+    
+    def __set__(self, instance, value):
+        if isinstance(value, int) and value in [0,1]:
+            value = bool(value)
+
+        super().__set__(instance, value)
 
 class Integer(Typed):
     ty = int
