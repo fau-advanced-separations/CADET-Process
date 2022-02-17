@@ -1,9 +1,8 @@
 import copy
 import unittest
 
-
 from CADETProcess import CADETProcessError
-from examples.forward_simulation.batch_binary import batch_binary
+from examples.operating_modes.batch_elution import process
 
 class Test_process(unittest.TestCase):
 
@@ -11,10 +10,8 @@ class Test_process(unittest.TestCase):
         super().__init__(methodName)
         
     def create_process(self):
-        process = copy.deepcopy(batch_binary)
+        return copy.deepcopy(process)
 
-        return process
-    
     def test_inlet_profile(self):
         pass
         

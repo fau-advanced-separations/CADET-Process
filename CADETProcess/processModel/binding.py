@@ -13,12 +13,17 @@ class BindingBaseClass(metaclass=StructMeta):
 
     Attributes
     ----------
-    n_comp : UnsignedInteger
-        number of components.
-    parameters : dict
-        dict with parameter values.
     name : String
         name of the binding model.
+    component_system : ComponentSystem
+        system of components.
+    n_comp : int
+        number of components.
+    is_kinetic : bool
+        If False, adsorption is assumed to be in rapid equilibriu. 
+        The default is True.
+    parameters : dict
+        dict with parameter values.
     """
     name = String()
     is_kinetic = Bool(default=True)
@@ -68,9 +73,8 @@ class BindingBaseClass(metaclass=StructMeta):
 
 
     def __repr__(self):
-        return '{}(n_comp={}, name=\'{}\')'.format(
-            self.__class__.__name__, self.n_comp, self.name
-        )
+        return f"{self.__class__.__name__}(\
+            component_system={self.component_system}, name={self.name})')"
 
     def __str__(self):
         return self.name

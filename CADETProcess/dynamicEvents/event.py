@@ -30,7 +30,7 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
     durations_dict : dict
         Dictionary with the information abaout all added durations of a process.
 
-    See also
+    See Also
     --------
     Events
     add_event
@@ -92,7 +92,7 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
         CADETProcessError
             If EventPerformer is not found in EventHandler
 
-        See also
+        See Also
         --------
         Event
         remove_event
@@ -130,7 +130,7 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
         ----
         !!! Check remove_event_dependencies
 
-        See also
+        See Also
         --------
         add_event
         remove_event_dependency
@@ -159,7 +159,7 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
         CADETProcessError
             If Duration already exists.
 
-        See also
+        See Also
         --------
         durations
         remove_duration
@@ -188,7 +188,7 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
         CADETProcessError
             If Duration is not found.
 
-        See also
+        See Also
         --------
         Duration
         add_duration
@@ -222,7 +222,7 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
         event object.
 
         Parameters
-        ---------
+        ----------
         dependent_event : str
             Name of the event whose value will depend on other events.
         independent_events : list
@@ -239,7 +239,7 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
             combined_evt_dur dictionary.
             If length of factors does not equal length of independent events.
 
-        See also
+        See Also
         --------
         Event
         add_dependency
@@ -278,7 +278,7 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
         dependency.
 
         Parameters
-        ---------
+        ----------
         dependent_event : str
             Name of the event whose value will depend on other events.
         independent_events : list
@@ -291,8 +291,8 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
             If one or more independent event is not in list events and
             durations.
 
-        See also:
-        ---------
+        See Also
+        --------
         remove_dependecy
         Event
         """
@@ -598,7 +598,7 @@ class Event():
         If performner does not have attribute.
         If state is not valid for attribute.
 
-    See also:
+    See Also:
     ---------
     EventHandler
     Duration

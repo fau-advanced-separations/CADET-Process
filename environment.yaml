@@ -1,0 +1,5 @@
+name: cadet-process
+channels:
+  - conda-forge
+dependencies:
+  - cadet

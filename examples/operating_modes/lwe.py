@@ -109,6 +109,7 @@ lwe.add_event_dependency('pos_grad_start', ['neg_grad_start'])
 if __name__ == '__main__':
     from CADETProcess.simulation import Cadet
     process_simulator = Cadet()
+    process_simulator.unit_return_parameters.write_solution_particle = True
 
     lwe_sim_results = process_simulator.simulate(lwe)
         

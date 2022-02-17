@@ -6,16 +6,15 @@ Optimize Batch Chromatography of Binary Mixture
 ===============================================
 
 """
-
-import sys
-sys.path.append('../../')
-
-from CADETProcess.simulation import Cadet, ProcessEvaluator
+from CADETProcess.simulation import Cadet
+from CADETProcess.evaluator import SimulateAndFractionate
 from CADETProcess.fractionation import FractionationOptimizer
 from CADETProcess.optimization import OptimizationProblem
 from CADETProcess.common import RankedPerformance
 
-from examples.forward_simulation.batch_binary import batch_binary
+import sys
+sys.path.append('../')
+from operating_modes.batch_elution import process
 
 process_simulator = Cadet()
 process_simulator.evaluate_stationarity = True
@@ -28,9 +27,9 @@ def fractionation_objective(performance):
 
 fractionation_optimizer = FractionationOptimizer(purity_required, fractionation_objective)
 
-evaluator = ProcessEvaluator(process_simulator, fractionation_optimizer)
+evaluator = SimulateAndFractionate(process_simulator, fractionation_optimizer)
 
-optimization_problem = OptimizationProblem(batch_binary, evaluator, save_log=True)
+optimization_problem = OptimizationProblem(process, evaluator, save_log=True)
 
 def objective_function(performance):
     performance = RankedPerformance(performance, ranking)
@@ -44,7 +43,9 @@ optimization_problem.add_variable('feed_duration.time', lb=10, ub=300)
 optimization_problem.add_linear_constraint(['feed_duration.time', 'cycle_time'], [1,-1])
 
 if __name__ == "__main__":
-    from CADETProcess.optimization import DEAP as Solver
+    from CADETProcess.optimization import U_NSGA3 as Solver
 
     opt_solver = Solver()
-    results = opt_solver.optimize(optimization_problem, save_results=True, use_multicore=False)
+    results = opt_solver.optimize(
+        optimization_problem, save_results=True, use_multicore=False
+    )
