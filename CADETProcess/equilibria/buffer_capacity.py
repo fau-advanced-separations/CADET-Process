@@ -376,7 +376,7 @@ def plot_buffer_capacity(reaction_system, buffer, pH=None):
     layout = plotting.Layout()
     layout.x_label = '$pH$'
     layout.y_label = 'buffer capacity / mM'
-    layout.ylim = (0, 1.1*np.max(b_total))
+    layout.y_lim = (0, 1.1*np.max(b_total))
 
     plotting.set_layout(fig, ax, layout)
 
@@ -422,7 +422,7 @@ def plot_charge_distribution(reaction_system, pH=None, plot_cumulative=False):
         ax.plot(pH, i, label=l)
 
     layout.x_label = '$pH$'
-    layout.ylim = (1.1*np.min(c), 1.1*np.max(c))
+    layout.y_lim = (1.1*np.min(c), 1.1*np.max(c))
 
     plotting.set_layout(fig, ax, layout)
 

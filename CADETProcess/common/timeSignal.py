@@ -55,8 +55,8 @@ class TimeSignal(metaclass=StructMeta):
         layout = plotting.Layout()
         layout.x_label = '$time~/~min$'
         layout.y_label = '$c~/~mol \cdot L^{-1}$'
-        layout.xlim = (start, end)
-        layout.ylim = (0, 1.1*np.max(y))
+        layout.x_lim = (start, end)
+        layout.y_lim = (np.min(y), 1.1*np.max(y))
 
         plotting.set_layout(fig, ax, layout)
 
@@ -115,8 +115,8 @@ class TimeSignal(metaclass=StructMeta):
         layout = plotting.Layout()
         layout.x_label = '$time~/~min$'
         layout.y_label = '$c~/~mol \cdot L^{-1}$'
-        layout.xlim = (start, end)
-        layout.ylim = (0, 1.1*np.max(y))
+        layout.x_lim = (start, end)
+        layout.y_lim = (np.min(y), 1.1*np.max(y))
 
         plotting.set_layout(fig, ax, layout)
 

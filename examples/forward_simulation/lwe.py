@@ -111,4 +111,10 @@ if __name__ == '__main__':
     process_simulator = Cadet()
 
     lwe_sim_results = process_simulator.simulate(lwe)
-    lwe_sim_results.solution.outlet.outlet.plot()
+        
+    from CADETProcess.plotting import SecondaryAxis
+    sec = SecondaryAxis()
+    sec.component_indices = [0]
+    sec.y_label = 'c_salt'
+    
+    lwe_sim_results.solution.column.outlet.plot(secondary_axis=sec)
