@@ -2,4 +2,9 @@ name: cadet-process
 channels:
   - conda-forge
 dependencies:
+  - python=3.9
   - cadet
+  - jupyter_contrib_nbextensions
+  - pip
+  - pip:
+    - cadet-process
