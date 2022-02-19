@@ -13,6 +13,6 @@ try:
     repo = git.Repo(ROOT_DIR.parent)
     active_branch = str(repo.active_branch)
     sha = repo.head.object.hexsha
-except git.InvalidGitRepositoryError:
+except (TypeError, git.InvalidGitRepositoryError):
     active_branch = ''
     sha = ''
