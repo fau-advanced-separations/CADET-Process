@@ -16,12 +16,13 @@ This simplifies the setup of **CADET** simulations and reduces the risk of ill-d
 Importantly, **CADET-Process** also facilitates the setup of elaborate switching schemes such as complex gradients, recycling systems, or carousel systems by enabling the definition of event dependencies within the system.
 
 The package also includes tools to evaluate cyclic stationarity of processes, to determine optimal fractionation times, and to calculate common performance indicators such as yield, purity, and productivity.
-Moreover, utility functions for calculate reaction equilibria and buffer capacities, as well as convenient functions for plotting simulation results are provided.
+Moreover, utility functions for calculating reaction equilibria and buffer capacities, as well as convenient functions for plotting simulation results are provided.
 
 Finally, these processes can be optimized by defining an objective function (with constraints) and using one of the integrated optimization algorithms such as NSGA-3.
 This can be used to improve process performance or to determine any of the physico-chemical model parameters.
 
-The source code can be found on [Github](https://github.com/fau-advanced-separations/CADET-Process) and a scientific paper was published in the [Processes journal](https://doi.org/10.3390/pr8010065). If you use **CADET-Process**, please cite the following publication:
+The source code can be found on [Github](https://github.com/fau-advanced-separations/CADET-Process) and a scientific paper was published in the [Processes journal](https://doi.org/10.3390/pr8010065).
+If you use **CADET-Process**, please cite the following publication:
 ```
 @Article{Schmoelder2020,
   author  = {Schmölder, Johannes and Kaspereit, Malte},
@@ -47,6 +48,7 @@ This can for example be done using [conda](https://docs.conda.io/en/latest/):
 ```
 conda install -c conda-forge cadet
 ```
+For more information, see the [CADET Documentation](https://cadet.github.io/master/getting_started/installation.html).
 
 ## Free software 
 CADET-Process is free software: you can redistribute it and/or modify it under the terms of the [GNU General Public License version 3](https://github.com/fau-advanced-separations/CADET-Process/blob/master/LICENSE).
