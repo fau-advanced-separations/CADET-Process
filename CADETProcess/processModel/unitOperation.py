@@ -833,7 +833,7 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         SourceMixin._polynomial_parameters + \
         ['flow_rate_filter']
 
-    c = DependentlySizedUnsignedList(dep='n_comp', default=0)
+    c = DependentlySizedList(dep='n_comp', default=0)
     q = DependentlySizedUnsignedList(dep=('n_comp', '_n_bound_states'), default=0)
     V = UnsignedFloat(default=0)
     volume = V
