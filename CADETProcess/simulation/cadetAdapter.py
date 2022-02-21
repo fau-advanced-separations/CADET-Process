@@ -1202,7 +1202,7 @@ class SolverTimeIntegratorParametersGroup(ParametersGroup):
     reltol_sens = UnsignedFloat(default=1e-12)
     init_step_size = UnsignedFloat(default=1e-6)
     max_steps = UnsignedInteger(default=1000000)
-    max_step_size = UnsignedInteger(default=1000000)
+    max_step_size = UnsignedFloat(default=0.0)
     errortest_sens = Bool(default=False)
     max_newton_iter = UnsignedInteger(default=1000000)
     max_errtest_fail = UnsignedInteger(default=1000000)
