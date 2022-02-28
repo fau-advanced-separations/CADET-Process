@@ -1,3 +1,4 @@
+from functools import wraps
 import sys
 
 import numpy as np
@@ -215,7 +216,6 @@ def add_hlines(ax, hlines):
     for line in hlines:
         ax.hlines(line.y, line.x_min, line.x_max)
 
-from functools import wraps
 def create_and_save_figure(func):
     @wraps(func)
     def wrapper(*args, ax=None, show=True, file_name=None, style='medium', **kwargs):

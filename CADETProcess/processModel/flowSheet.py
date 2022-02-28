@@ -1,4 +1,5 @@
 from collections import defaultdict
+from functools import wraps
 
 import numpy as np
 import sympy as sym
@@ -8,9 +9,8 @@ from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import frozen_attributes
 from CADETProcess.dataStructure import StructMeta, UnsignedInteger, String
 from .componentSystem import ComponentSystem
-from .unitOperation import (
-    UnitBaseClass, Source, SourceMixin, Sink, SinkMixin, Cstr
-)
+from .unitOperation import UnitBaseClass
+from .unitOperation import Source, SourceMixin, Sink, SinkMixin, Cstr
 from .binding import NoBinding
 
 
@@ -67,6 +67,7 @@ class FlowSheet(metaclass=StructMeta):
         return self.component_system.n_comp
 
     def _unit_name_decorator(func):
+        @wraps(func)
         def wrapper(self, unit, *args, **kwargs):
             """Enable calling functions with unit object or unit name.
             """
@@ -96,6 +97,7 @@ class FlowSheet(metaclass=StructMeta):
         }
 
     def update_parameters_decorator(func):
+        @wraps(func)
         def wrapper(self, *args, **kwargs):
             """Update parameters dict to save time.
             """
