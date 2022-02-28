@@ -16,13 +16,14 @@ class FractionationOptimizer():
     Attributes
     ----------
     optimizer: SolverBase
-     Optimizer for optimizing the fractionaton times.
+        Optimizer for optimizing the fractionaton times.
     purity_required :  float or array_like
         Minimum required purity for components. If is float, the same
         value is assumed for all components.
     obj_fun : function, optional
         Objective function used for OptimizationProblem. If is None, the
         mass of all components is maximized.
+
     """
     def __init__(self, purity_required, obj_fun=None, optimizer=None):
         self.purity_required = purity_required
@@ -38,8 +39,7 @@ class FractionationOptimizer():
 
     @property
     def optimizer(self):
-        """SolverBase: Optimizer for optimizing the fractionation times.
-        """
+        """SolverBase: Optimizer for optimizing the fractionation times."""
         return self._optimizer
 
     @optimizer.setter
@@ -109,20 +109,20 @@ class FractionationOptimizer():
             FractionationPerformance
 
         Raises
-        -------
+        ------
         TypeError
             If chromatogram is not an instance of Chromatogram.
         Warning
             If purity requirements cannot be fulfilled.
 
-
         See Also
         --------
-        Chromatogram
+        CADETProcess.common.Chromatogram
         setup_fractionator
         Fractionator
         setup_optimization_problem
-        OptimizationProblem
+        CADETProcess.optimization.OptimizationProblem
+
         """
         if not isinstance(chromatograms, list):
             chromatograms = [chromatograms]

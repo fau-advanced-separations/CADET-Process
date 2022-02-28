@@ -33,6 +33,7 @@ class FlowSheet(metaclass=StructMeta):
         Connections of UnitOperations.
     output_states : dict
         Split ratios of outgoing streams of UnitOperations.
+
     """
 
     name = String()
@@ -69,8 +70,7 @@ class FlowSheet(metaclass=StructMeta):
     def _unit_name_decorator(func):
         @wraps(func)
         def wrapper(self, unit, *args, **kwargs):
-            """Enable calling functions with unit object or unit name.
-            """
+            """Enable calling functions with unit object or unit name."""
             if isinstance(unit, str):
                 try:
                     unit = self.units_dict[unit]
@@ -99,8 +99,7 @@ class FlowSheet(metaclass=StructMeta):
     def update_parameters_decorator(func):
         @wraps(func)
         def wrapper(self, *args, **kwargs):
-            """Update parameters dict to save time.
-            """
+            """Update parameters dict to save time."""
             results = func(self, *args, **kwargs)
             self.update_parameters()
 
@@ -109,20 +108,17 @@ class FlowSheet(metaclass=StructMeta):
 
     @property
     def units(self):
-        """list: list of all unit_operations in the flow sheet.
-        """
+        """list: list of all unit_operations in the flow sheet."""
         return self._units
 
     @property
     def units_dict(self):
-        """dict: Unit names and objects.
-        """
+        """dict: Unit operation names and objects."""
         return {unit.name: unit for unit in self.units}
 
     @property
     def unit_names(self):
-        """list: Unit names
-        """
+        """list: Names of unit operations."""
         return [unit.name for unit in self.units]
 
     @property
@@ -149,6 +145,7 @@ class FlowSheet(metaclass=StructMeta):
         -------
         unit_index : int
             Returns the unit index of the unit_operation.
+
         """
         if unit not in self.units:
             raise CADETProcessError('Unit not in flow sheet')
@@ -157,20 +154,17 @@ class FlowSheet(metaclass=StructMeta):
 
     @property
     def sources(self):
-        """list: All UnitOperations implementing the SourceMixin interface.
-        """
+        """list: All UnitOperations implementing the SourceMixin interface."""
         return [unit for unit in self._units if isinstance(unit, SourceMixin)]
 
     @property
     def sinks(self):
-        """list: All UnitOperations implementing the SinkMixin interface.
-        """
+        """list: All UnitOperations implementing the SinkMixin interface."""
         return [unit for unit in self._units if isinstance(unit, SinkMixin)]
 
     @property
     def units_with_binding(self):
-        """list: UnitOperations with binding models.
-        """
+        """list: UnitOperations with binding models."""
         return [unit for unit in self._units
                 if not isinstance(unit.binding_model, NoBinding)]
 
@@ -203,6 +197,7 @@ class FlowSheet(metaclass=StructMeta):
         See Also
         --------
         remove_unit
+
         """
         if not isinstance(unit, UnitBaseClass):
             raise TypeError('Expected UnitOperation')
@@ -258,6 +253,7 @@ class FlowSheet(metaclass=StructMeta):
         feed_source
         eluent_source
         chromatogram_sink
+
         """
         if unit not in self.units:
             raise CADETProcessError('Unit not in flow sheet')
@@ -290,6 +286,7 @@ class FlowSheet(metaclass=StructMeta):
         --------
         add_connection
         remove_connection
+
         """
         return self._connections
 
@@ -315,6 +312,7 @@ class FlowSheet(metaclass=StructMeta):
         connections
         remove_connection
         output_state
+
         """
         if origin not in self._units:
             raise CADETProcessError('Origin not in flow sheet')
@@ -350,6 +348,7 @@ class FlowSheet(metaclass=StructMeta):
         --------
         connections
         add_connection
+
         """
         if origin not in self._units:
             raise CADETProcessError('Origin not in flow sheet')
@@ -361,7 +360,7 @@ class FlowSheet(metaclass=StructMeta):
             self._connections[destination].origins.remove(origin)
         except KeyError:
             raise CADETProcessError('Connection does not exist.')
-            
+
     def check_connections(self):
         for unit, connections in self.connections.items():
             if isinstance(unit, Source):
@@ -417,6 +416,7 @@ class FlowSheet(metaclass=StructMeta):
             If state is integer and the state >= the state_length.
             If the length of the states is unequal the state_length.
             If the sum of the states is not equal to 1.
+
         """
         if unit not in self._units:
             raise CADETProcessError('Unit not in flow sheet')
@@ -496,7 +496,7 @@ class FlowSheet(metaclass=StructMeta):
                         destination_index = self.get_unit_index(destination)
                         value = float(
                             solution['Q_{}_{}'.format(unit_index, destination_index)]
-                        ) 
+                        )
                         destination_flow_rates[unit.name][destination.name][i] = value
                         origin_flow_rates[destination.name][unit.name][i] = value
 
@@ -518,7 +518,7 @@ class FlowSheet(metaclass=StructMeta):
                 )
 
         return flow_rates
-    
+
     def solve_flow_rates(self, source_flow_rates, output_states, coeff=0):
         """Solve flow rates of system using sympy.
 
@@ -540,10 +540,11 @@ class FlowSheet(metaclass=StructMeta):
         solution : dict
             Solution of the flow rates in the system
 
-        Note
-        ----
-        Since dynamic flow rates can be described as cubic polynomials, the
-        flow rates are solved individually for all coefficients.
+        Notes
+        -----
+            Since dynamic flow rates can be described as cubic polynomials, the
+            flow rates are solved individually for all coefficients.
+
         """
         coeffs = np.array(
             [source_flow_rates[unit.name][coeff] for unit in self.sources]
@@ -625,11 +626,10 @@ class FlowSheet(metaclass=StructMeta):
                 raise CADETProcessError(
                     f"Unbalanced flow rate for unit '{unit}'."
                 )
-        
+
     @property
     def feed_sources(self):
-        """list: List of sources considered for calculating recovery yield.
-        """
+        """list: Sources considered for calculating recovery yield."""
         return self._feed_sources
 
     @_unit_name_decorator
@@ -646,6 +646,7 @@ class FlowSheet(metaclass=StructMeta):
         CADETProcessError
             If unit is not in a source object
             If unit is already marked as feed source
+
         """
         if feed_source not in self.sources:
             raise CADETProcessError('Expected Source')
@@ -663,6 +664,7 @@ class FlowSheet(metaclass=StructMeta):
         ----------
         feed_source : SourceMixin
             Unit to be removed from list of feed sources.
+
         """
         if feed_source not in self._feed_sources:
             raise CADETProcessError('Unit \'{}\' is not a feed source.'.format(
@@ -671,8 +673,7 @@ class FlowSheet(metaclass=StructMeta):
 
     @property
     def eluent_sources(self):
-        """list: List of sources to be considered for eluent consumption.
-        """
+        """list: Sources to be considered for eluent consumption."""
         return self._eluent_sources
 
     @_unit_name_decorator
@@ -689,6 +690,7 @@ class FlowSheet(metaclass=StructMeta):
         CADETProcessError
             If unit is not in a source object
             If unit is already marked as eluent source
+
         """
         if eluent_source not in self.sources:
             raise CADETProcessError('Expected Source')
@@ -710,6 +712,7 @@ class FlowSheet(metaclass=StructMeta):
         ------
         CADETProcessError
             If unit is not in eluent sources
+
         """
         if eluent_source not in self._eluent_sources:
             raise CADETProcessError('Unit \'{}\' is not an eluent source.'.format(
@@ -718,8 +721,7 @@ class FlowSheet(metaclass=StructMeta):
 
     @property
     def chromatogram_sinks(self):
-        """list: List of sinks to be considered for fractionation.
-        """
+        """list: Sinks to be considered for fractionation."""
         return self._chromatogram_sinks
 
     @_unit_name_decorator
@@ -736,6 +738,7 @@ class FlowSheet(metaclass=StructMeta):
         CADETProcessError
             If unit is not a sink object.
             If unit is already marked as chromatogram sink.
+
         """
         if chromatogram_sink not in self.sinks:
             raise CADETProcessError('Expected Sink')
@@ -758,6 +761,7 @@ class FlowSheet(metaclass=StructMeta):
         ------
         CADETProcessError
             If unit is not a chromatogram sink.
+
         """
         if chromatogram_sink not in self._chromatogram_sinks:
             raise CADETProcessError(
@@ -820,12 +824,13 @@ class FlowSheet(metaclass=StructMeta):
         Returns
         -------
         unit : UnitBaseClass
-            UnitOperation of flowsheet.
+            UnitOperation of FlowSheet.
 
         Raises
         ------
         KeyError
-            If unit not in flowSheet
+            If unit not in FlowSheet
+
         """
         try:
             return self.units_dict[unit_name]
@@ -834,7 +839,7 @@ class FlowSheet(metaclass=StructMeta):
 
 
     def __contains__(self, item):
-        """Check if an item is part of units.
+        """Check if UnitOperation is part of the FlowSheet.
 
         Parameters
         ----------
@@ -845,9 +850,6 @@ class FlowSheet(metaclass=StructMeta):
         -------
         Bool : True if item is in units, otherwise False.
 
-        Note
-        ----
-        maybe deficient in documentation.
         """
         if (item in self._units) or (item in self.unit_names):
             return True

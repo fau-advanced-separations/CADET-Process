@@ -13,6 +13,7 @@ def check_nested(nested_dict, path):
     Returns
     -------
     True, if item exists, False otherwise.
+
     """
     if isinstance(path, str):
         path = path.split('.')

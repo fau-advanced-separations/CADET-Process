@@ -21,10 +21,12 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
 
     Attributes
     ----------
+    events : list
+        List of events.
+    durations : list
+        List of durations.
     event_performers : dict
         Dictionary with all objects whose attributes can be modified
-    events : list
-        list of events
     event_dict : dict
         Dictionary with the information abaout all added events of a process.
     durations_dict : dict
@@ -32,10 +34,11 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
 
     See Also
     --------
-    Events
+    Event
     add_event
     add_event_dependency
     Duration
+
     """
     cycle_time = UnsignedFloat(default=10.0)
 
@@ -56,14 +59,15 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
         Event
         add_event
         remove_event
+        event_dependencies
         Durations
+
         """
         return sorted(self._events, key=lambda evt: evt.time)
 
     @property
     def events_dict(self):
-        """dict: Events and Durations orderd by name.
-        """
+        """dict: Events and Durations orderd by name."""
         evts =  {evt.name: evt for evt in self.events}
         durs = {dur.name: dur for dur in self.durations}
         return {**evts, **durs}
@@ -94,9 +98,11 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
 
         See Also
         --------
-        Event
+        events
         remove_event
-        add_event_dependency
+        Event
+        Event.add_dependency
+        add_duration
         """
         if name in self.events_dict:
             raise CADETProcessError("Event already exists")
@@ -126,15 +132,16 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
         CADETProcessError
             If Event is not found.
 
-        Note
-        ----
-        !!! Check remove_event_dependencies
+        Notes
+        -----
+            !!! Check remove_event_dependencies
 
         See Also
         --------
         add_event
-        remove_event_dependency
         Event
+        Event.remove_dependency
+
         """
         try:
             evt = self.events_dict[evt_name]
@@ -166,6 +173,7 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
         Duration
         add_event
         add_event_dependency
+
         """
         if name in self.events_dict:
             raise CADETProcessError("Duration already exists")
@@ -190,9 +198,10 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
 
         See Also
         --------
-        Duration
         add_duration
+        Duration
         remove_event_dependency
+
         """
         try:
             dur = self.events_dict[duration_name]
@@ -204,8 +213,7 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
 
     @property
     def durations(self):
-        """List of all durations in the process
-        """
+        """List of all durations in the process."""
         return self._durations
 
     def add_event_dependency(
@@ -242,7 +250,8 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
         See Also
         --------
         Event
-        add_dependency
+        add_event_dependency
+
         """
         try:
             evt = self.events_dict[dependent_event]
@@ -293,8 +302,10 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
 
         See Also
         --------
-        remove_dependecy
         Event
+        Event.remove_dependecy
+        add_event_dependency
+
         """
         if dependent_event not in self.events:
             raise CADETProcessError("Cannot find dependent Event")
@@ -307,34 +318,29 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
 
     @property
     def independent_events(self):
-        """list: Independent Events.
-        """
+        """list: Independent Events."""
         return list(filter(lambda evt: evt.isIndependent, self.events))
 
     @property
     def dependent_events(self):
-        """list: Events with dependencies.
-        """
+        """list: Events with dependencies."""
         return list(
             filter(lambda evt: evt.isIndependent == False, self.events)
         )
 
     @property
     def event_parameters(self):
-        """list: Event parameters.
-        """
+        """list: Event parameters."""
         return list({evt.parameter_path for evt in self.events})
 
     @property
     def event_performers(self):
-        """list: Event peformers.
-        """
+        """list: Event peformers."""
         return list({evt.performer for evt in self.events})
 
     @property
     def event_times(self):
-        """list: Time of events, sorted by Event time.
-        """
+        """list: Time of events, sorted by Event time."""
         event_times = list({evt.time for evt in self.events})
         event_times.sort()
 
@@ -345,6 +351,7 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
         """list: Section times.
 
         Includes 0 and cycle_time if they do not coincide with event time.
+
         """
         if len(self.event_times) == 0:
             return [0, self.cycle_time]
@@ -360,14 +367,12 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
 
     @property
     def n_sections(self):
-        """int: Number of sections.
-        """
+        """int: Number of sections."""
         return len(self.section_times) - 1
 
     @cached_property_if_locked
     def section_states(self):
-        """dict: state of event parameters at every section.
-        """
+        """dict: state of event parameters at every section."""
         parameter_timelines = self.parameter_timelines
         section_states = defaultdict(dict)
 
@@ -383,7 +388,8 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
 
         Notes
         -----
-        For entry dependent events, a key is added per component.
+            For entry dependent events, a key is added per component.
+
         """
         parameter_events = defaultdict(list)
         for evt in self.events:
@@ -397,8 +403,7 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
 
     @cached_property_if_locked
     def parameter_timelines(self):
-        """dict: TimeLine for every event parameter.
-        """
+        """dict: TimeLine for every event parameter."""
         parameter_timelines = {
             param: TimeLine() for param in self.event_parameters
             if param not in self.entry_dependent_parameters
@@ -460,8 +465,7 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
 
     @property
     def performer_events(self):
-        """dict: list of events for every event peformer.
-        """
+        """dict: list of events for every event peformer."""
         performer_events = defaultdict(list)
         for evt in self.events:
             performer_events[evt.performer].append(evt)
@@ -470,8 +474,7 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
 
     @cached_property_if_locked
     def performer_timelines(self):
-        """dict: TimeLines for every event parameter of a performer.
-        """
+        """dict: TimeLines for every event parameter of a performer."""
         performer_timelines = {performer: {} for performer in self.event_performers}
 
         for param, tl in self.parameter_timelines.items():
@@ -542,6 +545,7 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
         -------
         ax : Axes
             Axes with plot of parameter state.
+
         """
         time = np.linspace(0, self.cycle_time, 1001)
 
@@ -560,7 +564,7 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
             ax.plot(time/60, y)
 
             plotting.set_layout(ax, layout)
-            
+
             axs.append(ax)
 
         return axs
@@ -602,6 +606,7 @@ class Event():
     ---------
     EventHandler
     Duration
+
     """
     def __init__(
             self, name, event_handler,
@@ -638,8 +643,7 @@ class Event():
 
     @property
     def parameter_sequence(self):
-        """tuple: Tuple of parameters path elements.
-        """
+        """tuple: Tuple of parameters path elements."""
         return tuple(self.parameter_path.split('.'))
 
     @property
@@ -714,6 +718,7 @@ class Event():
         ------
         CADETProcessError
             If the dependency already exists in list dependencies.
+
         """
         if dependency in self._dependencies:
             raise CADETProcessError("Dependency already exists")
@@ -733,6 +738,7 @@ class Event():
         ------
         CADETProcessError
             If the dependency doesn't exists in list dependencies.
+
         """
         if dependency in self._dependencies:
             raise CADETProcessError("Dependency not found")
@@ -745,14 +751,12 @@ class Event():
 
     @property
     def dependencies(self):
-        """list: Events on which the Event depends.
-        """
+        """list: Events on which the Event depends."""
         return self._dependencies
 
     @property
     def isIndependent(self):
-        """bool: True, if event is independent, False otherwise.
-        """
+        """bool: True, if event is independent, False otherwise."""
         if len(self.dependencies) == 0:
             return True
         else:
@@ -760,8 +764,7 @@ class Event():
 
     @property
     def factors(self):
-        """list: Linear coefficients for dependent events.
-        """
+        """list: Linear coefficients for dependent events."""
         return self._factors
 
     @property
@@ -777,6 +780,7 @@ class Event():
         ------
         CADETProcessError
             If the event is not independent.
+
         """
         if self.isIndependent:
             time = self._time
@@ -842,6 +846,7 @@ class Event():
         -------
         parameters : dict
             list with all the parameters.
+
         """
         return Dict({param: getattr(self, param) for param in self._parameters})
 
@@ -870,6 +875,7 @@ class Duration():
         Name of the start event of a duration.
     end_event : str
         Name of the end event of a duration.
+
     """
     def __init__(self, name, event_handler, time=0.0):
         self.name = name
@@ -884,6 +890,7 @@ class Duration():
         -------
         parameters : dict
             list with all the parameters.
+
         """
         return Dict({param: getattr(self, param) for param in self._parameters})
 
@@ -896,7 +903,6 @@ class Duration():
                 if param not in self._parameters:
                     raise CADETProcessError('Not a valid parameter')
                 setattr(self, param, value)
-
 
     def __repr__(self):
         return f'{self.__class__.__name__}(name={self.name}, time={self.time}'

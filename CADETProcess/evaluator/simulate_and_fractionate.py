@@ -19,7 +19,7 @@ class SimulateAndFractionate(metaclass=StructMeta):
     fractionation_optimizer: FractionationOptimizer
         Optimizer for fractionating and evaluating process solution.
 
-    See also
+    See Also
     --------
     Process
     simulation.SolverBase

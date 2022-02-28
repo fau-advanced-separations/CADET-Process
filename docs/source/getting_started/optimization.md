@@ -15,7 +15,7 @@ sys.path.append('../../../')
 ```
 
 (optimization_tutorial)=
-# Process optimization
+# Process Optimization
 One of the main features of **CADET-Process** is process optimization. 
 
 an `OptimizationProblem` class is introduced that decouples the problem formulation from the `Optimizer` used for its solution (see {numref}`framework_overview`), allowing for a simple comparison of different optimization approaches.

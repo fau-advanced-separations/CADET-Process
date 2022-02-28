@@ -1,3 +1,3 @@
 from .fractions import *
 from .fractionator import *
-from .FractionationOptimizer import *
+from .fractionationOptimizer import *

@@ -28,9 +28,10 @@ class Section(metaclass=StructMeta):
 
     Notes
     -----
-    if coeffs is int: Set constant value for for all entries
-    if coeffs is list: Set value per component (check length!)
-    if coeffs is ndarray (or list of lists): set polynomial coefficients
+        if coeffs is int: Set constant value for for all entries
+        if coeffs is list: Set value per component (check length!)
+        if coeffs is ndarray (or list of lists): set polynomial coefficients
+
     """
     coeffs = NdPolynomial(dep=('n_entries', 'n_poly_coeffs'), default=0)
 
@@ -88,6 +89,7 @@ class Section(metaclass=StructMeta):
         ------
         ValueError
             If t is lower than start or larger than end of section time.
+
         """
         if np.any(t < self.start) or np.any(self.end < t):
             raise ValueError('Time exceeds section times')
@@ -126,6 +128,7 @@ class Section(metaclass=StructMeta):
             If t is lower than start or larger than end of section time.
         ValueError
             If order is larger than polynomial degree
+
         """
         if np.any(t < self.start) or np.any(self.end < t):
             raise ValueError('Time exceeds section times')
@@ -153,6 +156,7 @@ class Section(metaclass=StructMeta):
         ------
         ValueError
             If integration bounds exceed section times.
+
         """
         if start is None:
             start = self.start
@@ -202,6 +206,7 @@ class TimeLine():
             If polynomial degree does not match.
         CADETProcessError
             If section introduces a gap.
+
         """
         if not isinstance(section, Section):
             raise TypeError('Expected Section')
@@ -236,8 +241,7 @@ class TimeLine():
 
     @property
     def piecewise_poly(self):
-        """list: scipy.interpolate.PPoly for each dimension.
-        """
+        """list: scipy.interpolate.PPoly for each dimension."""
         return self._piecewise_poly
 
     def value(self, time):
@@ -263,6 +267,7 @@ class TimeLine():
         -------
         coefficients : np.array
             !!! Array of coefficients in ORDER !!!
+
         """
         section_index = self.section_index(time)
         c = self.sections[section_index].coefficients(time)
@@ -288,6 +293,7 @@ class TimeLine():
         ------
         ValueError
             If integration bounds exceed section times.
+
         """
         if start is None:
             start = self.start
@@ -331,6 +337,7 @@ class TimeLine():
         -------
         ax : Axes
             Axes with plot of parameter state.
+
         """
         start = self.sections[0].start
         end = self.sections[-1].end

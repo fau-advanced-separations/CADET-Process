@@ -37,44 +37,37 @@ class CarouselBuilder(metaclass=StructMeta):
 
 
     def add_unit(self, unit):
-        """Wrapper around auxiliary flow_sheet
-        """
+        """Wrapper around function of auxiliary flow_sheet."""
         self.flow_sheet.add_unit(unit)
 
     def add_connection(self, origin, destination):
-        """Wrapper around auxiliary flow_sheet
-        """
+        """Wrapper around function of auxiliary flow_sheet."""
         self.flow_sheet.add_connection(origin, destination)
 
     def set_output_state(self, unit, state):
-        """Wrapper around auxiliary flow_sheet
-        """
+        """Wrapper around function of auxiliary flow_sheet."""
         self.flow_sheet.set_output_state(unit, state)
 
     @property
     def zones(self):
-        """list: list of all zones in the carousel system.
-        """
+        """list: list of all zones in the carousel system."""
         return [
             unit for unit in self.flow_sheet.units if isinstance(unit, ZoneBaseClass)
         ]
 
     @property
     def zones_dict(self):
-        """dict: Zone names and objects.
-        """
+        """dict: Zone names and objects."""
         return {zone.name: zone for zone in self.zones}
 
     @property
     def n_zones(self):
-        """int: Number of zones in the Carousel System
-        """
+        """int: Number of zones in the Carousel System"""
         return len(self.zones)
 
     @property
     def n_columns(self):
-        """int: Number of columns in the Carousel System
-        """
+        """int: Number of columns in the Carousel System"""
         return sum([zone.n_columns for zone in self.zones])
 
     def build_flow_sheet(self):
@@ -231,6 +224,7 @@ class CarouselBuilder(metaclass=StructMeta):
             Curent state of the carousel system.
         n_columns : int
             Total number of columns in system.
+            
         """
         return (carousel_position + carousel_state) % self.n_columns
 

@@ -2,8 +2,7 @@
 # Flow Sheet
 
 ```{eval-rst}
-.. currentmodule:: CADETProcess.processModel
-
-.. autoclass:: FlowSheet
+.. automodule:: CADETProcess.processModel.flowSheet
+   :members:
 ```
 

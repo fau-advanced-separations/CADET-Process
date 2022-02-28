@@ -20,10 +20,11 @@ class BindingBaseClass(metaclass=StructMeta):
     n_comp : int
         number of components.
     is_kinetic : bool
-        If False, adsorption is assumed to be in rapid equilibriu. 
+        If False, adsorption is assumed to be in rapid equilibriu.
         The default is True.
     parameters : dict
         dict with parameter values.
+
     """
     name = String()
     is_kinetic = Bool(default=True)
@@ -60,8 +61,7 @@ class BindingBaseClass(metaclass=StructMeta):
 
     @property
     def parameters(self):
-        """dict: Dictionary with parameter values.
-        """
+        """dict: Dictionary with parameter values."""
         return self._parameters
 
     @parameters.setter
@@ -84,6 +84,7 @@ class NoBinding(BindingBaseClass):
     """Dummy class for units that do not experience binging behavior.
 
     The number of components is set to zero for this class.
+
     """
     def __init__(self, *args, **kwargs):
         super().__init__(ComponentSystem(), name='NoBinding')
@@ -97,6 +98,7 @@ class Linear(BindingBaseClass):
         Adsorption rate constants.
     desorption_rate : list of unsigned floats. Length depends on n_comp.
         Desorption rate constants.
+
     """
     adsorption_rate = DependentlySizedUnsignedList(dep='n_comp', default=0)
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp', default=1)
@@ -116,6 +118,7 @@ class Langmuir(BindingBaseClass):
         Desorption rate constants.
     capacity : list of unsigned floats. Length depends on n_comp.
         Maximum adsorption capacities.
+
     """
     adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp', default=1)
@@ -136,6 +139,7 @@ class LangmuirLDF(BindingBaseClass):
         Desorption rate constants
     capacity : list of unsigned floats. Length depends on n_comp.
         Maximum adsorption capacities.
+
     """
     equilibrium_constant = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'))
     driving_force_coefficient = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'), default=1)
@@ -158,6 +162,7 @@ class BiLangmuir(BindingBaseClass):
         Desorption rate constants
     capacity : list of unsigned floats. Length depends on n_comp.
         Maximum adsorption capacities.
+
     """
     adsorption_rate = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'))
     desorption_rate = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'), default=1)
@@ -191,6 +196,7 @@ class BiLangmuirLDF(BindingBaseClass):
         Desorption rate constants
     capacity : list of unsigned floats. Length depends on n_comp.
         Maximum adsorption capacities.
+
     """
     equilibrium_constant = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'))
     driving_force_coefficient = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'), default=1)
@@ -224,6 +230,7 @@ class FreundlichLDF(BindingBaseClass):
         Freundlich coefficient for each component. Length depends on n_comp.
     exponent : list of unsigned floats.
         Exponent for each component. Length depends on n_comp.
+
     """
     driving_force_coefficient = DependentlySizedUnsignedList(dep='n_comp')
     freundlich_coefficient = DependentlySizedUnsignedList(dep='n_comp')
@@ -258,6 +265,7 @@ class StericMassAction(BindingBaseClass):
         Reference liquid phase concentration (optional, default value = 1.0).
     reference_solid_phase_conc : unsigned float.
         Reference liquid phase concentration (optional, default value = 1.0).
+
     """
     adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp', default=1)
@@ -291,6 +299,7 @@ class AntiLangmuir(BindingBaseClass):
         Maximum adsorption capacities. Length depends on n_comp.
     antilangmuir : list of unsigned floats, optional.
         Anti-Langmuir coefficients. Length depends on n_comp.
+
     """
     adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
@@ -330,6 +339,7 @@ class KumarMultiComponentLangmuir(BindingBaseClass):
         Activation temperatures.
     temperature : unsigned float.
         Temperature.
+
     """
     adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp', default=1)
@@ -379,7 +389,6 @@ class Spreading(BindingBaseClass):
         'exchange_from_2_1'
     ]
 
-
 class MobilePhaseModulator(BindingBaseClass):
     """Mobile Phase Modulator adsoprtion isotherm.
 
@@ -395,6 +404,7 @@ class MobilePhaseModulator(BindingBaseClass):
         Parameters describing the ion-exchange characteristics (IEX).
     hydrophobicity : list of unsigned floats.
         Parameters describing the hydrophobicity (HIC).
+
     """
     adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
@@ -432,6 +442,7 @@ class ExtendedMobilePhaseModulator(BindingBaseClass):
         0 denotes the modifier component,
         1 is linear binding,
         2 is modified Langmuir binding.
+
     """
     adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
@@ -474,6 +485,7 @@ class SelfAssociation(BindingBaseClass):
         Reference liquid phase concentration (optional, default value = 1.0).
     reference_solid_phase_conc : Parmater
         Reference liquid phase concentration (optional, default value = 1.0).
+
     """
     adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     adsorption_rate_dimerization = DependentlySizedUnsignedList(dep='n_comp')
@@ -520,6 +532,7 @@ class BiStericMassAction(BindingBaseClass):
     reference_solid_phase_conc : list of unsigned floats.
         Reference solid phase concentration for each binding site type or one
         value for all types (optional, default value = 1.0).
+
     """
     adsorption_rate = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'))
     adsorption_rate_dimerization = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'))
@@ -572,6 +585,7 @@ class MultistateStericMassAction(BindingBaseClass):
         Reference liquid phase concentration (optional, default value = 1.0).
     reference_solid_phase_conc : list of unsigned floats.
         Reference solid phase concentration (optional, default value = 1.0).
+
     """
     adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp', default=1)
@@ -646,6 +660,7 @@ class SimplifiedMultistateSteric_Mass_Action(BindingBaseClass):
         Reference liquid phase concentration (optional, default value = 1.0).
     reference_solid_phase_conc : list of unsigned floats.
         Reference solid phase concentration (optional, default value = 1.0).
+
     """
     adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
@@ -685,7 +700,6 @@ class SimplifiedMultistateSteric_Mass_Action(BindingBaseClass):
         'reference_solid_phase_conc'
     ]
 
-
 class Saska(BindingBaseClass):
     """Quadratic Isotherm.
 
@@ -695,6 +709,7 @@ class Saska(BindingBaseClass):
         The Henry coefficient.
     quadratic_factor : list of unsigned floats.
         Quadratic factors.
+
     """
     henry_const = DependentlySizedUnsignedList(dep='n_comp')
     quadratic_factor = DependentlySizedUnsignedList(dep='n_comp')
@@ -758,6 +773,7 @@ class GeneralizedIonExchange(BindingBaseClass):
         Reference liquid phase concentration (optional, default value = 1.0).
     reference_solid_phase_conc : unsigned float.
         Reference liquid phase concentration (optional, default value = 1.0).
+
     """
     adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     adsorption_rate_linear = DependentlySizedUnsignedList(dep='n_comp')

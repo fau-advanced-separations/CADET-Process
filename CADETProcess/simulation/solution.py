@@ -121,7 +121,7 @@ class SolutionIO(BaseSolution):
         ax : Axes
             Axes object with buffer capacity plot.
 
-        See also
+        See Also
         --------
         plotlib
         plot_purity
@@ -192,7 +192,7 @@ class SolutionBulk(BaseSolution):
         ax : Axes
             Axes to plot on.
 
-        See also
+        See Also
         --------
         plot_at_location
         CADETProcess.plotting
@@ -236,7 +236,7 @@ class SolutionBulk(BaseSolution):
         ax : Axes
             Axes to plot on.
 
-        See also
+        See Also
         --------
         plot_at_time
         CADETProcess.plotting
@@ -382,7 +382,7 @@ class SolutionParticle(BaseSolution):
         ax : Axes
             Axes to plot on.
 
-        See also
+        See Also
         --------
         CADETProcess.plotting
         """
@@ -518,7 +518,7 @@ class SolutionSolid(BaseSolution):
         ax : Axes
             Axes to plot on.
 
-        See also
+        See Also
         --------
         CADETProcess.plotting
         """
@@ -556,7 +556,7 @@ class SolutionVolume(BaseSolution):
         ax : Axes
             Axes to plot on.
 
-        See also
+        See Also
         --------
         CADETProcess.plot
         """

@@ -20,10 +20,11 @@ class Parameter(Descriptor):
     description : str
         Description of the parameter.
 
-    See also
+    See Also
     --------
     Descriptor
     StructMeta
+
     """
     def __init__(self, *args, default=None, unit=None, description=None, **kwargs):
         self.default = default
@@ -123,7 +124,7 @@ class Container(Typed):
 
 class Bool(Typed):
     ty = bool
-    
+
     def __set__(self, instance, value):
         if isinstance(value, int) and value in [0,1]:
             value = bool(value)
@@ -185,15 +186,16 @@ class List(Container):
 
 class Dict(Typed):
     """
-    Note
-    ----
+    Notes
+    -----
     !!! Name might collide with addict.Dict!
+
     """
     ty = dict
 
 class NdArray(Container):
     ty = np.ndarray
-    
+
     def _check(self, value, recursive=False):
         if isinstance(value, (int, float)):
             value = np.array((value,))
@@ -237,16 +239,14 @@ class NdArray(Container):
 
     def get_default_values(self, instance):
         expected_shape = self.get_expected_shape(instance)
-        
+
         if super().default is None:
             return
         else:
             return super().default * np.ones(expected_shape)
 
 class Dimensionalized(Parameter):
-    """
-    Only works for NdArrays
-    """
+    """Only works for NdArrays"""
     n_dim = None
     def __init__(self, *args, **kwargs):
         if not isinstance(self, NdArray):
@@ -270,8 +270,7 @@ class Matrix(NdArray, Dimensionalized):
     n_dim = 2
 
 class Ranged(Parameter):
-    """Base class for Parameters with value bounds
-    """
+    """Base class for Parameters with value bounds."""
     def __init__(self, *args, lb=-math.inf, lb_op=operator.lt,
                  ub=math.inf, ub_op=operator.gt, **kwargs):
         self.lb = lb
@@ -435,6 +434,7 @@ class NdPolynomial(DependentlySizedNdArray):
     """Dependently sized polynomial for n entries.
 
     Important: Use [entries x n_coeff] for dependencies.
+
     """
     def __init__(self, *args, n_entries=None, n_coeff=None, **kwargs):
         try:
@@ -506,8 +506,7 @@ class NdPolynomial(DependentlySizedNdArray):
 
 
 class Switch(Parameter):
-    """Class for selecting one entry from a list
-    """
+    """Class for selecting one entry from a list."""
     def __init__(self, *args, valid, **kwargs):
         if not isinstance(valid, list):
             raise TypeError("Expected a list for valid entries")

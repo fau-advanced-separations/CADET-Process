@@ -23,8 +23,6 @@ class Process(EventHandler):
 
     Attributes
     ----------
-    flow_sheet : FlowSheet
-        Superstructure of the chromatographic process.
     name : str
         Name of the process object to be simulated.
     system_state : np.ndarray
@@ -40,9 +38,9 @@ class Process(EventHandler):
     See also
     --------
     EventHandler
-    FlowSheet
+    CADETProcess.processModel.FlowSheet
     ProcessMeta
-    Simulator
+    CADETProcess.simulation.Solver
     """
     _initial_states = ['system_state', 'system_state_derivative']
     _n_cycles = UnsignedInteger(default=1)
@@ -68,14 +66,10 @@ class Process(EventHandler):
         """FlowSheet: flow sheet of the process model.
 
         Raises
-        -------
+        ------
         TypeError:
             If flow_sheet is not an instance of FlowSheet.
 
-        Returns
-        -------
-        flow_sheet : FlowSheet
-            Superstructure of the chromatographic process.
         """
         return self._flow_sheet
 
@@ -120,8 +114,7 @@ class Process(EventHandler):
 
     @property
     def V_eluent(self):
-        """float: Volume of the eluent entering the system in one cycle.
-        """
+        """float: Volume of the eluent entering the system in one cycle."""
         flow_rate_timelines = self.flow_rate_timelines
 
         V_all = 0
@@ -134,16 +127,14 @@ class Process(EventHandler):
 
     @property
     def V_solid(self):
-        """float: Volume of all solid phase material used in flow sheet.
-        """
+        """float: Volume of all solid phase material used in flow sheet."""
         return sum(
             [unit.volume_solid for unit in self.flow_sheet.units_with_binding]
         )
 
     @cached_property_if_locked
     def flow_rate_timelines(self):
-        """dict: TimeLine of flow_rate for all unit_operations.
-        """
+        """dict: TimeLine of flow_rate for all unit_operations."""
         flow_rate_timelines = {
             unit.name: {
                 'total_in': TimeLine(),
@@ -193,8 +184,7 @@ class Process(EventHandler):
 
     @cached_property_if_locked
     def flow_rate_section_states(self):
-        """dict: Flow rates for all units for every section time.
-        """
+        """dict: Flow rates for all units for every section time."""
         section_states = {
             time: {
                 unit.name: {
@@ -229,16 +219,15 @@ class Process(EventHandler):
 
     @property
     def time(self):
-        """np.array: Returns time vector for one cycle
+        """np.array: Time vector for one cycle.
 
-        Todo
-        ----
         Remove from Process; Check also EventHandler.plot_events()
 
         See Also
         --------
         cycle_time
         _time_complete
+
         """
         solution_times = np.arange(0, self.cycle_time, self.time_resolution)
         solution_times = np.append(solution_times, self.section_times)
@@ -265,6 +254,7 @@ class Process(EventHandler):
         --------
         time
         _n_cycles
+
         """
         time = self.time
         solution_times = np.array([])
@@ -372,6 +362,7 @@ class Process(EventHandler):
         --------
         ProcessResults
         Performance
+
         """
         return ProcessMeta(
             cycle_time = self.cycle_time,

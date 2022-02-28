@@ -38,6 +38,7 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
     "sphinx.ext.intersphinx",
+    "sphinx.ext.todo",
     "sphinxcontrib.bibtex",
 ]
 
@@ -48,6 +49,13 @@ source_suffix = {
     '.myst': 'myst-nb',
     '.md': 'myst-nb',
 }
+
+# Autosummary
+autosummary_generate = True
+autosummary_imported_members = True
+
+# To do
+todo_include_todos = True
 
 # Bibliography
 bibtex_bibfiles = ['references.bib']
@@ -86,8 +94,6 @@ if not os.environ.get("READTHEDOCS"):
     html_baseurl = os.environ.get("SITEMAP_URL_BASE", "http://127.0.0.1:8000/")
     sitemap_locales = [None]
     sitemap_url_scheme = "{link}"
-
-autosummary_generate = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]

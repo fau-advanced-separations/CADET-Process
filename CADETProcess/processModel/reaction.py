@@ -3,10 +3,7 @@ import numpy as np
 
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import StructMeta
-from CADETProcess.dataStructure import (
-    String, UnsignedInteger, UnsignedFloat,
-    DependentlySizedList, DependentlySizedUnsignedList
-)
+from CADETProcess.dataStructure import String, UnsignedInteger
 
 from .componentSystem import ComponentSystem
 
@@ -21,6 +18,7 @@ class ReactionBaseClass(metaclass=StructMeta):
         dict with parameter values.
     name : String
         name of the binding model.
+
     """
     name = String()
     n_comp = UnsignedInteger()
@@ -56,8 +54,7 @@ class ReactionBaseClass(metaclass=StructMeta):
 
     @property
     def parameters(self):
-        """dict: Dictionary with parameter values.
-        """
+        """dict: Dictionary with parameter values."""
         return {param: getattr(self, param) for param in self._parameter_names}
 
     @parameters.setter
@@ -81,6 +78,7 @@ class NoReaction(ReactionBaseClass):
     """Dummy class for units that do not experience reaction behavior.
 
     The number of components is set to zero for this class.
+
     """
     def __init__(self, *args, **kwargs):
         super().__init__(ComponentSystem(), name='NoReaction')
@@ -353,8 +351,7 @@ class MassActionLawParticle(ReactionBaseClass):
 
 
 class Reaction():
-    """Helper class to store information about individual MAL reactions
-    """
+    """Helper class to store information about individual MAL reactions."""
     def __init__(
             self, component_system, indices, coefficients,
             k_fwd, k_bwd=1, is_kinetic=True, k_fwd_min=100,
@@ -426,8 +423,7 @@ class Reaction():
 
 
 class CrossPhaseReaction():
-    """Helper class to store information about individual cross-phase MAL reactions
-    """
+    """Helper class to store information about cross-phase MAL reactions"""
     def __init__(
             self, component_system, indices, coefficients, phases,
             k_fwd, k_bwd=1, is_kinetic=True, k_fwd_min=100,
@@ -556,10 +552,11 @@ def scale_to_rapid_equilibrium(k_eq, k_fwd_min=10):
 
     Returns
     -------
-   k_fwd : float
+    k_fwd : float
         Forward reaction rate.
     k_bwd : float
         Backward reaction rate.
+
     """
     k_fwd = k_fwd_min
     k_bwd = k_fwd_min/k_eq

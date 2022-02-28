@@ -21,10 +21,10 @@ class Test_Binding(unittest.TestCase):
 
     def test_setter(self):
         """
-        Note
-        ----
-        AssertRaises tests actually test dataStructure descriptor functionality
-        could/should be moved to dedicated test Class
+        Notes
+        -----
+            AssertRaises tests actually test dataStructure descriptor 
+            functionality could/should be moved to dedicated test Class
         """
         with self.assertRaises(TypeError):
             self.binding_model.adsorption_rate = 1

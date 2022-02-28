@@ -12,7 +12,7 @@ from CADETProcess.dataStructure import UnsignedInteger, UnsignedFloat
 from CADETProcess.optimization import SolverBase, OptimizationResults
 
 class DEAP(SolverBase):
-    """ Adapter for optimization with an Genetic Algorithm called DEAP.
+    """Adapter for optimization with an Genetic Algorithm called DEAP.
 
     Defines the solver options, the statistics, the history, the logbook and
     the toolbox for recording the optimization progess. It implements the
@@ -25,11 +25,12 @@ class DEAP(SolverBase):
     options : dict
         Solver options, default set to None, if nothing is given.
 
-    See also
+    See Also
     --------
     base
     tools
     Statistics
+    
     """
     cxpb = UnsignedFloat(default=1)
     mutpb = UnsignedFloat(default=1)

@@ -17,6 +17,7 @@ class ProcessMeta(Structure):
         Volume of the solid phase used in the process
     V_eluent : UnsignedFloat
         Volume of the consumed eluent used in the process
+
     """
     _meta_keys = ['cycle_time', 'm_feed', 'V_solid', 'V_eluent']
 

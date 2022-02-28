@@ -1,3 +1,3 @@
 (event_dependencies)=
-# Event dependencies
+# Event Dependencies
 

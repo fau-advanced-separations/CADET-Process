@@ -23,7 +23,7 @@ This can be used to determine any of the physico-chemical model parameters and t
 
 For more information and tutorials, please refer to the [documentation](https://cadet-process.readthedocs.io/en/latest/).
 The source code is freely available on [Github](https://github.com/fau-advanced-separations/CADET-Process), and a scientific paper was published in [MDPI Proceses](https://doi.org/10.3390/pr8010065).
-If CADET-Process is useful for you, please cite the following publication:
+If CADET-Process is useful to you, please cite the following publication:
 
 ```
 @Article{Schmoelder2020,
@@ -58,8 +58,7 @@ CADET-Process is free software: you can redistribute it and/or modify it under t
 ## Note
 This software is work in progress and being actively developed.
 Breaking changes and extensive restructuring may occur in any commit and release.
-If you encounter problems of have questions, feel free to ask for support in the **CADET-Forum**:https://forum.cadet-web.de
+If you encounter problems or if you have questions, feel free to ask for support in the [**CADET-Forum**](https://forum.cadet-web.de).
 Please report any bugs that you find [here](https://github.com/fau-advanced-separations/CADET-Process/issues).
 Pull requests on [GitHub](https://github.com/fau-advanced-separations/CADET-Process) are also welcome.
-
 

@@ -1,5 +1,5 @@
 """
-ToDo
+Todo
 ----
 - add/remove events (check component indices)
 - add/remove durations
@@ -14,8 +14,8 @@ ToDo
 
 Notes
 -----
-Since the EventHandler defines an interface, that requires the implementation 
-of some methods, a TestHandler class is defined.
+    Since the EventHandler defines an interface, that requires the 
+    implementation of some methods, a TestHandler class is defined.
 
 Maybe this is too complicated, just use Process instead?
 """

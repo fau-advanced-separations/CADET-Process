@@ -7,6 +7,14 @@ kernelspec:
   name: python3
 ---
 
+```{code-cell} ipython3
+:tags: [remove-cell]
+
+import sys
+sys.path.append('../../../')
+```
+
+(carousel_tutorial)=
 # Carousel Builder
 
 To facilitate the simulation of complex SMB or carousel systems, it is important to automate setting up the flow sheets in a convenient way.
@@ -35,12 +43,13 @@ The column is later used as a template for all columns in the system.
 
 ```{code-cell} ipython3
 from CADETProcess.processModel import ComponentSystem
-from CADETProcess.processModel import Langmuir
-from CADETProcess.processModel import LumpedRateModelWithPores
 component_system = ComponentSystem(2)
-binding_model = Langmuir()
 
-column = LumpedRateModelWithPores(n_comp, 'master_column')
+from CADETProcess.processModel import Langmuir
+binding_model = Langmuir(component_system)
+
+from CADETProcess.processModel import LumpedRateModelWithPores
+column = LumpedRateModelWithPores(component_system, 'master_column')
 
 column.length = 0.84
 column.diameter = 6e-2
@@ -48,14 +57,14 @@ column.bed_porosity = 0.6
 column.particle_porosity = 0.6
 column.particle_radius = 714e-6/2
 column.axial_dispersion = 8.0e-6
-column.film_diffusion = n_comp*[5.0e-6]
+column.film_diffusion = component_system.n_comp*[5.0e-6]
 
 column.binding_model = binding_model
 ```
 
 Now, the inlets and outlets of the system are configured:
 ```{code-cell} ipython3
-from CADETProcess.processModel import Source, Sink, 
+from CADETProcess.processModel import Source, Sink
 
 source_serial = self.create_source(Q=1, name='source_serial')
 sink_serial = self.create_sink(name='sink_serial')

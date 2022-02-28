@@ -16,7 +16,8 @@ sys.path.append('../../../')
 
 $$\require{mhchem}$$
 
-# Buffer equilibria
+(equilibrira_tutorial)=
+# Buffer Equilibria
 
 In many applications, it is crucial to know the protonation state of a molecule.
 For example, in ion exchange chromatography only charged molecules can adsorb on the resin, i.e. positively charged ions on a cation exchanger, or negatively charged ions on an anion exchanger.
@@ -84,5 +85,5 @@ To demonstrate this, we can now examine the charge distribution of ammonia as a 
 
 ```{code-cell} ipython3
 from CADETProcess import equilibria
-equilibria.plot_charge_distribution(reaction_system)
+_ = equilibria.plot_charge_distribution(reaction_system)
 ```

@@ -59,20 +59,19 @@ class Cadet(SolverBase):
     unit_return_parameters : UnitReturnParametersGroup
         Container for return information of units
 
-    Note
+    Todo
     ----
-    !!! UnitParametersGroup and AdsorptionParametersGroup should be implemented
-    with global options that are then copied for each unit in get_unit_config
-    !!! Implement method for loading CADET file that have not been generated
+    Implement method for loading CADET file that have not been generated
     with CADETProcess and create Process
 
-    See also
+    See Also
     --------
     ReturnParametersGroup
     ModelSolverParametersGroup
     SolverParametersGroup
     SolverTimeIntegratorParametersGroup
-    cadetInterface
+    CadetAPI
+
     """
     timeout = UnsignedFloat()
     _force_constant_flow_rate = False
@@ -108,6 +107,7 @@ class Cadet(SolverBase):
         See Also
         --------
         check_cadet()
+
         """
         return self._install_path
 
@@ -235,10 +235,11 @@ class Cadet(SolverBase):
         TypeError
             If process is not instance of Process
 
-        See also
+        See Also
         --------
         get_process_config
         get_simulation_results
+
         """
         if not isinstance(process, Process):
             raise TypeError('Expected Process')
@@ -289,7 +290,7 @@ class Cadet(SolverBase):
         cadet.root = self.get_process_config(process)
         cadet.filename = file_path
         cadet.save()
-        
+
     def run_h5(self, file_path):
         cadet = CadetAPI()
         cadet.filename = file_path
@@ -310,15 +311,16 @@ class Cadet(SolverBase):
         config : Dict
             /
 
-        Note
-        ----
-        Sensitivities not implemented yet.
+        Notes
+        -----
+            Sensitivities not implemented yet.
 
-        See also
+        See Also
         --------
         input_model
         input_solver
         input_return
+
         """
         process.lock = True
         config = Dict()
@@ -371,9 +373,10 @@ class Cadet(SolverBase):
         results : SimulationResults
             Simulation results including process and solver configuration.
 
-        Notes
-        -----
-        !!! Implement method to read .h5 files that have no process associated.
+        Todo
+        ----
+        Implement method to read .h5 files that have no process associated.
+
         """
         if time_elapsed is None:
             time_elapsed = cadet.root.meta.time_sim
@@ -486,16 +489,17 @@ class Cadet(SolverBase):
     def get_input_model(self, process):
         """Config branch /input/model/
 
-        Note
-        ----
+        Notes
+        -----
         !!! External functions not implemented yet
 
-        See also
+        See Also
         --------
         model_connections
         model_solver
         model_units
         input_model_parameters
+
         """
         input_model = Dict()
 
@@ -512,8 +516,7 @@ class Cadet(SolverBase):
         return input_model
 
     def get_model_connections(self, process):
-        """Config branch /input/model/connections
-        """
+        """Config branch /input/model/connections"""
         model_connections = Dict()
         if self._force_constant_flow_rate:
             model_connections['CONNECTIONS_INCLUDE_DYNAMIC_FLOW'] = 0
@@ -547,7 +550,6 @@ class Cadet(SolverBase):
         ----------
         flow_rates : dict
             UnitOperations with outgoing flow rates.
-
         flow_sheet : FlowSheet
             Object which hosts units (for getting unit index).
 
@@ -555,6 +557,7 @@ class Cadet(SolverBase):
         -------
         ls : list
             Connections matrix for DESCRIPTION.
+
         """
         table = Dict()
         enum = 0
@@ -597,7 +600,8 @@ class Cadet(SolverBase):
         Returns
         -------
         unit_index : str
-            Return the unit index in CADET format unitXXX
+            Return the unit index in CADET format unit_XXX
+
         """
         index = process.flow_sheet.get_unit_index(unit)
         return 'unit' + '_{0:03d}'.format(index)
@@ -605,10 +609,11 @@ class Cadet(SolverBase):
     def get_model_units(self, process):
         """Config branches for all units /input/model/unit_000 ... unit_xxx.
 
-        See also
+        See Also
         --------
         get_unit_config
         get_unit_index
+
         """
         model_units = Dict()
 
@@ -627,16 +632,17 @@ class Cadet(SolverBase):
 
         The parameters from the unit are extracted and converted to CADET format
 
-        Note
-        ----
+        Notes
+        -----
         For now, only constant values for the concentration in sources are valid.
 
         In CADET, the parameter unit_config['discretization'].NBOUND should be
         moved to binding config or unit config
 
-        See also
+        See Also
         --------
         get_adsorption_config
+
         """
         unit_parameters = UnitParametersGroup(unit)
 
@@ -681,8 +687,7 @@ class Cadet(SolverBase):
         return unit_config
 
     def set_section_dependent_parameters(self, model_units, process):
-        """Add time dependent model parameters to units
-        """
+        """Add time dependent model parameters to units."""
         section_states = process.section_states.values()
 
         section_index = 0
@@ -729,8 +734,7 @@ class Cadet(SolverBase):
     def add_parameter_section(
             self, model_units, sec_index, unit_index, unit_model, parameter, state
         ):
-        """Add section value to parameter branch.
-        """
+        """Add section value to parameter branch."""
         unit_index = 'unit' + '_{0:03d}'.format(unit_index)
         parameter_name = inv_unit_parameters_map[unit_model]['parameters'][parameter]
 
@@ -739,12 +743,12 @@ class Cadet(SolverBase):
         model_units[unit_index][parameter_name] += list(state.ravel())
 
     def get_adsorption_config(self, binding):
-        """Config branch /input/model/unit_xxx/adsorption for individual unit
+        """Config branch /input/model/unit_xxx/adsorption for individual unit.
 
         The parameters from the adsorption object are extracted and converted to
         CADET format
 
-        See also
+        See Also
         --------
         get_unit_config
         """
@@ -753,16 +757,17 @@ class Cadet(SolverBase):
         return adsorption_config
 
     def get_reaction_config(self, reaction):
-        """Config branch /input/model/unit_xxx/reaction for individual unit
+        """Config branch /input/model/unit_xxx/reaction for individual unit.
 
         Parameters
         ----------
         reaction : ReactionBaseClass
             Reaction configuration object
 
-        See also
+        See Also
         --------
         get_unit_config
+
         """
         reaction_config = ReactionParametersGroup(reaction).to_dict()
 
@@ -772,10 +777,11 @@ class Cadet(SolverBase):
     def get_input_solver(self, process):
         """Config branch /input/solver/
 
-        See also
+        See Also
         --------
         solver_sections
         solver_time_integrator
+
         """
         input_solver = Dict()
 
@@ -788,8 +794,7 @@ class Cadet(SolverBase):
         return input_solver
 
     def get_solver_sections(self, process):
-        """Config branch /input/solver/sections
-        """
+        """Config branch /input/solver/sections"""
         solver_sections = Dict()
 
         solver_sections.nsec = process._n_cycles * process.n_sections
@@ -806,15 +811,13 @@ class Cadet(SolverBase):
         return solver_sections
 
     def get_input_return(self, process):
-        """Config branch /input/return
-        """
+        """Config branch /input/return"""
         return_parameters = self.return_parameters.to_dict()
         unit_return_parameters = self.get_unit_return_parameters(process)
         return {**return_parameters, **unit_return_parameters}
 
     def get_unit_return_parameters(self, process):
-        """Config branches for all units /input/return/unit_000 ... unit_xxx
-        """
+        """Config branches for all units /input/return/unit_000 ... unit_xxx"""
         unit_return_parameters = Dict()
         for unit in process.flow_sheet.units:
             unit_index = self.get_unit_index(process, unit)
@@ -833,9 +836,10 @@ class ModelSolverParametersGroup(ParametersGroup):
     Defines several parameters as UnsignedInteger with default values and save
     their names into a list named parameters.
 
-    See also
+    See Also
     --------
     ParametersGroup
+
     """
     GS_TYPE = UnsignedInteger(default=1, ub=1)
     MAX_KRYLOV = UnsignedInteger(default=0)
@@ -970,11 +974,12 @@ inv_unit_parameters_map = {
 class UnitParametersGroup(ParameterWrapper):
     """Class for converting UnitOperation parameters from CADETProcess to CADET.
 
-    See also
+    See Also
     --------
     ParameterWrapper
     AdsorptionParametersGroup
     ReactionParametersGroup
+
     """
     _baseClass = UnitBaseClass
 
@@ -1119,11 +1124,12 @@ class AdsorptionParametersGroup(ParameterWrapper):
 class ReactionParametersGroup(ParameterWrapper):
     """Converter for particle solid reaction parameters from CADETProcess to CADET.
 
-    See also
+    See Also
     --------
     ParameterWrapper
     ReactionParametersGroup
     UnitParametersGroup
+
     """
     _baseClass = ReactionBaseClass
 
@@ -1176,9 +1182,10 @@ class ReactionParametersGroup(ParameterWrapper):
 class SolverParametersGroup(ParametersGroup):
     """Class for defining the solver parameters for cadet.
 
-    See also
+    See Also
     --------
     ParametersGroup
+
     """
     nthreads = UnsignedInteger(default=1)
     consistent_init_mode = UnsignedInteger(default=1, ub=7)
@@ -1190,11 +1197,12 @@ class SolverParametersGroup(ParametersGroup):
 
 
 class SolverTimeIntegratorParametersGroup(ParametersGroup):
-    """Class for defining the solver time integrator parameters for cadet.
+    """Class for defining the solver time integrator parameters for CADET.
 
-    See also
+    See Also
     --------
     ParametersGroup
+
     """
     abstol = UnsignedFloat(default=1e-8)
     algtol = UnsignedFloat(default=1e-12)
@@ -1217,11 +1225,12 @@ class SolverTimeIntegratorParametersGroup(ParametersGroup):
 
 
 class ReturnParametersGroup(ParametersGroup):
-    """Class for defining the return parameters for cadet.
+    """Class for defining the return parameters for CADET.
 
-    See also
+    See Also
     --------
     ParametersGroup
+
     """
     write_solution_times = Bool(default=True)
     write_solution_last = Bool(default=True)
@@ -1236,7 +1245,7 @@ class ReturnParametersGroup(ParametersGroup):
 
 
 class UnitReturnParametersGroup(ParametersGroup):
-    """Class for defining the unit return parameters for cadet.
+    """Class for defining the unit return parameters for CADET.
 
     The class defines several parameters for the unit return parameters as
     boolean for cadet. The names are saved as strings in the parameters list.
@@ -1244,9 +1253,10 @@ class UnitReturnParametersGroup(ParametersGroup):
     default value. The remaining unit return parameters are set False for
     default value.
 
-    See also
+    See Also
     --------
     ParametersGroup
+
     """
     write_coordinates = Bool(default=True)
     write_solution_inlet = Bool(default=True)
@@ -1302,9 +1312,10 @@ class SensitivityParametersGroup(ParametersGroup):
     The sensitivity parameters NSENS and SENS_METHOD are defined with default
     values.
 
-    See also
+    See Also
     --------
     ParametersGroup
+
     """
     nsens = UnsignedInteger(default=0)
     sens_method = Switch(default='ad1', valid=['ad1'])

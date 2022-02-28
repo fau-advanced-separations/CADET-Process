@@ -8,11 +8,12 @@ from CADETProcess.dataStructure import NdArray
 class Performance(Structure):
     """Class for storing the performance parameters after fractionation.
 
-    See also
+    See Also
     --------
     Fractionation
     ProcessMeta
     RankedPerformance
+
     """
     _performance_keys = ['mass', 'concentration', 'purity', 'recovery',
         'productivity', 'eluent_consumption']
@@ -60,10 +61,11 @@ class Performance(Structure):
 class RankedPerformance():
     """Class for calculating a weighted average of the Performance
 
-    See also
+    See Also
     --------
     Performance
     ranked_objective_decorator
+
     """
     _performance_keys = Performance._performance_keys
 

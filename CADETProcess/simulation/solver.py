@@ -36,11 +36,11 @@ class SolverBase(metaclass=StructMeta):
     simulate_to_stationarity : bool
         Simulate until stationarity is reached
 
-
-    See also
+    See Also
     --------
     Process
     StationarityEvaluator
+
     """
     n_cycles = UnsignedInteger(default=1)
     evaluate_stationarity = Bool(default=False)
@@ -79,11 +79,12 @@ class SolverBase(metaclass=StructMeta):
         TypeError
             If process is not an instance of Process.
 
-        See also
+        See Also
         --------
         simulate_n_cycles
         simulate_to_stationarity
         run
+
         """
         if not isinstance(process, Process):
             raise TypeError('Expected Process')
@@ -126,12 +127,13 @@ class SolverBase(metaclass=StructMeta):
         TypeError
             If process is not an instance of Process.
 
-        See also
+        See Also
         --------
         simulate_n_cycles
         simulate_to_stationarity
         StationarityEvaluator
         run
+
         """
         if not isinstance(process, Process):
             raise TypeError('Expected Process')
@@ -165,11 +167,12 @@ class SolverBase(metaclass=StructMeta):
         TypeError
             If process is not an instance of Process.
 
-        See also
+        See Also
         --------
         simulate
         run
         StationarityEvaluator
+
         """
         if not isinstance(process, Process):
             raise TypeError('Expected Process')
@@ -236,6 +239,7 @@ class SolverBase(metaclass=StructMeta):
             If process is not an instance of Process
         CADETProcessError
             If simulation doesn't terminate successfully
+
         """
         return
 
@@ -244,9 +248,10 @@ class SolverBase(metaclass=StructMeta):
         """Returns the stationarity evaluator.
 
         Returns
-        ----------
+        -------
         stationarity_evaluator : StationarityEvaluator
             Evaluator for cyclic stationarity.
+
         """
         return self._stationarity_evaluator
 
@@ -289,8 +294,9 @@ class SimulationResults(metaclass=StructMeta):
 
     Notes
     -----
-    Ideally, the final state for each unit operation should be saved. However,
-    CADET does currently provide this functionality.
+        Ideally, the final state for each unit operation should be saved.
+        However, CADET does currently provide this functionality.
+
     """
     solver_name = String()
     solver_parameters = Dict()
@@ -340,8 +346,7 @@ class SimulationResults(metaclass=StructMeta):
 
     @property
     def solution(self):
-        """Construct complete solution from individual cyles.
-        """
+        """Construct complete solution from individual cyles."""
         cycle_time = self.process_config['parameters']['cycle_time']
 
         time_complete = self.time_cycle
@@ -379,8 +384,7 @@ class SimulationResults(metaclass=StructMeta):
 
     @property
     def time_cycle(self):
-        """np.array: Solution times vector
-        """
+        """np.array: Solution times vector"""
         return \
             self.solution_cycles[self._first_unit][self._first_solution][0].time
 

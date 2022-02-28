@@ -63,6 +63,7 @@ def c_species_nu(pKa, pH):
     -------
     c_species_nu : np.array
         Normalized acid species concentration.
+
     """
     pKa = np.array([1.0] + pKa)
     k_eq = 10**(-pKa)
@@ -91,6 +92,7 @@ def c_total_nu(pKa, pH):
     -------
     c_total_nu : np.array
         Normalized acid species concentration.
+
     """
     return sum(c_species_nu(pKa, pH))
 
@@ -108,6 +110,7 @@ def z_total_nu(pKa, pH):
     -------
     z_total_nu : np.array
         Normalized acid species concentration.
+
     """
     c = c_species_nu(pKa, pH)
 
@@ -127,6 +130,7 @@ def eta(pKa, pH):
     -------
     eta : np.array
         Degree of dissociation.
+
     """
     return z_total_nu(pKa, pH)/c_total_nu(pKa, pH)
 
@@ -154,6 +158,7 @@ def charge_distribution(
     buffer_capacity : np.array
         Buffer capacity in mM for individual acid components.
         To get overall buffer capacity, component capacities must be summed up.
+
     """
     buffer = reaction_system.n_comp * [1]
     pKa, c_acids_M, pH, indices, scalar_input = preprocessing(

@@ -14,6 +14,7 @@ class StationarityEvaluator(metaclass=StructMeta):
     Notes
     -----
     !!! Implement check_skewness and width deviation
+
     """
     check_concentration = Bool(default=True)
     max_concentration_deviation = UnsignedFloat(default=0.1)
@@ -41,6 +42,7 @@ class StationarityEvaluator(metaclass=StructMeta):
             Concentration profile of previous cycle
         conc_new : TimeSignal
             Concentration profile of current cycle
+
         """
         if not isinstance(conc_old, TimeSignal):
             raise TypeError('Expcected TimeSignal')
@@ -85,6 +87,7 @@ class StationarityEvaluator(metaclass=StructMeta):
         -------
         concentration_deviation : np.array
             Concentration difference of two succeding cycles.
+
         """
         return np.max(abs(conc_new.signal - conc_old.signal), axis=0)
 
@@ -103,6 +106,7 @@ class StationarityEvaluator(metaclass=StructMeta):
         bool
             True, if concentration deviation smaller than eps, False otherwise.
             False
+
         """
         conc_dev = self.concentration_deviation(conc_old, conc_new)
 
@@ -126,6 +130,7 @@ class StationarityEvaluator(metaclass=StructMeta):
         -------
         area_deviation : np.array
             Area deviation of two succeding cycles.
+
         """
         area_old = simps(conc_old.signal, conc_old.time, axis=0)
         area_new = simps(conc_new.signal, conc_new.time, axis=0)
@@ -146,6 +151,7 @@ class StationarityEvaluator(metaclass=StructMeta):
         -------
         bool
             True, if area deviation is smaller than eps, False otherwise.
+
         """
         area_dev = self.area_deviation(conc_old, conc_new)
 
@@ -188,6 +194,7 @@ class StationarityEvaluator(metaclass=StructMeta):
         -------
         bool
             True, if height deviation is smaller than eps, False otherwise.
+
         """
         abs_height_deviation = self.height_deviation(conc_old, conc_new)
 

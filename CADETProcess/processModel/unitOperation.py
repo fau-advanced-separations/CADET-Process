@@ -39,11 +39,12 @@ class UnitBaseClass(metaclass=StructMeta):
     binding_model : BindingBaseClass
         binding behavior of the unit. Defaults to NoBinding.
 
-    See also
+    See Also
     --------
-    FlowSheet
-    CADETProcess.binding
-    CADETProcess.reaction
+    CADETProcess.processModel.binding
+    CADETProcess.processModel.reaction
+    CADETProcess.processModel.FlowSheet
+
     """
     name = String()
 
@@ -176,6 +177,7 @@ class UnitBaseClass(metaclass=StructMeta):
             If binding_model object is not an instance of BindingBaseClass.
         CADETProcessError
             If number of components do not match.
+
         """
         return self._binding_model
 
@@ -204,6 +206,7 @@ class UnitBaseClass(metaclass=StructMeta):
         CADETProcessError
             If unit does not support bulk reaction model.
             If number of components do not match.
+
         """
         return self._bulk_reaction_model
 
@@ -231,6 +234,7 @@ class UnitBaseClass(metaclass=StructMeta):
         CADETProcessError
             If unit does not support particle reaction model.
             If number of components do not match.
+
         """
         return self._particle_reaction_model
 
@@ -249,43 +253,28 @@ class UnitBaseClass(metaclass=StructMeta):
 
     @property
     def discretization(self):
-        """discretization: Discretization Parameters
-        """
+        """discretization: Discretization Parameters."""
         return self._discretization
 
     def __repr__(self):
-        """String-depiction of the object, can be changed into an object by
-        calling the method eval.
-
-        Returns
-        -------
-        class.name(parameters with values) : str
-            Information about the class's name of an object and its parameters
-            like number of components and object name, depicted as a string.
-        """
+        """str: String-representation of the object."""
         return '{}(n_comp={}, name=\'{}\')'.format(self.__class__.__name__,
             self.n_comp, self.name)
 
     def __str__(self):
-        """Returns the information von __repr__ as a string object.
-
-        Returns
-        -------
-        name : String
-            Information about the class's name of an object and its paremeters
-            like number of components and object name
-        """
+        """str: String-representation of the object."""
         return self.name
 
 
 class SourceMixin(metaclass=StructMeta):
     """Mixin class for Units that have Source-like behavior
 
-    See also
+    See Also
     --------
     SinkMixin
     Source
     Cstr
+
     """
     _n_poly_coeffs = 4
     flow_rate = Polynomial(dep=('_n_poly_coeffs'), default=0)
@@ -297,17 +286,17 @@ class SourceMixin(metaclass=StructMeta):
 class SinkMixin():
     """Mixin class for Units that have Sink-like behavior
 
-    See also
+    See Also
     --------
     SourceMixin
     Cstr
+
     """
     pass
 
 
 class Source(UnitBaseClass, SourceMixin):
-    """Pseudo unit operation model for streams entering the system.
-    """
+    """Pseudo unit operation model for streams entering the system."""
     c = NdPolynomial(dep=('n_comp', '_n_poly_coeffs'), default=0)
     _n_poly_coeffs = 4
     _parameter_names = \
@@ -323,18 +312,13 @@ class Source(UnitBaseClass, SourceMixin):
         SourceMixin._polynomial_parameters + \
         ['c']
 
-
 class Sink(UnitBaseClass, SinkMixin):
-    """Pseudo unit operation model for streams leaving the system.
-    """
+    """Pseudo unit operation model for streams leaving the system."""
     pass
-
 
 class MixerSplitter(UnitBaseClass):
-    """Pseudo unit operation model for mixing/splitting streams in the system.
-    """
+    """Pseudo unit operation model for mixing/splitting streams in the system."""
     pass
-
 
 class TubularReactor(UnitBaseClass):
     """Class for tubular reactors.
@@ -347,8 +331,8 @@ class TubularReactor(UnitBaseClass):
 
     Notes
     -----
-    For subclassing, check that the total porosity and interstitial cross
-    section area are computed correctly depending on the model porosities!
+        For subclassing, check that the total porosity and interstitial cross
+        section area are computed correctly depending on the model porosities!
 
     Attributes
     ----------
@@ -386,12 +370,13 @@ class TubularReactor(UnitBaseClass):
     def cross_section_area(self):
         """float: Cross section area of a Column.
 
-        See also
+        See Also
         --------
         volume
         cross_section_area_interstitial
         cross_section_area_liquid
         cross_section_area_solid
+
         """
         return math.pi/4 * self.diameter**2
 
@@ -416,7 +401,7 @@ class TubularReactor(UnitBaseClass):
 
         Notes
         -----
-        Needs to be overwritten depending on the model porosities!
+            Needs to be overwritten depending on the model porosities!
 
         """
         self.cross_section_area = Q/(u0*self.total_porosity)
@@ -427,13 +412,14 @@ class TubularReactor(UnitBaseClass):
 
         Notes
         -----
-        Needs to be overwritten depending on the model porosities!
+            Needs to be overwritten depending on the model porosities!
 
-        See also
+        See Also
         --------
         cross_section_area
         cross_section_area_liquid
         cross_section_area_solid
+
         """
         return self.total_porosity * self.cross_section_area
 
@@ -441,12 +427,13 @@ class TubularReactor(UnitBaseClass):
     def cross_section_area_liquid(self):
         """float: Liquid fraction of column cross section area.
 
-        See also
+        See Also
         --------
         cross_section_area
         cross_section_area_interstitial
         cross_section_area_solid
         volume
+
         """
         return self.total_porosity * self.cross_section_area
 
@@ -454,12 +441,12 @@ class TubularReactor(UnitBaseClass):
     def cross_section_area_solid(self):
         """float: Liquid fraction of column cross section area.
 
-
-        See also
+        See Also
         --------
         cross_section_area
         cross_section_area_interstitial
         cross_section_area_liquid
+
         """
         return (1 - self.total_porosity) * self.cross_section_area
 
@@ -467,9 +454,10 @@ class TubularReactor(UnitBaseClass):
     def volume(self):
         """float: Volume of the TubularReactor.
 
-        See also
+        See Also
         --------
         cross_section_area
+
         """
         return self.cross_section_area * self.length
 
@@ -477,22 +465,21 @@ class TubularReactor(UnitBaseClass):
     def volume_interstitial(self):
         """float: Interstitial volume between particles.
 
-        See also
+        See Also
         --------
         cross_section_area
+
         """
         return self.cross_section_area_interstitial * self.length
 
     @property
     def volume_liquid(self):
-        """float: Volume of the liquid phase.
-        """
+        """float: Volume of the liquid phase."""
         return self.cross_section_area_liquid * self.length
 
     @property
     def volume_solid(self):
-        """float: Volume of the solid phase.
-        """
+        """float: Volume of the solid phase."""
         return self.cross_section_area_solid * self.length
 
     def t0(self, flow_rate):
@@ -508,9 +495,10 @@ class TubularReactor(UnitBaseClass):
         t0 : float
             Mean residence time
 
-        See also
+        See Also
         --------
         u0
+
         """
         return self.volume_interstitial / flow_rate
 
@@ -527,10 +515,11 @@ class TubularReactor(UnitBaseClass):
         u0 : float
             interstitial flow velocity
 
-        See also
+        See Also
         --------
         t0
         NTP
+
         """
         return self.length/self.t0(flow_rate)
 
@@ -549,6 +538,7 @@ class TubularReactor(UnitBaseClass):
         -------
         NTP : float
             Number of theretical plates
+
         """
         return self.u0(flow_rate) * self.length / (2 * self.axial_dispersion)
 
@@ -569,10 +559,11 @@ class TubularReactor(UnitBaseClass):
         NTP : float
             Number of theretical plates
 
-        See also
+        See Also
         --------
         u0
         NTP
+
         """
         self.axial_dispersion = self.u0(flow_rate) * self.length / (2 * NTP)
 
@@ -589,9 +580,10 @@ class LumpedRateModelWithoutPores(TubularReactor):
 
     Notes
     -----
-    Although technically the LumpedRateModelWithoutPores does not have
-    particles, the particle reactions interface is used to support reactions
-    in the solid phase and cross-phase reactions.
+        Although technically the LumpedRateModelWithoutPores does not have
+        particles, the particle reactions interface is used to support 
+        reactions in the solid phase and cross-phase reactions.
+
     """
     supports_bulk_reaction = False
     supports_particle_reaction = True
@@ -626,6 +618,7 @@ class LumpedRateModelWithPores(TubularReactor):
         Initial concentration of the pores
     q : List of unsinged floats. Length depends on n_comp
         Initial concntration of the bound phase.
+
     """
     supports_bulk_reaction = True
     supports_particle_reaction = True
@@ -661,11 +654,12 @@ class LumpedRateModelWithPores(TubularReactor):
     def cross_section_area_interstitial(self):
         """float: Interstitial area between particles.
 
-        See also
+        See Also
         --------
         cross_section_area
         cross_section_area_liquid
         cross_section_area_solid
+
         """
         return self.bed_porosity * self.cross_section_area
 
@@ -686,7 +680,7 @@ class LumpedRateModelWithPores(TubularReactor):
 
         Notes
         -----
-        Overwrites parent method.
+            Overwrites parent method.
 
         """
         self.cross_section_area = Q/(u0*self.bed_porosity)
@@ -722,6 +716,7 @@ class GeneralRateModel(TubularReactor):
         Initial concentration of the pores
     q : List of unsinged floats. Length depends on n_comp
         Initial concntration of the bound phase.
+
     """
     supports_bulk_reaction = True
     supports_particle_reaction = True
@@ -760,11 +755,12 @@ class GeneralRateModel(TubularReactor):
     def cross_section_area_interstitial(self):
         """float: Interstitial area between particles.
 
-        See also
+        See Also
         --------
         cross_section_area
         cross_section_area_liquid
         cross_section_area_solid
+
         """
         return self.bed_porosity * self.cross_section_area
 
@@ -785,7 +781,7 @@ class GeneralRateModel(TubularReactor):
 
         Notes
         -----
-        Overwrites parent method.
+            Overwrites parent method.
 
         """
         self.cross_section_area = Q/(u0*self.bed_porosity)
@@ -814,6 +810,7 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         Total porosity of the column.
     flow_rate_filter: np.Array
         Flow rate of pure liquid without components to reduce volume.
+
     """
     supports_bulk_reaction = True
     supports_particle_reaction = True
@@ -843,14 +840,12 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
 
     @property
     def volume_liquid(self):
-        """float: Volume of the liquid phase.
-        """
+        """float: Volume of the liquid phase."""
         return self.porosity * self.V
 
     @property
     def volume_solid(self):
-        """float: Volume of the solid phase.
-        """
+        """float: Volume of the solid phase."""
         return (1 - self.porosity) * self.V
 
     def t0(self, flow_rate):
@@ -866,8 +861,9 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         t0 : float
             Mean residence time
 
-        See also
+        See Also
         --------
         u0
+
         """
         return self.volume_liquid / flow_rate

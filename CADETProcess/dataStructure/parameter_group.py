@@ -9,11 +9,12 @@ class ParametersGroup(Structure):
     _parameters : List of strings
         List of paramters to be exported.
 
-    See also
+    See Also
     --------
     Parameter
     Descriptor
     ParameterWrapper
+
     """
     _parameters = []
 
@@ -27,8 +28,7 @@ class ParametersGroup(Structure):
 
     @property
     def parameters(self):
-        """dict: Dictionary with names and values of the parameters.
-        """
+        """dict: Dictionary with names and values of the parameters."""
         return {
             param: getattr(self, param) for param in self._parameters
                 if getattr(self, param) is not None
@@ -58,11 +58,12 @@ class ParameterWrapper(ParametersGroup):
     CADETProcessError
         If the wrapped_object is no instance of the base_class.
 
-    See also
+    See Also
     --------
     Parameter
     Descriptor
     ParametersGroup
+
     """
     _base_class = object
 
@@ -95,9 +96,10 @@ class ParameterWrapper(ParametersGroup):
             Dictionary, containing the attributes of each parameter from the
             model_parameters and the cadet_parameters.
 
-        See also
+        See Also
         --------
         ParametersGroup
+
         """
         solver_parameters = super().to_dict()
         model_parameters = {}

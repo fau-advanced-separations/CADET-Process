@@ -3,8 +3,7 @@ import numpy as np
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import (
-    UnsignedInteger, UnsignedFloat,
-    DependentlySizedUnsignedList, DependentlySizedNdArray, Vector
+    UnsignedInteger, UnsignedFloat, Vector
 )
 
 class Fraction(metaclass=StructMeta):
@@ -28,6 +27,7 @@ class Fraction(metaclass=StructMeta):
         mass
         purity
         concentration
+
         """
         return sum(self.mass)
 
@@ -42,6 +42,7 @@ class Fraction(metaclass=StructMeta):
         mass
         fraction_mass
         concentration
+
         """
         with np.errstate(divide='ignore', invalid='ignore'):
             purity = self.mass / self.fraction_mass
@@ -58,6 +59,7 @@ class Fraction(metaclass=StructMeta):
         --------
         mass
         volume
+
         """
         with np.errstate(divide='ignore', invalid='ignore'):
             concentration = self.mass / self.volume
@@ -66,13 +68,16 @@ class Fraction(metaclass=StructMeta):
 
 
     def __repr__(self):
-       return "%s(mass=np.%r,volume=%r)" % (
-           self.__class__.__name__, self.mass, self.volume
-       )
+       return f"{self.__class__.__name__}(mass={self.mass},volume={self.volume})"
 
 
 class FractionPool(metaclass=StructMeta):
-    """
+    """Collection of pooled fractions.
+
+    See Also
+    --------
+    Fraction
+    CADETProcess.fractionation.Fractionator
     """
     n_comp = UnsignedInteger()
     def __init__(self, n_comp):
@@ -102,6 +107,7 @@ class FractionPool(metaclass=StructMeta):
         -------
         volume : float
             Cumulative volume of all fractions in the pool.
+
         """
         return sum(frac.volume for frac in self.fractions)
 
@@ -113,6 +119,7 @@ class FractionPool(metaclass=StructMeta):
         -------
         mass : float
             Cumulative mass of all fractions in the pool.
+
         """
         return sum(frac.mass for frac in self.fractions)
 
@@ -124,6 +131,7 @@ class FractionPool(metaclass=StructMeta):
         -------
         pool_mass : float
             Cumulative mass of all fractions in the pool.
+
         """
         return sum(frac.fraction_mass for frac in self.fractions)
 
@@ -138,11 +146,12 @@ class FractionPool(metaclass=StructMeta):
         purity : ndarray
             Average purity of the fraction.
 
-        See also
+        See Also
         --------
         mass
         pool_mass
         concentration
+
         """
         with np.errstate(divide='ignore', invalid='ignore'):
             purity = self.mass / self.pool_mass
@@ -160,10 +169,11 @@ class FractionPool(metaclass=StructMeta):
         concentration : ndarray
             Average concentration of the fraction pool.
 
-        See also
+        See Also
         --------
         mass
         volume
+
         """
         with np.errstate(divide='ignore', invalid='ignore'):
             concentration = self.mass / self.volume
@@ -171,4 +181,4 @@ class FractionPool(metaclass=StructMeta):
         return np.nan_to_num(concentration)
 
     def __repr__(self):
-       return "%s(n_comp=%r)" % (self.__class__.__name__, self.n_comp)
+       return f"{self.__class__.__name__}(n_comp={self.n_comp})"

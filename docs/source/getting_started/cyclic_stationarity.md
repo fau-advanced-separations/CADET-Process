@@ -8,7 +8,7 @@ kernelspec:
 ---
 
 (stationarity_tutorial)=
-# Cyclic stationarity
+# Cyclic Stationarity
 Preparative chromatographic separations are operated in a repetitive fashion.
 In particular processes that incorporate the recycling of streams, like steady-state-recycling (SSR) or simulated moving bed (SMB), have a distinct startup behavior that takes multiple cycles until a periodic steady state is reached.
 But also in conventional batch chromatography several cycles are needed to attain stationarity in optimized situations where there is a cycle-to-cycle overlap of the elution profiles of consecutive injections.

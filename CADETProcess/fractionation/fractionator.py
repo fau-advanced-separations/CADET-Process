@@ -23,11 +23,6 @@ class Fractionator(EventHandler):
     size. The time_signal to fractionate is defined. If no ranking is set,
     every component is equivalently.
 
-    Attributes
-    ----------
-    chromatogram : Chromatogram
-        Object of the class TimeSignal, array with the concentration over time
-        for a simulated process.
     """
 
     name = String(default='Fractionator')
@@ -47,8 +42,7 @@ class Fractionator(EventHandler):
 
     def _chrom_name_decorator(func):
         def wrapper(self, chrom, *args, **kwargs):
-            """Enable calling functions with chromatogram object or name.
-            """
+            """Enable calling functions with chromatogram object or name."""
             if isinstance(chrom, str):
                 try:
                     chrom = self.chromatograms_dict[chrom]
@@ -60,27 +54,11 @@ class Fractionator(EventHandler):
 
     @property
     def chromatograms(self):
-        """Chromatogram to be fractionized.
+        """list: Chromatograms to be fractionized.
 
-        After setting, the cycle time is set and the results are reset.
-
-        Parameters
-        ----------
-        chrmatogram : Chromatogram
-            Chromatogram to be fractionized.
-
-        Raises
-        ------
-        CADETProcessError
-            If the chromatogram is not a Chromatogram instance
-
-        Returns
-        -------
-        chromatogram : Chromatogram
-            Chromatogram to be fractionized
-
-        See also
+        See Also
         ---------
+        add_chromatogram
         Chromatogram
         reset
         cycle_time
@@ -89,20 +67,17 @@ class Fractionator(EventHandler):
 
     @property
     def chromatograms_dict(self):
-        """dict: Chromatogram names and objects.
-        """
+        """dict: Chromatogram names and objects."""
         return {chrom.name: chrom for chrom in self.chromatograms}
 
     @property
     def chromatogram_names(self):
-        """list: Chromatogram names
-        """
+        """list: Chromatogram names"""
         return [chrom.name for chrom in self.chromatograms]
 
     @property
     def number_of_chromatograms(self):
-        """int: Number of Chromatograms Fractionator.
-        """
+        """int: Number of Chromatograms Fractionator."""
         return len(self.chromatograms)
 
     @property
@@ -110,7 +85,7 @@ class Fractionator(EventHandler):
         chrom_events = {
             chrom: sorted(events, key=lambda evt: evt.time)
             for chrom, events in self._chromatogram_events.items()
-            }
+        }
 
         return chrom_events
 
@@ -130,6 +105,7 @@ class Fractionator(EventHandler):
             If unit already exists in flow sheet.
             If n_comp does not match with other Chromatograms.
             If cycle times does not match with other Chromatograms.
+
         """
         if not isinstance(chromatogram, Chromatogram):
             raise TypeError('Expected Chromatogram')
@@ -156,41 +132,22 @@ class Fractionator(EventHandler):
 
     @property
     def n_comp(self):
-        """Shortcut property to Chromatogram.n_comp.
-
-        Returns
-        --------
-        n_comp : int
-            Number of components to be fractionized
-        """
+        """int: Number of components to be fractionized"""
         return self.chromatograms[0].n_comp
 
     @property
     def cycle_time(self):
-        """Shortcut property to Chromatogram.cycle_time.
-
-        Returns
-        --------
-        cycle_time : ndarray
-            Cycle time of process.
-        """
+        """float: cycle time"""
         return self.chromatograms[0].cycle_time
 
     @property
     def time(self):
-        """Shortcut property to Chromatogram time vector.
-
-        Returns
-        --------
-        time : NdArray
-            Sets the time from TimeSignal object.
-        """
+        """np.ndarray: solution times of Chromatogram."""
         return self.chromatograms[0].time
 
     @plotting.create_and_save_figure
     def plot_fraction_signal(
-            self, start=0, end=None, index=0, secondary_axis=None, ax=None
-            ):
+            self, start=0, end=None, index=0, secondary_axis=None, ax=None):
         """Plot the signal without the waste fractions.
 
         Parameters
@@ -209,10 +166,11 @@ class Fractionator(EventHandler):
         ax : Axes
             Axes with plot of parameter state.
 
-        See also
+        See Also
         --------
         CADETProcess.plot
         plot_purity
+
         """
         chrom = self.chromatograms[index]
         time_line = self.performer_timelines['fractionation_states'][chrom.name]
@@ -270,9 +228,11 @@ class Fractionator(EventHandler):
     @property
     def fractionation_states(self):
         """dict: Fractionation state of Chromatograms.
+
         Notes
         -----
-        This is just a dummy variable to support interfacing with Events.
+            This is just a dummy variable to support interfacing with Events.
+
         """
         return self._fractionation_states
 
@@ -294,6 +254,7 @@ class Fractionator(EventHandler):
             If state is integer and the state >= the n_comp.
             If the length of the states is unequal the state_length.
             If the sum of the states is not equal to 1.
+
         """
         if chrom not in self._chromatograms:
             raise CADETProcessError('Chromatogram not in Fractionator')
@@ -322,7 +283,7 @@ class Fractionator(EventHandler):
 
     @property
     def fraction_pools(self):
-        """Returns a list of the component and waste fraction pools.
+        """List of the component and waste fraction pools.
 
         For every event, the end time is determined and a Fraction object is
         created which holds information about start and end time, as well as
@@ -333,6 +294,7 @@ class Fractionator(EventHandler):
         -------
         fraction_pools : list
             List with fraction pools.
+
         """
         if self._fraction_pools is None:
             self._fraction_pools = [
@@ -369,7 +331,7 @@ class Fractionator(EventHandler):
         return self._fraction_pools
 
     def _create_fraction(self, chrom_index, start, end):
-        """Helper function to create Fraction object calculate mass
+        """Helper function to create Fraction object calculate mass.
 
         Parameters
         ----------
@@ -382,14 +344,19 @@ class Fractionator(EventHandler):
         -------
         fraction : Fraction
             Chromatogram fraction
+
         """
         mass = self.chromatograms[chrom_index].fraction_mass(start, end)
         volume = self.chromatograms[chrom_index].fraction_volume(start, end)
         return Fraction(mass, volume)
 
     def add_fraction(self, fraction, target):
-        """
-        Waste is the last fraction
+        """Add Fraction to the FractionPool of target component.
+
+        Notes
+        -----
+            Waste is always the last fraction
+
         """
         if not isinstance(fraction, Fraction):
             raise TypeError('Expected Fraction')
@@ -401,8 +368,7 @@ class Fractionator(EventHandler):
 
     @property
     def mass(self):
-        """ndarray: Collected component mass in corresponding fraction pools.
-        """
+        """ndarray: Collected component mass in corresponding fraction pools."""
         if self._mass is None:
             self._mass = np.array(
                 [pool.mass[comp]
@@ -412,8 +378,7 @@ class Fractionator(EventHandler):
 
     @property
     def concentration(self):
-        """ndarray: Component concentration in corresponding fraction pool.
-        """
+        """ndarray: Component concentration in corresponding fraction pool."""
         return np.array(
             [pool.concentration[comp]
              for comp, pool in enumerate(self.fraction_pools[:-1])]
@@ -421,8 +386,7 @@ class Fractionator(EventHandler):
 
     @property
     def purity(self):
-        """ndarray: Component purity in corresponding fraction pool.
-        """
+        """ndarray: Component purity in corresponding fraction pool."""
         return np.array(
             [pool.purity[comp]
              for comp, pool in enumerate(self.fraction_pools[:-1])]
@@ -430,8 +394,7 @@ class Fractionator(EventHandler):
 
     @property
     def recovery(self):
-        """ndarray: Component recovery yield in corresponding fraction pool.
-        """
+        """ndarray: Component recovery yield in corresponding fraction pool."""
         with np.errstate(divide='ignore', invalid='ignore'):
             recovery = self.mass / self.process_meta.m_feed
 
@@ -439,22 +402,20 @@ class Fractionator(EventHandler):
 
     @property
     def productivity(self):
-        """ndarray: Specific productivity for components in corresponding
-        fraction pool.
-        """
+        """ndarray: Specific productivity in corresponding fraction pool."""
         return self.mass / (
             self.process_meta.cycle_time * self.process_meta.V_solid
         )
 
     @property
     def eluent_consumption(self):
-        """ndarray: Component mass per unit volume of eluent in corresponding
-        fraction pool.
+        """ndarray: Specific eluent consumption in corresponding fraction pool.
 
-        Note
-        ----
-        This is the inverse of the regularly used specific eluent consumption
-        It is preferred in order to avoid numeric issues if collected mass is 0.
+        Notes
+        -----
+            This is the inverse of the regularly used specific eluent
+            consumption. It is preferred here in order to avoid numeric issues
+            if the collected mass is 0.
         """
         return self.mass / self.process_meta.V_eluent
 
@@ -467,8 +428,7 @@ class Fractionator(EventHandler):
         )
 
     def reset(self):
-        """Resets the results when fractionation times are changed.
-        """
+        """Reset the results when fractionation times are changed."""
         self._fractionation_state = None
         self._fraction_pools = None
         self._mass = None

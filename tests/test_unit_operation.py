@@ -182,10 +182,10 @@ class Test_Unit_Operation(unittest.TestCase):
 
     def test_parameters(self):
         """
-        Note
-        ----
-        Currently, only getting parameters is tested. Should also test if
-        setting works. For this, adsorption parameters should be provided.
+        Notes
+        -----
+            Currently, only getting parameters is tested. Should also test if
+            setting works. For this, adsorption parameters should be provided.
         """
         cstr = self.create_cstr()
         parameters_expected = {

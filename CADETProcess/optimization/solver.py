@@ -18,6 +18,7 @@ class SolverBase(metaclass=StructMeta):
     calling the run method. The class has to convert the OptimizationProblem
     configuration to the APIs configuration format and convert the results back
     to the chromapy format.
+
     """
     _options = []
     def __init__(self):
@@ -65,6 +66,7 @@ class SolverBase(metaclass=StructMeta):
             If optimization_problem is not an instance of OptimizationProblem
         CADETProcessError
             If solver doesn't terminate successfully
+
         """
         return
 
@@ -101,6 +103,7 @@ class OptimizationResults(metaclass=StructMeta):
         Value of objective function at x.
     c : np.ndarray
         Values of constraint function at x
+
     """
     x0 = List()
     solver_name = String()

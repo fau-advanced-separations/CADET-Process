@@ -2,9 +2,9 @@
 # Component System
 
 ```{eval-rst}
-.. currentmodule:: CADETProcess.processModel
+.. automodule:: CADETProcess.processModel.componentSystem
+   :members:
 
-.. autoclass:: ComponentSystem
 ```
 
 

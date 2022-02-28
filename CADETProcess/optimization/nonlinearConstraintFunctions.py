@@ -1,17 +1,17 @@
 """Module for definition of nonlinear constraint functions used in optimization
 
-See also
+See Also
 --------
 Evaluator
 OptimizationProblem
 objectiveFunctions
+
 """
 
 from CADETProcess import CADETProcessError
 
 def purity(performance):
     """Product purity.
-
 
     Parameters
     ----------
@@ -22,6 +22,8 @@ def purity(performance):
     -------
     c : float or np.ndarray
          Value of the nonlinear constraint function.
+
+
     """
     return performance.purity
 
@@ -38,6 +40,7 @@ def concentration(performance):
     -------
     c : float or np.ndarray
          Value of nonlinear constraint function.
+
     """
     return performance.concentration
 
@@ -54,6 +57,7 @@ def nonlin_bounds_decorator(bounds):
     -------
     nonlin_bounds_decorator : function
         Decorator function to subtract Performance from bounds
+
     """
     def nonlin_fun_decorator(nonlin_fun):
         """Decorator function to change Performance object to RankedPerformance.
@@ -67,6 +71,7 @@ def nonlin_bounds_decorator(bounds):
         -------
         obj_fun_wrapper : function
             Function for calling obj_fun with RankedPerformance
+
         """
         def nonlin_fun_wrapper(performance):
             """Function for calling nonlin_fun with RankedPerformance
@@ -79,6 +84,7 @@ def nonlin_bounds_decorator(bounds):
             Returns
             -------
             c : value of constraint function
+
             """
             if isinstance(bounds, (float, int)):
                 _bounds = [bounds]*performance.n_comp

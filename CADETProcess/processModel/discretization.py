@@ -25,8 +25,7 @@ class DiscretizationParametersBase(ParametersGroup):
 
     @property
     def parameters(self):
-        """dict: Dictionary with parameter values.
-        """
+        """dict: Dictionary with parameter values."""
         parameters = super().parameters
         parameters['weno'] = self.weno_parameters.parameters
         parameters['consistency_solver'] = self.consistency_solver.parameters
@@ -128,9 +127,10 @@ class WenoParameters(ParametersGroup):
     Defines several parameters as UnsignedInteger, UnsignedFloat and save their
     names into a list named parameters.
 
-    See also
+    See Also
     --------
     ParametersGroup
+    
     """
     boundary_model = UnsignedInteger(default=0, ub=3)
     weno_eps = UnsignedFloat(default=1e-10)
@@ -143,6 +143,7 @@ class ConsistencySolverParametersGroup(ParametersGroup):
     See also
     --------
     ParametersGroup
+    
     """
     solver_name = Switch(
         default='LEVMAR',

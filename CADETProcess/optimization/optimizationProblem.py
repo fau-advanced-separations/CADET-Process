@@ -49,6 +49,7 @@ class OptimizationProblem(metaclass=StructMeta):
         List with all linear equality constrains of an OptimizationProblem.
     eval_dict : dict
         Database for storing evaluated individuals
+
     """
     name = String()
 
@@ -91,7 +92,7 @@ class OptimizationProblem(metaclass=StructMeta):
         evaluation_object : obj
             Object to be evaluated during optimization.
 
-        See also
+        See Also
         --------
         OptimizatonVariable
         Evaluator
@@ -99,6 +100,7 @@ class OptimizationProblem(metaclass=StructMeta):
         Performance
         objectives
         nonlinear_constraints
+
         """
         return self._evaluation_object
 
@@ -125,13 +127,14 @@ class OptimizationProblem(metaclass=StructMeta):
         CADETProcessError
             If evaluation object does not implement evaluation method.
 
-        See also
+        See Also
         --------
         evaluation_object
         evaluate
         Performance
         objectives
         nonlinear_constraints
+
         """
         return self._evaluator
 
@@ -146,29 +149,22 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def variables(self):
-        """list: List of all optimization variables.
-        """
+        """list: List of all optimization variables."""
         return self._variables
 
     @property
     def variables_dict(self):
-        """Returns a dictionary with all events in a process.
-
-        Returns
-        -------
-        events_dict : dict
-            Dictionary with all events and durations, indexed by Event.name.
-        """
+        """dict: All optimization variables indexed by Variable.name."""
         return {var.name: var for var in self._variables}
 
     @property
     def n_variables(self):
-        """int: Number of optimization variables.
-        """
+        """int: Number of optimization variables."""
         return len(self.variables)
 
-    def add_variable(self, parameter_path, name=None, lb=-math.inf, ub=math.inf,
-                     component_index=None):
+    def add_variable(
+            self, parameter_path, name=None, lb=-math.inf, ub=math.inf,
+            component_index=None):
         """Add optimization variable to the OptimizationProblem.
 
         The function encapsulates the creation of OoptimizationVariable objects
@@ -192,11 +188,12 @@ class OptimizationProblem(metaclass=StructMeta):
         CADETProcessError
             If the Variable already exists in the dictionary.
 
-        See also
+        See Also
         --------
         evaluation_object
         OptimizationVariable
         remove_variable
+
         """
         if name is None:
             name = parameter_path
@@ -212,7 +209,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
 
     def remove_variable(self, var_name):
-        """Removes variables from the OptimizationProblem.
+        """Remove optimization variable from the OptimizationProblem.
 
         Parameters
         ----------
@@ -224,9 +221,10 @@ class OptimizationProblem(metaclass=StructMeta):
         CADETProcessError
             If required variable does not exist.
 
-        See also
+        See Also
         --------
         add_variable
+
         """
         try:
             var = self.variables_dict[var_name]
@@ -260,10 +258,11 @@ class OptimizationProblem(metaclass=StructMeta):
         ValueError
             If value of variable exceeds bounds
 
-        See also
+        See Also
         --------
         OptimizationVariable
         evaluate
+
         """
         if len(x) != self.n_variables:
             raise CADETProcessError('Expected {} variables'.format(self.n_variables))
@@ -308,6 +307,7 @@ class OptimizationProblem(metaclass=StructMeta):
         -------
         performance : Performance
             Performance object from fractionation.
+
         """
         x = np.array(x)
 
@@ -392,6 +392,7 @@ class OptimizationProblem(metaclass=StructMeta):
         ------
         TypeError
             If objective_fun is not callable.
+
         """
         if not callable(objective_fun):
             raise TypeError("Expected callable object")
@@ -399,7 +400,7 @@ class OptimizationProblem(metaclass=StructMeta):
         self._objectives.append(objective_fun)
 
     def evaluate_objectives(self, x, *args, **kwargs):
-        """Function that evaluates at x and computes objective function.
+        """Evaluate objective functions at point x.
 
         This function is usually presented to the optimization solver. The
         actual evaluation of the evaluation object is peformed by the evaluate
@@ -421,6 +422,7 @@ class OptimizationProblem(metaclass=StructMeta):
         add_objective
         evaluate
         evaluate_nonlinear_constraints
+
         """
         performance = self.evaluate(x, *args, **kwargs)
         f = np.array([obj(performance) for obj in self.objectives])
@@ -447,6 +449,7 @@ class OptimizationProblem(metaclass=StructMeta):
         --------
         OptimizationProblem
         objectives
+
         """
         dx = [dx]*len(x)
         grad = [optimize.approx_fprime(x, obj, dx) for obj in self.objectives]
@@ -474,6 +477,7 @@ class OptimizationProblem(metaclass=StructMeta):
         ------
         TypeError
             If nonlinear_constraint_fun is not callable.
+
         """
         if not callable(nonlinear_constraint_fun):
             raise TypeError("Expected callable object")
@@ -481,7 +485,7 @@ class OptimizationProblem(metaclass=StructMeta):
         self._nonlinear_constraints.append(nonlinear_constraint_fun)
 
     def evaluate_nonlinear_constraints(self, x, *args, **kwargs):
-        """Function that evaluates at x and computes nonlinear constraitns.
+        """Evaluate nonlinera constraint functions at point x.
 
         This function is usually presented to the optimization solver. The
         actual evaluation of the evaluation object is peformed by the evaluate
@@ -497,7 +501,7 @@ class OptimizationProblem(metaclass=StructMeta):
         c : list
             Value(s) of the constraint functions at point x.
 
-        See also
+        See Also
         --------
         nonlinear_constraints
         evaluate
@@ -510,7 +514,7 @@ class OptimizationProblem(metaclass=StructMeta):
         return c
 
     def check_nonlinear_constraints(self, x):
-        """Checks if all nonlinear constraints are kept.
+        """Check if all nonlinear constraints are kept.
 
         Parameters
         ----------
@@ -522,6 +526,7 @@ class OptimizationProblem(metaclass=StructMeta):
         flag : bool
             True if all nonlinear constraints are smaller or equal to zero,
             False otherwise.
+
         """
         c = self.evaluate_nonlinear_constraints(x)
         for constr in c:
@@ -530,7 +535,7 @@ class OptimizationProblem(metaclass=StructMeta):
         return True
 
     def nonlinear_constraint_jacobian(self, x, dx=1e-3):
-        """Return the jacobian matrix of the nonlinear constraints at point x.
+        """Compute jacobian of the nonlinear constraints at point x.
 
         Parameters
         ----------
@@ -544,10 +549,11 @@ class OptimizationProblem(metaclass=StructMeta):
         jacobian: list
             Value of the partial derivatives at point x.
 
-        See also
+        See Also
         --------
         nonlinear_constraint_fun
         approximate_jac
+
         """
         jacobian = [
             approximate_jac(x, constr, dx)
@@ -559,9 +565,10 @@ class OptimizationProblem(metaclass=StructMeta):
     def lower_bounds(self):
         """list : List of the lower bounds of all OptimizationVariables.
 
-        See also
+        See Also
         --------
         upper_bounds
+
         """
         return [var.lb for var in self.variables]
 
@@ -569,9 +576,10 @@ class OptimizationProblem(metaclass=StructMeta):
     def upper_bounds(self):
         """list : List of the upper bounds of all OptimizationVariables.
 
-        See also
+        See Also
         --------
         upper_bounds
+
         """
         return [var.ub for var in self.variables]
 
@@ -613,6 +621,7 @@ class OptimizationProblem(metaclass=StructMeta):
         add_linear_constraint
         remove_linear_constraint
         linear_equality_constraints
+
         """
         return self._linear_constraints
 
@@ -640,11 +649,12 @@ class OptimizationProblem(metaclass=StructMeta):
             If optimization variables do not exist.
             If length of factors does not match length of optimization variables.
 
-        See also
+        See Also
         --------
         linear_constraints
         remove_linear_constraint
         linear_equality_constraints
+
         """
         if not all(var in self.variables_dict for var in opt_vars):
             raise CADETProcessError('Variable not in variables')
@@ -660,17 +670,18 @@ class OptimizationProblem(metaclass=StructMeta):
         self._linear_constraints.append(lincon)
 
     def remove_linear_constraint(self, index):
-        """Removes linear inequality constraint.
+        """Remove linear inequality constraint.
 
         Parameters
         ----------
         index : int
             Index of the linear inequality constraint to be removed.
 
-        See also
+        See Also
         --------
         add_linear_equality_constraint
         linear_equality_constraint
+
         """
         del(self._linear_constraints[index])
 
@@ -684,6 +695,7 @@ class OptimizationProblem(metaclass=StructMeta):
         b
         add_linear_constraint
         remove_linear_constraint
+
         """
         A = np.zeros((len(self.linear_constraints), len(self.variables)))
 
@@ -703,6 +715,7 @@ class OptimizationProblem(metaclass=StructMeta):
         A
         add_linear_constraint
         remove_linear_constraint
+
         """
         b = [lincon['b'] for lincon in self.linear_constraints]
 
@@ -726,6 +739,7 @@ class OptimizationProblem(metaclass=StructMeta):
         A
         b
         linear_constraints
+
         """
         x = np.array(x)
         return self.A.dot(x) - self.b
@@ -749,6 +763,7 @@ class OptimizationProblem(metaclass=StructMeta):
         evaluate_linear_constraints
         A
         b
+
         """
         flag = True
 
@@ -766,13 +781,13 @@ class OptimizationProblem(metaclass=StructMeta):
         add_linear_equality_constraint
         remove_linear_equality_constraint
         linear_constraints
+
         """
         return self._linear_equality_constraints
 
     @property
     def n_linear_equality_constraints(self):
-        """int: number of linear equality constraints
-        """
+        """int: number of linear equality constraints"""
         return len(self.linear_constraints)
 
     def add_linear_equality_constraint(self, opt_vars, factors, beq=0):
@@ -793,11 +808,12 @@ class OptimizationProblem(metaclass=StructMeta):
             If optimization variables do not exist.
             If length of factors does not match length of optimization variables.
 
-        See also
+        See Also
         --------
         linear_equality_constraints
         remove_linear_equality_constraint
         linear_constraints
+
         """
         if not all(var in self.variables for var in opt_vars):
             return CADETProcessError('Variables not in variables')
@@ -813,17 +829,18 @@ class OptimizationProblem(metaclass=StructMeta):
         self._linear_equality_constraints.append(lineqcon)
 
     def remove_linear_equality_constraint(self, index):
-        """Removes at given index the added linear equality conctraint.
+        """Removes at given index the added linear equality constraint.
 
         Parameters
         ----------
         index : int
             Index of the linear equality constraint to be removed.
 
-        See also
+        See Also
         --------
         add_linear_equality_constraint
         linear_equality_constraint
+
         """
         del(self._linear_equality_constraints[index])
 
@@ -836,6 +853,7 @@ class OptimizationProblem(metaclass=StructMeta):
         beq
         add_linear_equality_constraint
         remove_linear_equality_constraint
+
         """
         Aeq = np.zeros(
             (len(self.linear_equality_constraints), len(self.variables))
@@ -859,6 +877,7 @@ class OptimizationProblem(metaclass=StructMeta):
         Aeq
         add_linear_equality_constraint
         remove_linear_equality_constraint
+
         """
         beq = np.zeros((len(self.linear_equality_constraints),))
         beq = [lineqcon.beq for lineqcon in self.linear_equality_constraints]
@@ -883,6 +902,7 @@ class OptimizationProblem(metaclass=StructMeta):
         Aeq
         beq
         linear_equality_constraints
+
         """
         x = np.array(x)
         return self.Aeq.dot(x) - self.beq
@@ -899,6 +919,7 @@ class OptimizationProblem(metaclass=StructMeta):
         -------
         flag : bool
             Returns True if linear equality constraints are met. False otherwise.
+
         """
         flag = True
 
@@ -920,6 +941,7 @@ class OptimizationProblem(metaclass=StructMeta):
         ------
         CADETProcessError
             If the initial value does not match length of optimization variables
+
         """
         return self._x0
 
@@ -953,6 +975,7 @@ class OptimizationProblem(metaclass=StructMeta):
         -------
         init : ndarray
             Initial values for starting the optimization.
+
         """
         model = hopsy.UniformModel()
 
@@ -1038,6 +1061,7 @@ class OptimizationVariable():
     ------
     CADETProcessError
         If the attribute is not valid.
+
     """
     _parameters = ['lb', 'ub', 'component_index']
 
@@ -1065,8 +1089,7 @@ class OptimizationVariable():
 
     @property
     def parameter_sequence(self):
-        """tuple: Tuple of parameters path elements.
-        """
+        """tuple: Tuple of parameters path elements."""
         return tuple(self.parameter_path.split('.'))
 
     @property
@@ -1085,13 +1108,7 @@ class OptimizationVariable():
 
     @property
     def parameters(self):
-        """Returns the parameters in a list.
-
-        Returns
-        -------
-        parameters : dict
-            list with all the parameters.
-        """
+        """dict: parameter dictionary."""
         return Dict({param: getattr(self, param) for param in self._parameters})
 
     def __repr__(self):

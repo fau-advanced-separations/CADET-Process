@@ -15,7 +15,7 @@ sys.path.append('../../../')
 ```
 
 (simulation_tutorial)=
-# Process simulation
+# Process Simulation
 Starting point of process development is the setup of the `ProcessModel` (see {ref}`Framework overview <framework_overview>`), i.e., the specific configuration of the chromatographic process.
 This is realized using `UnitOperations` as building blocks.
 

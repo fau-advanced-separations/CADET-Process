@@ -1,8 +1,7 @@
 # Process
 
 ```{eval-rst}
-.. currentmodule:: CADETProcess.processModel
-
-.. autoclass:: Process
+.. automodule:: CADETProcess.processModel.process
+   :members:
 ```
 

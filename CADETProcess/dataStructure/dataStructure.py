@@ -12,9 +12,11 @@ def make_signature(names):
 class StructMeta(type):
     """Base class for classes that use Descriptors.
 
-    See also
+    See Also
+    --------
     Descriptor
     Parameters
+
     """
     @classmethod
     def __prepare__(cls, name, bases):
@@ -48,10 +50,11 @@ class Descriptor():
      - ``instance`` is the object which holds the actual ``value``.
      - ``value`` is the value of the ``instance`` attribute.
 
-    See also
+    See Also
     --------
     StructMeta
     Parameters
+
     """
     def __init__(self, *args, **kwargs):
         pass
@@ -75,6 +78,7 @@ class Structure(metaclass=StructMeta):
 
 def frozen_attributes(cls):
     """Decorate classes to prevent setting attributes after the init method.
+
     """
     cls._is_frozen = False
 

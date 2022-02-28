@@ -15,6 +15,7 @@ class SciPyInterface(SolverBase):
 
     Defines the bounds and all constraints, saved in a constraint_object. Also
     the jacobian matrix is defined for several solvers.
+
     """
     finite_diff_rel_step = UnsignedFloat(default=1e-2)
     tol = UnsignedFloat()
@@ -29,7 +30,7 @@ class SciPyInterface(SolverBase):
             Optimization results including optimization_problem and solver
             configuration.
 
-        See also
+        See Also
         --------
         COBYLA
         TrustConstr
@@ -38,6 +39,7 @@ class SciPyInterface(SolverBase):
         CADETProcess.optimization.OptimizationProblem.evaluate_objectives
         options
         scipy.optimize.minimize
+
         """
         if optimization_problem.n_objectives > 1:
             raise CADETProcessError("Can only handle single objective.")
@@ -257,6 +259,7 @@ class TrustConstr(SciPyInterface):
     suite of the scipy interface. It defines the solver options in the local
     variable options as a dictionary and implements the abstract method run for
     running the optimization.
+
     """
     gtol = UnsignedFloat(default=1e-6)
     xtol = UnsignedFloat(default=1e-8)
@@ -290,6 +293,7 @@ class COBYLA(SciPyInterface):
     suite of the scipy interface. It defines the solver options in the local
     variable options as a dictionary and implements the abstract method run for
     running the optimization.
+
     """
     rhobeg = UnsignedFloat(default=1)
     maxiter = UnsignedInteger(default=1000)
@@ -299,7 +303,8 @@ class COBYLA(SciPyInterface):
 
 
 class NelderMead(SciPyInterface):
-    """
+    """Class from scipy for optimization with NelderMead as method for the
+    solver.
     """
     maxiter = UnsignedInteger()
     maxfev = UnsignedInteger()

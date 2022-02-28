@@ -16,8 +16,7 @@ from CADETProcess.optimization import SolverBase, OptimizationResults
 
 
 class PymooInterface(SolverBase):
-    """Wrapper around pymoo.
-    """
+    """Wrapper around pymoo."""
     seed = UnsignedInteger(default=12345)
     x_tol = UnsignedFloat(default=1e-8)
     cv_tol = UnsignedFloat(default=1e-6)
@@ -46,6 +45,7 @@ class PymooInterface(SolverBase):
         --------
         evaluate_objectives
         options
+        
         """
         self.optimization_problem = optimization_problem
 

@@ -33,6 +33,7 @@ def approximate_jac(xk, f, epsilon, args=()):
                  f(xk[i] + epsilon[i]) - f(xk[i])
         f'[:,i] = ---------------------------------
                             epsilon[i]
+
     """
     f0 = f(*((xk,) + args))
     jac = np.zeros((len(f0),len(xk)), float)
@@ -44,4 +45,3 @@ def approximate_jac(xk, f, epsilon, args=()):
         jac[:,k] = (f(*((xk + d,) + args)) - f0) / d[k]
         ei[k] = 0.0
     return jac
-    

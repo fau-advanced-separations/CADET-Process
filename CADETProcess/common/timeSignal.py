@@ -17,7 +17,8 @@ class TimeSignal(metaclass=StructMeta):
     signal : NdArray
         NdArray of the concentration of a chromatogram.
     cycle_time : float
-            Maximum value of time vector.
+        Maximum value of time vector.
+
     """
     time = NdArray()
     signal = NdArray()
@@ -48,10 +49,11 @@ class TimeSignal(metaclass=StructMeta):
         ax : Axes
             Axes with plot of time signal.
 
-        See also
+        See Also
         --------
         plotlib
         plot_purity
+
         """
         x = self.time / 60
         y = self.signal
@@ -83,6 +85,7 @@ class TimeSignal(metaclass=StructMeta):
         -------
         local_purity : NdArray
             Returns the local purity for each component as an array.
+
         """
         purity = np.zeros(self.signal.shape)
         signal_sum = self.signal.sum(1)
@@ -97,8 +100,7 @@ class TimeSignal(metaclass=StructMeta):
 
     @plotting.create_and_save_figure
     def plot_purity(self, start=0, end=None, ax=None):
-        """Plots the local purity for each component of the concentration
-        profile.
+        """Plot local purity for each component of the concentration profile.
 
         Parameters
         ----------
@@ -114,10 +116,11 @@ class TimeSignal(metaclass=StructMeta):
         ax : Axes
             Axes with plot of purity over time.
 
-        See also
+        See Also
         --------
         plotlib
         plot
+
         """
         x = self.time / 60
         y = self.local_purity * 100
@@ -136,12 +139,8 @@ class TimeSignal(metaclass=StructMeta):
 
     @property
     def n_comp(self):
-        """Number of components of the signal
+        """int : Number of components of the signal
 
-        Returns
-        --------
-        n_comp : int
-            Returns the number of the components for the signal.
         """
         return self.signal.shape[1]
 
@@ -164,12 +163,13 @@ class Chromatogram(TimeSignal):
     process_meta : ProcessMeta
         Additional information required for calculating performance
 
-    See also
+    See Also
     --------
     TimeSignal
     EventHandler
     ProcessMeta
     Performance
+
     """
     _fractionation_state = List()
 
@@ -200,6 +200,7 @@ class Chromatogram(TimeSignal):
         -------
         fraction_mass : np.array
             Mass of all components in the fraction
+
         """
         return self.interpolated_dm_dt.integral(start, end)
 
@@ -218,21 +219,13 @@ class Chromatogram(TimeSignal):
         -------
         fraction_volume : np.array
             Volume of the fraction
+
         """
         return self.interpolated_Q.integral(start, end)
 
     @property
     def fractionation_state(self):
-        """Returns the current fractionation position
-
-
-        First it sets the state_length to the length of number of component +1.
-        For a zero length the fractionation_state list is empty. If the state
-        is >= the state_length and an integer a CADETProcessError is raised. The
-        entry of the list is set to the state_length and the
-        fractionation_state is set to 1. Else it sets the fractionation_state
-        to state and raises a CADETProcessError if the length of the sate unequals
-        the state_length or the sum of the states unequals 1.
+        """Fractionation position.
 
         Parameters
         ----------
@@ -248,16 +241,13 @@ class Chromatogram(TimeSignal):
 
         Returns
         -------
-        fractionation_state : List
-            Object from class List, contains the fractionation_states.
+        fractionation_state : list
+            fractionation_states.
 
-        See also
+        See Also
         --------
-        unitOperation.output_state
+        CADETProcess.processModel.FlowSheet.output_state
 
-        Notes
-        -----
-        Maybe some mistakes in the Error description
         """
         if self._fractionation_state is None:
             self.fractionation_state = 0
