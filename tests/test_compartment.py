@@ -3,7 +3,7 @@ import numpy as np
 
 from CADETProcess import CADETProcessError
 from CADETProcess.processModel import ComponentSystem
-from CADETProcess.processModel import Source, Sink, Cstr
+from CADETProcess.processModel import  Langmuir
 from CADETProcess.modelBuilder import CompartmentBuilder
 
 class Test_CompartmentBuilder(unittest.TestCase):
@@ -14,6 +14,8 @@ class Test_CompartmentBuilder(unittest.TestCase):
     def setUp(self):
         self.component_system = ComponentSystem(2)
 
+        self.binding_model = Langmuir(self.component_system)
+
         self.volume_simple = [1, 2, 3, 4, 5]
         self.matrix_simple = [
             0,   0.1, 0.2, 0.3, 0.4,
@@ -22,6 +24,12 @@ class Test_CompartmentBuilder(unittest.TestCase):
             0.3, 0,   0,   0,   0,
             0.4, 0,   0,   0,   0,
         ]
+        
+        self.builder_simple = CompartmentBuilder(
+            self.component_system,
+            self.volume_simple, self.matrix_simple,
+        )
+        self.builder_simple.cycle_time = 1000
 
         self.volume_complex = ['inlet', 2, 1, 3, 1, 2, 1, 4, 1, 'outlet']
         self.matrix_complex = [
@@ -38,21 +46,23 @@ class Test_CompartmentBuilder(unittest.TestCase):
             0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   # 9
         ]
 
+        self.builder_complex = CompartmentBuilder(
+            self.component_system,
+            self.volume_complex, self.matrix_complex,
+            init_c=1,
+        )
+        self.builder_complex.cycle_time = 1000
+
+    def test_binding(self):
+        self.builder_simple.binding_model = self.binding_model
+        self.assertIsInstance(self.builder_simple.binding_model, Langmuir)
+        compartment = self.builder_simple.flow_sheet.compartment_2
+        self.assertIsInstance(compartment.binding_model, Langmuir)
 
     def test_complex(self):
-        builder = CompartmentBuilder(
-            self.component_system, 'complex',
-            self.volume_complex, self.matrix_complex,
-            cycle_time=1000
-        )
-        builder.validate_flow_rates()
+        self.builder_complex.validate_flow_rates()
 
     def test_connections(self):
-        builder = CompartmentBuilder(
-            self.component_system, 'simple',
-            self.volume_simple, self.matrix_simple,
-            cycle_time=1000
-        )
         flow_rates_expected =  {
             'compartment_0': {
                 'total_in': np.array([1., 0., 0., 0.]),
@@ -95,39 +105,42 @@ class Test_CompartmentBuilder(unittest.TestCase):
                 'destinations': {'compartment_0': np.array([0.4, 0. , 0. , 0. ])},
             }
         }
-        flow_rates = builder.flow_sheet.get_flow_rates().to_dict()
+        flow_rates = self.builder_simple.flow_sheet.get_flow_rates().to_dict()
         np.testing.assert_equal(flow_rates, flow_rates_expected)
 
     def test_validate_flow_rates(self):
-        builder = CompartmentBuilder(
-            self.component_system, 'complex',
-            self.volume_complex, self.matrix_complex,
-            cycle_time=1000
-        )
-        builder.flow_sheet.compartment_2.flow_rate = 0
+        self.builder_complex.flow_sheet.compartment_2.flow_rate = 0
 
         with self.assertRaises(CADETProcessError):
-            builder.validate_flow_rates()
+            self.builder_complex.validate_flow_rates()
 
     def test_initial_conditions(self):
-        # All to zero
+        # All to zero (default)
         builder = CompartmentBuilder(
-            self.component_system, 'complex',
+            self.component_system,
             self.volume_complex, self.matrix_complex,
-            cycle_time=1000
         )
         c_expected = [0, 0]
         c = builder.flow_sheet.compartment_2.c
         np.testing.assert_almost_equal(c, c_expected)
 
-        # All same value
+        # All components, all compartments same value
         builder = CompartmentBuilder(
-            self.component_system, 'complex',
+            self.component_system,
             self.volume_complex, self.matrix_complex,
             init_c=1,
-            cycle_time=1000
         )
         c_expected = [1, 1]
+        c = builder.flow_sheet.compartment_2.c
+        np.testing.assert_almost_equal(c, c_expected)
+
+        # All compartments same value
+        builder = CompartmentBuilder(
+            self.component_system,
+            self.volume_complex, self.matrix_complex,
+            init_c=[1,2],
+        )
+        c_expected = [1, 2]
         c = builder.flow_sheet.compartment_2.c
         np.testing.assert_almost_equal(c, c_expected)
 
@@ -141,10 +154,9 @@ class Test_CompartmentBuilder(unittest.TestCase):
         ])
 
         builder = CompartmentBuilder(
-            self.component_system, 'complex',
+            self.component_system,
             self.volume_simple, self.matrix_simple,
             init_c=init_c,
-            cycle_time=1000
         )
         c = builder.flow_sheet.compartment_2.c
         np.testing.assert_almost_equal(c, init_c[2].tolist())
@@ -155,35 +167,17 @@ class Test_CompartmentBuilder(unittest.TestCase):
         ----
             flow rate validation not working for flow rate filter
         """
-        builder = CompartmentBuilder(
-            self.component_system, 'complex',
-            self.volume_complex, self.matrix_complex,
-            init_c=1,
-            cycle_time=1000
-        )
-
-        builder.add_tracer(4, [1, 1], 10, 0.1)
+        self.builder_complex.add_tracer(4, [1, 1], 10, 0.1)
 
     def test_process(self):
-        builder = CompartmentBuilder(
-            self.component_system, 'complex',
-            self.volume_complex, self.matrix_complex,
-            init_c=1,
-            cycle_time=1000
-        )
+        self.builder_complex.cycle_time = 1000
 
-        builder.add_tracer(4, [1, 1], 10, 0.1)
+        self.builder_complex.add_tracer(4, [1, 1], 10, 0.1)
 
         from CADETProcess.simulation import Cadet
         process_simulator = Cadet()
 
-        proc_results = process_simulator.run(builder.process)
-        for comp in range(builder.n_compartments):
-            proc_results.solution[f'compartment_{comp}'].outlet.plot()
-
-
-
-
+        proc_results = process_simulator.run(self.builder_complex.process)
 
 if __name__ == '__main__':
     unittest.main()

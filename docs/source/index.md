@@ -21,7 +21,7 @@ getting_started/optimization
 <!-- advanced_use/event_dependencies -->
 <!-- advanced_use/create_inlet_profile -->
 advanced_use/buffer_equilibria
-<!-- advanced_use/compartment_builder -->
+advanced_use/compartment_builder
 <!-- advanced_use/carousel_builder -->
 ```
 
