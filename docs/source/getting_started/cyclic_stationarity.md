@@ -38,22 +38,22 @@ from CADETProcess.simulation import Cadet
 process_simulator = Cadet()
 process_simulator.n_cycles = 10
 simulation_results = process_simulator.simulate(process)
-simulation_results.solution.column.outlet.plot()
+_ = simulation_results.solution.column.outlet.plot()
 ```
 However, it is hard to anticipate, when steady state is reached.
-To automatically simulate until stationarity is reached, set compute
+To automatically simulate until stationarity is reached, set `evaluate_stationarity` in the `Solver` to `True`.
 
 ```{code-cell} ipython3
 process_simulator.evaluate_stationarity = True
 simulation_results = process_simulator.simulate(process)
-simulation_results.solution.column.outlet.plot()
+_ = simulation_results.solution.column.outlet.plot()
 ```
-Here, the simulator ran n cycles.
+Here, the simulator ran 27 cycles.
 
 It is possible to access the solution of any of the cycles.
 For the last cycle, use the index `-1`.
 
 ```{code-cell} ipython3
-simulation_results.solution_cycles.column.outlet[-1].plot()
+_ = simulation_results.solution_cycles.column.outlet[-1].plot()
 ```
 
