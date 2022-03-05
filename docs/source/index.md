@@ -8,6 +8,7 @@
 
 getting_started/overview
 getting_started/simulation
+getting_started/reactions
 getting_started/fractionation
 getting_started/cyclic_stationarity
 getting_started/optimization
@@ -20,10 +21,10 @@ getting_started/optimization
 
 <!-- advanced_use/event_dependencies -->
 <!-- advanced_use/inlet_profile -->
-<!-- advanced_use/carousel_builder -->
+advanced_use/carousel_builder
+advanced_use/compartment_builder
 advanced_use/deprotonation_reactions
 advanced_use/buffer_capacity
-advanced_use/compartment_builder
 ```
 
 ```{toctree}

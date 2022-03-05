@@ -71,6 +71,7 @@ class CarouselBuilder(metaclass=StructMeta):
         return sum([zone.n_columns for zone in self.zones])
 
     def build_flow_sheet(self):
+        """Build flow_sheet."""
         flow_sheet = FlowSheet(self.component_system, self.name)
         self.add_units(flow_sheet)
         self.add_inter_zone_connections(flow_sheet)
@@ -79,6 +80,7 @@ class CarouselBuilder(metaclass=StructMeta):
         return flow_sheet
 
     def add_units(self, flow_sheet):
+        """Add units to flow_sheet"""
         col_index = 0
         for unit in self.flow_sheet.units:
             if not isinstance(unit, ZoneBaseClass):
@@ -96,6 +98,7 @@ class CarouselBuilder(metaclass=StructMeta):
                     col_index += 1
 
     def add_inter_zone_connections(self, flow_sheet):
+        """Add connections between zones."""
         for unit, connections in self.flow_sheet.connections.items():
             if isinstance(unit, ZoneBaseClass):
                 origin = unit.outlet_unit
@@ -112,10 +115,11 @@ class CarouselBuilder(metaclass=StructMeta):
         for zone in self.zones:
             output_state = self.flow_sheet.output_states[zone]
             flow_sheet.set_output_state(zone.outlet_unit, output_state)
-            flow_sheet[zone.inlet_unit.name].flow_rate = flow_rates[zone.name].total
-            flow_sheet[zone.outlet_unit.name].flow_rate = flow_rates[zone.name].total
+            flow_sheet[zone.inlet_unit.name].flow_rate = flow_rates[zone.name].total_out
+            flow_sheet[zone.outlet_unit.name].flow_rate = flow_rates[zone.name].total_out
 
     def add_intra_zone_connections(self, flow_sheet):
+        """Add connections within zones."""
         for zone in self.zones:
             for col_index in range(self.n_columns):
                 col = flow_sheet[f'column_{col_index}']
@@ -133,6 +137,7 @@ class CarouselBuilder(metaclass=StructMeta):
 
 
     def build_process(self):
+        """Build process."""
         flow_sheet = self.build_flow_sheet()
         process = Process(flow_sheet, self.name)
 
@@ -141,6 +146,7 @@ class CarouselBuilder(metaclass=StructMeta):
         return process
 
     def add_events(self, process):
+        """Add events to process."""
         process.cycle_time = self.n_columns * self.switch_time
         process.add_duration('switch_time', self.switch_time)
 
