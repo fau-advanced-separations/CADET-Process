@@ -145,19 +145,17 @@ def charge_distribution(
     ----------
     reaction_system : ReactionModel
         Reaction system with deprotonation reactions.
-    buffer : list
-        Acid concentrations in mM.
     pH : float or array
         pH value of buffer.
     components : list, optional
         List of components to be considered in buffer capacity calculation.
-        If None, all components are considerd.
+        If None, all components are considered.
 
     Returns
     -------
-    buffer_capacity : np.array
-        Buffer capacity in mM for individual acid components.
-        To get overall buffer capacity, component capacities must be summed up.
+    charge_distribution : np.array
+        Degree of protolysis; ratio of the concentration of the species to the
+        total concentration.
 
     """
     buffer = reaction_system.n_comp * [1]
@@ -165,12 +163,22 @@ def charge_distribution(
         reaction_system, buffer, pH, components
     )
 
-    z = np.zeros((len(pH), reaction_system.n_comp - 1))
+    if components is None:
+        z_shape = (len(pH), reaction_system.n_comp - 1)
+    else:
+        n_comp = 0
+        for comp in indices.values():
+            n_comp += len(comp)
+        z_shape = (len(pH), n_comp)
 
+    z = np.zeros(z_shape)
+
+    counter = 0
     for comp, ind in indices.items():
         z_comp = alpha(pKa[comp], pH)
-        for j, i in enumerate(ind):
-            z[:,i] = z_comp[j,:]
+        for j in range(len(ind)):
+            z[:,counter] = z_comp[j,:]
+            counter += 1
 
     if scalar_input:
         return np.squeeze(z)
@@ -198,9 +206,8 @@ def cummulative_charge_distribution(
 
     Returns
     -------
-    buffer_capacity : np.array
-        Buffer capacity in mM for individual acid components.
-        To get overall buffer capacity, component capacities must be summed up.
+    cummulative_charge_distribution : np.array
+        Degree of dissociation;
     """
     buffer = reaction_system.n_comp * [1]
     pKa, c_acids_M, pH, indices, scalar_input = preprocessing(
@@ -373,9 +380,13 @@ def plot_buffer_capacity(reaction_system, buffer, pH=None, ax=None):
 
     b = buffer_capacity(reaction_system, buffer, pH)
     b_total = np.sum(b, axis=1)
+    
+    labels = reaction_system.component_system.names
+    labels.remove('H+')
 
     for i in range(reaction_system.component_system.n_components - 1):
-        ax.plot(pH, b[:,i], label=reaction_system.component_system.components[i].name)
+        ax.plot(pH, b[:,i], label=labels[i])
+        
     ax.plot(pH, b[:,-1], label='Water')
     ax.plot(pH, b_total, 'k--', label='Total buffer capacity')
 
@@ -415,15 +426,17 @@ def plot_charge_distribution(reaction_system, pH=None, plot_cumulative=False, ax
 
     if plot_cumulative:
         c = cummulative_charge_distribution(reaction_system, pH)
-        layout.y_label = 'cumulative charge'
+        layout.y_label = 'degree of dissociation'
     else:
         c = charge_distribution(reaction_system, pH)
-        layout.y_label = 'charge'
+        layout.y_label = 'degree of protolysis'
 
     if plot_cumulative:
         labels = reaction_system.component_system.names
     else:
         labels = reaction_system.component_system.labels
+
+    labels.remove('H+')
 
     for i, l in zip(c.T, labels):
         ax.plot(pH, i, label=l)

@@ -19,10 +19,11 @@ getting_started/optimization
 :hidden:
 
 <!-- advanced_use/event_dependencies -->
-<!-- advanced_use/create_inlet_profile -->
-advanced_use/buffer_equilibria
-advanced_use/compartment_builder
+<!-- advanced_use/inlet_profile -->
 <!-- advanced_use/carousel_builder -->
+advanced_use/deprotonation_reactions
+advanced_use/buffer_capacity
+advanced_use/compartment_builder
 ```
 
 ```{toctree}
