@@ -71,12 +71,13 @@ class BindingBaseClass(metaclass=StructMeta):
                 raise CADETProcessError('Not a valid parameter')
             setattr(self, param, value)
 
-
     def __repr__(self):
         return f"{self.__class__.__name__}(\
             component_system={self.component_system}, name={self.name})')"
 
     def __str__(self):
+        if self.name is None:
+            return self.__class__.__name__
         return self.name
 
 class NoBinding(BindingBaseClass):

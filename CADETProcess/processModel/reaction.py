@@ -73,6 +73,8 @@ class ReactionBaseClass(metaclass=StructMeta):
             self.n_comp, self.name)
 
     def __str__(self):
+        if self.name is None:
+            return self.__class__.__name__
         return self.name
 
 class NoReaction(ReactionBaseClass):
