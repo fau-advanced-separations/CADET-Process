@@ -67,7 +67,7 @@ class FlowSheet(metaclass=StructMeta):
     def n_comp(self):
         return self.component_system.n_comp
 
-    def _unit_name_decorator(func):
+    def unit_name_decorator(func):
         @wraps(func)
         def wrapper(self, unit, *args, **kwargs):
             """Enable calling functions with unit object or unit name."""
@@ -77,6 +77,26 @@ class FlowSheet(metaclass=StructMeta):
                 except KeyError:
                     raise CADETProcessError('Not a valid unit')
             return func(self, unit, *args, **kwargs)
+
+        return wrapper
+
+    def origin_destination_name_decorator(func):
+        @wraps(func)
+        def wrapper(self, origin, destination, *args, **kwargs):
+            """Enable calling functions with origin and destination using names."""
+            if isinstance(origin, str):
+                try:
+                    origin = self.units_dict[origin]
+                except KeyError:
+                    raise CADETProcessError('Not a valid unit')
+
+            if isinstance(destination, str):
+                try:
+                    destination = self.units_dict[destination]
+                except KeyError:
+                    raise CADETProcessError('Not a valid unit')
+
+            return func(self, origin, destination, *args, **kwargs)
 
         return wrapper
 
@@ -127,7 +147,7 @@ class FlowSheet(metaclass=StructMeta):
         """
         return len(self._units)
 
-    @_unit_name_decorator
+    @unit_name_decorator
     def get_unit_index(self, unit):
         """Return the unit index of the unit.
 
@@ -226,7 +246,7 @@ class FlowSheet(metaclass=StructMeta):
             self.add_chromatogram_sink(unit)
 
 
-    @_unit_name_decorator
+    @unit_name_decorator
     @update_parameters_decorator
     def remove_unit(self, unit):
         """Remove unit from flow sheet.
@@ -290,6 +310,7 @@ class FlowSheet(metaclass=StructMeta):
         """
         return self._connections
 
+    @origin_destination_name_decorator
     @update_parameters_decorator
     def add_connection(self, origin, destination):
         """Add connection between units 'origin' and 'destination'.
@@ -327,6 +348,7 @@ class FlowSheet(metaclass=StructMeta):
 
         self.set_output_state(origin, 0)
 
+    @origin_destination_name_decorator
     @update_parameters_decorator
     def remove_connection(self, origin, destination):
         """Remove connection between units 'origin' and 'destination'.
@@ -361,7 +383,35 @@ class FlowSheet(metaclass=StructMeta):
         except KeyError:
             raise CADETProcessError('Connection does not exist.')
 
+    @origin_destination_name_decorator
+    def connection_exists(self, origin, destination):
+        """bool: check if connection exists in flow sheet.
+
+        Parameters
+        ----------
+        origin : UnitBaseClass
+            UnitBaseClass from which the connection originates.
+        destination : UnitBaseClass
+            UnitBaseClass where the connection terminates.
+
+        """
+        if destination in self._connections[origin].destinations \
+                and origin in self._connections[destination].origins:
+            return True
+
+        return False
+
     def check_connections(self):
+        """Validate that units are connected correctly.
+
+        Raises
+        ------
+        CADETProcessError
+            If Inlets have ingoing streams.
+            If Outlets have outgoint streams.
+            If Units (other than Cstr) are not fully connected.
+
+        """
         for unit, connections in self.connections.items():
             if isinstance(unit, Source):
                 if len(connections.origins) != 0:
@@ -397,7 +447,7 @@ class FlowSheet(metaclass=StructMeta):
     def output_states(self):
         return self._output_states
 
-    @_unit_name_decorator
+    @unit_name_decorator
     @update_parameters_decorator
     def set_output_state(self, unit, state):
         """Set split ratio of outgoing streams for UnitOperation.
@@ -632,7 +682,7 @@ class FlowSheet(metaclass=StructMeta):
         """list: Sources considered for calculating recovery yield."""
         return self._feed_sources
 
-    @_unit_name_decorator
+    @unit_name_decorator
     def add_feed_source(self, feed_source):
         """Add source to list of units to be considered for recovery.
 
@@ -656,7 +706,7 @@ class FlowSheet(metaclass=StructMeta):
             )
         self._feed_sources.append(feed_source)
 
-    @_unit_name_decorator
+    @unit_name_decorator
     def remove_feed_source(self, feed_source):
         """Remove source from list of units to be considered for recovery.
 
@@ -676,7 +726,7 @@ class FlowSheet(metaclass=StructMeta):
         """list: Sources to be considered for eluent consumption."""
         return self._eluent_sources
 
-    @_unit_name_decorator
+    @unit_name_decorator
     def add_eluent_source(self, eluent_source):
         """Add source to list of units to be considered for eluent consumption.
 
@@ -699,7 +749,7 @@ class FlowSheet(metaclass=StructMeta):
                     eluent_source))
         self._eluent_sources.append(eluent_source)
 
-    @_unit_name_decorator
+    @unit_name_decorator
     def remove_eluent_source(self, eluent_source):
         """Remove source from list of units to be considered eluent consumption.
 
@@ -724,7 +774,7 @@ class FlowSheet(metaclass=StructMeta):
         """list: Sinks to be considered for fractionation."""
         return self._chromatogram_sinks
 
-    @_unit_name_decorator
+    @unit_name_decorator
     def add_chromatogram_sink(self, chromatogram_sink):
         """Add sink to list of units to be considered for fractionation.
 
@@ -748,7 +798,7 @@ class FlowSheet(metaclass=StructMeta):
             )
         self._chromatogram_sinks.append(chromatogram_sink)
 
-    @_unit_name_decorator
+    @unit_name_decorator
     def remove_chromatogram_sink(self, chromatogram_sink):
         """Remove sink from list of units to be considered for fractionation.
 

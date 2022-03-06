@@ -68,7 +68,6 @@ class Test_flow_sheet(unittest.TestCase):
 
         self.assertEqual(list(self.ssr_flow_sheet.units_dict.keys()), unit_names)
 
-
     def test_sources(self):
         self.assertIn(self.ssr_flow_sheet.feed, self.ssr_flow_sheet.sources)
         self.assertIn(self.ssr_flow_sheet.eluent, self.ssr_flow_sheet.sources)
@@ -108,7 +107,71 @@ class Test_flow_sheet(unittest.TestCase):
         }
 
         self.assertDictEqual(self.ssr_flow_sheet.connections, expected_connections)
+        
+        self.assertTrue(self.ssr_flow_sheet.connection_exists(feed, cstr))
+        self.assertTrue(self.ssr_flow_sheet.connection_exists(eluent, column))
+        self.assertTrue(self.ssr_flow_sheet.connection_exists(column, outlet))
+        
+        self.assertFalse(self.ssr_flow_sheet.connection_exists(feed, eluent))
+                        
+    def test_name_decorator(self):
+        feed = Source(self.component_system, name='feed')
+        eluent = Source(self.component_system, name='eluent')
+        cstr = Cstr(self.component_system, name='cstr')
+        column = LumpedRateModelWithoutPores(self.component_system, name='column')
+        outlet = Sink(self.component_system, name='outlet')
+        
+        flow_sheet = FlowSheet(self.component_system)
+        
+        flow_sheet.add_unit(feed)
+        flow_sheet.add_unit(eluent)
+        flow_sheet.add_unit(cstr)
+        flow_sheet.add_unit(column)
+        flow_sheet.add_unit(outlet)
+        
+        flow_sheet.add_connection('feed', 'cstr')
+        flow_sheet.add_connection(cstr, column)
+        flow_sheet.add_connection(eluent, 'column')
+        flow_sheet.add_connection(column, cstr)
+        flow_sheet.add_connection('column', outlet)
+        
+        expected_connections = {
+            feed: {
+                'origins': [],
+                'destinations': [cstr],
+            },
+            eluent: {
+                'origins': [],
+                'destinations': [column],
+            },
+            cstr: {
+                'origins': [feed, column],
+                'destinations': [column],
+            },
+            column: {
+                'origins': [cstr, eluent],
+                'destinations': [cstr, outlet],
+            },
+            outlet: {
+                'origins': [column],
+                'destinations': [],
+            },
+        }
 
+        self.assertDictEqual(flow_sheet.connections, expected_connections)
+        
+        # Connection already exists
+        with self.assertRaises(CADETProcessError):
+            flow_sheet.add_connection('column', 'outlet')
+            
+        # Origin not found
+        with self.assertRaises(CADETProcessError):
+            flow_sheet.add_connection('wrong_origin', cstr)
+        
+        # Destination not found
+        with self.assertRaises(CADETProcessError):
+            flow_sheet.add_connection('wrong_origin', cstr)
+       
     def test_flow_rates(self):
         # Injection
         self.ssr_flow_sheet.feed.flow_rate = 0
