@@ -6,7 +6,7 @@ from CADETProcess.processModel import ComponentSystem
 from CADETProcess.processModel import MassActionLaw
 from CADETProcess import equilibria
 
-enable_plot=False
+enable_plot=True
 
 class TestBufferCapacity(unittest.TestCase):
 

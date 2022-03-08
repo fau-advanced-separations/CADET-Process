@@ -9,16 +9,10 @@ from CADETProcess import plotting
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess.processModel import MassActionLaw
 
-
-def preprocessing(reaction_system, buffer, pH, components):
-    buffer_M = np.array([c*1e-3 for c in buffer])
-
-    pH = np.asarray(pH, dtype=float)
-    scalar_input = False
-    if pH.ndim == 0:
-        pH = pH[None]  # Makes x 1D
-        scalar_input = True
-
+def preprocessing(reaction_system, buffer, pH=None, components=None):
+    buffer = np.array(buffer, ndmin=2)
+    buffer_M = 1e-3*buffer
+    
     component_system = copy.deepcopy(reaction_system.component_system)
 
     indices = component_system.indices
@@ -31,6 +25,16 @@ def preprocessing(reaction_system, buffer, pH, components):
         proton_index = indices.pop('H+')
     except ValueError:
         raise CADETProcessError("Could not find proton in component system")
+    
+    if pH is None:
+        pH = -np.log10(buffer_M[:,proton_index]).reshape((-1))
+    else:
+        pH = np.asarray(pH, dtype=float)
+
+    scalar_input = False
+    if pH.ndim == 0:
+        pH = pH[None]  # Makes x 1D
+        scalar_input = True
 
     pKa = defaultdict(list)
     for r in reaction_system.reactions:
@@ -42,9 +46,14 @@ def preprocessing(reaction_system, buffer, pH, components):
             pKa[comp].append(-np.log10(r.k_eq*1e-3))
 
     c_acids_M = {
-        comp: buffer_M[i].tolist()
+        comp: buffer_M[:,i]
         for comp, i in indices.items()
+        if comp in pKa
     }
+    
+    for comp in indices.copy():
+        if comp not in pKa:
+            indices.pop(comp)
 
     return pKa, c_acids_M, pH, indices, scalar_input
 
@@ -69,7 +78,7 @@ def c_species_nu(pKa, pH):
     k_eq = 10**(-pKa)
     n = len(k_eq)
 
-    c_H = 10**(-pH)
+    c_H = np.power(10, -pH)
     c_species_nu = np.zeros((n, len(pH)))
 
     for j in range(n):
@@ -263,12 +272,12 @@ def beta(c_acid, pKa, pH):
     a = alpha(pKa, pH)
     beta = np.zeros(len(pH),)
 
-    n = len(c_acid)
+    n = c_acid.shape[1]
     for j in range(1, n):
         for i in range(0, j):
             beta += (j-i)**2 * a[j] * a[i]
 
-    beta *= np.log(10) * sum(c_acid)
+    beta *= np.log(10) * np.sum(c_acid, axis=1)
 
     return beta
 
@@ -290,7 +299,7 @@ def beta_water(pH):
 
 def buffer_capacity(
         reaction_system,
-        buffer, pH,
+        buffer, pH=None,
         components=None,
         ):
     """Calculate buffer capacity at given buffer concentration and pH.
@@ -301,8 +310,8 @@ def buffer_capacity(
         Reaction system with deprotonation reactions.
     buffer : list
         Acid concentrations in mM.
-    pH : float or array
-        pH value of buffer.
+    pH : float or array, optional
+        pH value of buffer. If None, value is inferred from buffer entry.
     components : list, optional
         List of components to be considered in buffer capacity calculation.
         If None, all components are considerd.
