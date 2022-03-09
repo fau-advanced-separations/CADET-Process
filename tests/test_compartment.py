@@ -177,7 +177,7 @@ class Test_CompartmentBuilder(unittest.TestCase):
         from CADETProcess.simulation import Cadet
         process_simulator = Cadet()
 
-        proc_results = process_simulator.run(self.builder_complex.process)
+        proc_results = process_simulator.simulate(self.builder_complex.process)
 
 if __name__ == '__main__':
     unittest.main()

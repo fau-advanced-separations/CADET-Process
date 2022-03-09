@@ -465,7 +465,7 @@ class Test_Carousel(unittest.TestCase):
         process = builder.build_process()
         
         process_simulator = Cadet()
-        simulation_results = process_simulator.run(process)
+        simulation_results = process_simulator.simulate(process)
         
         self.assertEqual(simulation_results.exit_flag, 0)
 

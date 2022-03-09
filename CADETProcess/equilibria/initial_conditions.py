@@ -87,7 +87,7 @@ def simulate_solid_equilibria(binding_model, buffer, unit_model='cstr', flush=No
     process_simulator.unit_return_parameters.write_solution_bulk = True
     process_simulator.unit_return_parameters.write_solution_solid = True
 
-    proc_results = process_simulator.run(proc)
+    proc_results = process_simulator.simulate(proc)
 
     if unit_model == 'cstr':
         init_q = proc_results.solution[unit.name].solid.solution[-1,:]
