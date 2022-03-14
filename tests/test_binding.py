@@ -2,15 +2,16 @@ import unittest
 
 from CADETProcess.processModel import ComponentSystem, Langmuir
 
+
 class Test_Binding(unittest.TestCase):
 
-    def __init__(self, methodName = 'runTest'):
+    def __init__(self, methodName='runTest'):
         super().__init__(methodName)
 
     def setUp(self):
-        
+
         component_system = ComponentSystem(2)
-        
+
         binding_model = Langmuir(component_system, name='test')
 
         binding_model.adsorption_rate = [0.02, 0.03]
@@ -23,7 +24,7 @@ class Test_Binding(unittest.TestCase):
         """
         Notes
         -----
-            AssertRaises tests actually test dataStructure descriptor 
+            AssertRaises tests actually test dataStructure descriptor
             functionality could/should be moved to dedicated test Class
         """
         with self.assertRaises(TypeError):
@@ -42,7 +43,7 @@ class Test_Binding(unittest.TestCase):
                 }
         parameters = self.binding_model.parameters
         self.assertDictEqual(parameters_expected, parameters)
-        
+
 
 if __name__ == '__main__':
     unittest.main()

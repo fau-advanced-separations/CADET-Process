@@ -1,16 +1,14 @@
-import warnings
-
 import numpy as np
 
 from . import ptc
+
 
 def calculate_buffer_equilibrium(
         buffer,
         reaction_system,
         constant_indices=None,
         reinit=True,
-        verbose=False
-    ):
+        verbose=False):
     """Calculate buffer equilibrium for given concentration.
 
     Parameters
@@ -31,18 +29,21 @@ def calculate_buffer_equilibrium(
     sol : list of floats.
         buffer equilbrium concentrations
     """
-    residual = lambda c: dydx_mal(
-        c,
-        reaction_system,
-        constant_indices,
-        buffer.copy(),
-    )
-    jacobian = lambda c: jac_mal(
-        c,
-        reaction_system,
-        constant_indices,
-        buffer.copy(),
-    )
+    def residual(c):
+        return dydx_mal(
+            c,
+            reaction_system,
+            constant_indices,
+            buffer.copy(),
+        )
+
+    def jacobian(c):
+        return jac_mal(
+            c,
+            reaction_system,
+            constant_indices,
+            buffer.copy(),
+        )
 
     stats, sol, res, k = ptc(
         np.array(buffer.copy()),
@@ -73,11 +74,13 @@ def dydx_mal(c, reaction_system, constant_indices=None, c_init=None):
     r = np.zeros(reaction_system.n_reactions)
 
     for r_i in range(reaction_system.n_reactions):
-        fwd_indices = np.where(exp_fwd[:,r_i] > 0.0)
-        r_fwd = k_fwd[r_i] * np.prod(cc[fwd_indices]**exp_fwd[:,r_i][fwd_indices])
+        fwd_indices = np.where(exp_fwd[:, r_i] > 0.0)
+        prod = np.prod(cc[fwd_indices]**exp_fwd[:, r_i][fwd_indices])
+        r_fwd = k_fwd[r_i] * prod
 
-        bwd_indices = np.where(exp_bwd[:,r_i] > 0.0)
-        r_bwd = k_bwd[r_i] * np.prod(cc[bwd_indices]**exp_bwd[:,r_i][bwd_indices])
+        bwd_indices = np.where(exp_bwd[:, r_i] > 0.0)
+        prod = np.prod(cc[bwd_indices]**exp_bwd[:, r_i][bwd_indices])
+        r_bwd = k_bwd[r_i] * prod
 
         r[r_i] = r_fwd - r_bwd
 
@@ -107,25 +110,27 @@ def jac_mal(c, reaction_system, constant_indices=None, c_init=None):
     jac_r = np.zeros((reaction_system.n_reactions, reaction_system.n_comp))
 
     for r_i in range(reaction_system.n_reactions):
-        fwd_indices = np.where(exp_fwd[:,r_i] > 0.0)
+        fwd_indices = np.where(exp_fwd[:, r_i] > 0.0)
         j_fwd = np.zeros_like(cc)
         j_fwd[fwd_indices] = k_fwd[r_i]
 
-        bwd_indices = np.where(exp_bwd[:,r_i] > 0.0)
+        bwd_indices = np.where(exp_bwd[:, r_i] > 0.0)
         j_bwd = np.zeros_like(cc)
         j_bwd[bwd_indices] = k_bwd[r_i]
 
         for comp in range(len(c)):
-            exponents_fwd = exp_fwd[:,r_i]
-            exponents_bwd = exp_bwd[:,r_i]
+            exponents_fwd = exp_fwd[:, r_i]
+            exponents_bwd = exp_bwd[:, r_i]
             if exponents_fwd[comp] > 0.0:
                 exp_derivative = exponents_fwd.copy()
                 exp_derivative[comp] -= 1.0
-                j_fwd[comp] *= exponents_fwd[comp] * np.prod(cc**exp_derivative)
+                prod = np.prod(cc**exp_derivative)
+                j_fwd[comp] *= exponents_fwd[comp] * prod
             if exponents_bwd[comp] > 0.0:
                 exp_derivative = exponents_bwd.copy()
                 exp_derivative[comp] -= 1.0
-                j_bwd[comp] *= exponents_bwd[comp] * np.prod(cc**exp_derivative)
+                prod = np.prod(cc**exp_derivative)
+                j_bwd[comp] *= exponents_bwd[comp] * prod
 
         jac_r[r_i, :] = j_fwd - j_bwd
 
@@ -133,6 +138,6 @@ def jac_mal(c, reaction_system, constant_indices=None, c_init=None):
 
     if constant_indices is not None:
         for comp in constant_indices:
-            jac[comp,:] = 0
+            jac[comp, :] = 0
 
     return jac

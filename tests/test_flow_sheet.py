@@ -9,6 +9,7 @@ from CADETProcess.processModel import (
 )
 from CADETProcess.processModel import FlowSheet
 
+
 class Test_flow_sheet(unittest.TestCase):
 
     def __init__(self, methodName='runTest'):
@@ -22,7 +23,9 @@ class Test_flow_sheet(unittest.TestCase):
 
         feed = Source(self.component_system, name='feed')
         eluent = Source(self.component_system, name='eluent')
-        column = LumpedRateModelWithoutPores(self.component_system, name='column')
+        column = LumpedRateModelWithoutPores(
+            self.component_system, name='column'
+        )
         outlet = Sink(self.component_system, name='outlet')
 
         flow_sheet.add_unit(feed)
@@ -42,7 +45,9 @@ class Test_flow_sheet(unittest.TestCase):
         feed = Source(self.component_system, name='feed')
         eluent = Source(self.component_system, name='eluent')
         cstr = Cstr(self.component_system, name='cstr')
-        column = LumpedRateModelWithoutPores(self.component_system, name='column')
+        column = LumpedRateModelWithoutPores(
+            self.component_system, name='column'
+        )
         outlet = Sink(self.component_system, name='outlet')
 
         flow_sheet.add_unit(feed)
@@ -64,9 +69,12 @@ class Test_flow_sheet(unittest.TestCase):
         self.ssr_flow_sheet = flow_sheet
 
     def test_unit_names(self):
-        unit_names = ['feed', 'eluent', 'cstr', 'column', 'outlet']
+        unit_names_expected = ['feed', 'eluent', 'cstr', 'column', 'outlet']
 
-        self.assertEqual(list(self.ssr_flow_sheet.units_dict.keys()), unit_names)
+        unit_names = list(self.ssr_flow_sheet.units_dict.keys())
+
+        self.assertEqual(self.ssr_flow_sheet.unit_names, unit_names_expected)
+        self.assertEqual(unit_names, unit_names_expected)
 
     def test_sources(self):
         self.assertIn(self.ssr_flow_sheet.feed, self.ssr_flow_sheet.sources)
@@ -106,35 +114,39 @@ class Test_flow_sheet(unittest.TestCase):
             },
         }
 
-        self.assertDictEqual(self.ssr_flow_sheet.connections, expected_connections)
-        
+        self.assertDictEqual(
+            self.ssr_flow_sheet.connections, expected_connections
+        )
+
         self.assertTrue(self.ssr_flow_sheet.connection_exists(feed, cstr))
         self.assertTrue(self.ssr_flow_sheet.connection_exists(eluent, column))
         self.assertTrue(self.ssr_flow_sheet.connection_exists(column, outlet))
-        
+
         self.assertFalse(self.ssr_flow_sheet.connection_exists(feed, eluent))
-                        
+
     def test_name_decorator(self):
         feed = Source(self.component_system, name='feed')
         eluent = Source(self.component_system, name='eluent')
         cstr = Cstr(self.component_system, name='cstr')
-        column = LumpedRateModelWithoutPores(self.component_system, name='column')
+        column = LumpedRateModelWithoutPores(
+            self.component_system, name='column'
+        )
         outlet = Sink(self.component_system, name='outlet')
-        
+
         flow_sheet = FlowSheet(self.component_system)
-        
+
         flow_sheet.add_unit(feed)
         flow_sheet.add_unit(eluent)
         flow_sheet.add_unit(cstr)
         flow_sheet.add_unit(column)
         flow_sheet.add_unit(outlet)
-        
+
         flow_sheet.add_connection('feed', 'cstr')
         flow_sheet.add_connection(cstr, column)
         flow_sheet.add_connection(eluent, 'column')
         flow_sheet.add_connection(column, cstr)
         flow_sheet.add_connection('column', outlet)
-        
+
         expected_connections = {
             feed: {
                 'origins': [],
@@ -159,19 +171,19 @@ class Test_flow_sheet(unittest.TestCase):
         }
 
         self.assertDictEqual(flow_sheet.connections, expected_connections)
-        
+
         # Connection already exists
         with self.assertRaises(CADETProcessError):
             flow_sheet.add_connection('column', 'outlet')
-            
+
         # Origin not found
         with self.assertRaises(CADETProcessError):
             flow_sheet.add_connection('wrong_origin', cstr)
-        
+
         # Destination not found
         with self.assertRaises(CADETProcessError):
             flow_sheet.add_connection('wrong_origin', cstr)
-       
+
     def test_flow_rates(self):
         # Injection
         self.ssr_flow_sheet.feed.flow_rate = 0
@@ -210,7 +222,7 @@ class Test_flow_sheet(unittest.TestCase):
                     'cstr': (1.0, 0, 0, 0),
                     'eluent': (0, 0, 0, 0),
                 },
-                 'destinations': {
+                'destinations': {
                     'cstr': (0, 0, 0, 0),
                     'outlet': (1.0, 0, 0, 0),
                 },
@@ -264,7 +276,7 @@ class Test_flow_sheet(unittest.TestCase):
                     'cstr': (0, 0, 0, 0),
                     'eluent': (1, 0, 0, 0),
                 },
-                 'destinations': {
+                'destinations': {
                     'cstr': (0, 0, 0, 0),
                     'outlet': (1.0, 0, 0, 0),
                 },
@@ -317,7 +329,7 @@ class Test_flow_sheet(unittest.TestCase):
                     'cstr': (0, 0, 0, 0),
                     'eluent': (1, 0, 0, 0),
                 },
-                 'destinations': {
+                'destinations': {
                     'cstr': (0, 0, 0, 0),
                     'outlet': (1.0, 0, 0, 0),
                 },
@@ -339,7 +351,6 @@ class Test_flow_sheet(unittest.TestCase):
         self.ssr_flow_sheet.eluent.flow_rate = 1
         self.ssr_flow_sheet.cstr.flow_rate = 0
         self.ssr_flow_sheet.set_output_state('column', 0)
-
 
         expected_flow_rates = {
             'feed': {
@@ -372,7 +383,7 @@ class Test_flow_sheet(unittest.TestCase):
                     'cstr': (0, 0, 0, 0),
                     'eluent': (1, 0, 0, 0),
                 },
-                 'destinations': {
+                'destinations': {
                     'cstr': (1, 0, 0, 0),
                     'outlet': (0.0, 0, 0, 0),
                 },
@@ -388,12 +399,13 @@ class Test_flow_sheet(unittest.TestCase):
         np.testing.assert_equal(
             self.ssr_flow_sheet.get_flow_rates(), expected_flow_rates
         )
-        
+
     def test_connectivity(self):
         self.batch_flow_sheet.remove_unit('outlet')
-        
+
         with self.assertRaises(CADETProcessError):
             self.batch_flow_sheet.check_connections()
-            
+
+
 if __name__ == '__main__':
     unittest.main()

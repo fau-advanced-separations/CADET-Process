@@ -1,4 +1,5 @@
-import numpy as np
+from functools import reduce
+
 
 def check_nested(nested_dict, path):
     """Check if item sequence exists in nested dict
@@ -26,6 +27,7 @@ def check_nested(nested_dict, path):
     except:
         return False
 
+
 def generate_nested_dict(path, value=None):
     """Generate a nested dict from path in dot notation."""
     if isinstance(path, str):
@@ -35,6 +37,7 @@ def generate_nested_dict(path, value=None):
     for key in reversed(path[0:-1]):
         nested_dict = {key: nested_dict}
     return nested_dict
+
 
 def insert_path(nested_dict, path, value):
     """Add path to existing dict without overwriting  keys."""
@@ -46,9 +49,9 @@ def insert_path(nested_dict, path, value):
     else:
         insert_path(nested_dict[path[0]], path[1:], value)
 
+
 def get_leaves(nested_dict):
-    """Generator for returning all leaves of a nested dictionary in dot notation
-    """
+    """Generator for returing leaves of nested dictionary in dot notation."""
     for key, value in nested_dict.items():
         if not isinstance(value, dict):
             yield key
@@ -56,12 +59,13 @@ def get_leaves(nested_dict):
             for subpath in get_leaves(value):
                 yield ".".join((key, subpath))
 
-from functools import reduce
+
 def get_nested_value(nested_dict, path):
     if isinstance(path, str):
         path = path.split('.')
     """Access a value in a nested dict using path in dot notation."""
     return reduce(dict.get, path, nested_dict)
+
 
 def set_nested_value(nested_dict, path, value):
     """Set a value in a nested dict using dot notation."""

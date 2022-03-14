@@ -4,9 +4,8 @@ import operator
 
 import numpy as np
 
-from CADETProcess import CADETProcessError
-
 from .dataStructure import Descriptor
+
 
 class Parameter(Descriptor):
     """Class for defining model parameters.
@@ -26,7 +25,9 @@ class Parameter(Descriptor):
     StructMeta
 
     """
-    def __init__(self, *args, default=None, unit=None, description=None, **kwargs):
+
+    def __init__(
+            self, *args, default=None, unit=None, description=None, **kwargs):
         self.default = default
         self.unit = unit
         self.description = description
@@ -99,6 +100,7 @@ class Typed(Parameter):
 
         return True
 
+
 class Container(Typed):
     @abstractmethod
     def check_content_range():
@@ -126,16 +128,19 @@ class Bool(Typed):
     ty = bool
 
     def __set__(self, instance, value):
-        if isinstance(value, int) and value in [0,1]:
+        if isinstance(value, int) and value in [0, 1]:
             value = bool(value)
 
         super().__set__(instance, value)
 
+
 class Integer(Typed):
     ty = int
 
+
 class Tuple(Typed):
     ty = tuple
+
 
 class Float(Typed):
     """Cast ints to float"""
@@ -156,8 +161,10 @@ class Float(Typed):
 
         return True
 
+
 class String(Typed):
     ty = str
+
 
 class List(Container):
     ty = list
@@ -192,6 +199,7 @@ class Dict(Typed):
 
     """
     ty = dict
+
 
 class NdArray(Container):
     ty = np.ndarray
@@ -255,9 +263,12 @@ class NdArray(Container):
         else:
             return super().default * np.ones(expected_shape)
 
+
 class Dimensionalized(Parameter):
     """Only works for NdArrays"""
+
     n_dim = None
+
     def __init__(self, *args, **kwargs):
         if not isinstance(self, NdArray):
             raise Exception('Only NdArrays can have dimensions.')
@@ -273,16 +284,21 @@ class Dimensionalized(Parameter):
             raise ValueError("Expected dimensions {}".format(self.n_dim))
         super().__set__(instance, value)
 
+
 class Vector(NdArray, Dimensionalized):
     n_dim = 1
+
 
 class Matrix(NdArray, Dimensionalized):
     n_dim = 2
 
+
 class Ranged(Parameter):
     """Base class for Parameters with value bounds."""
-    def __init__(self, *args, lb=-math.inf, lb_op=operator.lt,
-                 ub=math.inf, ub_op=operator.gt, **kwargs):
+
+    def __init__(
+            self, *args, lb=-math.inf, lb_op=operator.lt,
+            ub=math.inf, ub_op=operator.gt, **kwargs):
         self.lb = lb
         self.lb_op = lb_op
         self.ub = ub
@@ -312,21 +328,27 @@ class Ranged(Parameter):
 
         return True
 
+
 class RangedFloat(Float, Ranged):
     pass
 
+
 class RangedInteger(Integer, Ranged):
     pass
+
 
 class Unsigned(Ranged):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, lb=0, lb_op=operator.lt, **kwargs)
 
+
 class UnsignedInteger(Integer, Unsigned):
     pass
 
+
 class UnsignedFloat(Float, Unsigned):
     pass
+
 
 class Sized(Parameter):
     def __init__(self, *args, minlen, maxlen, **kwargs):
@@ -345,26 +367,28 @@ class Sized(Parameter):
             raise ValueError("Too small!")
         super().__set__(instance, value)
 
+
 class SizedString(String, Sized):
     pass
+
 
 class SizedTuple(Tuple, Sized):
     pass
 
+
 class SizedNdArray(NdArray, Sized):
     pass
 
+
 class DependentlySized(Parameter):
-    """Class for checking the correct shape of Parameters with multiple entries
-    that is dependent on other Parameters
-    """
+    """Check parameter shape depending on other parameters."""
+
     def __init__(self, *args, dep, **kwargs):
         if not isinstance(dep, tuple):
             dep = (dep,)
 
         self.dep = dep
         super().__init__(*args, **kwargs)
-
 
     def __set__(self, instance, value):
         if value is None:
@@ -389,23 +413,30 @@ class DependentlySized(Parameter):
         except KeyError:
             return self.get_default_values(instance)
 
+
 class DependentlySizedString(String, DependentlySized):
     pass
+
 
 class DependentlySizedList(List, DependentlySized):
     pass
 
+
 class DependentlySizedRangedList(List, Ranged, DependentlySized):
     pass
+
 
 class DependentlySizedUnsignedList(List, Unsigned, DependentlySized):
     pass
 
+
 class DependentlySizedNdArray(NdArray, DependentlySized):
     pass
 
+
 class DependentlySizedUnsignedNdArray(NdArray, Unsigned, DependentlySized):
     pass
+
 
 class Polynomial(DependentlySizedNdArray):
     def __init__(self, *args, n_coeff=None, **kwargs):
@@ -440,12 +471,14 @@ class Polynomial(DependentlySizedNdArray):
 
         super().__set__(instance, _value)
 
+
 class NdPolynomial(DependentlySizedNdArray):
     """Dependently sized polynomial for n entries.
 
     Important: Use [entries x n_coeff] for dependencies.
 
     """
+
     def __init__(self, *args, n_entries=None, n_coeff=None, **kwargs):
         try:
             dep = kwargs['dep']
@@ -481,7 +514,6 @@ class NdPolynomial(DependentlySizedNdArray):
             else:
                 _n_coeff = dep[1]
 
-
         dep = (_n_entries, _n_coeff)
 
         kwargs['dep'] = dep
@@ -510,13 +542,14 @@ class NdPolynomial(DependentlySizedNdArray):
             if isinstance(v, (list, tuple)):
                 missing = n_coeff - len(v)
                 v += missing*(0,)
-            _value[i,:] = np.array(v)
+            _value[i, :] = np.array(v)
 
         super().__set__(instance, _value)
 
 
 class Switch(Parameter):
     """Class for selecting one entry from a list."""
+
     def __init__(self, *args, valid, **kwargs):
         if not isinstance(valid, list):
             raise TypeError("Expected a list for valid entries")

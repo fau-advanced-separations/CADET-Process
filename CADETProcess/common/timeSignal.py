@@ -3,9 +3,10 @@ from scipy.interpolate import InterpolatedUnivariateSpline
 
 from CADETProcess import CADETProcessError
 
-from CADETProcess.dataStructure  import StructMeta
+from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import Float, List, NdArray, String
 from CADETProcess import plotting
+
 
 class TimeSignal(metaclass=StructMeta):
     """Class for storing concentration profiles after simulation.
@@ -58,7 +59,7 @@ class TimeSignal(metaclass=StructMeta):
         x = self.time / 60
         y = self.signal
 
-        ax.plot(x,y)
+        ax.plot(x, y)
 
         layout = plotting.Layout()
         layout.x_label = '$time~/~min$'
@@ -91,9 +92,9 @@ class TimeSignal(metaclass=StructMeta):
         signal_sum = self.signal.sum(1)
         signal_sum[signal_sum < 1e-6] = np.nan
         for comp in range(self.n_comp):
-            signal = self.signal[:,comp]
+            signal = self.signal[:, comp]
             with np.errstate(divide='ignore', invalid='ignore'):
-                purity[:,comp] = np.divide(signal, signal_sum)
+                purity[:, comp] = np.divide(signal, signal_sum)
         purity = np.nan_to_num(purity)
 
         return np.nan_to_num(purity)
@@ -125,7 +126,7 @@ class TimeSignal(metaclass=StructMeta):
         x = self.time / 60
         y = self.local_purity * 100
 
-        ax.plot(x,y)
+        ax.plot(x, y)
 
         layout = plotting.Layout()
         layout.x_label = '$time~/~min$'
@@ -269,7 +270,9 @@ class Chromatogram(TimeSignal):
             fractionation_state[state] = 1
         else:
             if len(state) != state_length:
-                raise CADETProcessError('Expected length {}.'.format(state_length))
+                raise CADETProcessError(
+                    'Expected length {}.'.format(state_length)
+                )
 
             elif sum(state) != 1:
                 raise CADETProcessError('Sum of fractions must be 1')
@@ -282,7 +285,7 @@ class Chromatogram(TimeSignal):
 class InterpolatedSignal():
     def __init__(self, time, signal):
         self._signal = [
-                InterpolatedUnivariateSpline(time, signal[:,comp])
+                InterpolatedUnivariateSpline(time, signal[:, comp])
                 for comp in range(signal.shape[1])
                 ]
 

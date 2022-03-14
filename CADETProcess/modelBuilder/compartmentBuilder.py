@@ -9,6 +9,7 @@ from CADETProcess.dataStructure import String, UnsignedInteger
 from CADETProcess.processModel import FlowSheet, Process
 from CADETProcess.processModel import Cstr, Source, Sink
 
+
 class CompartmentBuilder(metaclass=StructMeta):
     name = String()
     n_compartments = UnsignedInteger()
@@ -20,8 +21,7 @@ class CompartmentBuilder(metaclass=StructMeta):
             binding_model=None,
             bulk_reaction_model=None,
             particle_reaction_model=None,
-            name=None,
-        ):
+            name=None):
         """Initialize builder.
 
         Parameters
@@ -121,7 +121,8 @@ class CompartmentBuilder(metaclass=StructMeta):
     @wraps(Cstr.particle_reaction_model)
     def particle_reaction_model(self, particle_reaction_model):
         if particle_reaction_model is not None:
-            self._compartment_model.particle_reaction_model = particle_reaction_model
+            self._compartment_model.particle_reaction_model \
+                = particle_reaction_model
 
             for compartment in self._real_compartments:
                 compartment.particle_reaction_model = particle_reaction_model
@@ -292,6 +293,7 @@ class CompartmentBuilder(metaclass=StructMeta):
                 raise CADETProcessError(
                     f"Unbalanced flow rate for compartment '{comp.name}'."
                 )
+
 
 class CompartmentModel(Cstr):
     """Dummy Class for checking binding and reaction models"""

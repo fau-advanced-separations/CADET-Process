@@ -5,6 +5,7 @@ from CADETProcess import log
 from CADETProcess.dataStructure import StructMeta, Bool, UnsignedFloat
 from CADETProcess.common import TimeSignal
 
+
 class StationarityEvaluator(metaclass=StructMeta):
     """Class for checking two succeding chromatograms for stationarity
 
@@ -20,7 +21,7 @@ class StationarityEvaluator(metaclass=StructMeta):
     max_concentration_deviation = UnsignedFloat(default=0.1)
 
     check_area = Bool(default=True)
-    max_area_deviation = UnsignedFloat(default=1)
+    max_area_deviation = UnsignedFloat(default=0.1)
 
     check_height = Bool(default=True)
     max_height_deviation = UnsignedFloat(default=0.1)
@@ -29,12 +30,7 @@ class StationarityEvaluator(metaclass=StructMeta):
         self.logger = log.get_logger('StationarityEvaluator')
 
     def assert_stationarity(self, conc_old, conc_new):
-        """Check Wrapper function for checking stationarity of two succeeding cycles.
-
-        First the module 'stationarity' is imported, then the concentration
-        profiles for the current and the last cycles are defined. After this
-        all checking function from module 'stafs = FlowSheet(n_comp=2, name=flow_sheet_name)
-        tionarity' are called.
+        """Check stationarity of two succeeding cycles.
 
         Parameters
         ----------
@@ -51,7 +47,9 @@ class StationarityEvaluator(metaclass=StructMeta):
 
         criteria = {}
         if self.check_concentration:
-            criterion, value = self.check_concentration_deviation(conc_old, conc_new)
+            criterion, value = self.check_concentration_deviation(
+                conc_old, conc_new
+            )
             criteria['concentration_deviation'] = {
                     'status': criterion,
                     'value': value}
@@ -74,7 +72,7 @@ class StationarityEvaluator(metaclass=StructMeta):
         return False
 
     def concentration_deviation(self, conc_old, conc_new):
-        """Calculate the concentration profile deviation of two succeeding cycles.
+        """Calculate concentration difference of two succeeding cycles.
 
         Parameters
         ----------
@@ -92,7 +90,7 @@ class StationarityEvaluator(metaclass=StructMeta):
         return np.max(abs(conc_new.signal - conc_old.signal), axis=0)
 
     def check_concentration_deviation(self, conc_old, conc_new):
-        """Check if deviation in concentration profiles is smaller than eps
+        """Check if deviation in concentration profiles is smaller than eps.
 
         Parameters
         ----------
@@ -116,7 +114,6 @@ class StationarityEvaluator(metaclass=StructMeta):
             criterion = True
 
         return criterion, np.max(conc_dev)
-
 
     def area_deviation(self, conc_old, conc_new):
         """Calculate the area deviation of two succeeding cycles.

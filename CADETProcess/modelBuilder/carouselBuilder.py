@@ -35,7 +35,6 @@ class CarouselBuilder(metaclass=StructMeta):
             raise CADETProcessError('Number of components does not match.')
         self._column = column
 
-
     def add_unit(self, unit):
         """Wrapper around function of auxiliary flow_sheet."""
         self.flow_sheet.add_unit(unit)
@@ -52,7 +51,8 @@ class CarouselBuilder(metaclass=StructMeta):
     def zones(self):
         """list: list of all zones in the carousel system."""
         return [
-            unit for unit in self.flow_sheet.units if isinstance(unit, ZoneBaseClass)
+            unit for unit in self.flow_sheet.units
+            if isinstance(unit, ZoneBaseClass)
         ]
 
     @property
@@ -115,8 +115,10 @@ class CarouselBuilder(metaclass=StructMeta):
         for zone in self.zones:
             output_state = self.flow_sheet.output_states[zone]
             flow_sheet.set_output_state(zone.outlet_unit, output_state)
-            flow_sheet[zone.inlet_unit.name].flow_rate = flow_rates[zone.name].total_out
-            flow_sheet[zone.outlet_unit.name].flow_rate = flow_rates[zone.name].total_out
+
+            zone_flow_flow_rate = flow_rates[zone.name].total_out
+            flow_sheet[zone.inlet_unit.name].flow_rate = zone_flow_flow_rate
+            flow_sheet[zone.outlet_unit.name].flow_rate = zone_flow_flow_rate
 
     def add_intra_zone_connections(self, flow_sheet):
         """Add connections within zones."""
@@ -134,7 +136,6 @@ class CarouselBuilder(metaclass=StructMeta):
             else:
                 col_dest = flow_sheet[f'column_{0}']
             flow_sheet.add_connection(col_orig, col_dest)
-
 
     def build_process(self):
         """Build process."""
@@ -218,7 +219,6 @@ class CarouselBuilder(metaclass=StructMeta):
 
                 position_counter += zone.n_columns
 
-
     def unit_index(self, carousel_position, carousel_state):
         """Return unit index of column at given carousel position and state.
 
@@ -230,7 +230,7 @@ class CarouselBuilder(metaclass=StructMeta):
             Curent state of the carousel system.
         n_columns : int
             Total number of columns in system.
-            
+
         """
         return (carousel_position + carousel_state) % self.n_columns
 
@@ -243,9 +243,8 @@ class ZoneBaseClass(UnitBaseClass):
     def __init__(
             self,
             component_system, name, n_columns=1,
-            flow_direction=1, initial_state=None, 
-            *args, **kwargs
-        ):
+            flow_direction=1, initial_state=None,
+            *args, **kwargs):
         self.n_columns = n_columns
         self.flow_direction = flow_direction
         self.initial_state = initial_state
@@ -284,8 +283,10 @@ class ZoneBaseClass(UnitBaseClass):
     def outlet_unit(self):
         return self._outlet_unit
 
+
 class SerialZone(ZoneBaseClass):
     pass
+
 
 class ParallelZone(ZoneBaseClass):
     pass

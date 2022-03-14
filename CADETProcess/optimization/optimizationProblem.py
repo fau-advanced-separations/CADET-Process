@@ -999,7 +999,7 @@ class OptimizationProblem(metaclass=StructMeta):
                 starting_points=starting_points
                 )
             if seed is None:
-                seed = random.randint(0,255)
+                seed = random.randint(0, 255)
             run.random_seed = seed
             run.sample(n_samples)
 

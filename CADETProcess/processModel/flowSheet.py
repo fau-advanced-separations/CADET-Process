@@ -83,7 +83,7 @@ class FlowSheet(metaclass=StructMeta):
     def origin_destination_name_decorator(func):
         @wraps(func)
         def wrapper(self, origin, destination, *args, **kwargs):
-            """Enable calling functions with origin and destination using names."""
+            """Enable calling origin and destination using unit names."""
             if isinstance(origin, str):
                 try:
                     origin = self.units_dict[origin]
@@ -191,8 +191,7 @@ class FlowSheet(metaclass=StructMeta):
     @update_parameters_decorator
     def add_unit(
             self, unit,
-            feed_source=False, eluent_source=False, chromatogram_sink=False
-        ):
+            feed_source=False, eluent_source=False, chromatogram_sink=False):
         """Add unit to the flow sheet.
 
         Parameters
@@ -244,7 +243,6 @@ class FlowSheet(metaclass=StructMeta):
             self.add_eluent_source(unit)
         if chromatogram_sink:
             self.add_chromatogram_sink(unit)
-
 
     @unit_name_decorator
     @update_parameters_decorator
@@ -485,8 +483,7 @@ class FlowSheet(metaclass=StructMeta):
 
         else:
             if len(state) != state_length:
-                raise CADETProcessError(
-                    'Expected length {}.'.format(state_length))
+                raise CADETProcessError(f'Expected length {state_length}.')
 
             elif not np.isclose(sum(state), 1):
                 raise CADETProcessError('Sum of fractions must be 1')
@@ -494,7 +491,6 @@ class FlowSheet(metaclass=StructMeta):
             output_state = state
 
         self._output_states[unit] = output_state
-
 
     def get_flow_rates(self, state=None):
         """Calculate flow rate for all connections.unit operation flow rates.
@@ -529,7 +525,7 @@ class FlowSheet(metaclass=StructMeta):
                     output_states[unit] = list(value.ravel())
 
         def list_factory():
-            return [0,0,0,0]
+            return [0, 0, 0, 0]
 
         destination_flow_rates = {
             unit.name: defaultdict(list_factory) for unit in self.units
@@ -545,7 +541,7 @@ class FlowSheet(metaclass=StructMeta):
                     for destination in self.connections[unit].destinations:
                         destination_index = self.get_unit_index(destination)
                         value = float(
-                            solution['Q_{}_{}'.format(unit_index, destination_index)]
+                            solution[f'Q_{unit_index}_{destination_index}']
                         )
                         destination_flow_rates[unit.name][destination.name][i] = value
                         origin_flow_rates[destination.name][unit.name][i] = value
@@ -559,13 +555,15 @@ class FlowSheet(metaclass=StructMeta):
 
         for unit in self.units:
             if not isinstance(unit, Source):
-                flow_rates[unit.name].total_in = np.sum(
-                    list(flow_rates[unit.name].origins.values()),axis=0
+                flow_rate_in = np.sum(
+                    list(flow_rates[unit.name].origins.values()), axis=0
                 )
+                flow_rates[unit.name].total_in = flow_rate_in
             if not isinstance(unit, Sink):
-                flow_rates[unit.name].total_out = np.sum(
-                    list(flow_rates[unit.name].destinations.values()),axis=0
+                flow_rate_out = np.sum(
+                    list(flow_rates[unit.name].destinations.values()), axis=0
                 )
+                flow_rates[unit.name].total_out = flow_rate_out
 
         return flow_rates
 
@@ -604,7 +602,7 @@ class FlowSheet(metaclass=StructMeta):
 
         # Setup lists for symbols
         unit_total_flow_symbols = sym.symbols(
-            'Q_total_0:{}'.format(self.number_of_units)
+            f'Q_total_0:{self.number_of_units}'
         )
         unit_inflow_symbols = []
         unit_outflow_symbols = []
@@ -627,12 +625,14 @@ class FlowSheet(metaclass=StructMeta):
                 for origin in self.connections[unit].origins:
                     origin_index = self.get_unit_index(origin)
                     unit_i_inflow_symbols.append(
-                        sym.symbols('Q_{}_{}'.format(origin_index, unit_index))
+                        sym.symbols(f'Q_{origin_index}_{unit_index}')
                     )
 
-                unit_i_total_flow_eq = sym.Add(
-                    *unit_i_inflow_symbols, -unit_total_flow_symbols[unit_index]
+                symbols = (
+                    *unit_i_inflow_symbols,
+                    -unit_total_flow_symbols[unit_index]
                 )
+                unit_i_total_flow_eq = sym.Add(*symbols)
 
                 unit_inflow_symbols += unit_i_inflow_symbols
                 unit_total_flow_eq.append(unit_i_total_flow_eq)
@@ -644,7 +644,7 @@ class FlowSheet(metaclass=StructMeta):
                 for destination in self.connections[unit].destinations:
                     destination_index = self.get_unit_index(destination)
                     unit_i_outflow_symbols.append(
-                        sym.symbols('Q_{}_{}'.format(unit_index, destination_index))
+                        sym.symbols(f'Q_{unit_index}_{destination_index}')
                     )
 
                 unit_i_outflow_eq = [
@@ -659,10 +659,14 @@ class FlowSheet(metaclass=StructMeta):
                 unit_outflow_eq += unit_i_outflow_eq
 
         # Solve system of equations
-        solution = sym.solve(
-            unit_total_flow_eq + unit_outflow_eq,
-            (*unit_total_flow_symbols, *unit_inflow_symbols, *unit_outflow_symbols)
+        symbols = (
+            *unit_total_flow_symbols,
+            *unit_inflow_symbols,
+            *unit_outflow_symbols
         )
+
+        solution = sym.solve(unit_total_flow_eq + unit_outflow_eq, symbols)
+
         solution = {str(key): value for key, value in solution.items()}
 
         return solution
@@ -702,7 +706,7 @@ class FlowSheet(metaclass=StructMeta):
             raise CADETProcessError('Expected Source')
         if feed_source in self._feed_sources:
             raise CADETProcessError(
-                '{} is already eluent source'.format(feed_source)
+                f'Unit \'{feed_source}\' is already a feed source'
             )
         self._feed_sources.append(feed_source)
 
@@ -717,8 +721,9 @@ class FlowSheet(metaclass=StructMeta):
 
         """
         if feed_source not in self._feed_sources:
-            raise CADETProcessError('Unit \'{}\' is not a feed source.'.format(
-                    feed_source))
+            raise CADETProcessError(
+                f'Unit \'{feed_source}\' is not a feed source.'
+            )
         self._feed_sources.remove(feed_source)
 
     @property
@@ -745,13 +750,14 @@ class FlowSheet(metaclass=StructMeta):
         if eluent_source not in self.sources:
             raise CADETProcessError('Expected Source')
         if eluent_source in self._eluent_sources:
-            raise CADETProcessError('{} is already eluent source'.format(
-                    eluent_source))
+            raise CADETProcessError(
+                f'Unit \'{eluent_source}\' is already an eluent source'
+            )
         self._eluent_sources.append(eluent_source)
 
     @unit_name_decorator
     def remove_eluent_source(self, eluent_source):
-        """Remove source from list of units to be considered eluent consumption.
+        """Remove source from list of units considered for eluent consumption.
 
         Parameters
         ----------
@@ -765,8 +771,9 @@ class FlowSheet(metaclass=StructMeta):
 
         """
         if eluent_source not in self._eluent_sources:
-            raise CADETProcessError('Unit \'{}\' is not an eluent source.'.format(
-                    eluent_source))
+            raise CADETProcessError(
+                f'Unit \'{eluent_source}\' is not an eluent source.'
+            )
         self._eluent_sources.remove(eluent_source)
 
     @property
@@ -776,7 +783,7 @@ class FlowSheet(metaclass=StructMeta):
 
     @unit_name_decorator
     def add_chromatogram_sink(self, chromatogram_sink):
-        """Add sink to list of units to be considered for fractionation.
+        """Add sink to list of units considered for fractionation.
 
         Parameters
         ----------
@@ -794,7 +801,7 @@ class FlowSheet(metaclass=StructMeta):
             raise CADETProcessError('Expected Sink')
         if chromatogram_sink in self._chromatogram_sinks:
             raise CADETProcessError(
-                '{} is already chomatogram sink'.format(chromatogram_sink)
+                f'Unit \'{chromatogram_sink}\' is already an chomatogram sink'
             )
         self._chromatogram_sinks.append(chromatogram_sink)
 
@@ -815,10 +822,9 @@ class FlowSheet(metaclass=StructMeta):
         """
         if chromatogram_sink not in self._chromatogram_sinks:
             raise CADETProcessError(
-                'Unit \'{}\' is not a chromatogram sink.'.format(chromatogram_sink)
+                f'Unit \'{chromatogram_sink}\' is not a chromatogram sink.'
             )
         self._chromatogram_sinks.remove(chromatogram_sink)
-
 
     @property
     def parameters(self):
@@ -862,7 +868,6 @@ class FlowSheet(metaclass=StructMeta):
                 raise CADETProcessError('Not a valid unit')
             self.units_dict[unit].initial_state = st
 
-
     def __getitem__(self, unit_name):
         """Make FlowSheet substriptable s.t. units can be used as keys.
 
@@ -886,7 +891,6 @@ class FlowSheet(metaclass=StructMeta):
             return self.units_dict[unit_name]
         except KeyError:
             raise KeyError('Not a valid unit')
-
 
     def __contains__(self, item):
         """Check if UnitOperation is part of the FlowSheet.

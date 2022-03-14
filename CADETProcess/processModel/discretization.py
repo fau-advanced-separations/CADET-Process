@@ -5,6 +5,7 @@ from CADETProcess.dataStructure import (
     DependentlySizedRangedList
 )
 
+
 class DiscretizationParametersBase(ParametersGroup):
     _dimensionality = []
 
@@ -39,14 +40,17 @@ class DiscretizationParametersBase(ParametersGroup):
         except KeyError:
             pass
         try:
-            self.consistency_solver.parameters = parameters.pop('consistency_solver')
+            self.consistency_solver.parameters \
+                = parameters.pop('consistency_solver')
         except KeyError:
             pass
 
         super(DiscretizationParametersBase, self.__class__).parameters.fset(self, parameters)
 
+
 class NoDiscretization(DiscretizationParametersBase):
     pass
+
 
 class LRMDiscretizationFV(DiscretizationParametersBase):
     ncol = UnsignedInteger(default=100)
@@ -57,6 +61,7 @@ class LRMDiscretizationFV(DiscretizationParametersBase):
         'ncol', 'use_analytic_jacobian', 'reconstruction',
     ]
     _dimensionality = ['ncol']
+
 
 class LRMPDiscretizationFV(DiscretizationParametersBase):
     ncol = UnsignedInteger(default=100)
@@ -81,6 +86,7 @@ class LRMPDiscretizationFV(DiscretizationParametersBase):
     ]
     _dimensionality = ['ncol']
 
+
 class GRMDiscretizationFV(DiscretizationParametersBase):
     ncol = UnsignedInteger(default=100)
     npar = UnsignedInteger(default=5)
@@ -93,7 +99,9 @@ class GRMDiscretizationFV(DiscretizationParametersBase):
         default='EQUIDISTANT_PAR',
         valid=['EQUIDISTANT_PAR', 'EQUIVOLUME_PAR', 'USER_DEFINED_PAR']
     )
-    par_disc_vector = DependentlySizedRangedList(lb=0, ub=1, dep='par_disc_vector_length')
+    par_disc_vector = DependentlySizedRangedList(
+        lb=0, ub=1, dep='par_disc_vector_length'
+    )
 
     par_boundary_order = RangedInteger(lb=1, ub=2, default=2)
 
@@ -130,12 +138,13 @@ class WenoParameters(ParametersGroup):
     See Also
     --------
     ParametersGroup
-    
+
     """
     boundary_model = UnsignedInteger(default=0, ub=3)
     weno_eps = UnsignedFloat(default=1e-10)
     weno_order = UnsignedInteger(default=3, ub=3)
     _parameters = ['boundary_model', 'weno_eps', 'weno_order']
+
 
 class ConsistencySolverParametersGroup(ParametersGroup):
     """Class for defining the consistency solver parameters for cadet.
@@ -143,7 +152,7 @@ class ConsistencySolverParametersGroup(ParametersGroup):
     See also
     --------
     ParametersGroup
-    
+
     """
     solver_name = Switch(
         default='LEVMAR',

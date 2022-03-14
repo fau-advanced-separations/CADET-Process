@@ -1,14 +1,13 @@
-from collections import defaultdict
 import itertools
 
 import numpy as np
 import scipy
-import matplotlib.pyplot as plt
 
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import NdPolynomial
 from CADETProcess import plotting
+
 
 class Section(metaclass=StructMeta):
     """Helper class to store parameter states between events.
@@ -58,7 +57,7 @@ class Section(metaclass=StructMeta):
         self._poly = []
         for i in range(self.n_entries):
             poly = np.polynomial.polynomial.Polynomial(
-                self.coeffs[i], domain=(start, end), window=(0,diff)
+                self.coeffs[i], domain=(start, end), window=(0, diff)
             )
             self._poly.append(poly)
 
@@ -66,7 +65,6 @@ class Section(metaclass=StructMeta):
         for iEntry in range(self.n_entries):
             poly_der = self._poly[iEntry].deriv(1)
             self._poly_der.append(poly_der)
-
 
     @property
     def n_poly_coeffs(self):
@@ -232,7 +230,7 @@ class TimeLine():
 
         piecewise_poly = []
         for iEntry in range(self.n_entries):
-            c = np.array([iCoeff[iEntry,:] for iCoeff in coeffs])
+            c = np.array([iCoeff[iEntry, :] for iCoeff in coeffs])
             c_decreasing = np.fliplr(c)
             p = scipy.interpolate.PPoly(c_decreasing.T, x)
             piecewise_poly.append(p)
@@ -303,7 +301,9 @@ class TimeLine():
         if not ((self.start <= start) & (start <= end) & (end <= self.end)):
             raise ValueError('Integration bounds exceed section times')
 
-        return np.array([p.integrate(start, end) for p in self.piecewise_poly]).T
+        return np.array(
+            [p.integrate(start, end) for p in self.piecewise_poly]
+        ).T
 
     def section_index(self, time):
         section_times = np.array(self.section_times)
@@ -344,7 +344,7 @@ class TimeLine():
         time = np.linspace(start, end, 1001)/60
         y = self.value(time)
 
-        ax.plot(time,y)
+        ax.plot(time, y)
 
         layout = plotting.Layout()
         layout.x_label = '$time~/~min$'

@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def approximate_jac(xk, f, epsilon, args=()):
     """Finite-difference approximation of the jacobian of a vector function
 
@@ -36,12 +37,13 @@ def approximate_jac(xk, f, epsilon, args=()):
 
     """
     f0 = f(*((xk,) + args))
-    jac = np.zeros((len(f0),len(xk)), float)
 
+    jac = np.zeros((len(f0), len(xk)), float)
     ei = np.zeros((len(xk),), float)
     for k in range(len(xk)):
         ei[k] = 1.0
         d = epsilon * ei
-        jac[:,k] = (f(*((xk + d,) + args)) - f0) / d[k]
+        jac[:, k] = (f(*((xk + d,) + args)) - f0) / d[k]
         ei[k] = 0.0
+
     return jac

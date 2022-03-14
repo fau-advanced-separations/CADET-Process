@@ -25,6 +25,7 @@ class FractionationOptimizer():
         mass of all components is maximized.
 
     """
+
     def __init__(self, purity_required, obj_fun=None, optimizer=None):
         self.purity_required = purity_required
         if obj_fun is None:
@@ -78,11 +79,11 @@ class FractionationOptimizer():
             for evt_index, evt in enumerate(chrom_events):
                 if evt_index < len(chrom_events) - 1:
                     opt.add_linear_constraint(
-                        [evt_names[evt_index], evt_names[evt_index+1]], [1,-1]
+                        [evt_names[evt_index], evt_names[evt_index+1]], [1, -1]
                     )
                 else:
                     opt.add_linear_constraint(
-                        [evt_names[0], evt_names[-1]],[-1,1], frac.cycle_time
+                        [evt_names[0], evt_names[-1]], [-1, 1], frac.cycle_time
                     )
 
         opt.x0 = [evt.time for evt in frac.events]
@@ -91,7 +92,6 @@ class FractionationOptimizer():
             raise CADETProcessError("No areas found with sufficient purity.")
 
         return opt
-
 
     def optimize_fractionation(self, chromatograms, process_meta):
         """Optimize the fractionation times w.r.t. purity constraints.
@@ -128,7 +128,7 @@ class FractionationOptimizer():
             chromatograms = [chromatograms]
 
         if (not isinstance(self.purity_required, (float, int))
-            and chromatograms[0].n_comp != len(self.purity_required)):
+                and chromatograms[0].n_comp != len(self.purity_required)):
             raise CADETProcessError('Number of components does not match.')
 
         frac = self.setup_fractionator(process_meta, chromatograms)

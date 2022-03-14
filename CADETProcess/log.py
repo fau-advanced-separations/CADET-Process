@@ -1,10 +1,15 @@
-from CADETProcess.common import settings
+import time
 
 from functools import wraps
 import os
 import logging
 
-LOG_FORMAT = logging.Formatter('%(asctime)s:%(levelname)s:%(name)s:%(message)s')
+from CADETProcess.common import settings
+
+LOG_FORMAT = logging.Formatter(
+    '%(asctime)s:%(levelname)s:%(name)s:%(message)s'
+)
+
 
 def get_logger(name, level=None, log_directory=None):
     if level is None:
@@ -18,9 +23,11 @@ def get_logger(name, level=None, log_directory=None):
         log_directory = os.path.join(settings.project_directory, log_directory)
 
     if not os.path.exists(log_directory):
-            os.makedirs(log_directory)
+        os.makedirs(log_directory)
 
-    file_handler = logging.FileHandler(os.path.join(log_directory, name + '.log'))
+    file_handler = logging.FileHandler(
+        os.path.join(log_directory, name + '.log')
+    )
     file_handler.setFormatter(LOG_FORMAT)
     file_handler.setLevel(level)
 
@@ -32,7 +39,7 @@ def get_logger(name, level=None, log_directory=None):
 
     return logger
 
-import time
+
 def log_time(logger_name, level=None):
     """Log execution time of function.
 
@@ -53,6 +60,7 @@ def log_time(logger_name, level=None):
             return result
         return wrapper
     return log_time_decorator
+
 
 def log_exceptions(logger_name, level=None):
     """Log exceptions.
@@ -76,8 +84,10 @@ def log_exceptions(logger_name, level=None):
 
                 # re-raise the exception
                 raise
+
         return wrapper
     return log_exception_decorator
+
 
 def log_results(logger_name, level=None):
     """Log results.

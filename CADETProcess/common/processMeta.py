@@ -1,7 +1,8 @@
 import numpy as np
 
 from CADETProcess.dataStructure import Structure
-from CADETProcess.dataStructure.parameter import  UnsignedFloat, NdArray
+from CADETProcess.dataStructure.parameter import UnsignedFloat, NdArray
+
 
 class ProcessMeta(Structure):
     """Additional information required for calculating performance
@@ -30,10 +31,7 @@ class ProcessMeta(Structure):
         return {key: getattr(self, key) for key in self._meta_keys}
 
     def __repr__(self):
-        return '{}(cycle_time={}, m_feed={}, V_solid={}, V_eluent={})'.format(
-            self.__class__.__name__, self.cycle_time,
-            np.array_repr(self.m_feed), self.V_solid, self.V_eluent
-        )
-
-feed = np.linspace(1,10)
-foo = ProcessMeta(1, feed, 3, 4)
+        return \
+            f"{self.__class__.__name__}(cycle_time={self.cycle_time}, "\
+            f"m_feed={np.array_repr(self.m_feed)}, V_solid={self.V_solid}, "\
+            f"V_eluent={self.V_eluent})"

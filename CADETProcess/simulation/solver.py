@@ -14,16 +14,15 @@ from CADETProcess.dataStructure import (
 )
 from CADETProcess.processModel import Process
 from CADETProcess.simulation import StationarityEvaluator
-from CADETProcess.common import TimeSignal
 
 
 class SolverBase(metaclass=StructMeta):
-    """BaseClass for Solver APIs
+    """BaseClass for Solver APIs.
 
-    Holds the configuration of the individual solvers and gives an interface for
-    calling the run method. The class has to convert the process configuration
-    into the APIs configuration format and convert the results back to the
-    CADETProcess format.
+    Holds the configuration of the individual solvers and gives an interface
+    for calling the run method. The class has to convert the process
+    configuration into the APIs configuration format and convert the results
+    back to the CADETProcess format.
 
     Attributes
     ----------
@@ -105,7 +104,8 @@ class SolverBase(metaclass=StructMeta):
     @log_time('Simulation')
     @log_results('Simulation')
     @log_exceptions('Simulation')
-    def simulate_n_cycles(self, process, n_cyc, previous_results=None, **kwargs):
+    def simulate_n_cycles(
+            self, process, n_cyc, previous_results=None, **kwargs):
         """Simulates process for given number of cycles.
 
         Parameters
@@ -147,7 +147,8 @@ class SolverBase(metaclass=StructMeta):
     @log_time('Simulation')
     @log_results('Simulation')
     @log_exceptions('Simulation')
-    def simulate_to_stationarity(self, process, previous_results=None, **kwargs):
+    def simulate_to_stationarity(
+            self, process, previous_results=None, **kwargs):
         """Simulate process until stationarity is reached.
 
         Parameters
@@ -210,14 +211,12 @@ class SolverBase(metaclass=StructMeta):
             if stationarity:
                 break
 
-
         return results
 
     def set_state_from_results(self, process, results):
         process.system_state = results.system_state['state']
         process.system_state_derivative = results.system_state['state_derivative']
         return process
-
 
     @abstractmethod
     def run(process, **kwargs):
@@ -342,7 +341,8 @@ class SimulationResults(metaclass=StructMeta):
         self.chromatograms = new_results.chromatograms
         for unit, solutions in self.solution_cycles.items():
             for sol in solutions:
-                self.solution_cycles[unit][sol].append(new_results.solution[unit][sol])
+                solution = new_results.solution[unit][sol]
+                self.solution_cycles[unit][sol].append(solution)
 
     @property
     def solution(self):
@@ -372,7 +372,9 @@ class SimulationResults(metaclass=StructMeta):
 
     @property
     def n_cycles(self):
-        return len(self.solution_cycles[self._first_unit][self._first_solution])
+        return len(
+            self.solution_cycles[self._first_unit][self._first_solution]
+        )
 
     @property
     def _first_unit(self):
@@ -385,8 +387,7 @@ class SimulationResults(metaclass=StructMeta):
     @property
     def time_cycle(self):
         """np.array: Solution times vector"""
-        return \
-            self.solution_cycles[self._first_unit][self._first_solution][0].time
+        return self.solution_cycles[self._first_unit][self._first_solution][0].time
 
     def save(self, case_dir, unit=None, start=0, end=None):
         path = os.path.join(settings.project_directory, case_dir)
@@ -411,6 +412,6 @@ class SimulationResults(metaclass=StructMeta):
         for unit in units:
             self.solution[unit][-1].plot(
                 save_path=path + '/' + unit + '_overlay.png',
-                overlay = [cyc.signal for cyc in self.solution[unit][0:-1]],
+                overlay=[cyc.signal for cyc in self.solution[unit][0:-1]],
                 start=start, end=end
             )

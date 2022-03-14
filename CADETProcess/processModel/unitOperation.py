@@ -1,5 +1,4 @@
 import math
-import numpy as np
 
 from CADETProcess import CADETProcessError
 
@@ -7,8 +6,8 @@ from CADETProcess.dataStructure import frozen_attributes
 from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import (
     String, Switch,
-    UnsignedInteger, UnsignedFloat,
-    DependentlySizedUnsignedList, DependentlySizedNdArray,
+    UnsignedFloat,
+    DependentlySizedUnsignedList,
     Polynomial, NdPolynomial, DependentlySizedList
 )
 
@@ -16,8 +15,10 @@ from .componentSystem import ComponentSystem
 from .binding import BindingBaseClass, NoBinding
 from .reaction import ReactionBaseClass, NoReaction
 from .discretization import (
-    NoDiscretization, LRMDiscretizationFV, LRMPDiscretizationFV, GRMDiscretizationFV
+    NoDiscretization,
+    LRMDiscretizationFV, LRMPDiscretizationFV, GRMDiscretizationFV
 )
+
 
 @frozen_attributes
 class UnitBaseClass(metaclass=StructMeta):
@@ -116,11 +117,15 @@ class UnitBaseClass(metaclass=StructMeta):
         except KeyError:
             pass
         try:
-            self.bulk_reaction_model.parameters = parameters.pop('bulk_reaction_model')
+            self.bulk_reaction_model.parameters = parameters.pop(
+                'bulk_reaction_model'
+            )
         except KeyError:
             pass
         try:
-            self.particle_reaction_model.parameters = parameters.pop('particle_reaction_model')
+            self.particle_reaction_model.parameters = parameters.pop(
+                'particle_reaction_model'
+            )
         except KeyError:
             pass
         try:
@@ -186,7 +191,8 @@ class UnitBaseClass(metaclass=StructMeta):
         if not isinstance(binding_model, BindingBaseClass):
             raise TypeError('Expected BindingBaseClass')
 
-        if binding_model.component_system is not self.component_system:
+        if binding_model.component_system is not self.component_system \
+                and not isinstance(binding_model, NoBinding):
             raise CADETProcessError('Component systems do not match.')
 
         self._binding_model = binding_model
@@ -197,12 +203,12 @@ class UnitBaseClass(metaclass=StructMeta):
 
     @property
     def bulk_reaction_model(self):
-        """bulk_reaction_model: Reaction model in the bulk phase
+        """bulk_reaction_model: Reaction in bulk phase.
 
         Raises
         ------
         TypeError
-            If bulk_reaction_model object is not an instance of ReactionBaseClass.
+            If bulk_reaction_model is not an instance of ReactionBaseClass.
         CADETProcessError
             If unit does not support bulk reaction model.
             If number of components do not match.
@@ -225,12 +231,12 @@ class UnitBaseClass(metaclass=StructMeta):
 
     @property
     def particle_reaction_model(self):
-        """particle_liquid_reaction_model: Reaction model in the particle liquid phase
+        """particle_liquid_reaction_model: Reaction in particle liquid phase.
 
         Raises
         ------
         TypeError
-            If particle_reaction_model object is not an instance of ReactionBaseClass.
+            If particle_reaction_model is not an instance of ReactionBaseClass.
         CADETProcessError
             If unit does not support particle reaction model.
             If number of components do not match.
@@ -243,7 +249,9 @@ class UnitBaseClass(metaclass=StructMeta):
         if not isinstance(particle_reaction_model, ReactionBaseClass):
             raise TypeError('Expected ReactionBaseClass')
         if not self.supports_particle_reaction:
-            raise CADETProcessError('Unit does not support particle reactions.')
+            raise CADETProcessError(
+                'Unit does not support particle reactions.'
+            )
 
         if particle_reaction_model.component_system is not self.component_system \
                 and not isinstance(particle_reaction_model, NoReaction):
@@ -258,8 +266,9 @@ class UnitBaseClass(metaclass=StructMeta):
 
     def __repr__(self):
         """str: String-representation of the object."""
-        return '{}(n_comp={}, name=\'{}\')'.format(self.__class__.__name__,
-            self.n_comp, self.name)
+        return \
+            f'{self.__class__.__name__}' \
+            f'(n_comp={self.n_comp}, name={self.name})'
 
     def __str__(self):
         """str: String-representation of the object."""
@@ -312,13 +321,16 @@ class Source(UnitBaseClass, SourceMixin):
         SourceMixin._polynomial_parameters + \
         ['c']
 
+
 class Sink(UnitBaseClass, SinkMixin):
     """Pseudo unit operation model for streams leaving the system."""
     pass
 
+
 class MixerSplitter(UnitBaseClass):
-    """Pseudo unit operation model for mixing/splitting streams in the system."""
+    """Pseudo unit operation for mixing/splitting streams in the system."""
     pass
+
 
 class TubularReactor(UnitBaseClass):
     """Class for tubular reactors.
@@ -351,13 +363,13 @@ class TubularReactor(UnitBaseClass):
     diameter = UnsignedFloat(default=0)
     axial_dispersion = UnsignedFloat()
     total_porosity = 1
-    flow_direction = Switch(valid=[-1,1], default=1)
+    flow_direction = Switch(valid=[-1, 1], default=1)
     _parameter_names = UnitBaseClass._parameter_names + [
-        'length', 'diameter','axial_dispersion', 'flow_direction'
+        'length', 'diameter', 'axial_dispersion', 'flow_direction'
     ]
-    _section_dependent_parameters = UnitBaseClass._section_dependent_parameters + [
-        'axial_dispersion', 'flow_direction'
-    ]
+    _section_dependent_parameters = \
+        UnitBaseClass._section_dependent_parameters + \
+        ['axial_dispersion', 'flow_direction']
 
     c = DependentlySizedList(dep='n_comp', default=0)
     _initial_state = UnitBaseClass._initial_state + ['c']
@@ -581,7 +593,7 @@ class LumpedRateModelWithoutPores(TubularReactor):
     Notes
     -----
         Although technically the LumpedRateModelWithoutPores does not have
-        particles, the particle reactions interface is used to support 
+        particles, the particle reactions interface is used to support
         reactions in the solid phase and cross-phase reactions.
 
     """
@@ -591,7 +603,9 @@ class LumpedRateModelWithoutPores(TubularReactor):
     total_porosity = UnsignedFloat(ub=1)
     _parameters = TubularReactor._parameter_names + ['total_porosity']
 
-    q = DependentlySizedUnsignedList(dep=('n_comp','_n_bound_states'), default=0)
+    q = DependentlySizedUnsignedList(
+        dep=('n_comp', '_n_bound_states'), default=0
+    )
     _initial_state = TubularReactor._initial_state + ['q']
 
     def __init__(self, *args, **kwargs):
@@ -636,7 +650,9 @@ class LumpedRateModelWithPores(TubularReactor):
         TubularReactor._section_dependent_parameters + ['film_diffusion']
 
     _cp = DependentlySizedUnsignedList(dep='n_comp')
-    q = DependentlySizedUnsignedList(dep=('n_comp','_n_bound_states'), default=0)
+    q = DependentlySizedUnsignedList(
+        dep=('n_comp', '_n_bound_states'), default=0
+    )
     _initial_state = TubularReactor._initial_state + ['cp', 'q']
 
     def __init__(self, *args, **kwargs):
@@ -726,18 +742,24 @@ class GeneralRateModel(TubularReactor):
     particle_radius = UnsignedFloat()
     film_diffusion = DependentlySizedUnsignedList(dep='n_comp')
     pore_diffusion = DependentlySizedUnsignedList(dep='n_comp')
-    surface_diffusion = DependentlySizedUnsignedList(dep=('n_comp','_n_bound_states'))
+    surface_diffusion = DependentlySizedUnsignedList(
+        dep=('n_comp', '_n_bound_states')
+    )
     pore_accessibility = DependentlySizedUnsignedList(dep='n_comp')
     _parameters = \
         TubularReactor._parameter_names + \
-        ['bed_porosity', 'particle_porosity', 'particle_radius',
-        'film_diffusion', 'pore_diffusion', 'surface_diffusion']
+        [
+            'bed_porosity', 'particle_porosity', 'particle_radius',
+            'film_diffusion', 'pore_diffusion', 'surface_diffusion'
+        ]
     _section_dependent_parameters = \
         TubularReactor._section_dependent_parameters + \
         ['film_diffusion', 'pore_diffusion', 'surface_diffusion']
 
     _cp = DependentlySizedUnsignedList(dep='n_comp')
-    q = DependentlySizedUnsignedList(dep=('n_comp', '_n_bound_states'), default=0)
+    q = DependentlySizedUnsignedList(
+        dep=('n_comp', '_n_bound_states'), default=0
+    )
     _initial_state = TubularReactor._initial_state + ['cp', 'q']
 
     def __init__(self, *args, **kwargs):
@@ -795,6 +817,7 @@ class GeneralRateModel(TubularReactor):
     def cp(self, cp):
         self._cp = cp
 
+
 class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     """Parameters for an ideal mixer.
 
@@ -831,7 +854,9 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         ['flow_rate_filter']
 
     c = DependentlySizedList(dep='n_comp', default=0)
-    q = DependentlySizedUnsignedList(dep=('n_comp', '_n_bound_states'), default=0)
+    q = DependentlySizedUnsignedList(
+        dep=('n_comp', '_n_bound_states'), default=0
+    )
     V = UnsignedFloat(default=0)
     volume = V
     _initial_state = \

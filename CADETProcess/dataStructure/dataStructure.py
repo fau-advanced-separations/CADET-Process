@@ -1,7 +1,7 @@
-from abc import ABCMeta
 from collections import OrderedDict
 from inspect import Parameter, Signature
 from functools import wraps
+
 
 def make_signature(names):
     return Signature(
@@ -23,8 +23,10 @@ class StructMeta(type):
         return OrderedDict()
 
     def __new__(cls, clsname, bases, clsdict):
-        fields = [key for key, val in clsdict.items()
-                if isinstance(val, Descriptor)]
+        fields = [
+            key for key, val in clsdict.items()
+            if isinstance(val, Descriptor)
+        ]
 
         for name in fields:
             clsdict[name].name = name
@@ -56,6 +58,7 @@ class Descriptor():
     Parameters
 
     """
+
     def __init__(self, *args, **kwargs):
         pass
 
@@ -70,11 +73,13 @@ class Descriptor():
     def __delete__(self, instance):
         del instance.__dict__[self.name]
 
+
 class Structure(metaclass=StructMeta):
     def __init__(self, *args, **kwargs):
         bound = self.__signature__.bind_partial(*args, **kwargs)
         for name, val in bound.arguments.items():
             setattr(self, name, val)
+
 
 def frozen_attributes(cls):
     """Decorate classes to prevent setting attributes after the init method.

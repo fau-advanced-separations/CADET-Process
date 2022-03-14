@@ -14,9 +14,8 @@ from cadet import Cadet as CadetAPI
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import (
     Bool, Switch, UnsignedFloat, UnsignedInteger,
-    DependentlySizedUnsignedList, List,
 )
-from CADETProcess.common import TimeSignal, Chromatogram
+from CADETProcess.common import Chromatogram
 
 from .solver import SolverBase
 from .solver import SimulationResults
@@ -30,6 +29,7 @@ from CADETProcess.processModel import (
     UnitBaseClass, Source, Cstr, LumpedRateModelWithoutPores
 )
 from CADETProcess.processModel import Process
+
 
 class Cadet(SolverBase):
     """CADET class for running a simulation for given process objects.
@@ -149,7 +149,6 @@ class Cadet(SolverBase):
         except KeyError:
             os.environ['LD_LIBRARY_PATH'] = cadet_lib_path.as_posix()
 
-
     def check_cadet(self):
         """Wrapper around a basic CADET example for testing functionality"""
         if platform.system() == 'Windows':
@@ -206,7 +205,6 @@ class Cadet(SolverBase):
         f = next(tempfile._get_candidate_names())
         return os.path.join(self.temp_dir, f + '.h5')
 
-
     def run(self, process, file_path=None):
         """Interface to the solver run function
 
@@ -259,7 +257,7 @@ class Cadet(SolverBase):
             return_information = cadet.run(timeout=self.timeout)
             elapsed = time.time() - start
         except TimeoutExpired:
-             raise CADETProcessError('Simulator timed out')
+            raise CADETProcessError('Simulator timed out')
 
         if return_information.returncode != 0:
             self.logger.error(
@@ -277,7 +275,9 @@ class Cadet(SolverBase):
                 process, cadet, elapsed, return_information
             )
         except TypeError:
-            raise CADETProcessError('Unexpected error reading SimulationResults.')
+            raise CADETProcessError(
+                'Unexpected error reading SimulationResults.'
+            )
 
         # Remove files
         if file_path is None:
@@ -337,25 +337,13 @@ class Cadet(SolverBase):
 
         return results
 
-
     def get_simulation_results(
-        self,
-        process,
-        cadet,
-        time_elapsed=None,
-        return_information=None,
-        ):
-        """Saves the simulated results for each unit into the dictionary
-        concentration_record for the complete simulation and splitted into each
-        cycle.
-
-        For each unit in the flow_sheet of a process the index
-        of the unit is get by calling the method get_unit_index. The process
-        results of the simualtion are saved in concentration_record of the
-        process for each unit for the key complete. For saving the process
-        resulst for each cycle start and end variables are defined an saved
-        under the key cycles in the concentration_record dictionary for each
-        unit.
+            self,
+            process,
+            cadet,
+            time_elapsed=None,
+            return_information=None):
+        """Read simulation results from CADET configuration.
 
         Parameters
         ----------
@@ -395,28 +383,30 @@ class Cadet(SolverBase):
                 solution[unit.name] = defaultdict(list)
                 unit_index = self.get_unit_index(process, unit)
                 unit_solution = cadet.root.output.solution[unit_index]
-                unit_coordinates = cadet.root.output.coordinates[unit_index].copy()
+                unit_coordinates = \
+                    cadet.root.output.coordinates[unit_index].copy()
                 particle_coordinates = \
                     unit_coordinates.pop('particle_coordinates_000', None)
 
                 for cycle in range(process._n_cycles):
-                    start = cycle * (len(process.time) -1)
+                    start = cycle * (len(process.time) - 1)
                     end = (cycle + 1) * (len(process.time) - 1) + 1
 
                     if 'solution_inlet' in unit_solution.keys():
-                        sol_inlet = unit_solution.solution_inlet[start:end,:]
+                        sol_inlet = unit_solution.solution_inlet[start:end, :]
                         solution[unit.name]['inlet'].append(
                             SolutionIO(unit.component_system, time, sol_inlet)
                         )
 
                     if 'solution_outlet' in unit_solution.keys():
-                        sol_outlet = unit_solution.solution_outlet[start:end,:]
+                        sol_outlet = \
+                            unit_solution.solution_outlet[start:end, :]
                         solution[unit.name]['outlet'].append(
                             SolutionIO(unit.component_system, time, sol_outlet)
                         )
 
                     if 'solution_bulk' in unit_solution.keys():
-                        sol_bulk = unit_solution.solution_bulk[start:end,:]
+                        sol_bulk = unit_solution.solution_bulk[start:end, :]
                         solution[unit.name]['bulk'].append(
                             SolutionBulk(
                                 unit.component_system, time, sol_bulk,
@@ -425,7 +415,8 @@ class Cadet(SolverBase):
                         )
 
                     if 'solution_particle' in unit_solution.keys():
-                        sol_particle = unit_solution.solution_particle[start:end,:]
+                        sol_particle = \
+                            unit_solution.solution_particle[start:end, :]
                         solution[unit.name]['particle'].append(
                             SolutionParticle(
                                 unit.component_system, time, sol_particle,
@@ -435,10 +426,11 @@ class Cadet(SolverBase):
                         )
 
                     if 'solution_solid' in unit_solution.keys():
-                        sol_solid = unit_solution.solution_solid[start:end,:]
+                        sol_solid = unit_solution.solution_solid[start:end, :]
                         solution[unit.name]['solid'].append(
                             SolutionSolid(
-                                unit.component_system, unit.binding_model.n_states,
+                                unit.component_system,
+                                unit.binding_model.n_states,
                                 time, sol_solid,
                                 **unit_coordinates,
                                 particle_coordinates=particle_coordinates
@@ -446,9 +438,14 @@ class Cadet(SolverBase):
                         )
 
                     if 'solution_volume' in unit_solution.keys():
-                        sol_volume = unit_solution.solution_volume[start:end,:]
+                        sol_volume = \
+                            unit_solution.solution_volume[start:end, :]
                         solution[unit.name]['volume'].append(
-                            SolutionVolume(unit.component_system, time, sol_volume)
+                            SolutionVolume(
+                                unit.component_system,
+                                time,
+                                sol_volume
+                            )
                         )
 
             solution = Dict(solution)
@@ -471,17 +468,17 @@ class Cadet(SolverBase):
             raise CADETProcessError('Results don\'t match Process')
 
         results = SimulationResults(
-            solver_name = str(self),
-            solver_parameters = dict(),
-            exit_flag = exit_flag,
-            exit_message = exit_message,
-            time_elapsed = time_elapsed,
-            process_name = process.name,
-            process_config = process.config,
-            process_meta = process.process_meta,
-            solution_cycles = solution,
-            system_state = system_state,
-            chromatograms = chromatograms
+            solver_name=str(self),
+            solver_parameters=dict(),
+            exit_flag=exit_flag,
+            exit_message=exit_message,
+            time_elapsed=time_elapsed,
+            process_name=process.name,
+            process_config=process.config,
+            process_meta=process.process_meta,
+            solution_cycles=solution,
+            system_state=system_state,
+            chromatograms=chromatograms
         )
 
         return results
@@ -630,12 +627,10 @@ class Cadet(SolverBase):
     def get_unit_config(self, unit):
         """Config branch /input/model/unit_xxx for individual unit.
 
-        The parameters from the unit are extracted and converted to CADET format
+        The unit operation parameters are converted to CADET format
 
         Notes
         -----
-        For now, only constant values for the concentration in sources are valid.
-
         In CADET, the parameter unit_config['discretization'].NBOUND should be
         moved to binding config or unit config
 
@@ -651,15 +646,17 @@ class Cadet(SolverBase):
         if not isinstance(unit.binding_model, NoBinding):
             n_bound = [unit.binding_model.n_states] * unit.binding_model.n_comp
             unit_config['adsorption'] = \
-                    self.get_adsorption_config(unit.binding_model)
-            unit_config['adsorption_model'] = unit_config['adsorption']['ADSORPTION_MODEL']
+                self.get_adsorption_config(unit.binding_model)
+            unit_config['adsorption_model'] = \
+                unit_config['adsorption']['ADSORPTION_MODEL']
         else:
             n_bound = unit.n_comp*[0]
 
         if not isinstance(unit.discretization, NoDiscretization):
             unit_config['discretization'] = unit.discretization.parameters
 
-        if isinstance(unit, Cstr) and not isinstance(unit.binding_model, NoBinding):
+        if isinstance(unit, Cstr) \
+                and not isinstance(unit.binding_model, NoBinding):
             unit_config['nbound'] = n_bound
         else:
             unit_config['discretization']['nbound'] = n_bound
@@ -679,10 +676,10 @@ class Cadet(SolverBase):
                 unit_config['reaction_particle'].update(parameters)
 
         if isinstance(unit, Source):
-            unit_config['sec_000']['const_coeff'] = unit.c[:,0]
-            unit_config['sec_000']['lin_coeff'] = unit.c[:,1]
-            unit_config['sec_000']['quad_coeff']= unit.c[:,2]
-            unit_config['sec_000']['cube_coeff'] = unit.c[:,3]
+            unit_config['sec_000']['const_coeff'] = unit.c[:, 0]
+            unit_config['sec_000']['lin_coeff'] = unit.c[:, 1]
+            unit_config['sec_000']['quad_coeff'] = unit.c[:, 2]
+            unit_config['sec_000']['cube_coeff'] = unit.c[:, 3]
 
         return unit_config
 
@@ -726,17 +723,18 @@ class Cadet(SolverBase):
         unit_index = 'unit' + '_{0:03d}'.format(unit_index)
         section_index = 'sec' + '_{0:03d}'.format(sec_index)
 
-        model_units[unit_index][section_index]['const_coeff'] = coeffs[:,0]
-        model_units[unit_index][section_index]['lin_coeff'] = coeffs[:,1]
-        model_units[unit_index][section_index]['quad_coeff']= coeffs[:,2]
-        model_units[unit_index][section_index]['cube_coeff'] = coeffs[:,3]
+        model_units[unit_index][section_index]['const_coeff'] = coeffs[:, 0]
+        model_units[unit_index][section_index]['lin_coeff'] = coeffs[:, 1]
+        model_units[unit_index][section_index]['quad_coeff'] = coeffs[:, 2]
+        model_units[unit_index][section_index]['cube_coeff'] = coeffs[:, 3]
 
     def add_parameter_section(
-            self, model_units, sec_index, unit_index, unit_model, parameter, state
-        ):
+            self, model_units, sec_index, unit_index, unit_model,
+            parameter, state):
         """Add section value to parameter branch."""
         unit_index = 'unit' + '_{0:03d}'.format(unit_index)
-        parameter_name = inv_unit_parameters_map[unit_model]['parameters'][parameter]
+        parameter_name = \
+            inv_unit_parameters_map[unit_model]['parameters'][parameter]
 
         if sec_index == 0:
             model_units[unit_index][parameter_name] = []
@@ -745,8 +743,12 @@ class Cadet(SolverBase):
     def get_adsorption_config(self, binding):
         """Config branch /input/model/unit_xxx/adsorption for individual unit.
 
-        The parameters from the adsorption object are extracted and converted to
-        CADET format
+        Binding model parameters are extracted and converted to CADET format.
+
+        Parameters
+        ----------
+        binding : BindingBaseClass
+            Binding model
 
         See Also
         --------
@@ -759,10 +761,12 @@ class Cadet(SolverBase):
     def get_reaction_config(self, reaction):
         """Config branch /input/model/unit_xxx/reaction for individual unit.
 
+        Reaction model parameters are extracted and converted to CADET format.
+
         Parameters
         ----------
         reaction : ReactionBaseClass
-            Reaction configuration object
+            Reaction model
 
         See Also
         --------
@@ -772,7 +776,6 @@ class Cadet(SolverBase):
         reaction_config = ReactionParametersGroup(reaction).to_dict()
 
         return reaction_config
-
 
     def get_input_solver(self, process):
         """Config branch /input/solver/
@@ -829,12 +832,10 @@ class Cadet(SolverBase):
     def __str__(self):
         return 'CADET'
 
+
 from CADETProcess.dataStructure import ParametersGroup, ParameterWrapper
 class ModelSolverParametersGroup(ParametersGroup):
-    """Class for defining the model_solver_parameters.
-
-    Defines several parameters as UnsignedInteger with default values and save
-    their names into a list named parameters.
+    """Converter for model solver parameters from CADETProcess to CADET.
 
     See Also
     --------
@@ -854,10 +855,11 @@ class ModelSolverParametersGroup(ParametersGroup):
         'LINEAR_SOLUTION_MODE',
     ]
 
+
 unit_parameters_map = {
     'GeneralRateModel': {
         'name': 'GENERAL_RATE_MODEL',
-        'parameters':{
+        'parameters': {
             'NCOMP': 'n_comp',
             'INIT_C': 'c',
             'INIT_Q': 'q',
@@ -880,7 +882,7 @@ unit_parameters_map = {
     },
     'LumpedRateModelWithPores': {
         'name': 'LUMPED_RATE_MODEL_WITH_PORES',
-        'parameters':{
+        'parameters': {
             'NCOMP': 'n_comp',
             'INIT_C': 'c',
             'INIT_CP': 'cp',
@@ -898,7 +900,7 @@ unit_parameters_map = {
     },
     'LumpedRateModelWithoutPores': {
         'name': 'LUMPED_RATE_MODEL_WITHOUT_PORES',
-        'parameters':{
+        'parameters': {
             'NCOMP': 'n_comp',
             'INIT_C': 'c',
             'INIT_Q': 'q',
@@ -911,7 +913,7 @@ unit_parameters_map = {
     },
     'TubularReactor': {
         'name': 'LUMPED_RATE_MODEL_WITHOUT_PORES',
-        'parameters':{
+        'parameters': {
             'NCOMP': 'n_comp',
             'INIT_C': 'c',
             'INIT_Q': 'q',
@@ -926,7 +928,7 @@ unit_parameters_map = {
     },
     'Cstr': {
         'name': 'CSTR',
-        'parameters':{
+        'parameters': {
             'NCOMP': 'n_comp',
             'INIT_VOLUME': 'V',
             'INIT_C': 'c',
@@ -937,7 +939,7 @@ unit_parameters_map = {
     },
     'Source': {
         'name': 'INLET',
-        'parameters':{
+        'parameters': {
             'NCOMP': 'n_comp',
         },
         'fixed': {
@@ -946,13 +948,13 @@ unit_parameters_map = {
     },
     'Sink': {
         'name': 'OUTLET',
-        'parameters':{
+        'parameters': {
             'NCOMP': 'n_comp',
         },
     },
     'MixerSplitter': {
         'name': 'CSTR',
-        'parameters':{
+        'parameters': {
             'NCOMP': 'n_comp',
         },
         'fixed': {
@@ -971,8 +973,9 @@ inv_unit_parameters_map = {
     } for unit, values in unit_parameters_map.items()
 }
 
+
 class UnitParametersGroup(ParameterWrapper):
-    """Class for converting UnitOperation parameters from CADETProcess to CADET.
+    """Converter for UnitOperation parameters from CADETProcess to CADET.
 
     See Also
     --------
@@ -997,7 +1000,7 @@ adsorption_parameters_map = {
     'Linear': {
         'name': 'LINEAR',
         'parameters': {
-            'IS_KINETIC' : 'is_kinetic',
+            'IS_KINETIC': 'is_kinetic',
             'LIN_KA': 'adsorption_rate',
             'LIN_KD': 'desorption_rate'
         },
@@ -1005,7 +1008,7 @@ adsorption_parameters_map = {
     'Langmuir': {
         'name': 'MULTI_COMPONENT_LANGMUIR',
         'parameters': {
-            'IS_KINETIC' : 'is_kinetic',
+            'IS_KINETIC': 'is_kinetic',
             'MCL_KA': 'adsorption_rate',
             'MCL_KD': 'desorption_rate',
             'MCL_QMAX': 'capacity'
@@ -1014,7 +1017,7 @@ adsorption_parameters_map = {
     'LangmuirLDF': {
         'name': 'MULTI_COMPONENT_LANGMUIR_LDF',
         'parameters': {
-            'IS_KINETIC' : 'is_kinetic',
+            'IS_KINETIC': 'is_kinetic',
             'MCLDF_KEQ': 'equilibrium_constant',
             'MCLDF_KKIN': 'driving_force_coefficient',
             'MCLDF_QMAX': 'capacity'
@@ -1023,7 +1026,7 @@ adsorption_parameters_map = {
     'BiLangmuir': {
         'name': 'MULTI_COMPONENT_BILANGMUIR',
         'parameters': {
-            'IS_KINETIC' : 'is_kinetic',
+            'IS_KINETIC': 'is_kinetic',
             'MCBL_KA': 'adsorption_rate',
             'MCBL_KD': 'desorption_rate',
             'MCBL_QMAX': 'capacity'
@@ -1032,7 +1035,7 @@ adsorption_parameters_map = {
     'BiLangmuirLDF': {
         'name': 'MULTI_COMPONENT_BILANGMUIR_LDF',
         'parameters': {
-            'IS_KINETIC' : 'is_kinetic',
+            'IS_KINETIC': 'is_kinetic',
             'MCBLDF_KEQ': 'equilibrium_constant',
             'MCBLDF_KKIN': 'driving_force_coefficient',
             'MCBLDF_QMAX': 'capacity'
@@ -1041,7 +1044,7 @@ adsorption_parameters_map = {
     'FreundlichLDF': {
         'name': 'FREUNDLICH_LDF',
         'parameters': {
-            'IS_KINETIC' : 'is_kinetic',
+            'IS_KINETIC': 'is_kinetic',
             'FLDF_KKIN': 'driving_force_coefficient',
             'FLDF_KF': 'freundlich_coefficient',
             'FLDF_N': 'exponent'
@@ -1050,7 +1053,7 @@ adsorption_parameters_map = {
     'StericMassAction': {
         'name': 'STERIC_MASS_ACTION',
         'parameters': {
-            'IS_KINETIC' : 'is_kinetic',
+            'IS_KINETIC': 'is_kinetic',
             'SMA_KA': 'adsorption_rate',
             'SMA_KD': 'desorption_rate',
             'SMA_LAMBDA': 'capacity',
@@ -1063,17 +1066,17 @@ adsorption_parameters_map = {
     'AntiLangmuir': {
         'name': 'MULTI_COMPONENT_ANTILANGMUIR',
         'parameters': {
-            'IS_KINETIC' : 'is_kinetic',
+            'IS_KINETIC': 'is_kinetic',
             'MCAL_KA': 'adsorption_rate',
             'MCAL_KD': 'desorption_rate',
             'MCAL_QMAX': 'capacity',
             'MCAL_ANTILANGMUIR': 'antilangmuir'
         },
     },
-    'MobilePhaseModulator' : {
+    'MobilePhaseModulator': {
         'name': 'MOBILE_PHASE_MODULATOR',
         'parameters': {
-            'IS_KINETIC' : 'is_kinetic',
+            'IS_KINETIC': 'is_kinetic',
             'MPM_KA': 'adsorption_rate',
             'MPM_KD': 'desorption_rate',
             'MPM_QMAX': 'capacity',
@@ -1081,10 +1084,10 @@ adsorption_parameters_map = {
             'MPM_GAMMA': 'hydrophobicity'
         },
     },
-    'ExtendedMobilePhaseModulator' : {
+    'ExtendedMobilePhaseModulator': {
         'name': 'EXTENDED_MOBILE_PHASE_MODULATOR',
         'parameters': {
-            'IS_KINETIC' : 'is_kinetic',
+            'IS_KINETIC': 'is_kinetic',
             'EMPM_KA': 'adsorption_rate',
             'EMPM_KD': 'desorption_rate',
             'EMPM_QMAX': 'capacity',
@@ -1104,8 +1107,9 @@ inv_adsorption_parameters_map = {
     } for model, values in adsorption_parameters_map.items()
 }
 
+
 class AdsorptionParametersGroup(ParameterWrapper):
-    """Class for converting binding model parameters from CADETProcess to CADET.
+    """Converter for Binding model parameters from CADETProcess to CADET.
 
     See also
     --------
@@ -1122,7 +1126,7 @@ class AdsorptionParametersGroup(ParameterWrapper):
 
 
 class ReactionParametersGroup(ParameterWrapper):
-    """Converter for particle solid reaction parameters from CADETProcess to CADET.
+    """Converter for Reaction model parameters from CADETProcess to CADET.
 
     See Also
     --------
@@ -1140,37 +1144,41 @@ class ReactionParametersGroup(ParameterWrapper):
     _reaction_parameters = {
         'NoReaction': {
             'name': 'NONE',
-            'parameters':{},
+            'parameters': {},
         },
         'MassActionLaw': {
             'name': 'MASS_ACTION_LAW',
-            'parameters':{
+            'parameters': {
                 'mal_stoichiometry_bulk': 'stoich',
-                'mal_exponents_bulk_fwd' : 'exponents_fwd',
-                'mal_exponents_bulk_bwd' : 'exponents_bwd',
-                'mal_kfwd_bulk' : 'k_fwd',
-                'mal_kbwd_bulk' : 'k_bwd',
+                'mal_exponents_bulk_fwd': 'exponents_fwd',
+                'mal_exponents_bulk_bwd': 'exponents_bwd',
+                'mal_kfwd_bulk': 'k_fwd',
+                'mal_kbwd_bulk': 'k_bwd',
                 }
         },
         'MassActionLawParticle': {
             'name': 'MASS_ACTION_LAW',
-            'parameters':{
+            'parameters': {
                 'mal_stoichiometry_liquid': 'stoich_liquid',
-                'mal_exponents_liquid_fwd' : 'exponents_fwd_liquid',
-                'mal_exponents_liquid_bwd' : 'exponents_bwd_liquid',
-                'mal_kfwd_liquid' : 'k_fwd_liquid',
-                'mal_kbwd_liquid' : 'k_bwd_liquid',
+                'mal_exponents_liquid_fwd': 'exponents_fwd_liquid',
+                'mal_exponents_liquid_bwd': 'exponents_bwd_liquid',
+                'mal_kfwd_liquid': 'k_fwd_liquid',
+                'mal_kbwd_liquid': 'k_bwd_liquid',
 
                 'mal_stoichiometry_solid': 'stoich_solid',
-                'mal_exponents_solid_fwd' : 'exponents_fwd_solid',
-                'mal_exponents_solid_bwd' : 'exponents_bwd_solid',
-                'mal_kfwd_solid' : 'k_fwd_solid',
-                'mal_kbwd_solid' : 'k_bwd_solid',
+                'mal_exponents_solid_fwd': 'exponents_fwd_solid',
+                'mal_exponents_solid_bwd': 'exponents_bwd_solid',
+                'mal_kfwd_solid': 'k_fwd_solid',
+                'mal_kbwd_solid': 'k_bwd_solid',
 
-                'mal_exponents_liquid_fwd_modsolid' : 'exponents_fwd_liquid_modsolid',
-                'mal_exponents_liquid_bwd_modsolid' : 'exponents_bwd_liquid_modsolid',
-                'mal_exponents_solid_fwd_modliquid' : 'exponents_fwd_solid_modliquid',
-                'mal_exponents_solid_bwd_modliquid' : 'exponents_bwd_solid_modliquid',
+                'mal_exponents_liquid_fwd_modsolid':
+                    'exponents_fwd_liquid_modsolid',
+                'mal_exponents_liquid_bwd_modsolid':
+                    'exponents_bwd_liquid_modsolid',
+                'mal_exponents_solid_fwd_modliquid':
+                    'exponents_fwd_solid_modliquid',
+                'mal_exponents_solid_bwd_modliquid':
+                    'exponents_bwd_solid_modliquid',
             }
         }
     }
@@ -1197,7 +1205,7 @@ class SolverParametersGroup(ParametersGroup):
 
 
 class SolverTimeIntegratorParametersGroup(ParametersGroup):
-    """Class for defining the solver time integrator parameters for CADET.
+    """Converter for time integartor parameters from CADETProcess to CADET.
 
     See Also
     --------
@@ -1225,10 +1233,11 @@ class SolverTimeIntegratorParametersGroup(ParametersGroup):
 
 
 class ReturnParametersGroup(ParametersGroup):
-    """Class for defining the return parameters for CADET.
+    """Converter for system solution writer config from CADETProcess to CADET.
 
     See Also
     --------
+    UnitReturnParametersGroup
     ParametersGroup
 
     """
@@ -1245,16 +1254,11 @@ class ReturnParametersGroup(ParametersGroup):
 
 
 class UnitReturnParametersGroup(ParametersGroup):
-    """Class for defining the unit return parameters for CADET.
-
-    The class defines several parameters for the unit return parameters as
-    boolean for cadet. The names are saved as strings in the parameters list.
-    Only the WRITE_SOLUTION_OUTLET ans WRITE_SOLUTION_INLET are set True as
-    default value. The remaining unit return parameters are set False for
-    default value.
+    """Converter for unit solution writer config from CADETProcess to CADET.
 
     See Also
     --------
+    ReturnParametersGroup
     ParametersGroup
 
     """
@@ -1292,7 +1296,8 @@ class UnitReturnParametersGroup(ParametersGroup):
     _parameters = [
         'write_coordinates',
         'write_solution_inlet', 'write_solution_outlet', 'write_solution_bulk',
-        'write_solution_particle', 'write_solution_solid', 'write_solution_flux',
+        'write_solution_particle', 'write_solution_solid',
+        'write_solution_flux',
         'write_solution_volume',
         'write_soldot_inlet', 'write_soldot_outlet', 'write_soldot_bulk',
         'write_soldot_particle', 'write_soldot_solid', 'write_soldot_flux',
@@ -1308,9 +1313,6 @@ class UnitReturnParametersGroup(ParametersGroup):
 
 class SensitivityParametersGroup(ParametersGroup):
     """Class for defining the sensitivity parameters.
-
-    The sensitivity parameters NSENS and SENS_METHOD are defined with default
-    values.
 
     See Also
     --------

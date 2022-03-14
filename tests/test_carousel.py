@@ -1,15 +1,14 @@
 import unittest
 import numpy as np
 
-from addict import Dict
-
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess.processModel import Linear
 from CADETProcess.processModel import Source, Sink, LumpedRateModelWithoutPores
 
 from CADETProcess.modelBuilder import CarouselBuilder, SerialZone, ParallelZone
 
-from CADETProcess.simulation import Cadet 
+from CADETProcess.simulation import Cadet
+
 
 class Test_Carousel(unittest.TestCase):
 
@@ -40,7 +39,9 @@ class Test_Carousel(unittest.TestCase):
 
         sink = Sink(self.component_system, name='sink')
 
-        serial_zone = SerialZone(self.component_system, 'serial', 2, flow_direction=1)
+        serial_zone = SerialZone(
+            self.component_system, 'serial', 2, flow_direction=1
+        )
 
         builder = CarouselBuilder(self.component_system, 'serial')
         builder.column = self.column
@@ -51,7 +52,7 @@ class Test_Carousel(unittest.TestCase):
 
         builder.add_connection(source, serial_zone)
         builder.add_connection(serial_zone, sink)
-        
+
         builder.switch_time = 300
 
         return builder
@@ -63,7 +64,9 @@ class Test_Carousel(unittest.TestCase):
 
         sink = Sink(self.component_system, name='sink')
 
-        parallel_zone = ParallelZone(self.component_system, 'parallel', 2, flow_direction=1)
+        parallel_zone = ParallelZone(
+            self.component_system, 'parallel', 2, flow_direction=1
+        )
 
         builder = CarouselBuilder(self.component_system, 'parallel')
         builder.column = self.column
@@ -74,7 +77,7 @@ class Test_Carousel(unittest.TestCase):
 
         builder.add_connection(source, parallel_zone)
         builder.add_connection(parallel_zone, sink)
-        
+
         builder.switch_time = 300
 
         return builder
@@ -170,273 +173,382 @@ class Test_Carousel(unittest.TestCase):
 
         builder.add_connection(source_parallel, parallel_zone)
         builder.add_connection(parallel_zone, sink_parallel)
-        
+
         builder.switch_time = 300
 
         return builder
-    
+
     def test_units(self):
         """Check if all units are added properly in the FlowSheet"""
-        ## Serial
+        # Serial
         builder = self.create_serial()
         flow_sheet = builder.build_flow_sheet()
-        
+
         units_expected = [
-            'source', 'sink', 
-            'serial_inlet', 'serial_outlet', 
+            'source', 'sink',
+            'serial_inlet', 'serial_outlet',
             'column_0', 'column_1'
         ]
-        
+
         self.assertEqual(units_expected, flow_sheet.unit_names)
-        
-        ## Parallel
+
+        # Parallel
         builder = self.create_parallel()
         flow_sheet = builder.build_flow_sheet()
-        
+
         units_expected = [
-            'source', 'sink', 
-            'parallel_inlet', 'parallel_outlet', 
+            'source', 'sink',
+            'parallel_inlet', 'parallel_outlet',
             'column_0', 'column_1'
         ]
-        
+
         self.assertEqual(units_expected, flow_sheet.unit_names)
-        
-        ## SMB
+
+        # SMB
         builder = self.create_smb()
         flow_sheet = builder.build_flow_sheet()
-        
+
         units_expected = [
-            'feed', 'eluent', 
-            'raffinate', 'extract', 
-            'zone_I_inlet', 'zone_I_outlet', 
-            'column_0', 
-            'zone_II_inlet', 'zone_II_outlet', 
-            'column_1', 
-            'zone_III_inlet', 'zone_III_outlet', 
-            'column_2', 
-            'zone_IV_inlet', 'zone_IV_outlet', 
+            'feed', 'eluent',
+            'raffinate', 'extract',
+            'zone_I_inlet', 'zone_I_outlet',
+            'column_0',
+            'zone_II_inlet', 'zone_II_outlet',
+            'column_1',
+            'zone_III_inlet', 'zone_III_outlet',
+            'column_2',
+            'zone_IV_inlet', 'zone_IV_outlet',
             'column_3'
         ]
-        
+
         self.assertEqual(units_expected, flow_sheet.unit_names)
-            
-        
+
     def test_connections(self):
         """Check if all units are connected properly in the FlowSheet"""
-        ## Serial
+        # Serial
         builder = self.create_serial()
         flow_sheet = builder.build_flow_sheet()
-        
+
         self.assertTrue(flow_sheet.connection_exists('source', 'serial_inlet'))
-        
-        self.assertTrue(flow_sheet.connection_exists('serial_inlet', 'column_0'))
-        self.assertTrue(flow_sheet.connection_exists('serial_inlet', 'column_1'))
-        
+
+        self.assertTrue(
+            flow_sheet.connection_exists('serial_inlet', 'column_0')
+        )
+        self.assertTrue(
+            flow_sheet.connection_exists('serial_inlet', 'column_1')
+        )
+
         self.assertTrue(flow_sheet.connection_exists('column_0', 'column_1'))
-        self.assertTrue(flow_sheet.connection_exists('column_0', 'serial_outlet'))
-        
+        self.assertTrue(
+            flow_sheet.connection_exists('column_0', 'serial_outlet')
+        )
+
         self.assertTrue(flow_sheet.connection_exists('column_1', 'column_0'))
-        self.assertTrue(flow_sheet.connection_exists('column_1', 'serial_outlet'))
-        
-        ## Parallel
+        self.assertTrue(
+            flow_sheet.connection_exists('column_1', 'serial_outlet')
+        )
+
+        # Parallel
         builder = self.create_parallel()
         flow_sheet = builder.build_flow_sheet()
-        
-        self.assertTrue(flow_sheet.connection_exists('source', 'parallel_inlet'))
-        
-        self.assertTrue(flow_sheet.connection_exists('parallel_inlet', 'column_0'))
-        self.assertTrue(flow_sheet.connection_exists('parallel_inlet', 'column_1'))
-        
-        self.assertTrue(flow_sheet.connection_exists('column_0', 'parallel_outlet'))
-        self.assertTrue(flow_sheet.connection_exists('column_1', 'parallel_outlet'))
-        
-        ## SMB
+
+        self.assertTrue(
+            flow_sheet.connection_exists('source', 'parallel_inlet')
+        )
+
+        self.assertTrue(
+            flow_sheet.connection_exists('parallel_inlet', 'column_0')
+        )
+
+        self.assertTrue(
+            flow_sheet.connection_exists('parallel_inlet', 'column_1')
+        )
+
+        self.assertTrue(
+            flow_sheet.connection_exists('column_0', 'parallel_outlet')
+        )
+
+        self.assertTrue(
+            flow_sheet.connection_exists('column_1', 'parallel_outlet')
+        )
+
+        # SMB
         builder = self.create_smb()
         flow_sheet = builder.build_flow_sheet()
-        
+
         self.assertTrue(flow_sheet.connection_exists('eluent', 'zone_I_inlet'))
         self.assertTrue(flow_sheet.connection_exists('feed', 'zone_III_inlet'))
-        
-        self.assertTrue(flow_sheet.connection_exists('zone_I_outlet', 'extract'))
-        self.assertTrue(flow_sheet.connection_exists('zone_I_outlet', 'zone_II_inlet'))
-        
-        self.assertTrue(flow_sheet.connection_exists('zone_II_outlet', 'zone_III_inlet'))
 
-        self.assertTrue(flow_sheet.connection_exists('zone_III_outlet', 'raffinate'))
-        self.assertTrue(flow_sheet.connection_exists('zone_III_outlet', 'zone_IV_inlet'))
+        self.assertTrue(
+            flow_sheet.connection_exists('zone_I_outlet', 'extract')
+        )
+        self.assertTrue(
+            flow_sheet.connection_exists('zone_I_outlet', 'zone_II_inlet')
+        )
 
-        self.assertTrue(flow_sheet.connection_exists('zone_IV_outlet', 'zone_I_inlet'))
-        
-        self.assertTrue(flow_sheet.connection_exists('zone_I_inlet', 'column_0'))
-        self.assertTrue(flow_sheet.connection_exists('zone_I_inlet', 'column_1'))
-        self.assertTrue(flow_sheet.connection_exists('zone_I_inlet', 'column_2'))
-        self.assertTrue(flow_sheet.connection_exists('zone_I_inlet', 'column_3'))
-        
-        self.assertTrue(flow_sheet.connection_exists('zone_II_inlet', 'column_0'))
-        self.assertTrue(flow_sheet.connection_exists('zone_II_inlet', 'column_1'))
-        self.assertTrue(flow_sheet.connection_exists('zone_II_inlet', 'column_2'))
-        self.assertTrue(flow_sheet.connection_exists('zone_II_inlet', 'column_3'))
-        
-        self.assertTrue(flow_sheet.connection_exists('zone_III_inlet', 'column_0'))
-        self.assertTrue(flow_sheet.connection_exists('zone_III_inlet', 'column_1'))
-        self.assertTrue(flow_sheet.connection_exists('zone_III_inlet', 'column_2'))
-        self.assertTrue(flow_sheet.connection_exists('zone_III_inlet', 'column_3'))
-        
-        self.assertTrue(flow_sheet.connection_exists('zone_IV_inlet', 'column_0'))
-        self.assertTrue(flow_sheet.connection_exists('zone_IV_inlet', 'column_1'))
-        self.assertTrue(flow_sheet.connection_exists('zone_IV_inlet', 'column_2'))
-        self.assertTrue(flow_sheet.connection_exists('zone_IV_inlet', 'column_3'))
-        
-        self.assertTrue(flow_sheet.connection_exists('column_0', 'zone_I_outlet'))
-        self.assertTrue(flow_sheet.connection_exists('column_0', 'zone_II_outlet'))
-        self.assertTrue(flow_sheet.connection_exists('column_0', 'zone_III_outlet'))
-        self.assertTrue(flow_sheet.connection_exists('column_0', 'zone_IV_outlet'))
+        self.assertTrue(
+            flow_sheet.connection_exists('zone_II_outlet', 'zone_III_inlet')
+        )
 
-        self.assertTrue(flow_sheet.connection_exists('column_1', 'zone_I_outlet'))
-        self.assertTrue(flow_sheet.connection_exists('column_1', 'zone_II_outlet'))
-        self.assertTrue(flow_sheet.connection_exists('column_1', 'zone_III_outlet'))
-        self.assertTrue(flow_sheet.connection_exists('column_1', 'zone_IV_outlet'))
+        self.assertTrue(
+            flow_sheet.connection_exists('zone_III_outlet', 'raffinate')
+        )
+        self.assertTrue(
+            flow_sheet.connection_exists('zone_III_outlet', 'zone_IV_inlet')
+        )
 
-        self.assertTrue(flow_sheet.connection_exists('column_2', 'zone_I_outlet'))
-        self.assertTrue(flow_sheet.connection_exists('column_2', 'zone_II_outlet'))
-        self.assertTrue(flow_sheet.connection_exists('column_2', 'zone_III_outlet'))
-        self.assertTrue(flow_sheet.connection_exists('column_2', 'zone_IV_outlet'))
-        
-        self.assertTrue(flow_sheet.connection_exists('column_3', 'zone_I_outlet'))
-        self.assertTrue(flow_sheet.connection_exists('column_3', 'zone_II_outlet'))
-        self.assertTrue(flow_sheet.connection_exists('column_3', 'zone_III_outlet'))
-        self.assertTrue(flow_sheet.connection_exists('column_3', 'zone_IV_outlet'))
+        self.assertTrue(
+            flow_sheet.connection_exists('zone_IV_outlet', 'zone_I_inlet')
+        )
+
+        self.assertTrue(
+            flow_sheet.connection_exists('zone_I_inlet', 'column_0')
+        )
+        self.assertTrue(
+            flow_sheet.connection_exists('zone_I_inlet', 'column_1')
+        )
+        self.assertTrue(
+            flow_sheet.connection_exists('zone_I_inlet', 'column_2')
+        )
+        self.assertTrue(
+            flow_sheet.connection_exists('zone_I_inlet', 'column_3')
+        )
+
+        self.assertTrue(flow_sheet.connection_exists(
+            'zone_II_inlet', 'column_0')
+        )
+        self.assertTrue(flow_sheet.connection_exists(
+            'zone_II_inlet', 'column_1')
+        )
+        self.assertTrue(flow_sheet.connection_exists(
+            'zone_II_inlet', 'column_2')
+        )
+        self.assertTrue(flow_sheet.connection_exists(
+            'zone_II_inlet', 'column_3')
+        )
+
+        self.assertTrue(flow_sheet.connection_exists(
+            'zone_III_inlet', 'column_0')
+        )
+        self.assertTrue(flow_sheet.connection_exists(
+            'zone_III_inlet', 'column_1')
+        )
+        self.assertTrue(flow_sheet.connection_exists(
+            'zone_III_inlet', 'column_2')
+        )
+        self.assertTrue(flow_sheet.connection_exists(
+            'zone_III_inlet', 'column_3')
+        )
+
+        self.assertTrue(flow_sheet.connection_exists(
+            'zone_IV_inlet', 'column_0')
+        )
+        self.assertTrue(flow_sheet.connection_exists(
+            'zone_IV_inlet', 'column_1')
+        )
+        self.assertTrue(flow_sheet.connection_exists(
+            'zone_IV_inlet', 'column_2')
+        )
+        self.assertTrue(flow_sheet.connection_exists(
+            'zone_IV_inlet', 'column_3')
+        )
+
+        self.assertTrue(flow_sheet.connection_exists(
+            'column_0', 'zone_I_outlet')
+        )
+        self.assertTrue(flow_sheet.connection_exists(
+            'column_0', 'zone_II_outlet')
+        )
+        self.assertTrue(flow_sheet.connection_exists(
+            'column_0', 'zone_III_outlet')
+        )
+        self.assertTrue(flow_sheet.connection_exists(
+            'column_0', 'zone_IV_outlet')
+        )
+
+        self.assertTrue(flow_sheet.connection_exists(
+            'column_1', 'zone_I_outlet')
+        )
+        self.assertTrue(flow_sheet.connection_exists(
+            'column_1', 'zone_II_outlet')
+        )
+        self.assertTrue(flow_sheet.connection_exists(
+            'column_1', 'zone_III_outlet')
+        )
+        self.assertTrue(flow_sheet.connection_exists(
+            'column_1', 'zone_IV_outlet')
+        )
+
+        self.assertTrue(flow_sheet.connection_exists(
+            'column_2', 'zone_I_outlet')
+        )
+        self.assertTrue(flow_sheet.connection_exists(
+            'column_2', 'zone_II_outlet')
+        )
+        self.assertTrue(flow_sheet.connection_exists(
+            'column_2', 'zone_III_outlet')
+        )
+        self.assertTrue(flow_sheet.connection_exists(
+            'column_2', 'zone_IV_outlet')
+        )
+
+        self.assertTrue(flow_sheet.connection_exists(
+            'column_3', 'zone_I_outlet')
+        )
+        self.assertTrue(flow_sheet.connection_exists(
+            'column_3', 'zone_II_outlet')
+        )
+        self.assertTrue(flow_sheet.connection_exists(
+            'column_3', 'zone_III_outlet')
+        )
+        self.assertTrue(flow_sheet.connection_exists(
+            'column_3', 'zone_IV_outlet')
+        )
 
     def test_column_position_indices(self):
         """Test column position index."""
         # Initial state, position 0
         builder = self.create_smb()
-       
+
         carousel_position = 0
         carousel_state = 0
         index_expected = 0
-        
+
         index = builder.unit_index(carousel_position, carousel_state)
-        
+
         self.assertEqual(index_expected, index)
-        
+
         # Initial state, position 1
         carousel_position = 1
         carousel_state = 0
         index_expected = 1
-        
+
         index = builder.unit_index(carousel_position, carousel_state)
-        
+
         self.assertEqual(index_expected, index)
-        
+
         # First state, position 0
         carousel_position = 0
         carousel_state = 1
         index_expected = 1
-        
+
         index = builder.unit_index(carousel_position, carousel_state)
-        
+
         self.assertEqual(index_expected, index)
-        
+
         # First state, position 1
         carousel_position = 1
         carousel_state = 1
         index_expected = 2
-        
+
         index = builder.unit_index(carousel_position, carousel_state)
-        
+
         self.assertEqual(index_expected, index)
-        
+
         # 4th state (back to initial state), position 0
         carousel_position = 0
         carousel_state = 4
         index_expected = 0
-        
+
         index = builder.unit_index(carousel_position, carousel_state)
-        
+
         self.assertEqual(index_expected, index)
-        
+
     def test_flow_rates(self):
         # Serial
         builder = self.create_serial()
         process = builder.build_process()
 
-        flow_rate = process.flow_rate_timelines['serial_inlet'].total_in.value(0)
+        serial_inlet = process.flow_rate_timelines['serial_inlet']
+        serial_outlet = process.flow_rate_timelines['serial_outlet']
+        column_0 = process.flow_rate_timelines['column_0']
+        column_1 = process.flow_rate_timelines['column_1']
+
+        flow_rate = serial_inlet.total_in.value(0)
         flow_rate_expected = 2e-7
         np.testing.assert_almost_equal(flow_rate, flow_rate_expected)
 
-        flow_rate = process.flow_rate_timelines['serial_outlet'].total_in.value(0)
+        flow_rate = serial_outlet.total_in.value(0)
         flow_rate_expected = 2e-7
         np.testing.assert_almost_equal(flow_rate, flow_rate_expected)
-        
-        flow_rate = process.flow_rate_timelines['column_0'].total_in.value(0)
+
+        flow_rate = column_0.total_in.value(0)
         flow_rate_expected = 2e-7
         np.testing.assert_almost_equal(flow_rate, flow_rate_expected)
-        
-        flow_rate = process.flow_rate_timelines['column_1'].total_in.value(0)
+
+        flow_rate = column_1.total_in.value(0)
         flow_rate_expected = 2e-7
         np.testing.assert_almost_equal(flow_rate, flow_rate_expected)
-        
+
         # Parallel (flow is split between columns)
         builder = self.create_parallel()
         process = builder.build_process()
 
-        flow_rate = process.flow_rate_timelines['parallel_inlet'].total_in.value(0)
+        parallel_inlet = process.flow_rate_timelines['parallel_inlet']
+        column_0 = process.flow_rate_timelines['column_0']
+        column_1 = process.flow_rate_timelines['column_1']
+
+        flow_rate = parallel_inlet.total_in.value(0)
         flow_rate_expected = 2e-7
         np.testing.assert_almost_equal(flow_rate, flow_rate_expected)
 
-        flow_rate = process.flow_rate_timelines['parallel_inlet'].total_in.value(0)
+        flow_rate = parallel_inlet.total_in.value(0)
         flow_rate_expected = 2e-7
         np.testing.assert_almost_equal(flow_rate, flow_rate_expected)
-        
-        flow_rate = process.flow_rate_timelines['column_0'].total_in.value(0)
+
+        flow_rate = column_0 .total_in.value(0)
         flow_rate_expected = 1e-7
         np.testing.assert_almost_equal(flow_rate, flow_rate_expected)
-        
-        flow_rate = process.flow_rate_timelines['column_1'].total_in.value(0)
+
+        flow_rate = column_1.total_in.value(0)
         flow_rate_expected = 1e-7
         np.testing.assert_almost_equal(flow_rate, flow_rate_expected)
-        
+
         # Multi-Zone (Side streams between zones)
         builder = self.create_multi_zone()
         process = builder.build_process()
 
-        flow_rate = process.flow_rate_timelines['serial_inlet'].total_in.value(0)
+        serial_inlet = process.flow_rate_timelines['serial_inlet']
+        parallel_inlet = process.flow_rate_timelines['parallel_inlet']
+        column_0 = process.flow_rate_timelines['column_0']
+        column_2 = process.flow_rate_timelines['column_2']
+
+        flow_rate = serial_inlet.total_in.value(0)
         flow_rate_expected = 2e-7
         np.testing.assert_almost_equal(flow_rate, flow_rate_expected)
 
-        flow_rate = process.flow_rate_timelines['parallel_inlet'].total_in.value(0)
+        flow_rate = parallel_inlet.total_in.value(0)
         flow_rate_expected = 3e-7
         np.testing.assert_almost_equal(flow_rate, flow_rate_expected)
-        
-        ## Initial state
+
+        # Initial state
         t = 0
-        flow_rate = process.flow_rate_timelines['column_0'].total_in.value(t)
+        flow_rate = column_0.total_in.value(t)
         flow_rate_expected = 2e-7
         np.testing.assert_almost_equal(flow_rate, flow_rate_expected)
-        
-        flow_rate = process.flow_rate_timelines['column_2'].total_in.value(t)
+
+        flow_rate = column_2.total_in.value(t)
         flow_rate_expected = 1.5e-7
         np.testing.assert_almost_equal(flow_rate, flow_rate_expected)
-        
-        ## First position
+
+        # First position
         t = builder.switch_time
-        flow_rate = process.flow_rate_timelines['column_0'].total_in.value(t)
+        flow_rate = column_0.total_in.value(t)
         flow_rate_expected = 1.5e-7
         np.testing.assert_almost_equal(flow_rate, flow_rate_expected)
-        
-        flow_rate = process.flow_rate_timelines['column_2'].total_in.value(t)
+
+        flow_rate = column_2.total_in.value(t)
         flow_rate_expected = 2e-7
         np.testing.assert_almost_equal(flow_rate, flow_rate_expected)
-        
+
     def test_flow_direction(self):
         # Multi-Zone (Side streams between zones)
         builder = self.create_multi_zone()
         process = builder.build_process()
-        
-        ## Initial state
+
+        # Initial state
         t = 0
-        
+
         tl = process.parameter_timelines['flow_sheet.column_0.flow_direction']
         flow_direction = tl.value(t)
         flow_direction_expected = 1
@@ -446,10 +558,10 @@ class Test_Carousel(unittest.TestCase):
         flow_direction = tl.value(t)
         flow_direction_expected = -1
         np.testing.assert_almost_equal(flow_direction, flow_direction_expected)
-        
-        ## First position
+
+        # First position
         t = builder.switch_time
-        
+
         tl = process.parameter_timelines['flow_sheet.column_0.flow_direction']
         flow_direction = tl.value(t)
         flow_direction_expected = -1
@@ -459,15 +571,16 @@ class Test_Carousel(unittest.TestCase):
         flow_direction = tl.value(t)
         flow_direction_expected = 1
         np.testing.assert_almost_equal(flow_direction, flow_direction_expected)
-        
+
     def test_simulation(self):
         builder = self.create_serial()
         process = builder.build_process()
-        
+
         process_simulator = Cadet()
         simulation_results = process_simulator.simulate(process)
-        
+
         self.assertEqual(simulation_results.exit_flag, 0)
+
 
 if __name__ == '__main__':
     unittest.main()

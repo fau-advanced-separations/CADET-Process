@@ -7,6 +7,7 @@ from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import Structure, StructMeta
 from CADETProcess.dataStructure import String, Integer, UnsignedFloat
 
+
 class ComponentSystem(metaclass=StructMeta):
     name = String()
 
@@ -82,7 +83,7 @@ class ComponentSystem(metaclass=StructMeta):
                 if label is None:
                     labels.append(str(index))
                 else:
-                   labels.append(label)
+                    labels.append(label)
 
                 index += 1
 
@@ -125,11 +126,12 @@ class ComponentSystem(metaclass=StructMeta):
         counter = 0
         for index, comp in enumerate(self.components):
             comp_indices = slice(counter, counter+comp.n_species)
-            total_concentration[:,index] = np.sum(solution[...,comp_indices], axis=1)
+            c_total = np.sum(solution[..., comp_indices], axis=1)
+            total_concentration[:, index] = c_total
             counter += comp.n_species
 
         return total_concentration
-    
+
     def __repr__(self):
         return f'{self.__class__.__name__}({self.names})'
 
@@ -180,6 +182,7 @@ class Component(metaclass=StructMeta):
     @property
     def molecular_weight(self):
         return [spec.molecular_weight for spec in self.molecular_weight]
+
 
 class Species(Structure):
     name = String()

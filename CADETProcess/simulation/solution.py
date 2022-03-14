@@ -25,11 +25,13 @@ Flux: NCOL * NRAD * NPARTYPE * NCOMP
 import numpy as np
 import matplotlib.pyplot as plt
 
-from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import StructMeta
-from CADETProcess.dataStructure import UnsignedInteger, Vector, DependentlySizedNdArray
+from CADETProcess.dataStructure import (
+    UnsignedInteger, Vector, DependentlySizedNdArray
+)
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess import plotting
+
 
 class BaseSolution(metaclass=StructMeta):
     time = Vector()
@@ -81,14 +83,16 @@ class BaseSolution(metaclass=StructMeta):
         if comp is None:
             self.solution = fun(self.solution)
         else:
-            self.solution[...,comp] = fun(self.solution[...,comp])
+            self.solution[..., comp] = fun(self.solution[..., comp])
 
 
 class SolutionIO(BaseSolution):
     """Solution at unit inlet or outlet.
 
     IO: NCOL * NRAD
+
     """
+
     def __init__(self, component_system, time, solution):
         self.component_system = component_system
         self.time = time
@@ -103,8 +107,7 @@ class SolutionIO(BaseSolution):
             alpha=1, hide_labels=False,
             secondary_axis=None, secondary_layout=None,
             show_legend=True,
-            ax=None
-        ):
+            ax=None):
         """Plots the whole time_signal for each component.
 
         Parameters
@@ -115,7 +118,7 @@ class SolutionIO(BaseSolution):
             end time for plotting
         ax : Axes
             Axes to plot on.
-            
+
         Returns
         -------
         ax : Axes
@@ -201,15 +204,15 @@ class SolutionBulk(BaseSolution):
 
         if not self.time[0] <= t <= self.time[-1]:
             raise ValueError("Time exceeds bounds.")
-        t_i = np.where(t<=self.time)[0][0]
+        t_i = np.where(t <= self.time)[0][0]
 
-        y = self.solution[t_i,:]
+        y = self.solution[t_i, :]
         if y_max is None:
             y_max = 1.1*np.max(y)
         if y_min is None:
             y_min = min(0, np.min(y))
 
-        ax.plot(x,y)
+        ax.plot(x, y)
 
         plotting.add_text(ax, f'time = {t:.2f} s')
 
@@ -226,7 +229,8 @@ class SolutionBulk(BaseSolution):
         return ax
 
     @plotting.create_and_save_figure
-    def plot_at_location(self, z, overlay=None, y_min=None, y_max=None, ax=None):
+    def plot_at_location(
+            self, z, overlay=None, y_min=None, y_max=None, ax=None):
         """Plot bulk solution over time at given location.
 
         Parameters
@@ -245,15 +249,15 @@ class SolutionBulk(BaseSolution):
 
         if not self.axial_coordinates[0] <= z <= self.axial_coordinates[-1]:
             raise ValueError("Axial coordinate exceets boundaries.")
-        z_i = np.where(z<=self.axial_coordinates)[0][0]
+        z_i = np.where(z <= self.axial_coordinates)[0][0]
 
-        y = self.solution[:,z_i]
+        y = self.solution[:, z_i]
         if y_max is None:
             y_max = 1.1*np.max(y)
         if y_min is None:
             y_min = min(0, np.min(y))
 
-        ax.plot(x,y)
+        ax.plot(x, y)
 
         plotting.add_text(ax, f'z = {z:.2f} m')
 
@@ -276,7 +280,9 @@ class SolutionParticle(BaseSolution):
     Particle_liquid: NCOL * NRAD * sum_{j}^{NPARTYPE}{NCOMP * NPAR,j}
     """
 
-    _coordinates = ['axial_coordinates', 'radial_coordinates', 'particle_coordinates']
+    _coordinates = [
+        'axial_coordinates', 'radial_coordinates', 'particle_coordinates'
+    ]
 
     def __init__(
             self,
@@ -322,13 +328,13 @@ class SolutionParticle(BaseSolution):
 
         if not self.time[0] <= t <= self.time[-1]:
             raise ValueError("Time exceeds bounds.")
-        t_i = np.where(t<=self.time)[0][0]
-        y = self.solution[t_i,:]
+        t_i = np.where(t <= self.time)[0][0]
+        y = self.solution[t_i, :]
 
         if ymax is None:
             ymax = 1.1*np.max(y)
 
-        ax.plot(x,y)
+        ax.plot(x, y)
 
         plotting.add_text(ax, f'time = {t:.2f} s')
 
@@ -346,8 +352,8 @@ class SolutionParticle(BaseSolution):
 
         if not self.time[0] <= t <= self.time[-1]:
             raise ValueError("Time exceeds bounds.")
-        i = np.where(t<=self.time)[0][0]
-        v = self.solution[i,:,:,comp].transpose()
+        i = np.where(t <= self.time)[0][0]
+        v = self.solution[i, :, :, comp].transpose()
 
         if vmax is None:
             vmax = v.max()
@@ -366,7 +372,7 @@ class SolutionParticle(BaseSolution):
 
         plotting.set_layout(ax, layout)
         plt.colorbar(mesh)
-        
+
         return ax
 
     @plotting.create_and_save_figure
@@ -393,6 +399,7 @@ class SolutionParticle(BaseSolution):
 
         return ax
 
+
 class SolutionSolid(BaseSolution):
     """Solid phase solution inside the particles.
 
@@ -401,7 +408,9 @@ class SolutionSolid(BaseSolution):
 
     n_bound = UnsignedInteger()
 
-    _coordinates = ['axial_coordinates', 'radial_coordinates', 'particle_coordinates']
+    _coordinates = [
+        'axial_coordinates', 'radial_coordinates', 'particle_coordinates'
+    ]
 
     def __init__(
             self,
@@ -409,8 +418,7 @@ class SolutionSolid(BaseSolution):
             time, solution,
             axial_coordinates=None,
             radial_coordinates=None,
-            particle_coordinates=None
-            ):
+            particle_coordinates=None):
         self.component_system = component_system
         self.n_bound = n_bound
         self.time = time
@@ -448,21 +456,20 @@ class SolutionSolid(BaseSolution):
             return
         return len(self.particle_coordinates)
 
-
     def _plot_1D(self, t, y_min=None, y_max=None, ax=None):
         x = self.axial_coordinates
 
         if not self.time[0] <= t <= self.time[-1]:
             raise ValueError("Time exceeds bounds.")
-        t_i = np.where(t<=self.time)[0][0]
-        y = self.solution[t_i,:]
+        t_i = np.where(t <= self.time)[0][0]
+        y = self.solution[t_i, :]
 
         if y_max is None:
             y_max = 1.1*np.max(y)
         if y_min is None:
             y_min = min(0, np.min(y))
 
-        ax.plot(x,y)
+        ax.plot(x, y)
 
         plotting.add_text(ax, f'time = {t:.2f} s')
 
@@ -481,9 +488,9 @@ class SolutionSolid(BaseSolution):
 
         if not self.time[0] <= t <= self.time[-1]:
             raise ValueError("Time exceeds bounds.")
-        t_i = np.where(t<=self.time)[0][0]
+        t_i = np.where(t <= self.time)[0][0]
         c_i = comp*self.n_bound + state
-        v = self.solution[t_i,:,:,c_i].transpose()
+        v = self.solution[t_i, :, :, c_i].transpose()
 
         if vmax is None:
             vmax = v.max()
@@ -528,24 +535,23 @@ class SolutionSolid(BaseSolution):
             ax, mesh = self._plot_2D(ax, t, comp, vmax)
             plt.colorbar(mesh, ax)
         return ax
-    
+
 
 class SolutionVolume(BaseSolution):
-    """Volume solution (of e.g. CSTR).
-    """
+    """Volume solution (of e.g. CSTR)."""
+
     def __init__(self, component_system, time, solution):
         self.time = time
         self.solution = solution
 
     @property
     def solution_shape(self):
-        """tuple: (Expected) shape of the solution
-        """
+        """tuple: (Expected) shape of the solution"""
         return (self.nt, 1)
 
     @plotting.create_and_save_figure
     def plot(self, start=0, end=None, overlay=None, ax=None):
-        """Plots the whole time_signal for each component.
+        """Plot the whole time_signal for each component.
 
         Parameters
         ----------
@@ -562,11 +568,11 @@ class SolutionVolume(BaseSolution):
         """
         x = self.time / 60
         y = self.solution * 1000
-        
+
         y_min = np.min(y)
         y_max = np.max(y)
 
-        ax.plot(x,y)
+        ax.plot(x, y)
 
         if overlay is not None:
             y_max = 1.1*np.max(overlay)
@@ -581,15 +587,15 @@ class SolutionVolume(BaseSolution):
 
         return ax
 
+
 def _plot_solution_1D(
-        solution, 
+        solution,
         layout=None,
         only_plot_total_concentrations=False,
         alpha=1, hide_labels=False, hide_species_labels=True,
         secondary_axis=None, secondary_layout=None,
         show_legend=True,
-        ax=None,
-        ):
+        ax=None):
 
     time = solution.time / 60
     sol = solution.solution
@@ -613,7 +619,8 @@ def _plot_solution_1D(
         else:
             label = comp.name
 
-        if secondary_axis is not None and i in secondary_axis.component_indices:
+        if secondary_axis is not None \
+                and i in secondary_axis.component_indices:
             a = ax_secondary
         else:
             a = ax
@@ -621,17 +628,18 @@ def _plot_solution_1D(
         if secondary_axis is not None \
                 and secondary_axis.transform is not None \
                 and i in secondary_axis.component_indices:
-            y = secondary_axis.transform(total_concentration[...,i])
+            y = secondary_axis.transform(total_concentration[..., i])
         else:
-            y = total_concentration[...,i]
-        
-        if secondary_axis is not None and i in secondary_axis.component_indices:
+            y = total_concentration[..., i]
+
+        if secondary_axis is not None \
+                and i in secondary_axis.component_indices:
             y_min_sec = min(min(y), y_min_sec)
             y_max_sec = max(max(y), y_max_sec)
         else:
             y_min = min(min(y), y_min)
             y_max = max(max(y), y_max)
-            
+
         a.plot(
             time, y,
             label=label,
@@ -649,7 +657,8 @@ def _plot_solution_1D(
                     label = None
                 else:
                     label = s
-                if secondary_axis is not None and i in secondary_axis.component_indices:
+                if secondary_axis is not None \
+                        and i in secondary_axis.component_indices:
                     a = ax_secondary
                 else:
                     a = ax
@@ -657,9 +666,9 @@ def _plot_solution_1D(
                 if secondary_axis is not None \
                         and secondary_axis.transform is not None \
                         and i in secondary_axis.component_indices:
-                    y = secondary_axis.transform(sol[...,species_index])
+                    y = secondary_axis.transform(sol[..., species_index])
                 else:
-                    y = sol[...,species_index]
+                    y = sol[..., species_index]
 
                 a.plot(
                     time, y, '--',
@@ -670,7 +679,7 @@ def _plot_solution_1D(
                 species_index += 1
     if layout.y_lim is None:
         layout.y_lim = (y_min, 1.1*y_max)
-        
+
     if secondary_axis is not None and secondary_layout is None:
         secondary_layout = plotting.Layout()
         secondary_layout.y_label = secondary_axis.y_label
@@ -679,10 +688,9 @@ def _plot_solution_1D(
     plotting.set_layout(
         ax,
         layout,
-        show_legend, 
+        show_legend,
         ax_secondary,
         secondary_layout,
     )
-    
-    return ax
 
+    return ax

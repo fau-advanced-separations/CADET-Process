@@ -6,17 +6,18 @@ from CADETProcess.processModel import ComponentSystem
 from CADETProcess.processModel import MassActionLaw
 from CADETProcess import equilibria
 
-enable_plot=True
+enable_plot = True
+
 
 class TestBufferCapacity(unittest.TestCase):
 
-    def __init__(self, methodName = 'runTest'):
+    def __init__(self, methodName='runTest'):
         super().__init__(methodName)
 
     def setUp(self):
-        self.components_simple = ComponentSystem(2, charges=[1,2])
+        self.components_simple = ComponentSystem(2, charges=[1, 2])
 
-        ## Ammonia
+        # Ammonia
         self.components_ammonia = ComponentSystem()
         self.components_ammonia.add_component(
             'Ammonia',
@@ -33,7 +34,7 @@ class TestBufferCapacity(unittest.TestCase):
             [0, 1, 2], [-1, 1, 1], 10**(-9.2)*1e3, is_kinetic=False
         )
 
-        ## Ammonia, component order switched
+        # Ammonia, component order switched
         self.components_ammonia_switched = ComponentSystem()
         self.components_ammonia_switched.add_component(
             'H+',
@@ -52,7 +53,7 @@ class TestBufferCapacity(unittest.TestCase):
             [1, 2, 0], [-1, 1, 1], 10**(-9.2)*1e3, is_kinetic=False
         )
 
-        ## Lysine
+        # Lysine
         self.components_lys = ComponentSystem()
         self.components_lys.add_component(
             'Lysine',
@@ -74,7 +75,7 @@ class TestBufferCapacity(unittest.TestCase):
             [2, 3, -1], [-1, 1, 1], 10**(-10.28)*1e3, is_kinetic=False
         )
 
-        ## Lysine, component order switched
+        # Lysine, component order switched
         self.components_lys_switched = ComponentSystem()
         self.components_lys_switched.add_component(
             'H+',
@@ -86,7 +87,9 @@ class TestBufferCapacity(unittest.TestCase):
             charge=[2, 1, 0, -1]
         )
 
-        self.reaction_lys_switched = MassActionLaw(self.components_lys_switched)
+        self.reaction_lys_switched = MassActionLaw(
+            self.components_lys_switched
+        )
         self.reaction_lys_switched.add_reaction(
             [1, 2, 0], [-1, 1, 1], 10**(-2.20)*1e3, is_kinetic=False
         )
@@ -97,7 +100,7 @@ class TestBufferCapacity(unittest.TestCase):
             [3, 4, 0], [-1, 1, 1], 10**(-10.28)*1e3, is_kinetic=False
         )
 
-        ## Ammonia and Lysine
+        # Ammonia and Lysine
         self.components_ammonia_lys = ComponentSystem()
         self.components_ammonia_lys.add_component(
             'Ammonia',
@@ -128,28 +131,28 @@ class TestBufferCapacity(unittest.TestCase):
         )
 
     def test_ionic_strength(self):
-        c = [1,1]
+        c = [1, 1]
         i_excpected = 2.5
         i = equilibria.ionic_strength(self.components_simple, c)
         np.testing.assert_almost_equal(i, i_excpected)
 
-        c = [1,2]
+        c = [1, 2]
         i_excpected = 4.5
         i = equilibria.ionic_strength(self.components_simple, c)
         np.testing.assert_almost_equal(i, i_excpected)
 
-        c = [1,0,1]
+        c = [1, 0, 1]
         i_excpected = 1
         i = equilibria.ionic_strength(self.components_ammonia, c)
         np.testing.assert_almost_equal(i, i_excpected)
 
         # Uncharged species should have no effect
-        c = [1,1,1]
+        c = [1, 1, 1]
         i_excpected = 1
         i = equilibria.ionic_strength(self.components_ammonia, c)
         np.testing.assert_almost_equal(i, i_excpected)
 
-        c = [2,0,1]
+        c = [2, 0, 1]
         i_excpected = 1.5
         i = equilibria.ionic_strength(self.components_ammonia, c)
         np.testing.assert_almost_equal(i, i_excpected)
@@ -167,7 +170,6 @@ class TestBufferCapacity(unittest.TestCase):
         b = equilibria.buffer_capacity(self.reaction_ammonia, buffer, pH)
         np.testing.assert_almost_equal(b_expected, b)
 
-
         pH = 10
         b_expected = np.array([271.9140324242618, 0.23025873955791384])
         b = equilibria.buffer_capacity(self.reaction_ammonia, buffer, pH)
@@ -180,7 +182,9 @@ class TestBufferCapacity(unittest.TestCase):
 
         pH = 0
         b_expected = np.array([1.4528329738818527e-06, 2302.585092994069])
-        b = equilibria.buffer_capacity(self.reaction_ammonia_switched, buffer, pH)
+        b = equilibria.buffer_capacity(
+            self.reaction_ammonia_switched, buffer, pH
+        )
         np.testing.assert_almost_equal(b_expected, b)
 
     def test_charge_distribution(self):
@@ -206,13 +210,17 @@ class TestBufferCapacity(unittest.TestCase):
 
         pH = 0
         eta_expected = np.array([0.9999999993690426, 6.30957344082087e-10])
-        eta = equilibria.charge_distribution(self.reaction_ammonia_switched, pH)
+        eta = equilibria.charge_distribution(
+            self.reaction_ammonia_switched, pH
+        )
         np.testing.assert_almost_equal(eta_expected, eta)
 
     def test_plot(self):
         if enable_plot:
             _ = equilibria.plot_charge_distribution(self.reaction_ammonia)
-            _ = equilibria.plot_charge_distribution(self.reaction_ammonia_switched)
+            _ = equilibria.plot_charge_distribution(
+                self.reaction_ammonia_switched
+            )
             _ = equilibria.plot_charge_distribution(
                 self.reaction_lys_switched, plot_cumulative=True
             )

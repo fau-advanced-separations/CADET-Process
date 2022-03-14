@@ -5,6 +5,7 @@ from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import NdArray
 
+
 class Performance(Structure):
     """Class for storing the performance parameters after fractionation.
 
@@ -15,8 +16,10 @@ class Performance(Structure):
     RankedPerformance
 
     """
-    _performance_keys = ['mass', 'concentration', 'purity', 'recovery',
-        'productivity', 'eluent_consumption']
+    _performance_keys = [
+        'mass', 'concentration', 'purity', 'recovery',
+        'productivity', 'eluent_consumption'
+    ]
 
     mass = NdArray()
     concentration = NdArray()
@@ -25,9 +28,9 @@ class Performance(Structure):
     productivity = NdArray()
     eluent_consumption = NdArray()
 
-
-    def __init__(self, mass, concentration, purity, recovery,
-                 productivity, eluent_consumption):
+    def __init__(
+            self, mass, concentration, purity, recovery,
+            productivity, eluent_consumption):
         self.mass = mass
         self.concentration = concentration
         self.purity = purity
@@ -83,7 +86,9 @@ class RankedPerformance():
         self._ranking = ranking
 
     def to_dict(self):
-        return {key: float(getattr(self, key)) for key in self._performance_keys}
+        return {
+            key: float(getattr(self, key)) for key in self._performance_keys
+        }
 
     def __getattr__(self, item):
         if item not in self._performance_keys:
@@ -103,12 +108,13 @@ class RankedPerformance():
             np.array_repr(self.recovery), np.array_repr(self.productivity),
             np.array_repr(self.eluent_consumption))
 
+
 def get_bad_performance(n_comp):
     return Performance(
-            mass = np.zeros((n_comp,)),
-            concentration = np.zeros((n_comp,)),
-            purity = np.zeros((n_comp,)),
-            recovery = np.zeros((n_comp,)),
-            productivity = np.zeros((n_comp,)),
-            eluent_consumption = np.zeros((n_comp,)),
-            )
+        mass=np.zeros((n_comp,)),
+        concentration=np.zeros((n_comp,)),
+        purity=np.zeros((n_comp,)),
+        recovery=np.zeros((n_comp,)),
+        productivity=np.zeros((n_comp,)),
+        eluent_consumption=np.zeros((n_comp,)),
+    )

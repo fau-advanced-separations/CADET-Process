@@ -1,5 +1,4 @@
 from collections import defaultdict
-import math
 
 from addict import Dict
 import numpy as np
@@ -8,7 +7,7 @@ from scipy import interpolate
 
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import UnsignedInteger, UnsignedFloat
-from CADETProcess.dataStructure import CachedPropertiesMixin, cached_property_if_locked
+from CADETProcess.dataStructure import cached_property_if_locked
 
 from CADETProcess.dynamicEvents import EventHandler
 from CADETProcess.dynamicEvents import Section, TimeLine
@@ -17,6 +16,7 @@ from CADETProcess.common import ProcessMeta
 
 from .flowSheet import FlowSheet
 from .unitOperation import Source, Sink
+
 
 class Process(EventHandler):
     """Class for defining the dynamic changes of a flow sheet.
@@ -81,7 +81,7 @@ class Process(EventHandler):
 
     @property
     def m_feed(self):
-        """ndarray: Mass of the feed components entering the system in one cycle.
+        """ndarray: Mass of feed components entering the system in one cycle.
         !!! Account for dynamic flow rates and concentrations!
         """
         flow_rate_timelines = self.flow_rate_timelines
@@ -91,7 +91,8 @@ class Process(EventHandler):
             feed_flow_rate_time_line = flow_rate_timelines[feed.name].total_out
             feed_signal_param = 'flow_sheet.{}.c'.format(feed.name)
             if feed_signal_param in self.parameter_timelines:
-                feed_signal_time_line = self.parameter_timelines[feed_signal_param]
+                tl = self.parameter_timelines[feed_signal_param]
+                feed_signal_time_line = tl
             else:
                 feed_signal_time_line = TimeLine()
                 feed_section = Section(
@@ -99,10 +100,10 @@ class Process(EventHandler):
                 )
                 feed_signal_time_line.add_section(feed_section)
 
-            m_i  = [
+            m_i = [
                 integrate.quad(
-                    lambda t: \
-                        feed_flow_rate_time_line.value(t) \
+                    lambda t:
+                        feed_flow_rate_time_line.value(t)
                         * feed_signal_time_line.value(t)[comp],
                         0, self.cycle_time, points=self.event_times
                     )[0] for comp in range(self.n_comp)
@@ -158,27 +159,28 @@ class Process(EventHandler):
             flow_rates = self.flow_sheet.get_flow_rates(state)
 
             for unit, flow_rate in flow_rates.items():
+                unit_flow_rates = flow_rate_timelines[unit]
                 if not isinstance(self.flow_sheet[unit], Source):
                     section = Section(
                         start, end, flow_rate.total_in, n_entries=1, degree=3
                     )
-                    flow_rate_timelines[unit]['total_in'].add_section(section)
+                    unit_flow_rates['total_in'].add_section(section)
                     for orig, flow_rate_orig in flow_rate.origins.items():
                         section = Section(
                             start, end, flow_rate_orig, n_entries=1, degree=3
                         )
-                        flow_rate_timelines[unit]['origins'][orig].add_section(section)
+                        unit_flow_rates['origins'][orig].add_section(section)
 
                 if not isinstance(self.flow_sheet[unit], Sink):
                     section = Section(
                         start, end, flow_rate.total_out, n_entries=1, degree=3
                     )
-                    flow_rate_timelines[unit]['total_out'].add_section(section)
+                    unit_flow_rates['total_out'].add_section(section)
                     for dest, flow_rate_dest in flow_rate.destinations.items():
                         section = Section(
                             start, end, flow_rate_dest, n_entries=1, degree=3
                         )
-                        flow_rate_timelines[unit]['destinations'][dest].add_section(section)
+                        unit_flow_rates['destinations'][dest].add_section(section)
 
         return Dict(flow_rate_timelines)
 
@@ -199,23 +201,22 @@ class Process(EventHandler):
         for sec_time in self.section_times[0:-1]:
             for unit, unit_flow_rates in self.flow_rate_timelines.items():
                 if not isinstance(self.flow_sheet[unit], Source):
-                    section_states[sec_time][unit]['total_in'] = \
-                        unit_flow_rates['total_in'].coefficients(sec_time)[0]
+                    section_states[sec_time][unit]['total_in'] \
+                        = unit_flow_rates['total_in'].coefficients(sec_time)[0]
 
                     for orig, tl in unit_flow_rates.origins.items():
-                        section_states[sec_time][unit]['origins'][orig] = \
-                            tl.coefficients(sec_time)[0]
+                        section_states[sec_time][unit]['origins'][orig] \
+                            = tl.coefficients(sec_time)[0]
 
                 if not isinstance(self.flow_sheet[unit], Sink):
-                    section_states[sec_time][unit]['total_out'] = \
-                        unit_flow_rates['total_out'].coefficients(sec_time)[0]
+                    section_states[sec_time][unit]['total_out'] \
+                        = unit_flow_rates['total_out'].coefficients(sec_time)[0]
 
                     for dest, tl in unit_flow_rates.destinations.items():
-                        section_states[sec_time][unit]['destinations'][dest] = \
-                            tl.coefficients(sec_time)[0]
+                        section_states[sec_time][unit]['destinations'][dest] \
+                            = tl.coefficients(sec_time)[0]
 
         return Dict(section_states)
-
 
     @property
     def time(self):
@@ -259,7 +260,9 @@ class Process(EventHandler):
         time = self.time
         solution_times = np.array([])
         for i in range(self._n_cycles):
-            solution_times = np.append(solution_times, (i)*self.cycle_time + time)
+            solution_times = np.append(
+                solution_times, (i)*self.cycle_time + time
+            )
 
         solution_times = np.unique(solution_times)
 
@@ -326,8 +329,10 @@ class Process(EventHandler):
 
     @property
     def initial_state(self):
-        initial_state = {state: getattr(self, state)
-            for state in self._initial_states}
+        initial_state = {
+            state: getattr(self, state)
+            for state in self._initial_states
+        }
         initial_state['flow_sheet'] = self.flow_sheet.initial_state
 
         return initial_state
@@ -346,8 +351,10 @@ class Process(EventHandler):
 
     @property
     def config(self):
-        return Dict({'parameters': self.parameters,
-                'initial_state': self.initial_state})
+        return Dict({
+            'parameters': self.parameters,
+            'initial_state': self.initial_state
+        })
 
     @config.setter
     def config(self, config):
@@ -365,10 +372,10 @@ class Process(EventHandler):
 
         """
         return ProcessMeta(
-            cycle_time = self.cycle_time,
-            m_feed = self.m_feed,
-            V_solid = self.V_solid,
-            V_eluent = self.V_eluent,
+            cycle_time=self.cycle_time,
+            m_feed=self.m_feed,
+            V_solid=self.V_solid,
+            V_eluent=self.V_eluent,
         )
 
     def add_inlet_profile(self, unit, time, c, component_index=None, s=1e-6):
@@ -390,7 +397,7 @@ class Process(EventHandler):
             raise CADETProcessError('Number of components does not match')
 
         for comp in range(self.n_comp):
-            tck = interpolate.splrep(time, c[:,comp], s=s)
+            tck = interpolate.splrep(time, c[:, comp], s=s)
             ppoly = interpolate.PPoly.from_spline(tck)
 
             for i, (t, sec) in enumerate(zip(ppoly.x, ppoly.c.T)):

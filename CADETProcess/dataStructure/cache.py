@@ -1,6 +1,7 @@
 from .dataStructure import StructMeta
 from .parameter import Bool
 
+
 class cached_property_if_locked(property):
     def __get__(self, instance, cls=None):
         if instance.lock:
@@ -23,6 +24,7 @@ class cached_property_if_locked(property):
 
 class CachedPropertiesMixin(metaclass=StructMeta):
     lock = Bool(default=False)
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.cached_properties = {}

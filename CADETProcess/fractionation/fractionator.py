@@ -14,6 +14,7 @@ from CADETProcess.common import ProcessMeta
 
 from CADETProcess.fractionation.fractions import Fraction, FractionPool
 
+
 class Fractionator(EventHandler):
     """Class for Chromatogram Fractionation.
 
@@ -179,13 +180,13 @@ class Fractionator(EventHandler):
         y_min = np.min(chrom.signal)
         y_max = 1.1*np.max(chrom.signal)
 
-        ax.plot(x,y)
+        ax.plot(x, y)
 
         fill_regions = []
         for sec in time_line.sections:
             comp_index = int(np.where(sec.coeffs)[0])
             if comp_index == self.n_comp:
-                color_index=-1
+                color_index = -1
                 text = 'W'
             else:
                 color_index = comp_index
@@ -272,7 +273,7 @@ class Fractionator(EventHandler):
             fractionation_state[state] = 1
         else:
             if len(state) != state_length:
-                raise CADETProcessError('Expected length {}.'.format(state_length))
+                raise CADETProcessError(f'Expected length {state_length}.')
 
             elif sum(state) != 1:
                 raise CADETProcessError('Sum of fractions must be 1')
@@ -365,10 +366,9 @@ class Fractionator(EventHandler):
             raise CADETProcessError('Not a valid target')
         self._fraction_pools[target].add_fraction(fraction)
 
-
     @property
     def mass(self):
-        """ndarray: Collected component mass in corresponding fraction pools."""
+        """ndarray: Component mass in corresponding fraction pools."""
         if self._mass is None:
             self._mass = np.array(
                 [pool.mass[comp]
@@ -433,7 +433,6 @@ class Fractionator(EventHandler):
         self._fraction_pools = None
         self._mass = None
 
-
     def initial_values(self, purity_required=0.95):
         """Create events from chromatogram with minimum purity.
 
@@ -465,13 +464,14 @@ class Fractionator(EventHandler):
         for chrom_index, chrom in enumerate(self.chromatograms):
             purity_min = np.zeros(chrom.signal.shape)
             purity_min[chrom.local_purity > purity_required] = 1
-            diff = np.vstack(
-                (purity_min[0,:] - purity_min[-1,:], np.diff(purity_min, axis=0))
+            diff = np.vstack((
+                purity_min[0, :] - purity_min[-1, :],
+                np.diff(purity_min, axis=0))
             )
 
             for comp in range(self.n_comp):
                 if purity_required[comp] > 0:
-                    on_indices = np.where(diff[:,comp] == 1)
+                    on_indices = np.where(diff[:, comp] == 1)
                     on_indices = on_indices[0]
                     for index, on_evt in enumerate(on_indices):
                         time = chrom.time[int(on_evt)]
@@ -479,13 +479,13 @@ class Fractionator(EventHandler):
                             'chrom_' + str(chrom_index) + \
                             '_comp_' + str(comp) + \
                             '_start_' + str(index)
-                        param_path = 'fractionation_states.{}'.format(chrom.name)
+                        param_path = f'fractionation_states.{chrom.name}'
                         evt = self.add_event(
                             event_name, param_path, comp, time
                         )
                         self._chromatogram_events[chrom].append(evt)
 
-                    off_indices = np.where(diff[:,comp] == -1)
+                    off_indices = np.where(diff[:, comp] == -1)
                     off_indices = off_indices[0]
                     for index, off_evt in enumerate(off_indices):
                         time = chrom.time[int(off_evt)]
@@ -493,7 +493,7 @@ class Fractionator(EventHandler):
                             'chrom_' + str(chrom_index) + \
                             '_comp_' + str(comp) + \
                             '_end_' + str(index)
-                        param_path = 'fractionation_states.{}'.format(chrom.name)
+                        param_path = f'fractionation_states.{chrom.name}'
                         evt = self.add_event(
                             event_name, param_path, self.n_comp, time
                         )
@@ -523,7 +523,6 @@ class Fractionator(EventHandler):
     @property
     def section_dependent_parameters(self):
         return self.parameters
-
 
     def save(self, case_dir, start=0, end=None):
         path = os.path.join(settings.project_directory, case_dir)

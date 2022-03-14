@@ -11,18 +11,18 @@ import numpy as np
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess.processModel import MassActionLaw, MassActionLawParticle
 
+
 class Test_Reaction(unittest.TestCase):
 
-    def __init__(self, methodName = 'runTest'):
+    def __init__(self, methodName='runTest'):
         super().__init__(methodName)
-
 
     def create_simple_bulk_reaction(self, is_kinetic=True, k_fwd_min=100):
         # 0: NH4+(aq) <=> NH3(aq) + H+(aq)
         component_system = ComponentSystem()
         component_system.add_component('H+', charge=1)
         component_system.add_component(
-            'Ammonia', species=['NH4+', 'NH3'], charge=[1,0]
+            'Ammonia', species=['NH4+', 'NH3'], charge=[1, 0]
         )
         reaction_model = MassActionLaw(component_system, 'simple')
         reaction_model.add_reaction(
@@ -43,17 +43,17 @@ class Test_Reaction(unittest.TestCase):
         component_system = ComponentSystem()
         component_system.add_component('H+', charge=1)
         component_system.add_component(
-            'Ammonia', species=['NH4+', 'NH3'], charge=[1,0]
+            'Ammonia', species=['NH4+', 'NH3'], charge=[1, 0]
         )
         component_system.add_component(
             'Lysine',
             species=['Lys2+', 'Lys+', 'Lys', 'Lys-'],
-            charge=[2,1,0,-1]
+            charge=[2, 1, 0, -1]
         )
         component_system.add_component(
             'Arginine',
             species=['Arg2+', 'Arg+', 'Arg', 'Arg-'],
-            charge=[2,1,0,-1]
+            charge=[2, 1, 0, -1]
         )
         reaction_model = MassActionLaw(component_system, 'complex')
         reaction_model.add_reaction(
@@ -94,7 +94,7 @@ class Test_Reaction(unittest.TestCase):
             [-1.0],
             [1.0]
         ])
-        stoich_expected = np.array([1,-1,1], ndmin=2).T
+        stoich_expected = np.array([1, -1, 1], ndmin=2).T
         np.testing.assert_array_equal(stoich_expected, simple_model.stoich)
 
         complex_model = self.create_complex_bulk_reaction()
@@ -133,7 +133,6 @@ class Test_Reaction(unittest.TestCase):
         k_eq_expeced = [6.309573444801942e-07]
         self.assertEqual(k_eq_expeced, simple_model_eq.k_eq)
 
-
         simple_model_eq = self.create_simple_bulk_reaction(
             is_kinetic=False, k_fwd_min=100
         )
@@ -147,12 +146,12 @@ class Test_Reaction(unittest.TestCase):
     def create_cross_phase_reaction(self):
         component_system = ComponentSystem()
         component_system.add_component(
-            'Ammonia', species=['NH4+', 'NH3'], charge=[1,0]
+            'Ammonia', species=['NH4+', 'NH3'], charge=[1, 0]
         )
         component_system.add_component(
             'Lysine',
             species=['Lys2+', 'Lys+', 'Lys', 'Lys-'],
-            charge=[2,1,0,-1]
+            charge=[2, 1, 0, -1]
         )
         component_system.add_component('H+', charge=1)
 
@@ -238,24 +237,23 @@ class Test_Reaction(unittest.TestCase):
         np.testing.assert_array_equal(
             stoich_solid_expected, cross_phase_model.stoich_solid
         )
-        
+
     def test_str(self):
         reaction_system = self.create_complex_bulk_reaction()
         str_expected = 'NH4+ <=>[6.31E-07][1.00E+00] H+ + NH3'
-        _str = str(reaction_system.reactions[0])
-        self.assertEqual(str_expected, _str)
-        
+        str_ = str(reaction_system.reactions[0])
+        self.assertEqual(str_expected, str_)
+
         reaction_system = self.create_complex_bulk_reaction(is_kinetic=False)
         str_expected = 'NH4+ <=>[6.31E-07] H+ + NH3'
-        _str = str(reaction_system.reactions[0])
-        self.assertEqual(str_expected, _str)
-        
+        str_ = str(reaction_system.reactions[0])
+        self.assertEqual(str_expected, str_)
+
         reaction_system = self.create_cross_phase_reaction()
         str_expected = 'NH4+(l) + H+(s) <=>[6.67E-01][1.00E+00] H+(l) + NH4+(s)'
-        _str = str(reaction_system.cross_phase_reactions[0])
-        self.assertEqual(str_expected, _str)
-        
-        
+        str_ = str(reaction_system.cross_phase_reactions[0])
+        self.assertEqual(str_expected, str_)
+
 
 if __name__ == '__main__':
     unittest.main()

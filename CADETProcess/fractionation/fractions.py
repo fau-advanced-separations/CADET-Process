@@ -6,6 +6,7 @@ from CADETProcess.dataStructure import (
     UnsignedInteger, UnsignedFloat, Vector
 )
 
+
 class Fraction(metaclass=StructMeta):
     mass = Vector()
     volume = UnsignedFloat()
@@ -66,9 +67,10 @@ class Fraction(metaclass=StructMeta):
 
         return np.nan_to_num(concentration)
 
-
     def __repr__(self):
-       return f"{self.__class__.__name__}(mass={self.mass},volume={self.volume})"
+        return \
+            f"{self.__class__.__name__}" \
+            f"(mass={self.mass},volume={self.volume})"
 
 
 class FractionPool(metaclass=StructMeta):
@@ -78,8 +80,10 @@ class FractionPool(metaclass=StructMeta):
     --------
     Fraction
     CADETProcess.fractionation.Fractionator
+
     """
     n_comp = UnsignedInteger()
+
     def __init__(self, n_comp):
         self._fractions = []
         self.n_comp = n_comp
@@ -96,7 +100,7 @@ class FractionPool(metaclass=StructMeta):
     @property
     def fractions(self):
         if len(self._fractions) == 0:
-            return [Fraction(np.zeros((self.n_comp,)),0)]
+            return [Fraction(np.zeros((self.n_comp,)), 0)]
         return self._fractions
 
     @property
@@ -125,26 +129,14 @@ class FractionPool(metaclass=StructMeta):
 
     @property
     def pool_mass(self):
-        """Returns the sum of all component masses of all fractions of the pool.
-
-        Returns
-        -------
-        pool_mass : float
-            Cumulative mass of all fractions in the pool.
-
-        """
+        """float: Sum of all component masses of all fractions of the pool."""
         return sum(frac.fraction_mass for frac in self.fractions)
 
     @property
     def purity(self):
-        """Returns the average purity of the fraction pool.
+        """Total purity of components in the fraction pool.
 
         Invalid values are replaced by zero.
-
-        Returns
-        -------
-        purity : ndarray
-            Average purity of the fraction.
 
         See Also
         --------
@@ -160,7 +152,7 @@ class FractionPool(metaclass=StructMeta):
 
     @property
     def concentration(self):
-        """Returns the average concentration of the fraction pool.
+        """Total concentration of components in the fraction pool.
 
         Invalid values are replaced by zero.
 
@@ -181,4 +173,4 @@ class FractionPool(metaclass=StructMeta):
         return np.nan_to_num(concentration)
 
     def __repr__(self):
-       return f"{self.__class__.__name__}(n_comp={self.n_comp})"
+        return f"{self.__class__.__name__}(n_comp={self.n_comp})"

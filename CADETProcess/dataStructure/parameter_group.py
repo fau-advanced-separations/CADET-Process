@@ -1,6 +1,7 @@
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import Structure
 
+
 class ParametersGroup(Structure):
     """Base class for grouping parameters and exporting them to a dict.
 
@@ -23,7 +24,7 @@ class ParametersGroup(Structure):
         """
         return {
             param: getattr(self, param) for param in self._parameters
-                if getattr(self, param) is not None
+            if getattr(self, param) is not None
         }
 
     @property
@@ -31,7 +32,7 @@ class ParametersGroup(Structure):
         """dict: Dictionary with names and values of the parameters."""
         return {
             param: getattr(self, param) for param in self._parameters
-                if getattr(self, param) is not None
+            if getattr(self, param) is not None
         }
 
     @parameters.setter
