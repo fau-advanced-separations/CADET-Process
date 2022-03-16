@@ -196,8 +196,18 @@ class Dict(Typed):
 class NdArray(Container):
     ty = np.ndarray
 
+    def __set__(self, instance, value):
+        if isinstance(value, list):
+            value = np.array(value)
+        elif isinstance(value, (int, float)):
+            value = np.array((value,))
+
+        super().__set__(instance, value)
+
     def _check(self, value, recursive=False):
-        if isinstance(value, (int, float)):
+        if isinstance(value, list):
+            value = np.array(value)
+        elif isinstance(value, (int, float)):
             value = np.array((value,))
 
         if recursive:
