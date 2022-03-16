@@ -71,8 +71,8 @@ def set_style(style='medium'):
 set_style()
 
 
-def setup_figure(style=None):
-    fig, ax = plt.subplots()
+def setup_figure(n_rows=1, n_cols=1, style=None):
+    fig, ax = plt.subplots(nrows=n_rows, ncols=n_cols)
 
     if style is None:
         style = this.style
@@ -253,7 +253,7 @@ def create_and_save_figure(func):
             Path for saving figure. If None, figure is not saved.
         """
         if ax is None:
-            fig, ax = setup_figure(style)
+            fig, ax = setup_figure(style=style)
 
         artist = func(*args, ax=ax, **kwargs)
         if show:

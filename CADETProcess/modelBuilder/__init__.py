@@ -1,3 +1,3 @@
 from . import carouselBuilder
-from .carouselBuilder import CarouselBuilder, SerialZone, ParallelZone
-from .compartmentBuilder import CompartmentBuilder
+from .carouselBuilder import *
+from .compartmentBuilder import *

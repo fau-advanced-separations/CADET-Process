@@ -1,13 +1,18 @@
 from copy import deepcopy
+
 import numpy as np
+import matplotlib.pyplot as plt
 
 from CADETProcess import CADETProcessError
+from CADETProcess import plotting
 
 from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import Integer, UnsignedInteger, UnsignedFloat
 
 from CADETProcess.processModel import UnitBaseClass, FlowSheet, Process
 from CADETProcess.processModel import TubularReactor, Cstr
+
+from CADETProcess.simulation import SolutionBase
 
 
 class CarouselBuilder(metaclass=StructMeta):
@@ -54,6 +59,11 @@ class CarouselBuilder(metaclass=StructMeta):
             unit for unit in self.flow_sheet.units
             if isinstance(unit, ZoneBaseClass)
         ]
+
+    @property
+    def zone_names(self):
+        """list: Zone names."""
+        return [zone.name for zone in self.zones]
 
     @property
     def zones_dict(self):
@@ -146,6 +156,11 @@ class CarouselBuilder(metaclass=StructMeta):
 
         return process
 
+    @property
+    def cycle_time(self):
+        """float: cycle time of the process."""
+        return self.n_columns * self.switch_time
+
     def add_events(self, process):
         """Add events to process."""
         process.cycle_time = self.n_columns * self.switch_time
@@ -156,7 +171,9 @@ class CarouselBuilder(metaclass=StructMeta):
             for i_zone, zone in enumerate(self.zones):
                 col_indices = np.arange(zone.n_columns)
                 col_indices += position_counter
-                col_indices = self.unit_index(col_indices, carousel_state)
+                col_indices = self.column_index_at_state(
+                    col_indices, carousel_state
+                )
 
                 if isinstance(zone, SerialZone):
                     evt = process.add_event(
@@ -219,8 +236,18 @@ class CarouselBuilder(metaclass=StructMeta):
 
                 position_counter += zone.n_columns
 
-    def unit_index(self, carousel_position, carousel_state):
-        """Return unit index of column at given carousel position and state.
+    def carousel_state(self, t):
+        """int: Carousel state at given time.
+
+        Parameters
+        ----------
+        t: float
+            Time
+        """
+        return int(np.floor((t % self.cycle_time) / self.switch_time))
+
+    def column_index_at_state(self, carousel_position, carousel_state):
+        """int: Unit index of column at given carousel position and state.
 
         Parameters
         ----------
@@ -233,6 +260,23 @@ class CarouselBuilder(metaclass=StructMeta):
 
         """
         return (carousel_position + carousel_state) % self.n_columns
+
+    def column_index_at_time(self, t, carousel_position):
+        """int: Unit index of column at carousel positin at given time.
+
+        Parameters
+        ----------
+        t: float
+            Time
+        carousel_position : int
+            Carousel position.
+        """
+        carousel_state = self.carousel_state(t)
+        column_index = self.column_index_at_state(
+            carousel_position, carousel_state
+        )
+
+        return column_index
 
 
 class ZoneBaseClass(UnitBaseClass):
@@ -290,3 +334,126 @@ class SerialZone(ZoneBaseClass):
 
 class ParallelZone(ZoneBaseClass):
     pass
+
+
+class CarouselSolutionBulk(SolutionBase):
+    """Solution at unit inlet or outlet.
+
+    N_COLUMNS * NCOL * NRAD
+
+    """
+    _coordinates = ['axial_coordinates', 'radial_coordinates']
+
+    def __init__(self, builder, simulation_results):
+        self.builder = builder
+        self.simulation_results = simulation_results
+
+    @property
+    def component_system(self):
+        return self.builder.component_system
+
+    @property
+    def solution(self):
+        return self.simulation_results.solution
+
+    @property
+    def axial_coordinates(self):
+        return self.simulation_results.solution.column_0.bulk.axial_coordinates
+
+    @property
+    def radial_coordinates(self):
+        radial_coordinates = \
+            self.simulation_results.solution.column_0.bulk.radial_coordinates
+        if radial_coordinates is not None and len(radial_coordinates) == 1:
+            radial_coordinates = None
+
+        return radial_coordinates
+
+    @property
+    def time(self):
+        return self.simulation_results.solution.column_0.bulk.time
+
+    def plot_at_time(
+            self, t, overlay=None, y_min=None, y_max=None,
+            ax=None, lines=None):
+        """Plot bulk solution over space at given time.
+
+        Parameters
+        ----------
+        t : float
+            time for plotting
+        ax : Axes
+            Axes to plot on.
+
+        See Also
+        --------
+        CADETProcess.plotting
+        """
+
+        n_cols = self.builder.n_columns
+        if ax is None:
+            fig, axs = plt.subplots(
+                ncols=n_cols,
+                figsize=(n_cols*4, 6),
+                gridspec_kw=dict(wspace=0.0, hspace=0.0),
+                sharey='row'
+            )
+        else:
+            axs = ax
+
+        t_i = np.where(t <= self.time)[0][0]
+
+        x = self.axial_coordinates
+
+        y_min_data = 0
+        y_max_data = 0
+        zone_counter = 0
+        column_counter = 0
+
+        if lines is None:
+            _lines = []
+        else:
+            _lines = None
+
+        for position, ax in enumerate(axs):
+            col_index = self.builder.column_index_at_time(t, position)
+
+            y = self.solution[f'column_{col_index}'].bulk.solution[t_i, :]
+
+            y_min_data = min(y_min_data, min(0, np.min(y)))
+            y_max_data = max(y_max_data, 1.1*np.max(y))
+
+            if lines is not None:
+                for comp in range(self.n_comp):
+                    lines[position][comp].set_ydata(y[..., comp])
+            else:
+                l = ax.plot(x, y)
+                _lines.append(l)
+
+            zone = self.builder.zones[zone_counter]
+
+            if zone.n_columns > 1:
+                ax.set_title(f'{zone.name}, position {column_counter}')
+            else:
+                ax.set_title(f'{zone.name}')
+
+            if column_counter < (zone.n_columns - 1):
+                column_counter += 1
+            else:
+                zone_counter += 1
+                column_counter = 0
+
+        plotting.add_text(ax, f'time = {t:.2f} s')
+
+        if y_min is None:
+            y_min = y_min_data
+        if y_min is None:
+            y_min = y_max_data
+
+        for position, ax in enumerate(axs):
+            ax.set_ylim((y_min, y_max))
+
+        if _lines is None:
+            _lines = lines
+
+        return axs, _lines

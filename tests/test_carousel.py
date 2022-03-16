@@ -407,15 +407,20 @@ class Test_Carousel(unittest.TestCase):
 
     def test_column_position_indices(self):
         """Test column position index."""
-        # Initial state, position 0
         builder = self.create_smb()
 
+        # Initial state, position 0
         carousel_position = 0
         carousel_state = 0
         index_expected = 0
 
-        index = builder.unit_index(carousel_position, carousel_state)
+        index = builder.column_index_at_state(
+            carousel_position, carousel_state
+        )
+        self.assertEqual(index_expected, index)
 
+        time = carousel_state * builder.switch_time
+        index = builder.column_index_at_time(time, carousel_position)
         self.assertEqual(index_expected, index)
 
         # Initial state, position 1
@@ -423,8 +428,13 @@ class Test_Carousel(unittest.TestCase):
         carousel_state = 0
         index_expected = 1
 
-        index = builder.unit_index(carousel_position, carousel_state)
+        index = builder.column_index_at_state(
+            carousel_position, carousel_state
+        )
+        self.assertEqual(index_expected, index)
 
+        time = carousel_state * builder.switch_time
+        index = builder.column_index_at_time(time, carousel_position)
         self.assertEqual(index_expected, index)
 
         # First state, position 0
@@ -432,8 +442,13 @@ class Test_Carousel(unittest.TestCase):
         carousel_state = 1
         index_expected = 1
 
-        index = builder.unit_index(carousel_position, carousel_state)
+        index = builder.column_index_at_state(
+            carousel_position, carousel_state
+        )
+        self.assertEqual(index_expected, index)
 
+        time = carousel_state * builder.switch_time
+        index = builder.column_index_at_time(time, carousel_position)
         self.assertEqual(index_expected, index)
 
         # First state, position 1
@@ -441,8 +456,13 @@ class Test_Carousel(unittest.TestCase):
         carousel_state = 1
         index_expected = 2
 
-        index = builder.unit_index(carousel_position, carousel_state)
+        index = builder.column_index_at_state(
+            carousel_position, carousel_state
+        )
+        self.assertEqual(index_expected, index)
 
+        time = carousel_state * builder.switch_time
+        index = builder.column_index_at_time(time, carousel_position)
         self.assertEqual(index_expected, index)
 
         # 4th state (back to initial state), position 0
@@ -450,9 +470,51 @@ class Test_Carousel(unittest.TestCase):
         carousel_state = 4
         index_expected = 0
 
-        index = builder.unit_index(carousel_position, carousel_state)
-
+        index = builder.column_index_at_state(
+            carousel_position, carousel_state
+        )
         self.assertEqual(index_expected, index)
+
+        time = carousel_state * builder.switch_time
+        index = builder.column_index_at_time(time, carousel_position)
+        self.assertEqual(index_expected, index)
+
+    def test_carousel_state(self):
+        """Test carousel state."""
+
+        builder = self.create_smb()
+
+        # Initial state
+        time = 0
+        state_expected = 0
+
+        state = builder.carousel_state(time)
+
+        self.assertEqual(state_expected, state)
+
+        # Position 0
+        time = builder.switch_time/2
+        state_expected = 0
+
+        state = builder.carousel_state(time)
+
+        self.assertEqual(state_expected, state)
+
+        # Position 1
+        time = builder.switch_time
+        state_expected = 1
+
+        state = builder.carousel_state(time)
+
+        self.assertEqual(state_expected, state)
+
+        # Back to initial state; position 0
+        time = 4*builder.switch_time
+        state_expected = 0
+
+        state = builder.carousel_state(time)
+
+        self.assertEqual(state_expected, state)
 
     def test_flow_rates(self):
         # Serial
