@@ -16,38 +16,34 @@ sys.path.append('../../../')
 
 (compartment_tutorial)=
 # Compartment Modeling
-Computational fluid dynamic (CFD) simulations are often used to model computationally expensive
+In the design of bioreactors and separation vessels, computational fluid dynamics models (CFD) are often used to describe phenomena such as transport mechanisms and mixing behavior.
+However, CFD simulations can be computationally very expensive, especially when the goal is to also include kinetic models, e.g. to describe (enzymatic) reactions or biomass growth.
 
-In the design of bioreactors and separation vessels, computational fluid dynamics models (CFD) are often used to describe phenomena like mixing behavior and transport mechanisms.
-However, CFD simulations are computationally very expensive, especially when the goal is to also include kinetic model such as (enzymatic) reactions or biomass growth.
-To reduce the complexity of these models, it is possible to use CFD simulations to calibrate a compartmentalized model which assumes that the overall system can be reasonably approximated by a system of interconnected simple, ideal models such as Cstrs and plug flow reactors.
+To reduce the complexity of the bioreactor models, the reactor volume can be divided into a number of interconnected sub-volumes called compartments.
+Each compartment represents a zone which can be approximated with a simplified hydrodynamic model such as a continuous stirred-tank reactor (CSTR) or an ideal plug flow reactor (PFR) {cite}`Levenspiel1999`.
 
-Since **CADET** is also capable of simulating networks of unit operations, it is possible to simulate these kinds of models.
-For this purpose, a `CompartmentBuilder` was implemented in **CADET-Process** to facilitate the setup of compartment models.
+Since **CADET** is capable of simulating networks of unit operations, it is possible to simulate compartment models.
+To facilitate the setup of these models, a `CompartmentBuilder` was implemented in **CADET-Process**.
+Note that currently only perfectly mixed compartments are implemented using the built-in `Cstr` model.
+However, other compartments can easily be added in the future. 
 
 Generally, the following data are required:
 - Compartment volumes
-- Compartment connectivity (with flow rates)
+- Compartment connectivity (including flow rates)
 - Initial conditions
 
 Features:
-- Closed volume and flow-through
 - Tracer injection experiments
-- Combination with kinetic reaction models
-
-Further possible modes (WIP):
-- Instationary exchange between compartments (piecewise constant or cubic polynomial)
-- Instationary compartment volume.
-
-In the following, an introduction to the setup and configuration of the different features is given.
+- Internal recycle and flow-through mode
+- Possibility to define kinetic reaction models
 
 ## Connectivity
 First, the definition of the compartment model and the connectivity is introduced. 
 
 ### Example 1
-To demonstrate the tool, a simple example with five compartments is considered.
+Consider a simple example with five compartments.
 
-```{figure} ../_static/compartment.svg
+```{figure} ../_static/operating_modes/compartment_simple.svg
 :name: compartment_simple
 
 Simple compartment model.
@@ -64,24 +60,24 @@ component_system = ComponentSystem(2)
 
 Then, the `ComparmentBuilder` is imported and configured.
 For this purpose, the volume of each compartment needs to be provided, as well as the flow rates between all compartments.
-The number of compartments is inferred from the length of the volumes passed in the `__init__` method.
-Note that the values for the example are just for demonstration purposes.
+The number of compartments is inferred from the length of the vector of volumes passed in the `__init__` method.
+Note that the values for the example are arbitrary.
 
 The flow rate matrix is structured such that each row contains the outgoing streams of the compartment with the row index.
 E.g.row $0$ contains all outgoing streams of compartment $0$.
 
-To instantiate the object, the `ComponentSystem` is passed the `ComponentSystem`, the volume and the flow rates.
+To instantiate the object, the `ComponentSystem` is passed the `CompartmentBuilder` as as well as the vector of compartment volumes and the flow rates.
 
 ```{code-cell} ipython3
 from CADETProcess.modelBuilder import CompartmentBuilder
 
-volume = [1, 2, 3, 4, 5]
+volume = [1e-3, 2e-3, 3e-3, 4e-3, 5e-3]
 flow_rate_matrix = [
-    0,   0.1, 0.2, 0.3, 0.4,
-    0.1, 0,   0,   0,   0,
-    0.2, 0,   0,   0,   0,
-    0.3, 0,   0,   0,   0,
-    0.4, 0,   0,   0,   0,
+    0,      0.1e-4, 0.2e-4, 0.3e-4, 0.4e-4,
+    0.1e-4, 0,      0,      0,      0,
+    0.2e-4, 0,      0,      0,      0,
+    0.3e-4, 0,      0,      0,      0,
+    0.4e-4, 0,      0,      0,      0,
 ]
 
 builder_simple = CompartmentBuilder(
@@ -91,18 +87,18 @@ builder_simple = CompartmentBuilder(
 ```
 
 ### Example 2
-In this second example, it is considered that there is a constant flow through the system.
+In this example, consider a constant flow through the system.
 
-```{figure} ../_static/compartment_complex.jpg
+```{figure} ../_static/operating_modes/compartment_complex.jpg
 :name: compartment_complex
 
 Bioreactor compartment model from {cite:t}`Tobo2020`.
 ```
 
-To model this more complicated system, the inlet and outlet are treated as additional pseudo-compartments.
-For this purpose, it is possible to add the stings `inlet` and `outlet` in the volume list.
+To model this system, the inlet and outlet are treated as additional pseudo-compartments.
+For this purpose, it is possible to add the stings `inlet` and `outlet` in the vector of volumes.
 
-Note that in this example the overall content volume of the vessel does not change but it is generally possible to consider a gradual increase or decrease of volume of each compartment over time.
+Although in this example, the overall content volume of the bioreactor does not change, it is generally possible to consider a gradual increase or decrease of volume of each compartment over time.
 However, it is important that none of the compartment volumes must ever become zero since this situation cannot be handled by the methods used in **CADET**.
 
 ```{code-cell} ipython3
@@ -129,12 +125,12 @@ builder_complex = CompartmentBuilder(
 ```
 
 ## Initial conditions
-By default, the concentration of every compartment is set to $0$.
-To set the initial concentration manually, there are multiple options.
+By default, the concentration of every compartment is initially set to $0$.
+To override this, there are multiple options.
 First, the same concentration can be used for all components and all compartments:
 
 ```{code-cell} ipython3
-builder_simple.init_c = 0
+builder_simple.init_c = 1
 ```
 
 Alternatively, a value for each concentration can be provided which is then set to all compartments:
@@ -158,21 +154,25 @@ builder_simple.init_c = np.array([
 ```
 
 ## Tracers
-To add a tracer, we have to specify the following information:
-- the compartment to which the tracer is added
-- the tracer concentration,
-- the flow rate
-- the injection duration
-Optionally, it is also possible to provide the start time of the injection.
+Often, small amounts of tracer are added to a specific location in the system to measure the mixing behavior of the vessel.
+To add a tracer injection to the model, the following information needs to be specified:
+- the compartment to which the tracer is added,
+- the tracer concentration in the feed,
+- the flow rate,
+- the injection duration,
+- the start time of the injection (optional, default is $0$),
+- Whether the volume of the compartment should be kept constant (optional, default is True).
+
+Here, a $10~mM$ tracer is added to compartment $4$ for $10~s$ with a flow rate of  $0.1~L \cdot s^{-1}$ units.
 
 ```{code-cell} ipython3
-builder_simple.add_tracer(4, [1, 1], 10, 0.1, t_start=0)
+builder_simple.add_tracer(4, [10, 10], 10, 0.1e-3, t_start=0)
 ```
 
 $$\require{mhchem}$$
 ## Kinetic reaction models
 It is possible to combine the `CompartmentBuilder` with any of the adsorption and reaction models included in **CADET-Process**.
-The models are configured as usual and are then set to the builder instance.
+The models are configured as usual and are then added to the builder instance.
 
 For example, consider this simple reaction:
 
@@ -180,8 +180,8 @@ $$
 \ce{A <=>[2][1] B}
 $$
 
-It is important to note that the `Cstr` supports reactions in bulk and particle pore phase.
-Here, only bulk phase is considered.
+To configure reactions, import and configure the `MassActionLaw`.
+For more information, see {ref}`reactions_tutorial`.
 
 ```{code-cell} ipython3
 from CADETProcess.processModel import MassActionLaw
@@ -195,31 +195,33 @@ builder_simple.bulk_reaction_model = reaction_model
 ```
 
 ## Simulation
-To simulate the system, the `process` object of the `can be accessed directly and passed to **CADET**
+To simulate the system, the `process` object of the `CompartmentBuilder` can be accessed directly.
+Before passing it to the process simulator, the cycle time needs to be set.
 
+```{code-cell} ipython3
+:tags: [remove-cell]
+builder_simple.init_c = 0
+```
 ```{code-cell} ipython3
 :tags: [remove-output]
 
 from CADETProcess.simulation import Cadet
 process_simulator = Cadet()
 
-proc_results = process_simulator.run(builder_simple.process)
+process = builder_simple.process
+process.cycle_time = 100
+
+simulation_results = process_simulator.run(process)
 ```
 
 ## Visualization
-Since a regular `ProcessResults` object is returned, it is possible to access the solution of each compartment, as well as the default `plot` method.
+Since a regular `ProcessResults` object is returned, it is possible to access the solution objects of each individual compartment and use their default `plot` method.
+For example, here the concentration of the first and fourth compartment is plotted:
 
 ```{code-cell} ipython3
-:tags: [remove-cell]
-
-builder_simple = CompartmentBuilder(
-    component_system,
-    volume, flow_rate_matrix,    
-)
+_ = simulation_results.solution[f'compartment_1'].outlet.plot()
+_ = simulation_results.solution[f'compartment_4'].outlet.plot()
 ```
 
-```ipython3
-for comp in range(builder_simple.n_compartments):
-    proc_results.solution[f'compartment_{comp}'].outlet.plot()
-```
+The effects of the tracer, as well as the reaction are clearly visible.
 

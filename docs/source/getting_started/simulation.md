@@ -47,7 +47,6 @@ Note that it is straightforward to also include internal recycles in the `FlowSh
 `Events` are used to describe the dynamic operation of the process which is particularly relevant for chromatography.
 In these processes, dynamic changes occur at the inlets during operational steps like injection, elution, wash, regeneration or the use of gradients.
 But also distinct `FlowSheet` actions like turning on and off recycles, bypasses, or switching the column configuration have to be considered.
-Moreover, the fractionation state of products at the outlets of the process changes at specific times (see {ref}`fractionation_tutorial`).
 By defining `Events`, the state of any attribute of a `UnitOperation` can be changed to a certain value at a given time. 
 In order to reduce the complexity of the setup, dependencies of `Events` (i.e., conditional events) can be specified that define the time of an `Event` using any linear combination of other `Event` times.
 Especially for more advanced processes, this reduces the degrees of freedom and facilitates the overall handiness.
@@ -60,7 +59,13 @@ By default, the $SI$ unit system is applied for all parameters in **CADET-Proces
 However, alternative unit systems can be applied, including dimensionless model parameters.
 
 ## Demonstration
-To introduce the basic concepts of **CADET-Process**, a simple binary separation is considered.
+To introduce the basic concepts of **CADET-Process**, a simple binary batch elution separation is considered.
+
+```{figure} ../examples/operating_modes/figures/batch_elution_flow_sheet.svg
+:name: batch_elution_flow_sheet
+
+Flow sheet for batch elution process.
+```
 
 ### Component System
 First, a `ComponentSystem` needs to be created.
@@ -86,10 +91,24 @@ In this example, the `Langmuir` model is imported and parametrized.
 For an overview of all models in **CADET-Process**, see {ref}`binding_reference`. 
 It's important to note that the adsorption model is defined independently from the unit operation.
 This facilitates reusing the same configuration in different unit operations or processes.
+
 ```{code-cell} ipython3
 from CADETProcess.processModel import Langmuir
 
 binding_model = Langmuir(component_system, name='langmuir')
+```
+
+Before setting parameter values, let us have inspect which parameters are available in the `BindingModel`.
+For this purpose, you can access the `parameters` dictionary and print its content.
+Note that for many parameters, reasonable default values are provided.
+
+```{code-cell} ipython3
+print(binding_model.parameters)
+```
+
+Now, we modify the parameters (values are only for demonstration purposes).
+
+```{code-cell} ipython3
 binding_model.is_kinetic = False
 binding_model.adsorption_rate = [0.02, 0.03]
 binding_model.desorption_rate = [1, 1]
@@ -100,7 +119,7 @@ binding_model.capacity = [100, 100]
 Now, the unit operation models are instantiated.
 For an overview of all models in **CADET-Process**, see {ref}`unit_operation_reference`. 
 
-In a typical batch elution process, there is a feed and an eluent.
+In a typical batch elution process, there is a feed and an eluent (see {ref}`Figure <batch_elution_flow_sheet>`).
 It is assumed that the feed and eluent concentrations are constant over time.
 Later, dynamic events are used to modify the flow rate of each source unit to model loading and elution.
 
@@ -116,16 +135,40 @@ eluent.c = [0, 0]
 
 Now, the column model is configured.
 Here, a `LumpedRateModelWithoutPores` is used.
-After assigning the geometric and transport parameters, the previously defined binding model is associated the with the column object.
+Again, we can can inspect all the available parameters.
 
 ```{code-cell} ipython3
 column = LumpedRateModelWithoutPores(component_system, name='column')
+print(column.parameters)
+```
+
+After assigning the geometric and transport parameters, the previously defined binding model is associated the with the column object.
+```{code-cell} ipython3
 column.length = 0.6
 column.diameter = 0.024
 column.axial_dispersion = 4.7e-7
 column.total_porosity = 0.7
 column.binding_model = binding_model
+```
 
+Additionally, the initial conditions need to be configured.
+To view all states, use the following command:
+```{code-cell} ipython3
+print(column.initial_state)
+```
+By default, all concentrations are assumed to be zero.
+
+Also the column discretization parameters can be modified.
+```{code-cell} ipython3
+print(column.discretization.parameters)
+```
+
+Currently, **CADET** uses a finite volume WENO scheme with.
+Usually, only the number of control volumes (`ncol`) needs to be modified.
+It is set to $100$ by default which is a reasonable value in most cases.
+
+Finally, an outlet is configured:
+```{code-cell} ipython3
 outlet = Sink(component_system, name='outlet')
 ```
 
@@ -152,7 +195,17 @@ fs.add_connection(column, outlet)
 ### Process
 The `Process` class is used to define dynamic changes to of the units and connections.
 After instantiation, it is important to also set the overall duration of the process. 
-Since **CADET-Process** is also designed for cyclic processes (see {ref}`stationarity_tutorial`, the corresponding attribute is called `cycle_time`.
+Since **CADET-Process** is also designed for cyclic processes (see {ref}`stationarity_tutorial`), the corresponding attribute is called `cycle_time`.
+
+```{figure} ../examples/operating_modes/figures/batch_elution_events_simple.svg
+:name: batch_elution_events_simple
+
+Events in a batch elution process.
+```
+
+In the given example, at $t=0$, the flow rate of the `feed` is turned on, whereas the flow rate of the `eluent` is set to zero.
+After the injection time $\Delta t_{inj}$, the feed flow rate is set to zero and the eluent is switched on.
+
 ```{code-cell} ipython3
 from CADETProcess.processModel import Process
 
@@ -160,9 +213,11 @@ process = Process(fs, 'process')
 process.cycle_time = 600
 ```
 
-In the given example, at $t=0$, the flow rate of the `feed` is turned on, whereas the flow rate of the `eluent` is set to zero.
-After the injection time $\Delta t_{inj}$, the feed flow rate is set to zero and the eluent is switched on.
-The `add_event` method requires first takes 
+The `add_event` method requires the following arguments:
+- `name`: Name of the event.
+- `parameter_path`: Path of the parameter that is changed in dot notation.
+- `state`: Value of the attribute that is changed at Event execution.
+- `time`: Time at which the event is executed.
 
 ```{code-cell} ipython3
 t_inj = 60
@@ -173,12 +228,24 @@ process.add_event('feed_off', 'flow_sheet.feed.flow_rate', 0.0, t_inj)
 process.add_event('eluent_off', 'flow_sheet.eluent.flow_rate', 0.0, 0)
 process.add_event('eluent_on', 'flow_sheet.eluent.flow_rate', Q, t_inj)
 ```
-For more advanced operating modes, it is is also possible to set dependencies between event as to reduce the degrees of freedom in the system (see {ref}`event_dependencies`).
+
+For more advanced operating modes, it is is also possible to set dependencies between event as to reduce the degrees of freedom in the system.
+For example, the `eluent_off` event always occurs when the feed is switched on.
+Similarly, the `eluent_on` event occurs simultaneously with the `feed_off` event.
+To add a dependency to the process, the `add_dependency` method requires the following arguments:
+- `dependent_event` : Name of the event whose value will depend on other events.
+- `independent_events` : List of other events on which event depends
+For more information, see {ref}`event_dependencies`.
+
+```{code-cell} ipython3
+process.add_event_dependency('eluent_on', ['feed_off'])
+process.add_event_dependency('eluent_off', ['feed_on'])
+```
 
 The events can visualized by calling the `plot_events` method.
 
 ```{code-cell} ipython3
-process.plot_events()
+_ = process.plot_events()
 ```
 
 ### Simulator
@@ -207,10 +274,9 @@ simulation_results = process_simulator.simulate(process)
 
 The `simulation_results` object contains the solution for the inlet and outlet of every unit operation also provide plot methods.
 ```{code-cell} ipython3
-simulation_results.solution.column.inlet.plot()
-simulation_results.solution.column.outlet.plot()
+_ = simulation_results.solution.column.inlet.plot()
+_ = simulation_results.solution.column.outlet.plot()
 ```
 
 For more information how to configure the solver and how to get access to more solutions (e.g. bulk phase), see {ref}`simulation_reference`.
-
 

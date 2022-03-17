@@ -237,7 +237,7 @@ class CompartmentBuilder(metaclass=StructMeta):
             if not isinstance(compartment, Sink):
                 compartment.c = init_c[i, :].tolist()
 
-    def add_tracer(self, compartment_index, c, t_inj, flow_rate, t_start=0):
+    def add_tracer(self, compartment_index, c, t_inj, flow_rate, t_start=0, flow_rate_filter=True):
         """Add tracer injection to compartment model.
 
         For this purpose, a new inlet source is instantiated and connected to
@@ -256,6 +256,9 @@ class CompartmentBuilder(metaclass=StructMeta):
             flow rate during injection.
         t_start : float, optional
             Time at which injection starts. The default is 0.
+        flow_rate_filter : bool, optional
+            If True, the compartment volume is kept constant by adding a flow rate filter.
+            The default is True.
 
         Raises
         ------
@@ -270,7 +273,8 @@ class CompartmentBuilder(metaclass=StructMeta):
         if compartment_unit not in self._real_compartments:
             raise CADETProcessError("Tracer must connect to real compartment")
 
-        compartment_unit.flow_rate_filter = flow_rate
+        if flow_rate_filter:
+            compartment_unit.flow_rate_filter = flow_rate
 
         self.flow_sheet.add_unit(tracer)
         self.flow_sheet.add_connection(tracer, compartment_unit)

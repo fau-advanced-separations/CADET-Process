@@ -29,6 +29,14 @@ advanced_use/buffer_capacity
 
 ```{toctree}
 :maxdepth: 2
+:caption: Examples
+:hidden:
+
+examples/operating_modes/index
+```
+
+```{toctree}
+:maxdepth: 2
 :caption: API Reference
 :hidden:
 

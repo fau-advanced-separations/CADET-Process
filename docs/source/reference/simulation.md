@@ -1,5 +1,5 @@
 (simulation_reference)=
-# Process Simulation
+# Process Simulator
 
 ```{eval-rst}
 .. currentmodule:: CADETProcess

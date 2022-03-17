@@ -9,15 +9,15 @@ kernelspec:
 
 (fractionation_tutorial)=
 # Product Fractionation
-Key information for evaluating the process *Performance* (cf. {ref}`framework_overview`) of a chromatographic process are the amounts of the target components in the collected product fractions.
+Key information for evaluating the process `Performance` (cf. {ref}`framework_overview`) of a chromatographic process are the amounts of the target components in the collected product fractions.
 
-In this work, the *Fractionation* module automatically sets up an *OptimizationProblem*.
+In this work, the `Fractionation` module automatically sets up an `OptimizationProblem`.
 For every component, different purity requirements can be specified, and any function may be applied as objective.
 
-For the objective and constraint functions, fractions are pooled from all *Outlets* of the *FlowSheet* (see equations {eq}`mass` and {eq}`purity`).
-As initial values for the optimization, areas of the chromatogram with sufficient "local purity" {cite}`Shan2004` are identified, i.e., intervals where $PU_i(t)=c_i(t)/\sum_j c_j(t)\geq PU_{min,i}$.
+For the objective and constraint functions, fractions are pooled from all `Outlets` of the `FlowSheet` (see equations {eq}`mass` and {eq}`purity`).
+As initial values for the optimization, areas of the chromatogram with sufficient local purity are identified, i.e., intervals where $PU_i(t)=c_i(t)/\sum_j c_j(t)\geq PU_{min,i}$ {cite}`Shan2004`.
 These initial intervals are then expanded by the optimizer towards regions of lower purity while meeting the cumulative purity constraints.
-In the current implementation, *COBYLA* {cite}`Powell1994` of the *SciPy* {cite}`SciPyContributors2020` library is used as *Optimizer*.
+In the current implementation, **COBYLA** {cite}`Powell1994` of the **SciPy** {cite}`SciPyContributors2020` library is used as `OptimizationSolver`
 Yet, any other solver or heuristic algorithm may be implemented.
 
 ## Demonstration
