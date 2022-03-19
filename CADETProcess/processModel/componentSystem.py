@@ -148,6 +148,9 @@ class ComponentSystem(metaclass=StructMeta):
     def __repr__(self):
         return f'{self.__class__.__name__}({self.names})'
 
+    def __iter__(self):
+        yield from self.components
+
 
 class Component(metaclass=StructMeta):
     name = String()
@@ -194,6 +197,9 @@ class Component(metaclass=StructMeta):
     @property
     def molecular_weight(self):
         return [spec.molecular_weight for spec in self.molecular_weight]
+
+    def __iter__(self):
+        yield from self.species
 
 
 class Species(Structure):

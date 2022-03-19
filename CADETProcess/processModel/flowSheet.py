@@ -909,3 +909,6 @@ class FlowSheet(metaclass=StructMeta):
             return True
         else:
             return False
+
+        def __iter__(self):
+            yield from self.units
