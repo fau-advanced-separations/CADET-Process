@@ -6,6 +6,8 @@ from CADETProcess.processModel import ComponentSystem
 
 class TestComponents(unittest.TestCase):
     def setUp(self):
+        self.component_system_0 = ComponentSystem(['A', 'B'])
+
         self.component_system_1 = ComponentSystem()
         self.component_system_1.add_component(
             'Ammonia',
@@ -33,6 +35,10 @@ class TestComponents(unittest.TestCase):
         )
 
     def test_labels(self):
+        labels_expected = ['A', 'B']
+        labels = self.component_system_0.labels
+        np.testing.assert_equal(labels, labels_expected)
+
         labels_expected = [
             'NH4+', 'NH3', 'Lys2+', 'Lys+', 'Lys', 'Lys', 'H+'
         ]

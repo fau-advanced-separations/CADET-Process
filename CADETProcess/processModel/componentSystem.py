@@ -13,15 +13,15 @@ class ComponentSystem(metaclass=StructMeta):
 
     def __init__(
             self, components=None, name=None,
-            charges=None, molecular_weights=None
-            ):
+            charges=None, molecular_weights=None):
         self.name = name
 
         self._components = []
 
         if components is None:
             return
-        elif isinstance(components, int):
+
+        if isinstance(components, int):
             n_comp = components
             components = n_comp*[None]
         elif isinstance(components, list):
@@ -35,11 +35,19 @@ class ComponentSystem(metaclass=StructMeta):
             molecular_weights = n_comp * [None]
 
         for i, comp in enumerate(components):
-            self.add_component(
-                species=comp,
-                charge=charges[i],
-                molecular_weight=molecular_weights[i]
-            )
+
+            if isinstance(comp, list):
+                self.add_component(
+                    species=comp,
+                    charge=charges[i],
+                    molecular_weight=molecular_weights[i]
+                )
+            else:
+                self.add_component(
+                    name=comp,
+                    charge=charges[i],
+                    molecular_weight=molecular_weights[i]
+                )
 
     @property
     def components(self):
@@ -72,7 +80,12 @@ class ComponentSystem(metaclass=StructMeta):
 
     @property
     def names(self):
-        return [comp.name for comp in self.components]
+        names = [
+            comp.name if comp.name is not None else i
+            for i, comp in enumerate(self.components)
+        ]
+
+        return names
 
     @property
     def labels(self):
@@ -140,8 +153,7 @@ class Component(metaclass=StructMeta):
     name = String()
 
     def __init__(
-            self, name=None, species=None, charge=None, molecular_weight=None
-            ):
+            self, name=None, species=None, charge=None, molecular_weight=None):
         self.name = name
         self._species = []
 

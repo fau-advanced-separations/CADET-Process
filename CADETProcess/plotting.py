@@ -135,7 +135,8 @@ def set_layout(
                 lines_secondary + lines, labels_secondary + labels, loc=0
             )
     else:
-        ax.legend(lines, labels, loc=0)
+        if show_legend and len(labels) != 0:
+            ax.legend()
 
 
 class Tick(Structure):
