@@ -15,7 +15,6 @@ from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import (
     Bool, Switch, UnsignedFloat, UnsignedInteger,
 )
-from CADETProcess.common import Chromatogram
 
 from .solver import SolverBase
 from .solver import SimulationResults
@@ -388,6 +387,9 @@ class Cadet(SolverBase):
                 particle_coordinates = \
                     unit_coordinates.pop('particle_coordinates_000', None)
 
+                flow_in = process.flow_rate_timelines[unit.name].total_in
+                flow_out = process.flow_rate_timelines[unit.name].total_out
+
                 for cycle in range(process._n_cycles):
                     start = cycle * (len(process.time) - 1)
                     end = (cycle + 1) * (len(process.time) - 1) + 1
@@ -395,20 +397,29 @@ class Cadet(SolverBase):
                     if 'solution_inlet' in unit_solution.keys():
                         sol_inlet = unit_solution.solution_inlet[start:end, :]
                         solution[unit.name]['inlet'].append(
-                            SolutionIO(unit.component_system, time, sol_inlet)
+                            SolutionIO(
+                                f'{unit.name}/inlet',
+                                unit.component_system, time, sol_inlet,
+                                flow_in
+                            )
                         )
 
                     if 'solution_outlet' in unit_solution.keys():
                         sol_outlet = \
                             unit_solution.solution_outlet[start:end, :]
                         solution[unit.name]['outlet'].append(
-                            SolutionIO(unit.component_system, time, sol_outlet)
+                            SolutionIO(
+                                f'{unit.name}/outlet',
+                                unit.component_system, time, sol_outlet,
+                                flow_out
+                            )
                         )
 
                     if 'solution_bulk' in unit_solution.keys():
                         sol_bulk = unit_solution.solution_bulk[start:end, :]
                         solution[unit.name]['bulk'].append(
                             SolutionBulk(
+                                f'{unit.name}/bulk',
                                 unit.component_system, time, sol_bulk,
                                 **unit_coordinates
                             )
@@ -419,6 +430,7 @@ class Cadet(SolverBase):
                             unit_solution.solution_particle[start:end, :]
                         solution[unit.name]['particle'].append(
                             SolutionParticle(
+                                f'{unit.name}/particle',
                                 unit.component_system, time, sol_particle,
                                 **unit_coordinates,
                                 particle_coordinates=particle_coordinates
@@ -429,6 +441,7 @@ class Cadet(SolverBase):
                         sol_solid = unit_solution.solution_solid[start:end, :]
                         solution[unit.name]['solid'].append(
                             SolutionSolid(
+                                f'{unit.name}/solid',
                                 unit.component_system,
                                 unit.binding_model.n_states,
                                 time, sol_solid,
@@ -442,6 +455,7 @@ class Cadet(SolverBase):
                             unit_solution.solution_volume[start:end, :]
                         solution[unit.name]['volume'].append(
                             SolutionVolume(
+                                f'{unit.name}/volume',
                                 unit.component_system,
                                 time,
                                 sol_volume
@@ -456,11 +470,7 @@ class Cadet(SolverBase):
             }
 
             chromatograms = [
-                Chromatogram(
-                    process.time, solution[chrom.name].outlet[-1].solution,
-                    process.flow_rate_timelines[chrom.name].total_in,
-                    name=chrom.name
-                )
+                solution[chrom.name].outlet[-1]
                 for chrom in process.flow_sheet.chromatogram_sinks
             ]
 

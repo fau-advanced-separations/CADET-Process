@@ -118,33 +118,6 @@ class ComponentSystem(metaclass=StructMeta):
 
         return molecular_weights
 
-    def total_concentration(self, solution):
-        """Compute total concentration of components by summing up species.
-
-        Parameters
-        ----------
-        solution : np.array
-            Solution array.
-
-        Returns
-        -------
-        total_concentration : np.array
-            Total concentration of components.
-
-        """
-        total_concentration = np.zeros(
-            solution.shape[0:-1] + (self.n_components,)
-        )
-
-        counter = 0
-        for index, comp in enumerate(self.components):
-            comp_indices = slice(counter, counter+comp.n_species)
-            c_total = np.sum(solution[..., comp_indices], axis=1)
-            total_concentration[:, index] = c_total
-            counter += comp.n_species
-
-        return total_concentration
-
     def __repr__(self):
         return f'{self.__class__.__name__}({self.names})'
 

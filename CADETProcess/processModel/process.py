@@ -160,27 +160,38 @@ class Process(EventHandler):
 
             for unit, flow_rate in flow_rates.items():
                 unit_flow_rates = flow_rate_timelines[unit]
-                if not isinstance(self.flow_sheet[unit], Source):
-                    section = Section(
-                        start, end, flow_rate.total_in, n_entries=1, degree=3
-                    )
-                    unit_flow_rates['total_in'].add_section(section)
-                    for orig, flow_rate_orig in flow_rate.origins.items():
-                        section = Section(
-                            start, end, flow_rate_orig, n_entries=1, degree=3
-                        )
-                        unit_flow_rates['origins'][orig].add_section(section)
 
-                if not isinstance(self.flow_sheet[unit], Sink):
+                # If inlet, also use outlet for total_in
+                if isinstance(self.flow_sheet[unit], Source):
                     section = Section(
                         start, end, flow_rate.total_out, n_entries=1, degree=3
                     )
-                    unit_flow_rates['total_out'].add_section(section)
-                    for dest, flow_rate_dest in flow_rate.destinations.items():
-                        section = Section(
-                            start, end, flow_rate_dest, n_entries=1, degree=3
-                        )
-                        unit_flow_rates['destinations'][dest].add_section(section)
+                else:
+                    section = Section(
+                        start, end, flow_rate.total_in, n_entries=1, degree=3
+                    )
+                unit_flow_rates['total_in'].add_section(section)
+                for orig, flow_rate_orig in flow_rate.origins.items():
+                    section = Section(
+                        start, end, flow_rate_orig, n_entries=1, degree=3
+                    )
+                    unit_flow_rates['origins'][orig].add_section(section)
+
+                # If outlet, also use inlet for total_out
+                if isinstance(self.flow_sheet[unit], Sink):
+                    section = Section(
+                        start, end, flow_rate.total_in, n_entries=1, degree=3
+                    )
+                else:
+                    section = Section(
+                        start, end, flow_rate.total_out, n_entries=1, degree=3
+                    )
+                unit_flow_rates['total_out'].add_section(section)
+                for dest, flow_rate_dest in flow_rate.destinations.items():
+                    section = Section(
+                        start, end, flow_rate_dest, n_entries=1, degree=3
+                    )
+                    unit_flow_rates['destinations'][dest].add_section(section)
 
         return Dict(flow_rate_timelines)
 
@@ -200,7 +211,10 @@ class Process(EventHandler):
 
         for sec_time in self.section_times[0:-1]:
             for unit, unit_flow_rates in self.flow_rate_timelines.items():
-                if not isinstance(self.flow_sheet[unit], Source):
+                if isinstance(self.flow_sheet[unit], Source):
+                    section_states[sec_time][unit]['total_in'] \
+                        = unit_flow_rates['total_out'].coefficients(sec_time)[0]
+                else:
                     section_states[sec_time][unit]['total_in'] \
                         = unit_flow_rates['total_in'].coefficients(sec_time)[0]
 
@@ -208,7 +222,10 @@ class Process(EventHandler):
                         section_states[sec_time][unit]['origins'][orig] \
                             = tl.coefficients(sec_time)[0]
 
-                if not isinstance(self.flow_sheet[unit], Sink):
+                if isinstance(self.flow_sheet[unit], Sink):
+                    section_states[sec_time][unit]['total_out'] \
+                        = unit_flow_rates['total_in'].coefficients(sec_time)[0]
+                else:
                     section_states[sec_time][unit]['total_out'] \
                         = unit_flow_rates['total_out'].coefficients(sec_time)[0]
 

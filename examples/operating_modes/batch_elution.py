@@ -67,7 +67,7 @@ process.add_event('eluent_off', 'flow_sheet.eluent.flow_rate', 0.0)
 
 process.add_event_dependency('eluent_on', ['feed_off'])
 process.add_event_dependency('eluent_off', ['feed_on'])
-process.add_event_dependency('feed_off', ['feed_on', 'feed_duration'],[1,1])
+process.add_event_dependency('feed_off', ['feed_on', 'feed_duration'], [1, 1])
 
 ## Set process times
 process.cycle_time = 600
@@ -77,16 +77,16 @@ process.feed_duration.time = 60
 if __name__ == '__main__':
     from CADETProcess.simulation import Cadet
     process_simulator = Cadet()
+
     simulation_results = process_simulator.simulate(process)
 
     from CADETProcess.fractionation import FractionationOptimizer
     purity_required = [0.95, 0.95]
     fractionation_optimizer = FractionationOptimizer(purity_required)
-    
+
     fractionation = fractionation_optimizer.optimize_fractionation(
-        simulation_results.chromatograms,
-        process.process_meta,
+        simulation_results
     )
-    
+
     fractionation.plot_fraction_signal()
     print(fractionation.performance)

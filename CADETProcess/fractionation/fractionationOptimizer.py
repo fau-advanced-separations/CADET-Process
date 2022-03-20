@@ -3,6 +3,7 @@ import warnings
 
 from CADETProcess import CADETProcessError
 
+from CADETProcess.simulation import SimulationResults
 from CADETProcess.fractionation import Fractionator
 from CADETProcess.optimization import SolverBase, OptimizationProblem
 from CADETProcess.optimization import COBYLA, TrustConstr
@@ -49,11 +50,8 @@ class FractionationOptimizer():
             raise TypeError('Optimization SolverBase')
         self._optimizer = optimizer
 
-    def setup_fractionator(self, process_meta, chromatograms):
-        frac = Fractionator(process_meta)
-
-        for chrom in chromatograms:
-            frac.add_chromatogram(chrom)
+    def setup_fractionator(self, simulation_results):
+        frac = Fractionator(simulation_results)
 
         frac.initial_values(self.purity_required)
 
@@ -93,15 +91,13 @@ class FractionationOptimizer():
 
         return opt
 
-    def optimize_fractionation(self, chromatograms, process_meta):
+    def optimize_fractionation(self, simulation_results):
         """Optimize the fractionation times w.r.t. purity constraints.
 
         Parameters
         ----------
-        chromatograms : Chromatogram or list of Chromatograms
-            Chromatogram to be fractionated
-        process_meta : ProcessMeta
-            Metainformation of the Process
+        simulation_results : SimulationResults
+            Results containing the chromatograms for fractionation.
 
         Returns
         -------
@@ -111,7 +107,9 @@ class FractionationOptimizer():
         Raises
         ------
         TypeError
-            If chromatogram is not an instance of Chromatogram.
+            If simulation_results is not an instance of SimulationResult.
+        CADETProcessError
+            If simulation_results do not contain chromatograms
         Warning
             If purity requirements cannot be fulfilled.
 
@@ -124,14 +122,20 @@ class FractionationOptimizer():
         CADETProcess.optimization.OptimizationProblem
 
         """
-        if not isinstance(chromatograms, list):
-            chromatograms = [chromatograms]
+        if not isinstance(simulation_results, SimulationResults):
+            raise TypeError('Expected SimulationResults')
+
+        if len(simulation_results.chromatograms) == 0:
+            raise CADETProcessError(
+                'Simulation results do not contain chromatogram'
+            )
 
         if (not isinstance(self.purity_required, (float, int))
-                and chromatograms[0].n_comp != len(self.purity_required)):
+                and simulation_results.chromatograms[0].n_comp
+                != len(self.purity_required)):
             raise CADETProcessError('Number of components does not match.')
 
-        frac = self.setup_fractionator(process_meta, chromatograms)
+        frac = self.setup_fractionator(simulation_results)
 
         try:
             opt = self.setup_optimization_problem(frac)

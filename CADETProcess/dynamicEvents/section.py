@@ -1,4 +1,5 @@
 import itertools
+import warnings
 
 import numpy as np
 import scipy
@@ -63,8 +64,11 @@ class Section(metaclass=StructMeta):
 
         self._poly_der = []
         for iEntry in range(self.n_entries):
-            poly_der = self._poly[iEntry].deriv(1)
-            self._poly_der.append(poly_der)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                
+                poly_der = self._poly[iEntry].deriv(1)
+                self._poly_der.append(poly_der)
 
     @property
     def n_poly_coeffs(self):

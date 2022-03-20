@@ -53,12 +53,13 @@ class Performance(Structure):
         return getattr(self, item)
 
     def __repr__(self):
-        return '{}(mass={}, concentration={}, purity={}, recovery={}, \
-                    productivity={}, eluent_consumption={}'.format(
-            self.__class__.__name__, np.array_repr(self.mass),
-            np.array_repr(self.concentration), np.array_repr(self.purity),
-            np.array_repr(self.recovery), np.array_repr(self.productivity),
-            np.array_repr(self.eluent_consumption))
+        return \
+            f'{self.__class__.__name__}(mass={np.array_repr(self.mass)}, '\
+            f'concentration={np.array_repr(self.concentration)}, '\
+            f'purity={np.array_repr(self.purity)}, '\
+            f'recovery={np.array_repr(self.recovery)}, '\
+            f'productivity={np.array_repr(self.productivity)}, '\
+            f'eluent_consumption={np.array_repr(self.eluent_consumption)})'
 
 
 class RankedPerformance():
@@ -101,12 +102,13 @@ class RankedPerformance():
         return getattr(self, item)
 
     def __repr__(self):
-        return '{}(mass={}, concentration={}, purity={}, recovery={}, \
-                    productivity={}, eluent_consumption={}'.format(
-            self.__class__.__name__, np.array_repr(self.mass),
-            np.array_repr(self.concentration), np.array_repr(self.purity),
-            np.array_repr(self.recovery), np.array_repr(self.productivity),
-            np.array_repr(self.eluent_consumption))
+        return \
+            f'{self.__class__.__name__}(mass={np.array_repr(self.mass)}, '\
+            f'concentration={np.array_repr(self.concentration)}, '\
+            f'purity={np.array_repr(self.purity)}, '\
+            f'recovery={np.array_repr(self.recovery)}, '\
+            f'productivity={np.array_repr(self.productivity)}, '\
+            f'eluent_consumption={np.array_repr(self.eluent_consumption)})'
 
 
 def get_bad_performance(n_comp):

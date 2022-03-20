@@ -3,7 +3,7 @@ from scipy.integrate import simps
 
 from CADETProcess import log
 from CADETProcess.dataStructure import StructMeta, Bool, UnsignedFloat
-from CADETProcess.common import TimeSignal
+from CADETProcess.simulation.solution import SolutionIO
 
 
 class StationarityEvaluator(metaclass=StructMeta):
@@ -34,16 +34,16 @@ class StationarityEvaluator(metaclass=StructMeta):
 
         Parameters
         ----------
-        conc_old : TimeSignal
+        conc_old : SolutionIO
             Concentration profile of previous cycle
-        conc_new : TimeSignal
+        conc_new : SolutionIO
             Concentration profile of current cycle
 
         """
-        if not isinstance(conc_old, TimeSignal):
-            raise TypeError('Expcected TimeSignal')
-        if not isinstance(conc_new, TimeSignal):
-            raise TypeError('Expcected TimeSignal')
+        if not isinstance(conc_old, SolutionIO):
+            raise TypeError('Expcected SolutionIO')
+        if not isinstance(conc_new, SolutionIO):
+            raise TypeError('Expcected SolutionIO')
 
         criteria = {}
         if self.check_concentration:
@@ -76,9 +76,9 @@ class StationarityEvaluator(metaclass=StructMeta):
 
         Parameters
         ----------
-        conc_old : TimeSignal
+        conc_old : SolutionIO
             Concentration profile of previous cycle
-        conc_new : TimeSignal
+        conc_new : SolutionIO
             Concentration profile of current cycle
 
         Returns
@@ -87,16 +87,16 @@ class StationarityEvaluator(metaclass=StructMeta):
             Concentration difference of two succeding cycles.
 
         """
-        return np.max(abs(conc_new.signal - conc_old.signal), axis=0)
+        return np.max(abs(conc_new.solution - conc_old.solution), axis=0)
 
     def check_concentration_deviation(self, conc_old, conc_new):
         """Check if deviation in concentration profiles is smaller than eps.
 
         Parameters
         ----------
-        conc_old : TimeSignal
+        conc_old : SolutionIO
             Concentration profile of previous cycle
-        conc_new : TimeSignal
+        conc_new : SolutionIO
             Concentration profile of current cycle
 
         Returns
@@ -118,9 +118,9 @@ class StationarityEvaluator(metaclass=StructMeta):
     def area_deviation(self, conc_old, conc_new):
         """Calculate the area deviation of two succeeding cycles.
 
-        conc_old : TimeSignal
+        conc_old : SolutionIO
             Concentration profile of previous cycle
-        conc_new : TimeSignal
+        conc_new : SolutionIO
             Concentration profile of current cycle
 
         Returns
@@ -129,8 +129,8 @@ class StationarityEvaluator(metaclass=StructMeta):
             Area deviation of two succeding cycles.
 
         """
-        area_old = simps(conc_old.signal, conc_old.time, axis=0)
-        area_new = simps(conc_new.signal, conc_new.time, axis=0)
+        area_old = simps(conc_old.solution, conc_old.time, axis=0)
+        area_new = simps(conc_new.solution, conc_new.time, axis=0)
 
         return abs(area_old - area_new)
 
@@ -139,9 +139,9 @@ class StationarityEvaluator(metaclass=StructMeta):
 
         Parameters
         ----------
-        conc_old : TimeSignal
+        conc_old : SolutionIO
             Concentration profile of previous cycle
-        conc_new : TimeSignal
+        conc_new : SolutionIO
             Concentration profile of current cycle
 
         Returns
@@ -162,9 +162,9 @@ class StationarityEvaluator(metaclass=StructMeta):
     def height_deviation(self, conc_old, conc_new):
         """Calculate the height deviation of two succeeding cycles.
 
-        conc_old : TimeSignal
+        conc_old : SolutionIO
             Concentration profile of previous cycle
-        conc_new : TimeSignal
+        conc_new : SolutionIO
             Concentration profile of current cycle
 
         Returns
@@ -172,8 +172,8 @@ class StationarityEvaluator(metaclass=StructMeta):
         height_deviation : np.array
             Height deviation of two succeding cycles.
         """
-        height_old = np.amax(conc_old.signal, 0)
-        height_new = np.amax(conc_new.signal, 0)
+        height_old = np.amax(conc_old.solution, 0)
+        height_new = np.amax(conc_new.solution, 0)
 
         return abs(height_old - height_new)
 
@@ -182,9 +182,9 @@ class StationarityEvaluator(metaclass=StructMeta):
 
         Parameters
         ----------
-        conc_old : TimeSignal
+        conc_old : SolutionIO
             Concentration profile of previous cycle
-        conc_new : TimeSignal
+        conc_new : SolutionIO
             Concentration profile of current cycle
 
         Returns

@@ -83,10 +83,10 @@ process.add_event('recycle_on', 'flow_sheet.output_states.column', 0)
 process.add_event('recycle_off', 'flow_sheet.output_states.column', 1)
 
 process.add_event_dependency('feed_on', ['inject_off'])
-process.add_event_dependency('feed_off', ['feed_on', 'feed_duration'], [1,1])
+process.add_event_dependency('feed_off', ['feed_on', 'feed_duration'], [1, 1])
 process.add_event_dependency(
     'inject_off', ['inject_on', 'feed_duration', 'recycle_off', 'recycle_on'],
-    [1,1,1,-1]
+    [1, 1, 1, -1]
 )
 
 # Set process times
@@ -102,13 +102,12 @@ if __name__ == '__main__':
     process_simulator.evaluate_stationarity = True
 
     simulation_results = process_simulator.simulate(process)
-    
+
     from CADETProcess.fractionation import FractionationOptimizer
     purity_required = [0.95, 0.95]
     fractionation_optimization = FractionationOptimizer(purity_required)
     
     fractionation = fractionation_optimization.optimize_fractionation(
-        simulation_results.chromatograms,
-        process.process_meta,
+        simulation_results
     )
     print(fractionation.performance)
