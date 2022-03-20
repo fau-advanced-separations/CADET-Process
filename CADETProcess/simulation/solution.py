@@ -33,11 +33,16 @@ from CADETProcess.processModel import ComponentSystem
 from CADETProcess import plotting
 
 
-class BaseSolution(metaclass=StructMeta):
+class SolutionBase(metaclass=StructMeta):
     time = Vector()
     solution = DependentlySizedNdArray(dep='solution_shape')
 
     _coordinates = []
+
+    def __init__(self, component_system, time, solution):
+        self.component_system = component_system
+        self.time = time
+        self.solution = solution
 
     @property
     def component_system(self):
@@ -86,7 +91,7 @@ class BaseSolution(metaclass=StructMeta):
             self.solution[..., comp] = fun(self.solution[..., comp])
 
 
-class SolutionIO(BaseSolution):
+class SolutionIO(SolutionBase):
     """Solution at unit inlet or outlet.
 
     IO: NCOL * NRAD
@@ -150,7 +155,7 @@ class SolutionIO(BaseSolution):
         return ax
 
 
-class SolutionBulk(BaseSolution):
+class SolutionBulk(SolutionBase):
     """Interstitial solution.
 
     Bulk/Interstitial: NCOL * NRAD * NCOMP
@@ -274,7 +279,7 @@ class SolutionBulk(BaseSolution):
         return ax
 
 
-class SolutionParticle(BaseSolution):
+class SolutionParticle(SolutionBase):
     """Mobile phase solution inside the particles.
 
     Particle_liquid: NCOL * NRAD * sum_{j}^{NPARTYPE}{NCOMP * NPAR,j}
@@ -400,7 +405,7 @@ class SolutionParticle(BaseSolution):
         return ax
 
 
-class SolutionSolid(BaseSolution):
+class SolutionSolid(SolutionBase):
     """Solid phase solution inside the particles.
 
     Particle_solid: NCOL * NRAD * sum_{j}^{NPARTYPE}{NBOUND,j * NPAR,j}
@@ -537,7 +542,7 @@ class SolutionSolid(BaseSolution):
         return ax
 
 
-class SolutionVolume(BaseSolution):
+class SolutionVolume(SolutionBase):
     """Volume solution (of e.g. CSTR)."""
 
     def __init__(self, component_system, time, solution):
