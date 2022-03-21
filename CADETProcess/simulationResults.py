@@ -92,8 +92,8 @@ class SimulationResults(metaclass=StructMeta):
         self.chromatograms = new_results.chromatograms
         for unit, solutions in self.solution_cycles.items():
             for sol in solutions:
-                solution = new_results.solution[unit][sol]
-                self.solution_cycles[unit][sol].append(solution)
+                solution = new_results.solution_cycles[unit][sol]
+                self.solution_cycles[unit][sol] += solution
 
     @property
     def solution(self):

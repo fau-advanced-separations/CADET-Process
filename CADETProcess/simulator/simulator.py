@@ -6,7 +6,7 @@ from CADETProcess.log import get_logger, log_time, log_results, log_exceptions
 from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import Bool, UnsignedFloat, UnsignedInteger
 from CADETProcess.processModel import Process
-from CADETProcess.stationarity import StationarityEvaluator
+from CADETProcess.stationarity import StationarityEvaluator, RelativeArea, SSE
 
 
 class SimulatorBase(metaclass=StructMeta):
@@ -44,7 +44,7 @@ class SimulatorBase(metaclass=StructMeta):
 
     n_cycles = UnsignedInteger(default=1)
     evaluate_stationarity = Bool(default=False)
-    n_cycles_min = UnsignedInteger(default=3)
+    n_cycles_min = UnsignedInteger(default=5)
     n_cycles_max = UnsignedInteger(default=100)
 
     def __init__(self, stationarity_evaluator=None):
@@ -52,6 +52,8 @@ class SimulatorBase(metaclass=StructMeta):
 
         if stationarity_evaluator is None:
             self.stationarity_evaluator = StationarityEvaluator()
+            self.stationarity_evaluator.add_criterion(RelativeArea())
+            self.stationarity_evaluator.add_criterion(SSE())
         else:
             self.stationarity_evaluator = stationarity_evaluator
             self.evaluate_stationarity = True
@@ -261,39 +263,39 @@ class SimulatorBase(metaclass=StructMeta):
         if not isinstance(process, Process):
             raise TypeError('Expected Process')
 
-        if previous_results is not None:
-            self.set_state_from_results(process, previous_results)
-
         n_cyc_orig = self.n_cycles
-
-        # Simulate minimum number of cycles
         self.n_cycles = self.n_cycles_min
-        results = self.run(process, **kwargs)
 
-        # Simulate individual cycles until stationarity is reached.
-        n_cyc = self.n_cycles
-        self.n_cycles = 1
+        if previous_results is not None:
+            n_cyc = previous_results.n_cycles
+        else:
+            n_cyc = 0
+
         while True:
-            n_cyc += 1
-            self.set_state_from_results(process, results)
+            n_cyc += self.n_cycles_min
 
-            results_cycle = self.run(process, **kwargs)
+            if previous_results is not None:
+                self.set_state_from_results(process, previous_results)
+
+            results = self.run(process, **kwargs)
+
+            if previous_results is None:
+                previous_results = results
+            else:
+                previous_results.update(results)
+
+            if n_cyc == 1:
+                continue
+
+            stationarity = self.stationarity_evaluator.assert_stationarity(
+                previous_results
+            )
+
+            if stationarity:
+                break
 
             if n_cyc >= self.n_cycles_max:
                 self.logger.warning("Exceeded maximum number of cycles")
-                break
-
-            stationarity = False
-            for chrom_old, chrom_new in zip(
-                results.chromatograms, results_cycle.chromatograms
-            ):
-                stationarity = self.stationarity_evaluator.assert_stationarity(
-                    chrom_old, chrom_new
-                )
-
-            results.update(results_cycle)
-
-            if stationarity:
                 break
 
         self.n_cycles = n_cyc_orig

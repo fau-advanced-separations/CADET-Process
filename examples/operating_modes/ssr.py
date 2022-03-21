@@ -100,6 +100,8 @@ if __name__ == '__main__':
     from CADETProcess.simulator import Cadet
     process_simulator = Cadet()
     process_simulator.evaluate_stationarity = True
+    process_simulator.n_cycles_min = 10
+    process_simulator.n_cycles_max = 100
 
     simulation_results = process_simulator.simulate(process)
 
