@@ -81,10 +81,10 @@ process.cycle_time = 100
 
 After simulation, the results can be plotted:
 ```{code-cell} ipython3
-from CADETProcess.simulation import Cadet
+from CADETProcess.simulator import Cadet
 simulator = Cadet()
 sim_results = simulator.run(process)
-sim_results.solution.reactor.outlet.plot()
+_ = sim_results.solution.reactor.outlet.plot()
 ```
 
 
@@ -110,7 +110,7 @@ reactor.bulk_reaction_model = reaction_system
 After simulation, the results can be plotted:
 ```{code-cell} ipython3
 sim_results = simulator.run(process)
-sim_results.solution.reactor.outlet.plot()
+_ = sim_results.solution.reactor.outlet.plot()
 ```
 
 ## Cross Phase Reactions

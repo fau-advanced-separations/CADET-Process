@@ -16,9 +16,9 @@ from CADETProcess.dataStructure import (
     Bool, Switch, UnsignedFloat, UnsignedInteger,
 )
 
-from .solver import SolverBase
-from .solver import SimulationResults
-from .solution import (
+from .simulator import SimulatorBase
+from CADETProcess import SimulationResults
+from CADETProcess.solution import (
     SolutionIO, SolutionBulk, SolutionParticle, SolutionSolid, SolutionVolume
 )
 from CADETProcess.processModel import NoBinding, BindingBaseClass
@@ -30,7 +30,7 @@ from CADETProcess.processModel import (
 from CADETProcess.processModel import Process
 
 
-class Cadet(SolverBase):
+class Cadet(SimulatorBase):
     """CADET class for running a simulation for given process objects.
 
     Attributes
@@ -398,7 +398,7 @@ class Cadet(SolverBase):
                         sol_inlet = unit_solution.solution_inlet[start:end, :]
                         solution[unit.name]['inlet'].append(
                             SolutionIO(
-                                f'{unit.name}/inlet',
+                                unit.name,
                                 unit.component_system, time, sol_inlet,
                                 flow_in
                             )
@@ -409,7 +409,7 @@ class Cadet(SolverBase):
                             unit_solution.solution_outlet[start:end, :]
                         solution[unit.name]['outlet'].append(
                             SolutionIO(
-                                f'{unit.name}/outlet',
+                                unit.name,
                                 unit.component_system, time, sol_outlet,
                                 flow_out
                             )
@@ -419,7 +419,7 @@ class Cadet(SolverBase):
                         sol_bulk = unit_solution.solution_bulk[start:end, :]
                         solution[unit.name]['bulk'].append(
                             SolutionBulk(
-                                f'{unit.name}/bulk',
+                                unit.name,
                                 unit.component_system, time, sol_bulk,
                                 **unit_coordinates
                             )
@@ -430,7 +430,7 @@ class Cadet(SolverBase):
                             unit_solution.solution_particle[start:end, :]
                         solution[unit.name]['particle'].append(
                             SolutionParticle(
-                                f'{unit.name}/particle',
+                                unit.name,
                                 unit.component_system, time, sol_particle,
                                 **unit_coordinates,
                                 particle_coordinates=particle_coordinates
@@ -441,7 +441,7 @@ class Cadet(SolverBase):
                         sol_solid = unit_solution.solution_solid[start:end, :]
                         solution[unit.name]['solid'].append(
                             SolutionSolid(
-                                f'{unit.name}/solid',
+                                unit.name,
                                 unit.component_system,
                                 unit.binding_model.n_states,
                                 time, sol_solid,
@@ -455,7 +455,7 @@ class Cadet(SolverBase):
                             unit_solution.solution_volume[start:end, :]
                         solution[unit.name]['volume'].append(
                             SolutionVolume(
-                                f'{unit.name}/volume',
+                                unit.name,
                                 unit.component_system,
                                 time,
                                 sol_volume

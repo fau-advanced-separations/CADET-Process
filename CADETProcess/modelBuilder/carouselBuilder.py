@@ -12,7 +12,7 @@ from CADETProcess.dataStructure import Integer, UnsignedInteger, UnsignedFloat
 from CADETProcess.processModel import UnitBaseClass, FlowSheet, Process
 from CADETProcess.processModel import TubularReactor, Cstr
 
-from CADETProcess.simulation import SolutionBase
+from CADETProcess.solution import SolutionBase
 
 
 class CarouselBuilder(metaclass=StructMeta):

@@ -205,7 +205,7 @@ builder_simple.init_c = 0
 ```{code-cell} ipython3
 :tags: [remove-output]
 
-from CADETProcess.simulation import Cadet
+from CADETProcess.simulator import Cadet
 process_simulator = Cadet()
 
 process = builder_simple.process

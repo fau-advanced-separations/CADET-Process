@@ -253,7 +253,7 @@ To simulate the process, a process simulator needs to be configured.
 If no path is specified, **CADET-Process** will try to autodetect **CADET**.
 
 ```{code-cell} ipython3
-from CADETProcess.simulation import Cadet
+from CADETProcess.simulator import Cadet
 process_simulator = Cadet()
 ```
 If a specific version of **CADET** is to be used, add the install path to the constructor:

@@ -49,7 +49,7 @@ First, the `CADET` is configured as usual.
 To also allow for cycle-to-cycle overlaps, cyclic stationarity is also considered.
 
 ```{code-cell} ipython3
-from CADETProcess.simulation import Cadet
+from CADETProcess.simulator import Cadet
 process_simulator = Cadet()
 process_simulator.evaluate_stationarity = True
 ```
@@ -62,7 +62,7 @@ Moreover, the minimum required purity is set to $95~\%$ for both components.
 
 ```{code-cell} ipython3
 from CADETProcess.fractionation import FractionationOptimizer
-from CADETProcess.common import RankedPerformance
+from CADETProcess.performance import RankedPerformance
 
 purity_required = [0.95, 0.95]
 ranking = [1, 1]

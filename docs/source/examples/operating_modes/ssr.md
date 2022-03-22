@@ -112,7 +112,7 @@ process.recycle_on.time = 360
 process.recycle_off.time = 420
 
 if __name__ == '__main__':
-    from CADETProcess.simulation import Cadet
+    from CADETProcess.simulator import Cadet
     process_simulator = Cadet()
     process_simulator.evaluate_stationarity = True
 

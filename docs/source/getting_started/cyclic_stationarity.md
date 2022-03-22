@@ -37,7 +37,7 @@ A first strategy is to simulate multiple cycles at once.
 For this purpose, we can specify `n_cycles` for the `ProcessSimulator`.
 
 ```{code-cell} ipython3
-from CADETProcess.simulation import Cadet
+from CADETProcess.simulator import Cadet
 process_simulator = Cadet()
 process_simulator.n_cycles = 10
 simulation_results = process_simulator.simulate(process)
@@ -48,7 +48,7 @@ However, it is hard to anticipate, when steady state is reached.
 To automatically simulate until stationarity is reached, a `StationarityEvaluator` needs to be configured.
 
 ```{code-cell} ipython3
-from CADETProcess.simulation import StationarityEvaluator
+from CADETProcess.stationarity import StationarityEvaluator
 
 evaluator = StationarityEvaluator()
 ```
@@ -74,7 +74,7 @@ simulation_results = process_simulator.simulate(process)
 _ = simulation_results.solution.column.outlet.plot()
 ```
 
-Here, it ran for 27 cycles.
+Here, it ran for 20 cycles.
 
 It is possible to access the solution of any of the cycles.
 For the last cycle, use the index `-1`.

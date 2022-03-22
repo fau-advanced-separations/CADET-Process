@@ -7,7 +7,7 @@ from CADETProcess.processModel import Source, Sink, LumpedRateModelWithoutPores
 
 from CADETProcess.modelBuilder import CarouselBuilder, SerialZone, ParallelZone
 
-from CADETProcess.simulation import Cadet
+from CADETProcess.simulator import Cadet
 
 
 class Test_Carousel(unittest.TestCase):

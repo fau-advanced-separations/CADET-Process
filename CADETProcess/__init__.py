@@ -15,16 +15,20 @@ __version__ = '0.5.2'
 # Imports
 from .CADETProcessError import *
 
+from . import settings
 from . import log
 from . import dataStructure
 from . import plotting
-from . import common
 from . import dynamicEvents
 from . import processModel
-from . import modelBuilder
-from . import simulation
-from . import fractionation
+from . import solution
+from .simulationResults import SimulationResults
+from . import performance
+from . import stationarity
+from . import simulator
 from . import optimization
+from . import fractionation
 from . import evaluator
 from . import equilibria
+from . import modelBuilder
 

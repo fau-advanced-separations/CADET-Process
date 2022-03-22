@@ -3,7 +3,7 @@ from scipy.integrate import simps
 
 from CADETProcess import log
 from CADETProcess.dataStructure import StructMeta, Bool, UnsignedFloat
-from CADETProcess.simulation.solution import SolutionIO
+from CADETProcess.solution import SolutionIO
 
 
 class StationarityEvaluator(metaclass=StructMeta):

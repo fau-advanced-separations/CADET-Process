@@ -10,7 +10,7 @@ from pymoo.factory import get_reference_directions
 from pymoo.util.termination.default import MultiObjectiveDefaultTermination
 from pymoo.core.repair import Repair
 
-from CADETProcess.common import settings
+from CADETProcess import settings
 from CADETProcess.dataStructure import UnsignedInteger, UnsignedFloat
 from CADETProcess.optimization import SolverBase, OptimizationResults
 

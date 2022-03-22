@@ -2,7 +2,7 @@ from abc import abstractmethod
 import json
 import os
 
-from CADETProcess.common import settings
+from CADETProcess import settings
 from CADETProcess.log import get_logger, log_time, log_results, log_exceptions
 from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import (

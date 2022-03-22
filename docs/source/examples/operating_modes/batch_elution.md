@@ -87,7 +87,7 @@ process.cycle_time = 600
 process.feed_duration.time = 60
 
 if __name__ == '__main__':
-    from CADETProcess.simulation import Cadet
+    from CADETProcess.simulator import Cadet
     process_simulator = Cadet()
     simulation_results = process_simulator.simulate(process)
     _ = simulation_results.solution.column.outlet.plot()

@@ -2,10 +2,10 @@ from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import StructMeta
 
 from CADETProcess.processModel import Process
-from CADETProcess.simulation import SolverBase
+from CADETProcess.simulator import SimulatorBase
 from CADETProcess.fractionation import FractionationOptimizer
 
-from CADETProcess.common import get_bad_performance
+from CADETProcess.performance import get_bad_performance
 
 
 class SimulateAndFractionate(metaclass=StructMeta):
@@ -25,19 +25,20 @@ class SimulateAndFractionate(metaclass=StructMeta):
     simulation.SolverBase
     fractionation.FractionationOptimizer
     """
-    def __init__(self, process_solver, fractionation_optimizer):
-        self.process_solver = process_solver
+
+    def __init__(self, process_simulator, fractionation_optimizer):
+        self.process_simulator = process_simulator
         self.fractionation_optimizer = fractionation_optimizer
 
     @property
-    def process_solver(self):
-        return self._process_solver
+    def process_simulator(self):
+        return self._process_simulator
 
-    @process_solver.setter
-    def process_solver(self, process_solver):
-        if not isinstance(process_solver, SolverBase):
-            raise TypeError('Expected SolverBase')
-        self._process_solver = process_solver
+    @process_simulator.setter
+    def process_simulator(self, process_simulator):
+        if not isinstance(process_simulator, SimulatorBase):
+            raise TypeError('Expected SimulatorBase')
+        self._process_solver = process_simulator
 
     @property
     def fractionation_optimizer(self):
@@ -62,9 +63,9 @@ class SimulateAndFractionate(metaclass=StructMeta):
         frac : Fractionator
             Fractionator object with optimized fractionation times.
         """
-        results = self.process_solver.simulate(process)
+        simulation_results = self.process_simulator.simulate(process)
         frac = self.fractionation_optimizer.optimize_fractionation(
-            results.chromatograms, process.process_meta
+            simulation_results
         )
         return frac
 

@@ -61,6 +61,16 @@ class LRMDiscretizationFV(DiscretizationParametersBase):
         'ncol', 'use_analytic_jacobian', 'reconstruction',
     ]
     _dimensionality = ['ncol']
+    
+class LRMDiscretizationDG(DiscretizationParametersBase):
+    ncol = UnsignedInteger(default=100)
+    use_analytic_jacobian = Bool(default=True)
+    reconstruction = Switch(default='WENO', valid=['WENO'])
+
+    _parameters = DiscretizationParametersBase._parameters + [
+        'ncol', 'use_analytic_jacobian', 'reconstruction',
+    ]
+    _dimensionality = ['ncol']
 
 
 class LRMPDiscretizationFV(DiscretizationParametersBase):

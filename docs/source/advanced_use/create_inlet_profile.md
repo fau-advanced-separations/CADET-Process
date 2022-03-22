@@ -37,7 +37,7 @@ batch_binary.add_inlet_profile(feed, time, c)
 batch_binary.cycle_time *= 3
 
 if __name__ == '__main__':
-    from CADETProcess.simulation import Cadet
+    from CADETProcess.simulator import Cadet
     process_simulator = Cadet()
 
     batch_binary_sim_results = process_simulator.simulate(batch_binary)

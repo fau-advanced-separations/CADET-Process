@@ -3,7 +3,7 @@ import warnings
 
 from CADETProcess import CADETProcessError
 
-from CADETProcess.simulation import SimulationResults
+from CADETProcess import SimulationResults
 from CADETProcess.fractionation import Fractionator
 from CADETProcess.optimization import SolverBase, OptimizationProblem
 from CADETProcess.optimization import COBYLA, TrustConstr

@@ -175,7 +175,7 @@ class Test_CompartmentBuilder(unittest.TestCase):
 
         self.builder_complex.add_tracer(4, [1, 1], 10, 0.1)
 
-        from CADETProcess.simulation import Cadet
+        from CADETProcess.simulator import Cadet
         process_simulator = Cadet()
 
         proc_results = process_simulator.simulate(self.builder_complex.process)

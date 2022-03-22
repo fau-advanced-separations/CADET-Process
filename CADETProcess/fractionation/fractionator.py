@@ -5,12 +5,12 @@ from addict import Dict
 import numpy as np
 
 from CADETProcess import CADETProcessError
-from CADETProcess.common import settings
+from CADETProcess import settings
 from CADETProcess.dataStructure import String
 from CADETProcess.dynamicEvents import EventHandler
 from CADETProcess import plotting
-from CADETProcess.common import Performance
-from CADETProcess.simulation import SimulationResults
+from CADETProcess.performance import Performance
+from CADETProcess import SimulationResults
 
 from CADETProcess.fractionation.fractions import Fraction, FractionPool
 
@@ -423,7 +423,7 @@ class Fractionator(EventHandler):
             chromatogram = self.chromatograms[0]
         elif isinstance(chromatogram, str):
             try:
-                chromatogram = self.chromatograms_dict[f"{chromatogram}/outlet"]
+                chromatogram = self.chromatograms_dict[f"{chromatogram}"]
             except KeyError:
                 raise CADETProcessError("Could not find chromatogram.")
         else:

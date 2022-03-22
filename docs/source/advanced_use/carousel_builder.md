@@ -173,7 +173,7 @@ Because this simulation is computationally expensive, only a few simulations are
 Please run this simulation locally to see the full results.
 
 ```{code-cell} ipython3
-from CADETProcess.simulation import Cadet
+from CADETProcess.simulator import Cadet
 
 process_simulator = Cadet()
 # process_simulator.evaluate_stationarity = True
@@ -186,8 +186,8 @@ The results can now be plotted.
 For example, this is how the concentration profiles of the raffinate and extract outlets are plotted:
 
 ```{code-cell} ipython3
-simulation_results.solution.raffinate.inlet.plot()
-simulation_results.solution.extract.inlet.plot()
+_ = simulation_results.solution.raffinate.inlet.plot()
+_ = simulation_results.solution.extract.inlet.plot()
 ```
 
 It is important to note that for the purpose of simplifying the implementation, each `Zone` internally has an inlet and an outlet which are modelled using a `Cstr` with a very small volume.
@@ -196,7 +196,7 @@ These units get a `_inlet` and `_outlet` suffix.
 For example, this is the concentration of the inlet of zone III:
 
 ```{code-cell} ipython3
-simulation_results.solution.zone_III_inlet.outlet.plot()
+_ = simulation_results.solution.zone_III_inlet.outlet.plot()
 ```
 
 ## Carousel System

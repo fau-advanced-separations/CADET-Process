@@ -103,7 +103,7 @@ from CADETProcess import equilibria
 pH = 7
 print(equilibria.charge_distribution(reaction_system, pH))
 ```
-Since $\ce{NH4^+} is the first component, this shows that at $pH = 7$, most of the ammonia is positively charged. 
+Since $\ce{NH4^+}$ is the first component, this shows that at $pH = 7$, most of the ammonia is positively charged. 
 
 **CADET-Process** also provides a method to plot the charge distribution as a function of $pH$,
 

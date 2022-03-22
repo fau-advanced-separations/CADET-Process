@@ -6,7 +6,7 @@ from CADETProcess.processModel import Source, Sink
 from CADETProcess.processModel import Cstr, LumpedRateModelWithoutPores
 from CADETProcess.processModel import FlowSheet
 from CADETProcess.processModel import Process
-from CADETProcess.simulation import Cadet
+from CADETProcess.simulator import Cadet
 
 
 def simulate_solid_equilibria(

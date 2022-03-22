@@ -102,7 +102,7 @@ flow_sheet.add_chromatogram_sink('outlet')
 ```{code-cell} ipython3
 :tags: [hide-cell]
 
-from CADETProcess.simulation import Cadet
+from CADETProcess.simulator import Cadet
 process_simulator = Cadet()
 simulation_results = process_simulator.simulate(process)
 ```

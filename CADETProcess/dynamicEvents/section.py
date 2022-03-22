@@ -66,7 +66,7 @@ class Section(metaclass=StructMeta):
         for iEntry in range(self.n_entries):
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                
+
                 poly_der = self._poly[iEntry].deriv(1)
                 self._poly_der.append(poly_der)
 

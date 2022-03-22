@@ -4,7 +4,7 @@ from functools import wraps
 import os
 import logging
 
-from CADETProcess.common import settings
+from CADETProcess import settings
 
 LOG_FORMAT = logging.Formatter(
     '%(asctime)s:%(levelname)s:%(name)s:%(message)s'

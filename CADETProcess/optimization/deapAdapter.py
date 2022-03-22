@@ -7,7 +7,7 @@ import multiprocessing
 import numpy as np
 from deap import algorithms, base, creator, tools
 
-from CADETProcess.common import settings
+from CADETProcess import settings
 from CADETProcess.dataStructure import UnsignedInteger, UnsignedFloat
 from CADETProcess.optimization import SolverBase, OptimizationResults
 

@@ -4,7 +4,7 @@
 ```{eval-rst}
 .. currentmodule:: CADETProcess
 
-.. autoclass:: CADETProcess.simulation.SolverBase
-.. autoclass:: CADETProcess.simulation.Cadet
+.. autoclass:: CADETProcess.simulator.SimulatorBase
+.. autoclass:: CADETProcess.simulator.Cadet
 ```
 
