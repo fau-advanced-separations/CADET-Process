@@ -22,9 +22,11 @@ from . import plotting
 from . import dynamicEvents
 from . import processModel
 from . import solution
+from . import reference
 from .simulationResults import SimulationResults
 from . import metric
 from . import performance
+from . import comparison
 from . import stationarity
 from . import simulator
 from . import optimization

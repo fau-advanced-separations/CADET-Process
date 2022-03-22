@@ -10,3 +10,4 @@ addict
 deap
 hopsy
 pymoo
+numba
