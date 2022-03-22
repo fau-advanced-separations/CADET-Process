@@ -43,7 +43,7 @@ First, the definition of the compartment model and the connectivity is introduce
 ### Example 1
 Consider a simple example with five compartments.
 
-```{figure} ../_static/operating_modes/compartment_simple.svg
+```{figure} ./figures/compartment_simple.svg
 :name: compartment_simple
 
 Simple compartment model.

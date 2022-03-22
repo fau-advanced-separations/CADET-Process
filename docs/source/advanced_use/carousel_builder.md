@@ -58,7 +58,7 @@ Here are some of the features:
 ## SMB Process
 To demonstrate the tool, consider a standard SMB process.
 
-```{figure} ../_static/operating_modes/smb_flow_sheet.svg
+```{figure} ./figures/smb_flow_sheet.svg
 :name: smb_system
 
 Standard SMB system
@@ -202,7 +202,7 @@ simulation_results.solution.zone_III_inlet.outlet.plot()
 ## Carousel System
 Here, another multi column system is considered.
 
-```{figure} ../_static/operating_modes/carousel_flow_sheet.svg
+```{figure} ./figures/carousel_flow_sheet.svg
 :name: carousel_zones
 
 Carousel system with 4 zones.

@@ -21,7 +21,7 @@ class StationarityEvaluator(metaclass=StructMeta):
     max_concentration_deviation = UnsignedFloat(default=0.1)
 
     check_area = Bool(default=True)
-    max_area_deviation = UnsignedFloat(default=0.1)
+    max_area_deviation = UnsignedFloat(default=1)
 
     check_height = Bool(default=True)
     max_height_deviation = UnsignedFloat(default=0.1)
