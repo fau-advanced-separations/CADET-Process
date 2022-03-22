@@ -89,7 +89,7 @@ builder_simple = CompartmentBuilder(
 ### Example 2
 In this example, consider a constant flow through the system.
 
-```{figure} ../_static/operating_modes/compartment_complex.jpg
+```{figure} ./figures/compartment_complex.jpg
 :name: compartment_complex
 
 Bioreactor compartment model from {cite:t}`Tobo2020`.
