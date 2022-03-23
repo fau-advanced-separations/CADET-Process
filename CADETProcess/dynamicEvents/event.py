@@ -507,7 +507,7 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
                 raise CADETProcessError('Not a valid event')
             if evt not in self.independent_events + self.durations:
                 raise CADETProcessError(
-                    '{} is not a valid event'.format(str(evt))
+                    f'{str(evt)} is not a valid event'
                 )
 
             evt.parameters = evt_parameters
@@ -821,7 +821,7 @@ class Event():
                 )
             self.event_handler.parameters = parameters
         except (TypeError, ValueError) as e:
-            raise CADETProcessError('{}'.format(str(e)))
+            raise CADETProcessError(str(e))
 
         state = get_nested_value(
                 self.event_handler.parameters, self.parameter_path
@@ -863,9 +863,12 @@ class Event():
                 setattr(self, param, value)
 
     def __repr__(self):
-        return '{}(name={}, parameter_path={}, state={}, time={}'.format(
-                self.__class__.__name__, self.name, self.parameter_path,
-                self.state, self.time)
+        return \
+            f'{self.__class__.__name__}( '\
+            f'name={self.name}, '\
+            f'parameter_path={self.parameter_path}, '\
+            f'state={self.state}, '\
+            f'time={self.time})'
 
 
 class Duration():
@@ -910,4 +913,4 @@ class Duration():
                 setattr(self, param, value)
 
     def __repr__(self):
-        return f'{self.__class__.__name__}(name={self.name}, time={self.time}'
+        return f'{self.__class__.__name__}(name={self.name}, time={self.time})'

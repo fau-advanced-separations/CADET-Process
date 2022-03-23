@@ -90,7 +90,7 @@ def frozen_attributes(cls):
     def frozensetattr(self, key, value):
         if self._is_frozen and not hasattr(self, key):
             raise AttributeError(
-                "{} object has no attribute {}".format(cls.__name__, key)
+                f"{cls.__name__} object has no attribute {key}"
             )
         else:
             object.__setattr__(self, key, value)

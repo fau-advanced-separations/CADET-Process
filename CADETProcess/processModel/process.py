@@ -79,7 +79,7 @@ class Process(EventHandler):
         feed_all = np.zeros((self.n_comp,))
         for feed in self.flow_sheet.feed_sources:
             feed_flow_rate_time_line = flow_rate_timelines[feed.name].total_out
-            feed_signal_param = 'flow_sheet.{}.c'.format(feed.name)
+            feed_signal_param = f'flow_sheet.{feed.name}.c'
             if feed_signal_param in self.parameter_timelines:
                 tl = self.parameter_timelines[feed_signal_param]
                 feed_signal_time_line = tl

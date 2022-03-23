@@ -70,7 +70,7 @@ class ParameterWrapper(ParametersGroup):
 
     def __init__(self, wrapped_object):
         if not isinstance(wrapped_object, self._baseClass):
-            raise CADETProcessError("Expected {}".format(self._baseClass))
+            raise CADETProcessError(f"Expected {self._baseClass}")
 
         model = wrapped_object.model
         try:

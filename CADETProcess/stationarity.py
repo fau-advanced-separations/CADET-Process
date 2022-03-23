@@ -85,6 +85,6 @@ class StationarityEvaluator(Comparator):
                 stationarity = False
             criteria[str(crit)] = r
 
-        self.logger.debug('Stationrity criteria: {}'.format(criteria))
+        self.logger.debug(f'Stationrity criteria: {criteria}')
 
         return stationarity

@@ -260,12 +260,11 @@ class Cadet(SimulatorBase):
 
         if return_information.returncode != 0:
             self.logger.error(
-                'Simulation of {} with parameters {} failed.'.format(
-                    process.name, process.config
-                )
+                f'Simulation of {process.name} '
+                f'with parameters {process.config} failed.'
             )
             raise CADETProcessError(
-                'CADET Error: {}'.format(return_information.stderr)
+                f'CADET Error: {return_information.stderr}'
             )
 
         try:
@@ -537,7 +536,7 @@ class Cadet(SimulatorBase):
         for cycle in range(0, self.n_cycles):
             for flow_rates_state in section_states.values():
 
-                switch_index = 'switch' + '_{0:03d}'.format(index)
+                switch_index = f'switch_{index:03d}'
                 model_connections[switch_index].section = index
 
                 connections = self.cadet_connections(
@@ -611,7 +610,7 @@ class Cadet(SimulatorBase):
 
         """
         index = process.flow_sheet.get_unit_index(unit)
-        return 'unit' + '_{0:03d}'.format(index)
+        return f'unit_{index:03d}'
 
     def get_model_units(self, process):
         """Config branches for all units /input/model/unit_000 ... unit_xxx.
@@ -730,8 +729,8 @@ class Cadet(SimulatorBase):
                 section_index += 1
 
     def add_inlet_section(self, model_units, sec_index, unit_index, coeffs):
-        unit_index = 'unit' + '_{0:03d}'.format(unit_index)
-        section_index = 'sec' + '_{0:03d}'.format(sec_index)
+        unit_index = f'unit_{unit_index:03d}'
+        section_index = f'sec_{sec_index:03d}'
 
         model_units[unit_index][section_index]['const_coeff'] = coeffs[:, 0]
         model_units[unit_index][section_index]['lin_coeff'] = coeffs[:, 1]
@@ -742,7 +741,7 @@ class Cadet(SimulatorBase):
             self, model_units, sec_index, unit_index, unit_model,
             parameter, state):
         """Add section value to parameter branch."""
-        unit_index = 'unit' + '_{0:03d}'.format(unit_index)
+        unit_index = f'unit_{unit_index:03d}'
         parameter_name = \
             inv_unit_parameters_map[unit_model]['parameters'][parameter]
 

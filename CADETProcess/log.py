@@ -55,8 +55,7 @@ def log_time(logger_name, level=None):
             result = function(*args, **kwargs)
             elapsed = time.time() - start
             logger = get_logger(logger_name, level=None)
-            logger.info('Execution of {} took {} s'.format(
-                    str(function), elapsed))
+            logger.info(f'Execution of {str(function)} took {elapsed} s')
             return result
         return wrapper
     return log_time_decorator
@@ -105,7 +104,7 @@ def log_results(logger_name, level=None):
             logger.info('{} was called with {}, {}'.format(
                     function, *args, **kwargs))
             results = function(*args, **kwargs)
-            logger.info('Results: {}'.format(results))
+            logger.info(f'Results: {results}')
 
             return results
         return wrapper

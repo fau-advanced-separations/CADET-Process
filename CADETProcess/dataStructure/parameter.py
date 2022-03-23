@@ -101,7 +101,7 @@ class Typed(Parameter):
 
     def _check(self, value, recursive=False):
         if not isinstance(value, self.ty):
-            raise TypeError("Expected {}".format(self.ty))
+            raise TypeError(f"Expected {self.ty}")
 
         if recursive:
             return super()._check(value, recursive)
@@ -188,7 +188,7 @@ class List(Container):
         expected_length = np.prod(shape)
 
         if len(value) != expected_length:
-            raise ValueError("Expected size {}".format(expected_length))
+            raise ValueError(f"Expected size {expected_length}")
 
     def get_default_values(self, instance):
         if super().default is None:
@@ -261,7 +261,7 @@ class NdArray(Container):
         expected_shape = self.get_expected_shape(instance)
 
         if value.shape != expected_shape:
-            raise ValueError("Expected shape {}".format(expected_shape))
+            raise ValueError(f"Expected shape {expected_shape}")
 
     def get_default_values(self, instance):
         expected_shape = self.get_expected_shape(instance)
@@ -289,7 +289,7 @@ class Dimensionalized(Parameter):
             return
 
         if self.n_dim != value.ndim:
-            raise ValueError("Expected dimensions {}".format(self.n_dim))
+            raise ValueError("fExpected dimensions {self.n_dim}")
         super().__set__(instance, value)
 
 
@@ -408,7 +408,7 @@ class DependentlySized(Parameter):
         else:
             size = getattr(instance, self.dep)
             if len(value) != size:
-                raise ValueError("Expected size {}".format(size))
+                raise ValueError(f"Expected size {size}")
 
         super().__set__(instance, value)
 
@@ -571,7 +571,7 @@ class Switch(Parameter):
 
     def _check(self, value, recursive=False):
         if value not in self.valid:
-            raise ValueError("Value has to be in {}".format(self.valid))
+            raise ValueError(f"Value has to be in {self.valid}")
 
         if recursive:
             return super()._check(value, recursive)
