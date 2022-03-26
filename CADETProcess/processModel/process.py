@@ -28,11 +28,6 @@ class Process(EventHandler):
         State of the process object
     system_state_derivate : ndarray
         Derivative of the state
-    time_resolution : float
-        Time interval for user solution times. Default is 1 s.
-    resolution_cutoff : float
-        To avoid IDAS errors, user solution times are removed if they are
-        closer than the cutoff value. Default is 1e-3 s.
 
     See also
     --------
@@ -42,10 +37,6 @@ class Process(EventHandler):
     CADETProcess.simulation.Solver
     """
     _initial_states = ['system_state', 'system_state_derivative']
-    _n_cycles = UnsignedInteger(default=1)
-
-    time_resolution = UnsignedFloat(default=1)
-    resolution_cutoff = UnsignedFloat(default=1e-1)
 
     def __init__(self, flow_sheet, name, *args, **kwargs):
         self.flow_sheet = flow_sheet
@@ -233,68 +224,6 @@ class Process(EventHandler):
                             = tl.coefficients(sec_time)[0]
 
         return Dict(section_states)
-
-    @property
-    def time(self):
-        """np.array: Time vector for one cycle.
-
-        Remove from Process; Check also EventHandler.plot_events()
-
-        See Also
-        --------
-        cycle_time
-        _time_complete
-
-        """
-        solution_times = np.arange(0, self.cycle_time, self.time_resolution)
-        solution_times = np.append(solution_times, self.section_times)
-        solution_times = np.sort(solution_times)
-        solution_times = np.unique(solution_times)
-
-        diff = np.where(np.diff(solution_times) < self.resolution_cutoff)[0]
-        indices = []
-        for d in diff:
-            if solution_times[d] in self.section_times:
-                indices.append(d+1)
-            else:
-                indices.append(d)
-
-        solution_times = np.delete(solution_times, indices)
-
-        return solution_times
-
-    @property
-    def _time_complete(self):
-        """np.array: time vector for mulitple cycles of a process.
-
-        See Also
-        --------
-        time
-        _n_cycles
-
-        """
-        time = self.time
-        solution_times = np.array([])
-        for i in range(self._n_cycles):
-            solution_times = np.append(
-                solution_times, (i)*self.cycle_time + time
-            )
-
-        solution_times = np.unique(solution_times)
-
-        return solution_times
-
-    @property
-    def _section_times_complete(self):
-        section_times_complete = [
-            cycle*self.cycle_time + evt
-            for cycle in range(self._n_cycles)
-            for evt in self.section_times[0:-1]
-        ]
-        section_times_complete.append(
-            self._n_cycles * self.cycle_time
-        )
-        return section_times_complete
 
     @property
     def system_state(self):

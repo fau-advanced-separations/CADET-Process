@@ -367,7 +367,7 @@ class Cadet(SimulatorBase):
         """
         if time_elapsed is None:
             time_elapsed = cadet.root.meta.time_sim
-        time = process.time
+        time = self.get_solution_time(process)
         if return_information is None:
             exit_flag = None
             exit_message = None
@@ -390,9 +390,9 @@ class Cadet(SimulatorBase):
                 flow_in = process.flow_rate_timelines[unit.name].total_in
                 flow_out = process.flow_rate_timelines[unit.name].total_out
 
-                for cycle in range(process._n_cycles):
-                    start = cycle * (len(process.time) - 1)
-                    end = (cycle + 1) * (len(process.time) - 1) + 1
+                for cycle in range(self.n_cycles):
+                    start = cycle * (len(time) - 1)
+                    end = (cycle + 1) * (len(time) - 1) + 1
 
                     if 'solution_inlet' in unit_solution.keys():
                         sol_inlet = unit_solution.solution_inlet[start:end, :]
@@ -534,7 +534,7 @@ class Cadet(SimulatorBase):
 
         section_states = process.flow_rate_section_states
 
-        for cycle in range(0, process._n_cycles):
+        for cycle in range(0, self.n_cycles):
             for flow_rates_state in section_states.values():
 
                 switch_index = 'switch' + '_{0:03d}'.format(index)
@@ -698,7 +698,7 @@ class Cadet(SimulatorBase):
         section_states = process.section_states.values()
 
         section_index = 0
-        for cycle in range(0, process._n_cycles):
+        for cycle in range(0, self.n_cycles):
             for param_states in section_states:
                 for param, state in param_states.items():
                     param = param.split('.')
@@ -799,7 +799,8 @@ class Cadet(SimulatorBase):
         input_solver = Dict()
 
         input_solver.update(self.solver_parameters.to_dict())
-        input_solver.user_solution_times = process._time_complete
+        input_solver.user_solution_times = \
+            self.get_solution_time_complete(process)
         input_solver.sections = self.get_solver_sections(process)
         input_solver.time_integrator = \
             self.time_integrator_parameters.to_dict()
@@ -810,15 +811,11 @@ class Cadet(SimulatorBase):
         """Config branch /input/solver/sections"""
         solver_sections = Dict()
 
-        solver_sections.nsec = process._n_cycles * process.n_sections
-        solver_sections.section_times = [
-            cycle*process.cycle_time + evt
-            for cycle in range(process._n_cycles)
-            for evt in process.section_times[0:-1]
-        ]
-        solver_sections.section_times.append(
-            process._n_cycles * process.cycle_time
-        )
+        solver_sections.nsec = self.n_cycles * process.n_sections
+
+        solver_sections.section_times = \
+            self.get_section_times_complete(process)
+
         solver_sections.section_continuity = [0] * (solver_sections.nsec - 1)
 
         return solver_sections

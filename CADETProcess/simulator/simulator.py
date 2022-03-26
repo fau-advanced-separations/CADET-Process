@@ -1,9 +1,10 @@
 from abc import abstractmethod
+import numpy as np
 
 from CADETProcess import CADETProcessError
 from CADETProcess.log import get_logger, log_time, log_results, log_exceptions
 from CADETProcess.dataStructure import StructMeta
-from CADETProcess.dataStructure import Bool, UnsignedInteger
+from CADETProcess.dataStructure import Bool, UnsignedFloat, UnsignedInteger
 from CADETProcess.processModel import Process
 from CADETProcess.stationarity import StationarityEvaluator
 
@@ -18,6 +19,11 @@ class SimulatorBase(metaclass=StructMeta):
 
     Attributes
     ----------
+    time_resolution : float
+        Time interval for user solution times. Default is 1 s.
+    resolution_cutoff : float
+        To avoid IDAS errors, user solution times are removed if they are
+        closer to section times than the cutoff value. Default is 1e-3 s.
     n_cycles : int
         Number of cycles to be simulated
     n_cycles_min : int
@@ -33,6 +39,9 @@ class SimulatorBase(metaclass=StructMeta):
     StationarityEvaluator
 
     """
+    time_resolution = UnsignedFloat(default=1)
+    resolution_cutoff = UnsignedFloat(default=1e-3)
+
     n_cycles = UnsignedInteger(default=1)
     evaluate_stationarity = Bool(default=False)
     n_cycles_min = UnsignedInteger(default=3)
@@ -46,6 +55,84 @@ class SimulatorBase(metaclass=StructMeta):
         else:
             self.stationarity_evaluator = stationarity_evaluator
             self.evaluate_stationarity = True
+
+    @property
+    def sig_fig(self):
+        return int(-np.log10(self.resolution_cutoff))
+
+    def get_solution_time(self, process):
+        """np.array: Time vector for one cycle.
+
+        See Also
+        --------
+        Process.section_times
+        get_solution_time_complete
+
+        """
+        solution_times = np.arange(0, process.cycle_time, self.time_resolution)
+        solution_times = np.append(solution_times, process.section_times)
+        solution_times = np.round(solution_times, self.sig_fig)
+        solution_times = np.sort(solution_times)
+        solution_times = np.unique(solution_times)
+
+        diff = np.where(np.diff(solution_times) < self.resolution_cutoff)[0]
+        indices = []
+        for d in diff:
+            if solution_times[d] in process.section_times:
+                indices.append(d+1)
+            else:
+                indices.append(d)
+
+        solution_times = np.delete(solution_times, indices)
+
+        return solution_times
+
+    def get_solution_time_complete(self, process):
+        """np.array: time vector for mulitple cycles of a process.
+
+        See Also
+        --------
+        n_cycles
+        get_section_times_complete
+        get_solution_time
+
+        """
+        time = self.get_solution_time(process)
+        solution_times = np.array([])
+        for i in range(self.n_cycles):
+            solution_times = np.append(
+                solution_times, (i)*process.cycle_time + time
+            )
+
+        solution_times = np.round(solution_times, self.sig_fig)
+        solution_times = np.unique(solution_times)
+
+        return solution_times
+
+    def get_section_times_complete(self, process):
+        """list: Section timesfor multiple cycles of a process.
+
+        Includes 0 and cycle_time if they do not coincide with event time.
+
+        See Also
+        --------
+        n_cycles
+        get_solution_time_complete
+        Process.section_times
+
+        """
+        sections = np.array(process.section_times[0:-1])
+
+        section_times_complete = []
+        for cycle in range(self.n_cycles):
+            cycle_section_times = cycle * process.cycle_time + sections
+            section_times_complete += cycle_section_times.tolist()
+
+        section_times_complete.append(self.n_cycles * process.cycle_time)
+
+        section_times_complete = np.round(section_times_complete, self.sig_fig)
+
+        return section_times_complete.tolist()
 
     def simulate(self, process, previous_results=None, **kwargs):
         """Simulate process.
@@ -127,14 +214,18 @@ class SimulatorBase(metaclass=StructMeta):
         run
 
         """
+        n_cyc_orig = self.n_cycles
+        self.n_cycles = n_cyc
+
         if not isinstance(process, Process):
             raise TypeError('Expected Process')
 
         if previous_results is not None:
             self.set_state_from_results(process, previous_results)
-        process._n_cycles = n_cyc
 
         return self.run(process, **kwargs)
+
+        self.n_cycles = n_cyc_orig
 
     @log_time('Simulation')
     @log_results('Simulation')
@@ -173,13 +264,15 @@ class SimulatorBase(metaclass=StructMeta):
         if previous_results is not None:
             self.set_state_from_results(process, previous_results)
 
-        # Simulate minimum number of cycles
-        n_cyc = self.n_cycles_min
-        process._n_cycles = n_cyc
-        results = self.run(process, **kwargs)
-        process._n_cycles = 1
+        n_cyc_orig = self.n_cycles
 
-        # Simulate until stataionarity is reached.
+        # Simulate minimum number of cycles
+        self.n_cycles = self.n_cycles_min
+        results = self.run(process, **kwargs)
+
+        # Simulate individual cycles until stationarity is reached.
+        n_cyc = self.n_cycles
+        self.n_cycles = 1
         while True:
             n_cyc += 1
             self.set_state_from_results(process, results)
@@ -203,11 +296,14 @@ class SimulatorBase(metaclass=StructMeta):
             if stationarity:
                 break
 
+        self.n_cycles = n_cyc_orig
+
         return results
 
     def set_state_from_results(self, process, results):
         process.system_state = results.system_state['state']
-        process.system_state_derivative = results.system_state['state_derivative']
+        process.system_state_derivative = \
+            results.system_state['state_derivative']
 
         return process
 
