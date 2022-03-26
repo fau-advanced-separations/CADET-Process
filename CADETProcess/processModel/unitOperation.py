@@ -831,7 +831,7 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         Initial volume of the reactor.
     total_porosity : UnsignedFloat between 0 and 1.
         Total porosity of the column.
-    flow_rate_filter: np.Array
+    flow_rate_filter: float:
         Flow rate of pure liquid without components to reduce volume.
 
     """
