@@ -1028,9 +1028,9 @@ adsorption_parameters_map = {
         'name': 'MULTI_COMPONENT_LANGMUIR_LDF',
         'parameters': {
             'IS_KINETIC': 'is_kinetic',
-            'MCLDF_KEQ': 'equilibrium_constant',
-            'MCLDF_KKIN': 'driving_force_coefficient',
-            'MCLDF_QMAX': 'capacity'
+            'MCLLDF_KEQ': 'equilibrium_constant',
+            'MCLLDF_KKIN': 'driving_force_coefficient',
+            'MCLLDF_QMAX': 'capacity'
         },
     },
     'BiLangmuir': {
@@ -1046,9 +1046,9 @@ adsorption_parameters_map = {
         'name': 'MULTI_COMPONENT_BILANGMUIR_LDF',
         'parameters': {
             'IS_KINETIC': 'is_kinetic',
-            'MCBLDF_KEQ': 'equilibrium_constant',
-            'MCBLDF_KKIN': 'driving_force_coefficient',
-            'MCBLDF_QMAX': 'capacity'
+            'MCBLLDF_KEQ': 'equilibrium_constant',
+            'MCBLLDF_KKIN': 'driving_force_coefficient',
+            'MCBLLDF_QMAX': 'capacity'
         },
     },
     'FreundlichLDF': {
