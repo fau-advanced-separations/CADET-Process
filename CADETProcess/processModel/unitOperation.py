@@ -1,3 +1,4 @@
+from abc import abstractproperty
 import math
 
 from CADETProcess import CADETProcessError
@@ -5,8 +6,8 @@ from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import frozen_attributes
 from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import (
+    Constant, UnsignedFloat,
     String, Switch,
-    UnsignedFloat,
     DependentlySizedUnsignedList,
     Polynomial, NdPolynomial, DependentlySizedList
 )
@@ -15,8 +16,9 @@ from .componentSystem import ComponentSystem
 from .binding import BindingBaseClass, NoBinding
 from .reaction import ReactionBaseClass, NoReaction
 from .discretization import (
-    NoDiscretization,
-    LRMDiscretizationFV, LRMPDiscretizationFV, GRMDiscretizationFV
+    DiscretizationParametersBase, NoDiscretization,
+    LRMDiscretizationFV, LRMDiscretizationDG,
+    LRMPDiscretizationFV, GRMDiscretizationFV
 )
 
 
@@ -56,17 +58,18 @@ class UnitBaseClass(metaclass=StructMeta):
 
     supports_bulk_reaction = False
     supports_particle_reaction = False
+    discretization_schemes = ()
 
     def __init__(self, component_system, name):
         self.name = name
         self.component_system = component_system
 
-        self._binding_model = NoBinding()
+        self.binding_model = NoBinding()
 
-        self._bulk_reaction_model = NoReaction()
-        self._particle_reaction_model = NoReaction()
+        self.bulk_reaction_model = NoReaction()
+        self.particle_reaction_model = NoReaction()
 
-        self._discretization = NoDiscretization()
+        self.discretization = NoDiscretization()
 
         self._parameters = {
             param: getattr(self, param)
@@ -86,6 +89,23 @@ class UnitBaseClass(metaclass=StructMeta):
         if not isinstance(component_system, ComponentSystem):
             raise TypeError('Expected ComponentSystem')
         self._component_system = component_system
+
+    @property
+    def discretization(self):
+        return self._discretization
+
+    @discretization.setter
+    def discretization(self, discretization):
+        if not isinstance(discretization, DiscretizationParametersBase):
+            raise TypeError('Expected DiscretizationParametersBase')
+
+        if not isinstance(discretization, NoDiscretization):
+            if not isinstance(discretization, self.discretization_schemes):
+                raise CADETProcessError(
+                    f'Unit does not support {type(discretization)}.'
+                )
+
+        self._discretization = discretization
 
     @property
     def n_comp(self):
@@ -220,12 +240,15 @@ class UnitBaseClass(metaclass=StructMeta):
     def bulk_reaction_model(self, bulk_reaction_model):
         if not isinstance(bulk_reaction_model, ReactionBaseClass):
             raise TypeError('Expected ReactionBaseClass')
-        if not self.supports_bulk_reaction:
-            raise CADETProcessError('Unit does not support bulk reactions.')
 
-        if bulk_reaction_model.component_system is not self.component_system \
-                and not isinstance(bulk_reaction_model, NoReaction):
-            raise CADETProcessError('Component systems do not match.')
+        if not isinstance(bulk_reaction_model, NoReaction):
+            if not self.supports_bulk_reaction:
+                raise CADETProcessError(
+                    'Unit does not support bulk reactions.'
+                )
+            if bulk_reaction_model.component_system \
+                    is not self.component_system:
+                raise CADETProcessError('Component systems do not match.')
 
         self._bulk_reaction_model = bulk_reaction_model
 
@@ -248,21 +271,17 @@ class UnitBaseClass(metaclass=StructMeta):
     def particle_reaction_model(self, particle_reaction_model):
         if not isinstance(particle_reaction_model, ReactionBaseClass):
             raise TypeError('Expected ReactionBaseClass')
-        if not self.supports_particle_reaction:
-            raise CADETProcessError(
-                'Unit does not support particle reactions.'
-            )
 
-        if particle_reaction_model.component_system is not self.component_system \
-                and not isinstance(particle_reaction_model, NoReaction):
-            raise CADETProcessError('Component systems do not match.')
+        if not isinstance(particle_reaction_model, NoReaction):
+            if not self.supports_particle_reaction:
+                raise CADETProcessError(
+                    'Unit does not support particle reactions.'
+                )
+            if particle_reaction_model.component_system \
+                    is not self.component_system:
+                raise CADETProcessError('Component systems do not match.')
 
         self._particle_reaction_model = particle_reaction_model
-
-    @property
-    def discretization(self):
-        """discretization: Discretization Parameters."""
-        return self._discretization
 
     def __repr__(self):
         """str: String-representation of the object."""
@@ -332,14 +351,12 @@ class MixerSplitter(UnitBaseClass):
     pass
 
 
-class TubularReactor(UnitBaseClass):
-    """Class for tubular reactors.
+class TubularReactorBase(UnitBaseClass):
+    """Base class for tubular reactors and chromatographic columns.
 
-    Class can be used for a regular tubular reactor. Also serves as parent for
-    other tubular models like the GRM by providing methods for calculating
-    geometric properties such as the cross section area and volume, as well as
-    methods for convective and dispersive properties like mean residence time
-    or NTP.
+    Provides methods for calculating geometric properties such as the cross
+    section area and volume, as well as methods for convective and dispersive
+    properties like mean residence time or NTP.
 
     Notes
     -----
@@ -354,29 +371,23 @@ class TubularReactor(UnitBaseClass):
         Diameter of column.
     axial_dispersion : UnsignedFloat
         Dispersion rate of compnents in axial direction.
-    c : List of unsinged floats. Length depends on n_comp
-        Initial concentration of the reactor.
 
     """
-    supports_bulk_reaction = True
     length = UnsignedFloat(default=0)
     diameter = UnsignedFloat(default=0)
     axial_dispersion = UnsignedFloat()
-    total_porosity = 1
     flow_direction = Switch(valid=[-1, 1], default=1)
     _parameter_names = UnitBaseClass._parameter_names + [
-        'length', 'diameter', 'axial_dispersion', 'flow_direction'
+        'length', 'diameter',
+        'axial_dispersion', 'flow_direction'
     ]
     _section_dependent_parameters = \
         UnitBaseClass._section_dependent_parameters + \
         ['axial_dispersion', 'flow_direction']
 
-    c = DependentlySizedList(dep='n_comp', default=0)
-    _initial_state = UnitBaseClass._initial_state + ['c']
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._discretization = LRMDiscretizationFV()
+    @abstractproperty
+    def total_porosity(self):
+        pass
 
     @property
     def cross_section_area(self):
@@ -580,13 +591,42 @@ class TubularReactor(UnitBaseClass):
         self.axial_dispersion = self.u0(flow_rate) * self.length / (2 * NTP)
 
 
-class LumpedRateModelWithoutPores(TubularReactor):
+class TubularReactor(TubularReactorBase):
+    """Class for tubular reactors and tubing.
+
+    Class can be used for a regular tubular reactor.
+
+    Attributes
+    ----------
+    c : List of unsinged floats. Length depends on n_comp
+        Initial concentration of the reactor.
+
+    """
+    supports_bulk_reaction = True
+    discretization_schemes = (LRMDiscretizationFV, LRMDiscretizationDG)
+
+    total_porosity = Constant(1)
+
+    c = DependentlySizedList(dep='n_comp', default=0)
+    _initial_state = UnitBaseClass._initial_state + ['c']
+
+    def __init__(self, *args, discretization_scheme='FV', **kwargs):
+        super().__init__(*args, **kwargs)
+        if discretization_scheme == 'FV':
+            self.discretization = LRMDiscretizationFV()
+        elif discretization_scheme == 'DG':
+            self.discretization = LRMDiscretizationDG()
+
+
+class LumpedRateModelWithoutPores(TubularReactorBase):
     """Parameters for a lumped rate model without pores.
 
     Attributes
     ----------
     total_porosity : UnsignedFloat between 0 and 1.
         Total porosity of the column.
+    c : List of unsinged floats. Length depends on n_comp
+            Initial concentration of the reactor.
     q : List of unsinged floats. Length depends on n_comp
         Initial concentration of the bound phase.
 
@@ -599,21 +639,28 @@ class LumpedRateModelWithoutPores(TubularReactor):
     """
     supports_bulk_reaction = False
     supports_particle_reaction = True
+    discretization_schemes = (LRMDiscretizationFV, LRMDiscretizationDG)
 
     total_porosity = UnsignedFloat(ub=1)
-    _parameters = TubularReactor._parameter_names + ['total_porosity']
+    _parameter_names = TubularReactorBase._parameter_names + [
+        'total_porosity'
+    ]
 
+    c = DependentlySizedList(dep='n_comp', default=0)
     q = DependentlySizedUnsignedList(
         dep=('n_comp', '_n_bound_states'), default=0
     )
-    _initial_state = TubularReactor._initial_state + ['q']
+    _initial_state = TubularReactorBase._initial_state + ['c', 'q']
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, discretization_scheme='FV', **kwargs):
         super().__init__(*args, **kwargs)
-        self._discretization = LRMDiscretizationFV()
+        if discretization_scheme == 'FV':
+            self.discretization = LRMDiscretizationFV()
+        elif discretization_scheme == 'DG':
+            self.discretization = LRMDiscretizationDG()
 
 
-class LumpedRateModelWithPores(TubularReactor):
+class LumpedRateModelWithPores(TubularReactorBase):
     """Parameters for the lumped rate model with pores.
 
     Attributes
@@ -628,6 +675,8 @@ class LumpedRateModelWithPores(TubularReactor):
         Diffusion rate for components in pore volume.
     pore_accessibility : List of unsinged floats. Length depends on n_comp.
         Accessibility of pores for components.
+    c : List of unsinged floats. Length depends on n_comp
+        Initial concentration of the reactor.
     cp : List of unsinged floats. Length depends on n_comp
         Initial concentration of the pores
     q : List of unsinged floats. Length depends on n_comp
@@ -636,28 +685,30 @@ class LumpedRateModelWithPores(TubularReactor):
     """
     supports_bulk_reaction = True
     supports_particle_reaction = True
+    discretization_schemes = (LRMPDiscretizationFV)
 
     bed_porosity = UnsignedFloat(ub=1)
     particle_porosity = UnsignedFloat(ub=1)
     particle_radius = UnsignedFloat()
     film_diffusion = DependentlySizedUnsignedList(dep='n_comp')
     pore_accessibility = DependentlySizedUnsignedList(dep='n_comp')
-    _parameter_names = TubularReactor._parameter_names + [
+    _parameter_names = TubularReactorBase._parameter_names + [
             'bed_porosity', 'particle_porosity', 'particle_radius',
             'film_diffusion'
             ]
     _section_dependent_parameters = \
-        TubularReactor._section_dependent_parameters + ['film_diffusion']
+        TubularReactorBase._section_dependent_parameters + ['film_diffusion']
 
+    c = DependentlySizedList(dep='n_comp', default=0)
     _cp = DependentlySizedUnsignedList(dep='n_comp')
     q = DependentlySizedUnsignedList(
         dep=('n_comp', '_n_bound_states'), default=0
     )
-    _initial_state = TubularReactor._initial_state + ['cp', 'q']
+    _initial_state = TubularReactorBase._initial_state + ['cp', 'q']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._discretization = LRMPDiscretizationFV()
+        self.discretization = LRMPDiscretizationFV()
 
     @property
     def total_porosity(self):
@@ -711,7 +762,7 @@ class LumpedRateModelWithPores(TubularReactor):
         self._cp = cp
 
 
-class GeneralRateModel(TubularReactor):
+class GeneralRateModel(TubularReactorBase):
     """Parameters for the general rate model.
 
     Attributes
@@ -728,6 +779,8 @@ class GeneralRateModel(TubularReactor):
         Diffusion rate for components in adsrobed state.
     pore_accessibility : List of unsinged floats. Length depends on n_comp.
         Accessibility of pores for components.
+    c : List of unsinged floats. Length depends on n_comp
+        Initial concentration of the reactor.
     cp : List of unsinged floats. Length depends on n_comp
         Initial concentration of the pores
     q : List of unsinged floats. Length depends on n_comp
@@ -736,6 +789,7 @@ class GeneralRateModel(TubularReactor):
     """
     supports_bulk_reaction = True
     supports_particle_reaction = True
+    discretization_schemes = (GRMDiscretizationFV)
 
     bed_porosity = UnsignedFloat(ub=1)
     particle_porosity = UnsignedFloat(ub=1)
@@ -747,24 +801,25 @@ class GeneralRateModel(TubularReactor):
     )
     pore_accessibility = DependentlySizedUnsignedList(dep='n_comp')
     _parameters = \
-        TubularReactor._parameter_names + \
+        TubularReactorBase._parameter_names + \
         [
             'bed_porosity', 'particle_porosity', 'particle_radius',
             'film_diffusion', 'pore_diffusion', 'surface_diffusion'
         ]
     _section_dependent_parameters = \
-        TubularReactor._section_dependent_parameters + \
+        TubularReactorBase._section_dependent_parameters + \
         ['film_diffusion', 'pore_diffusion', 'surface_diffusion']
 
+    c = DependentlySizedList(dep='n_comp', default=0)
     _cp = DependentlySizedUnsignedList(dep='n_comp')
     q = DependentlySizedUnsignedList(
         dep=('n_comp', '_n_bound_states'), default=0
     )
-    _initial_state = TubularReactor._initial_state + ['cp', 'q']
+    _initial_state = TubularReactorBase._initial_state + ['cp', 'q']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._discretization = GRMDiscretizationFV()
+        self.discretization = GRMDiscretizationFV()
 
     @property
     def total_porosity(self):

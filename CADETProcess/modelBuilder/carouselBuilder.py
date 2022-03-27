@@ -10,7 +10,7 @@ from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import Integer, UnsignedInteger, UnsignedFloat
 
 from CADETProcess.processModel import UnitBaseClass, FlowSheet, Process
-from CADETProcess.processModel import TubularReactor, Cstr
+from CADETProcess.processModel import TubularReactorBase, Cstr
 
 from CADETProcess.solution import SolutionBase
 
@@ -34,7 +34,7 @@ class CarouselBuilder(metaclass=StructMeta):
 
     @column.setter
     def column(self, column):
-        if not isinstance(column, TubularReactor):
+        if not isinstance(column, TubularReactorBase):
             raise TypeError
         if self.component_system is not column.component_system:
             raise CADETProcessError('Number of components does not match.')

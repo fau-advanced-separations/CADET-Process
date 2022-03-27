@@ -45,10 +45,16 @@ class DiscretizationParametersBase(ParametersGroup):
         except KeyError:
             pass
 
-        super(DiscretizationParametersBase, self.__class__).parameters.fset(self, parameters)
+        super(DiscretizationParametersBase, self.__class__).parameters.fset(
+            self, parameters
+        )
 
 
 class NoDiscretization(DiscretizationParametersBase):
+    pass
+
+
+class DGMixin():
     pass
 
 
@@ -61,16 +67,25 @@ class LRMDiscretizationFV(DiscretizationParametersBase):
         'ncol', 'use_analytic_jacobian', 'reconstruction',
     ]
     _dimensionality = ['ncol']
-    
-class LRMDiscretizationDG(DiscretizationParametersBase):
-    ncol = UnsignedInteger(default=100)
+
+
+class LRMDiscretizationDG(DiscretizationParametersBase, DGMixin):
+    ncol = UnsignedInteger(default=16)
     use_analytic_jacobian = Bool(default=True)
     reconstruction = Switch(default='WENO', valid=['WENO'])
+    polynomial_degree = UnsignedInteger(default=3)
+    polydeg = polynomial_degree
+    polynomial_basis = Switch(valid=['LAGRANGE', 'JACOBI'], default='LAGRANGE')
 
     _parameters = DiscretizationParametersBase._parameters + [
         'ncol', 'use_analytic_jacobian', 'reconstruction',
+        'polydeg', 'polynomial_basis'
     ]
-    _dimensionality = ['ncol']
+    _dimensionality = ['axial_dof']
+
+    @property
+    def axial_dof(self):
+        return self.ncol * (self.polynomial_degree + 1)
 
 
 class LRMPDiscretizationFV(DiscretizationParametersBase):

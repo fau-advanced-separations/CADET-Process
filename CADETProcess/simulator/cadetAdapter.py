@@ -23,7 +23,7 @@ from CADETProcess.solution import (
 )
 from CADETProcess.processModel import NoBinding, BindingBaseClass
 from CADETProcess.processModel import NoReaction, ReactionBaseClass
-from CADETProcess.processModel import NoDiscretization
+from CADETProcess.processModel import NoDiscretization, DGMixin
 from CADETProcess.processModel import (
     UnitBaseClass, Source, Cstr, LumpedRateModelWithoutPores
 )
@@ -289,6 +289,10 @@ class Cadet(SimulatorBase):
         cadet = CadetAPI()
         cadet.filename = file_path
         cadet.run(timeout=self.timeout)
+
+        cadet.load()
+
+        return cadet
 
     def load_from_h5(self, file_path):
         cadet = CadetAPI()
@@ -659,6 +663,8 @@ class Cadet(SimulatorBase):
 
         if not isinstance(unit.discretization, NoDiscretization):
             unit_config['discretization'] = unit.discretization.parameters
+            if isinstance(unit.discretization, DGMixin):
+                unit_config['UNIT_TYPE'] += '_DG'
 
         if isinstance(unit, Cstr) \
                 and not isinstance(unit.binding_model, NoBinding):
