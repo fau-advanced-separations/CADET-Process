@@ -1,4 +1,3 @@
-import copy
 import time
 import warnings
 
@@ -7,10 +6,13 @@ from scipy.optimize import OptimizeWarning
 import numpy as np
 
 from CADETProcess import CADETProcessError
-from CADETProcess.dataStructure import Bool, Switch, UnsignedInteger, UnsignedFloat
-from CADETProcess.optimization import SolverBase, OptimizationResults
+from CADETProcess.dataStructure import (
+    Bool, Switch, UnsignedInteger, UnsignedFloat
+)
+from CADETProcess.optimization import OptimizerBase, OptimizationResults
 
-class SciPyInterface(SolverBase):
+
+class SciPyInterface(OptimizerBase):
     """Wrapper around scipy's optimization suite.
 
     Defines the bounds and all constraints, saved in a constraint_object. Also
@@ -22,7 +24,7 @@ class SciPyInterface(SolverBase):
     jac = '2-point'
 
     def run(self, optimization_problem):
-        """Solve the optimization problem using any of the scipy methodss
+        """Solve the optimization problem using any of the scipy methods.
 
         Returns
         -------
@@ -44,9 +46,8 @@ class SciPyInterface(SolverBase):
         if optimization_problem.n_objectives > 1:
             raise CADETProcessError("Can only handle single objective.")
 
-        cache = dict()
-        objective_function = \
-            lambda x: optimization_problem.evaluate_objectives(x, cache=cache)[0]
+        def objective_function(x):
+            return optimization_problem.evaluate_objectives(x)[0]
 
         start = time.time()
         with warnings.catch_warnings():
@@ -56,7 +57,7 @@ class SciPyInterface(SolverBase):
                 objective_function,
                 x0=optimization_problem.x0,
                 method=str(self),
-                tol = self.tol,
+                tol=self.tol,
                 jac=self.jac,
                 constraints=self.get_constraint_objects(optimization_problem),
                 options=self.options
@@ -66,36 +67,23 @@ class SciPyInterface(SolverBase):
         if not scipy_results.success:
             raise CADETProcessError('Optimization Failed')
 
-        x = scipy_results.x
-
-        eval_object = copy.deepcopy(optimization_problem.evaluation_object)
-        if optimization_problem.evaluator is not None:
-            frac = optimization_problem.evaluator.evaluate(eval_object)
-            performance = frac.performance
-        else:
-            frac = None
-            performance = optimization_problem.evaluate(x, force=True)
-
+        x = list(scipy_results.x)
         f = optimization_problem.evaluate_objectives(x)
-        c = optimization_problem.evaluate_nonlinear_constraints(x)
+        g = optimization_problem.evaluate_nonlinear_constraints(x)
 
         results = OptimizationResults(
-            optimization_problem = optimization_problem,
-            evaluation_object = eval_object,
-            solver_name = str(self),
-            solver_parameters = self.options,
-            exit_flag = scipy_results.status,
-            exit_message = scipy_results.message,
-            time_elapsed = elapsed,
-            x = list(x),
-            f = f,
-            c = c,
-            frac = frac,
-            performance = performance.to_dict()
+            optimization_problem=optimization_problem,
+            optimizer=str(self),
+            optimizer_options=self.options,
+            exit_flag=scipy_results.status,
+            exit_message=scipy_results.message,
+            time_elapsed=elapsed,
+            x=x,
+            f=f,
+            g=g,
         )
 
         return results
-
 
     def get_bounds(self, optimization_problem):
         """Returns the optimized bounds of a given optimization_problem as a
@@ -229,12 +217,13 @@ class SciPyInterface(SolverBase):
         constraint_objects
         nonlinear_constraints
         """
-        if optimization_problem.nonlinear_constraints is None:
+        opt = optimization_problem
+        if opt.nonlinear_constraints is None:
             return None
 
         def makeConstraint(i):
             constr = optimize.NonlinearConstraint(
-                lambda x: optimization_problem.evaluate_nonlinear_constraints(x)[i],
+                lambda x: opt.evaluate_nonlinear_constraints(x)[i],
                 lb=-np.inf, ub=0,
                 finite_diff_rel_step=self.finite_diff_rel_step,
                 keep_feasible=True
@@ -242,7 +231,7 @@ class SciPyInterface(SolverBase):
             return constr
 
         constraints = []
-        for i, constr in enumerate(optimization_problem.nonlinear_constraints):
+        for i in range(opt.n_nonlinear_constraints):
             constraints.append(makeConstraint(i))
 
         return constraints
@@ -277,13 +266,14 @@ class TrustConstr(SciPyInterface):
         'initial_constr_penalty',
         'initial_tr_radius', 'initial_barrier_parameter',
         'initial_barrier_tolerance', 'factorization_method',
-        'maxiter','verbose', 'disp'
+        'maxiter', 'verbose', 'disp'
     ]
 
     jac = Switch(default='3-point', valid=['2-point', '3-point', 'cs'])
 
     def __str__(self):
         return 'trust-constr'
+
 
 class COBYLA(SciPyInterface):
     """Class from scipy for optimization with COBYLA as method for the

@@ -5,7 +5,6 @@ import warnings
 
 from addict import Dict
 import numpy as np
-from scipy import optimize
 import hopsy
 import multiprocess
 import pathos
@@ -14,10 +13,17 @@ from CADETProcess import CADETProcessError
 from CADETProcess import log
 
 from CADETProcess.dataStructure import StructMeta
-from CADETProcess.dataStructure import String
+from CADETProcess.dataStructure import (
+    String, Switch, RangedInteger, Callable, Tuple,
+    DependentlySizedList
+)
 from CADETProcess.dataStructure import frozen_attributes
+from CADETProcess.dataStructure import (
+    check_nested, generate_nested_dict, get_nested_value
+)
+from CADETProcess.metric import MetricBase
 
-from CADETProcess.performance import get_bad_performance
+from CADETProcess.metric import MetricBase
 
 
 @frozen_attributes
@@ -52,44 +58,27 @@ class OptimizationProblem(metaclass=StructMeta):
     """
     name = String()
 
-    def __init__(
-            self, evaluation_object, evaluator=None, name=None, save_log=False
-        ):
-        if evaluator is not None:
-            self.evaluator = evaluator
-        else:
-            self._evaluator = None
-
-        self.evaluation_object = evaluation_object
-
-        if name is None:
-            try:
-                name = evaluation_object.name + '_optimization'
-            except AttributeError:
-                msg = '__init__() missing 1 required positional argument: \'name\''
-                raise TypeError(msg)
+    def __init__(self, name, log_level='INFO', save_log=True):
         self.name = name
+        self.logger = log.get_logger(
+            self.name, level=log_level, save_log=save_log
+        )
 
-        if save_log:
-            self.logger = log.get_logger(self.name, log_directory=self.name)
-        else:
-            self.logger = log.get_logger(self.name)
-
+        self._evaluation_objects = []
+        self._evaluators = []
+        self.cached_evaluators = []
         self._variables = []
+        self._dependent_variables = []
         self._objectives = []
         self._nonlinear_constraints = []
         self._linear_constraints = []
         self._linear_equality_constraints = []
+
         self._x0 = None
 
     @property
-    def evaluation_object(self):
-        """obj : Object that contains all parameters that are optimized.
-
-        Returns
-        -------
-        evaluation_object : obj
-            Object to be evaluated during optimization.
+    def evaluation_objects(self):
+        """list: Object to be evaluated during optimization.
 
         See Also
         --------
@@ -101,50 +90,33 @@ class OptimizationProblem(metaclass=StructMeta):
         nonlinear_constraints
 
         """
-        return self._evaluation_object
-
-    @evaluation_object.setter
-    def evaluation_object(self, evaluation_object):
-        self._evaluation_object = evaluation_object
+        return self._evaluation_objects
 
     @property
-    def evaluator(self):
-        """Object that performs evaluation object during optimization.
+    def evaluation_objects_dict(self):
+        """dict: Evaluation objects names and objects"""
+        return {obj.name: obj for obj in self.evaluation_objects}
 
-        The evaluator has to implement an evaluate method that returns a
-        Performance object when called with the evaluation_object. The
-        performance Object is required for calculating the objective function
-        and nonlinear constraint function.
+    def add_evaluation_object(self, evaluation_object):
+        """Add evaluation object to the optimization problem.
 
         Parameters
         ----------
-        evaluator : obj
-            Object to be evaluated during optimization.
+        evaluation_object : obj
+            evaluation object to be added to the optimization problem.
 
         Raises
         ------
         CADETProcessError
-            If evaluation object does not implement evaluation method.
-
-        See Also
-        --------
-        evaluation_object
-        evaluate
-        Performance
-        objectives
-        nonlinear_constraints
+            If evaluation object already exists in optimization problem.
 
         """
-        return self._evaluator
+        if evaluation_object in self._evaluation_objects:
+            raise CADETProcessError(
+                'Evaluation object already part of optimization problem.'
+            )
 
-    @evaluator.setter
-    def evaluator(self, evaluator):
-        try:
-            getattr(evaluator, 'evaluate')
-        except TypeError:
-            raise TypeError('Evaluator has to implement evaluate method')
-
-        self._evaluator = evaluator
+        self._evaluation_objects.append(evaluation_object)
 
     @property
     def variables(self):
@@ -157,13 +129,19 @@ class OptimizationProblem(metaclass=StructMeta):
         return {var.name: var for var in self._variables}
 
     @property
+    def variable_names(self):
+        """list: Optimization variable names."""
+        return [var.name for var in self._variables]
+
+    @property
     def n_variables(self):
         """int: Number of optimization variables."""
         return len(self.variables)
 
     def add_variable(
-            self, parameter_path, name=None, lb=-math.inf, ub=math.inf,
-            component_index=None):
+            self, parameter_path=None, evaluation_objects=-1,
+            lb=-math.inf, ub=math.inf,
+            component_index=None, name=None):
         """Add optimization variable to the OptimizationProblem.
 
         The function encapsulates the creation of OoptimizationVariable objects
@@ -171,16 +149,19 @@ class OptimizationProblem(metaclass=StructMeta):
 
         Parameters
         ----------
-        attr : str
-            Attribute of the variable to be added.
-        name : str
-            Name of the variable to be added, default value is None.
+        parameter_path : str, optional
+            Path of the parameter including the evaluation object.
+        evaluation_objects : EvaluationObject or list of EvaluationObjects
+            Evaluation object to set parameters.
+            If None, all evaluation objects are used.
         lb : float
             Lower bound of the variable value.
         ub : float
             Upper bound of the variable value.
         component_index : int
             Index for compnent specific variables
+        name : str, optional
+            Name of the variable. If None, parameter_path is used.
 
         Raises
         ------
@@ -200,12 +181,27 @@ class OptimizationProblem(metaclass=StructMeta):
         if name in self.variables_dict:
             raise CADETProcessError("Variable already exists")
 
-        var = OptimizationVariable(name, self.evaluation_object, parameter_path,
-                 lb=lb, ub=ub, component_index=component_index)
+        if evaluation_objects is None:
+            evaluation_objects = []
+        elif evaluation_objects == -1:
+            evaluation_objects = self.evaluation_objects
+        elif not isinstance(evaluation_objects, list):
+            evaluation_objects = [evaluation_objects]
+
+        evaluation_objects = [
+            self.evaluation_objects[eval_obj] if isinstance(eval_obj, str)
+            else eval_obj
+            for eval_obj in evaluation_objects
+        ]
+
+        var = OptimizationVariable(
+            name, evaluation_objects, parameter_path,
+            lb=lb, ub=ub, component_index=component_index
+        )
 
         self._variables.append(var)
-        super().__setattr__(name, var)
 
+        super().__setattr__(name, var)
 
     def remove_variable(self, var_name):
         """Remove optimization variable from the OptimizationProblem.
@@ -233,9 +229,8 @@ class OptimizationProblem(metaclass=StructMeta):
         self._variables.remove(var)
         self.__dict__.pop(var_name)
 
-
-    def set_variables(self, x, make_copy=False):
-        """Sets the values from the x-vector to the OptimizationVariables.
+    def set_variables(self, x, evaluation_objects=-1, make_copy=False):
+        """Set the values from the x-vector to the EvaluationObjects.
 
         Parameters
         ----------
@@ -249,13 +244,15 @@ class OptimizationProblem(metaclass=StructMeta):
         Returns
         -------
         evaluation_object : object
-            Returns copy of evaluation object if make_copy is True, else returns
+            Returns copy of evaluation object if make_copy is True, else return
             the attribute evaluation_object with the values set.
 
         Raises
         ------
+        CADETProcessError
+            If x does not have correct length.
         ValueError
-            If value of variable exceeds bounds
+            If value of variable exceeds bounds.
 
         See Also
         --------
@@ -264,151 +261,196 @@ class OptimizationProblem(metaclass=StructMeta):
 
         """
         if len(x) != self.n_variables:
-            raise CADETProcessError('Expected {} variables'.format(self.n_variables))
+            raise CADETProcessError(f'Expected {self.n_variables} variables')
+
+        if evaluation_objects is None:
+            evaluation_objects = []
+        elif evaluation_objects == -1:
+            evaluation_objects = self.evaluation_objects
+        elif not isinstance(evaluation_objects, list):
+            evaluation_objects = [evaluation_objects]
+
         if make_copy:
-            evaluation_object = copy.deepcopy(self.evaluation_object)
-        else:
-            evaluation_object = self.evaluation_object
+            evaluation_objects = copy.deepcopy(evaluation_objects)
+
+        eval_obj_dict = {
+            eval_obj.name: eval_obj
+            for eval_obj in evaluation_objects
+        }
 
         for variable, value in zip(self.variables, x):
             if value < variable.lb:
                 raise ValueError("Exceeds lower bound")
             if value > variable.ub:
                 raise ValueError("Exceeds upper bound")
+            for eval_obj in variable.evaluation_objects:
+                eval_obj = eval_obj_dict[eval_obj.name]
+                if variable.component_index is not None:
+                    value_list = get_nested_value(
+                        eval_obj.parameters, variable.parameter_path
+                    )
+                    value_list[variable.component_index] = value
+                    parameters = generate_nested_dict(
+                        variable.parameter_path, value_list
+                    )
+                else:
+                    parameters = generate_nested_dict(
+                        variable.parameter_path, value
+                    )
 
-            if variable.component_index is not None:
-                value_list = get_nested_value(
-                    evaluation_object.parameters, variable.parameter_path
-                )
-                value_list[variable.component_index] = value
-                parameters = generate_nested_dict(variable.parameter_path, value_list)
-            else:
-                parameters = generate_nested_dict(variable.parameter_path, value)
-            evaluation_object.parameters = parameters
+                eval_obj.parameters = parameters
 
-        return evaluation_object
+        return list(eval_obj_dict.values())
 
-    def evaluate(self, x, make_copy=False, cache=None, force=False):
-        """Evaluates the evaluation object at x.
+    @property
+    def evaluators(self):
+        return self._evaluators
 
-        For performance reasons, the function first checks if the function has
-        already been evaluated at x and returns the results. If force is True,
-        the lookup is ignored and the function is evaluated regularly.
+    def add_evaluator(self, evaluator, cache=False):
+        """Add Evaluator to OptimizationProblem.
+
+        Evaluators can be referenced by objective and constraint functions to
+        perform preprocessing steps.
 
         Parameters
         ----------
-         x : array_like
-            Value of the optimization variables
-        force : bool
-            If True, reevaluation of previously evaluated values is enforced.
+        evaluator : Any
+            Must implement an evaluate function..
+        cache : bool, optional
+            If True, results of the evaluator are cached. The default is False.
 
-        Returns
-        -------
-        performance : Performance
-            Performance object from fractionation.
+        Raises
+        ------
+        CADETProcessError
+            If Evaluator does not implement evaluate method.
 
         """
-        x = np.array(x)
-
-        # Try to get cached results
-        if cache is not None and not force:
-            try:
-                performance = cache[tuple(x.tolist())]
-                return performance
-            except KeyError:
-                pass
-
-        # Get evaluation_object
-        evaluation_object = self.set_variables(x, make_copy)
-
-        # Set bad results if constraints are not met
-        if not self.check_linear_constraints(x):
-            self.logger.warn(
-                f'Linear constraints not met at {x}. Returning bad performance.\
-                cycle time: {evaluation_object.process_meta.cycle_time}'
+        if str(evaluator) in self.evaluators:
+            raise CADETProcessError(
+                "Evaluator already exists in OptimizationProblem."
             )
-            performance = get_bad_performance(evaluation_object.n_comp)
-        # Pass evaluation_object to evaluator and evaluate
-        elif self.evaluator is not None:
-            try:
-                performance = self.evaluator.evaluate(evaluation_object)
-            except CADETProcessError:
-                self.logger.warn('Evaluation failed. Returning bad performance')
-                performance = get_bad_performance(evaluation_object.n_comp)
-        else:
-            performance = evaluation_object.performance
 
-        if cache is not None:
-            cache[tuple(x.tolist())] = performance
+        if not (
+                hasattr(evaluator, 'evaluate')
+                and
+                callable(getattr(evaluator, 'evaluate'))):
+            raise CADETProcessError(
+                "Evaluator must implement evaluate method"
+            )
 
-        self.logger.info('{} evaluated at x={} yielded {}'.format(
-                self.evaluation_object.name,
-                tuple(x.tolist()),
-                performance.to_dict())
-        )
+        self._evaluators.append(evaluator)
 
-        return performance
-
-    def evaluate_population(self, population, n_cores=0):
-        manager = multiprocess.Manager()
-        cache = manager.dict()
-
-        eval_fun = lambda ind: self.evaluate(ind, make_copy=True, cache=cache)
-
-        if n_cores == 1:
-           for ind in population:
-               try:
-                   eval_fun(ind)
-               except CADETProcessError:
-                   print(ind)
-        else:
-            if n_cores == 0:
-                n_cores = None
-            with pathos.multiprocessing.ProcessPool(ncpus=n_cores) as pool:
-                pool.map(eval_fun, population)
-
-        return cache
-
+        if cache:
+            self.cached_evaluators.append(evaluator)
 
     @property
     def objectives(self):
         return self._objectives
 
     @property
-    def n_objectives(self):
-        return len(self.objectives)
+    def objectives_names(self):
+        return [str(obj) for obj in self.objectives]
 
-    def add_objective(self, objective_fun):
+    @property
+    def n_objectives(self):
+        n_objectives = 0
+
+        for objective in self.objectives:
+            if len(objective.evaluation_objects) != 0:
+                factor = len(objective.evaluation_objects)
+            else:
+                factor = 1
+            n_objectives += factor*objective.n_objectives
+
+        return n_objectives
+
+    def add_objective(
+            self,
+            objective,
+            n_objectives=1,
+            bad_metrics=None,
+            evaluation_objects=-1,
+            requires=None):
         """Add objective function to optimization problem.
 
         Parameters
         ----------
-        objective_fun : function
-            Objective function. Funtion should take a Performance object as
-            argument and return a scalar value.
+        objective : callable or MetricBase
+            Objective function.
+        n_objectives : int, optional
+            Number of metrics returned by objective function.
+            The default is 1.
+        bad_metrics : flot or list of floats, optional
+            Value which is returned when evaluation fails.
+        evaluation_objects : {EvaluationObject, None, -1, list}
+            EvaluationObjects which are evaluated by objective.
+            If None, no EvaluationObject is used.
+            If -1, all EvaluationObjects are used.
+        requires : {None, Evaluator, list}
+            Evaluators used for preprocessing.
+            If None, no preprocessing is required.
 
         Raises
         ------
         TypeError
-            If objective_fun is not callable.
+            If objective is not an instance of MetricBase.
+        CADETProcessError
+            If EvaluationObject is not found.
+        CADETProcessError
+            If Evaluator is not found.
 
         """
-        if not callable(objective_fun):
-            raise TypeError("Expected callable object")
+        if not callable(objective):
+            raise TypeError("Expected callable objective.")
 
-        self._objectives.append(objective_fun)
+        if bad_metrics is None and isinstance(objective, MetricBase):
+            bad_metrics = objective.bad_metrics
 
-    def evaluate_objectives(self, x, *args, **kwargs):
+        if evaluation_objects is None:
+            evaluation_objects = []
+        elif evaluation_objects == -1:
+            evaluation_objects = self.evaluation_objects
+        elif not isinstance(evaluation_objects, list):
+            evaluation_objects = [evaluation_objects]
+        for el in evaluation_objects:
+            if el not in self.evaluation_objects:
+                raise CADETProcessError(
+                    f"Unknown EvaluationObject: {str(el)}"
+                )
+
+        if requires is None:
+            requires = []
+        elif not isinstance(requires, list):
+            requires = [requires]
+
+        for req in requires:
+            if req not in self.evaluators:
+                raise CADETProcessError(f"Unknown Evaluator: {str(req)}")
+
+        objective = Objective(
+            objective,
+            type='minimize',
+            n_objectives=n_objectives,
+            bad_metrics=bad_metrics,
+            evaluation_objects=evaluation_objects,
+            evaluators=requires
+        )
+        self._objectives.append(objective)
+
+    def evaluate_objectives(self, x, cache=None, make_copy=False, force=False):
         """Evaluate objective functions at point x.
-
-        This function is usually presented to the optimization solver. The
-        actual evaluation of the evaluation object is peformed by the evaluate
-        function which also logs the results.
 
         Parameters
         ----------
         x : array_like
             Value of the optimization variables.
+        cache : dict, optional
+            Dictionary to cache results.
+        make_copy : bool
+            If True, a copy of the EvaluationObjects is used which is required
+            for multiprocessing.
+        force : bool
+            If True, do not use cached results. The default if False.
 
         Returns
         -------
@@ -423,94 +465,301 @@ class OptimizationProblem(metaclass=StructMeta):
         evaluate_nonlinear_constraints
 
         """
-        performance = self.evaluate(x, *args, **kwargs)
-        f = np.array([obj(performance) for obj in self.objectives])
+        self.logger.info(f'evaluate objectives at {x}')
+
+        f = []
+
+        local_cache = self.setup_cache()
+        if cache is not None:
+            local_cache.update(cache)
+
+        for objective in self.objectives:
+            try:
+                value = self._evaluate(
+                    x, objective, local_cache, make_copy, force
+                )
+                f += value
+            except CADETProcessError:
+                self.logger.warn(
+                    f'Evaluation of {objective.name} failed at {x}. '
+                    f'Returning bad metrics.'
+                )
+                f += objective.bad_metrics
+
+        if cache is not None:
+            for key in cache.copy():
+                cache[key] = local_cache[key]
         return f
 
-    def objective_gradient(self, x, dx=0.1):
-        """Calculate the gradient of the objective functions at point x.
+    def evaluate_objectives_population(
+            self, population, cache=None, force=False, n_cores=0):
 
-        Gradient is approximated using finite differences.
+        if cache is not None:
+            manager = multiprocess.Manager()
+            managed_cache = manager.dict(cache)
+        else:
+            managed_cache = None
+
+        def eval_fun(ind):
+            return self.evaluate_objectives(
+                ind, cache=managed_cache, make_copy=True, force=force
+            )
+
+        if n_cores == 1:
+            results = []
+            for ind in population:
+                try:
+                    res = eval_fun(ind)
+                    results.append(res)
+                except CADETProcessError:
+                    print(ind)
+        else:
+            if n_cores == 0:
+                n_cores = None
+            with pathos.multiprocessing.ProcessPool(ncpus=n_cores) as pool:
+                results = pool.map(eval_fun, population)
+
+        if cache is not None:
+            cache.update(managed_cache)
+
+        return results
+
+    def objective_jacobian(self, x, dx=1e-3):
+        """Compute jacobian of objective functions using finite differences.
 
         Parameters
         ----------
-        x : ndarray
-            Value of the optimization variables.
+        x : array_like
+            Value of the optimization variables
         dx : float
             Increment to x to use for determining the function gradient.
 
         Returns
         -------
-        grad: list
-            The partial derivatives of the objective functions at point x.
+        jacobian: list
+            Value of the partial derivatives at point x.
 
         See Also
         --------
-        OptimizationProblem
         objectives
+        approximate_jac
 
         """
-        dx = [dx]*len(x)
-        grad = [optimize.approx_fprime(x, obj, dx) for obj in self.objectives]
-
-        return grad
+        jacobian = [
+            approximate_jac(x, obj, dx)
+            for obj in self.objectives
+        ]
+        return jacobian
 
     @property
     def nonlinear_constraints(self):
         return self._nonlinear_constraints
 
     @property
-    def n_nonlinear_constraints(self):
-        return len(self.nonlinear_constraints)
+    def nonlinear_constraint_names(self):
+        return [str(nonlincon) for nonlincon in self.nonlinear_constraints]
 
-    def add_nonlinear_constraint(self, nonlinear_constraint_fun):
-        """Add nonlinear constraint function to optimization problem.
+    @property
+    def nonlinear_constraints_bounds(self):
+        bounds = []
+        for nonlincon in self.nonlinear_constraints:
+            bounds += nonlincon.bounds
+
+        return bounds
+
+    @property
+    def n_nonlinear_constraints(self):
+        n_nonlinear_constraints = 0
+
+        for nonlincon in self.nonlinear_constraints:
+            if len(nonlincon.evaluation_objects) != 0:
+                factor = len(nonlincon.evaluation_objects)
+            else:
+                factor = 1
+            n_nonlinear_constraints += factor*nonlincon.n_nonlinear_constraints
+
+        return n_nonlinear_constraints
+
+    def add_nonlinear_constraint(
+            self,
+            nonlincon,
+            n_nonlinear_constraints=1,
+            bad_metrics=None,
+            evaluation_objects=-1,
+            bounds=None,
+            requires=None):
+        """Add objective function to optimization problem.
 
         Parameters
         ----------
-        nonlinear_constraint_fun: function
-            Nonlinear constraint function. Funtion should take a Performance
-            object as argument and return a scalar value or an array.
+        nonlincon : callable
+            Nonlinear constraint function.
+        n_nonlinear_constraints : int, optional
+            Number of metrics returned by nonlinear constraint function.
+            The default is 1.
+        bad_metrics : float or list of floats, optional
+            Value which is returned when evaluation fails.
+        evaluation_objects : {EvaluationObject, None, -1, list}
+            EvaluationObjects which are evaluated by objective.
+            If None, no EvaluationObject is used.
+            If -1, all EvaluationObjects are used.
+        bounds : scalar or list of scalars, optional
+            Upper limits of constraint function.
+            If only one value is given, the same value is assumed for all
+            constraints. The default is 0.
+        requires : {None, Evaluator, list}, optional
+            Evaluators used for preprocessing.
+            If None, no preprocessing is required.
+            The default is None.
 
         Raises
         ------
         TypeError
-            If nonlinear_constraint_fun is not callable.
+            If constraint is not an instance of MetricBase.
+        CADETProcessError
+            If EvaluationObject is not found.
+        CADETProcessError
+            If Evaluator is not found.
 
         """
-        if not callable(nonlinear_constraint_fun):
-            raise TypeError("Expected callable object")
+        if not isinstance(nonlincon, MetricBase):
+            raise TypeError("Expected MetricBase")
 
-        self._nonlinear_constraints.append(nonlinear_constraint_fun)
+        if bad_metrics is None and isinstance(nonlincon, MetricBase):
+            bad_metrics = nonlincon.bad_metrics
 
-    def evaluate_nonlinear_constraints(self, x, *args, **kwargs):
-        """Evaluate nonlinera constraint functions at point x.
+        if evaluation_objects is None:
+            evaluation_objects = []
+        elif evaluation_objects == -1:
+            evaluation_objects = self.evaluation_objects
+        elif not isinstance(evaluation_objects, list):
+            evaluation_objects = [evaluation_objects]
+        for el in evaluation_objects:
+            if el not in self.evaluation_objects:
+                raise CADETProcessError(
+                    f"Unknown EvaluationObject: {str(el)}"
+                )
 
-        This function is usually presented to the optimization solver. The
-        actual evaluation of the evaluation object is peformed by the evaluate
-        function which also logs the results.
+        if isinstance(bounds, (float, int)):
+            bounds = n_nonlinear_constraints * [bounds]
+        if len(bounds) != n_nonlinear_constraints:
+            raise CADETProcessError(
+                f'Expected {n_nonlinear_constraints} bounds'
+            )
+
+        if requires is None:
+            requires = []
+        elif not isinstance(requires, list):
+            requires = [requires]
+
+        for req in requires:
+            if req not in self.evaluators:
+                raise CADETProcessError(f"Unknown Evaluator: {str(req)}")
+
+        nonlincon = NonlinearConstraint(
+            nonlincon,
+            bounds=bounds,
+            n_nonlinear_constraints=n_nonlinear_constraints,
+            bad_metrics=bad_metrics,
+            evaluation_objects=evaluation_objects,
+            evaluators=requires
+        )
+        self._nonlinear_constraints.append(nonlincon)
+
+    def evaluate_nonlinear_constraints(
+            self, x, cache=None, make_copy=False, force=False):
+        """Evaluate nonlinear constraint functions at point x.
+
+        After evaluating the nonlinear constraint functions, the corresponding
+        bounds are subtracted from the results.
 
         Parameters
         ----------
         x : array_like
             Value of the optimization variables.
+        cache : dict
+            Dictionary to cache results.
+        make_copy : bool
+            If True, a copy of the EvaluationObjects is used which is required
+            for multiprocessing.
+        force : bool
+            If True, do not use cached results. The default if False.
 
         Returns
         -------
         c : list
-            Value(s) of the constraint functions at point x.
+            Values of the nonlinear constraint functions at point x minus the
+            corresponding bounds.
 
         See Also
         --------
-        nonlinear_constraints
-        evaluate
+        optimization.SolverBase
+        add_nonlinear_constraint
+        _evaluate
         evaluate_objectives
+
         """
-        performance = self.evaluate(x, *args, **kwargs)
-        c = np.array(
-            [constr(performance) for constr in self.nonlinear_constraints]
-        )
+        self.logger.info(f'evaluate nonlinear constraints at {x}')
+
+        g = []
+
+        local_cache = self.setup_cache()
+        if cache is not None:
+            local_cache.update(cache)
+
+        for nonlincon in self.nonlinear_constraints:
+            try:
+                value = self._evaluate(
+                    x, nonlincon, local_cache, make_copy, force
+                )
+                g += value
+            except CADETProcessError:
+                self.logger.warn(
+                    f'Evaluation of {nonlincon.name} failed at {x}. '
+                    f'Returning bad metrics.'
+                )
+                g += nonlincon.bad_metrics
+
+        if cache is not None:
+            for key in cache.copy():
+                cache[key] = local_cache[key]
+
+        c = np.array(g) - np.array(self.nonlinear_constraints_bounds)
+
         return c
+
+    def evaluate_nonlinear_constraints_population(
+            self, population, cache=None, force=False, n_cores=0):
+
+        if cache is not None:
+            manager = multiprocess.Manager()
+            managed_cache = manager.dict(cache)
+        else:
+            managed_cache = None
+
+        def eval_fun(ind):
+            return self.evaluate_nonlinear_constraints(
+                ind, cache=managed_cache, make_copy=True, force=force
+            )
+
+        if n_cores == 1:
+            results = []
+            for ind in population:
+                try:
+                    res = eval_fun(ind)
+                    results.append(res)
+                except CADETProcessError:
+                    print(ind)
+        else:
+            if n_cores == 0:
+                n_cores = None
+            with pathos.multiprocessing.ProcessPool(ncpus=n_cores) as pool:
+                results = pool.map(eval_fun, population)
+
+        if cache is not None:
+            cache.update(managed_cache)
+
+        return results
 
     def check_nonlinear_constraints(self, x):
         """Check if all nonlinear constraints are kept.
@@ -528,9 +777,9 @@ class OptimizationProblem(metaclass=StructMeta):
 
         """
         c = self.evaluate_nonlinear_constraints(x)
-        for constr in c:
-            if np.any(constr > 0):
-                return False
+
+        if np.any(c > 0):
+            return False
         return True
 
     def nonlinear_constraint_jacobian(self, x, dx=1e-3):
@@ -559,6 +808,95 @@ class OptimizationProblem(metaclass=StructMeta):
             for constr in self.nonlinear_constraints
         ]
         return jacobian
+
+    def _evaluate(self, x, func, cache=None, make_copy=False, force=False):
+        self.logger.info(f'evaluate {str(func)} at {x}')
+
+        results = []
+
+        if func.evaluators is not None:
+            requires = [*func.evaluators, func]
+        else:
+            requires = [func]
+
+        if len(func.evaluation_objects) == 0:
+            result = self._evaluate_inner(
+                x, func, requires, cache, force
+            )
+            results += result
+        else:
+            for el in func.evaluation_objects:
+                evaluation_objects = self.set_variables(x, el, make_copy)
+                eval_obj = evaluation_objects[0]
+
+                if cache is not None:
+                    inner_cache = cache[str(eval_obj)].copy()
+                else:
+                    inner_cache = None
+
+                result = self._evaluate_inner(
+                    eval_obj, func, requires,
+                    inner_cache,
+                    force, x=x,
+                )
+                results += result
+
+                if cache is not None:
+                    cache[str(eval_obj)] = inner_cache
+
+        return results
+
+    def _evaluate_inner(
+            self, request, func, requires,
+            cache=None, force=False, x=None):
+        self.logger.info(
+            f"Evaluating {func}. "
+            f"Requires evaluation of {[str(req) for req in requires]}"
+        )
+        if x is None:
+            x = request
+        current_request = request
+
+        if cache is not None and not force:
+            remaining = []
+            for step in reversed(requires):
+                try:
+                    result = cache[str(step)][str(x)]
+                    self.logger.info(
+                        f'Got {str(step)} results from cache.'
+                    )
+                    current_request = result
+                    break
+
+                except KeyError:
+                    pass
+
+                remaining.insert(0, step)
+
+        else:
+            remaining = requires
+
+        self.logger.debug(
+            f'Evaluating remaining functions: '
+            f'{[str(step) for step in remaining]}.'
+        )
+
+        for step in remaining:
+            result = step.evaluate(request)
+            if cache is not None:
+                cache[str(step)][str(x)] = result
+            current_request = result
+
+        if not isinstance(result, list):
+            result = [result]
+
+        if len(result) != func.n_metrics:
+            raise CADETProcessError(
+                f"Expected length {func.n_metrics} "
+                f"for {str(func)}"
+            )
+
+        return result
 
     @property
     def lower_bounds(self):
@@ -598,9 +936,9 @@ class OptimizationProblem(metaclass=StructMeta):
         Returns
         -------
         flag : Bool
-            Returns True, if the values of the list x are in the defined bounds.
-            Returns False if the values of the list x are violating the bound
-            constraints.
+            True, if values of x are within the defined bounds.
+            False if values of x are outside the bound.
+
         """
         flag = True
 
@@ -630,23 +968,24 @@ class OptimizationProblem(metaclass=StructMeta):
         """
         return len(self.linear_constraints)
 
-    def add_linear_constraint(self, opt_vars, factors, b=0):
+    def add_linear_constraint(self, opt_vars, lhs=1, b=0):
         """Add linear inequality constraints.
 
         Parameters
         ----------
         opt_vars : list of strings
             Names of the OptimizationVariable to be added.
-        factors : list of  integers
-            Factors for OptimizationVariables.
+        lhs : float or list, optional
+            Left-hand side / coefficients of the constraints.
+            If scalar, same coefficient is used for all variables.
         b : float, optional
-            Constraint of inequality constraint; default set to zero.
+            Constraint of inequality constraint. The default is zero.
 
         Raises
         ------
         CADETProcessError
             If optimization variables do not exist.
-            If length of factors does not match length of optimization variables.
+            If length of lhs coefficients does not match length of variables.
 
         See Also
         --------
@@ -656,14 +995,19 @@ class OptimizationProblem(metaclass=StructMeta):
 
         """
         if not all(var in self.variables_dict for var in opt_vars):
-            raise CADETProcessError('Variable not in variables')
+            raise CADETProcessError('Variable not in variables.')
 
-        if len(factors) != len(opt_vars):
-            raise CADETProcessError('Factors length does not match variables')
+        if np.isscalar(lhs):
+            lhs = len(opt_vars) * [1]
+
+        if len(lhs) != len(opt_vars):
+            raise CADETProcessError(
+                'Number of lhs coefficients and variables do not match.'
+            )
 
         lincon = dict()
         lincon['opt_vars'] = opt_vars
-        lincon['factors'] = factors
+        lincon['lhs'] = lhs
         lincon['b'] = b
 
         self._linear_constraints.append(lincon)
@@ -684,10 +1028,9 @@ class OptimizationProblem(metaclass=StructMeta):
         """
         del(self._linear_constraints[index])
 
-
     @property
     def A(self):
-        """np.ndarray: Matrix form of linear inequality constraints.
+        """np.ndarray: LHS Matrix of linear inequality constraints.
 
         See Also
         --------
@@ -701,7 +1044,7 @@ class OptimizationProblem(metaclass=StructMeta):
         for lincon_index, lincon in enumerate(self.linear_constraints):
             for var_index, var in enumerate(lincon['opt_vars']):
                 index = self.variables.index(self.variables_dict[var])
-                A[lincon_index, index] = lincon['factors'][var_index]
+                A[lincon_index, index] = lincon['lhs'][var_index]
 
         return A
 
@@ -754,7 +1097,7 @@ class OptimizationProblem(metaclass=StructMeta):
         Returns
         -------
         flag : bool
-            Returns True if linear inequality constraints are met. False otherwise.
+            True if linear inequality constraints are met. False otherwise.
 
         See Also
         --------
@@ -789,23 +1132,24 @@ class OptimizationProblem(metaclass=StructMeta):
         """int: number of linear equality constraints"""
         return len(self.linear_constraints)
 
-    def add_linear_equality_constraint(self, opt_vars, factors, beq=0):
+    def add_linear_equality_constraint(self, opt_vars, lhs=1, beq=0):
         """Add linear equality constraints.
 
         Parameters
         ----------
         opt_vars : list of strings
             Names of the OptimizationVariable to be added.
-        factors : list of  integers
-            Factors for OptimizationVariables.
-        b_eq : float, optional
-            Constraint of equality constraint; default set to zero.
+        lhs : float or list, optional
+            Left-hand side / coefficients of the constraints.
+            If scalar, same coefficient is used for all variables.
+        b : float, optional
+            Constraint of inequality constraint. The default is zero.
 
         Raises
         ------
         CADETProcessError
             If optimization variables do not exist.
-            If length of factors does not match length of optimization variables.
+            If length of lhs coefficients does not match length of variables.
 
         See Also
         --------
@@ -817,12 +1161,17 @@ class OptimizationProblem(metaclass=StructMeta):
         if not all(var in self.variables for var in opt_vars):
             return CADETProcessError('Variables not in variables')
 
-        if len(factors) != len(opt_vars):
-            return CADETProcessError('Factors length does not match variables')
+        if np.isscalar(lhs):
+            lhs = len(opt_vars) * [1]
+
+        if len(lhs) != len(opt_vars):
+            raise CADETProcessError(
+                'Number of lhs coefficients and variables do not match.'
+            )
 
         lineqcon = dict()
         lineqcon['opt_vars'] = opt_vars
-        lineqcon['factors'] = factors
+        lineqcon['lhs'] = lhs
         lineqcon['beq'] = beq
 
         self._linear_equality_constraints.append(lineqcon)
@@ -863,7 +1212,7 @@ class OptimizationProblem(metaclass=StructMeta):
         ):
             for var_index, var in enumerate(lineqcon.opt_vars):
                 index = self.variables.index(var)
-                Aeq[lineqcon_index, index] = lineqcon.factors[var_index]
+                Aeq[lineqcon_index, index] = lineqcon.lhs[var_index]
 
         return Aeq
 
@@ -917,7 +1266,7 @@ class OptimizationProblem(metaclass=StructMeta):
         Returns
         -------
         flag : bool
-            Returns True if linear equality constraints are met. False otherwise.
+            True if linear equality constraints are met. False otherwise.
 
         """
         flag = True
@@ -939,7 +1288,7 @@ class OptimizationProblem(metaclass=StructMeta):
         Raises
         ------
         CADETProcessError
-            If the initial value does not match length of optimization variables
+            If length of x0 does not match length of optimization variables.
 
         """
         return self._x0
@@ -950,8 +1299,7 @@ class OptimizationProblem(metaclass=StructMeta):
             raise CADETProcessError(
                 "Starting value must be given for all variables"
             )
-        self._x0 = x0
-
+        self._x0 = x0.tolist()
 
     def create_initial_values(self, n_samples=1, method='random', seed=None):
         """Create initial value within parameter space.
@@ -972,7 +1320,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
         Returns
         -------
-        init : ndarray
+        values : list
             Initial values for starting the optimization.
 
         """
@@ -1018,19 +1366,101 @@ class OptimizationProblem(metaclass=StructMeta):
     def parameters(self):
         parameters = Dict()
 
-        parameters.variables = {opt.name: opt.parameters
-                                for opt in self.variables}
+        parameters.variables = {
+            opt.name: opt.parameters for opt in self.variables
+        }
         parameters.linear_constraints = self.linear_constraints
 
         return parameters
 
+    def setup_cache(self, only_cached_evalutors=False):
+        """Helper function to setup cache dictionary structure.
+
+        Structure:
+        [evaluation_object][step][x]
+
+        For example:
+        [Process 1][ProcessSimulator][x] -> SimulationResults
+        [Process 1][Fractionator][x] -> Performance
+        [Process 1][Objective 1][x] -> f1.1
+        [Process 1][Objective 2][x] -> f2.1
+        [Process 1][Constraint 1][x] -> g1.1
+
+        [Process 2][ProcessSimulator][x] -> SimulationResults
+        [Process 2][Fractionator][x] -> erformance
+        [Process 2][Objective 1][x] -> f1.2
+        [Process 2][Objective 2][x] -> f2.2
+        [Process 2][Constraint 1]x] -> g1.2
+
+        [CustomSimulator][x] -> SimulationResults
+        [Custom Objective][x] -> f3
+        [Custom Constraint][x] -> g2
+
+        """
+        cache = {}
+
+        if only_cached_evalutors:
+            evaluators = self.cached_evaluators
+        else:
+            evaluators = self.evaluators
+
+        for objective in self.objectives:
+            if len(objective.evaluation_objects) == 0:
+                cache[objective.name] = {}
+                for evaluator in objective.evaluators:
+                    if evaluator in evaluators:
+                        cache[str(evaluator)] = {}
+            else:
+                for eval_obj in objective.evaluation_objects:
+                    if str(eval_obj) not in cache:
+                        cache[str(eval_obj)] = {}
+
+                    cache[str(eval_obj)][objective.name] = {}
+
+                for evaluator in objective.evaluators:
+                    if evaluator in evaluators:
+                        cache[str(eval_obj)][str(evaluator)] = {}
+
+        for nonlincon in self.nonlinear_constraints:
+            if len(nonlincon.evaluation_objects) == 0:
+                cache[nonlincon.name] = {}
+                for evaluator in nonlincon.evaluators:
+                    if evaluator in evaluators:
+                        cache[str(evaluator)] = {}
+            else:
+                for eval_obj in nonlincon.evaluation_objects:
+                    if str(eval_obj) not in cache:
+                        cache[str(eval_obj)] = {}
+
+                    cache[str(eval_obj)][nonlincon.name] = {}
+
+                for evaluator in nonlincon.evaluators:
+                    if evaluator in evaluators:
+                        cache[str(eval_obj)][str(evaluator)] = {}
+
+        for callback in self.callbacks:
+            if len(callback.evaluation_objects) == 0:
+                cache[callback.name] = {}
+                for evaluator in callback.evaluators:
+                    if evaluator in evaluators:
+                        cache[str(evaluator)] = {}
+            else:
+                for eval_obj in callback.evaluation_objects:
+                    if str(eval_obj) not in cache:
+                        cache[str(eval_obj)] = {}
+
+                    cache[str(eval_obj)][callback.name] = {}
+
+                for evaluator in callback.evaluators:
+                    if evaluator in evaluators:
+                        cache[str(eval_obj)][str(evaluator)] = {}
+
+        return cache
 
     def __str__(self):
         return self.name
 
-from CADETProcess.dataStructure import (
-    check_nested, generate_nested_dict, get_nested_value
-)
+
 class OptimizationVariable():
     """Class for setting the values for the optimization variables.
 
@@ -1040,21 +1470,19 @@ class OptimizationVariable():
 
     Attributes
     ----------
-    evaluation_object :  obj
-        Object to be evaluated, can be a wrapped process or a fractionation
-        object.
     name : str
         Name of the optimization variable.
-    attribute : str
-        Path of the optimization variable in the evaluation_object's parameters.
-    value : float
-        Value of the optimization variable.
+    evaluation_objects : list
+        List of evaluation objects associated with optimization variable.
+    parameter_path : str
+        Path of the optimization variable the evaluation_object's parameters.
     lb : float
         Lower bound of the variable.
     ub : float
         upper bound of the variable.
-    component_index : int
-        Index for compnent specific variables
+    component_index : int, optional
+        Index for compnent specific variables. If None, variable is assumed to
+        be component independent.
 
     Raises
     ------
@@ -1064,14 +1492,20 @@ class OptimizationVariable():
     """
     _parameters = ['lb', 'ub', 'component_index']
 
-    def __init__(self, name, evaluation_object, parameter_path,
-                 lb=-math.inf, ub=math.inf, value=0.0, component_index=None):
+    def __init__(self, name,
+                 evaluation_objects=None, parameter_path=None,
+                 lb=-math.inf, ub=math.inf, component_index=None):
 
         self.name = name
 
-        self.evaluation_object = evaluation_object
-        self.parameter_path = parameter_path
-        self.component_index = component_index
+        if evaluation_objects is not None:
+            self.evaluation_objects = evaluation_objects
+            self.parameter_path = parameter_path
+            self.component_index = component_index
+        else:
+            self.evaluation_objects = None
+            self.parameter_path = None
+            self.component_index = None
 
         self.lb = lb
         self.ub = ub
@@ -1082,8 +1516,12 @@ class OptimizationVariable():
 
     @parameter_path.setter
     def parameter_path(self, parameter_path):
-        if not check_nested(self.evaluation_object.parameters, parameter_path):
-            raise CADETProcessError('Not a valid Optimization variable')
+        if parameter_path is not None:
+            for eval_obj in self.evaluation_objects:
+                if not check_nested(eval_obj.parameters, parameter_path):
+                    raise CADETProcessError(
+                        'Not a valid Optimization variable'
+                    )
         self._parameter_path = parameter_path
 
     @property
@@ -1108,13 +1546,118 @@ class OptimizationVariable():
     @property
     def parameters(self):
         """dict: parameter dictionary."""
-        return Dict({param: getattr(self, param) for param in self._parameters})
+        return Dict({
+            param: getattr(self, param) for param in self._parameters
+        })
 
     def __repr__(self):
-        return '{}(name={}, evaluation_object={}, parameter_path={},\
-                    lb={}, ub={}'.format(
-                self.__class__.__name__, self.name, self.evaluation_object.name,
-                self.parameter_path, self.lb, self.ub)
+        if self.evaluation_objects is not None:
+            string = \
+                f'{self.__class__.__name__}' + \
+                f'(name={self.name},' + \
+                f'evaluation_objects=' \
+                f'{[obj.name for obj in self.evaluation_objects]}' + \
+                f'parameter_path=' \
+                f'{self.parameter_path}, lb={self.lb}, ub={self.ub})'
+        else:
+            string = \
+                f'{self.__class__.__name__}' + \
+                f'(name={self.name}, lb={self.lb}, ub={self.ub})'
+        return string
+
+
+class Objective(metaclass=StructMeta):
+    objective = Callable()
+    name = String()
+    type = Switch(valid=['minimize', 'maximize'])
+    n_objectives = RangedInteger(lb=1)
+    n_metrics = n_objectives
+    bad_metrics = DependentlySizedList(dep='n_metrics', default=np.inf)
+
+    def __init__(
+            self,
+            objective,
+            name=None,
+            type='minimize',
+            n_objectives=1,
+            bad_metrics=np.inf,
+            evaluation_objects=None,
+            evaluators=None):
+        self.objective = objective
+
+        if name is None:
+            name = str(objective)
+        self.name = name
+
+        self.type = type
+        self.n_objectives = n_objectives
+
+        if np.isscalar(bad_metrics):
+            bad_metrics = n_objectives * [bad_metrics]
+        self.bad_metrics = bad_metrics
+
+        self.evaluation_objects = evaluation_objects
+        self.evaluators = evaluators
+
+    def __call__(self, *args, **kwargs):
+        f = self.objective(*args, **kwargs)
+
+        if np.isscalar(f):
+            f = [f]
+
+        return f
+
+    evaluate = __call__
+
+    def __str__(self):
+        return self.name
+
+
+class NonlinearConstraint(metaclass=StructMeta):
+    nonlinear_constraint = Callable()
+    name = String()
+    n_nonlinear_constraints = RangedInteger(lb=1)
+    n_metrics = n_nonlinear_constraints
+    bad_metrics = DependentlySizedList(dep='n_metrics', default=np.inf)
+
+    def __init__(
+            self,
+            nonlinear_constraint,
+            name=None,
+            bounds=None,
+            n_nonlinear_constraints=1,
+            bad_metrics=np.inf,
+            evaluation_objects=None,
+            evaluators=None):
+
+        self.nonlinear_constraint = nonlinear_constraint
+
+        if name is None:
+            name = str(nonlinear_constraint)
+        self.name = name
+
+        self.bounds = bounds
+        self.n_nonlinear_constraints = n_nonlinear_constraints
+
+        if np.isscalar(bad_metrics):
+            bad_metrics = n_nonlinear_constraints * [bad_metrics]
+        self.bad_metrics = bad_metrics
+
+        self.evaluation_objects = evaluation_objects
+        self.evaluators = evaluators
+
+    def __call__(self, *args, **kwargs):
+        g = self.nonlinear_constraint(*args, **kwargs)
+
+        if np.isscalar(g):
+            g = [g]
+
+        return g
+
+    evaluate = __call__
+
+    def __str__(self):
+        return self.name
 
 
 def approximate_jac(xk, f, epsilon, args=()):

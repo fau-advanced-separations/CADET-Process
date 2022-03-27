@@ -64,6 +64,10 @@ class Fractionator(EventHandler):
 
         self.reset()
 
+    @property
+    def component_system(self):
+        return self.chromatograms[0].component_system
+
     def call_by_chrom_name(func):
         @wraps(func)
         def wrapper(self, chrom, *args, **kwargs):
@@ -545,3 +549,6 @@ class Fractionator(EventHandler):
                 save_path=path + f'/fractionation_signal_{index}.png',
                 index=index
             )
+
+    def __str__(self):
+        return self.__class__.__name__

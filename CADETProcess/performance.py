@@ -4,6 +4,7 @@ from CADETProcess import CADETProcessError
 
 from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import NdArray
+from CADETProcess.metric import MetricBase
 
 
 class Performance(Structure):
@@ -111,12 +112,75 @@ class RankedPerformance():
             f'eluent_consumption={np.array_repr(self.eluent_consumption)})'
 
 
-def get_bad_performance(n_comp):
-    return Performance(
-        mass=np.zeros((n_comp,)),
-        concentration=np.zeros((n_comp,)),
-        purity=np.zeros((n_comp,)),
-        recovery=np.zeros((n_comp,)),
-        productivity=np.zeros((n_comp,)),
-        eluent_consumption=np.zeros((n_comp,)),
-    )
+class PerformanceIndicator(MetricBase):
+    def __init__(self, n_metrics=1, ranking=None):
+        self._n_metrics = n_metrics
+        self.ranking = ranking
+
+    @property
+    def bad_metrics(self):
+        return np.zeros((self.n_metrics,)).tolist()
+
+    @property
+    def n_metrics(self):
+        if self.ranking is None:
+            return self._n_metrics
+        else:
+            return 1
+
+    @n_metrics.setter
+    def n_metrics(self, n_metrics):
+        self._n_metrics = n_metrics
+
+    def evaluate(self, performance):
+        try:
+            performance = performance.performance
+        except AttributeError:
+            pass
+
+        if self.ranking is not None:
+            performance = RankedPerformance(performance, self.ranking)
+
+        value = self._evaluate(performance).tolist()
+
+        return value
+
+    __call__ = evaluate
+
+
+class Mass(PerformanceIndicator):
+    def _evaluate(self, performance):
+        return - performance.mass
+
+
+class Recovery(PerformanceIndicator):
+    def _evaluate(self, performance):
+        return - performance.recovery
+
+
+class Productivity(PerformanceIndicator):
+    def _evaluate(self, performance):
+        return - performance.productivity
+
+
+class EluentConsumption(PerformanceIndicator):
+    def _evaluate(self, performance):
+        return - performance.eluent_consumption
+
+
+class Purity(PerformanceIndicator):
+    def _evaluate(self, performance):
+        return - performance.purity
+
+
+class Concentration(PerformanceIndicator):
+    def _evaluate(self, performance):
+        return - performance.concentration
+
+
+class PerformanceProduct(PerformanceIndicator):
+    def _evaluate(self, performance):
+        return \
+            - performance.productivity \
+            * performance.recovery \
+            * performance.eluent_consumption

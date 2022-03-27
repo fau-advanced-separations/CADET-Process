@@ -26,12 +26,11 @@ from . import reference
 from .simulationResults import SimulationResults
 from . import metric
 from . import performance
+from . import optimization
 from . import comparison
 from . import stationarity
 from . import simulator
-from . import optimization
 from . import fractionation
-from . import evaluator
 from . import equilibria
 from . import modelBuilder
 

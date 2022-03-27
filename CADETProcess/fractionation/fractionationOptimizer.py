@@ -1,14 +1,27 @@
 import logging
 import warnings
 
+import numpy as np
+
 from CADETProcess import CADETProcessError
 
 from CADETProcess import SimulationResults
 from CADETProcess.fractionation import Fractionator
-from CADETProcess.optimization import SolverBase, OptimizationProblem
-from CADETProcess.optimization import COBYLA, TrustConstr
-from CADETProcess.optimization import mass, ranked_objective_decorator
-from CADETProcess.optimization import purity, nonlin_bounds_decorator
+from CADETProcess.optimization import OptimizerBase, OptimizationProblem
+from CADETProcess.optimization import COBYLA
+from CADETProcess.performance import Mass, Purity
+
+
+class FractionationEvaluator():
+    """Dummy Evaluator to enable caching."""
+
+    def evaluate(self, fractionator):
+        return fractionator.performance
+
+    __call__ = evaluate
+
+    def __str__(self):
+        return __class__.__name__
 
 
 class FractionationOptimizer():
@@ -30,7 +43,7 @@ class FractionationOptimizer():
     def __init__(self, purity_required, obj_fun=None, optimizer=None):
         self.purity_required = purity_required
         if obj_fun is None:
-            obj_fun = ranked_objective_decorator(1)(mass)
+            obj_fun = Mass(ranking=1)
         self.obj_fun = obj_fun
         if optimizer is None:
             optimizer = COBYLA()
@@ -46,8 +59,8 @@ class FractionationOptimizer():
 
     @optimizer.setter
     def optimizer(self, optimizer):
-        if not isinstance(optimizer, SolverBase):
-            raise TypeError('Optimization SolverBase')
+        if not isinstance(optimizer, OptimizerBase):
+            raise TypeError('Expected OptimizerBase')
         self._optimizer = optimizer
 
     def setup_fractionator(self, simulation_results):
@@ -60,16 +73,26 @@ class FractionationOptimizer():
         return frac
 
     def setup_optimization_problem(self, frac):
-        opt = OptimizationProblem(frac)
-        opt.logger.setLevel(logging.WARNING)
+        opt = OptimizationProblem('FractionationOptimization')
+        opt.logger.setLevel(logging.DEBUG)
 
-        opt.add_objective(self.obj_fun)
+        opt.add_evaluation_object(frac)
+
+        frac_evaluator = FractionationEvaluator()
+        opt.add_evaluator(frac_evaluator, cache=True)
+
+        opt.add_objective(self.obj_fun, requires=frac_evaluator)
+
+        purity = Purity(n_metrics=frac.n_comp)
+        constraint_bounds = -np.array(self.purity_required)
+        constraint_bounds = constraint_bounds.tolist()
         opt.add_nonlinear_constraint(
-            nonlin_bounds_decorator(self.purity_required)(purity)
+            purity, n_nonlinear_constraints=len(constraint_bounds),
+            bounds=constraint_bounds, requires=frac_evaluator
         )
 
         for evt in frac.events:
-            opt.add_variable(evt.name + '.time', evt.name)
+            opt.add_variable(evt.name + '.time', name=evt.name)
 
         for chrom_index, chrom in enumerate(frac.chromatograms):
             chrom_events = frac.chromatogram_events[chrom]
@@ -145,3 +168,9 @@ class FractionationOptimizer():
             frac.initial_values()
 
         return frac
+
+    def evaluate(self, simulation_results):
+        return self.optimize_fractionation(simulation_results)
+
+    def __str__(self):
+        return self.__class__.__name__

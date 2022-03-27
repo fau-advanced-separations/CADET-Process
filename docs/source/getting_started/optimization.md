@@ -28,23 +28,72 @@ The `OptimizerAdapter` provides a unified interface for using external optimizat
 It is responsible for converting the `OptimizationProblem` to the specific API of the external `Optimizer`.
 Currently, adapters to pymoo {cite}`pymoo2020` and SciPy's optimization suite {cite}`SciPyContributors2020` are implemented, all of which are published under open source licenses that allow for academic as well as commercial use.
 
-In order to facilitate the bi-level approach mentioned beforehand, an intermediate `ProcessEvaluator` is implemented.
-It is responsible for passing the `ProcessModel` to the Simulator, checking Stationarity requirements and calling the `Fractionation` subroutine.
-The `ProcessEvaluator` returns the `Performance` to the `OptimizationProblem` which in turn determines the value of the objective function at the current point.
-The value is passed to the external `Optimizer`, then determines new candidates to be evaluated until a termination criterion is reached.
+## Optimization Problem
+After import, the `OptimizationProblem` is initialized with a name.
 
-## Demonstration
-In this example, 
+```{code-cell} ipython3
+from CADETProcess.optimization import OptimizationProblem
+
+optimization_problem = OptimizationProblem(name='batch elution')
+```
+
+Then, one or more `EvaluationObjects` can be added to the problem.
+These objects usually contain the parameters which should be optimized (e.g. a `Process` or a `Fractionator`).
+
+For this demonstration, a process model from a previous tutorial is used.
 
 ```{code-cell} ipython3
 :tags: [remove-cell]
-
-import sys
-sys.path.append('../../../')
-
 from examples.operating_modes.batch_elution import process
 ```
 
+```{code-cell} ipython3
+optimization_problem.add_evaluation_object(process)
+```
+
+In this example, we want to find the optimal cycle time and feed duration.
+To specify these variable, the `add_variable` method is used.
+First, it takes the path to the variable in the evaluation object.
+Additionally, lower and upper bounds can be specified.
+Moreover, it is possible to specify with which `EvaluationObject` the variable are associated.
+By default, the variable is associated to all.
+
+```{code-cell} ipython3
+optimization_problem.add_variable('cycle_time', lb=10, ub=600, evaluation_objects=process)
+optimization_problem.add_variable('feed_duration.time', lb=10, ub=300)
+```
+
+Moreover, it can be useful to add linear constraint.
+In this example, it needs to be ensured that the cycle time is always larger than the feed duration.
+Linear constraints are usually defined in the following way
+
+$$
+A \cdot x \leq b
+$$
+
+In **CADET-Process**, add each row $a$ of the constraint matrix needs to be added individually.
+The `add_linear_constraint` function takes the variables subject to the constraint as first argument.
+$a$ and the bound $b_a$ are then passed as second and third argument. 
+It is important to note that the column order in $a$ is inferred from the order in which the optimization variables are passed.
+
+```{code-cell} ipython3
+optimization_problem.add_linear_constraint(['feed_duration.time', 'cycle_time'], [1,-1], 0)
+```
+
+## Evaluators for the preprocessing of objective functions
+In many situations, some preprocessing steps need to be performed before an objective function can be evaluated.
+
+In the current example, to evaluate the performance of the process, the following steps need to be performed.
+- Simulate process.
+- Determine fractionation times under purity constraints.
+- Calculate objective function; Here, two objectives are considered:
+	- Productivity,
+	- Yield recovery.
+
+To implement evaluation toolchains, **CADET-Process** provides a mechanism to add `Evaluators` to an `OptimizationProblem` which can be referenced by objective and constraint functions.
+Optionally, the results can also be cached when different objective and constraint functions require the same preprocessing steps.
+
+Hence, a `ProcessSimulator` and a fully configured `FractionationOptimizer` are added to the `OptimizationProblem`.
 First, the `CADET` is configured as usual. 
 To also allow for cycle-to-cycle overlaps, cyclic stationarity is also considered.
 
@@ -52,89 +101,60 @@ To also allow for cycle-to-cycle overlaps, cyclic stationarity is also considere
 from CADETProcess.simulator import Cadet
 process_simulator = Cadet()
 process_simulator.evaluate_stationarity = True
+
+optimization_problem.add_evaluator(process_simulator)
 ```
 
-To evaluate the `Process`, again a `FractionationOptimizer` is used.
-For the objective function, the mass is maximized. 
-In this example, both components are equally valuable.
-Hence, a `RankedPerformance` is used which combines the performance of multiple components into a single metric based on a ranking.
-Moreover, the minimum required purity is set to $95~\%$ for both components.
+Note that storing all simulation results requires large amounts of disk space.
+Here, only the fractionation results are cached since they will be used by both objectives.
 
 ```{code-cell} ipython3
 from CADETProcess.fractionation import FractionationOptimizer
-from CADETProcess.performance import RankedPerformance
+fractionation_optimization = FractionationOptimizer()
+fractionation_optimization.purity_required = [0.95, 0.95]
 
-purity_required = [0.95, 0.95]
-ranking = [1, 1]
-def fractionation_objective(performance):
-    performance = RankedPerformance(performance, ranking)
-    return - performance.mass
-
-fractionation_optimizer = FractionationOptimizer(purity_required, fractionation_objective)
+optimization_problem.add_evaluator(fractionation_optimization, cache=True)
 ```
 
-To combine simulation and fractionation, a `ProcessEvaluator` is used. 
+When adding the objectives (or nonlinear constraint) functions, the evaluators are added as requirements.
 ```{code-cell} ipython3
-from CADETProcess.evaluator import SimulateAndFractionate
-evaluator = SimulateAndFractionate(process_simulator, fractionation_optimizer)
+recovery = Recovery()
+optimization_problem.add_objective(recovery, requires=[process_simulator, fractionation_optimization])
+productivity = Productivity()
+optimization_problem.add_objective(productivity, requires=[process_simulator, fractionation_optimization])
 ```
 
-Now, the `OptimizationProblem` is configured.
-For this purpose, we pass the `Process`, as well as the `Evaluator` to the Optimization Problem.
+Now, when the objectives are evaluated, the process is only simulated once, and the optimal fractionation times only need to be determined once.
 ```{code-cell} ipython3
-from CADETProcess.optimization import OptimizationProblem
-
-optimization_problem = OptimizationProblem(process, evaluator)
+f = optimization_problem.evaluate_objectives(1)
+print(f"objectives: {f}")
 ```
 
-First, the objective function is defined.
-In this example, a product of mass, recovery yield, and eluent consumption is considered.
-For this purpose, the `ProcessPerformance` object which the `SimulateAndFractionate` object returns again is ranked equally for both components. 
-```{code-cell} ipython3
-def objective_function(performance):
-    performance = RankedPerformance(performance, ranking)
-    return - performance.mass * performance.recovery * performance.eluent_consumption
-optimization_problem.add_objective(objective_function)
-```
-
-In this example, we want to find the optimal cycle time and feed duration.
-For this, we use the `add_variable` method. 
-First, it takes the path to the variable in the evaluation object.
-Additionally, lower and upper bounds can be specified.
-```{code-cell} ipython3
-optimization_problem.add_variable('cycle_time', lb=10, ub=600)
-optimization_problem.add_variable('feed_duration.time', lb=10, ub=300)
-```
-Moreover, it is useful to add a linear constraint.
-Linear constraints are usually defined in the following way
-
-$$
-A \cdot x \leq b
-$$
-
-In **CADET-Process**, add each row $a$ of the constraint function needs to be added individually.
-The `add_linear_constraint` function takes the variables subject to the constraint as first argument.
-$a$ and $b$ are then passed as second and third argument. 
-It is important to note that the order in $a$ is inferred from the order in which the optimization variables are passed.
-```{code-cell} ipython3
-optimization_problem.add_linear_constraint(['feed_duration.time', 'cycle_time'], [1,-1], 0)
-```
-
-Before the optimization can be run, the `Solver` needs to be initialized and configured.
-For this example, `NSGA2` is used, a genetic algorithm.
-Important parameters are the population size (`pop_size`), the maximum number of generations `n_max_gen` and the number of cores (`n_cores`) which the optimization can use.
+## Optimizer
+Before the optimization can be run, the `Optimizer` needs to be initialized and configured.
+For this example, `U_NSGA3` is used, a genetic algorithm.
+Important parameters are the population size (`pop_size`), the maximum number of generations (`n_max_gen`) and the number of cores (`n_cores`) which can be used during optimization.
 
 ```{code-cell} ipython3
-from CADETProcess.optimization import NSGA2
+from CADETProcess.optimization import U_NSGA3
 
-optimization_solver = NSGA2()
-optimization_solver.pop_size = 200
-optimization_solver.n_max_gen = 200
-optimization_solver.n_cores = 4
+optimizer = U_NSGA3()
+optimizer.pop_size = 200
+optimizer.n_max_gen = 200
+optimizer.n_cores = 4
 ```
-To start the simulation, the `OptimizationProblem` needs to be passed to the `Solver`.
+
+To start the simulation, the `OptimizationProblem` needs to be passed to the `optimize()` method.
+**CADET-Process** automatically stores checkpoints so that an optimization can be interrupted and restarted.
+To load from an existing file, set `use_checkpoint=True`.
+
+<!-- ```{code-cell} ipython3 -->
 ```
-optimization_results = opt_solver.optimize(optimization_problem)
+optimization_results = optimizer.optimize(
+    optimization_problem,
+    use_checkpoint=True,
+)
 ```
+
 In the results, the information about the optimization results are stored such as best individual etc.
 

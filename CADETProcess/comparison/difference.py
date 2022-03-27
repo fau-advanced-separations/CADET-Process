@@ -147,6 +147,8 @@ class DifferenceBase(MetricBase):
         metric = self._evaluate(solution)
         return metric
 
+    __call__ = evaluate
+
     @slices_solution
     @transforms_solution
     def slice_and_transform(self, solution):

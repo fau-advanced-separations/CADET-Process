@@ -11,11 +11,11 @@
    :members:
 .. 
 ```
-## Solver
+## Optimizer
 ```{eval-rst}
 .. currentmodule:: CADETProcess.optimization
 
-.. autoclass:: SolverBase
+.. autoclass:: OptimizerBase
    :members:
 
 .. currentmodule:: CADETProcess.optimization.scipyAdapter

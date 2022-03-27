@@ -6,7 +6,6 @@ pathos
 multiprocess
 cadet-python
 addict
-deap
 hopsy
 pymoo
 numba

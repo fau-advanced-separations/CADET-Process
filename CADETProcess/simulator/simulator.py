@@ -333,6 +333,9 @@ class SimulatorBase(metaclass=StructMeta):
         """
         return
 
+    evaluate = simulate
+    __call__ = simulate
+
     @property
     def stationarity_evaluator(self):
         """Returns the stationarity evaluator.
