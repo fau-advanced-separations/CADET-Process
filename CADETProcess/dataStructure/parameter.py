@@ -62,6 +62,14 @@ class Parameter(Descriptor):
         return True
 
 
+class Constant(Parameter):
+    def __init__(self, value, *args, **kwargs):
+        super().__init__(*args, default=value, **kwargs)
+
+    def __set__(self, instance, value):
+        raise ValueError("Cannot modify constant parameter.")
+
+
 class Callable(Parameter):
     def __set__(self, instance, value):
         if value is None:
