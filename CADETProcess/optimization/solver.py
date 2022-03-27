@@ -2,6 +2,7 @@ from abc import abstractmethod
 import json
 import os
 
+import CADETProcess
 from CADETProcess import settings
 from CADETProcess.log import get_logger, log_time, log_results, log_exceptions
 from CADETProcess.dataStructure import StructMeta
@@ -142,6 +143,8 @@ class OptimizationResults(metaclass=StructMeta):
         self.frac = frac
 
         self.history = history
+        
+        self.version = str(CADETProcess.__version__)
 
 
     def to_dict(self):
@@ -161,10 +164,7 @@ class OptimizationResults(metaclass=StructMeta):
             'f': self.f.tolist(),
             'c': self.c.tolist(),
             'performance': self.performance,
-            'git': {
-                'chromapy_branch': str(settings.repo.active_branch),
-                'chromapy_commit': settings.repo.head.object.hexsha
-            }
+            'CADET-Process version': self.version
         }
 
     def save(self, directory):
