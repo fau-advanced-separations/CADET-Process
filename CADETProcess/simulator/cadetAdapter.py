@@ -113,32 +113,26 @@ class Cadet(SimulatorBase):
     @install_path.setter
     def install_path(self, install_path):
         if install_path is None:
+            executable = 'cadet-cli'
+            if platform.system() == 'Windows':
+                executable += '.exe'
             try:
-                if platform.system() == 'Windows':
-                    executable_path = Path(shutil.which("cadet-cli.exe"))
-                else:
-                    executable_path = Path(shutil.which("cadet-cli"))
+                install_path = shutil.which(executable)
             except TypeError:
                 raise FileNotFoundError(
                     "CADET could not be found. Please set an install path"
                 )
-            install_path = executable_path.parent.parent
-
         install_path = Path(install_path)
-        if platform.system() == 'Windows':
-            cadet_bin_path = install_path / "bin" / "cadet-cli.exe"
-        else:
-            cadet_bin_path = install_path / "bin" / "cadet-cli"
 
-        if cadet_bin_path.exists():
+        if install_path.exists():
             self._install_path = install_path
-            CadetAPI.cadet_path = cadet_bin_path
+            CadetAPI.cadet_path = install_path
         else:
             raise FileNotFoundError(
                 "CADET could not be found. Please check the path"
             )
 
-        cadet_lib_path = install_path / "lib"
+        cadet_lib_path = install_path.parent.parent / "lib"
         try:
             if cadet_lib_path.as_posix() not in os.environ['LD_LIBRARY_PATH']:
                 os.environ['LD_LIBRARY_PATH'] = \
@@ -150,10 +144,12 @@ class Cadet(SimulatorBase):
 
     def check_cadet(self):
         """Wrapper around a basic CADET example for testing functionality"""
+        executable = 'createLWE'
         if platform.system() == 'Windows':
-            lwe_path = self.install_path / "bin" / "createLWE.exe"
-        else:
-            lwe_path = self.install_path / "bin" / "createLWE"
+            executable += '.exe'
+
+        lwe_path = self.install_path.parent / executable
+
         ret = subprocess.run(
             [lwe_path.as_posix()],
             stdout=subprocess.PIPE,

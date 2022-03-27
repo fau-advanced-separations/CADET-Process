@@ -259,7 +259,7 @@ process_simulator = Cadet()
 If a specific version of **CADET** is to be used, add the install path to the constructor:
 
 ```
-process_simulator = Cadet(install_path='/path/to/cadet/directory')
+process_simulator = Cadet(install_path='/path/to/cadet/executable')
 ```
 
 To check that everything works correctly, you can call the `check_cadet` method:
