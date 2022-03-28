@@ -73,13 +73,14 @@ class Cadet(SimulatorBase):
 
     """
     timeout = UnsignedFloat()
+    use_c_api = Bool(default=False)
     _force_constant_flow_rate = False
 
     def __init__(self, install_path=None, temp_dir=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
         self.install_path = install_path
         self.temp_dir = temp_dir
-
-        super().__init__(*args, **kwargs)
 
         self.model_solver_parameters = ModelSolverParametersGroup()
         self.solver_parameters = SolverParametersGroup()
@@ -115,7 +116,13 @@ class Cadet(SimulatorBase):
         if install_path is None:
             executable = 'cadet-cli'
             if platform.system() == 'Windows':
-                executable += '.exe'
+                if self.use_c_api:
+                    executable += '.dll'
+                else:
+                    executable += '.exe'
+            else:
+                if self.use_c_api:
+                    executable += '.so'
             try:
                 install_path = shutil.which(executable)
             except TypeError:
@@ -127,6 +134,7 @@ class Cadet(SimulatorBase):
         if install_path.exists():
             self._install_path = install_path
             CadetAPI.cadet_path = install_path
+            self.logger.info(f"CADET was found here: {install_path}")
         else:
             raise FileNotFoundError(
                 "CADET could not be found. Please check the path"
@@ -200,7 +208,7 @@ class Cadet(SimulatorBase):
         f = next(tempfile._get_candidate_names())
         return os.path.join(self.temp_dir, f + '.h5')
 
-    def run(self, process, file_path=None):
+    def run(self, process, cadet=None, file_path=None):
         """Interface to the solver run function
 
         The configuration is extracted from the process object and then saved
@@ -237,19 +245,21 @@ class Cadet(SimulatorBase):
         if not isinstance(process, Process):
             raise TypeError('Expected Process')
 
-        cadet = CadetAPI()
+        if cadet is None:
+            cadet = CadetAPI()
+
         cadet.root = self.get_process_config(process)
 
-        if file_path is None:
-            cadet.filename = self.get_tempfile_name()
-        else:
-            cadet.filename = file_path
-
-        cadet.save()
+        if cadet.is_file:
+            if file_path is None:
+                cadet.filename = self.get_tempfile_name()
+            else:
+                cadet.filename = file_path
+            cadet.save()
 
         try:
             start = time.time()
-            return_information = cadet.run(timeout=self.timeout)
+            return_information = cadet.run_load(timeout=self.timeout)
             elapsed = time.time() - start
         except TimeoutExpired:
             raise CADETProcessError('Simulator timed out')
@@ -264,7 +274,6 @@ class Cadet(SimulatorBase):
             )
 
         try:
-            cadet.load()
             results = self.get_simulation_results(
                 process, cadet, elapsed, return_information
             )
@@ -288,9 +297,8 @@ class Cadet(SimulatorBase):
     def run_h5(self, file_path):
         cadet = CadetAPI()
         cadet.filename = file_path
-        cadet.run(timeout=self.timeout)
-
         cadet.load()
+        cadet.run_load(timeout=self.timeout)
 
         return cadet
 
