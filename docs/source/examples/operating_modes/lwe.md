@@ -16,12 +16,12 @@ execution:
 import sys
 sys.path.append('../../../../')
 ```
-(ssr_example)=
-# Steady State Recycling
-tags: single column, langmuir, recycling
+(lwe_example)=
+# Load, Wash, Elute
+tags: single column, steric mass action law, sma, gradient
 
-````{code-cell} ipython3
-:load: ../../../../examples/operating_modes/ssr.py
+```{code-cell} ipython3
+:load: ../../../../examples/operating_modes/lwe.py
 
-````
+```
 

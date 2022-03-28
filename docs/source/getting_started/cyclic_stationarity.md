@@ -30,7 +30,7 @@ The simulation terminates if the corresponding difference is smaller than a spec
 For the evaluation of the process (see {ref}`fractionation_tutorial`), only the last cycle is examined, as it yields a representative `Performance` of the process in all later cycles.
 
 ## Demonstration
-To demonstrate this concept, consider a SSR process (see {ref}`ssr`.)
+To demonstrate this concept, consider a SSR process (see {ref}`ssr_example`.)
 
 ```{code-cell} ipython3
 :tags: [remove-cell]

@@ -2,15 +2,9 @@
 
 """
 ===========================================
-Simulate Load/Wash/Elute with salt gradient 
+Simulate Load/Wash/Elute with salt gradient
 ===========================================
 
-tags:
-    steric mass action law
-    lwe
-    single column
-    gradient
-    
 """
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess.processModel import StericMassAction
@@ -20,8 +14,8 @@ from CADETProcess.processModel import Process
 
 # Component System
 component_system = ComponentSystem()
-component_system.add_component('A')
-component_system.add_component('B')
+component_system.add_component('Salt')
+component_system.add_component('Protein')
 
 # Binding Model
 binding_model = StericMassAction(component_system, name='SMA')
@@ -90,7 +84,9 @@ lwe.add_duration('feed_duration', time=feed_duration)
 lwe.add_event_dependency('feed_off', ['feed_on', 'feed_duration'], [1, 1])
 
 lwe.add_event('eluent_initialization', 'flow_sheet.eluent.flow_rate', 0)
-lwe.add_event('eluent_salt_initialization', 'flow_sheet.eluent_salt.flow_rate', 0)
+lwe.add_event(
+    'eluent_salt_initialization', 'flow_sheet.eluent_salt.flow_rate', 0
+)
 
 lwe.add_event(
     'wash', 'flow_sheet.eluent.flow_rate', Q, time=feed_duration
@@ -98,7 +94,7 @@ lwe.add_event(
 lwe.add_event_dependency('wash', ['feed_off'])
 
 lwe.add_event(
-    'neg_grad_start', 'flow_sheet.eluent.flow_rate', 
+    'neg_grad_start', 'flow_sheet.eluent.flow_rate',
     [Q, -gradient_slope], gradient_start
     )
 lwe.add_event(
@@ -107,15 +103,14 @@ lwe.add_event(
 lwe.add_event_dependency('pos_grad_start', ['neg_grad_start'])
 
 if __name__ == '__main__':
-    from CADETProcess.simulation import Cadet
+    from CADETProcess.simulator import Cadet
     process_simulator = Cadet()
-    process_simulator.unit_return_parameters.write_solution_particle = True
 
     lwe_sim_results = process_simulator.simulate(lwe)
-        
+
     from CADETProcess.plotting import SecondaryAxis
     sec = SecondaryAxis()
     sec.component_indices = [0]
-    sec.y_label = 'c_salt'
-    
+    sec.y_label = '$c_{salt}$'
+
     lwe_sim_results.solution.column.outlet.plot(secondary_axis=sec)
