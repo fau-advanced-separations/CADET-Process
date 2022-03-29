@@ -23,6 +23,7 @@ from . import dynamicEvents
 from . import processModel
 from . import solution
 from .simulationResults import SimulationResults
+from . import metric
 from . import performance
 from . import stationarity
 from . import simulator
