@@ -46,7 +46,7 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
     Duration
 
     """
-    cycle_time = UnsignedFloat(default=10.0)
+    cycle_time = UnsignedFloat(default=np.inf)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
