@@ -1,3 +1,4 @@
+from .progress import *
 from .optimizationProblem import *
 from .optimizer import *
 from .scipyAdapter import COBYLA, TrustConstr, NelderMead, SLSQP

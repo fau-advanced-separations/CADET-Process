@@ -1,6 +1,7 @@
 numpy
 scipy
 matplotlib
+corner
 sympy
 pathos
 multiprocess

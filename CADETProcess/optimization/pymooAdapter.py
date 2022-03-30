@@ -12,6 +12,7 @@ from pymoo.core.repair import Repair
 
 from CADETProcess.dataStructure import UnsignedInteger, UnsignedFloat
 from CADETProcess.optimization import OptimizerBase, OptimizationResults
+from CADETProcess.optimization import Individual
 
 
 class PymooInterface(OptimizerBase):
@@ -28,7 +29,6 @@ class PymooInterface(OptimizerBase):
     n_cores = UnsignedInteger(default=0)
     _options = [
         'x_tol', 'cv_tol', 'f_tol', 'nth_gen',
-        '_population_size', '_max_number_of_generations',
         'n_last', 'n_max_gen', 'n_max_evals',
     ]
 
@@ -60,10 +60,9 @@ class PymooInterface(OptimizerBase):
 
         """
         self.optimization_problem = optimization_problem
-        self.cache = {}
 
         self.problem = PymooProblem(
-            optimization_problem, self.cache, self.n_cores
+            optimization_problem, self.progress.cache, self.n_cores
         )
 
         checkpoint_path = os.path.join(
@@ -75,8 +74,10 @@ class PymooInterface(OptimizerBase):
             algorithm, = np.load(checkpoint_path, allow_pickle=True).flatten()
             if update_parameters:
                 self.update_algorithm(algorithm)
+            self.progress = algorithm.progress
         else:
             algorithm = self.setup_algorithm()
+            algorithm.progress = self.progress
 
         start = time.time()
 
@@ -85,11 +86,50 @@ class PymooInterface(OptimizerBase):
 
             np.save(checkpoint_path, algorithm)
 
-            res = algorithm.result()
-            self.logger.info(f'Generation {gen}: x: {res.X}, f: {res.F}')
+            for ind in algorithm.pop:
+                if self.optimization_problem.n_nonlinear_constraints > 0:
+                    ind = Individual(
+                        ind.X.tolist(),
+                        ind.F.tolist(),
+                        ind.G.tolist()
+                    )
+                else:
+                    ind = Individual(
+                        ind.X.tolist(),
+                        ind.F.tolist(),
+                    )
+                self.progress.add_individual(ind)
+
+            self.progress.hall_of_fame = []
+            for opt in algorithm.opt:
+                if self.optimization_problem.n_nonlinear_constraints > 0:
+                    ind = Individual(
+                        opt.X.tolist(),
+                        opt.F.tolist(),
+                        opt.G.tolist()
+                    )
+                else:
+                    ind = Individual(
+                        opt.X.tolist(),
+                        opt.F.tolist(),
+                    )
+                self.progress.hall_of_fame.append(ind)
+
+            self.progress.update_history()
+            self.progress.prune_cache()
+
+            if self.progress.results_directory is not None:
+                self.progress.save_progress()
+
+            self.logger.info(f'Finished Generation {algorithm.n_gen}')
+            if self.optimization_problem.n_nonlinear_constraints > 0:
+                for ind in self.progress.hall_of_fame:
+                    self.logger.info(f'x: {ind.x}, f: {ind.f}, g: {ind.g}')
+            else:
+                for ind in self.progress.hall_of_fame:
+                    self.logger.info(f'x: {ind.x}, f: {ind.f}')
 
         elapsed = time.time() - start
-        res = algorithm.result()
 
         results = OptimizationResults(
             optimization_problem=optimization_problem,
@@ -98,10 +138,10 @@ class PymooInterface(OptimizerBase):
             exit_flag=0,
             exit_message='success',
             time_elapsed=elapsed,
-            x=algorithm.result().X.tolist(),
-            f=algorithm.result().F.tolist(),
-            g=algorithm.result().G.tolist(),
-            history=res.history,
+            x=self.progress.x_hof.tolist(),
+            f=self.progress.f_hof,
+            g=self.progress.g_hof,
+            progress=self.progress,
         )
         return results
 
@@ -120,6 +160,25 @@ class PymooInterface(OptimizerBase):
             return self.n_max_gen
 
     def setup_algorithm(self):
+        if self.optimization_problem.x0 is not None:
+            pop = self.optimization_problem.x0
+        else:
+            pop = self.optimization_problem.create_initial_values(
+                self._population_size, method='chebyshev', seed=self.seed
+            )
+
+        pop = np.array(pop, ndmin=2)
+
+        if len(pop) < self._population_size:
+            n_remaining = self._population_size - len(pop)
+            remaining = self.optimization_problem.create_initial_values(
+                n_remaining, method='chebyshev', seed=self.seed,
+                set_values=False
+            )
+            pop = np.vstack((pop, remaining))
+        elif len(pop) > self._population_size:
+            pop = pop[0:self._population_size]
+
         algorithm = pymoo.factory.get_algorithm(
             str(self),
             ref_dirs=self.ref_dirs,
@@ -131,7 +190,7 @@ class PymooInterface(OptimizerBase):
         )
         algorithm.setup(
             self.problem, termination=self.termination,
-            seed=self.seed, verbose=True, save_history=True,
+            seed=self.seed, verbose=True, save_history=False,
         )
         return algorithm
 

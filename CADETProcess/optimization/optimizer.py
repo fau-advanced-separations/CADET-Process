@@ -2,6 +2,8 @@ from abc import abstractmethod
 import json
 import os
 
+import matplotlib.pyplot as plt
+
 import CADETProcess
 from CADETProcess import settings
 from CADETProcess import log
@@ -9,7 +11,7 @@ from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import (
     List, NdArray, String, UnsignedInteger, UnsignedFloat
 )
-from CADETProcess.optimization import OptimizationProblem
+from CADETProcess.optimization import OptimizationProblem, OptimizationProgress
 
 
 class OptimizerBase(metaclass=StructMeta):
@@ -34,10 +36,13 @@ class OptimizerBase(metaclass=StructMeta):
             *args, **kwargs):
         """
         """
+        plt.ioff()
         if not isinstance(optimization_problem, OptimizationProblem):
             raise TypeError('Expected OptimizationProblem')
 
-        self.progress = OptimizationProgress(optimization_problem)
+        self.progress = OptimizationProgress(
+            optimization_problem, save_results
+        )
 
         self.setup_directories(save_results)
 
@@ -47,17 +52,31 @@ class OptimizerBase(metaclass=StructMeta):
 
         results = self.run(optimization_problem, *args, **kwargs)
 
+        plt.ion()
+
         if save_results:
-            results.save(self.results_dir)
+            results.save(self.results_directory)
 
         return results
 
-    def setup_directories(self, overwrite=True):
+    def setup_directories(self, save_results, overwrite=True):
         self.working_directory = settings.working_directory
 
-        results_dir = self.working_directory / 'results'
-        results_dir.mkdir(exist_ok=overwrite)
-        self.results_dir = results_dir
+        if save_results:
+            progress_dir = self.working_directory / 'progress'
+            progress_dir.mkdir(exist_ok=overwrite)
+        else:
+            progress_dir = None
+        self.progress.progress_directory = progress_dir
+
+        if save_results:
+            results_dir = self.working_directory / 'results'
+            results_dir.mkdir(exist_ok=overwrite)
+        else:
+            results_dir = None
+        self.progress.results_directory = results_dir
+
+        self.results_directory = results_dir
 
     @abstractmethod
     def run(optimization_problem, *args, **kwargs):
@@ -115,7 +134,7 @@ class OptimizationResults(metaclass=StructMeta):
         Value of objective function at x.
     g : np.ndarray
         Values of constraint function at x
-    history : dict
+    progress : OptimizationProgress
         History of evaluations.
 
     """
@@ -131,7 +150,7 @@ class OptimizationResults(metaclass=StructMeta):
     def __init__(
             self, optimization_problem,
             optimizer, optimizer_options, exit_flag, exit_message,
-            time_elapsed, x, f, g, history=None):
+            time_elapsed, x, f, g=None, progress=None):
 
         self.optimization_problem = optimization_problem
 
@@ -146,7 +165,7 @@ class OptimizationResults(metaclass=StructMeta):
         self.f = f
         self.g = g
 
-        self.history = history
+        self.progress = progress
 
         self.version = str(CADETProcess.__version__)
 
