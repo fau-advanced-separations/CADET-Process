@@ -96,6 +96,11 @@ class SimulationResults(metaclass=StructMeta):
                 self.solution_cycles[unit][sol] += solution
 
     @property
+    def component_system(self):
+        solution = self.solution_cycles[self._first_unit][self._first_solution]
+        return solution[0].component_system
+
+    @property
     def solution(self):
         """Construct complete solution from individual cyles."""
         cycle_time = self.process_config['parameters']['cycle_time']

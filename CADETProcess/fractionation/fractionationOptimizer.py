@@ -29,7 +29,7 @@ class FractionationOptimizer():
 
     Attributes
     ----------
-    optimizer: SolverBase
+    optimizer: OptimizerBase
         Optimizer for optimizing the fractionaton times.
     purity_required :  float or array_like
         Minimum required purity for components. If is float, the same
@@ -41,12 +41,13 @@ class FractionationOptimizer():
     """
 
     def __init__(
-            self, purity_required,
+            self, component_system, purity_required,
             obj_fun=None, optimizer=None,
             log_level='WARNING', save_log=False):
+        self.component_system = component_system
         self.purity_required = purity_required
         if obj_fun is None:
-            obj_fun = Mass(ranking=1)
+            obj_fun = Mass(component_system, ranking=1)
         self.obj_fun = obj_fun
         if optimizer is None:
             optimizer = COBYLA(log_level=log_level, save_log=save_log)
@@ -59,7 +60,7 @@ class FractionationOptimizer():
 
     @property
     def optimizer(self):
-        """SolverBase: Optimizer for optimizing the fractionation times."""
+        """OptimizerBase: Optimizer for optimizing the fractionation times."""
         return self._optimizer
 
     @optimizer.setter
@@ -91,7 +92,7 @@ class FractionationOptimizer():
 
         opt.add_objective(self.obj_fun, requires=frac_evaluator)
 
-        purity = Purity(n_metrics=frac.n_comp)
+        purity = Purity(self.component_system)
         constraint_bounds = -np.array(self.purity_required)
         constraint_bounds = constraint_bounds.tolist()
         opt.add_nonlinear_constraint(
@@ -161,10 +162,9 @@ class FractionationOptimizer():
                 'Simulation results do not contain chromatogram'
             )
 
-        if (not isinstance(self.purity_required, (float, int))
-                and simulation_results.chromatograms[0].n_comp
-                != len(self.purity_required)):
-            raise CADETProcessError('Number of components does not match.')
+        if self.component_system.n_comp != \
+                simulation_results.component_system.n_comp:
+            raise CADETProcessError('Component systems do not match.')
 
         frac = self.setup_fractionator(simulation_results)
 

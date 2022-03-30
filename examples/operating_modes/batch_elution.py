@@ -82,7 +82,9 @@ if __name__ == '__main__':
 
     from CADETProcess.fractionation import FractionationOptimizer
     purity_required = [0.95, 0.95]
-    fractionation_optimizer = FractionationOptimizer(purity_required)
+    fractionation_optimizer = FractionationOptimizer(
+        component_system, purity_required
+    )
 
     fractionation = fractionation_optimizer.optimize_fractionation(
         simulation_results

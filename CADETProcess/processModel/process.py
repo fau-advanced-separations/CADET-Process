@@ -52,6 +52,10 @@ class Process(EventHandler):
         return self.flow_sheet.n_comp
 
     @property
+    def component_system(self):
+        return self.flow_sheet.component_system
+
+    @property
     def flow_sheet(self):
         """FlowSheet: flow sheet of the process model.
 

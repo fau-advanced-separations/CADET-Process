@@ -6,6 +6,8 @@ from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import NdArray
 from CADETProcess.metric import MetricBase
 
+from CADETProcess.processModel import ComponentSystem
+
 
 class Performance(Structure):
     """Class for storing the performance parameters after fractionation.
@@ -113,24 +115,67 @@ class RankedPerformance():
 
 
 class PerformanceIndicator(MetricBase):
-    def __init__(self, n_metrics=1, ranking=None):
-        self._n_metrics = n_metrics
+    def __init__(self, component_system, exclude=None, ranking=None):
+        self.component_system = component_system
+        self.exclude = exclude
         self.ranking = ranking
 
     @property
-    def bad_metrics(self):
-        return np.zeros((self.n_metrics,)).tolist()
+    def component_system(self):
+        return self._component_system
+
+    @component_system.setter
+    def component_system(self, component_system):
+        if not isinstance(component_system, ComponentSystem):
+            raise TypeError('Expected ComponentSystem')
+        self._component_system = component_system
+
+    @property
+    def exclude(self):
+        return self._exclude
+
+    @exclude.setter
+    def exclude(self, exclude=None):
+        if exclude is None:
+            exclude = []
+
+        component_names = [comp.name for comp in self.component_system]
+        if not all([ex in component_names for ex in exclude]):
+            raise CADETProcessError('Unknown component in exclude.')
+
+        self._exclude = exclude
+
+    @property
+    def n_exclude(self):
+        return len(self.exclude)
+
+    @property
+    def ranking(self):
+        return self._ranking
+
+    @ranking.setter
+    def ranking(self, ranking):
+        n_metrics = self.component_system.n_comp - self.n_exclude
+
+        if isinstance(ranking, (float, int)):
+            ranking = n_metrics * [ranking]
+
+        if ranking is not None and len(ranking) != n_metrics:
+            raise CADETProcessError('Ranking does not match number of metrics')
+
+        self._ranking = ranking
 
     @property
     def n_metrics(self):
         if self.ranking is None:
-            return self._n_metrics
+            return self.component_system.n_comp - self.n_exclude
         else:
             return 1
 
-    @n_metrics.setter
-    def n_metrics(self, n_metrics):
-        self._n_metrics = n_metrics
+    @property
+    def bad_metrics(self):
+        exclude = len(self.exclude)
+        return np.zeros((self.n_metrics - exclude,)).tolist()
 
     def evaluate(self, performance):
         try:
@@ -143,7 +188,16 @@ class PerformanceIndicator(MetricBase):
 
         value = self._evaluate(performance).tolist()
 
-        return value
+        if self.ranking is not None:
+            metric = [value]
+        else:
+            metric = []
+            for i, comp in enumerate(self.component_system):
+                if comp.name in self.exclude:
+                    continue
+                metric.append(value[i])
+
+        return metric
 
     __call__ = evaluate
 
