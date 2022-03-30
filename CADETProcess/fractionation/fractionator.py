@@ -534,7 +534,7 @@ class Fractionator(EventHandler):
         return self.parameters
 
     def save(self, case_dir, start=0, end=None):
-        path = os.path.join(settings.project_directory, case_dir)
+        path = os.path.join(settings.working_directory, case_dir)
 
         for index, chrom in enumerate(self.chromatograms):
             chrom.plot(save_path=path + f'/chrom_{index}.png')

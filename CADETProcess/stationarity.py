@@ -30,10 +30,16 @@ class StationarityEvaluator(Comparator):
     """
     valid_criteria = ['RelativeArea', 'SSE']
 
-    def __init__(self, criteria=None, *args, **kwargs):
+    def __init__(
+            self,
+            criteria=None,
+            log_level='WARNING', save_log=False,
+            *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.logger = log.get_logger('StationarityEvaluator')
+        self.logger = log.get_logger(
+            'StationarityEvaluator', level=log_level, save_log=save_log
+        )
 
         self._criteria = []
 

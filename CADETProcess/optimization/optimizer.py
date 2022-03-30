@@ -4,7 +4,7 @@ import os
 
 import CADETProcess
 from CADETProcess import settings
-from CADETProcess.log import get_logger, log_time, log_results, log_exceptions
+from CADETProcess import log
 from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import (
     List, NdArray, String, UnsignedInteger, UnsignedFloat
@@ -23,35 +23,41 @@ class OptimizerBase(metaclass=StructMeta):
     """
     _options = []
 
-    def __init__(self):
-        self.logger = get_logger(str(self))
+    def __init__(self, log_level="INFO", save_log=True):
+        self.logger = log.get_logger(
+            str(self), level=log_level, save_log=save_log
+        )
 
     def optimize(
             self, optimization_problem,
-            working_directory='./', save_results=False,
+            save_results=True,
             *args, **kwargs):
         """
         """
         if not isinstance(optimization_problem, OptimizationProblem):
             raise TypeError('Expected OptimizationProblem')
 
-        self.working_directory = os.path.abspath(working_directory)
+        self.progress = OptimizationProgress(optimization_problem)
 
-        if save_results:
-            self.logger = get_logger(
-                str(self), log_directory=self.working_directory
-            )
+        self.setup_directories(save_results)
 
-        log_time('Optimization', self.logger.level)(self.run)
-        log_results('Optimization', self.logger.level)(self.run)
-        log_exceptions('Optimization', self.logger.level)(self.run)
+        log.log_time('Optimization', self.logger.level)(self.run)
+        log.log_results('Optimization', self.logger.level)(self.run)
+        log.log_exceptions('Optimization', self.logger.level)(self.run)
 
         results = self.run(optimization_problem, *args, **kwargs)
 
         if save_results:
-            results.save(working_directory)
+            results.save(self.results_dir)
 
         return results
+
+    def setup_directories(self, overwrite=True):
+        self.working_directory = settings.working_directory
+
+        results_dir = self.working_directory / 'results'
+        results_dir.mkdir(exist_ok=overwrite)
+        self.results_dir = results_dir
 
     @abstractmethod
     def run(optimization_problem, *args, **kwargs):
@@ -162,11 +168,7 @@ class OptimizationResults(metaclass=StructMeta):
         }
 
     def save(self, directory):
-        path = os.path.join(
-            settings.project_directory, directory, 'results.json'
-        )
+        path = os.path.join(directory, 'results.json')
+
         with open(path, 'w') as f:
             json.dump(self.to_dict(), f, indent=4)
-
-    def plot_solution(self):
-        pass

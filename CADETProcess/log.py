@@ -10,34 +10,43 @@ LOG_FORMAT = logging.Formatter(
     '%(asctime)s:%(levelname)s:%(name)s:%(message)s'
 )
 
+log_to_file = {}
 
-def get_logger(name, level=None, log_directory=None):
+
+def get_logger(name, level=None, save_log=True):
     if level is None:
         level = settings.LOG_LEVEL
 
     logger = logging.getLogger(name)
+    logger.setLevel(level)
 
-    if log_directory is None:
-        log_directory = os.path.join(settings.project_directory, 'log')
-    else:
-        log_directory = os.path.join(settings.project_directory, log_directory)
+    if save_log:
+        log_to_file[name] = logger
 
-    if not os.path.exists(log_directory):
-        os.makedirs(log_directory)
+    return logger
 
+
+def add_file_handler(logger, name, level):
     file_handler = logging.FileHandler(
-        os.path.join(log_directory, name + '.log')
+        os.path.join(settings.log_directory, name + '.log')
     )
     file_handler.setFormatter(LOG_FORMAT)
     file_handler.setLevel(level)
 
-    for hdlr in logger.handlers:
-        logger.removeHandler(hdlr)
     logger.addHandler(file_handler)
 
-    logger.setLevel(logging.DEBUG)
 
-    return logger
+def update_loggers():
+    for name, logger in log_to_file.items():
+        try:
+            level = logger.handlers[0].level
+        except IndexError:
+            level = settings.LOG_LEVEL
+
+        for hdlr in logger.handlers:
+            logger.removeHandler(hdlr)
+
+        add_file_handler(logger, name, level)
 
 
 def log_time(logger_name, level=None):
@@ -77,7 +86,7 @@ def log_exceptions(logger_name, level=None):
                 return function(*args, **kwargs)
             except:
                 # log the exception
-                err = "There was an exception in  "
+                err = "There was an exception in "
                 err += function.__name__
                 logger.exception(err)
 

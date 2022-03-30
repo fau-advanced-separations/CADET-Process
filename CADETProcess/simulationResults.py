@@ -140,8 +140,10 @@ class SimulationResults(metaclass=StructMeta):
         """np.array: Solution times vector"""
         return self.solution_cycles[self._first_unit][self._first_solution][0].time
 
-    def save(self, case_dir, unit=None, start=0, end=None):
-        path = os.path.join(settings.project_directory, case_dir)
+    def save(self, case_dir=None, unit=None, start=0, end=None):
+        path = settings.working_directory
+        if case_dir is not None:
+            path = os.path.join(settings.working_directory, case_dir)
 
         if unit is None:
             units = self.solution.keys()

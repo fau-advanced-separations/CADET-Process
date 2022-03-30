@@ -40,17 +40,22 @@ class FractionationOptimizer():
 
     """
 
-    def __init__(self, purity_required, obj_fun=None, optimizer=None):
+    def __init__(
+            self, purity_required,
+            obj_fun=None, optimizer=None,
+            log_level='WARNING', save_log=False):
         self.purity_required = purity_required
         if obj_fun is None:
             obj_fun = Mass(ranking=1)
         self.obj_fun = obj_fun
         if optimizer is None:
-            optimizer = COBYLA()
+            optimizer = COBYLA(log_level=log_level, save_log=save_log)
             optimizer.tol = 0.1
             optimizer.catol = 1
             optimizer.rhobeg = 1
         self.optimizer = optimizer
+        self.log_level = log_level
+        self.save_log = save_log
 
     @property
     def optimizer(self):
@@ -73,8 +78,11 @@ class FractionationOptimizer():
         return frac
 
     def setup_optimization_problem(self, frac):
-        opt = OptimizationProblem('FractionationOptimization')
-        opt.logger.setLevel(logging.DEBUG)
+        opt = OptimizationProblem(
+            'FractionationOptimization',
+            log_level=self.log_level,
+            save_log=self.save_log
+        )
 
         opt.add_evaluation_object(frac)
 
@@ -162,7 +170,7 @@ class FractionationOptimizer():
 
         try:
             opt = self.setup_optimization_problem(frac)
-            opt_results = self.optimizer.optimize(opt)
+            opt_results = self.optimizer.optimize(opt, save_results=False)
         except CADETProcessError:
             warnings.warn('Optimization failed. Returning initial values')
             frac.initial_values()
