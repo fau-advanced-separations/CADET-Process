@@ -99,7 +99,7 @@ class SolutionBase(metaclass=StructMeta):
 
     @property
     def local_purity_components(self):
-        return purity(self.component_system, self.solution, sum_species=False)
+        return purity(self.component_system, self.solution, sum_species=True)
 
     @property
     def local_purity_species(self):
@@ -172,7 +172,7 @@ class SolutionIO(SolutionBase):
             self,
             start=0, end=None, y_max=None,
             layout=None,
-            only_plot_total_concentrations=False,
+            only_plot_components=False,
             alpha=1, hide_labels=False,
             secondary_axis=None, secondary_layout=None,
             show_legend=True,
@@ -207,7 +207,7 @@ class SolutionIO(SolutionBase):
         ax = _plot_solution_1D(
             self,
             layout=layout,
-            only_plot_total_concentrations=only_plot_total_concentrations,
+            only_plot_components=only_plot_components,
             alpha=alpha,
             hide_labels=hide_labels,
             secondary_axis=secondary_axis,
@@ -223,9 +223,8 @@ class SolutionIO(SolutionBase):
             self,
             start=0, end=None, y_max=None,
             layout=None,
-            only_plot_total_concentrations=False,
+            only_plot_components=False,
             alpha=1, hide_labels=False,
-            secondary_axis=None, secondary_layout=None,
             show_legend=True,
             ax=None):
         """Plot local purity for each component of the concentration profile.
@@ -252,27 +251,18 @@ class SolutionIO(SolutionBase):
         """
 
         time = self.time / 60
-        sol = self.local_purity * 100
 
         if layout is None:
             layout = plotting.Layout()
             layout.x_label = '$time~/~min$'
             layout.y_label = '$Purity ~/~\%$'
             layout.x_lim = (start, end)
-            layout.y_lim = (np.min(sol), 1.1*np.max(sol))
+            layout.y_lim = (0, 100)
 
-        total_concentration = self.total_concentration
-
-        if secondary_axis is not None:
-            ax_secondary = ax.twinx()
-        else:
-            ax_secondary = None
+        local_purity_components = self.local_purity_components * 100
+        local_purity_species = self.local_purity_species * 100
 
         species_index = 0
-        y_min = 0
-        y_max = 0
-        y_min_sec = 0
-        y_max_sec = 0
         for i, comp in enumerate(self.component_system.components):
             color = next(ax._get_lines.prop_cycler)['color']
             if hide_labels:
@@ -280,75 +270,37 @@ class SolutionIO(SolutionBase):
             else:
                 label = comp.name
 
-            if secondary_axis is not None \
-                    and i in secondary_axis.component_indices:
-                a = ax_secondary
-            else:
-                a = ax
+            y = local_purity_components[..., i]
 
-            if secondary_axis is not None \
-                    and secondary_axis.transform is not None \
-                    and i in secondary_axis.component_indices:
-                y = secondary_axis.transform(total_concentration[..., i])
-            else:
-                y = total_concentration[..., i]
-
-            if secondary_axis is not None \
-                    and i in secondary_axis.component_indices:
-                y_min_sec = min(min(y), y_min_sec)
-                y_max_sec = max(max(y), y_max_sec)
-            else:
-                y_min = min(min(y), y_min)
-                y_max = max(max(y), y_max)
-
-            a.plot(
+            ax.plot(
                 time, y,
                 label=label,
                 color=color,
                 alpha=alpha
             )
 
-            if not only_plot_total_concentrations:
+            if not only_plot_components:
                 if comp.n_species == 1:
                     species_index += 1
                     continue
 
                 for s, species in enumerate(comp.species):
                     label = s
-                    if secondary_axis is not None \
-                            and i in secondary_axis.component_indices:
-                        a = ax_secondary
-                    else:
-                        a = ax
 
-                    if secondary_axis is not None \
-                            and secondary_axis.transform is not None \
-                            and i in secondary_axis.component_indices:
-                        y = secondary_axis.transform(sol[..., species_index])
-                    else:
-                        y = sol[..., species_index]
+                    y = local_purity_species[..., species_index]
 
-                    a.plot(
+                    ax.plot(
                         time, y, '--',
                         label=label,
                         color=color,
                         alpha=alpha
                     )
                     species_index += 1
-        if layout.y_lim is None:
-            layout.y_lim = (y_min, 1.1*y_max)
-
-        if secondary_axis is not None and secondary_layout is None:
-            secondary_layout = plotting.Layout()
-            secondary_layout.y_label = secondary_axis.y_label
-            secondary_layout.y_lim = (y_min_sec, 1.1*y_max_sec)
 
         plotting.set_layout(
             ax,
             layout,
             show_legend,
-            ax_secondary,
-            secondary_layout,
         )
 
         return ax
@@ -802,7 +754,7 @@ class SolutionVolume(SolutionBase):
 def _plot_solution_1D(
         solution,
         layout=None,
-        only_plot_total_concentrations=False,
+        only_plot_components=False,
         alpha=1, hide_labels=False, hide_species_labels=True,
         secondary_axis=None, secondary_layout=None,
         show_legend=True,
@@ -858,7 +810,7 @@ def _plot_solution_1D(
             alpha=alpha
         )
 
-        if not only_plot_total_concentrations:
+        if not only_plot_components:
             if comp.n_species == 1:
                 species_index += 1
                 continue
