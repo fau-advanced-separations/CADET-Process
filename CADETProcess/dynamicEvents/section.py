@@ -360,6 +360,13 @@ class TimeLine():
 
         return ax
 
+    @classmethod
+    def from_constant(cls, start, end, value):
+        tl = cls()
+        tl.add_section(Section(start, end, value))
+
+        return tl
+
 
 class MultiTimeLine():
     def __init__(self, base_state):
