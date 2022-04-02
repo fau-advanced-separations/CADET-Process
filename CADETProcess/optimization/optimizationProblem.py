@@ -1490,11 +1490,12 @@ class OptimizationVariable():
         If the attribute is not valid.
 
     """
-    _parameters = ['lb', 'ub', 'component_index']
+    _parameters = ['lb', 'ub', 'component_index', 'precision']
 
     def __init__(self, name,
                  evaluation_objects=None, parameter_path=None,
-                 lb=-math.inf, ub=math.inf, component_index=None):
+                 lb=-math.inf, ub=math.inf, component_index=None,
+                 precision=3):
 
         self.name = name
 
@@ -1509,6 +1510,7 @@ class OptimizationVariable():
 
         self.lb = lb
         self.ub = ub
+        self.precision = precision
 
     @property
     def parameter_path(self):

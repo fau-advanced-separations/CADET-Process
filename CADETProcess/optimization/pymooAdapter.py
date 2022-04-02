@@ -218,11 +218,13 @@ class RoundIndividuals(Repair):
     def _do(self, problem, pop, **kwargs):
         Z = pop.get("X")
 
-        # Round all individuals
-        Z = np.round(Z, 2)
-
-        # Check if linear constraints are met
+        # Round all individuals and Check if linear constraints are met
         for i, ind in enumerate(Z):
+            for i_var, var in enumerate(self.optimization_problem.variables):
+                Z[i, i_var] = np.format_float_positional(
+                    Z[i, i_var], precision=var.precision, fractional=False
+                )
+
             if not self.optimization_problem.check_linear_constraints(ind):
                 Z[i, :] = self.optimization_problem.create_initial_values(
                     method='random'
