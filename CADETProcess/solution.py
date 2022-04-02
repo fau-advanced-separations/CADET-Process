@@ -202,6 +202,10 @@ class SolutionIO(SolutionBase):
             layout = plotting.Layout()
             layout.x_label = '$time~/~min$'
             layout.y_label = '$c~/~mM$'
+            if start is not None:
+                start /= 60
+            if end is not None:
+                end /= 60
             layout.x_lim = (start, end)
 
         ax = _plot_solution_1D(
@@ -744,6 +748,10 @@ class SolutionVolume(SolutionBase):
         layout = plotting.Layout()
         layout.x_label = '$time~/~min$'
         layout.y_label = '$V~/~L$'
+        if start is not None:
+            start /= 60
+        if end is not None:
+            end /= 60
         layout.x_lim = (start, end)
         layout.y_lim = (y_min, y_max)
         plotting.set_layout(ax, layout)
