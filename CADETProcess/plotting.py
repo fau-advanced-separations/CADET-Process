@@ -163,10 +163,15 @@ def add_text(ax, text):
     )
 
 
-def add_overlay(ax, overlay):
-    x = ax.lines[0].get_xdata()
-    for y_over in overlay:
-        ax.plot(x, y_over, linewidth=0.5, alpha=0.5)
+def add_overlay(ax, y_overlay, x_overlay=None, **plot_args):
+    if not isinstance(y_overlay, list):
+        y_overlay = [y_overlay]
+
+    if x_overlay is None:
+        x_overlay = ax.lines[0].get_xdata()
+
+    for y_over in y_overlay:
+        ax.plot(x_overlay, y_over, **plot_args)
         ax.set_prop_cycle(None)
 
 
