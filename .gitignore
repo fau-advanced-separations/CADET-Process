@@ -2,6 +2,8 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 docs/build/*
+docs/jupyter_execute/*
 debug*
 *.h5
 log/
+
