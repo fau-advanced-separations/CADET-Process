@@ -54,6 +54,10 @@ class ComponentSystem(metaclass=StructMeta):
         return self._components
 
     @property
+    def components_dict(self):
+        return {comp.name: comp for comp in self.components}
+
+    @property
     def n_components(self):
         return len(self.components)
 
@@ -65,6 +69,18 @@ class ComponentSystem(metaclass=StructMeta):
         """Todo: check duplicates"""
         component = Component(*args, **kwargs)
         self._components.append(component)
+
+    def remove_component(self, component):
+        if isinstance(component, str):
+            try:
+                component = self.components_dict[component]
+            except KeyError:
+                raise CADETProcessError("Unknown Component.")
+
+        if component not in self.components:
+            raise CADETProcessError("Unknown Component.")
+
+        self._components.remove(component)
 
     @property
     def indices(self):
