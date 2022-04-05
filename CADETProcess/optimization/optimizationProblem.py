@@ -141,7 +141,7 @@ class OptimizationProblem(metaclass=StructMeta):
     def add_variable(
             self, parameter_path=None, evaluation_objects=-1,
             lb=-math.inf, ub=math.inf,
-            component_index=None, name=None):
+            component_index=None, polynomial_index=None, name=None):
         """Add optimization variable to the OptimizationProblem.
 
         The function encapsulates the creation of OoptimizationVariable objects
@@ -159,7 +159,9 @@ class OptimizationProblem(metaclass=StructMeta):
         ub : float
             Upper bound of the variable value.
         component_index : int
-            Index for compnent specific variables
+            Index for component specific variables.
+        polynomial_index : int
+            Index for specific polynomial coefficient.
         name : str, optional
             Name of the variable. If None, parameter_path is used.
 
@@ -196,7 +198,8 @@ class OptimizationProblem(metaclass=StructMeta):
 
         var = OptimizationVariable(
             name, evaluation_objects, parameter_path,
-            lb=lb, ub=ub, component_index=component_index
+            lb=lb, ub=ub, component_index=component_index,
+            polynomial_index=polynomial_index
         )
 
         self._variables.append(var)
@@ -285,13 +288,29 @@ class OptimizationProblem(metaclass=StructMeta):
                 raise ValueError("Exceeds upper bound")
             for eval_obj in variable.evaluation_objects:
                 eval_obj = eval_obj_dict[eval_obj.name]
-                if variable.component_index is not None:
-                    value_list = get_nested_value(
+                if variable.polynomial_index is not None:
+                    value_array = get_nested_value(
+                        eval_obj.parameters, variable.parameter_path
+                    ).copy()
+                    if variable.component_index is not None:
+                        value_array[
+                            variable.component_index, variable.polynomial_index
+                        ] = value
+                    else:
+                        value_array[:, variable.polynomial_index] = value
+
+                    parameters = generate_nested_dict(
+                        variable.parameter_path, value_array
+                    )
+                elif variable.component_index is not None:
+                    value_array = get_nested_value(
                         eval_obj.parameters, variable.parameter_path
                     )
-                    value_list[variable.component_index] = value
+
+                    value_array[variable.component_index] = value
+
                     parameters = generate_nested_dict(
-                        variable.parameter_path, value_list
+                        variable.parameter_path, value_array
                     )
                 else:
                     parameters = generate_nested_dict(
@@ -1350,17 +1369,24 @@ class OptimizationProblem(metaclass=StructMeta):
             run.random_seed = seed
             run.sample(n_samples)
 
-        states = np.array(run.data.states[0])
+        values = np.array(run.data.states[0])
+
+        for i, ind in enumerate(values):
+            for i_var, var in enumerate(self.variables):
+                values[i, i_var] = np.format_float_positional(
+                    values[i, i_var],
+                    precision=var.precision, fractional=False
+                )
 
         if n_samples == 1:
             if method == 'chebyshev':
-                states = hopsy.compute_chebyshev_center(problem)
+                values = hopsy.compute_chebyshev_center(problem)
             elif method == 'random':
-                states = states[0]
+                values = values[-1]
             else:
                 raise CADETProcessError("Unexpected method.")
 
-        return states
+        return values
 
     @property
     def parameters(self):
@@ -1481,8 +1507,14 @@ class OptimizationVariable():
     ub : float
         upper bound of the variable.
     component_index : int, optional
-        Index for compnent specific variables. If None, variable is assumed to
-        be component independent.
+        Index for component specific variables.
+        If None, variable is assumed to be component independent.
+    polynomial_index : int, optional
+        Index for specific polynomial coefficient.
+        If None, variable is assumed to be component independent.
+    precision : int, optional
+        Number of significant figures to which variable can be rounded.
+        The default is 3.
 
     Raises
     ------
@@ -1494,7 +1526,8 @@ class OptimizationVariable():
 
     def __init__(self, name,
                  evaluation_objects=None, parameter_path=None,
-                 lb=-math.inf, ub=math.inf, component_index=None,
+                 lb=-math.inf, ub=math.inf,
+                 component_index=None, polynomial_index=None,
                  precision=3):
 
         self.name = name
@@ -1502,10 +1535,12 @@ class OptimizationVariable():
         if evaluation_objects is not None:
             self.evaluation_objects = evaluation_objects
             self.parameter_path = parameter_path
+            self.polynomial_index = polynomial_index
             self.component_index = component_index
         else:
             self.evaluation_objects = None
             self.parameter_path = None
+            self.polynomial_index = None
             self.component_index = None
 
         self.lb = lb
@@ -1538,12 +1573,54 @@ class OptimizationVariable():
     @component_index.setter
     def component_index(self, component_index):
         if component_index is not None:
-            parameter = get_nested_value(
-                    self.evaluation_object.parameters, self.parameter_sequence)
-
-            if component_index > len(parameter)-1:
-                raise CADETProcessError('Index exceeds components')
+            for eval_obj in self.evaluation_objects:
+                parameter = get_nested_value(
+                    eval_obj.parameters, self.parameter_sequence
+                )
+                is_polynomial = check_nested(
+                    eval_obj.polynomial_parameters, self.parameter_sequence
+                )
+                if is_polynomial:
+                    if component_index > parameter.shape[0]-1:
+                        raise CADETProcessError(
+                            'Index exceeds components'
+                        )
+                else:
+                    if component_index > len(parameter)-1:
+                        raise CADETProcessError('Index exceeds components')
         self._component_index = component_index
+
+    @property
+    def polynomial_index(self):
+        return self._polynomial_index
+
+    @polynomial_index.setter
+    def polynomial_index(self, polynomial_index):
+        for eval_obj in self.evaluation_objects:
+            is_polynomial = check_nested(
+                eval_obj.polynomial_parameters, self.parameter_sequence
+            )
+            if not is_polynomial and polynomial_index is None:
+                break
+
+            elif not is_polynomial and polynomial_index is not None:
+                raise CADETProcessError(
+                    'Variable is not a polynomial parameter.'
+                )
+
+            elif is_polynomial and polynomial_index is None:
+                polynomial_index = 0
+
+                break
+
+            parameter = get_nested_value(
+                eval_obj.parameters, self.parameter_sequence
+            )
+            if polynomial_index > parameter.shape[1] - 1:
+                raise CADETProcessError(
+                    'Index exceeds polynomial coefficients'
+                )
+        self._polynomial_index = polynomial_index
 
     @property
     def parameters(self):
@@ -1556,9 +1633,9 @@ class OptimizationVariable():
         if self.evaluation_objects is not None:
             string = \
                 f'{self.__class__.__name__}' + \
-                f'(name={self.name},' + \
+                f'(name={self.name}, ' + \
                 f'evaluation_objects=' \
-                f'{[obj.name for obj in self.evaluation_objects]}' + \
+                f'{[obj.name for obj in self.evaluation_objects]}, ' + \
                 f'parameter_path=' \
                 f'{self.parameter_path}, lb={self.lb}, ub={self.ub})'
         else:
