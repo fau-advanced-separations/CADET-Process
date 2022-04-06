@@ -2,6 +2,7 @@ import os
 import random
 import time
 
+import dill
 import numpy as np
 
 import pymoo
@@ -66,15 +67,19 @@ class PymooInterface(OptimizerBase):
         )
 
         checkpoint_path = os.path.join(
-            self.working_directory, 'pymoo_checkpoint.npy'
+            self.working_directory, f'{optimization_problem.name}.checkpoint'
         )
 
         if use_checkpoint and os.path.isfile(checkpoint_path):
             random.seed(self.seed)
-            algorithm, = np.load(checkpoint_path, allow_pickle=True).flatten()
+            with open(checkpoint_path, "rb") as dill_file:
+                algorithm = dill.load(dill_file)
+
             if update_parameters:
                 self.update_algorithm(algorithm)
             self.progress = algorithm.progress
+
+            self.logger.info("Continue optimization from checkpoint.")
         else:
             algorithm = self.setup_algorithm()
             algorithm.progress = self.progress
@@ -84,7 +89,8 @@ class PymooInterface(OptimizerBase):
         while algorithm.has_next():
             algorithm.next()
 
-            np.save(checkpoint_path, algorithm)
+            with open(checkpoint_path, "wb") as dill_file:
+                dill.dump(algorithm, dill_file)
 
             for ind in algorithm.pop:
                 if self.optimization_problem.n_nonlinear_constraints > 0:
