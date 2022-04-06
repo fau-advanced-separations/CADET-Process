@@ -1314,13 +1314,16 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @x0.setter
     def x0(self, x0):
-        if not len(x0) == len(self.variables):
+        x0 = np.asarray(x0)
+        if not x0.shape[-1] == len(self.variables):
             raise CADETProcessError(
                 "Starting value must be given for all variables"
             )
         self._x0 = x0.tolist()
 
-    def create_initial_values(self, n_samples=1, method='random', seed=None):
+    def create_initial_values(
+            self, n_samples=1, method='random', seed=None,
+            set_values=True):
         """Create initial value within parameter space.
 
         Uses hopsy (Highly Optimized toolbox for Polytope Sampling) to retrieve
@@ -1336,6 +1339,8 @@ class OptimizationProblem(metaclass=StructMeta):
             random: Any random valid point in the parameter space.
         seed : int, optional
             Seed to initialize random numbers. Only used if method == 'random'
+        set_values : bool, optional
+            If True, set the created values as x0. The default is True.
 
         Returns
         -------
@@ -1385,6 +1390,11 @@ class OptimizationProblem(metaclass=StructMeta):
                 values = values[-1]
             else:
                 raise CADETProcessError("Unexpected method.")
+
+        values = values.tolist()
+
+        if set_values:
+            self.x0 = values
 
         return values
 

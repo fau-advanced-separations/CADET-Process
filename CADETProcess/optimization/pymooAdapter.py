@@ -172,10 +172,9 @@ class PymooInterface(OptimizerBase):
         if len(pop) < self._population_size:
             n_remaining = self._population_size - len(pop)
             remaining = self.optimization_problem.create_initial_values(
-                n_remaining, method='chebyshev', seed=self.seed,
-                set_values=False
+                n_remaining, method='chebyshev', seed=self.seed
             )
-            pop = np.vstack((pop, remaining))
+            pop.append(remaining)
         elif len(pop) > self._population_size:
             pop = pop[0:self._population_size]
 
@@ -183,9 +182,7 @@ class PymooInterface(OptimizerBase):
             str(self),
             ref_dirs=self.ref_dirs,
             pop_size=self._population_size,
-            sampling=self.optimization_problem.create_initial_values(
-                self._population_size, method='chebyshev', seed=self.seed
-            ),
+            sampling=pop,
             repair=RoundIndividuals(self.optimization_problem),
         )
         algorithm.setup(
