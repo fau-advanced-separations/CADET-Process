@@ -27,14 +27,12 @@ class SimulationResults(metaclass=StructMeta):
         Additional information about the solver status
     time_elapsed : float
         Execution time of simulation.
-    process_name : str
-        Name of the simulated proces
-    process_config : dict
-        Configuration of the simulated process
-    process_meta : dict
-        Meta information of the process.
+    process: Process
+        Simulated Process.
     solution : dict
-        Time signals for all cycles of all Unit Operations.
+        Solution objects  for all cycles of all Unit Operations.
+    solution_cycles : dict
+        Solution objects  for individual cycles of all Unit Operations.
     system_state : dict
         Final state and state_derivative of the system.
     chromatograms : List of chromatogram
@@ -53,16 +51,17 @@ class SimulationResults(metaclass=StructMeta):
     exit_flag = UnsignedInteger()
     exit_message = String()
     time_elapsed = UnsignedFloat()
-    process_name = String()
-    process_config = Dict()
     solution_cycles = Dict()
     system_state = Dict()
     chromatograms = List()
 
     def __init__(
-            self, solver_name, solver_parameters, exit_flag, exit_message,
-            time_elapsed, process_name, process_config, process_meta,
-            solution_cycles, system_state, chromatograms
+            self,
+            solver_name, solver_parameters,
+            exit_flag, exit_message, time_elapsed,
+            process,
+            solution_cycles, system_state,
+            chromatograms
             ):
         self.solver_name = solver_name
         self.solver_parameters = solver_parameters
@@ -71,16 +70,14 @@ class SimulationResults(metaclass=StructMeta):
         self.exit_message = exit_message
         self.time_elapsed = time_elapsed
 
-        self.process_name = process_name
-        self.process_config = process_config
-        self.process_meta = process_meta
+        self.process = process
 
         self.solution_cycles = solution_cycles
         self.system_state = system_state
         self.chromatograms = chromatograms
 
     def update(self, new_results):
-        if self.process_name != new_results.process_name:
+        if self.process.name != new_results.process.name:
             raise CADETProcessError('Process does not match')
 
         self.exit_flag = new_results.exit_flag
@@ -103,13 +100,11 @@ class SimulationResults(metaclass=StructMeta):
     @property
     def solution(self):
         """Construct complete solution from individual cyles."""
-        cycle_time = self.process_config['parameters']['cycle_time']
-
         time_complete = self.time_cycle
         for i in range(1, self.n_cycles):
             time_complete = np.hstack((
                 time_complete,
-                self.time_cycle[1:] + i*cycle_time
+                self.time_cycle[1:] + i*self.process.cycle_time
             ))
 
         solution = addict.Dict()

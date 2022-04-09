@@ -490,9 +490,7 @@ class Cadet(SimulatorBase):
             exit_flag=exit_flag,
             exit_message=exit_message,
             time_elapsed=time_elapsed,
-            process_name=process.name,
-            process_config=process.config,
-            process_meta=process.process_meta,
+            process=process,
             solution_cycles=solution,
             system_state=system_state,
             chromatograms=chromatograms

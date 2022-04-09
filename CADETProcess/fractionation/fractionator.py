@@ -119,8 +119,8 @@ class Fractionator(EventHandler):
         return chrom_events
 
     @property
-    def process_meta(self):
-        return self.simulation_results.process_meta
+    def process(self):
+        return self.simulation_results.process
 
     @property
     def n_comp(self):
@@ -130,7 +130,7 @@ class Fractionator(EventHandler):
     @property
     def cycle_time(self):
         """float: cycle time"""
-        return self.chromatograms[0].cycle_time
+        return self.process.cycle_time
 
     @property
     def time(self):
@@ -384,7 +384,7 @@ class Fractionator(EventHandler):
     def recovery(self):
         """ndarray: Component recovery yield in corresponding fraction pool."""
         with np.errstate(divide='ignore', invalid='ignore'):
-            recovery = self.mass / self.process_meta.m_feed
+            recovery = self.mass / self.process.m_feed
 
         return np.nan_to_num(recovery)
 
@@ -392,7 +392,7 @@ class Fractionator(EventHandler):
     def productivity(self):
         """ndarray: Specific productivity in corresponding fraction pool."""
         return self.mass / (
-            self.process_meta.cycle_time * self.process_meta.V_solid
+            self.cycle_time * self.process.V_solid
         )
 
     @property
@@ -405,7 +405,7 @@ class Fractionator(EventHandler):
             consumption. It is preferred here in order to avoid numeric issues
             if the collected mass is 0.
         """
-        return self.mass / self.process_meta.V_eluent
+        return self.mass / self.process.V_eluent
 
     @property
     def performance(self):

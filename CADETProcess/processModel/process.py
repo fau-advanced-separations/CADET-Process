@@ -6,8 +6,6 @@ from scipy import integrate
 from scipy import interpolate
 
 from CADETProcess import CADETProcessError
-from CADETProcess.dataStructure import Structure
-from CADETProcess.dataStructure import UnsignedInteger, UnsignedFloat, NdArray
 from CADETProcess.dataStructure import cached_property_if_locked
 
 from CADETProcess.dynamicEvents import EventHandler
@@ -33,7 +31,6 @@ class Process(EventHandler):
     --------
     EventHandler
     CADETProcess.processModel.FlowSheet
-    ProcessMeta
     CADETProcess.simulation.Solver
     """
     _initial_states = ['system_state', 'system_state_derivative']
@@ -73,7 +70,7 @@ class Process(EventHandler):
             raise TypeError('Expected FlowSheet')
         self._flow_sheet = flow_sheet
 
-    @property
+    @cached_property_if_locked
     def m_feed(self):
         """ndarray: Mass of feed components entering the system in one cycle.
         !!! Account for dynamic flow rates and concentrations!
@@ -107,7 +104,7 @@ class Process(EventHandler):
 
         return feed_all
 
-    @property
+    @cached_property_if_locked
     def V_eluent(self):
         """float: Volume of the eluent entering the system in one cycle."""
         flow_rate_timelines = self.flow_rate_timelines
@@ -120,7 +117,7 @@ class Process(EventHandler):
 
         return float(V_all)
 
-    @property
+    @cached_property_if_locked
     def V_solid(self):
         """float: Volume of all solid phase material used in flow sheet."""
         return sum(
@@ -310,23 +307,6 @@ class Process(EventHandler):
         self.parameters = config['parameters']
         self.initial_state = config['initial_state']
 
-    @property
-    def process_meta(self):
-        """ProcessMeta: Meta information of the process.
-
-        See Also
-        --------
-        ProcessResults
-        Performance
-
-        """
-        return ProcessMeta(
-            cycle_time=self.cycle_time,
-            m_feed=self.m_feed,
-            V_solid=self.V_solid,
-            V_eluent=self.V_eluent,
-        )
-
     def add_inlet_profile(self, unit, time, c, component_index=None, s=1e-6):
         if not isinstance(unit, Source):
             raise TypeError('Expected Source')
@@ -361,36 +341,3 @@ class Process(EventHandler):
 
     def __str__(self):
         return self.name
-
-
-class ProcessMeta(Structure):
-    """Additional information required for calculating performance
-
-    Attributes
-    ----------
-    cycle_time : float
-        Cycle time of process
-    m_feed : ndarray
-        Ammount of feed used in the process
-        value is None.
-    V_solid : UnsignedFloat
-        Volume of the solid phase used in the process
-    V_eluent : UnsignedFloat
-        Volume of the consumed eluent used in the process
-
-    """
-    _meta_keys = ['cycle_time', 'm_feed', 'V_solid', 'V_eluent']
-
-    cycle_time = UnsignedFloat()
-    m_feed = NdArray()
-    V_solid = UnsignedFloat()
-    V_eluent = UnsignedFloat()
-
-    def to_dict(self):
-        return {key: getattr(self, key) for key in self._meta_keys}
-
-    def __repr__(self):
-        return \
-            f"{self.__class__.__name__}(cycle_time={self.cycle_time}, "\
-            f"m_feed={np.array_repr(self.m_feed)}, V_solid={self.V_solid}, "\
-            f"V_eluent={self.V_eluent})"

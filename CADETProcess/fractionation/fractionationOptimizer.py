@@ -72,10 +72,14 @@ class FractionationOptimizer():
     def setup_fractionator(self, simulation_results):
         frac = Fractionator(simulation_results)
 
+        frac.process.lock = False
+
         frac.initial_values(self.purity_required)
 
         if len(frac.events) == 0:
             raise CADETProcessError("No areas found with sufficient purity.")
+
+        frac.process.lock = True
         return frac
 
     def setup_optimization_problem(self, frac):
