@@ -80,7 +80,7 @@ class Callable(Parameter):
             return
 
         if not callable(value):
-            raise TypeError("Expected obect to be callable")
+            raise TypeError("Expected object to be callable")
 
         super().__set__(instance, value)
 
