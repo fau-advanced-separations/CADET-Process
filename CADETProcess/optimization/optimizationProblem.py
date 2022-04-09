@@ -1,4 +1,5 @@
 import copy
+import inspect
 import math
 import random
 import warnings
@@ -21,7 +22,6 @@ from CADETProcess.dataStructure import frozen_attributes
 from CADETProcess.dataStructure import (
     check_nested, generate_nested_dict, get_nested_value
 )
-from CADETProcess.metric import MetricBase
 
 from CADETProcess.metric import MetricBase
 
@@ -52,8 +52,8 @@ class OptimizationProblem(metaclass=StructMeta):
         List of all linear constraints of an OptimizationProblem.
     linear_equality_constraints : list
         List with all linear equality constrains of an OptimizationProblem.
-    eval_dict : dict
-        Database for storing evaluated individuals
+    callbacks : list
+        List of callback functions to record progress.
 
     """
     name = String()
@@ -73,6 +73,7 @@ class OptimizationProblem(metaclass=StructMeta):
         self._nonlinear_constraints = []
         self._linear_constraints = []
         self._linear_equality_constraints = []
+        self._callbacks = []
 
         self._x0 = None
 
@@ -412,7 +413,7 @@ class OptimizationProblem(metaclass=StructMeta):
         Raises
         ------
         TypeError
-            If objective is not an instance of MetricBase.
+            If objective is not callable.
         CADETProcessError
             If EvaluationObject is not found.
         CADETProcessError
@@ -607,7 +608,7 @@ class OptimizationProblem(metaclass=StructMeta):
             evaluation_objects=-1,
             bounds=None,
             requires=None):
-        """Add objective function to optimization problem.
+        """Add nonliner constraint function to optimization problem.
 
         Parameters
         ----------
@@ -634,15 +635,15 @@ class OptimizationProblem(metaclass=StructMeta):
         Raises
         ------
         TypeError
-            If constraint is not an instance of MetricBase.
+            If constraint is not callable.
         CADETProcessError
             If EvaluationObject is not found.
         CADETProcessError
             If Evaluator is not found.
 
         """
-        if not isinstance(nonlincon, MetricBase):
-            raise TypeError("Expected MetricBase")
+        if not callable(nonlincon):
+            raise TypeError("Expected callable constraint function.")
 
         if bad_metrics is None and isinstance(nonlincon, MetricBase):
             bad_metrics = nonlincon.bad_metrics
@@ -828,7 +829,166 @@ class OptimizationProblem(metaclass=StructMeta):
         ]
         return jacobian
 
-    def _evaluate(self, x, func, cache=None, make_copy=False, force=False):
+    @property
+    def callbacks(self):
+        """list: Callback functions for recording progress."""
+        return self._callbacks
+
+    def add_callback(
+            self, callback, evaluation_objects=-1, requires=None):
+
+        if not callable(callback):
+            raise TypeError("Expected callable callback.")
+
+        if evaluation_objects is None:
+            evaluation_objects = []
+        elif evaluation_objects == -1:
+            evaluation_objects = self.evaluation_objects
+        elif not isinstance(evaluation_objects, list):
+            evaluation_objects = [evaluation_objects]
+        for el in evaluation_objects:
+            if el not in self.evaluation_objects:
+                raise CADETProcessError(
+                    f"Unknown EvaluationObject: {str(el)}"
+                )
+
+        if requires is None:
+            requires = []
+        elif not isinstance(requires, list):
+            requires = [requires]
+
+        for req in requires:
+            if req not in self.evaluators:
+                raise CADETProcessError(f"Unknown Evaluator: {str(req)}")
+
+        callback = Callback(
+            callback,
+            evaluation_objects=evaluation_objects,
+            evaluators=requires
+        )
+        self._callbacks.append(callback)
+
+    def evaluate_callbacks(
+            self,
+            x,
+            results_dir='./',
+            cache=None,
+            make_copy=False,
+            force=False):
+        """Evaluate callback functions at point x.
+
+        Parameters
+        ----------
+        x : array_like
+            Value of the optimization variables.
+        results_dir : path
+            Path to store results (e.g. figures, tables etc).
+        cache : dict
+            Dictionary to cache results.
+        make_copy : bool
+            If True, a copy of the EvaluationObjects is used which is required
+            for multiprocessing.
+        force : bool
+            If True, do not use cached results. The default if False.
+
+        See Also
+        --------
+        _evaluate
+        evaluate_objectives
+        evaluate_nonlinear_constraints
+
+        """
+        self.logger.info(f'evaluate nonlinear constraints at {x}')
+
+        local_cache = self.setup_cache()
+        if cache is not None:
+            local_cache.update(cache)
+
+        c = []
+
+        for callback in self.callbacks:
+            callback.results_dir = results_dir
+            try:
+                value = self._evaluate(
+                    x, callback, local_cache, make_copy, force,
+                )
+                c += value
+            except CADETProcessError:
+                self.logger.warn(
+                    f'Evaluation of {callback.name} failed at {x}. '
+                )
+
+        if cache is not None:
+            for key in cache.copy():
+                cache[key] = local_cache[key]
+
+        return c
+
+    def evaluate_callbacks_population(
+            self, population, results_dir, cache=None, force=False, n_cores=0):
+
+        if cache is not None:
+            manager = multiprocess.Manager()
+            managed_cache = manager.dict(cache)
+        else:
+            managed_cache = None
+
+        def eval_fun(ind):
+            return self.evaluate_callbacks(
+                ind, results_dir,
+                cache=managed_cache, make_copy=True, force=force,
+            )
+
+        if n_cores == 1:
+            results = []
+            for ind in population:
+                try:
+                    res = eval_fun(ind)
+                    results.append(res)
+                except CADETProcessError:
+                    print(ind)
+        else:
+            if n_cores == 0:
+                n_cores = None
+            with pathos.multiprocessing.ProcessPool(ncpus=n_cores) as pool:
+                results = pool.map(eval_fun, population)
+
+        if cache is not None:
+            cache.update(managed_cache)
+
+        return results
+
+    def _evaluate(
+            self,
+            x, func,
+            cache=None, make_copy=False, force=False,
+            *args, **kwargs):
+        """Iterate over all evaluation objects and evaluate at x.
+
+        Parameters
+        ----------
+        x : array_like
+            Value of the optimization variables.
+        func : Evaluator or Objective, or Nonlinear Constraint, or Callback
+            Evaluation function.
+        cache : dict, optional
+            Dictionary to cache results.
+        make_copy : bool
+            If True, a copy of the EvaluationObjects is used which is required
+            for multiprocessing.
+        force : bool
+            If True, do not use cached results. The default if False.
+        *args : tuple
+            Additional positional arguments for evaluation function.
+        **kwargs : TYPE
+            Additional keyword arguments for evaluation function.
+
+        Returns
+        -------
+        results : TYPE
+            DESCRIPTION.
+
+        """
         self.logger.info(f'evaluate {str(func)} at {x}')
 
         results = []
@@ -840,7 +1000,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
         if len(func.evaluation_objects) == 0:
             result = self._evaluate_inner(
-                x, func, requires, cache, force
+                x, func, requires, cache, force, *args, **kwargs
             )
             results += result
         else:
@@ -857,6 +1017,7 @@ class OptimizationProblem(metaclass=StructMeta):
                     eval_obj, func, requires,
                     inner_cache,
                     force, x=x,
+                    *args, **kwargs
                 )
                 results += result
 
@@ -867,10 +1028,45 @@ class OptimizationProblem(metaclass=StructMeta):
 
     def _evaluate_inner(
             self, request, func, requires,
-            cache=None, force=False, x=None):
+            cache=None, force=False, x=None,
+            *args, **kwargs):
+        """Iterate over all evaluation requirements and evaluate at request.
+
+        Parameters
+        ----------
+        request : object
+            Argument for evaluation function (e.g. x, EvaluationObject or some
+            intermediate result).
+        func : Evaluator or Objective, or Nonlinear Constraint, or Callback
+            Evaluation function.
+        requires : list
+            List of steps (evaluators) required for evaluation.
+        cache : dict, optional
+            Dictionary to cache results.
+        force : bool
+            If True, do not use cached results. The default if False.
+        x : array_like, optional.
+            Value of the optimization variables.
+            If None, request is used t
+        *args : tuple
+            Additional positional arguments for evaluation function.
+        **kwargs : TYPE
+            Additional keyword arguments for evaluation function.
+
+        Raises
+        ------
+        CADETProcessError
+            DESCRIPTION.
+
+        Returns
+        -------
+        result : TYPE
+            DESCRIPTION.
+
+        """
         self.logger.info(
             f"Evaluating {func}. "
-            f"Requires evaluation of {[str(req) for req in requires]}"
+            f"requires evaluation of {[str(req) for req in requires]}"
         )
         if x is None:
             x = request
@@ -901,9 +1097,16 @@ class OptimizationProblem(metaclass=StructMeta):
         )
 
         for step in remaining:
-            result = step.evaluate(request)
-            if cache is not None:
-                cache[str(step)][str(x)] = result
+            if isinstance(step, Callback):
+                step.evaluate(
+                    current_request,
+                    x=x, evaluation_object=request,
+                    *args, **kwargs
+                )
+            else:
+                result = step.evaluate(current_request, *args, **kwargs)
+                if cache is not None:
+                    cache[str(step)][str(x)] = result
             current_request = result
 
         if not isinstance(result, list):
@@ -1474,23 +1677,6 @@ class OptimizationProblem(metaclass=StructMeta):
                     if evaluator in evaluators:
                         cache[str(eval_obj)][str(evaluator)] = {}
 
-        for callback in self.callbacks:
-            if len(callback.evaluation_objects) == 0:
-                cache[callback.name] = {}
-                for evaluator in callback.evaluators:
-                    if evaluator in evaluators:
-                        cache[str(evaluator)] = {}
-            else:
-                for eval_obj in callback.evaluation_objects:
-                    if str(eval_obj) not in cache:
-                        cache[str(eval_obj)] = {}
-
-                    cache[str(eval_obj)][callback.name] = {}
-
-                for evaluator in callback.evaluators:
-                    if evaluator in evaluators:
-                        cache[str(eval_obj)][str(evaluator)] = {}
-
         return cache
 
     def __str__(self):
@@ -1742,6 +1928,51 @@ class NonlinearConstraint(metaclass=StructMeta):
             g = [g]
 
         return g
+
+    evaluate = __call__
+
+    def __str__(self):
+        return self.name
+
+
+class Callback(metaclass=StructMeta):
+    """
+
+    Must implement function with the following signature:
+    (fractionation, x, evaluation_object, results_dir)
+    """
+
+    callback = Callable()
+    name = String()
+    n_metrics = 1
+
+    def __init__(
+            self,
+            callback,
+            name=None,
+            evaluation_objects=None,
+            evaluators=None,
+            results_dir='./'):
+        self.callback = callback
+
+        if name is None:
+            name = str(callback)
+        self.name = name
+
+        self.evaluation_objects = evaluation_objects
+        self.evaluators = evaluators
+        self.results_dir = './'
+
+    def __call__(self, current_request, x, evaluation_object):
+        kwargs = {}
+        if 'x' in inspect.signature(self.callback).parameters:
+            kwargs['x'] = x
+        if 'evaluation_object' in inspect.signature(self.callback).parameters:
+            kwargs['evaluation_object'] = evaluation_object
+        if 'results_dir' in inspect.signature(self.callback).parameters:
+            kwargs['results_dir'] = self.results_dir
+
+        return self.callback(current_request, **kwargs)
 
     evaluate = __call__
 

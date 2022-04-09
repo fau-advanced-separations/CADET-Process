@@ -67,10 +67,15 @@ class OptimizationProgress():
         self.plot_space(show=False)
         self.plot_pareto(show=False)
 
-    def save_callback(self, n_cores=1):
+    def save_callback(self, n_cores=1, n_gen=None):
+        if n_gen is None:
+            results_dir = self.results_directory
+        else:
+            results_dir = self.results_directory / str(n_gen)
+            results_dir.mkdir(exist_ok=True)
         self.optimization_problem.evaluate_callbacks_population(
             self.x_hof,
-            self.results_dir,
+            results_dir,
             cache=self.cache,
             n_cores=n_cores
         )
@@ -82,10 +87,6 @@ class OptimizationProgress():
 
         evaluators = problem.cached_evaluators
 
-        for callback in problem.callbacks:
-            cache[callback.name] = {}
-            for el in callback.evaluation_objects:
-                cache[str(el)][callback.name] = {}
         for ind in self.x_hof:
             ind = str(ind.tolist())
             for objective in problem.objectives:

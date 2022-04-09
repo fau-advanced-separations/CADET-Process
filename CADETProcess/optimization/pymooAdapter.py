@@ -125,7 +125,12 @@ class PymooInterface(OptimizerBase):
             self.progress.prune_cache()
 
             if self.progress.results_directory is not None:
+                self.progress.save_callback(
+                    n_cores=self.n_cores, n_gen=algorithm.n_gen
+                )
                 self.progress.save_progress()
+
+            self.progress.prune_cache()
 
             self.logger.info(f'Finished Generation {algorithm.n_gen}')
             if self.optimization_problem.n_nonlinear_constraints > 0:
