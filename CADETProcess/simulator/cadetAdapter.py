@@ -930,7 +930,6 @@ unit_parameters_map = {
         'parameters': {
             'NCOMP': 'n_comp',
             'INIT_C': 'c',
-            'INIT_Q': 'q',
             'COL_DISPERSION': 'axial_dispersion',
             'COL_LENGTH': 'length',
             'CROSS_SECTION_AREA': 'cross_section_area',
