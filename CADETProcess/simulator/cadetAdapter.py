@@ -55,8 +55,6 @@ class Cadet(SimulatorBase):
         Container for time integrator parameters
     return_parameters : ReturnParametersGroup
         Container for return information of the system
-    unit_return_parameters : UnitReturnParametersGroup
-        Container for return information of units
 
     Todo
     ----
@@ -87,7 +85,6 @@ class Cadet(SimulatorBase):
         self.time_integrator_parameters = SolverTimeIntegratorParametersGroup()
 
         self.return_parameters = ReturnParametersGroup()
-        self.unit_return_parameters = UnitReturnParametersGroup()
 
     @property
     def install_path(self):
@@ -839,7 +836,7 @@ class Cadet(SimulatorBase):
         for unit in process.flow_sheet.units:
             unit_index = self.get_unit_index(process, unit)
             unit_return_parameters[unit_index] = \
-                self.unit_return_parameters.to_dict()
+                unit.solution_recorder.parameters
 
         return unit_return_parameters
 
@@ -1250,7 +1247,6 @@ class ReturnParametersGroup(ParametersGroup):
 
     See Also
     --------
-    UnitReturnParametersGroup
     ParametersGroup
 
     """
@@ -1263,64 +1259,6 @@ class ReturnParametersGroup(ParametersGroup):
     _parameters = [
         'write_solution_times', 'write_solution_last', 'write_sens_last',
         'split_components_data', 'split_ports_data'
-    ]
-
-
-class UnitReturnParametersGroup(ParametersGroup):
-    """Converter for unit solution writer config from CADETProcess to CADET.
-
-    See Also
-    --------
-    ReturnParametersGroup
-    ParametersGroup
-
-    """
-    write_coordinates = Bool(default=True)
-    write_solution_inlet = Bool(default=True)
-    write_solution_outlet = Bool(default=True)
-    write_solution_bulk = Bool(default=False)
-    write_solution_particle = Bool(default=False)
-    write_solution_solid = Bool(default=False)
-    write_solution_flux = Bool(default=False)
-    write_solution_volume = Bool(default=True)
-    write_soldot_inlet = Bool(default=False)
-    write_soldot_outlet = Bool(default=False)
-    write_soldot_bulk = Bool(default=False)
-    write_soldot_particle = Bool(default=False)
-    write_soldot_solid = Bool(default=False)
-    write_soldot_flux = Bool(default=False)
-    write_soldot_volume = Bool(default=False)
-    write_sens_inlet = Bool(default=False)
-    write_sens_outlet = Bool(default=False)
-    write_sens_bulk = Bool(default=False)
-    write_sens_particle = Bool(default=False)
-    write_sens_solid = Bool(default=False)
-    write_sens_flux = Bool(default=False)
-    write_sens_volume = Bool(default=False)
-    write_sensdot_inlet = Bool(default=False)
-    write_sensdot_outlet = Bool(default=False)
-    write_sensdot_bulk = Bool(default=False)
-    write_sensdot_particle = Bool(default=False)
-    write_sensdot_solid = Bool(default=False)
-    write_sensdot_flux = Bool(default=False)
-    write_sensdot_volume = Bool(default=False)
-    write_solution_last_unit = Bool(default=False)
-
-    _parameters = [
-        'write_coordinates',
-        'write_solution_inlet', 'write_solution_outlet', 'write_solution_bulk',
-        'write_solution_particle', 'write_solution_solid',
-        'write_solution_flux',
-        'write_solution_volume',
-        'write_soldot_inlet', 'write_soldot_outlet', 'write_soldot_bulk',
-        'write_soldot_particle', 'write_soldot_solid', 'write_soldot_flux',
-        'write_soldot_volume',
-        'write_sens_inlet', 'write_sens_outlet', 'write_sens_bulk',
-        'write_sens_particle', 'write_sens_solid', 'write_sens_flux',
-        'write_sens_volume',
-        'write_sensdot_inlet', 'write_sensdot_outlet', 'write_sensdot_bulk',
-        'write_sensdot_particle', 'write_sensdot_solid', 'write_sensdot_flux',
-        'write_sensdot_volume'
     ]
 
 

@@ -8,7 +8,7 @@ class ParametersGroup(Structure):
     Attributes
     ----------
     _parameters : List of strings
-        List of paramters to be exported.
+        List of parameters to be exported.
 
     See Also
     --------
@@ -42,6 +42,9 @@ class ParametersGroup(Structure):
                 raise CADETProcessError('Not a valid parameter')
             if value is not None:
                 setattr(self, param, value)
+
+    def __repr__(self):
+        return str(self.to_dict())
 
 
 class ParameterWrapper(ParametersGroup):

@@ -39,6 +39,8 @@ column.total_porosity = 0.7
 
 column.binding_model = binding_model
 
+column.solution_recorder.write_solution_bulk = True
+
 outlet = Sink(component_system, name='outlet')
 
 # flow sheet

@@ -84,6 +84,9 @@ def simulate_solid_equilibria(
 
     unit.binding_model = binding_model
 
+    unit.solution_recorder.write_solution_bulk = True
+    unit.solution_recorder.write_solution_solid = True
+
     outlet = Sink(component_system, name='outlet')
 
     # flow sheet
@@ -115,9 +118,6 @@ def simulate_solid_equilibria(
 
     # Simulator
     process_simulator = Cadet()
-    process_simulator.unit_return_parameters.write_solution_bulk = True
-    process_simulator.unit_return_parameters.write_solution_solid = True
-
     proc_results = process_simulator.simulate(proc)
 
     if unit_model == 'cstr':

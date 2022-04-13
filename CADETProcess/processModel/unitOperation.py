@@ -21,6 +21,12 @@ from .discretization import (
     LRMPDiscretizationFV, GRMDiscretizationFV
 )
 
+from .solutionRecorder import (
+    SolutionRecorderIO,
+    TubularReactorRecorder, LRMRecorder, LRMPRecorder, GRMRecorder, 
+    CSTRRecorder
+)
+
 
 @frozen_attributes
 class UnitBaseClass(metaclass=StructMeta):
@@ -70,6 +76,8 @@ class UnitBaseClass(metaclass=StructMeta):
         self.particle_reaction_model = NoReaction()
 
         self.discretization = NoDiscretization()
+
+        self.solution_recorder = SolutionRecorderIO()
 
         self._parameters = {
             param: getattr(self, param)
@@ -612,10 +620,13 @@ class TubularReactor(TubularReactorBase):
 
     def __init__(self, *args, discretization_scheme='FV', **kwargs):
         super().__init__(*args, **kwargs)
+
         if discretization_scheme == 'FV':
             self.discretization = LRMDiscretizationFV()
         elif discretization_scheme == 'DG':
             self.discretization = LRMDiscretizationDG()
+
+        self.solution_recorder = TubularReactorRecorder()
 
 
 class LumpedRateModelWithoutPores(TubularReactorBase):
@@ -654,10 +665,13 @@ class LumpedRateModelWithoutPores(TubularReactorBase):
 
     def __init__(self, *args, discretization_scheme='FV', **kwargs):
         super().__init__(*args, **kwargs)
+
         if discretization_scheme == 'FV':
             self.discretization = LRMDiscretizationFV()
         elif discretization_scheme == 'DG':
             self.discretization = LRMDiscretizationDG()
+
+        self.solution_recorder = LRMRecorder()
 
 
 class LumpedRateModelWithPores(TubularReactorBase):
@@ -708,7 +722,10 @@ class LumpedRateModelWithPores(TubularReactorBase):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
         self.discretization = LRMPDiscretizationFV()
+
+        self.solution_recorder = LRMPRecorder()
 
     @property
     def total_porosity(self):
@@ -819,7 +836,10 @@ class GeneralRateModel(TubularReactorBase):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
         self.discretization = GRMDiscretizationFV()
+
+        self.solution_recorder = GRMRecorder()
 
     @property
     def total_porosity(self):
@@ -917,6 +937,10 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     _initial_state = \
         UnitBaseClass._initial_state + \
         ['c', 'q', 'V']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.solution_recorder = CSTRRecorder()
 
     @property
     def volume_liquid(self):

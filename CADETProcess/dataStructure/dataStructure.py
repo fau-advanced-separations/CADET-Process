@@ -35,6 +35,14 @@ class StructMeta(type):
 
         clsobj = super().__new__(cls, clsname, bases, dict(clsdict))
 
+        if len(bases) > 1:
+            clsobj._parameters = []
+            for base in bases:
+                try:
+                    clsobj._parameters += base._parameters
+                except AttributeError:
+                    pass
+
         sig = make_signature(fields)
         setattr(clsobj, '__signature__', sig)
 
