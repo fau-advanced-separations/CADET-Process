@@ -36,7 +36,9 @@ class OptimizerBase(metaclass=StructMeta):
             *args, **kwargs):
         """
         """
-        plt.ioff()
+        backend = plt.get_backend()
+        plt.switch_backend('agg')
+
         if not isinstance(optimization_problem, OptimizationProblem):
             raise TypeError('Expected OptimizationProblem')
 
@@ -52,7 +54,7 @@ class OptimizerBase(metaclass=StructMeta):
 
         results = self.run(optimization_problem, *args, **kwargs)
 
-        plt.ion()
+        plt.switch_backend(backend)
 
         if save_results:
             results.save(self.results_directory)

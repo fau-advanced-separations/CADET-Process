@@ -138,6 +138,8 @@ def set_layout(
         if show_legend and len(labels) != 0:
             ax.legend()
 
+    plt.tight_layout()
+
 
 class Tick(Structure):
     location: Tuple()
@@ -261,13 +263,14 @@ def create_and_save_figure(func):
             fig, ax = setup_figure(style=style)
 
         artist = func(*args, ax=ax, **kwargs)
-        if show:
-            plt.show()
+
+        plt.tight_layout()
 
         if file_name is not None:
             plt.savefig(file_name)
 
-        plt.tight_layout()
+        if show:
+            plt.show()
 
         return artist
     return wrapper
