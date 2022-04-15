@@ -21,8 +21,8 @@ This is realized using `UnitOperations` as building blocks.
 
 A `UnitOperation` represents the physico-chemical behavior of an apparatus and holds the model parameters.
 currently the following models are available in **CADET-Process**: 
-- the `Cstr`, an ideally mixed stirred tank without any concentration gradients. It can be used to model system periphery such as valves or pumps.
-- the `TubularReactor` which has no particles and can be used to model tubing or reactive columns. Like all column models that follow, axial dispersion can be considered.
+- the `Cstr`, an ideally mixed stirred tank without any concentration gradients. It can be used to model simple reaction vessels, or to model the dispersive characteristics of system periphery such as valves or pumps.
+- the `TubularReactor`, a column without packing which can be used to model tubing or reactive columns. Like all column models that follow, axial dispersion can be considered.
 - the `LumpedRateModelWithoutPores` which introduces a stationary phase but neglects particle pores.
 - the `LumpedRateModelWithPores` which introduces pores and film diffusion which limits the transport into the particle.
 - the `GeneralRateModel` which additionally accounts for pore diffusion and surface diffusion.
@@ -42,7 +42,7 @@ This is made possible by programming the `FlowSheet` as a directed graph that de
 To allow connecting the units correspondingly, every `UnitOperation` can have any number of in- and outputs except for `Sources` that represent streams entering the system, and `Sinks` that represent those exiting.
 
 For defining the specific connections, every `UnitOperation` has an output state that describes the distribution of the outgoing stream to the succeeding `UnitOperations`.
-Note that it is straightforward to also include internal recycles in the `FlowSheet`, which is important for systems such as SSR (see example in Section \ref{subsec:stationarity}) or SMB.
+Note that it is straightforward to also include internal recycles in the `FlowSheet`, which is important for systems such as SSR (see example in Section {ref}`stationarity_tutorial`) or SMB (see {ref}`here <carousel_tutorial>`).
 
 `Events` are used to describe the dynamic operation of the process which is particularly relevant for chromatography.
 In these processes, dynamic changes occur at the inlets during operational steps like injection, elution, wash, regeneration or the use of gradients.
@@ -60,6 +60,7 @@ However, alternative unit systems can be applied, including dimensionless model 
 
 ## Demonstration
 To introduce the basic concepts of **CADET-Process**, a simple binary batch elution separation is considered.
+For the full process configuration see {ref}`here <batch_elution_example>.
 
 ```{figure} ../examples/operating_modes/figures/batch_elution_flow_sheet.svg
 :name: batch_elution_flow_sheet
@@ -69,7 +70,7 @@ Flow sheet for batch elution process.
 
 ### Component System
 First, a `ComponentSystem` needs to be created.
-The `ComponentSystem` ensures that all parts of the process are have the same number of components. 
+The `ComponentSystem` ensures that all parts of the process have the same number of components. 
 Moreover, components can be named which automatically adds legends to the plot methods.
 For advanced use, see {ref}`component_system_reference`.
 
@@ -81,7 +82,8 @@ from CADETProcess.processModel import ComponentSystem
 component_system = ComponentSystem(2)
 ```
 
-To also names to the components, pass a list of strings in the constructor:
+Alternatively, pass a list of strings for the component names in the constructor:
+
 ```{code-cell} ipython3
 component_system = ComponentSystem(['A', 'B'])
 ```
@@ -89,7 +91,7 @@ component_system = ComponentSystem(['A', 'B'])
 ### Binding Model
 In this example, the `Langmuir` model is imported and parametrized.
 For an overview of all models in **CADET-Process**, see {ref}`binding_reference`. 
-It's important to note that the adsorption model is defined independently from the unit operation.
+It's important to note that the adsorption model is defined independently of the unit operation.
 This facilitates reusing the same configuration in different unit operations or processes.
 
 ```{code-cell} ipython3
@@ -119,18 +121,21 @@ binding_model.capacity = [100, 100]
 Now, the unit operation models are instantiated.
 For an overview of all models in **CADET-Process**, see {ref}`unit_operation_reference`. 
 
-In a typical batch elution process, there is a feed and an eluent (see {ref}`Figure <batch_elution_flow_sheet>`).
+In a typical batch elution process, there are a feed and an eluent tank, as well as a column and an outlet (see {ref}`Figure <batch_elution_flow_sheet>`).
 It is assumed that the feed and eluent concentrations are constant over time.
 Later, dynamic events are used to modify the flow rate of each source unit to model loading and elution.
+
+To instantiate a unit, it requires the component system, as well as a unique name.
+Note that the name string passed in the constructor is later used to reference the unit in the flow sheet for setting `Events` and `OptimizationVariables`.
 
 ```{code-cell} ipython3
 from CADETProcess.processModel import Source, LumpedRateModelWithoutPores, Sink
 
-feed = Source(component_system, name='feed')
-feed.c = [10, 10]
+feed_unit = Source(component_system, name='feed')
+feed_unit.c = [10, 10]
 
-eluent = Source(component_system, name='eluent')
-eluent.c = [0, 0]
+eluent_unit = Source(component_system, name='eluent')
+eluent_unit.c = [0, 0]
 ```
 
 Now, the column model is configured.
@@ -182,13 +187,13 @@ from CADETProcess.processModel import FlowSheet
 
 fs = FlowSheet(component_system)
 
-fs.add_unit(feed)
-fs.add_unit(eluent)
+fs.add_unit(feed_unit)
+fs.add_unit(eluent_unit)
 fs.add_unit(column)
 fs.add_unit(outlet)
 
-fs.add_connection(feed, column)
-fs.add_connection(eluent, column)
+fs.add_connection(feed_unit, column)
+fs.add_connection(eluent_unit, column)
 fs.add_connection(column, outlet)
 ```
 
@@ -215,7 +220,7 @@ process.cycle_time = 600
 
 The `add_event` method requires the following arguments:
 - `name`: Name of the event.
-- `parameter_path`: Path of the parameter that is changed in dot notation.
+- `parameter_path`: Path of the parameter that is changed in dot notation. E.g. the flow rate of the eluent unit is the parameter `flow_rate` of the `eluent` which of process `flow_sheet`. Hence, the path is `flow_sheet.eluent.flow_rate`. As previously mentioned, the name of the unit operation is used to reference it, not the variable.
 - `state`: Value of the attribute that is changed at Event execution.
 - `time`: Time at which the event is executed.
 

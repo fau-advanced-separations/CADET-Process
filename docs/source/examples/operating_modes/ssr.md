@@ -20,8 +20,16 @@ sys.path.append('../../../../')
 # Steady State Recycling
 tags: single column, langmuir, recycling
 
-````{code-cell} ipython3
+```{figure} ./figures/ssr_flow_sheet.svg
+Flow sheet for SSR process.
+```
+
+```{figure} ./figures/ssr_events.svg
+Events of SSR process.
+```
+
+```{code-cell} ipython3
 :load: ../../../../examples/operating_modes/ssr.py
 
-````
+```
 

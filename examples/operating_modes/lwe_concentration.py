@@ -6,6 +6,8 @@ Simulate Load/Wash/Elute with salt gradient
 ===========================================
 
 """
+import numpy as np
+
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess.processModel import StericMassAction
 from CADETProcess.processModel import Source, GeneralRateModel, Sink
@@ -27,14 +29,9 @@ binding_model.steric_factor = [0.0, 50.0]
 binding_model.capacity = 225.0
 
 # Unit Operations
-feed = Source(component_system, name='feed')
-feed.c = [180.0, 0.1]
+inlet = Source(component_system, name='inlet')
+inlet.flow_rate = 2.88e-8
 
-eluent = Source(component_system, name='eluent')
-eluent.c = [70.0, 0.0]
-
-eluent_salt = Source(component_system, name='eluent_salt')
-eluent_salt.c = [500.0, 0.0]
 
 column = GeneralRateModel(component_system, name='column')
 column.length = 0.25
@@ -55,62 +52,44 @@ column.q = [binding_model.capacity, 0]
 outlet = Sink(component_system, name='outlet')
 
 # flow sheet
-fs = FlowSheet(component_system)
+flow_sheet = FlowSheet(component_system)
 
-fs.add_unit(feed, feed_source=True)
-fs.add_unit(eluent, eluent_source=True)
-fs.add_unit(eluent_salt, eluent_source=True)
-fs.add_unit(column)
-fs.add_unit(outlet, chromatogram_sink=True)
+flow_sheet.add_unit(inlet)
+flow_sheet.add_unit(column)
+flow_sheet.add_unit(outlet, chromatogram_sink=True)
 
-fs.add_connection(feed, column)
-fs.add_connection(eluent, column)
-fs.add_connection(eluent_salt, column)
-fs.add_connection(column, outlet)
+flow_sheet.add_connection(inlet, column)
+flow_sheet.add_connection(column, outlet)
 
 # Process
-lwe = Process(fs, 'lwe')
-lwe.cycle_time = 15000.0
+process = Process(flow_sheet, 'lwe')
+process.cycle_time = 15000.0
 
 ## Create Events and Durations
-Q = 2.88e-8
-feed_duration = 7500.0
+wash_start = 7500.0
 gradient_start = 9500.0
-gradient_slope = Q/(lwe.cycle_time - gradient_start)
+concentration_difference = np.array([500.0, 0.0]) - np.array([70.0, 0.0])
+gradient_duration = process.cycle_time - gradient_start
+gradient_slope = concentration_difference/gradient_duration
 
-lwe.add_event('feed_on', 'flow_sheet.feed.flow_rate', Q)
-lwe.add_event('feed_off', 'flow_sheet.feed.flow_rate', 0.0)
-lwe.add_duration('feed_duration', time=feed_duration)
-lwe.add_event_dependency('feed_off', ['feed_on', 'feed_duration'], [1, 1])
-
-lwe.add_event('eluent_initialization', 'flow_sheet.eluent.flow_rate', 0)
-lwe.add_event(
-    'eluent_salt_initialization', 'flow_sheet.eluent_salt.flow_rate', 0
+process.add_event('load', 'flow_sheet.inlet.c', [180.0, 0.1])
+process.add_event('wash', 'flow_sheet.inlet.c', [70.0, 0.0], wash_start)
+process.add_event(
+    'grad_start',
+    'flow_sheet.inlet.c',
+    [[70.0, gradient_slope[0]], [0, gradient_slope[1]]],
+    gradient_start
 )
-
-lwe.add_event(
-    'wash', 'flow_sheet.eluent.flow_rate', Q, time=feed_duration
-)
-lwe.add_event_dependency('wash', ['feed_off'])
-
-lwe.add_event(
-    'neg_grad_start', 'flow_sheet.eluent.flow_rate',
-    [Q, -gradient_slope], gradient_start
-    )
-lwe.add_event(
-    'pos_grad_start', 'flow_sheet.eluent_salt.flow_rate', [0, gradient_slope]
-    )
-lwe.add_event_dependency('pos_grad_start', ['neg_grad_start'])
 
 if __name__ == '__main__':
     from CADETProcess.simulator import Cadet
     process_simulator = Cadet()
 
-    lwe_sim_results = process_simulator.simulate(lwe)
+    simulation_results = process_simulator.simulate(process)
 
     from CADETProcess.plotting import SecondaryAxis
     sec = SecondaryAxis()
     sec.component_indices = [0]
     sec.y_label = '$c_{salt}$'
 
-    lwe_sim_results.solution.column.outlet.plot(secondary_axis=sec)
+    simulation_results.solution.column.outlet.plot(secondary_axis=sec)

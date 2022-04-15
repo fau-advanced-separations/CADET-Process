@@ -11,7 +11,8 @@ getting_started/simulation
 getting_started/reactions
 getting_started/fractionation
 getting_started/cyclic_stationarity
-getting_started/optimization
+getting_started/process_optimization
+getting_started/parameter_estimation
 ```
 
 ```{toctree}
@@ -19,8 +20,8 @@ getting_started/optimization
 :caption: Advanced features
 :hidden:
 
-<!-- advanced_use/event_dependencies -->
-<!-- advanced_use/inlet_profile -->
+advanced_use/event_dependencies
+advanced_use/gradients
 advanced_use/carousel_builder
 advanced_use/compartment_builder
 advanced_use/deprotonation_reactions
@@ -32,7 +33,7 @@ advanced_use/buffer_capacity
 :caption: Examples
 :hidden:
 
-examples/operating_modes/index
+examples/index
 ```
 
 ```{toctree}
@@ -40,6 +41,7 @@ examples/operating_modes/index
 :caption: API Reference
 :hidden:
 
+reference/dynamic_events
 reference/process_model/index
 reference/simulation
 reference/fractionation

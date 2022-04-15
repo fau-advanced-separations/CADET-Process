@@ -5,6 +5,8 @@ jupytext:
 kernelspec:
   display_name: Python 3
   name: python3
+execution:
+  timeout: 300
 ---
 
 %matplotlib notebook
@@ -22,8 +24,9 @@ Key information for evaluating the separation performance of a chromatographic p
 To define corresponding fractionation intervals, the chromatograms, i.e., the concentration profiles $c_{i,k}\left(t\right)$ at the outlet(s) of the process must be evaluated.
 In a strict sense, a chromatogram is only given at the outlet of a single column. Note that here this term is used more generally for the concentration profiles at the outlets of a flow sheet, which only accounts for material leaving the process. 
 The times for the start, $t_{start, j}$, and the end, $t_{end, j}$, of a product fraction $j$ have to be chosen such that constraints on product purity are met.
-It is important to note, that in advanced chromatographic process configurations, outlet chromatograms can be much more complex than the example shown in ref{fig:fractionation} and that multiple sections of the chromatogram may represent suitable fractions $j$ for collecting one target component $i$.
-Moreover, flow sheets can have multiple outlets $k$ that have to be fractionated simultaneously, and the volumetric flow rate $Q_k$ at the outlets may depend on time.
+It is important to note, that in advanced chromatographic process configurations, outlet chromatograms can be much more complex than the example shown below and that multiple sections of the chromatogram may represent suitable fractions $j$ for collecting one target component $i$.
+Moreover, flow sheets can have multiple outlets $k$ that have to be fractionated simultaneously.
+Also, the volumetric flow rate $Q_k$ at the outlets may depend on time and needs to be considered in the integral.
 These aspects are considered by defining the total product amount of a component $i$ as 
 
 ```{math}
@@ -100,7 +103,7 @@ flow_sheet.add_chromatogram_sink('outlet')
 ```
 
 ```{code-cell} ipython3
-:tags: [hide-cell]
+:tags: [remove-cell]
 
 from CADETProcess.simulator import Cadet
 process_simulator = Cadet()
@@ -110,6 +113,15 @@ simulation_results = process_simulator.simulate(process)
 For reference, this is the chromatogram at the outlet that needs to be fractionated:
 
 ```{code-cell} ipython3
+---
+tags: [remove-input]
+render:
+  figure:
+    caption: |
+      Concentration profile at column outlet.
+    name: column_outlet
+---
+
 _ = simulation_results.solution.outlet.outlet.plot()
 ```
 
@@ -121,12 +133,12 @@ fractionator = Fractionator(simulation_results)
 ```
 
 To add a fractionation event, the following arguments need to be provided:
-- `event_name`:
+- `event_name`: Name of the event.
 - `target`: Pool to which fraction is added. `-1` indicates waste. 
 - `time`: Time of the event
 - `chromatogram`: Name of the chromatogram. Optional if only one outlet is set as `chromatogram_sink`.
 
-Here, component $A$ seems to have sufficient purity between $5:00~min$ and $5:45~min$ and component $B$ between $6:30~min$ and $9:00~min$.
+Here, component $A$ seems to have sufficient purity between $5 \colon 00~min$ and $5 \colon 45~min$ and component $B$ between $6 \colon 30~min$ and $9 \colon 00~min$.
 
 ```{code-cell} ipython3
 fractionator.add_fractionation_event('start_A', 0, 5*60, 'outlet')
@@ -155,54 +167,82 @@ For the objective and constraint functions, fractions are pooled from all `Outle
 As initial values for the optimization, areas of the chromatogram with sufficient local purity are identified, i.e., intervals where $PU_i(t)=c_i(t)/\sum_j c_j(t)\geq PU_{min,i}$ {cite}`Shan2004`.
 These initial intervals are then expanded by the optimizer towards regions of lower purity while meeting the cumulative purity constraints.
 In the current implementation, **COBYLA** {cite}`Powell1994` of the **SciPy** {cite}`SciPyContributors2020` library is used as `OptimizationSolver`
-Yet, any other solver or heuristic algorithm may be implemented.
-
-By default, the mass of the components is maximized.
-However, other objective functions can be used.
-Depending on the target component, we can specify a required purity. 
-For example, if only the first component is relevant, and requires a purity $\ge 95~\%$, we can specify the following:
+Yet, any other solver or heuristic algorithm may be used.
 
 ```{code-cell} ipython3
 from CADETProcess.fractionation import FractionationOptimizer
-purity_required = [0.95, 0]
-fractionation_optimizer = FractionationOptimizer(purity_required)
+fractionation_optimizer = FractionationOptimizer()
 ```
 
+By default, the mass of the components is maximized under purity constraints.
+However, other objective functions can be used.
+
 To automatically optimize the fractionation times, pass the simulation results to the `optimize_fractionation` function.
+Depending on the separation problem at hand, different purity requirements can be specified.
+For example, here only the first component is relevant, and requires a purity $\ge 95~\%$:
+
 ```{code-cell} ipython3
-fractionation = fractionation_optimizer.optimize_fractionation(simulation_results)
+fractionator = fractionation_optimizer.optimize_fractionation(simulation_results, purity_required=[0.95, 0])
 ```
 
 The results are stored in a `Performance` object.
 
 ```{code-cell} ipython3
-print(fractionation.performance)
+print(fractionator.performance)
 ```
 
 The chromatogram can also be plotted with the fraction times overlaid:
 
 ```{code-cell} ipython3
-_ = fractionation.plot_fraction_signal()
+_ = fractionator.plot_fraction_signal()
 ```
 
 For comparison, this is the results if only the second component is relevant:
 
 ```{code-cell} ipython3
-fractionation_optimizer.purity_required = [0, 0.95]
-fractionation = fractionation_optimizer.optimize_fractionation(simulation_results)
+fractionator = fractionation_optimizer.optimize_fractionation(simulation_results, purity_required=[0, 0.95])
 
-print(fractionation.performance)
-_ = fractionation.plot_fraction_signal()
+print(fractionator.performance)
+_ = fractionator.plot_fraction_signal()
 ```
 
 But of course, also both components can be valuable.
 Here, the required purity is also reduced to demonstrate that overlapping fractions are automatically avoided by internally introducing linear constraints.
 
 ```{code-cell} ipython3
-fractionation_optimizer.purity_required = [0.8, 0.8]
-fractionation = fractionation_optimizer.optimize_fractionation(simulation_results)
+fractionator = fractionation_optimizer.optimize_fractionation(simulation_results, purity_required=[0.8, 0.8])
 
-print(fractionation.performance)
-_ = fractionation.plot_fraction_signal()
+print(fractionator.performance)
+_ = fractionator.plot_fraction_signal()
 ```
+
+To set an alternative objective, a function needs to be passed that takes a `Performance` as an input.
+In this example, not only the total mass is considered important but also the concentration of the fraction.
+As previously mentioned, `COBYLA` only handles single objectives.
+Hence, a `RankedPerformance` is used which transforms the `Performance` object by adding a weight $w_i$ to each component.
+
+$$
+p = \frac{\sum_i^{n_{comp}}w_i \cdot p_i}{\sum_i^{n_{comp}}(w_i)} 
+$$
+
+It is also important to remember that by convention, objectives are minimized.
+Since in this example, the product of mass and concentration should be maximized, the value of the objective function is multiplied by $-1$.
+
+```{code-cell} ipython3
+from CADETProcess.performance import RankedPerformance
+ranking = [1, 1]
+def alternative_objective(performance):
+	performance = RankedPerformance(performance, ranking)
+	return - performance.mass * performance.concentration
+
+fractionator = fractionation_optimizer.optimize_fractionation(
+	simulation_results, purity_required=[0.95, 0.95],
+	obj_fun=alternative_objective,
+)
+
+print(fractionator.performance)
+_ = fractionator.plot_fraction_signal()
+```
+
+The resulting fractionation times show that in this case, it is advantageous to discard some slices of the peak in order not to dilute the overall product fraction.
 

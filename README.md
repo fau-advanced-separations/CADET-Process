@@ -3,7 +3,7 @@
 The [**CADET**](https://cadet.github.io) core simulator is a very powerful numerical engine that can simulate a large variety of physico-chemical models used in chromatography and other biochemical processes.
 However, the configuration files of **CADET** can be complex and difficult to work with.
 This is especially relevant when multiple unit operations are involved which is often the case for complex integrated processes.
-Moreover, the structure of the configuration file may change during process optimization when dynamic switching is involved, making the direct use of **CADET** impossible without another layer of abstraction.
+Moreover, the structure of the configuration file may change during process optimization, for example when the order of dynamic events changes, making the direct use of **CADET** impossible without another layer of abstraction.
 
 In this context [**CADET-Process**](https://cadet-process.readthedocs.io/en/latest/) was developed.
 The package facilitates modeling processes using an object oriented model builder.

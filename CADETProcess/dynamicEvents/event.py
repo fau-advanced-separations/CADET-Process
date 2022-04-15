@@ -727,16 +727,20 @@ class Event():
     def add_dependency(self, dependency, factor=1, transform=None):
         """Add dependency of event time on other events.
 
-        The time of an event can depend on other events or durationsin any
-        linear combination.
+        The time of the event is determined with the following equation:
+
+        $$
+        t = \sum_i^{n_{dep}} \lambda_i \cdot f_i(t_{dep,i})
+        $$
 
         Parameters
         ----------
         dependency : Event
-            Event object for adding a dependency.
-        factor : int
-            Factor of the dependency between to events, default value is set to
-            one.
+            Event object to be added as dependency.
+        factor : float, optional
+            Factor for the dependencies between to events. The default is 1.
+        transform: callable
+            Transform function for dependent variable.
 
         Raises
         ------
@@ -760,7 +764,7 @@ class Event():
         Parameters
         ----------
         dependency : Event
-            Event object for adding a dependency.
+            Event object to remove from dependencies.
 
         Raises
         ------
