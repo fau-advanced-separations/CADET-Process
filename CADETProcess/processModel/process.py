@@ -12,7 +12,7 @@ from CADETProcess.dynamicEvents import EventHandler
 from CADETProcess.dynamicEvents import Section, TimeLine
 
 from .flowSheet import FlowSheet
-from .unitOperation import Source, Sink
+from .unitOperation import Source, SourceMixin, Sink
 
 
 class Process(EventHandler):
@@ -307,7 +307,7 @@ class Process(EventHandler):
         self.parameters = config['parameters']
         self.initial_state = config['initial_state']
 
-    def add_inlet_profile(self, unit, time, c, component_index=None, s=1e-6):
+    def add_concentration_profile(self, unit, time, c, component_index=None, s=1e-6):
         if not isinstance(unit, Source):
             raise TypeError('Expected Source')
 
@@ -338,6 +338,26 @@ class Process(EventHandler):
                     f'{unit}_inlet_{comp}_{i-3}', f'flow_sheet.{unit}.c',
                     np.flip(sec), t, comp
                 )
+
+    def add_flow_rate_profile(self, unit, time, flow_rate, s=1e-6):
+        if not isinstance(unit, SourceMixin):
+            raise TypeError('Expected SourceMixin.')
+
+        if max(time) > self.cycle_time:
+            raise ValueError('Inlet profile exceeds cycle time')
+
+        tck = interpolate.splrep(time, flow_rate, s=s)
+        ppoly = interpolate.PPoly.from_spline(tck)
+
+        for i, (t, sec) in enumerate(zip(ppoly.x, ppoly.c.T)):
+            if i < 3:
+                continue
+            elif i > len(ppoly.x) - 5:
+                continue
+            evt = self.add_event(
+                f'{unit}_flow_rate_{i-3}', f'flow_sheet.{unit}.flow_rate',
+                np.flip(sec), t
+            )
 
     def __str__(self):
         return self.name
