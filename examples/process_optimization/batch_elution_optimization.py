@@ -18,12 +18,6 @@ from CADETProcess.optimization import OptimizationProblem
 from operating_modes.batch_elution import process
 component_system = process.component_system
 
-process_simulator = Cadet()
-process_simulator.evaluate_stationarity = True
-
-purity_required = [0.95, 0.95]
-frac_opt = FractionationOptimizer(component_system, purity_required)
-
 optimization_problem = OptimizationProblem(name='batch elution')
 optimization_problem.add_evaluation_object(process)
 
@@ -34,10 +28,16 @@ optimization_problem.add_linear_constraint(
     ['feed_duration.time', 'cycle_time'], [1, -1]
 )
 
-optimization_problem.add_evaluator(process_simulator)
-optimization_problem.add_evaluator(frac_opt, cache=True)
+process_simulator = Cadet()
+process_simulator.evaluate_stationarity = True
+optimization_problem.add_evaluator(process_simulator, cache=True)
 
-case = 'multi'
+frac_opt = FractionationOptimizer()
+optimization_problem.add_evaluator(
+    frac_opt, cache=True, kwargs={'purity_required': [0.95, 0.95]}
+)
+
+case = 'single'
 if case == 'single':
     ranking = [1, 1]
     performance = PerformanceProduct(component_system, ranking=ranking)
@@ -66,17 +66,30 @@ elif case == 'multi':
         requires=[process_simulator, frac_opt]
     )
 
-if __name__ == "__main__":
-    from CADETProcess import settings
-    settings.set_working_directory(f'./batch_elution/{case}')
 
+def callback(fractionation, x, evaluation_object, results_dir='./'):
+    fractionation.plot_fraction_signal(
+        file_name=f'{results_dir}/{evaluation_object}_{x}_fractionation.png',
+        show=False
+    )
+
+
+optimization_problem.add_callback(
+    callback, requires=[process_simulator, frac_opt]
+)
+
+
+if __name__ == "__main__":
     from CADETProcess.optimization import U_NSGA3
     optimizer = U_NSGA3()
-    optimizer.n_cores = 1
+    optimizer.n_cores = 4
+    # optimizer.pop_size = 4
+    optimizer.n_max_gen = 4
 
+    from CADETProcess import settings
+    settings.set_working_directory(f'./batch_elution/{case}')
     results = optimizer.optimize(
         optimization_problem,
         save_results=True,
-        use_checkpoint=True,
-        update_parameters=True
+        use_checkpoint=False,
     )

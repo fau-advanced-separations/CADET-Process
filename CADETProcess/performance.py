@@ -3,7 +3,7 @@ import numpy as np
 from CADETProcess import CADETProcessError
 
 from CADETProcess.dataStructure import Structure
-from CADETProcess.dataStructure import NdArray
+from CADETProcess.dataStructure import NdArray, DependentlySizedNdArray
 from CADETProcess.metric import MetricBase
 
 from CADETProcess.processModel import ComponentSystem
@@ -24,16 +24,21 @@ class Performance(Structure):
         'productivity', 'eluent_consumption'
     ]
 
-    mass = NdArray()
-    concentration = NdArray()
-    purity = NdArray()
-    recovery = NdArray()
-    productivity = NdArray()
-    eluent_consumption = NdArray()
+    mass = DependentlySizedNdArray(dep=('n_comp'))
+    concentration = DependentlySizedNdArray(dep=('n_comp'))
+    purity = DependentlySizedNdArray(dep=('n_comp'))
+    recovery = DependentlySizedNdArray(dep=('n_comp'))
+    productivity = DependentlySizedNdArray(dep=('n_comp'))
+    eluent_consumption = DependentlySizedNdArray(dep=('n_comp'))
 
     def __init__(
             self, mass, concentration, purity, recovery,
-            productivity, eluent_consumption):
+            productivity, eluent_consumption, component_system=None):
+
+        if component_system is None:
+            component_system = ComponentSystem(mass.shape[0])
+
+        self.component_system = component_system
         self.mass = mass
         self.concentration = concentration
         self.purity = purity
@@ -43,7 +48,7 @@ class Performance(Structure):
 
     @property
     def n_comp(self):
-        return self.mass.shape[0]
+        return self.component_system.n_comp
 
     def to_dict(self):
         return {key: getattr(self, key).tolist()
@@ -83,9 +88,27 @@ class RankedPerformance():
         self._performance = performance
 
         if isinstance(ranking, (float, int)):
-            ranking = [ranking]*performance.n_comp
+            ranking = performance.n_comp * [ranking]
         elif len(ranking) != performance.n_comp:
             raise CADETProcessError('Number of components does not match.')
+
+        self._ranking = ranking
+
+    @property
+    def ranking(self):
+        return self._ranking
+
+    @ranking.setter
+    def ranking(self, ranking):
+        n_metrics = self.component_system.n_comp - self.n_exclude
+
+        if isinstance(ranking, (float, int)):
+            ranking = n_metrics * [ranking]
+
+        if ranking is not None and len(ranking) != n_metrics:
+            raise CADETProcessError(
+                'Ranking does not match number of metrics'
+            )
 
         self._ranking = ranking
 
@@ -115,20 +138,9 @@ class RankedPerformance():
 
 
 class PerformanceIndicator(MetricBase):
-    def __init__(self, component_system, exclude=None, ranking=None):
-        self.component_system = component_system
+    def __init__(self, exclude=None, ranking=None):
         self.exclude = exclude
         self.ranking = ranking
-
-    @property
-    def component_system(self):
-        return self._component_system
-
-    @component_system.setter
-    def component_system(self, component_system):
-        if not isinstance(component_system, ComponentSystem):
-            raise TypeError('Expected ComponentSystem')
-        self._component_system = component_system
 
     @property
     def exclude(self):
@@ -139,15 +151,7 @@ class PerformanceIndicator(MetricBase):
         if exclude is None:
             exclude = []
 
-        component_names = [comp.name for comp in self.component_system]
-        if not all([ex in component_names for ex in exclude]):
-            raise CADETProcessError('Unknown component in exclude.')
-
         self._exclude = exclude
-
-    @property
-    def n_exclude(self):
-        return len(self.exclude)
 
     @property
     def ranking(self):
@@ -155,27 +159,11 @@ class PerformanceIndicator(MetricBase):
 
     @ranking.setter
     def ranking(self, ranking):
-        n_metrics = self.component_system.n_comp - self.n_exclude
-
-        if isinstance(ranking, (float, int)):
-            ranking = n_metrics * [ranking]
-
-        if ranking is not None and len(ranking) != n_metrics:
-            raise CADETProcessError('Ranking does not match number of metrics')
-
         self._ranking = ranking
 
     @property
-    def n_metrics(self):
-        if self.ranking is None:
-            return self.component_system.n_comp - self.n_exclude
-        else:
-            return 1
-
-    @property
     def bad_metrics(self):
-        exclude = len(self.exclude)
-        return np.zeros((self.n_metrics - exclude,)).tolist()
+        return self.n_metrics * [0]
 
     def evaluate(self, performance):
         try:
@@ -192,7 +180,7 @@ class PerformanceIndicator(MetricBase):
             metric = [value]
         else:
             metric = []
-            for i, comp in enumerate(self.component_system):
+            for i, comp in enumerate(performance.component_system):
                 if comp.name in self.exclude:
                     continue
                 metric.append(value[i])

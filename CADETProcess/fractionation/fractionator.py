@@ -412,7 +412,8 @@ class Fractionator(EventHandler):
         self.reset()
         return Performance(
             self.mass, self.concentration, self.purity,
-            self.recovery, self.productivity, self.eluent_consumption
+            self.recovery, self.productivity, self.eluent_consumption,
+            self.component_system
         )
 
     def reset(self):

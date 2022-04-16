@@ -83,13 +83,10 @@ if __name__ == '__main__':
     simulation_results = process_simulator.simulate(process)
 
     from CADETProcess.fractionation import FractionationOptimizer
-    purity_required = [0.95, 0.95]
-    fractionation_optimizer = FractionationOptimizer(
-        component_system, purity_required
-    )
+    fractionation_optimization = FractionationOptimizer()
 
-    fractionation = fractionation_optimizer.optimize_fractionation(
-        simulation_results
+    fractionation = fractionation_optimization.optimize_fractionation(
+        simulation_results, purity_required=[0.95, 0.95]
     )
 
     fractionation.plot_fraction_signal()
