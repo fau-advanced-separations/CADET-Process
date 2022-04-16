@@ -80,7 +80,7 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
 
     def add_event(
             self, name, parameter_path, state, time=0.0, entry_index=None,
-            dependencies=None, factors=None):
+            dependencies=None, factors=None, transforms=None):
         """Factory function for creating and adding events.
 
         Parameters
@@ -93,6 +93,12 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
             Value of the attribute that is changed at Event execution.
         time : float
             Time at which the event is executed.
+        dependencies : list
+            List of the events on which the event time depends.
+        factors : List
+            List with factors for linear combination of dependencies.
+        entry_index : int
+            Index for events that only modify one entry of a parameter.
 
         Raises
         ------
@@ -120,7 +126,9 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
         super().__setattr__(name, evt)
 
         if dependencies is not None:
-            self.add_event_dependency(evt.name, dependencies, factors)
+            self.add_event_dependency(
+                evt.name, dependencies, factors, transforms
+            )
 
         return evt
 
@@ -222,31 +230,38 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
         return self._durations
 
     def add_event_dependency(
-            self, dependent_event, independent_events, factors=None):
+            self, dependent_event, independent_events,
+            factors=None, transforms=None):
         """Add dependency between two events.
 
         Parameters
         ----------
         dependent_event : str
-            Name of the event whose value will depend on other events.
+            Event whose value will depend on other events.
         independent_events : list
             List of independent event names.
-        factors : list
+        factors : list, optional
             List of factors used for the relation with the independent events.
-            Factors has to be integers of 1 or -1. The length of this list has
-            to be equal the list of independent.
+            Length must be equal the length of independent events.
+            If None, all factors are assumed to be 1.
+        transforms : list, optional
+            List of functions used to transform the parameter value.
+            Length must be equal the length of independent events.
+            If None, no transform is applied.
 
         Raises
         ------
         CADETProcessError
-            If dependent_event OR independent_events are not in the
-            combined_evt_dur dictionary.
+            If dependent_event OR independent_events are not found.
             If length of factors does not equal length of independent events.
+            If length of transforms does not equal length of independent events.
 
         See Also
         --------
         Event
-        add_event_dependency
+        add_event
+        add_duration
+        remove_event_dependency
 
         """
         try:
@@ -270,10 +285,19 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
             raise CADETProcessError(
                 "Length of factors must equal length of independent Events"
             )
+        if transforms is None:
+            transforms = [None]*len(independent_events)
 
-        for indep, fac in zip(independent_events, factors):
+        if not isinstance(transforms, list):
+            transforms = [transforms]
+        if len(transforms) != len(independent_events):
+            raise CADETProcessError(
+                "Length of transforms must equal length of independent Events"
+            )
+
+        for indep, fac, trans in zip(independent_events, factors, transforms):
             indep = self.events_dict[indep]
-            evt.add_dependency(indep, fac)
+            evt.add_dependency(indep, fac, trans)
 
     def remove_event_dependency(self, dependent_event, independent_events):
         """Remove dependency between two events.
@@ -588,8 +612,10 @@ class Event():
         Time at which the event is performed.
     dependencies : list
         List of the events on which the event time depends.
-    fatcors : List
+    factors : List
         List with factors for linear combination of dependencies.
+    transforms : list
+        List of functions used to transform the parameter value.
     entry_index : int
         Index for events that only modify one entry of a parameter.
 
@@ -620,6 +646,7 @@ class Event():
 
         self._dependencies = []
         self._factors = []
+        self._transforms = []
 
         self.name = name
         self.time = time
@@ -697,7 +724,7 @@ class Event():
         else:
             return False
 
-    def add_dependency(self, dependency, factor=1):
+    def add_dependency(self, dependency, factor=1, transform=None):
         """Add dependency of event time on other events.
 
         The time of an event can depend on other events or durationsin any
@@ -722,6 +749,10 @@ class Event():
 
         self._dependencies.append(dependency)
         self._factors.append(factor)
+        if transform is None:
+            def transform(t):
+                return t
+        self._transforms.append(transform)
 
     def remove_dependency(self, dependency):
         """Remove dependencies of events.
@@ -744,6 +775,7 @@ class Event():
 
         del(self._dependencies[index])
         del(self._factors[index])
+        del(self._transforms[index])
 
     @property
     def dependencies(self):
@@ -764,6 +796,11 @@ class Event():
         return self._factors
 
     @property
+    def transforms(self):
+        """list: Transform functions for dependent events."""
+        return self._transforms
+
+    @property
     def time(self):
         """float: Time when the event is executed.
 
@@ -781,9 +818,11 @@ class Event():
         if self.isIndependent:
             time = self._time
         else:
-            time = np.dot(
-                [dep.time for dep in self.dependencies], self._factors
-            )
+            transformed_time = [
+                f(dep.time)
+                for f, dep in zip(self.transforms, self.dependencies)
+            ]
+            time = np.dot(transformed_time, self._factors)
         cycle_time = getattr(self.event_handler, 'cycle_time')
         return time % cycle_time
 
