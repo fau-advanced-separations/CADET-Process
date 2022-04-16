@@ -287,7 +287,8 @@ class RoundIndividuals(Repair):
 
         # Round all individuals and Check if linear constraints are met
         for i, ind in enumerate(Z):
-            for i_var, var in enumerate(self.optimization_problem.variables):
+            variables = self.optimization_problem.independent_variables
+            for i_var, var in enumerate(variables):
                 Z[i, i_var] = np.format_float_positional(
                     Z[i, i_var], precision=var.precision, fractional=False
                 )
