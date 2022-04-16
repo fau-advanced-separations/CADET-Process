@@ -326,7 +326,11 @@ class OptimizationProblem(metaclass=StructMeta):
     def evaluators(self):
         return self._evaluators
 
-    def add_evaluator(self, evaluator, cache=False):
+    @property
+    def evaluators_dict(self):
+        return {evaluator.name: evaluator for evaluator in self.evaluators}
+
+    def add_evaluator(self, evaluator, cache=False, args=None, kwargs=None):
         """Add Evaluator to OptimizationProblem.
 
         Evaluators can be referenced by objective and constraint functions to
@@ -334,30 +338,34 @@ class OptimizationProblem(metaclass=StructMeta):
 
         Parameters
         ----------
-        evaluator : Any
-            Must implement an evaluate function..
+        evaluator : callable
+            Evaluation function.
         cache : bool, optional
             If True, results of the evaluator are cached. The default is False.
+        args : tuple, optional
+            Additional arguments for evaluation function.
+        kwargs : dict, optional
+            Additional keyword arguments for evaluation function.
 
         Raises
         ------
-        CADETProcessError
-            If Evaluator does not implement evaluate method.
+        TypeError
+            If objective is not callable.
 
         """
+        if not callable(evaluator):
+            raise TypeError("Expected callable evaluator.")
+
         if str(evaluator) in self.evaluators:
             raise CADETProcessError(
                 "Evaluator already exists in OptimizationProblem."
             )
 
-        if not (
-                hasattr(evaluator, 'evaluate')
-                and
-                callable(getattr(evaluator, 'evaluate'))):
-            raise CADETProcessError(
-                "Evaluator must implement evaluate method"
-            )
-
+        evaluator = Evaluator(
+            evaluator,
+            args=args,
+            kwargs=kwargs,
+        )
         self._evaluators.append(evaluator)
 
         if cache:
@@ -443,9 +451,10 @@ class OptimizationProblem(metaclass=StructMeta):
         elif not isinstance(requires, list):
             requires = [requires]
 
-        for req in requires:
-            if req not in self.evaluators:
-                raise CADETProcessError(f"Unknown Evaluator: {str(req)}")
+        try:
+            evaluators = [self.evaluators_dict[str(req)]for req in requires]
+        except KeyError as e:
+            raise CADETProcessError(f"Unknown Evaluator: {str(e)}")
 
         objective = Objective(
             objective,
@@ -453,7 +462,7 @@ class OptimizationProblem(metaclass=StructMeta):
             n_objectives=n_objectives,
             bad_metrics=bad_metrics,
             evaluation_objects=evaluation_objects,
-            evaluators=requires
+            evaluators=evaluators
         )
         self._objectives.append(objective)
 
@@ -672,9 +681,10 @@ class OptimizationProblem(metaclass=StructMeta):
         elif not isinstance(requires, list):
             requires = [requires]
 
-        for req in requires:
-            if req not in self.evaluators:
-                raise CADETProcessError(f"Unknown Evaluator: {str(req)}")
+        try:
+            evaluators = [self.evaluators_dict[str(req)]for req in requires]
+        except KeyError as e:
+            raise CADETProcessError(f"Unknown Evaluator: {str(e)}")
 
         nonlincon = NonlinearConstraint(
             nonlincon,
@@ -682,7 +692,7 @@ class OptimizationProblem(metaclass=StructMeta):
             n_nonlinear_constraints=n_nonlinear_constraints,
             bad_metrics=bad_metrics,
             evaluation_objects=evaluation_objects,
-            evaluators=requires
+            evaluators=evaluators
         )
         self._nonlinear_constraints.append(nonlincon)
 
@@ -857,14 +867,15 @@ class OptimizationProblem(metaclass=StructMeta):
         elif not isinstance(requires, list):
             requires = [requires]
 
-        for req in requires:
-            if req not in self.evaluators:
-                raise CADETProcessError(f"Unknown Evaluator: {str(req)}")
+        try:
+            evaluators = [self.evaluators_dict[str(req)]for req in requires]
+        except KeyError as e:
+            raise CADETProcessError(f"Unknown Evaluator: {str(e)}")
 
         callback = Callback(
             callback,
             evaluation_objects=evaluation_objects,
-            evaluators=requires
+            evaluators=evaluators
         )
         self._callbacks.append(callback)
 
@@ -1839,6 +1850,47 @@ class OptimizationVariable():
                 f'{self.__class__.__name__}' + \
                 f'(name={self.name}, lb={self.lb}, ub={self.ub})'
         return string
+
+
+class Evaluator(metaclass=StructMeta):
+    evaluator = Callable()
+    args = Tuple()
+    kwargs = Dict()
+
+    def __init__(
+            self,
+            evaluator,
+            name=None,
+            args=None,
+            kwargs=None):
+
+        self.evaluator = evaluator
+
+        if name is None:
+            name = str(evaluator)
+        self.name = name
+        self.args = args
+        self.kwargs = kwargs
+
+    def __call__(self, request):
+        if self.args is None:
+            args = ()
+        else:
+            args = self.args
+
+        if self.kwargs is None:
+            kwargs = {}
+        else:
+            kwargs = self.kwargs
+
+        results = self.evaluator(request, *args, **kwargs)
+
+        return results
+
+    evaluate = __call__
+
+    def __str__(self):
+        return self.name
 
 
 class Objective(metaclass=StructMeta):
