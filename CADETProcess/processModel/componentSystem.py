@@ -55,7 +55,10 @@ class ComponentSystem(metaclass=StructMeta):
 
     @property
     def components_dict(self):
-        return {comp.name: comp for comp in self.components}
+        return {
+            name: comp
+            for name, comp in zip(self.names, self.components)
+        }
 
     @property
     def n_components(self):
@@ -71,7 +74,7 @@ class ComponentSystem(metaclass=StructMeta):
         self._components.append(component)
 
     def remove_component(self, component):
-        if isinstance(component, str):
+        if isinstance(component, (str, int)):
             try:
                 component = self.components_dict[component]
             except KeyError:
