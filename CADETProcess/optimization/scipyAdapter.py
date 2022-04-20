@@ -64,9 +64,6 @@ class SciPyInterface(OptimizerBase):
                 )
         elapsed = time.time() - start
 
-        if not scipy_results.success:
-            raise CADETProcessError('Optimization Failed')
-
         x = list(scipy_results.x)
         f = optimization_problem.evaluate_objectives(x)
         g = optimization_problem.evaluate_nonlinear_constraints(x)
@@ -286,7 +283,7 @@ class COBYLA(SciPyInterface):
 
     """
     rhobeg = UnsignedFloat(default=1)
-    maxiter = UnsignedInteger(default=1000)
+    maxiter = UnsignedInteger(default=10000)
     disp = Bool(default=False)
     catol = UnsignedFloat(default=0.0002)
     _options = ['rhobeg', 'maxiter', 'disp', 'catol']
