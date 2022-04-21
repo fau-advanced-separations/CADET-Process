@@ -1,3 +1,5 @@
+import copy
+
 import corner
 import numpy as np
 import matplotlib.pyplot as plt
@@ -288,6 +290,7 @@ class OptimizationProgress():
             show_titles=True,
             title_kwargs={"fontsize": 12}
         )
+        fig.tight_layout()
 
         if self.progress_directory is not None:
             fig.savefig(f'{self.progress_directory / "corner.png"}')
@@ -335,7 +338,7 @@ class OptimizationProgress():
 
         for i_var, (var, ax) in enumerate(zip(variables, axs)):
             x_var = x[:, i_var]
-            collections = ax.collections
+            collections = copy.deepcopy(ax.collections)
 
             counter = 0
             for i_obj, func in enumerate(funcs):
@@ -346,15 +349,18 @@ class OptimizationProgress():
                 for i in range(func.n_metrics):
                     v_metric = v_var[:, i]
                     if len(collections) > 0:
-                        collections[i].set_offsets(
+                        ax.collections[i].set_offsets(
                             np.vstack((x_var, v_metric)).transpose()
                         )
                     else:
                         ax.scatter(x_var, v_metric)
 
             layout.title = var
+
+            v_var = v_var.copy()
+            v_var[np.where(np.isinf(v_var))] = np.nan
             layout.x_lim = (np.min(x_var), np.max(x_var))
-            layout.y_lim = (np.min(v_var), np.max(v_var))
+            layout.y_lim = (np.nanmin(v_var), np.nanmax(v_var))
 
             plotting.set_layout(ax, layout)
 

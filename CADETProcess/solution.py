@@ -206,7 +206,7 @@ class SolutionIO(SolutionBase):
         Returns
         -------
         ax : Axes
-            Axes object with buffer capacity plot.
+            Axes object with concentration profile.
 
         See Also
         --------
@@ -222,6 +222,8 @@ class SolutionIO(SolutionBase):
             if end is not None:
                 end /= 60
             layout.x_lim = (start, end)
+            if y_max is not None:
+                layout.y_lim = (None, y_max)
 
         ax = _plot_solution_1D(
             self,

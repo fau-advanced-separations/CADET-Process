@@ -3,6 +3,7 @@ import importlib
 import functools
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 from CADETProcess import CADETProcessError
 from CADETProcess import plotting
@@ -93,7 +94,7 @@ class Comparator(metaclass=StructMeta):
 
     __call__ = evaluate
 
-    def plot_comparison(self, simulation_results):
+    def plot_comparison(self, simulation_results, file_name=None, show=True):
         axs = []
         for metric in self.metrics:
             try:
@@ -110,7 +111,8 @@ class Comparator(metaclass=StructMeta):
             solution = metric.slice_and_transform(solution)
 
             ax = solution.plot(
-                show=False, start=metric.start, end=metric.end
+                show=False, start=metric.start, end=metric.end,
+                y_max=1.1*np.max(metric.reference.solution)
             )
 
             plot_args = {
@@ -128,6 +130,13 @@ class Comparator(metaclass=StructMeta):
             ax.legend(loc=1)
 
             axs.append(ax)
+
+        if file_name is not None:
+            plt.savefig(file_name)
+
+        if not show:
+            plt.close()
+
         return axs
 
     def __iter__(self):
