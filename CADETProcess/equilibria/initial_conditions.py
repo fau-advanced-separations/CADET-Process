@@ -2,7 +2,7 @@ import numpy as np
 
 from CADETProcess import CADETProcessError
 
-from CADETProcess.processModel import Source, Sink
+from CADETProcess.processModel import Inlet, Outlet
 from CADETProcess.processModel import Cstr, LumpedRateModelWithoutPores
 from CADETProcess.processModel import FlowSheet
 from CADETProcess.processModel import Process
@@ -40,12 +40,12 @@ def simulate_solid_equilibria(
     component_system = binding_model.component_system
 
     # Unit Operations
-    buffer_source = Source(component_system, name='buffer')
+    buffer_source = Inlet(component_system, name='buffer')
     buffer_source.c = buffer
 
     if flush is None:
         flush = buffer
-    flush_source = Source(component_system, 'flush')
+    flush_source = Inlet(component_system, 'flush')
     flush_source.c = flush
 
     if unit_model == 'cstr':
@@ -87,7 +87,7 @@ def simulate_solid_equilibria(
     unit.solution_recorder.write_solution_bulk = True
     unit.solution_recorder.write_solution_solid = True
 
-    outlet = Sink(component_system, name='outlet')
+    outlet = Outlet(component_system, name='outlet')
 
     # flow sheet
     fs = FlowSheet(component_system, name=flow_sheet_name)

@@ -8,7 +8,9 @@ Simulate Batch Chromatography of Binary Mixture
 
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess.processModel import Langmuir
-from CADETProcess.processModel import Source, LumpedRateModelWithoutPores, Sink
+from CADETProcess.processModel import (
+    Inlet, LumpedRateModelWithoutPores, Outlet
+)
 from CADETProcess.processModel import FlowSheet
 from CADETProcess.processModel import Process
 
@@ -25,10 +27,10 @@ binding_model.desorption_rate = [1, 1]
 binding_model.capacity = [100, 100]
 
 # Unit Operations
-feed = Source(component_system, name='feed')
+feed = Inlet(component_system, name='feed')
 feed.c = [10, 10]
 
-eluent = Source(component_system, name='eluent')
+eluent = Inlet(component_system, name='eluent')
 eluent.c = [0, 0]
 
 column = LumpedRateModelWithoutPores(component_system, name='column')
@@ -41,7 +43,7 @@ column.binding_model = binding_model
 
 column.solution_recorder.write_solution_bulk = True
 
-outlet = Sink(component_system, name='outlet')
+outlet = Outlet(component_system, name='outlet')
 
 # flow sheet
 flow_sheet = FlowSheet(component_system)
@@ -83,11 +85,12 @@ if __name__ == '__main__':
     simulation_results = process_simulator.simulate(process)
 
     from CADETProcess.fractionation import FractionationOptimizer
-    fractionation_optimization = FractionationOptimizer()
+    fractionation_optimizer = FractionationOptimizer()
 
-    fractionation = fractionation_optimization.optimize_fractionation(
+    fractionator = fractionation_optimizer.optimize_fractionation(
         simulation_results, purity_required=[0.95, 0.95]
     )
 
-    fractionation.plot_fraction_signal()
-    print(fractionation.performance)
+    print(fractionator.performance)
+    _ = fractionator.plot_fraction_signal()
+

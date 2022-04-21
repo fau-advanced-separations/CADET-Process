@@ -349,9 +349,15 @@ class Source(UnitBaseClass, SourceMixin):
         ['c']
 
 
+Inlet = Source
+
+
 class Sink(UnitBaseClass, SinkMixin):
     """Pseudo unit operation model for streams leaving the system."""
     pass
+
+
+Outlet = Sink
 
 
 class MixerSplitter(UnitBaseClass):
