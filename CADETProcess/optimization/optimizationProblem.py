@@ -22,6 +22,9 @@ from CADETProcess.dataStructure import frozen_attributes
 from CADETProcess.dataStructure import (
     check_nested, generate_nested_dict, get_nested_value
 )
+from CADETProcess.transform import (
+    NoTransform, AutoTransform, NormLinearTransform, NormLogTransform
+)
 
 from CADETProcess.metric import MetricBase
 
@@ -165,7 +168,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
     def add_variable(
             self, parameter_path=None, evaluation_objects=-1,
-            lb=-math.inf, ub=math.inf,
+            lb=-math.inf, ub=math.inf, transform=None,
             component_index=None, polynomial_index=None, name=None):
         """Add optimization variable to the OptimizationProblem.
 
@@ -183,6 +186,8 @@ class OptimizationProblem(metaclass=StructMeta):
             Lower bound of the variable value.
         ub : float
             Upper bound of the variable value.
+        transform : {'auto', 'log', None}:
+            Variable transform. The default is auto.
         component_index : int
             Index for component specific variables.
         polynomial_index : int
@@ -223,7 +228,8 @@ class OptimizationProblem(metaclass=StructMeta):
 
         var = OptimizationVariable(
             name, evaluation_objects, parameter_path,
-            lb=lb, ub=ub, component_index=component_index,
+            lb=lb, ub=ub, transform=transform,
+            component_index=component_index,
             polynomial_index=polynomial_index
         )
 
@@ -327,7 +333,48 @@ class OptimizationProblem(metaclass=StructMeta):
             indep = self.variables_dict[indep]
             var.add_dependency(indep, fac, trans)
 
-    def untransform(self, x):
+    def untransforms(func):
+        @wraps(func)
+        def wrapper(self, x, *args, untransform=False, **kwargs):
+            """Untransform population or individual before calling function."""
+            if untransform:
+                x = self.untransform(x)
+
+            return func(self, x, *args, **kwargs)
+
+        return wrapper
+
+    def ensures2d(func):
+        @wraps(func)
+        def wrapper(self, population, *args, **kwargs):
+            """Make sure population is 2d list."""
+            population = np.array(population, ndmin=2)
+            population = population.tolist()
+
+            return func(self, population, *args, **kwargs)
+
+        return wrapper
+    
+    @untransforms
+    def get_dependent_values(self, x):
+        """Determine values of dependent optimization variables.
+
+        Parameters
+        ----------
+        x : list
+            (Transformed) Optimization variables values.
+
+        Raises
+        ------
+        CADETProcessError
+            If length of parameters does not match.
+
+        Returns
+        -------
+        x : list
+            Values of all optimization variables.
+
+        """
         if len(x) != self.n_independent_variables:
             raise CADETProcessError(
                 f'Expected {self.n_independent_variables} value(s)'
@@ -341,15 +388,23 @@ class OptimizationProblem(metaclass=StructMeta):
 
         return optimization_problem.variable_values
 
-    def set_variables(self, x, evaluation_objects=-1, make_copy=False):
+    @untransforms
+    def set_variables(
+            self, x,
+            evaluation_objects=-1,
+            make_copy=False):
         """Set the values from the x-vector to the EvaluationObjects.
 
         Parameters
         ----------
          x : array_like
             Value of the optimization variables
-
-        make_copy : Bool
+        evaluation_objects : list or EvaluationObject or None or -1
+            Evaluations objects to set variables in.
+            If None, do not set variables.
+            If -1, variables are set to all evaluation objects.
+            The default is -1.
+        make_copy : bool
             If True, a copy of the evaluation_object attribute is made on which
             the values are set. Otherwise, the values are set on the attribute.
 
@@ -372,7 +427,7 @@ class OptimizationProblem(metaclass=StructMeta):
         evaluate
 
         """
-        values = self.untransform(x)
+        values = self.get_dependent_values(x)
 
         if evaluation_objects is None:
             evaluation_objects = []
@@ -573,7 +628,15 @@ class OptimizationProblem(metaclass=StructMeta):
         )
         self._objectives.append(objective)
 
-    def evaluate_objectives(self, x, cache=None, make_copy=False, force=False):
+    @untransforms
+    def evaluate_objectives(
+            self,
+            x,
+            cache=None,
+            cache_new=None,
+            make_copy=False,
+            force=False,
+            return_cache_new=False,):
         """Evaluate objective functions at point x.
 
         Parameters
@@ -603,6 +666,8 @@ class OptimizationProblem(metaclass=StructMeta):
         """
         self.logger.info(f'evaluate objectives at {x}')
 
+        x = list(x)
+
         f = []
 
         local_cache = self.setup_cache()
@@ -627,6 +692,8 @@ class OptimizationProblem(metaclass=StructMeta):
                 cache[key] = local_cache[key]
         return f
 
+    @untransforms
+    @ensures2d
     def evaluate_objectives_population(
             self, population, cache=None, force=False, n_cores=0):
 
@@ -660,6 +727,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
         return results
 
+    @untransforms
     def objective_jacobian(self, x, dx=1e-3):
         """Compute jacobian of objective functions using finite differences.
 
@@ -803,6 +871,7 @@ class OptimizationProblem(metaclass=StructMeta):
         )
         self._nonlinear_constraints.append(nonlincon)
 
+    @untransforms
     def evaluate_nonlinear_constraints(
             self, x, cache=None, make_copy=False, force=False):
         """Evaluate nonlinear constraint functions at point x.
@@ -838,6 +907,8 @@ class OptimizationProblem(metaclass=StructMeta):
         """
         self.logger.info(f'evaluate nonlinear constraints at {x}')
 
+        x = list(x)
+
         g = []
 
         local_cache = self.setup_cache()
@@ -865,6 +936,8 @@ class OptimizationProblem(metaclass=StructMeta):
 
         return c
 
+    @untransforms
+    @ensures2d
     def evaluate_nonlinear_constraints_population(
             self, population, cache=None, force=False, n_cores=0):
 
@@ -898,6 +971,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
         return results
 
+    @untransforms
     def check_nonlinear_constraints(self, x):
         """Check if all nonlinear constraints are kept.
 
@@ -919,6 +993,7 @@ class OptimizationProblem(metaclass=StructMeta):
             return False
         return True
 
+    @untransforms
     def nonlinear_constraint_jacobian(self, x, dx=1e-3):
         """Compute jacobian of the nonlinear constraints at point x.
 
@@ -986,6 +1061,7 @@ class OptimizationProblem(metaclass=StructMeta):
         )
         self._callbacks.append(callback)
 
+    @untransforms
     def evaluate_callbacks(
             self,
             x,
@@ -1042,6 +1118,8 @@ class OptimizationProblem(metaclass=StructMeta):
 
         return c
 
+    @untransforms
+    @ensures2d
     def evaluate_callbacks_population(
             self, population, results_dir, cache=None, force=False, n_cores=0):
 
@@ -1076,6 +1154,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
         return results
 
+    @untransforms
     def _evaluate(
             self,
             x, func,
@@ -1250,6 +1329,17 @@ class OptimizationProblem(metaclass=StructMeta):
         return [var.lb for var in self.variables]
 
     @property
+    def lower_bounds_transformed(self):
+        """list : List of the lower bounds of all OptimizationVariables.
+
+        See Also
+        --------
+        upper_bounds
+
+        """
+        return [var.transform.lb for var in self.variables]
+
+    @property
     def upper_bounds(self):
         """list : List of the upper bounds of all OptimizationVariables.
 
@@ -1260,6 +1350,18 @@ class OptimizationProblem(metaclass=StructMeta):
         """
         return [var.ub for var in self.variables]
 
+    @property
+    def upper_bounds_transformed(self):
+        """list : List of the lower bounds of all OptimizationVariables.
+
+        See Also
+        --------
+        upper_bounds
+
+        """
+        return [var._transform.ub for var in self.variables]
+
+    @untransforms
     def check_bounds(self, x):
         """Checks if all bound constraints are kept.
 
@@ -1268,16 +1370,10 @@ class OptimizationProblem(metaclass=StructMeta):
         x : array_like
             Value of the optimization variables
 
-        First sets a local variable named flag to True. Then checks if the
-        values of the list x are exceeding the lower and upper bounds and sets
-        the value of the flag to False. For this the list x is converted into
-        an np.array.
-
         Returns
         -------
         flag : Bool
-            True, if values of x are within the defined bounds.
-            False if values of x are outside the bound.
+            True, if all values of x are within the bounds. False otherwise.
 
         """
         flag = True
@@ -1403,6 +1499,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
         return np.array(b)
 
+    @untransforms
     def evaluate_linear_constraints(self, x):
         """Calculate value of linear inequality constraints at point x.
 
@@ -1423,11 +1520,12 @@ class OptimizationProblem(metaclass=StructMeta):
         linear_constraints
 
         """
-        values = self.untransform(x)
+        values = self.get_dependent_values(x)
         values = np.array(values)
 
         return self.A.dot(values) - self.b
 
+    @untransforms
     def check_linear_constraints(self, x):
         """Check if linear inequality constraints are met at point x.
 
@@ -1574,6 +1672,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
         return beq
 
+    @untransforms
     def evaluate_linear_equality_constraints(self, x):
         """Calculate value of linear equality constraints at point x.
 
@@ -1594,7 +1693,7 @@ class OptimizationProblem(metaclass=StructMeta):
         linear_equality_constraints
 
         """
-        values = self.untransform(x)
+        values = self.get_dependent_values(x)
         values = np.array(values)
 
         return self.Aeq.dot(values) - self.beq
@@ -1655,6 +1754,42 @@ class OptimizationProblem(metaclass=StructMeta):
             x0 = x0[0]
 
         self._x0 = x0.tolist()
+
+    @property
+    def x0_transformed(self):
+        return self.transform(self.x0)
+
+    def transform(self, x, enforce2d=False):
+        x = np.array(x, ndmin=2)
+        transform = np.zeros(x.shape)
+
+        for i, ind in enumerate(x):
+            transform[i, :] = [
+                var.transform_fun(value)
+                for value, var in zip(ind, self.independent_variables)
+            ]
+
+        transform = transform.tolist()
+        if len(transform) == 1 and not enforce2d:
+            return transform[0]
+
+        return transform
+
+    def untransform(self, x, enforce2d=False):
+        x = np.array(x, ndmin=2)
+        untransform = np.zeros(x.shape)
+
+        for i, ind in enumerate(x):
+            untransform[i, :] = [
+                var.untransform_fun(value)
+                for value, var in zip(ind, self.independent_variables)
+            ]
+
+        untransform = untransform.tolist()
+        if len(untransform) == 1 and not enforce2d:
+            return untransform[0]
+
+        return untransform
 
     def create_initial_values(
             self, n_samples=1, method='random', seed=None,
@@ -1846,6 +1981,8 @@ class OptimizationVariable():
         Lower bound of the variable.
     ub : float
         upper bound of the variable.
+    transform : TransformBase
+        Transformation function for parameter normalization.
     component_index : int, optional
         Index for component specific variables.
         If None, variable is assumed to be component independent.
@@ -1866,7 +2003,7 @@ class OptimizationVariable():
 
     def __init__(self, name,
                  evaluation_objects=None, parameter_path=None,
-                 lb=-math.inf, ub=math.inf,
+                 lb=-math.inf, ub=math.inf, transform=None,
                  component_index=None, polynomial_index=None,
                  precision=3):
 
@@ -1886,11 +2023,30 @@ class OptimizationVariable():
 
         self.lb = lb
         self.ub = ub
+
+        if transform is None:
+            transform = NoTransform(lb, ub)
+        else:
+            if np.isinf(lb) or np.isinf(ub):
+                raise CADETProcessError(
+                    "Transform requires bound constraints."
+                )
+            if transform == 'auto':
+                transform = AutoTransform(lb, ub)
+            elif transform == 'linear':
+                transform = NormLinearTransform(lb, ub)
+            elif transform == 'log':
+                transform = NormLogTransform(lb, ub)
+            else:
+                raise ValueError("Unknown transform")
+
+        self._transform = transform
+
         self.precision = precision
 
         self._dependencies = []
         self._factors = []
-        self._transforms = []
+        self._dependency_transforms = []
 
     @property
     def parameter_path(self):
@@ -1910,6 +2066,16 @@ class OptimizationVariable():
     def parameter_sequence(self):
         """tuple: Tuple of parameters path elements."""
         return tuple(self.parameter_path.split('.'))
+
+    @property
+    def transform(self):
+        return self._transform
+
+    def transform_fun(self, x):
+        return self._transform.transform(x)
+
+    def untransform_fun(self, x):
+        return self._transform.untransform(x)
 
     @property
     def component_index(self):
@@ -1999,7 +2165,7 @@ class OptimizationVariable():
         if transform is None:
             def transform(t):
                 return t
-        self._transforms.append(transform)
+        self.dependency_transforms.append(transform)
 
     def remove_dependency(self, dependency):
         """Remove dependencies of events.
@@ -2022,7 +2188,7 @@ class OptimizationVariable():
 
         del(self._dependencies[index])
         del(self._factors[index])
-        del(self._transforms[index])
+        del(self._dependency_transforms[index])
 
     @property
     def dependencies(self):
@@ -2043,9 +2209,9 @@ class OptimizationVariable():
         return self._factors
 
     @property
-    def transforms(self):
+    def dependency_transforms(self):
         """list: Transform functions for dependent variables."""
-        return self._transforms
+        return self._dependency_transforms
 
     @property
     def value(self):

@@ -172,7 +172,7 @@ class PymooInterface(OptimizerBase):
 
     def setup_algorithm(self):
         if self.optimization_problem.x0 is not None:
-            pop = self.optimization_problem.x0
+            pop = self.optimization_problem.x0_transformed
         else:
             pop = self.optimization_problem.create_initial_values(
                 self._population_size, method='chebyshev', seed=self.seed
