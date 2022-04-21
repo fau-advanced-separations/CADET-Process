@@ -194,7 +194,7 @@ class PymooInterface(OptimizerBase):
             ref_dirs=self.ref_dirs,
             pop_size=self._population_size,
             sampling=pop,
-            repair=RoundIndividuals(self.optimization_problem),
+            repair=RepairIndividuals(self.optimization_problem),
         )
         algorithm.setup(
             self.problem, termination=self.termination,
@@ -278,25 +278,20 @@ class PymooProblem(Problem):
             out["G"] = np.array(g)
 
 
-class RoundIndividuals(Repair):
+class RepairIndividuals(Repair):
     def __init__(self, optimization_problem):
         self.optimization_problem = optimization_problem
 
     def _do(self, problem, pop, **kwargs):
         Z = pop.get("X")
 
-        # Round all individuals and Check if linear constraints are met
+        # Check if linear constraints are met
         for i, ind in enumerate(Z):
-            variables = self.optimization_problem.independent_variables
-            for i_var, var in enumerate(variables):
-                Z[i, i_var] = np.format_float_positional(
-                    Z[i, i_var], precision=var.precision, fractional=False
-                )
-
             if not self.optimization_problem.check_linear_constraints(ind):
-                Z[i, :] = self.optimization_problem.create_initial_values(
-                    method='random'
+                x_new = self.optimization_problem.create_initial_values(
+                    method='random', set_values=False
                 )
+                Z[i, :] = self.optimization_problem.transform(x_new)
 
         # set the design variables for the population
         pop.set("X", Z)

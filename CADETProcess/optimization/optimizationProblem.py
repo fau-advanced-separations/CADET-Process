@@ -384,7 +384,10 @@ class OptimizationProblem(metaclass=StructMeta):
         variables = optimization_problem.independent_variables
 
         for variable, value in zip(variables, x):
-            variable.value = value
+            value = np.format_float_positional(
+                value, precision=variable.precision, fractional=False
+            )
+            variable.value = float(value)
 
         return optimization_problem.variable_values
 
@@ -1792,7 +1795,7 @@ class OptimizationProblem(metaclass=StructMeta):
         return untransform
 
     def create_initial_values(
-            self, n_samples=1, method='random', seed=None,
+            self, n_samples=1, method='random', seed=None, burn_in=100000,
             set_values=True):
         """Create initial value within parameter space.
 
@@ -1809,6 +1812,10 @@ class OptimizationProblem(metaclass=StructMeta):
             random: Any random valid point in the parameter space.
         seed : int, optional
             Seed to initialize random numbers. Only used if method == 'random'
+        burn_in: int, optional
+            Number of samples that are created to ensure uniform sampling.
+            The actual initial values are then drawn from this set.
+            The default is 100000.
         set_values : bool, optional
             If True, set the created values as x0. The default is True.
 
@@ -1823,33 +1830,61 @@ class OptimizationProblem(metaclass=StructMeta):
             Initial values for starting the optimization.
 
         """
-        model = hopsy.UniformModel()
+        class CustomModel():
+            def __init__(self, log_space_indices: list):
+                self.log_space_indices = log_space_indices
 
-        problem = hopsy.Problem(
-            self.A,
-            self.b,
-            model
-        )
-        problem = hopsy.add_box_constraints(
-            problem,
-            self.lower_bounds,
-            self.upper_bounds
-        )
+            def compute_negative_log_likelihood(self, x):
+                return np.log(x[self.log_space_indices])
+
+        log_space_indices = []
+        for i, var in enumerate(self.variables):
+            if (
+                    isinstance(var._transform, NormLogTransform) or
+                    (
+                        isinstance(var._transform, AutoTransform) and
+                        var._transform.use_log
+                    )
+                ):
+                log_space_indices.append(i)
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
 
-            starting_points = [hopsy.compute_chebyshev_center(problem)]
-            run = hopsy.Run(
-                problem,
-                starting_points=starting_points
-                )
-            if seed is None:
-                seed = random.randint(0, 255)
-            run.random_seed = seed
-            run.sample(n_samples)
+            if len(log_space_indices) > 0:
+                model = CustomModel(log_space_indices)
+            else:
+                model = hopsy.UniformModel()
 
-        values = np.array(run.data.states[0])
+            problem = hopsy.Problem(
+                self.A,
+                self.b,
+                model
+            )
+            problem = hopsy.add_box_constraints(
+                problem,
+                self.lower_bounds,
+                self.upper_bounds
+            )
+            problem = hopsy.round(problem)
+
+            chebyshev = hopsy.compute_chebyshev_center(problem)
+
+            if n_samples == 1 and method == 'chebyshev':
+                values = np.array(chebyshev, ndmin=2)
+            else:
+                run = hopsy.Run(
+                    problem,
+                    starting_points=[chebyshev]
+                    )
+                if seed is None:
+                    seed = random.randint(0, 255)
+                run.random_seed = seed
+                run.sample(burn_in)
+
+                values = np.array(run.data.states[0])
+                indices = np.random.randint(0, burn_in, n_samples)
+                values = values[indices]
 
         for i, ind in enumerate(values):
             for i_var, var in enumerate(self.variables):
@@ -1864,14 +1899,6 @@ class OptimizationProblem(metaclass=StructMeta):
         ]
 
         values = values[:, indices]
-
-        if n_samples == 1:
-            if method == 'chebyshev':
-                values = hopsy.compute_chebyshev_center(problem)
-            elif method == 'random':
-                values = values[-1]
-            else:
-                raise CADETProcessError("Unexpected method.")
 
         values = values.tolist()
 
@@ -1991,7 +2018,7 @@ class OptimizationVariable():
         If None, variable is assumed to be component independent.
     precision : int, optional
         Number of significant figures to which variable can be rounded.
-        The default is 3.
+        If None, variable is not rounded. The default is None.
 
     Raises
     ------
@@ -2005,7 +2032,7 @@ class OptimizationVariable():
                  evaluation_objects=None, parameter_path=None,
                  lb=-math.inf, ub=math.inf, transform=None,
                  component_index=None, polynomial_index=None,
-                 precision=3):
+                 precision=None):
 
         self.name = name
         self._value = None
