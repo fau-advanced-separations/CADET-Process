@@ -76,6 +76,8 @@ class SimulationResults(metaclass=StructMeta):
         self.system_state = system_state
         self.chromatograms = chromatograms
 
+        self._solution = None
+
     def update(self, new_results):
         if self.process.name != new_results.process.name:
             raise CADETProcessError('Process does not match')
@@ -92,6 +94,8 @@ class SimulationResults(metaclass=StructMeta):
                 solution = new_results.solution_cycles[unit][sol]
                 self.solution_cycles[unit][sol] += solution
 
+        self._solution = None
+
     @property
     def component_system(self):
         solution = self.solution_cycles[self._first_unit][self._first_solution]
@@ -100,6 +104,8 @@ class SimulationResults(metaclass=StructMeta):
     @property
     def solution(self):
         """Construct complete solution from individual cyles."""
+        if self._solution is not None:
+            return self._solution
         time_complete = self.time_cycle
         for i in range(1, self.n_cycles):
             time_complete = np.hstack((
@@ -118,6 +124,8 @@ class SimulationResults(metaclass=StructMeta):
                     ))
                 solution[unit][sol].time = time_complete
                 solution[unit][sol].solution = solution_complete
+
+        self._solution = solution
 
         return solution
 

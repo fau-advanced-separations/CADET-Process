@@ -119,15 +119,30 @@ class SolutionIO(SolutionBase):
         self.component_system = component_system
         self.time = time
         self.solution = solution
-
         self.flow_rate = flow_rate
 
-        vec_q_value = np.vectorize(flow_rate.value)
-        q_vector = vec_q_value(time)
-        dm_dt = solution * q_vector[:, None]
+        self.update()
+
+    def update(self):
+        self.solution_interpolated = InterpolatedSignal(self.time, self.solution)
+        vec_q_value = np.vectorize(self.flow_rate.value)
+        q_vector = vec_q_value(self.time)
+        dm_dt = self.solution * q_vector[:, None]
 
         self.interpolated_dm_dt = InterpolatedSignal(self.time, dm_dt)
-        self.interpolated_Q = InterpolatedUnivariateSpline(time, q_vector)
+        self.interpolated_Q = InterpolatedUnivariateSpline(self.time, q_vector)
+
+    def resample(self, nt=5001):
+        """Resample solution to nt time points.
+
+        Parameters
+        ----------
+        nt : int, optional
+            Number of points to resample. The default is 5000.
+
+        """
+        self.time = np.linspace(self.time[0], self.time[-1], nt)
+        self.solution = self.solution_interpolated(self.time)
 
     def fraction_mass(self, start, end):
         """Component mass in a fraction interval
@@ -869,21 +884,63 @@ def _plot_solution_1D(
 
 class InterpolatedSignal():
     def __init__(self, time, signal):
-        self._signal = [
+        self._solutions = [
                 InterpolatedUnivariateSpline(time, signal[:, comp])
                 for comp in range(signal.shape[1])
                 ]
+        self._derivatives = [signal.derivative() for signal in self._solutions]
+
+    @property
+    def solutions(self):
+        return self._solutions
+
+    @property
+    def derivatives(self):
+        return self._derivatives
+
+    def derivative(self, time):
+        """ Return all derivatives of the spline(s) at given time.
+
+        x : np.array
+            The time points to evaluate the derivatives at.
+
+        Returns
+        -------
+        der : ndarray
+            Derivatives of the solution spline(s) at given time.
+
+        """
+        der = np.empty((len(time), len(self._solutions)))
+        for comp, der_i in enumerate(self._derivatives):
+            der[:, comp] = der_i(time)
+
+        return der
 
     def integral(self, start, end):
+        """Definite integral between start and end.
+
+        Parameters
+        ----------
+        start : float
+            Lower integration bound.
+        end : end
+            Upper integration bound.
+
+        Returns
+        -------
+        integral : np.array
+            Definite integral of the solution spline(s) between limits.
+
+        """
         return np.array([
-            self._signal[comp].integral(start, end)
-            for comp in range(len(self._signal))
+            self._solutions[comp].integral(start, end)
+            for comp in range(len(self._solutions))
         ])
 
     def __call__(self, t):
         return np.array([
-            self._signal[comp](t) for comp in range(len(self._signal))
-        ])
+            self._solutions[comp](t) for comp in range(len(self._solutions))
+        ]).transpose()
 
 
 def purity(

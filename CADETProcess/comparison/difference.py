@@ -215,7 +215,7 @@ class Shape(DifferenceBase):
     use_derivative = True
 
     @wraps(DifferenceBase.__init__)
-    def __init__(self, *args, use_derivative=1, **kwargs):
+    def __init__(self, *args, use_derivative=0, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.peak_height = PeakHeight(*args, **kwargs)
@@ -228,10 +228,10 @@ class Shape(DifferenceBase):
             self.reference_der.update()
 
             self.peak_der_min = PeakHeight(
-                self.reference_der, *args[1:], **kwargs
+                self.reference_der, *args[1:], find_minima=True, **kwargs
             )
             self.peak_der_max = PeakHeight(
-                self.reference_der, *args[1:], **kwargs
+                self.reference_der, *args[1:], find_minima=False, **kwargs
             )
 
     @property

@@ -1,3 +1,4 @@
+import copy
 import importlib
 import functools
 
@@ -26,6 +27,9 @@ class Comparator(metaclass=StructMeta):
 
         if reference.name in self.references and not update:
             raise CADETProcessError("Reference already exists")
+
+        reference = copy.deepcopy(reference)
+        reference.resample()
 
         self.references[reference.name] = reference
 
@@ -58,6 +62,7 @@ class Comparator(metaclass=StructMeta):
 
         if reference not in self.references:
             raise CADETProcessError("Unknown Reference.")
+
         reference = self.references[reference]
 
         metric = cls_(reference, *args, **kwargs)
@@ -77,6 +82,8 @@ class Comparator(metaclass=StructMeta):
             except KeyError:
                 raise CADETProcessError("Could not find solution path")
 
+            solution = copy.deepcopy(solution)
+            solution.resample()
             m = metric.evaluate(solution)
             metrics.append(m)
 
