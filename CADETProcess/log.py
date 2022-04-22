@@ -4,12 +4,16 @@ from functools import wraps
 import os
 import logging
 
+import multiprocess
+
+
 from CADETProcess import settings
 
 LOG_FORMAT = logging.Formatter(
     '%(asctime)s:%(levelname)s:%(name)s:%(message)s'
 )
 
+loggers = {}
 log_to_file = {}
 
 
@@ -17,8 +21,14 @@ def get_logger(name, level=None, save_log=True):
     if level is None:
         level = settings.LOG_LEVEL
 
-    logger = logging.getLogger(name)
+    try:
+        logger = loggers[name]
+    except KeyError:
+        logger = multiprocess.get_logger()
+
     logger.setLevel(level)
+
+    loggers[name] = logger
 
     if save_log:
         log_to_file[name] = logger
