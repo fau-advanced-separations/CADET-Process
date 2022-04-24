@@ -138,12 +138,19 @@ class PymooInterface(OptimizerBase):
 
         elapsed = time.time() - start
 
+        if algorithm.n_gen >= self._max_number_of_generations:
+            exit_message = 'Max number of generations exceeded.'
+            exit_flag = 1
+        else:
+            exit_flag = 0
+            exit_message = 'success'
+
         results = OptimizationResults(
             optimization_problem=optimization_problem,
             optimizer=str(self),
             optimizer_options=self.options,
-            exit_flag=0,
-            exit_message='success',
+            exit_flag=exit_flag,
+            exit_message=exit_message,
             time_elapsed=elapsed,
             x=self.progress.x_hof.tolist(),
             f=self.progress.f_hof,
