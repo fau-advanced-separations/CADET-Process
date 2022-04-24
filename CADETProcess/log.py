@@ -36,9 +36,15 @@ def get_logger(name, level=None, save_log=True):
     return logger
 
 
-def add_file_handler(logger, name, level):
+def add_file_handler(logger, name, level, overwrite=False):
+    if overwrite:
+        mode = 'w'
+    else:
+        mode = 'a'
+
     file_handler = logging.FileHandler(
-        os.path.join(settings.log_directory, name + '.log')
+        os.path.join(settings.log_directory, name + '.log'),
+        mode=mode
     )
     file_handler.setFormatter(LOG_FORMAT)
     file_handler.setLevel(level)
