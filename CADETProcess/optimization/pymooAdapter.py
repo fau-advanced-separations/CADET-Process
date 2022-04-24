@@ -128,13 +128,18 @@ class PymooInterface(OptimizerBase):
 
             self.progress.prune_cache()
 
-            self.logger.info(f'Finished Generation {algorithm.n_gen}')
             if self.optimization_problem.n_nonlinear_constraints > 0:
                 for ind in self.progress.hall_of_fame:
-                    self.logger.info(f'x: {ind.x}, f: {ind.f}, g: {ind.g}')
+                    self.logger.info(
+                        f'Finished Generation {algorithm.n_gen}.'
+                        f'x: {ind.x}, f: {ind.f}, g: {ind.g}'
+                    )
             else:
                 for ind in self.progress.hall_of_fame:
-                    self.logger.info(f'x: {ind.x}, f: {ind.f}')
+                    self.logger.info(
+                        f'Finished Generation {algorithm.n_gen}.'
+                        f'x: {ind.x}, f: {ind.f}'
+                    )
 
         elapsed = time.time() - start
 
