@@ -240,6 +240,70 @@ class SolutionIO(SolutionBase):
         return ax
 
     @plotting.create_and_save_figure
+    def plot_derivative(
+            self,
+            start=0, end=None, y_max=None,
+            layout=None,
+            only_plot_components=False,
+            alpha=1, hide_labels=False,
+            secondary_axis=None, secondary_layout=None,
+            show_legend=True,
+            ax=None):
+        """Plots the whole time_signal for each component.
+
+        Parameters
+        ----------
+        start : float
+            start time for plotting
+        end : float
+            end time for plotting
+        ax : Axes
+            Axes to plot on.
+
+        Returns
+        -------
+        ax : Axes
+            Axes object with concentration profile.
+
+        See Also
+        --------
+        plotlib
+        plot_purity
+        """
+        if layout is None:
+            layout = plotting.Layout()
+            layout.x_label = '$time~/~min$'
+            layout.y_label = '$c~/~mM$'
+            if start is not None:
+                start /= 60
+            if end is not None:
+                end /= 60
+            layout.x_lim = (start, end)
+            if y_max is not None:
+                layout.y_lim = (None, y_max)
+
+        import copy
+        solution_derivative = copy.deepcopy(self)
+        der_fun = self.solution_interpolated.derivative
+        solution_derivative.solution = der_fun(self.time)
+        solution_derivative.update()
+
+        ax = _plot_solution_1D(
+            solution_derivative,
+            layout=layout,
+            only_plot_components=only_plot_components,
+            alpha=alpha,
+            hide_labels=hide_labels,
+            secondary_axis=secondary_axis,
+            secondary_layout=secondary_layout,
+            show_legend=show_legend,
+            ax=ax,
+        )
+
+        return ax
+
+
+    @plotting.create_and_save_figure
     def plot_purity(
             self,
             start=0, end=None, y_max=None,
