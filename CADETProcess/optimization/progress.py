@@ -69,17 +69,20 @@ class OptimizationProgress():
         self.plot_space(show=False)
         self.plot_pareto(show=False)
 
-    def save_callback(self, n_cores=1, n_gen=None):
-        if n_gen is None:
+    def save_callback(self, n_cores=1, current_iteration=None):
+        if current_iteration is None:
             results_dir = self.results_directory
+            current_iteration = 0
         else:
-            results_dir = self.results_directory / str(n_gen)
+            results_dir = self.results_directory / str(current_iteration)
             results_dir.mkdir(exist_ok=True)
+
         self.optimization_problem.evaluate_callbacks_population(
             self.x_hof,
             results_dir,
             cache=self.cache,
-            n_cores=n_cores
+            n_cores=n_cores,
+            current_iteration=current_iteration,
         )
 
     def prune_cache(self):

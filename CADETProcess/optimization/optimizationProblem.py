@@ -1030,7 +1030,11 @@ class OptimizationProblem(metaclass=StructMeta):
         return self._callbacks
 
     def add_callback(
-            self, callback, evaluation_objects=-1, requires=None):
+            self,
+            callback,
+            evaluation_objects=-1,
+            requires=None,
+            frequency=1):
 
         if not callable(callback):
             raise TypeError("Expected callable callback.")
@@ -1060,7 +1064,8 @@ class OptimizationProblem(metaclass=StructMeta):
         callback = Callback(
             callback,
             evaluation_objects=evaluation_objects,
-            evaluators=evaluators
+            evaluators=evaluators,
+            frequency=frequency
         )
         self._callbacks.append(callback)
 
@@ -1071,7 +1076,8 @@ class OptimizationProblem(metaclass=StructMeta):
             results_dir='./',
             cache=None,
             make_copy=False,
-            force=False):
+            force=False,
+            current_iteration=0):
         """Evaluate callback functions at point x.
 
         Parameters
@@ -1104,6 +1110,8 @@ class OptimizationProblem(metaclass=StructMeta):
         c = []
 
         for callback in self.callbacks:
+            if not current_iteration % callback.frequency == 0:
+                continue
             callback.results_dir = results_dir
             try:
                 value = self._evaluate(
@@ -1136,6 +1144,7 @@ class OptimizationProblem(metaclass=StructMeta):
             return self.evaluate_callbacks(
                 ind, results_dir,
                 cache=managed_cache, make_copy=True, force=force,
+                current_iteration=current_iteration,
             )
 
         if n_cores == 1:
@@ -2449,6 +2458,7 @@ class Callback(metaclass=StructMeta):
     callback = Callable()
     name = String()
     n_metrics = 1
+    frequency = RangedInteger(lb=1)
 
     def __init__(
             self,
@@ -2456,7 +2466,8 @@ class Callback(metaclass=StructMeta):
             name=None,
             evaluation_objects=None,
             evaluators=None,
-            results_dir='./'):
+            results_dir='./',
+            frequency=10):
         self.callback = callback
 
         if name is None:
@@ -2466,6 +2477,7 @@ class Callback(metaclass=StructMeta):
         self.evaluation_objects = evaluation_objects
         self.evaluators = evaluators
         self.results_dir = './'
+        self.frequency = frequency
 
     def __call__(self, current_request, x, evaluation_object):
         kwargs = {}

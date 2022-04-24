@@ -9,7 +9,7 @@ from CADETProcess import settings
 from CADETProcess import log
 from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import (
-    List, NdArray, String, UnsignedInteger, UnsignedFloat
+    List, NdArray, String, RangedInteger, UnsignedInteger, UnsignedFloat
 )
 from CADETProcess.optimization import OptimizationProblem, OptimizationProgress
 
@@ -24,6 +24,7 @@ class OptimizerBase(metaclass=StructMeta):
 
     """
     _options = []
+    progress_frequency = RangedInteger(lb=1, default=1)
 
     def __init__(self, log_level="INFO", save_log=True):
         self.logger = log.get_logger(
