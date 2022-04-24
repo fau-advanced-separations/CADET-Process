@@ -71,16 +71,12 @@ class PymooInterface(OptimizerBase):
         )
 
         if use_checkpoint and os.path.isfile(checkpoint_path):
-            random.seed(self.seed)
-            with open(checkpoint_path, "rb") as dill_file:
-                algorithm = dill.load(dill_file)
-
-            if update_parameters:
-                self.update_algorithm(algorithm)
-            self.progress = algorithm.progress
-
+            algorithm = self.load_checkpoint(
+                checkpoint_path, update_parameters
+            )
             self.logger.info("Continue optimization from checkpoint.")
         else:
+            random.seed(self.seed)
             algorithm = self.setup_algorithm()
             algorithm.progress = self.progress
 
@@ -155,6 +151,26 @@ class PymooInterface(OptimizerBase):
             progress=self.progress,
         )
         return results
+
+    def load_checkpoint(self, checkpoint_path=None, update_parameters=True):
+        if checkpoint_path is None:
+            try:
+                checkpoint_path = os.path.join(
+                    self.working_directory,
+                    f'{self.optimization_problem.name}.checkpoint'
+                )
+            except AttributeError:
+                raise ValueError("No Optimization Problem set, provide path!")
+                                
+        with open(checkpoint_path, "rb") as dill_file:
+            algorithm = dill.load(dill_file)
+
+        self.progress = algorithm.progress
+
+        if update_parameters:
+            self.update_algorithm(algorithm)
+
+        return algorithm
 
     @property
     def _population_size(self):
