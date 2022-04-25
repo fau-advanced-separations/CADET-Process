@@ -1,4 +1,5 @@
 import copy
+from functools import wraps
 import inspect
 import math
 import random
@@ -13,6 +14,7 @@ import pathos
 from CADETProcess import CADETProcessError
 from CADETProcess import log
 
+from CADETProcess.dataStructure import update
 from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import (
     String, Switch, RangedInteger, Callable, Tuple,
@@ -647,12 +649,16 @@ class OptimizationProblem(metaclass=StructMeta):
         x : array_like
             Value of the optimization variables.
         cache : dict, optional
-            Dictionary to cache results.
+            Dictionary with previously cached results.
+        cache_new : dict, optional
+            Dictionary for caching new results.
         make_copy : bool
             If True, a copy of the EvaluationObjects is used which is required
             for multiprocessing.
         force : bool
             If True, do not use cached results. The default if False.
+        return_cache_new : bool
+            If True, return intermediate results. The default is False.
 
         Returns
         -------
@@ -673,14 +679,13 @@ class OptimizationProblem(metaclass=StructMeta):
 
         f = []
 
-        local_cache = self.setup_cache()
-        if cache is not None:
-            local_cache.update(cache)
+        if cache_new is None:
+            cache_new = self.setup_cache()
 
         for objective in self.objectives:
             try:
                 value = self._evaluate(
-                    x, objective, local_cache, make_copy, force
+                    x, objective, cache, cache_new, make_copy, force,
                 )
                 f += value
             except CADETProcessError:
@@ -690,9 +695,6 @@ class OptimizationProblem(metaclass=StructMeta):
                 )
                 f += objective.bad_metrics
 
-        if cache is not None:
-            for key in cache.copy():
-                cache[key] = local_cache[key]
         return f
 
     @untransforms
@@ -702,14 +704,20 @@ class OptimizationProblem(metaclass=StructMeta):
 
         if cache is not None:
             manager = multiprocess.Manager()
-            managed_cache = manager.dict(cache)
+            caches_new = manager.list()
         else:
-            managed_cache = None
+            caches_new = []
 
         def eval_fun(ind):
-            return self.evaluate_objectives(
-                ind, cache=managed_cache, make_copy=True, force=force
+            cache_new = self.setup_cache()
+            results = self.evaluate_objectives(
+                ind,
+                cache=cache, cache_new=cache_new,
+                make_copy=True, force=force,
             )
+            caches_new.append(cache_new)
+
+            return results
 
         if n_cores == 1:
             results = []
@@ -726,7 +734,8 @@ class OptimizationProblem(metaclass=StructMeta):
                 results = pool.map(eval_fun, population)
 
         if cache is not None:
-            cache.update(managed_cache)
+            for i in caches_new:
+                update(cache, i)
 
         return results
 
@@ -876,7 +885,12 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @untransforms
     def evaluate_nonlinear_constraints(
-            self, x, cache=None, make_copy=False, force=False):
+            self,
+            x,
+            cache=None,
+            cache_new=None,
+            make_copy=False,
+            force=False):
         """Evaluate nonlinear constraint functions at point x.
 
         After evaluating the nonlinear constraint functions, the corresponding
@@ -886,13 +900,17 @@ class OptimizationProblem(metaclass=StructMeta):
         ----------
         x : array_like
             Value of the optimization variables.
-        cache : dict
-            Dictionary to cache results.
+        cache : dict, optional
+            Dictionary with previously cached results.
+        cache_new : dict, optional
+            Dictionary for caching new results.
         make_copy : bool
             If True, a copy of the EvaluationObjects is used which is required
             for multiprocessing.
         force : bool
             If True, do not use cached results. The default if False.
+        return_cache_new : bool
+            If True, return intermediate results. The default is False.
 
         Returns
         -------
@@ -914,14 +932,13 @@ class OptimizationProblem(metaclass=StructMeta):
 
         g = []
 
-        local_cache = self.setup_cache()
-        if cache is not None:
-            local_cache.update(cache)
+        if cache_new is None:
+            cache_new = self.setup_cache()
 
         for nonlincon in self.nonlinear_constraints:
             try:
                 value = self._evaluate(
-                    x, nonlincon, local_cache, make_copy, force
+                    x, nonlincon, cache, cache_new, make_copy, force,
                 )
                 g += value
             except CADETProcessError:
@@ -931,10 +948,6 @@ class OptimizationProblem(metaclass=StructMeta):
                 )
                 g += nonlincon.bad_metrics
 
-        if cache is not None:
-            for key in cache.copy():
-                cache[key] = local_cache[key]
-
         c = np.array(g) - np.array(self.nonlinear_constraints_bounds)
 
         return c
@@ -942,18 +955,26 @@ class OptimizationProblem(metaclass=StructMeta):
     @untransforms
     @ensures2d
     def evaluate_nonlinear_constraints_population(
-            self, population, cache=None, force=False, n_cores=0):
+            self, population, cache=None, force=False,
+            n_cores=0):
 
         if cache is not None:
             manager = multiprocess.Manager()
-            managed_cache = manager.dict(cache)
+            caches_new = manager.list()
         else:
-            managed_cache = None
+            caches_new = []
 
         def eval_fun(ind):
-            return self.evaluate_nonlinear_constraints(
-                ind, cache=managed_cache, make_copy=True, force=force
+            cache_new = self.setup_cache()
+            results = self.evaluate_nonlinear_constraints(
+                ind,
+                cache=cache, cache_new=cache_new,
+                make_copy=True, force=force,
+                return_cache_new=True
             )
+            caches_new.append(cache_new)
+
+            return results
 
         if n_cores == 1:
             results = []
@@ -970,7 +991,8 @@ class OptimizationProblem(metaclass=StructMeta):
                 results = pool.map(eval_fun, population)
 
         if cache is not None:
-            cache.update(managed_cache)
+            for i in caches_new:
+                update(cache, i)
 
         return results
 
@@ -1073,10 +1095,12 @@ class OptimizationProblem(metaclass=StructMeta):
     def evaluate_callbacks(
             self,
             x,
-            results_dir='./',
             cache=None,
+            cache_new=None,
             make_copy=False,
             force=False,
+            return_cache_new=False,
+            results_dir='./',
             current_iteration=0):
         """Evaluate callback functions at point x.
 
@@ -1084,15 +1108,26 @@ class OptimizationProblem(metaclass=StructMeta):
         ----------
         x : array_like
             Value of the optimization variables.
-        results_dir : path
-            Path to store results (e.g. figures, tables etc).
-        cache : dict
-            Dictionary to cache results.
+        cache : dict, optional
+            Dictionary with previously cached results.
+        cache_new : dict, optional
+            Dictionary for caching new results.
         make_copy : bool
             If True, a copy of the EvaluationObjects is used which is required
             for multiprocessing.
         force : bool
             If True, do not use cached results. The default if False.
+        return_cache_new : bool
+            If True, return intermediate results. The default is False.
+        results_dir : path
+            Path to store results (e.g. figures, tables etc).
+        current_iteration : int
+            Current iteration to determine if callback should be evaluated.
+
+        Returns
+        -------
+        c : list
+            Return values of callback functions.
 
         See Also
         --------
@@ -1101,13 +1136,14 @@ class OptimizationProblem(metaclass=StructMeta):
         evaluate_nonlinear_constraints
 
         """
+        x = list(x)
+
         self.logger.info(f'evaluate nonlinear constraints at {x}')
 
-        local_cache = self.setup_cache()
-        if cache is not None:
-            local_cache.update(cache)
-
         c = []
+
+        if cache_new is None:
+            cache_new = self.setup_cache()
 
         for callback in self.callbacks:
             if not current_iteration % callback.frequency == 0:
@@ -1115,7 +1151,7 @@ class OptimizationProblem(metaclass=StructMeta):
             callback.results_dir = results_dir
             try:
                 value = self._evaluate(
-                    x, callback, local_cache, make_copy, force,
+                    x, callback, cache, cache_new, make_copy, force,
                 )
                 c += value
             except CADETProcessError:
@@ -1123,29 +1159,22 @@ class OptimizationProblem(metaclass=StructMeta):
                     f'Evaluation of {callback.name} failed at {x}. '
                 )
 
-        if cache is not None:
-            for key in cache.copy():
-                cache[key] = local_cache[key]
+        cache_new = {key: cache_new[key] for key in cache}
 
         return c
 
     @untransforms
     @ensures2d
     def evaluate_callbacks_population(
-            self, population, results_dir, cache=None, force=False, n_cores=0):
-
-        if cache is not None:
-            manager = multiprocess.Manager()
-            managed_cache = manager.dict(cache)
-        else:
-            managed_cache = None
+            self, population, results_dir, cache=None, force=False, n_cores=0,
+            current_iteration=0):
 
         def eval_fun(ind):
-            return self.evaluate_callbacks(
-                ind, results_dir,
-                cache=managed_cache, make_copy=True, force=force,
-                current_iteration=current_iteration,
+            results = self.evaluate_callbacks(
+                ind, cache=cache, make_copy=True, force=force,
+                results_dir=results_dir, current_iteration=current_iteration,
             )
+            return results
 
         if n_cores == 1:
             results = []
@@ -1161,16 +1190,13 @@ class OptimizationProblem(metaclass=StructMeta):
             with pathos.multiprocessing.ProcessPool(ncpus=n_cores) as pool:
                 results = pool.map(eval_fun, population)
 
-        if cache is not None:
-            cache.update(managed_cache)
-
         return results
 
     @untransforms
     def _evaluate(
             self,
             x, func,
-            cache=None, make_copy=False, force=False,
+            cache_prev=None, cache_new=None, make_copy=False, force=False,
             *args, **kwargs):
         """Iterate over all evaluation objects and evaluate at x.
 
@@ -1180,8 +1206,10 @@ class OptimizationProblem(metaclass=StructMeta):
             Value of the optimization variables.
         func : Evaluator or Objective, or Nonlinear Constraint, or Callback
             Evaluation function.
-        cache : dict, optional
-            Dictionary to cache results.
+        cache_prev : dict, optional
+            Dictionary with previously cached results.
+        cache_new : dict, optional
+            Dictionary for caching new results.
         make_copy : bool
             If True, a copy of the EvaluationObjects is used which is required
             for multiprocessing.
@@ -1209,7 +1237,9 @@ class OptimizationProblem(metaclass=StructMeta):
 
         if len(func.evaluation_objects) == 0:
             result = self._evaluate_inner(
-                x, func, requires, cache, force, *args, **kwargs
+                x, func, requires,
+                cache_prev, cache_new, force,
+                *args, **kwargs
             )
             results += result
         else:
@@ -1217,27 +1247,32 @@ class OptimizationProblem(metaclass=StructMeta):
                 evaluation_objects = self.set_variables(x, el, make_copy)
                 eval_obj = evaluation_objects[0]
 
-                if cache is not None:
-                    inner_cache = cache[str(eval_obj)].copy()
+                if cache_prev is not None:
+                    inner_cache_prev = cache_prev[str(eval_obj)].copy()
                 else:
-                    inner_cache = None
+                    inner_cache_prev = None
+                if cache_new is not None:
+                    inner_cache_new = cache_new[str(eval_obj)].copy()
+                else:
+                    inner_cache_new = None
 
                 result = self._evaluate_inner(
                     eval_obj, func, requires,
-                    inner_cache,
+                    inner_cache_prev,
+                    inner_cache_new,
                     force, x=x,
                     *args, **kwargs
                 )
                 results += result
 
-                if cache is not None:
-                    cache[str(eval_obj)] = inner_cache
+                if cache_new is not None:
+                    cache_new[str(eval_obj)] = inner_cache_new
 
         return results
 
     def _evaluate_inner(
             self, request, func, requires,
-            cache=None, force=False, x=None,
+            cache_prev=None, cache_new=None, force=False, x=None,
             *args, **kwargs):
         """Iterate over all evaluation requirements and evaluate at request.
 
@@ -1250,8 +1285,10 @@ class OptimizationProblem(metaclass=StructMeta):
             Evaluation function.
         requires : list
             List of steps (evaluators) required for evaluation.
-        cache : dict, optional
-            Dictionary to cache results.
+        cache_prev : dict, optional
+            Dictionary with previously cached results.
+        cache_new : dict, optional
+            Dictionary for caching new results.
         force : bool
             If True, do not use cached results. The default if False.
         x : array_like, optional.
@@ -1281,17 +1318,26 @@ class OptimizationProblem(metaclass=StructMeta):
             x = request
         current_request = request
 
-        if cache is not None and not force:
+        if cache_prev is not None and not force:
             remaining = []
             for step in reversed(requires):
                 try:
-                    result = cache[str(step)][str(x)]
+                    result = cache_prev[str(step)][tuple(x)]
                     self.logger.info(
                         f'Got {str(step)} results from cache.'
                     )
                     current_request = result
                     break
+                except KeyError:
+                    pass
 
+                try:
+                    result = cache_new[str(step)][tuple(x)]
+                    self.logger.info(
+                        f'Got {str(step)} results from inner cache.'
+                    )
+                    current_request = result
+                    break
                 except KeyError:
                     pass
 
@@ -1314,8 +1360,8 @@ class OptimizationProblem(metaclass=StructMeta):
                 )
             else:
                 result = step.evaluate(current_request, *args, **kwargs)
-                if cache is not None:
-                    cache[str(step)][str(x)] = result
+                if cache_new is not None:
+                    cache_new[str(step)][tuple(x)] = result
             current_request = result
 
         if not isinstance(result, list):

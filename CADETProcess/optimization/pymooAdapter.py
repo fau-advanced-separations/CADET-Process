@@ -63,7 +63,7 @@ class PymooInterface(OptimizerBase):
         self.optimization_problem = optimization_problem
 
         self.problem = PymooProblem(
-            optimization_problem, self.progress.cache, self.n_cores
+            optimization_problem, self.progress, self.n_cores
         )
 
         checkpoint_path = os.path.join(
@@ -71,24 +71,20 @@ class PymooInterface(OptimizerBase):
         )
 
         if use_checkpoint and os.path.isfile(checkpoint_path):
-            algorithm = self.load_checkpoint(
+            self.algorithm = self.load_checkpoint(
                 checkpoint_path, update_parameters
             )
             self.logger.info("Continue optimization from checkpoint.")
         else:
             random.seed(self.seed)
-            algorithm = self.setup_algorithm()
-            algorithm.progress = self.progress
+            self.setup_algorithm()
 
         start = time.time()
 
-        while algorithm.has_next():
-            algorithm.next()
+        while self.algorithm.has_next():
+            self.algorithm.next()
 
-            with open(checkpoint_path, "wb") as dill_file:
-                dill.dump(algorithm, dill_file)
-
-            for ind in algorithm.pop:
+            for ind in self.algorithm.pop:
                 if self.optimization_problem.n_nonlinear_constraints > 0:
                     ind = Individual(
                         ind.X.tolist(),
@@ -103,7 +99,7 @@ class PymooInterface(OptimizerBase):
                 self.progress.add_individual(ind)
 
             self.progress.hall_of_fame = []
-            for opt in algorithm.opt:
+            for opt in self.algorithm.opt:
                 if self.optimization_problem.n_nonlinear_constraints > 0:
                     ind = Individual(
                         opt.X.tolist(),
@@ -118,34 +114,39 @@ class PymooInterface(OptimizerBase):
                 self.progress.hall_of_fame.append(ind)
 
             self.progress.update_history()
-            self.progress.prune_cache()
 
             if self.progress.results_directory is not None \
-                    and algorithm.n_gen % self.progress_frequency == 0:
+                    and self.algorithm.n_gen % self.progress_frequency == 0:
                 self.progress.save_progress()
 
                 self.progress.save_callback(
-                    n_cores=self.n_cores, current_iteration=algorithm.n_gen
+                    n_cores=self.n_cores,
+                    current_iteration=self.algorithm.n_gen,
+                    untransform=True,
                 )
-
-            self.progress.prune_cache()
 
             if self.optimization_problem.n_nonlinear_constraints > 0:
                 for ind in self.progress.hall_of_fame:
                     self.logger.info(
-                        f'Finished Generation {algorithm.n_gen}.'
+                        f'Finished Generation {self.algorithm.n_gen}.'
                         f'x: {ind.x}, f: {ind.f}, g: {ind.g}'
                     )
             else:
                 for ind in self.progress.hall_of_fame:
                     self.logger.info(
-                        f'Finished Generation {algorithm.n_gen}.'
+                        f'Finished Generation {self.algorithm.n_gen}.'
                         f'x: {ind.x}, f: {ind.f}'
                     )
 
+            self.progress.prune_cache()
+
+            with open(checkpoint_path, "wb") as dill_file:
+                self.algorithm.random_state = random.getstate()
+                dill.dump(self.algorithm, dill_file)
+
         elapsed = time.time() - start
 
-        if algorithm.n_gen >= self._max_number_of_generations:
+        if self.algorithm.n_gen >= self._max_number_of_generations:
             exit_message = 'Max number of generations exceeded.'
             exit_flag = 1
         else:
@@ -175,16 +176,17 @@ class PymooInterface(OptimizerBase):
                 )
             except AttributeError:
                 raise ValueError("No Optimization Problem set, provide path!")
-                                
-        with open(checkpoint_path, "rb") as dill_file:
-            algorithm = dill.load(dill_file)
 
-        self.progress = algorithm.progress
+        with open(checkpoint_path, "rb") as dill_file:
+            self.algorithm = dill.load(dill_file)
+
+        self.progress = self.algorithm.progress
+        random.setstate(self.algorithm.random_state)
 
         if update_parameters:
-            self.update_algorithm(algorithm)
+            self.update_algorithm(self.algorithm)
 
-        return algorithm
+        return self.algorithm
 
     @property
     def _population_size(self):
@@ -207,6 +209,7 @@ class PymooInterface(OptimizerBase):
             pop = self.optimization_problem.create_initial_values(
                 self._population_size, method='chebyshev', seed=self.seed
             )
+            pop = self.optimization_problem.transform(pop)
 
         pop = np.array(pop, ndmin=2)
 
@@ -219,18 +222,19 @@ class PymooInterface(OptimizerBase):
         elif len(pop) > self._population_size:
             pop = pop[0:self._population_size]
 
-        algorithm = pymoo.factory.get_algorithm(
+        self.algorithm = pymoo.factory.get_algorithm(
             str(self),
             ref_dirs=self.ref_dirs,
             pop_size=self._population_size,
             sampling=pop,
             repair=RepairIndividuals(self.optimization_problem),
         )
-        algorithm.setup(
+        self.algorithm.setup(
             self.problem, termination=self.termination,
             seed=self.seed, verbose=True, save_history=False,
         )
-        return algorithm
+
+        self.algorithm.progress = self.progress
 
     def update_algorithm(self, algorithm):
         algorithm.pop_size = self._population_size
@@ -275,25 +279,30 @@ class U_NSGA3(PymooInterface):
 
 
 class PymooProblem(Problem):
-    def __init__(self, optimization_problem, cache, n_cores, **kwargs):
+    def __init__(self, optimization_problem, progress, n_cores, **kwargs):
         self.optimization_problem = optimization_problem
-        self.cache = cache
+        self.progress = progress
         self.n_cores = n_cores
 
         super().__init__(
             n_var=optimization_problem.n_variables,
             n_obj=optimization_problem.n_objectives,
             n_constr=optimization_problem.n_nonlinear_constraints,
-            xl=optimization_problem.lower_bounds,
-            xu=optimization_problem.upper_bounds,
+            xl=optimization_problem.lower_bounds_transformed,
+            xu=optimization_problem.upper_bounds_transformed,
             **kwargs
         )
+
+    @property
+    def cache(self):
+        return self.progress.cache
 
     def _evaluate(self, x, out, *args, **kwargs):
         opt = self.optimization_problem
         if opt.n_objectives > 0:
             f = opt.evaluate_objectives_population(
                 x,
+                untransform=True,
                 cache=self.cache,
                 n_cores=self.n_cores
                 )
@@ -302,8 +311,9 @@ class PymooProblem(Problem):
         if opt.n_nonlinear_constraints > 0:
             g = opt.evaluate_nonlinear_constraints_population(
                 x,
+                untransform=True,
                 cache=self.cache,
-                n_cores=self.n_cores
+                n_cores=self.n_cores,
             )
             out["G"] = np.array(g)
 
@@ -317,7 +327,8 @@ class RepairIndividuals(Repair):
 
         # Check if linear constraints are met
         for i, ind in enumerate(Z):
-            if not self.optimization_problem.check_linear_constraints(ind):
+            if not self.optimization_problem.check_linear_constraints(
+                    ind, untransform=True):
                 x_new = self.optimization_problem.create_initial_values(
                     method='random', set_values=False
                 )
@@ -325,4 +336,5 @@ class RepairIndividuals(Repair):
 
         # set the design variables for the population
         pop.set("X", Z)
+
         return pop

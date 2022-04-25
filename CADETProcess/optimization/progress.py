@@ -69,7 +69,8 @@ class OptimizationProgress():
         self.plot_space(show=False)
         self.plot_pareto(show=False)
 
-    def save_callback(self, n_cores=1, current_iteration=None):
+    def save_callback(
+            self, n_cores=1, current_iteration=None, untransform=False):
         if current_iteration is None:
             results_dir = self.results_directory
             current_iteration = 0
@@ -78,11 +79,12 @@ class OptimizationProgress():
             results_dir.mkdir(exist_ok=True)
 
         self.optimization_problem.evaluate_callbacks_population(
-            self.x_hof,
+            self.x_hof.tolist(),
             results_dir,
             cache=self.cache,
             n_cores=n_cores,
             current_iteration=current_iteration,
+            untransform=untransform,
         )
 
     def prune_cache(self):
@@ -92,39 +94,46 @@ class OptimizationProgress():
 
         evaluators = problem.cached_evaluators
 
-        for ind in self.x_hof:
-            ind = str(ind.tolist())
-            for objective in problem.objectives:
-                if len(objective.evaluation_objects) == 0:
-                    for evaluator in objective.evaluators:
-                        if evaluator in evaluators:
-                            cache[str(evaluator)][ind] = \
-                                self.cache[str(evaluator)][ind]
-                else:
-                    for eval_obj in objective.evaluation_objects:
-                        cache[str(eval_obj)][objective.name][ind] = \
-                            self.cache[str(eval_obj)][objective.name][ind]
+        x_hof = self.optimization_problem.untransform(
+            self.x_hof, enforce2d=True
+        )
 
-                    for evaluator in objective.evaluators:
-                        if evaluator in evaluators:
-                            cache[str(eval_obj)][str(evaluator)][ind] = \
-                                self.cache[str(eval_obj)][str(evaluator)][ind]
+        for ind in x_hof:
+            try:
+                ind = tuple(ind)
+                for objective in problem.objectives:
+                    if len(objective.evaluation_objects) == 0:
+                        for evaluator in objective.evaluators:
+                            if evaluator in evaluators:
+                                cache[str(evaluator)][ind] = \
+                                    self.cache[str(evaluator)][ind]
+                    else:
+                        for eval_obj in objective.evaluation_objects:
+                            cache[str(eval_obj)][objective.name][ind] = \
+                                self.cache[str(eval_obj)][objective.name][ind]
 
-            for nonlincon in problem.nonlinear_constraints:
-                if len(nonlincon.evaluation_objects) == 0:
-                    for evaluator in nonlincon.evaluators:
-                        if evaluator in evaluators:
-                            cache[str(evaluator)][ind] = \
-                                self.cache[str(evaluator)][ind]
-                else:
-                    for eval_obj in nonlincon.evaluation_objects:
-                        cache[str(eval_obj)][nonlincon.name][ind] = \
-                            self.cache[str(eval_obj)][nonlincon.name][ind]
+                        for evaluator in objective.evaluators:
+                            if evaluator in evaluators:
+                                cache[str(eval_obj)][str(evaluator)][ind] = \
+                                    self.cache[str(eval_obj)][str(evaluator)][ind]
 
-                    for evaluator in nonlincon.evaluators:
-                        if evaluator in evaluators:
-                            cache[str(eval_obj)][str(evaluator)][ind] = \
-                                self.cache[str(eval_obj)][str(evaluator)][ind]
+                for nonlincon in problem.nonlinear_constraints:
+                    if len(nonlincon.evaluation_objects) == 0:
+                        for evaluator in nonlincon.evaluators:
+                            if evaluator in evaluators:
+                                cache[str(evaluator)][ind] = \
+                                    self.cache[str(evaluator)][ind]
+                    else:
+                        for eval_obj in nonlincon.evaluation_objects:
+                            cache[str(eval_obj)][nonlincon.name][ind] = \
+                                self.cache[str(eval_obj)][nonlincon.name][ind]
+
+                        for evaluator in nonlincon.evaluators:
+                            if evaluator in evaluators:
+                                cache[str(eval_obj)][str(evaluator)][ind] = \
+                                    self.cache[str(eval_obj)][str(evaluator)][ind]
+            except KeyError:
+                pass
 
         self.cache = cache
 
