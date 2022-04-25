@@ -1,3 +1,4 @@
+import collections.abc
 from functools import reduce
 
 
@@ -72,3 +73,13 @@ def set_nested_value(nested_dict, path, value):
     if isinstance(path, str):
         path = path.split('.')
     get_nested_value(nested_dict, path[:-1])[path[-1]] = value
+
+
+def update(d, u):
+    """Recursively update dictionary d with u"""
+    for k, v in u.items():
+        if isinstance(v, collections.abc.Mapping):
+            d[k] = update(d.get(k, {}), v)
+        else:
+            d[k] = v
+    return d
