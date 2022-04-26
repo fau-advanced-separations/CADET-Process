@@ -10,7 +10,7 @@ See https://cadet-process.readthedocs.io for complete documentation.
 """
 # Version information
 name = 'CADET-Process'
-__version__ = '0.6.0'
+__version__ = '0.6.1'
 
 # Imports
 from .CADETProcessError import *
