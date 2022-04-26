@@ -185,16 +185,16 @@ For more information, see also {ref}`flow_sheet_reference`.
 ```{code-cell} ipython3
 from CADETProcess.processModel import FlowSheet
 
-fs = FlowSheet(component_system)
+flow_sheet = FlowSheet(component_system)
 
-fs.add_unit(feed_unit)
-fs.add_unit(eluent_unit)
-fs.add_unit(column)
-fs.add_unit(outlet)
+flow_sheet.add_unit(feed_unit)
+flow_sheet.add_unit(eluent_unit)
+flow_sheet.add_unit(column)
+flow_sheet.add_unit(outlet)
 
-fs.add_connection(feed_unit, column)
-fs.add_connection(eluent_unit, column)
-fs.add_connection(column, outlet)
+flow_sheet.add_connection(feed_unit, column)
+flow_sheet.add_connection(eluent_unit, column)
+flow_sheet.add_connection(column, outlet)
 ```
 
 ### Process
@@ -214,7 +214,7 @@ After the injection time $\Delta t_{inj}$, the feed flow rate is set to zero and
 ```{code-cell} ipython3
 from CADETProcess.processModel import Process
 
-process = Process(fs, 'process')
+process = Process(flow_sheet, 'process')
 process.cycle_time = 600
 ```
 

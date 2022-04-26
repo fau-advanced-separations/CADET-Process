@@ -40,7 +40,7 @@ optimization_problem = OptimizationProblem(name='batch elution')
 Then, one or more `EvaluationObjects` can be added to the problem.
 These are objects which contain the parameters which should be optimized (e.g. a `Process` or a `Fractionator`).
 
-For this demonstration, the process model from a previous tutorial is used.
+For this demonstration, the process model from {ref}`this example <batch_elution_example>` is used.
 
 ```{code-cell} ipython3
 :tags: [remove-cell]
@@ -94,7 +94,7 @@ Any callable function can be added as `Evaluator`, assuming the first argument i
 Additional arguments and keyword arguments can be passed using `args` and `kwargs` when adding the `Evaluator`.
 Optionally, the intermediate results can be cached when different objective and constraint functions require the same preprocessing steps.
 
-To demonstrate this, a `ProcessSimulator` and a fully configured `FractionationOptimizer` are added to the `OptimizationProblem`.
+To demonstrate this, a `ProcessSimulator` and a `FractionationOptimizer` are added to the `OptimizationProblem`.
 First, `CADET` is configured as usual, and the assertion of cyclic stationarity is enabled.
 
 ```{code-cell} ipython3
@@ -107,6 +107,7 @@ optimization_problem.add_evaluator(process_simulator)
 
 Note that storing all simulation results requires large amounts of disk space.
 Here, only the fractionation results are cached since they will be used by both objectives.
+If the evaluator requires additional arguments, they can be specified with `args` and `kwargs`.
 
 ```{code-cell} ipython3
 from CADETProcess.fractionation import FractionationOptimizer
@@ -151,8 +152,8 @@ To start the simulation, the `OptimizationProblem` needs to be passed to the `op
 **CADET-Process** automatically stores checkpoints so that an optimization can be interrupted and restarted.
 To load from an existing file, set `use_checkpoint=True`.
 
-```
 <!-- ```{code-cell} ipython3 -->
+```
 optimization_results = optimizer.optimize(
     optimization_problem,
     use_checkpoint=True,
