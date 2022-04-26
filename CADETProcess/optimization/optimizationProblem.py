@@ -599,7 +599,7 @@ class OptimizationProblem(metaclass=StructMeta):
             raise TypeError("Expected callable objective.")
 
         if bad_metrics is None and isinstance(objective, MetricBase):
-            bad_metrics = objective.bad_metrics
+            bad_metrics = n_objectives * objective.bad_metrics
 
         if evaluation_objects is None:
             evaluation_objects = []

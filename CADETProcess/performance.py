@@ -163,7 +163,7 @@ class PerformanceIndicator(MetricBase):
 
     @property
     def bad_metrics(self):
-        return self.n_metrics * [0]
+        return 0
 
     def evaluate(self, performance):
         try:
