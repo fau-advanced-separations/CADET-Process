@@ -356,7 +356,7 @@ class OptimizationProblem(metaclass=StructMeta):
             return func(self, population, *args, **kwargs)
 
         return wrapper
-    
+
     @untransforms
     def get_dependent_values(self, x):
         """Determine values of dependent optimization variables.
@@ -1921,7 +1921,10 @@ class OptimizationProblem(metaclass=StructMeta):
                 self.lower_bounds,
                 self.upper_bounds
             )
-            problem = hopsy.round(problem)
+            try:
+                problem = hopsy.round(problem)
+            except np.linalg.LinAlgError:
+                pass
 
             chebyshev = hopsy.compute_chebyshev_center(problem)
 
