@@ -33,6 +33,8 @@ from CADETProcess.dataStructure import (
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess import plotting
 
+from CADETProcess import smoothing
+
 
 class SolutionBase(metaclass=StructMeta):
     name = String()
@@ -118,8 +120,17 @@ class SolutionIO(SolutionBase):
         self.name = name
         self.component_system = component_system
         self.time = time
+        self.solution_original = solution
         self.solution = solution
         self.flow_rate = flow_rate
+
+        self.is_resampled = False
+
+        self.s = None
+        self.crit_fs = None
+        self.crit_fs_der = None
+
+        self.is_smoothed = False
 
         self.update()
 
@@ -138,11 +149,66 @@ class SolutionIO(SolutionBase):
         Parameters
         ----------
         nt : int, optional
-            Number of points to resample. The default is 5000.
+            Number of points to resample. The default is 5001.
 
         """
         self.time = np.linspace(self.time[0], self.time[-1], nt)
         self.solution = self.solution_interpolated(self.time)
+
+        self.is_resampled = True
+
+    def smooth_data(self, s=None, crit_fs=None, crit_fs_der=None):
+        """Smooth data.
+
+        Parameters
+        ----------
+        s : float or list, optional
+            DESCRIPTION. The default is 0.
+        crit_fs : float or list
+            DESCRIPTION.
+        crit_fs_der : float or list
+            DESCRIPTION.
+
+        """
+        if not self.is_resampled:
+            self.resample()
+
+        if s is None:
+            self.s = []
+            self.crit_fs = []
+            self.crit_fs_der = []
+
+            for i in range(self.n_comp):
+                s, crit_fs, crit_fs_der = smoothing.find_smoothing_factors(
+                    self.time, self.solution[..., i]
+                )
+                self.s.append(s)
+                self.crit_fs.append(crit_fs)
+                self.crit_fs_der.append(crit_fs_der)
+
+            s = self.s
+            crit_fs = self.crit_fs
+            crit_fs_der = self.crit_fs_der
+
+        if np.isscalar(s):
+            s = self.n_comp * [s]
+        if np.isscalar(crit_fs):
+            crit_fs = self.n_comp * [crit_fs]
+        if np.isscalar(crit_fs_der):
+            crit_fs_der = self.n_comp * [crit_fs_der]
+
+        solution = np.zeros((self.solution.shape))
+        for i, (s, crit_fs, crit_fs_der) in enumerate(zip(s, crit_fs, crit_fs_der)):
+            smooth, smooth_der = smoothing.full_smooth(
+                self.time, self.solution[..., i], crit_fs, s, crit_fs_der
+            )
+            solution[..., i] = smooth
+
+        self.solution = solution
+
+        self.update()
+
+        self.is_smoothed = True
 
     def fraction_mass(self, start, end):
         """Component mass in a fraction interval

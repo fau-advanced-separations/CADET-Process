@@ -75,14 +75,14 @@ class StationarityEvaluator(Comparator):
         for chrom in simulation_results.chromatograms:
             chrom_previous = \
                 simulation_results.solution_cycles[chrom.name].outlet[-2]
-            self.add_reference(chrom_previous, update=True)
+            self.add_reference(chrom_previous, update=True, smooth=False)
 
             for c in self.criteria:
                 self.add_difference_metric(
                     str(c), chrom.name, f'{chrom.name}.outlet'
                 )
 
-        differences = self.evaluate(simulation_results)
+        differences = self.evaluate(simulation_results, smooth=False)
 
         stationarity = True
         criteria = {}

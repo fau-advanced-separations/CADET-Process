@@ -22,6 +22,7 @@ from . import transform
 from . import plotting
 from . import dynamicEvents
 from . import processModel
+from . import smoothing
 from . import solution
 from . import reference
 from .simulationResults import SimulationResults

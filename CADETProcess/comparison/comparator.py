@@ -22,7 +22,7 @@ class Comparator(metaclass=StructMeta):
         self.references = {}
         self.solution_paths = {}
 
-    def add_reference(self, reference, update=False):
+    def add_reference(self, reference, update=False, smooth=True):
         if not isinstance(reference, SolutionBase):
             raise TypeError("Expeced SolutionBase")
 
@@ -30,7 +30,8 @@ class Comparator(metaclass=StructMeta):
             raise CADETProcessError("Reference already exists")
 
         reference = copy.deepcopy(reference)
-        reference.resample()
+        if smooth:
+            reference.smooth_data()
 
         self.references[reference.name] = reference
 
@@ -72,7 +73,7 @@ class Comparator(metaclass=StructMeta):
 
         self._metrics.append(metric)
 
-    def evaluate(self, simulation_results):
+    def evaluate(self, simulation_results, smooth=True):
         metrics = []
         for metric in self.metrics:
             try:
@@ -84,7 +85,12 @@ class Comparator(metaclass=StructMeta):
                 raise CADETProcessError("Could not find solution path")
 
             solution = copy.deepcopy(solution)
-            solution.resample()
+            if smooth:
+                solution.smooth_data(
+                    metric.reference.s,
+                    metric.reference.crit_fs,
+                    metric.reference.crit_fs_der
+                )
             m = metric.evaluate(solution)
             metrics.append(m)
 
@@ -105,10 +111,14 @@ class Comparator(metaclass=StructMeta):
             except KeyError:
                 raise CADETProcessError("Could not find solution path")
 
-            solution.resample()
-            m = metric.evaluate(solution).tolist()
-
+            solution = copy.deepcopy(solution)
+            solution.smooth_data(
+                metric.reference.s,
+                metric.reference.crit_fs,
+                metric.reference.crit_fs_der
+            )
             solution = metric.slice_and_transform(solution)
+            m = metric.evaluate(solution).tolist()
 
             ax = solution.plot(
                 show=False, start=metric.start, end=metric.end,

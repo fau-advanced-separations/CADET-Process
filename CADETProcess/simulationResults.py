@@ -106,6 +106,7 @@ class SimulationResults(metaclass=StructMeta):
         """Construct complete solution from individual cyles."""
         if self._solution is not None:
             return self._solution
+
         time_complete = self.time_cycle
         for i in range(1, self.n_cycles):
             time_complete = np.hstack((
