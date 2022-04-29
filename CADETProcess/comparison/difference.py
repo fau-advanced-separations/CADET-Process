@@ -7,6 +7,7 @@ from scipy.integrate import simps
 
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import UnsignedInteger
+from CADETProcess.processModel import ComponentSystem
 from CADETProcess.solution import SolutionBase
 from CADETProcess.metric import MetricBase
 from .shape import pearson, pearson_offset
@@ -15,7 +16,8 @@ from .peaks import find_peaks, find_breakthroughs
 
 def slice_solution(
         solution_original,
-        components=None, use_total_concentration=True,
+        components=None,
+        use_total_concentration=False, use_total_concentration_components=True,
         start=0, end=None):
     solution = copy.deepcopy(solution_original)
 
@@ -36,21 +38,25 @@ def slice_solution(
             if name not in components:
                 component_system.remove_component(component.name)
             else:
-                if use_total_concentration:
+                if use_total_concentration_components:
                     component_indices.append(i)
                 else:
                     component_indices.append(
                         component_system.indices[component.name]
                     )
 
-        solution.component_system = component_system
-
-        if use_total_concentration:
+        if use_total_concentration_components:
+            solution.component_system = component_system
             solution.solution = \
                 solution_original.total_concentration_components[start_index:end_index, ..., component_indices]
         else:
             solution.solution = \
                 solution_original.solution[start_index:end_index, ..., component_indices]
+
+    if use_total_concentration:
+        solution_comp = copy.deepcopy(solution)
+        solution.component_system = ComponentSystem(1)
+        solution.solution = np.array(solution_comp.total_concentration, ndmin=2).transpose()
 
     return solution
 
@@ -65,7 +71,8 @@ class DifferenceBase(MetricBase):
             reference,
             components=None,
             reference_component_index=None,
-            use_total_concentration=True,
+            use_total_concentration=False,
+            use_total_concentration_components=True,
             start=0,
             end=None,
             transform=None):
@@ -73,6 +80,8 @@ class DifferenceBase(MetricBase):
         self.reference_component_index = reference_component_index
         self.components = components
         self.use_total_concentration = use_total_concentration
+        self.use_total_concentration_components = \
+            use_total_concentration_components
         self.start = start
         self.end = end
         self.transform = transform
@@ -89,7 +98,8 @@ class DifferenceBase(MetricBase):
     def reference(self):
         return slice_solution(
             self._reference, self.reference_component_index,
-            use_total_concentration=True,
+            use_total_concentration=self.use_total_concentration,
+            use_total_concentration_components=self.use_total_concentration_components,
             start=self.start, end=self.end
         )
 
@@ -115,7 +125,10 @@ class DifferenceBase(MetricBase):
         @wraps(func)
         def wrapper(self, solution, *args, **kwargs):
             solution = slice_solution(
-                solution, self.components, self.use_total_concentration,
+                solution,
+                self.components,
+                self.use_total_concentration,
+                self.use_total_concentration_components,
                 self.start, self.end,
             )
 
