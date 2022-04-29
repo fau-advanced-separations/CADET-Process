@@ -34,6 +34,7 @@ from CADETProcess.processModel import ComponentSystem
 from CADETProcess import plotting
 
 from CADETProcess import smoothing
+from CADETProcess import transform
 
 
 class SolutionBase(metaclass=StructMeta):
@@ -120,18 +121,26 @@ class SolutionIO(SolutionBase):
         self.name = name
         self.component_system = component_system
         self.time = time
-        self.solution_original = solution
         self.solution = solution
         self.flow_rate = flow_rate
+
+        self.time_original = time
+        self.solution_original = solution
 
         self.is_resampled = False
 
         self.s = None
         self.crit_fs = None
         self.crit_fs_der = None
-
         self.is_smoothed = False
 
+        self.is_normalized = False
+
+        self.update()
+
+    def reset(self):
+        self.time = self.time_original
+        self.solution = self.solution_original
         self.update()
 
     def update(self):
@@ -140,8 +149,26 @@ class SolutionIO(SolutionBase):
         q_vector = vec_q_value(self.time)
         dm_dt = self.solution * q_vector[:, None]
 
+        self.transform = transform.NormLinearTransform(
+            np.min(self.solution, axis=0), np.max(self.solution, axis=0)
+        )
+
         self.interpolated_dm_dt = InterpolatedSignal(self.time, dm_dt)
         self.interpolated_Q = InterpolatedUnivariateSpline(self.time, q_vector)
+
+    def normalize(self):
+        if self.is_normalized:
+            return
+
+        self.solution = self.transform.transform(self.solution)
+        self.is_normalized = True
+
+    def denormalize(self):
+        if not self.is_normalized:
+            return
+
+        self.solution = self.transform.untransform(self.solution)
+        self.is_normalized = False
 
     def resample(self, nt=5001):
         """Resample solution to nt time points.
@@ -152,8 +179,13 @@ class SolutionIO(SolutionBase):
             Number of points to resample. The default is 5001.
 
         """
+        if self.is_resampled:
+            return
+
         self.time = np.linspace(self.time[0], self.time[-1], nt)
         self.solution = self.solution_interpolated(self.time)
+
+        self.update()
 
         self.is_resampled = True
 
@@ -170,8 +202,17 @@ class SolutionIO(SolutionBase):
             DESCRIPTION.
 
         """
+        if self.is_smoothed:
+            return
+
         if not self.is_resampled:
             self.resample()
+
+        if not self.is_normalized:
+            normalized = True
+            self.normalize()
+        else:
+            normalized = False
 
         if s is None:
             self.s = []
@@ -200,11 +241,15 @@ class SolutionIO(SolutionBase):
         solution = np.zeros((self.solution.shape))
         for i, (s, crit_fs, crit_fs_der) in enumerate(zip(s, crit_fs, crit_fs_der)):
             smooth, smooth_der = smoothing.full_smooth(
-                self.time, self.solution[..., i], crit_fs, s, crit_fs_der
+                self.time, self.solution[..., i],
+                crit_fs, s, crit_fs_der
             )
             solution[..., i] = smooth
 
         self.solution = solution
+
+        if normalized:
+            self.denormalize()
 
         self.update()
 

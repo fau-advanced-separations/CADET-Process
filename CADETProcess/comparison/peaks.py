@@ -24,19 +24,31 @@ def find_peaks(solution, normalize=True, height=0.01, find_minima=False):
 
     """
     peaks = []
+    if normalize and not solution.is_normalized:
+        normalized = True
+        solution.normalize()
+    else:
+        normalized = False
+
     for i in range(solution.component_system.n_comp):
         sol = solution.solution[:, i].copy()
-        if normalize:
-            sol /= max(sol)
+
         if find_minima:
             sol *= -1
+
         peak_indices, _ = scipy.signal.find_peaks(sol, height=height)
         if len(peak_indices) == 0:
             peak_indices = [np.argmax(sol)]
         time = solution.time[peak_indices]
         peak_heights = solution.solution[peak_indices, i]
 
+        if solution.is_normalized:
+            peak_heights = solution.transform.untransform(peak_heights)
+
         peaks.append([(t, h) for t, h in zip(time, peak_heights)])
+
+    if normalized:
+        solution.denormalize()
 
     return peaks
 
