@@ -7,7 +7,6 @@ kernelspec:
   name: python3
 execution:
   timeout: 300
-
 ---
 
 ```{code-cell} ipython3
