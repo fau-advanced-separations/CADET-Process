@@ -82,7 +82,11 @@ class CarouselBuilder(metaclass=StructMeta):
 
     def build_flow_sheet(self):
         """Build flow_sheet."""
+        if self.column is None:
+            raise CADETProcessError("No column associated with Carousel.")
+
         flow_sheet = FlowSheet(self.component_system, self.name)
+
         self.add_units(flow_sheet)
         self.add_inter_zone_connections(flow_sheet)
         self.add_intra_zone_connections(flow_sheet)
