@@ -23,7 +23,7 @@ def slice_solution(
 
     start_index = np.where(solution.time >= start)[0][0]
     if end is not None:
-        end_index = np.where(solution.time >= end)[0][0]
+        end_index = np.where(solution.time > end)[0][0]
     else:
         end_index = None
 
@@ -123,14 +123,15 @@ class DifferenceBase(MetricBase):
 
     def slices_solution(func):
         @wraps(func)
-        def wrapper(self, solution, *args, **kwargs):
-            solution = slice_solution(
-                solution,
-                self.components,
-                self.use_total_concentration,
-                self.use_total_concentration_components,
-                self.start, self.end,
-            )
+        def wrapper(self, solution, slice=True, *args, **kwargs):
+            if slice:
+                solution = slice_solution(
+                    solution,
+                    self.components,
+                    self.use_total_concentration,
+                    self.use_total_concentration_components,
+                    self.start, self.end,
+                )
 
             value = func(self, solution, *args, **kwargs)
 
@@ -269,7 +270,7 @@ class Shape(DifferenceBase):
             solution.solution_interpolated.solutions[0],
         )
 
-        peak_height = self.peak_height(solution)
+        peak_height = self.peak_height(solution, slice=False)
 
         if not self.use_derivative:
             return np.array([corr, abs(offset), peak_height[0]])
@@ -286,8 +287,8 @@ class Shape(DifferenceBase):
             offset,
         )
 
-        der_min = self.peak_der_min(solution_der)
-        der_max = self.peak_der_max(solution_der)
+        der_min = self.peak_der_min(solution_der, slice=False)
+        der_max = self.peak_der_max(solution_der, slice=False)
 
         return np.array(
             [

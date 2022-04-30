@@ -100,7 +100,8 @@ class Comparator(metaclass=StructMeta):
 
     __call__ = evaluate
 
-    def plot_comparison(self, simulation_results, file_name=None, show=True):
+    def plot_comparison(
+            self, simulation_results, smooth=True, file_name=None, show=True):
         axs = []
         for metric in self.metrics:
             try:
@@ -112,13 +113,21 @@ class Comparator(metaclass=StructMeta):
                 raise CADETProcessError("Could not find solution path")
 
             solution = copy.deepcopy(solution)
-            solution.smooth_data(
-                metric.reference.s,
-                metric.reference.crit_fs,
-                metric.reference.crit_fs_der
-            )
+            if smooth:
+                solution.smooth_data(
+                    metric.reference.s,
+                    metric.reference.crit_fs,
+                    metric.reference.crit_fs_der
+                )
+            m = metric.evaluate(solution)
+            m = [
+                np.format_float_scientific(
+                    n, precision=2,
+                )
+                for n in m
+            ]
+
             solution = metric.slice_and_transform(solution)
-            m = metric.evaluate(solution).tolist()
 
             ax = solution.plot(
                 show=False, start=metric.start, end=metric.end,
@@ -134,7 +143,6 @@ class Comparator(metaclass=StructMeta):
                 ax, metric.reference.solution, metric.reference.time/60,
                 **plot_args
             )
-            m = [np.round(m, 2) for m in m]
             plotting.add_text(ax, f'{metric}: {m}')
 
             ax.legend(loc=1)
