@@ -255,7 +255,29 @@ class SolutionIO(SolutionBase):
 
         self.is_smoothed = True
 
-    def fraction_mass(self, start, end):
+    def integral(self, start=0, end=None):
+        """Peak area in a fraction interval.
+
+        Parameters
+        ----------
+        start : float
+            Start time of the fraction
+
+        end: float
+            End time of the fraction
+
+        Returns
+        -------
+        Area : np.array
+            Mass of all components in the fraction
+
+        """
+        if end is None:
+            end = self.cycle_time
+
+        return self.solution_interpolated.integral(start, end)
+
+    def fraction_mass(self, start=0, end=None):
         """Component mass in a fraction interval
 
         Parameters
@@ -272,9 +294,12 @@ class SolutionIO(SolutionBase):
             Mass of all components in the fraction
 
         """
+        if end is None:
+            end = self.cycle_time
+
         return self.interpolated_dm_dt.integral(start, end)
 
-    def fraction_volume(self, start, end):
+    def fraction_volume(self, start=0, end=None):
         """Volume of a fraction interval
 
         Parameters
@@ -291,6 +316,9 @@ class SolutionIO(SolutionBase):
             Volume of the fraction
 
         """
+        if end is None:
+            end = self.cycle_time
+
         return self.interpolated_Q.integral(start, end)
 
     @plotting.create_and_save_figure
@@ -1093,7 +1121,7 @@ class InterpolatedSignal():
 
         return der
 
-    def integral(self, start, end):
+    def integral(self, start=0, end=-1):
         """Definite integral between start and end.
 
         Parameters
