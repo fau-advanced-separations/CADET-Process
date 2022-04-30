@@ -233,14 +233,14 @@ class SimulatorBase(metaclass=StructMeta):
     @log_results('Simulation')
     @log_exceptions('Simulation')
     def simulate_to_stationarity(
-            self, process, previous_results=None, **kwargs):
+            self, process, results=None, **kwargs):
         """Simulate process until stationarity is reached.
 
         Parameters
         ----------
         process : Process
             Process to be simulated
-        previous_results : SimulationResults
+        results : SimulationResults
             Results of previous simulation run.
 
         Returns
@@ -266,29 +266,29 @@ class SimulatorBase(metaclass=StructMeta):
         n_cyc_orig = self.n_cycles
         self.n_cycles = self.n_cycles_min
 
-        if previous_results is not None:
-            n_cyc = previous_results.n_cycles
+        if results is not None:
+            n_cyc = results.n_cycles
         else:
             n_cyc = 0
 
         while True:
             n_cyc += self.n_cycles_min
 
-            if previous_results is not None:
-                self.set_state_from_results(process, previous_results)
+            if results is not None:
+                self.set_state_from_results(process, results)
 
-            results = self.run(process, **kwargs)
+            new_results = self.run(process, **kwargs)
 
-            if previous_results is None:
-                previous_results = results
+            if results is None:
+                results = new_results
             else:
-                previous_results.update(results)
+                results.update(new_results)
 
             if n_cyc == 1:
                 continue
 
             stationarity = self.stationarity_evaluator.assert_stationarity(
-                previous_results
+                results
             )
 
             if stationarity:
