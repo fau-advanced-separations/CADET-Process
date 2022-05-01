@@ -2,7 +2,6 @@ import multiprocessing
 
 import numpy as np
 import scipy.signal
-from cadet import H5
 
 from pymoo.core.problem import ElementwiseProblem
 from pymoo.factory import get_algorithm
@@ -109,7 +108,9 @@ def refine_signal(func, times, values, x, y, fs, start):
     lb = np.log10(x[0])
     ub = np.log10(x[-1])
 
-    problem = MaxDistance(lb, ub, func, fs, values, x_min, y_min, p1, p2, factor)
+    problem = MaxDistance(
+        lb, ub, func, fs, values, x_min, y_min, p1, p2, factor
+    )
 
     algorithm = get_algorithm('pattern-search', n_sample_points=50, eps=1e-13)
 
@@ -126,7 +127,8 @@ def refine_signal(func, times, values, x, y, fs, start):
 
 
 def find_L(x, y):
-    # find the largest value greater than 0, otherwise return none to just turn off butter filter
+    # find the largest value greater than 0
+    # otherwise return none to just turn off butter filter
     x, x_min, y, y_min, p1, p2, p3, factor = get_p(x, y)
 
     d = np.cross(p2 - p1, p1 - p3) / np.linalg.norm(p2 - p1)
@@ -211,9 +213,6 @@ def smoothing_filter_signal(func, times, values, crit_fs):
 def find_smoothing_factors(times, values, rmse_target=1e-4):
     sse_target = (rmse_target**2.0)*len(values)
 
-    # normalize the data
-    values = values * 1.0 / max(values)
-
     crit_fs = find_signal(signal_bessel, times, values, sse_target)
 
     if crit_fs is None:
@@ -236,20 +235,20 @@ def find_smoothing_factors(times, values, rmse_target=1e-4):
     values_filter = values_filter * factor
     crit_fs_der = find_signal(signal_bessel, times, values_filter, sse_target)
 
-    s_knots = 0
-    knots = spline.get_knots()
-    all_s = [s, s]
-
     return s, crit_fs, crit_fs_der
 
 
 def create_spline(times, values, crit_fs, s):
     factor = 1.0 / np.max(values)
     values = values * factor
-    values_filter = smoothing_filter_signal(signal_bessel, times, values, crit_fs)
+    values_filter = smoothing_filter_signal(
+        signal_bessel, times, values, crit_fs
+    )
 
     return (
-        scipy.interpolate.UnivariateSpline(times, values_filter, s=s, k=5, ext=3),
+        scipy.interpolate.UnivariateSpline(
+            times, values_filter, s=s, k=5, ext=3
+        ),
         factor,
     )
 
@@ -260,7 +259,8 @@ def smooth_data(times, values, crit_fs, s):
     return spline(times) / factor
 
 
-def smooth_data_derivative(times, values, crit_fs, s, crit_fs_der, smooth=True):
+def smooth_data_derivative(
+        times, values, crit_fs, s, crit_fs_der, smooth=True):
     spline, factor = create_spline(times, values, crit_fs, s)
 
     if smooth:
@@ -287,7 +287,7 @@ def full_smooth(times, values, crit_fs, s, crit_fs_der, smooth=True):
 
     values_filter = spline(times) / factor
 
-    # run a quick butter pass to remove high frequency noise in the derivative 
+    # run a quick butter pass to remove high frequency noise in the derivative
     # (needed for some experimental data)
 
     if smooth:
@@ -309,10 +309,7 @@ def full_smooth(times, values, crit_fs, s, crit_fs_der, smooth=True):
 
 
 def butter(times, values, crit_fs_der):
-    max_value = np.max(values)
-    values = values / max_value
-
     values_filter = \
-        smoothing_filter_signal(signal_bessel, times, values, crit_fs_der) * max_value
+        smoothing_filter_signal(signal_bessel, times, values, crit_fs_der)
 
     return values_filter

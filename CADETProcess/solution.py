@@ -127,6 +127,10 @@ class SolutionIO(SolutionBase):
         self.time_original = time
         self.solution_original = solution
 
+        self.transform = transform.NormLinearTransform(
+            np.min(self.solution, axis=0), np.max(self.solution, axis=0)
+        )
+
         self.is_resampled = False
 
         self.s = None
@@ -141,6 +145,11 @@ class SolutionIO(SolutionBase):
     def reset(self):
         self.time = self.time_original
         self.solution = self.solution_original
+
+        self.is_resampled = False
+        self.is_normalized = False
+        self.is_smoothed = False
+
         self.update()
 
     def update(self):
@@ -148,10 +157,6 @@ class SolutionIO(SolutionBase):
         vec_q_value = np.vectorize(self.flow_rate.value)
         q_vector = vec_q_value(self.time)
         dm_dt = self.solution * q_vector[:, None]
-
-        self.transform = transform.NormLinearTransform(
-            np.min(self.solution, axis=0), np.max(self.solution, axis=0)
-        )
 
         self.interpolated_dm_dt = InterpolatedSignal(self.time, dm_dt)
         self.interpolated_Q = InterpolatedUnivariateSpline(self.time, q_vector)
@@ -161,6 +166,7 @@ class SolutionIO(SolutionBase):
             return
 
         self.solution = self.transform.transform(self.solution)
+        self.update()
         self.is_normalized = True
 
     def denormalize(self):
@@ -168,6 +174,7 @@ class SolutionIO(SolutionBase):
             return
 
         self.solution = self.transform.untransform(self.solution)
+        self.update()
         self.is_normalized = False
 
     def resample(self, nt=5001):
@@ -214,29 +221,37 @@ class SolutionIO(SolutionBase):
         else:
             normalized = False
 
-        if s is None:
-            self.s = []
-            self.crit_fs = []
-            self.crit_fs_der = []
+        if None in (s, crit_fs, crit_fs_der):
+            s_ = []
+            crit_fs_ = []
+            crit_fs_der_ = []
 
             for i in range(self.n_comp):
-                s, crit_fs, crit_fs_der = smoothing.find_smoothing_factors(
-                    self.time, self.solution[..., i]
+                s_i, crit_fs_i, crit_fs_der_i = smoothing.find_smoothing_factors(
+                    self.time, self.solution[..., i], rmse_target=1e-3
                 )
-                self.s.append(s)
-                self.crit_fs.append(crit_fs)
-                self.crit_fs_der.append(crit_fs_der)
+                s_.append(s_i)
+                crit_fs_.append(crit_fs_i)
+                crit_fs_der_.append(crit_fs_der_i)
 
-            s = self.s
-            crit_fs = self.crit_fs
-            crit_fs_der = self.crit_fs_der
+            if s is None:
+                s = s_
+            if crit_fs is None:
+                crit_fs = crit_fs_
+            if crit_fs_der is None:
+                crit_fs_der = crit_fs_der_
 
         if np.isscalar(s):
             s = self.n_comp * [s]
+        self.s = s
+
         if np.isscalar(crit_fs):
             crit_fs = self.n_comp * [crit_fs]
+        self.crit_fs = crit_fs
+
         if np.isscalar(crit_fs_der):
             crit_fs_der = self.n_comp * [crit_fs_der]
+        self.crit_fs_der = crit_fs_der
 
         solution = np.zeros((self.solution.shape))
         for i, (s, crit_fs, crit_fs_der) in enumerate(zip(s, crit_fs, crit_fs_der)):
