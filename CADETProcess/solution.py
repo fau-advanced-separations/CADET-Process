@@ -243,14 +243,20 @@ class SolutionIO(SolutionBase):
 
         if np.isscalar(s):
             s = self.n_comp * [s]
+        elif len(s) == 1:
+            s = self.n_comp * s
         self.s = s
 
         if np.isscalar(crit_fs):
             crit_fs = self.n_comp * [crit_fs]
+        elif len(crit_fs) == 1:
+            crit_fs = self.n_comp * crit_fs
         self.crit_fs = crit_fs
 
         if np.isscalar(crit_fs_der):
             crit_fs_der = self.n_comp * [crit_fs_der]
+        elif len(crit_fs_der) == 1:
+            crit_fs_der = self.n_comp * crit_fs_der
         self.crit_fs_der = crit_fs_der
 
         solution = np.zeros((self.solution.shape))
