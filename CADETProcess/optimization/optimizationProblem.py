@@ -1909,40 +1909,41 @@ class OptimizationProblem(metaclass=StructMeta):
             if len(log_space_indices) > 0:
                 model = CustomModel(log_space_indices)
             else:
-                model = hopsy.UniformModel()
+                model = None
 
             problem = hopsy.Problem(
                 self.A,
                 self.b,
-                model
+                model,
             )
+
             problem = hopsy.add_box_constraints(
                 problem,
                 self.lower_bounds,
-                self.upper_bounds
+                self.upper_bounds,
+                simplify=False,
             )
-            try:
-                problem = hopsy.round(problem)
-            except np.linalg.LinAlgError:
-                pass
+            problem = hopsy.round(problem)
 
             chebyshev = hopsy.compute_chebyshev_center(problem)
 
             if n_samples == 1 and method == 'chebyshev':
                 values = np.array(chebyshev, ndmin=2)
             else:
-                run = hopsy.Run(
-                    problem,
-                    starting_points=[chebyshev]
-                    )
                 if seed is None:
                     seed = random.randint(0, 255)
-                run.random_seed = seed
-                run.sample(burn_in)
 
-                values = np.array(run.data.states[0])
-                indices = np.random.randint(0, burn_in, n_samples)
-                values = values[indices]
+                mc = hopsy.MarkovChain(
+                    problem,
+                    proposal=hopsy.UniformCoordinateHitAndRunProposal,
+                    starting_point=chebyshev
+                )
+                rng = hopsy.RandomNumberGenerator(seed=seed)
+
+                acceptance_rate, states = hopsy.sample(
+                    mc, rng, n_samples=burn_in, thinning=2
+                )
+                values = states[0, ...]
 
         for i, ind in enumerate(values):
             for i_var, var in enumerate(self.variables):
