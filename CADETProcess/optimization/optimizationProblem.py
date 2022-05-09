@@ -699,7 +699,7 @@ class OptimizationProblem(metaclass=StructMeta):
     def evaluate_objectives_population(
             self, population, cache=None, force=False, n_cores=0):
 
-        if cache is not None:
+        if n_cores != 1:
             manager = multiprocess.Manager()
             caches_new = manager.list()
         else:
@@ -727,8 +727,9 @@ class OptimizationProblem(metaclass=StructMeta):
         else:
             if n_cores == 0:
                 n_cores = None
-            with pathos.multiprocessing.ProcessPool(ncpus=n_cores) as pool:
+            with pathos.pools.ProcessPool(ncpus=n_cores) as pool:
                 results = pool.map(eval_fun, population)
+                pool.clear()
 
         if cache is not None:
             for i in caches_new:
@@ -953,7 +954,7 @@ class OptimizationProblem(metaclass=StructMeta):
             self, population, cache=None, force=False,
             n_cores=0):
 
-        if cache is not None:
+        if n_cores != 1:
             manager = multiprocess.Manager()
             caches_new = manager.list()
         else:
@@ -981,8 +982,9 @@ class OptimizationProblem(metaclass=StructMeta):
         else:
             if n_cores == 0:
                 n_cores = None
-            with pathos.multiprocessing.ProcessPool(ncpus=n_cores) as pool:
+            with pathos.pools.ProcessPool(ncpus=n_cores) as pool:
                 results = pool.map(eval_fun, population)
+                pool.clear()
 
         if cache is not None:
             for i in caches_new:
@@ -1160,11 +1162,22 @@ class OptimizationProblem(metaclass=StructMeta):
             self, population, results_dir, cache=None, force=False, n_cores=0,
             current_iteration=0):
 
+        if n_cores != 1:
+            manager = multiprocess.Manager()
+            caches_new = manager.list()
+        else:
+            caches_new = []
+
         def eval_fun(ind):
+            cache_new = self.setup_cache()
             results = self.evaluate_callbacks(
-                ind, cache=cache, make_copy=True, force=force,
-                results_dir=results_dir, current_iteration=current_iteration,
+                ind,
+                cache=cache,
+                cache_new=cache_new,
+                make_copy=True, force=force,
+                results_dir=results_dir, current_iteration=current_iteration
             )
+
             return results
 
         if n_cores == 1:
@@ -1178,8 +1191,9 @@ class OptimizationProblem(metaclass=StructMeta):
         else:
             if n_cores == 0:
                 n_cores = None
-            with pathos.multiprocessing.ProcessPool(ncpus=n_cores) as pool:
+            with pathos.pools.ProcessPool(ncpus=n_cores) as pool:
                 results = pool.map(eval_fun, population)
+                pool.clear()
 
         return results
 
