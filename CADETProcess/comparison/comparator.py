@@ -85,6 +85,11 @@ class Comparator(metaclass=StructMeta):
                 raise CADETProcessError("Could not find solution path")
 
             solution = copy.deepcopy(solution)
+            solution.resample(
+                start=metric.reference.time[0],
+                end=metric.reference.time[-1],
+                nt=len(metric.reference.time)
+            )
             if smooth:
                 solution.smooth_data(
                     metric.reference.s,
@@ -113,6 +118,11 @@ class Comparator(metaclass=StructMeta):
                 raise CADETProcessError("Could not find solution path")
 
             solution = copy.deepcopy(solution)
+            solution.resample(
+                start=metric.reference.time[0],
+                end=metric.reference.time[-1],
+                nt=len(metric.reference.time)
+            )
             if smooth:
                 solution.smooth_data(
                     metric.reference.s,

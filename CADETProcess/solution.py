@@ -127,20 +127,7 @@ class SolutionIO(SolutionBase):
         self.time_original = time
         self.solution_original = solution
 
-        self.transform = transform.NormLinearTransform(
-            np.min(self.solution, axis=0), np.max(self.solution, axis=0)
-        )
-
-        self.is_resampled = False
-
-        self.s = None
-        self.crit_fs = None
-        self.crit_fs_der = None
-        self.is_smoothed = False
-
-        self.is_normalized = False
-
-        self.update()
+        self.reset()
 
     def reset(self):
         self.time = self.time_original
@@ -149,6 +136,16 @@ class SolutionIO(SolutionBase):
         self.is_resampled = False
         self.is_normalized = False
         self.is_smoothed = False
+
+        self.s = None
+        self.crit_fs = None
+        self.crit_fs_der = None
+        self.is_smoothed = False
+
+        self.transform = transform.NormLinearTransform(
+            np.min(self.solution_original, axis=0),
+            np.max(self.solution_original, axis=0)
+        )
 
         self.update()
 
@@ -177,7 +174,7 @@ class SolutionIO(SolutionBase):
         self.update()
         self.is_normalized = False
 
-    def resample(self, nt=5001):
+    def resample(self, start=None, end=None, nt=5001):
         """Resample solution to nt time points.
 
         Parameters
@@ -189,7 +186,12 @@ class SolutionIO(SolutionBase):
         if self.is_resampled:
             return
 
-        self.time = np.linspace(self.time[0], self.time[-1], nt)
+        if start is None:
+            start = self.time[0]
+        if end is None:
+            end = self.time[-1]
+
+        self.time = np.linspace(start, end, nt)
         self.solution = self.solution_interpolated(self.time)
 
         self.update()
