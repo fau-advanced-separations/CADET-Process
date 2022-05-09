@@ -46,6 +46,26 @@ class Individual(metaclass=StructMeta):
                 return False
         return dominates
 
+    def is_similar(self, other):
+        """
+
+        Return True if objectives are close to each other.
+
+        To reduce number of entries, a rather high rtol is chosen.
+
+        """
+        similar_f = np.allclose(self.f, other.f, rtol=1e-8)
+
+        if self.g is not None:
+            similar_g = np.allclose(self.g, other.g, rtol=1e-8)
+        else:
+            similar_g = True
+
+        if similar_f and similar_g:
+            return True
+        else:
+            return False
+
     def __str__(self):
         return str(list(self.x))
 
