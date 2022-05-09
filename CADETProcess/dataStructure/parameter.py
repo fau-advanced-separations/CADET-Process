@@ -183,11 +183,16 @@ class List(Container):
         elif any(self.ub_op(i, self.ub) for i in value):
             raise ValueError("Value exceeds upper bound")
 
-    def check_content_size(self, instance, value):
+    def check_content_size(self, instance, value, mod=False):
+        value_length = len(value)
         shape = [getattr(instance, dep) for dep in self.dep]
         expected_length = np.prod(shape)
 
-        if len(value) != expected_length:
+        if mod:
+            value_length %= expected_length
+            expected_length = 0
+
+        if value_length != expected_length:
             raise ValueError(f"Expected size {expected_length}")
 
     def get_default_values(self, instance):
@@ -196,7 +201,7 @@ class List(Container):
 
         shape = [getattr(instance, dep) for dep in self.dep]
 
-        return np.prod(shape) * [super().default]
+        return int(np.prod(shape)) * [super().default]
 
 
 class Dict(Typed):
@@ -422,6 +427,40 @@ class DependentlySized(Parameter):
             return self.get_default_values(instance)
 
 
+class DependentlyModulated(Parameter):
+    """Check parameter shape depending on other parameters."""
+
+    def __init__(self, *args, dep, **kwargs):
+        if not isinstance(dep, tuple):
+            dep = (dep,)
+
+        self.dep = dep
+        super().__init__(*args, **kwargs)
+
+    def __set__(self, instance, value):
+        if value is None:
+            del(instance.__dict__[self.name])
+            return
+
+        if isinstance(self, Container):
+            self.check_content_size(instance, value, mod=True)
+        else:
+            size = getattr(instance, self.dep)
+            if len(value) != size:
+                raise ValueError(f"Expected size {size}")
+
+        super().__set__(instance, value)
+
+    def __get__(self, instance, cls):
+        if not isinstance(self, Container):
+            return super().__get__(instance, cls)
+
+        try:
+            return Descriptor.__get__(self, instance, cls)
+        except KeyError:
+            return self.get_default_values(instance)
+
+
 class DependentlySizedString(String, DependentlySized):
     pass
 
@@ -435,6 +474,10 @@ class DependentlySizedRangedList(List, Ranged, DependentlySized):
 
 
 class DependentlySizedUnsignedList(List, Unsigned, DependentlySized):
+    pass
+
+
+class DependentlyModulatedUnsignedList(List, Unsigned, DependentlyModulated):
     pass
 
 
