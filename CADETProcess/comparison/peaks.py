@@ -2,7 +2,7 @@ import numpy as np
 import scipy.signal
 
 
-def find_peaks(solution, normalize=True, height=0.01, find_minima=False):
+def find_peaks(solution, normalize=True, height=0.1, find_minima=False):
     """Find peaks in solution.
 
     Parameters
@@ -13,14 +13,15 @@ def find_peaks(solution, normalize=True, height=0.01, find_minima=False):
         If true, normalize data to maximum value (for each component).
         The default is True.
     height : float, optional
-        Required height of peaks. The default is 0.01.
+        Required height of peaks. The default is 0.1.
     find_minima : bool, optional
-        Invert solution and find minima. The default is False.
+        Find negative peaks/minima of solution. The default is False.
 
     Returns
     -------
     peaks : list
         List with list of (time, height) for each peak for every component.
+        Regardless of normalization, the actual peak height is returned.
 
     """
     peaks = []
