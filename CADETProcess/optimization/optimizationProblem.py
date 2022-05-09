@@ -640,8 +640,7 @@ class OptimizationProblem(metaclass=StructMeta):
             cache=None,
             cache_new=None,
             make_copy=False,
-            force=False,
-            return_cache_new=False,):
+            force=False):
         """Evaluate objective functions at point x.
 
         Parameters
@@ -657,8 +656,6 @@ class OptimizationProblem(metaclass=StructMeta):
             for multiprocessing.
         force : bool
             If True, do not use cached results. The default if False.
-        return_cache_new : bool
-            If True, return intermediate results. The default is False.
 
         Returns
         -------
@@ -909,8 +906,6 @@ class OptimizationProblem(metaclass=StructMeta):
             for multiprocessing.
         force : bool
             If True, do not use cached results. The default if False.
-        return_cache_new : bool
-            If True, return intermediate results. The default is False.
 
         Returns
         -------
@@ -970,7 +965,6 @@ class OptimizationProblem(metaclass=StructMeta):
                 ind,
                 cache=cache, cache_new=cache_new,
                 make_copy=True, force=force,
-                return_cache_new=True
             )
             caches_new.append(cache_new)
 
@@ -1099,7 +1093,6 @@ class OptimizationProblem(metaclass=StructMeta):
             cache_new=None,
             make_copy=False,
             force=False,
-            return_cache_new=False,
             results_dir='./',
             current_iteration=0):
         """Evaluate callback functions at point x.
@@ -1117,8 +1110,6 @@ class OptimizationProblem(metaclass=StructMeta):
             for multiprocessing.
         force : bool
             If True, do not use cached results. The default if False.
-        return_cache_new : bool
-            If True, return intermediate results. The default is False.
         results_dir : path
             Path to store results (e.g. figures, tables etc).
         current_iteration : int
