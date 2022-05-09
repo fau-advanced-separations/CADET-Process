@@ -54,13 +54,16 @@ def find_peaks(solution, normalize=True, height=0.1, find_minima=False):
     return peaks
 
 
-def find_breakthroughs(solution, threshold=0.95):
+def find_breakthroughs(solution, normalize=True, threshold=0.95):
     """Find breakthroughs in solution.
 
     Parameters
     ----------
     solution : SolutionIO
         Solution object.
+    normalize : bool, optional
+        If true, normalize data to maximum value (for each component).
+        The default is True.
     threshold : float, optional
         Percentage of maximum concentration that needs to be reached to be
         considered as breakthrough. The default is 0.95.
@@ -69,16 +72,31 @@ def find_breakthroughs(solution, threshold=0.95):
     -------
     breakthrough : list
         List with (time, height) for breakthrough of every component.
+        Regardless of normalization, the actual breakthroug height is returned.
 
     """
     breakthrough = []
+    if normalize and not solution.is_normalized:
+        normalized = True
+        solution.normalize()
+    else:
+        normalized = False
 
     for i in range(solution.component_system.n_comp):
         sol = solution.solution[:, i].copy()
 
         breakthrough_indices = np.where(sol > threshold*np.max(sol))[0][0]
+        if len(breakthrough_indices) == 0:
+            breakthrough_indices = [np.argmax(sol)]
         time = solution.time[breakthrough_indices]
         breakthrough_height = solution.solution[breakthrough_indices, i]
+
+        if solution.is_normalized:
+            breakthrough_height = solution.transform.untransform(breakthrough_height)
+
         breakthrough.append((time, breakthrough_height))
+
+    if normalized:
+        solution.denormalize()
 
     return breakthrough
