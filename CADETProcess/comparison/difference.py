@@ -4,6 +4,7 @@ from functools import wraps
 
 import numpy as np
 from scipy.integrate import simps
+from scipy.special import expit
 
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import UnsignedInteger
@@ -12,6 +13,12 @@ from CADETProcess.solution import SolutionBase
 from CADETProcess.metric import MetricBase
 from .shape import pearson, pearson_offset
 from .peaks import find_peaks, find_breakthroughs
+
+
+def squishify(measurement, target, normalization=1):
+    input = (measurement - target)/normalization
+    output = np.abs(2*expit(input)-1)
+    return output
 
 
 def slice_solution(
@@ -229,24 +236,37 @@ class Shape(DifferenceBase):
     use_derivative = True
 
     @wraps(DifferenceBase.__init__)
-    def __init__(self, *args, use_derivative=0, **kwargs):
+    def __init__(
+            self, *args,
+            use_derivative=0, normalize=True, normalization=None,
+            **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.peak_height = PeakHeight(*args, **kwargs)
+        self.peak_height = PeakHeight(*args, normalize=normalize, **kwargs)
 
         self.use_derivative = use_derivative
         if use_derivative:
             self.reference_der = copy.deepcopy(self.reference)
+            self.reference_der.time_original = self.reference.time
             der_fun = self.reference_der.solution_interpolated.derivative
-            self.reference_der.solution = der_fun(self.reference.time)
-            self.reference_der.update()
+            self.reference_der.solution_original = der_fun(self.reference.time)
+            self.reference_der.reset()
 
             self.peak_der_min = PeakHeight(
-                self.reference_der, *args[1:], find_minima=True, **kwargs
+                self.reference_der, *args[1:],
+                find_minima=True, normalize=normalize,
+                **kwargs
             )
             self.peak_der_max = PeakHeight(
-                self.reference_der, *args[1:], find_minima=False, **kwargs
+                self.reference_der, *args[1:],
+                find_minima=False, normalize=normalize,
+                **kwargs
             )
+
+        self.normalize = normalize
+        if normalization is None:
+            normalization = self.reference.time[-1]/10
+        self.normalization = normalization
 
     @property
     def n_metrics(self):
@@ -263,8 +283,12 @@ class Shape(DifferenceBase):
         solution : SolutionIO
             Concentration profile of simulation.
 
+        Note
+        ----
+        Currently only works for single component with one peak.
+
         """
-        corr, offset = pearson(
+        corr, offset_original = pearson(
             self.reference.time,
             self.reference.solution_interpolated.solutions[0],
             solution.solution_interpolated.solutions[0],
@@ -272,19 +296,27 @@ class Shape(DifferenceBase):
 
         peak_height = self.peak_height(solution, slice=False)
 
+        if self.normalize:
+            offset = squishify(
+                offset_original, target=0, normalization=self.normalization
+            )
+        else:
+            offset = offset_original
+
         if not self.use_derivative:
-            return np.array([corr, abs(offset), peak_height[0]])
+            return np.array([corr, offset, peak_height[0][0]])
 
         solution_der = copy.deepcopy(solution)
+        solution_der.time_original = self.reference.time
         der_fun = solution_der.solution_interpolated.derivative
-        solution_der.solution = der_fun(self.reference.time)
-        solution_der.update()
+        solution_der.solution_original = der_fun(self.reference.time)
+        solution_der.reset()
 
         corr_der = pearson_offset(
             self.reference.time,
             self.reference_der.solution_interpolated.solutions[0],
             solution_der.solution_interpolated.solutions[0],
-            offset,
+            offset_original,
         )
 
         der_min = self.peak_der_min(solution_der, slice=False)
@@ -292,20 +324,36 @@ class Shape(DifferenceBase):
 
         return np.array(
             [
-                corr, abs(offset), peak_height[0],  # 0 because only one peak
-                corr_der, der_min[0], der_max[0]]   # 0 because only one peak
+                corr, offset, peak_height[0][0],
+                corr_der, der_min[0][0], der_max[0][0]
+            ]
         )
 
 
 class PeakHeight(DifferenceBase):
     @wraps(DifferenceBase.__init__)
-    def __init__(self, *args, find_minima=False, **kwargs):
+    def __init__(
+            self, *args,
+            find_minima=False, normalize=True, normalization=None,
+            **kwargs):
         super().__init__(*args, **kwargs)
 
         self.find_minima = find_minima
         self.reference_peaks = find_peaks(
             self.reference, find_minima=find_minima
         )
+        self.normalize = normalize
+        if normalization is None:
+            normalization = [
+                [peak[1] for peak in self.reference_peaks[i]]
+                for i in range(self.reference.n_comp)
+            ]
+        else:
+            normalization = [
+                len(self.reference_peaks[i])*[normalization]
+                for i in range(self.reference.n_comp)
+            ]
+        self.normalization = normalization
 
     @property
     def n_metrics(self):
@@ -322,21 +370,33 @@ class PeakHeight(DifferenceBase):
         """
         solution_peaks = find_peaks(solution, find_minima=self.find_minima)
 
-        diff = [
-            ref[1] - sol[1]
-            for i in range(self.reference.n_comp)
-            for ref, sol in zip(self.reference_peaks[i], solution_peaks[i])
-        ]
+        if self.normalize:
+            score = [
+                squishify(sol[1], ref[1], norm)
+                for i in range(self.reference.n_comp)
+                for ref, sol, norm in zip(self.reference_peaks[i], solution_peaks[i], self.normalization)
+            ]
+        else:
+            score = [
+                ref[1] - sol[1]
+                for i in range(self.reference.n_comp)
+                for ref, sol in zip(self.reference_peaks[i], solution_peaks[i])
+            ]
 
-        return np.abs(np.array(diff))
+        return np.abs(score)
 
 
 class PeakPosition(DifferenceBase):
     @wraps(DifferenceBase.__init__)
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, normalize=True, normalization=None, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.reference_peaks = find_peaks(self.reference)
+        self.normalize = normalize
+
+        if normalization is None:
+            normalization = self.reference.time[-1]/10
+        self.normalization = normalization
 
     @property
     def n_metrics(self):
@@ -353,21 +413,31 @@ class PeakPosition(DifferenceBase):
         """
         solution_peaks = find_peaks(solution)
 
-        diff = [
-            ref[0] - sol[0]
-            for i in range(self.reference.n_comp)
-            for ref, sol in zip(self.reference_peaks[i], solution_peaks[i])
-        ]
+        if self.normalize:
+            score = [
+                squishify(sol[0], ref[0], std[i])
+                for i in range(self.reference.n_comp)
+                for ref, sol, std in zip(
+                    self.reference_peaks[i], solution_peaks[i], self.std
+                )
+            ]
+        else:
+            score = [
+                ref[0] - sol[0]
+                for i in range(self.reference.n_comp)
+                for ref, sol in zip(self.reference_peaks[i], solution_peaks[i])
+            ]
 
-        return np.abs(np.array(diff))
+        return np.abs(score)
 
 
 class BreakthroughHeight(DifferenceBase):
     @wraps(DifferenceBase.__init__)
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, normalize=True, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.reference_bt = find_breakthroughs(self.reference)
+        self.normalize = normalize
 
     @property
     def n_metrics(self):
@@ -384,19 +454,33 @@ class BreakthroughHeight(DifferenceBase):
         """
         solution_bt = find_breakthroughs(solution)
 
-        diff = [
-            ref[1] - sol[1]
-            for ref, sol in zip(self.reference_bt, solution_bt)
-        ]
-        return np.abs(np.array(diff))
+        if self.normalize:
+            score = [
+                squishify(sol[1], ref[1])
+                for ref, sol in zip(self.reference_bt, solution_bt)
+            ]
+        else:
+            score = [
+                ref[1] - sol[1]
+                for ref, sol in zip(self.solution_bt, solution_bt)
+            ]
+
+        return np.abs(score)
 
 
 class BreakthroughPosition(DifferenceBase):
     @wraps(DifferenceBase.__init__)
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, normalize=True, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.reference_bt = find_breakthroughs(self.reference)
+        self.normalize = normalize
+
+        t_min = self.reference.time[0]
+        t_max = self.reference.time[-1]
+        self.std = max(
+            self.reference_bt[0] - t_min, t_max - self.reference_bt[0]
+        )
 
     @property
     def n_metrics(self):
@@ -413,9 +497,15 @@ class BreakthroughPosition(DifferenceBase):
         """
         solution_bt = find_breakthroughs(solution)
 
-        diff = [
-            ref[0] - sol[0]
-            for ref, sol in zip(self.reference_bt, solution_bt)
-        ]
+        if self.normalize:
+            score = [
+                squishify(sol[0], ref[0], self.std)
+                for ref, sol in zip(self.reference_bt, solution_bt)
+            ]
+        else:
+            score = [
+                ref[0] - sol[0]
+                for ref, sol in zip(self.solution_bt, solution_bt)
+            ]
 
-        return np.abs(np.array(diff))
+        return np.abs(score)
