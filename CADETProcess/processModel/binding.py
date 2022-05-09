@@ -3,7 +3,8 @@ from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import frozen_attributes
 from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import Bool, String, Integer, \
-    UnsignedInteger, UnsignedFloat, DependentlySizedUnsignedList
+    UnsignedInteger, UnsignedFloat, DependentlySizedUnsignedList, \
+    DependentlyModulatedUnsignedList
 
 from .componentSystem import ComponentSystem
 
@@ -841,8 +842,11 @@ class GeneralizedIonExchange(BindingBaseClass):
     desorption_rate_protein = DependentlySizedUnsignedList(
         dep='n_comp', default=0
     )
+    characteristic_charge_breaks = DependentlyModulatedUnsignedList(
+        dep='n_comp', default=0
+    )
     characteristic_charge = DependentlySizedUnsignedList(
-        dep='_break_length', default=1
+        dep='characteristic_charge_breaks', default=1
     )
     characteristic_charge_linear = DependentlySizedUnsignedList(
         dep='characteristic_charge', default=0
@@ -852,9 +856,6 @@ class GeneralizedIonExchange(BindingBaseClass):
     )
     characteristic_charge_cubic = DependentlySizedUnsignedList(
         dep='characteristic_charge', default=0
-    )
-    characteristic_charge_breaks = DependentlySizedUnsignedList(
-        dep='_break_length', default=0
     )
     steric_factor = DependentlySizedUnsignedList(dep='n_comp')
     capacity = UnsignedFloat()
@@ -874,24 +875,13 @@ class GeneralizedIonExchange(BindingBaseClass):
         'desorption_rate_cubic',
         'desorption_rate_salt',
         'desorption_rate_protein',
+        'characteristic_charge_breaks',
         'characteristic_charge',
         'characteristic_charge_linear',
         'characteristic_charge_quadratic',
         'characteristic_charge_cubic',
-        'characteristic_charge_breaks',
         'steric_factor',
         'capacity',
         'reference_liquid_phase_conc',
         'reference_solid_phase_conc',
     ]
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    @property
-    def _multiples(self):
-        pass
-
-    @property
-    def _break_length(self):
-        return len(self.characteristic_charge) + 1
