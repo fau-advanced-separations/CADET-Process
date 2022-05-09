@@ -229,6 +229,14 @@ class OptimizationProgress():
         return np.min(self.f_hof, axis=0)
 
     @property
+    def f_max(self):
+        return np.max(self.f, axis=0)
+
+    @property
+    def f_max_hof(self):
+        return np.max(self.f_hof, axis=0)
+
+    @property
     def g(self):
         """np.array: All evaluated nonlinear constraint function values."""
         return np.array([ind.g for ind in self.individuals])
@@ -245,6 +253,14 @@ class OptimizationProgress():
     @property
     def g_min_hof(self):
         return np.min(self.g_hof, axis=0)
+
+    @property
+    def g_max(self):
+        return np.max(self.g, axis=0)
+
+    @property
+    def g_max_hof(self):
+        return np.max(self.g_hof, axis=0)
 
     def update_history(self):
         """Add information about progress during optimization."""
