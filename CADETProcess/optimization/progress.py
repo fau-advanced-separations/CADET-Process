@@ -23,6 +23,29 @@ class Individual(metaclass=StructMeta):
         self.f = f
         self.g = g
 
+    def dominates(self, other, objectives_filter=slice(None)):
+        """
+        Return true if each objective of *self* is not strictly worse than
+        the corresponding objective of *other* and at least one objective is
+        strictly better.
+
+        Parmeters
+        ---------
+        other : Individual
+            Other individual
+        param objectives_filter: slice
+            Slice indicating on which objectives the domination is tested.
+            The default value is `slice(None)`, representing all objectives.
+        """
+        dominates = False
+        for self_value, other_value in zip(
+                self.f[objectives_filter], other.f[objectives_filter]):
+            if self_value < other_value:
+                dominates = True
+            elif self_value > other_value:
+                return False
+        return dominates
+
     def __str__(self):
         return str(list(self.x))
 
