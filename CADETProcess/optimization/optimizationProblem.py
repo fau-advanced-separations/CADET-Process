@@ -2467,7 +2467,7 @@ class NonlinearConstraint(metaclass=StructMeta):
             self,
             nonlinear_constraint,
             name=None,
-            bounds=None,
+            bounds=0,
             n_nonlinear_constraints=1,
             bad_metrics=np.inf,
             evaluation_objects=None,
