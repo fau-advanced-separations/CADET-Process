@@ -8,7 +8,6 @@ import warnings
 from addict import Dict
 import numpy as np
 import hopsy
-import multiprocess
 import pathos
 
 from CADETProcess import CADETProcessError
@@ -638,9 +637,10 @@ class OptimizationProblem(metaclass=StructMeta):
             self,
             x,
             cache=None,
-            cache_new=None,
             make_copy=False,
-            force=False):
+            force=False,
+            update_cache=True,
+            return_cache_new=False):
         """Evaluate objective functions at point x.
 
         Parameters
@@ -649,13 +649,15 @@ class OptimizationProblem(metaclass=StructMeta):
             Value of the optimization variables.
         cache : dict, optional
             Dictionary with previously cached results.
-        cache_new : dict, optional
-            Dictionary for caching new results.
         make_copy : bool
             If True, a copy of the EvaluationObjects is used which is required
             for multiprocessing.
         force : bool
             If True, do not use cached results. The default if False.
+        update_cache : bool
+            If True, cache is updated with new results. The default is True.
+        return_cache_new : bool
+            If True, return new results cache. The default is False.
 
         Returns
         -------
@@ -673,11 +675,8 @@ class OptimizationProblem(metaclass=StructMeta):
         self.logger.info(f'evaluate objectives at {x}')
 
         x = list(x)
-
         f = []
-
-        if cache_new is None:
-            cache_new = self.setup_cache()
+        cache_new = self.setup_cache()
 
         for objective in self.objectives:
             try:
@@ -692,50 +691,57 @@ class OptimizationProblem(metaclass=StructMeta):
                 )
                 f += objective.bad_metrics
 
-        return f
+        if update_cache:
+            update(cache, cache_new)
+
+        if not return_cache_new:
+            return f
+
+        return f, cache_new
 
     @untransforms
     @ensures2d
     def evaluate_objectives_population(
-            self, population, cache=None, force=False, n_cores=0):
-
-        if n_cores != 1:
-            manager = multiprocess.Manager()
-            caches_new = manager.list()
-        else:
-            caches_new = []
+            self, population, cache=None, force=False, n_cores=-1,
+            update_cache=True, return_cache_new=False):
 
         def eval_fun(ind):
-            cache_new = self.setup_cache()
-            results = self.evaluate_objectives(
+            results, cache_new = self.evaluate_objectives(
                 ind,
-                cache=cache, cache_new=cache_new,
+                cache=cache,
                 make_copy=True, force=force,
+                update_cache=False,
+                return_cache_new=True,
             )
-            caches_new.append(cache_new)
 
-            return results
+            return results, cache_new
 
         if n_cores == 1:
             results = []
+            caches_new = []
             for ind in population:
                 try:
-                    res = eval_fun(ind)
+                    res, cache_new = eval_fun(ind)
                     results.append(res)
+                    caches_new.append(cache_new)
                 except CADETProcessError:
                     print(ind)
         else:
-            if n_cores == 0:
+            if n_cores == 0 or n_cores == -1:
                 n_cores = None
             with pathos.pools.ProcessPool(ncpus=n_cores) as pool:
-                results = pool.map(eval_fun, population)
-                pool.clear()
+                mapped_results = pool.map(eval_fun, population)
+                results = [m[0] for m in mapped_results]
+                caches_new = [m[1] for m in mapped_results]
 
-        if cache is not None:
-            for i in caches_new:
-                update(cache, i)
+        if cache is not None and update_cache:
+            for new in caches_new:
+                update(cache, new)
 
-        return results
+        if not return_cache_new:
+            return results
+
+        return results, cache
 
     @untransforms
     def objective_jacobian(self, x, dx=1e-3):
@@ -800,7 +806,7 @@ class OptimizationProblem(metaclass=StructMeta):
             n_nonlinear_constraints=1,
             bad_metrics=None,
             evaluation_objects=-1,
-            bounds=None,
+            bounds=0,
             requires=None):
         """Add nonliner constraint function to optimization problem.
 
@@ -886,9 +892,10 @@ class OptimizationProblem(metaclass=StructMeta):
             self,
             x,
             cache=None,
-            cache_new=None,
             make_copy=False,
-            force=False):
+            force=False,
+            update_cache=True,
+            return_cache_new=False):
         """Evaluate nonlinear constraint functions at point x.
 
         After evaluating the nonlinear constraint functions, the corresponding
@@ -900,13 +907,15 @@ class OptimizationProblem(metaclass=StructMeta):
             Value of the optimization variables.
         cache : dict, optional
             Dictionary with previously cached results.
-        cache_new : dict, optional
-            Dictionary for caching new results.
         make_copy : bool
             If True, a copy of the EvaluationObjects is used which is required
             for multiprocessing.
         force : bool
             If True, do not use cached results. The default if False.
+        update_cache : bool
+            If True, cache is updated with new results. The default is True.
+        return_cache_new : bool
+            If True, return new results cache. The default is False.
 
         Returns
         -------
@@ -925,11 +934,8 @@ class OptimizationProblem(metaclass=StructMeta):
         self.logger.info(f'evaluate nonlinear constraints at {x}')
 
         x = list(x)
-
         g = []
-
-        if cache_new is None:
-            cache_new = self.setup_cache()
+        cache_new = self.setup_cache()
 
         for nonlincon in self.nonlinear_constraints:
             try:
@@ -946,51 +952,57 @@ class OptimizationProblem(metaclass=StructMeta):
 
         c = np.array(g) - np.array(self.nonlinear_constraints_bounds)
 
-        return c
+        if update_cache:
+            update(cache, cache_new)
+
+        if not return_cache_new:
+            return c
+
+        return c, cache_new
 
     @untransforms
     @ensures2d
     def evaluate_nonlinear_constraints_population(
-            self, population, cache=None, force=False,
-            n_cores=0):
-
-        if n_cores != 1:
-            manager = multiprocess.Manager()
-            caches_new = manager.list()
-        else:
-            caches_new = []
+            self, population, cache=None, force=False, n_cores=-1,
+            update_cache=True, return_cache_new=False):
 
         def eval_fun(ind):
-            cache_new = self.setup_cache()
-            results = self.evaluate_nonlinear_constraints(
+            results, cache_new = self.evaluate_nonlinear_constraints(
                 ind,
-                cache=cache, cache_new=cache_new,
+                cache=cache,
                 make_copy=True, force=force,
+                update_cache=False,
+                return_cache_new=True,
             )
-            caches_new.append(cache_new)
 
-            return results
+            return results, cache_new
 
         if n_cores == 1:
             results = []
+            caches_new = []
             for ind in population:
                 try:
-                    res = eval_fun(ind)
+                    res, cache_new = eval_fun(ind)
                     results.append(res)
+                    caches_new.append(cache_new)
                 except CADETProcessError:
                     print(ind)
         else:
-            if n_cores == 0:
+            if n_cores == 0 or n_cores == -1:
                 n_cores = None
             with pathos.pools.ProcessPool(ncpus=n_cores) as pool:
-                results = pool.map(eval_fun, population)
-                pool.clear()
+                mapped_results = pool.map(eval_fun, population)
+                results = [m[0] for m in mapped_results]
+                caches_new = [m[1] for m in mapped_results]
 
-        if cache is not None:
-            for i in caches_new:
-                update(cache, i)
+        if cache is not None and update_cache:
+            for new in caches_new:
+                update(cache, new)
 
-        return results
+        if not return_cache_new:
+            return results
+
+        return results, cache
 
     @untransforms
     def check_nonlinear_constraints(self, x):
@@ -1092,11 +1104,12 @@ class OptimizationProblem(metaclass=StructMeta):
             self,
             x,
             cache=None,
-            cache_new=None,
             make_copy=False,
             force=False,
             results_dir='./',
-            current_iteration=0):
+            current_iteration=0,
+            update_cache=True,
+            return_cache_new=False):
         """Evaluate callback functions at point x.
 
         Parameters
@@ -1105,8 +1118,6 @@ class OptimizationProblem(metaclass=StructMeta):
             Value of the optimization variables.
         cache : dict, optional
             Dictionary with previously cached results.
-        cache_new : dict, optional
-            Dictionary for caching new results.
         make_copy : bool
             If True, a copy of the EvaluationObjects is used which is required
             for multiprocessing.
@@ -1116,6 +1127,10 @@ class OptimizationProblem(metaclass=StructMeta):
             Path to store results (e.g. figures, tables etc).
         current_iteration : int
             Current iteration to determine if callback should be evaluated.
+        update_cache : bool
+            If True, cache is updated with new results. The default is True.
+        return_cache_new : bool
+            If True, return new results cache. The default is False.
 
         Returns
         -------
@@ -1129,14 +1144,11 @@ class OptimizationProblem(metaclass=StructMeta):
         evaluate_nonlinear_constraints
 
         """
-        x = list(x)
-
         self.logger.info(f'evaluate nonlinear constraints at {x}')
 
+        x = list(x)
         c = []
-
-        if cache_new is None:
-            cache_new = self.setup_cache()
+        cache_new = self.setup_cache()
 
         for callback in self.callbacks:
             if not current_iteration % callback.frequency == 0:
@@ -1152,50 +1164,58 @@ class OptimizationProblem(metaclass=StructMeta):
                     f'Evaluation of {callback.name} failed at {x}. '
                 )
 
-        cache_new = {key: cache_new[key] for key in cache}
+        if update_cache:
+            update(cache, cache_new)
 
-        return c
+        if not return_cache_new:
+            return c
+
+        return c, cache_new
 
     @untransforms
     @ensures2d
     def evaluate_callbacks_population(
-            self, population, results_dir, cache=None, force=False, n_cores=0,
-            current_iteration=0):
-
-        if n_cores != 1:
-            manager = multiprocess.Manager()
-            caches_new = manager.list()
-        else:
-            caches_new = []
+            self, population, results_dir, cache=None, force=False, n_cores=-1,
+            current_iteration=0, update_cache=True, return_cache_new=False):
 
         def eval_fun(ind):
-            cache_new = self.setup_cache()
-            results = self.evaluate_callbacks(
+            results, cache_new = self.evaluate_callbacks(
                 ind,
                 cache=cache,
-                cache_new=cache_new,
                 make_copy=True, force=force,
-                results_dir=results_dir, current_iteration=current_iteration
+                results_dir=results_dir, current_iteration=current_iteration,
+                update_cache=False,
+                return_cache_new=True,
             )
 
-            return results
+            return results, cache_new
 
         if n_cores == 1:
             results = []
+            caches_new = []
             for ind in population:
                 try:
-                    res = eval_fun(ind)
+                    res, cache_new = eval_fun(ind)
                     results.append(res)
+                    caches_new.append(cache_new)
                 except CADETProcessError:
                     print(ind)
         else:
-            if n_cores == 0:
+            if n_cores == 0 or n_cores == -1:
                 n_cores = None
             with pathos.pools.ProcessPool(ncpus=n_cores) as pool:
-                results = pool.map(eval_fun, population)
-                pool.clear()
+                mapped_results = pool.map(eval_fun, population)
+                results = [m[0] for m in mapped_results]
+                caches_new = [m[1] for m in mapped_results]
 
-        return results
+        if cache is not None and update_cache:
+            for new in caches_new:
+                update(cache, new)
+
+        if not return_cache_new:
+            return results
+
+        return results, cache
 
     @untransforms
     def _evaluate(
