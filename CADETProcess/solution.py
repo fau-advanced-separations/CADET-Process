@@ -124,12 +124,14 @@ class SolutionIO(SolutionBase):
         self.solution = solution
         self.flow_rate = flow_rate
 
+        self.component_system_original = component_system
         self.time_original = time
         self.solution_original = solution
 
         self.reset()
 
     def reset(self):
+        self.component_system = self.component_system_original
         self.time = self.time_original
         self.solution = self.solution_original
 
