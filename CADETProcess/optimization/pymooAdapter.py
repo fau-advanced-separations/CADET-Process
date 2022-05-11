@@ -218,7 +218,7 @@ class PymooInterface(OptimizerBase):
             remaining = self.optimization_problem.create_initial_values(
                 n_remaining, method='chebyshev', seed=self.seed
             )
-            pop.append(remaining)
+            pop = np.vstack((pop, remaining))
         elif len(pop) > self._population_size:
             pop = pop[0:self._population_size]
 
