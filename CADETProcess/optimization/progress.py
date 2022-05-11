@@ -341,7 +341,11 @@ class OptimizationProgress():
                 ax.plot(self.n_evals, v_func)
 
             layout.title = str(func)
-            plotting.set_layout(ax, layout)
+
+            try:
+                plotting.set_layout(ax, layout)
+            except ValueError:
+                pass
 
             counter += func.n_metrics
 
@@ -432,8 +436,10 @@ class OptimizationProgress():
             v_var[np.where(np.isinf(v_var))] = np.nan
             layout.x_lim = (np.min(x_var), np.max(x_var))
             layout.y_lim = (np.nanmin(v_var), np.nanmax(v_var))
-
-            plotting.set_layout(ax, layout)
+            try:
+                plotting.set_layout(ax, layout)
+            except ValueError:
+                pass
 
         if self.progress_directory is not None:
             fig.savefig(f'{self.progress_directory / "parameter_space.png"}')
