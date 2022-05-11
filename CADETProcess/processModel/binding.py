@@ -3,8 +3,8 @@ from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import frozen_attributes
 from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import Bool, String, Integer, \
-    UnsignedInteger, UnsignedFloat, DependentlySizedUnsignedList, \
-    DependentlyModulatedUnsignedList
+    UnsignedInteger, UnsignedFloat, DependentlySizedList, \
+    DependentlySizedUnsignedList, DependentlyModulatedUnsignedList
 
 from .componentSystem import ComponentSystem
 
@@ -813,11 +813,11 @@ class GeneralizedIonExchange(BindingBaseClass):
 
     """
     adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
-    adsorption_rate_linear = DependentlySizedUnsignedList(dep='n_comp')
-    adsorption_rate_quadratic = DependentlySizedUnsignedList(
+    adsorption_rate_linear = DependentlySizedList(dep='n_comp')
+    adsorption_rate_quadratic = DependentlySizedList(
         dep='n_comp', default=0
     )
-    adsorption_rate_cubic = DependentlySizedUnsignedList(
+    adsorption_rate_cubic = DependentlySizedList(
         dep='n_comp', default=0
     )
     adsorption_rate_salt = DependentlySizedUnsignedList(
@@ -827,13 +827,13 @@ class GeneralizedIonExchange(BindingBaseClass):
         dep='n_comp', default=0
     )
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp', default=1)
-    desorption_rate_linear = DependentlySizedUnsignedList(
+    desorption_rate_linear = DependentlySizedList(
         dep='n_comp', default=0
     )
-    desorption_rate_quadratic = DependentlySizedUnsignedList(
+    desorption_rate_quadratic = DependentlySizedList(
         dep='n_comp', default=0
     )
-    desorption_rate_cubic = DependentlySizedUnsignedList(
+    desorption_rate_cubic = DependentlySizedList(
         dep='n_comp', default=0
     )
     desorption_rate_salt = DependentlySizedUnsignedList(
@@ -843,19 +843,19 @@ class GeneralizedIonExchange(BindingBaseClass):
         dep='n_comp', default=0
     )
     characteristic_charge_breaks = DependentlyModulatedUnsignedList(
-        dep='n_comp', default=0
+        dep='n_comp'
     )
     characteristic_charge = DependentlySizedUnsignedList(
-        dep='characteristic_charge_breaks', default=1
+        dep=('n_pieces', 'n_comp'), default=1
     )
-    characteristic_charge_linear = DependentlySizedUnsignedList(
-        dep='characteristic_charge', default=0
+    characteristic_charge_linear = DependentlySizedList(
+        dep=('n_pieces', 'n_comp'), default=0
     )
-    characteristic_charge_quadratic = DependentlySizedUnsignedList(
-        dep='characteristic_charge', default=0
+    characteristic_charge_quadratic = DependentlySizedList(
+        dep=('n_pieces', 'n_comp'), default=0
     )
-    characteristic_charge_cubic = DependentlySizedUnsignedList(
-        dep='characteristic_charge', default=0
+    characteristic_charge_cubic = DependentlySizedList(
+        dep=('n_pieces', 'n_comp'), default=0
     )
     steric_factor = DependentlySizedUnsignedList(dep='n_comp')
     capacity = UnsignedFloat()
@@ -885,3 +885,14 @@ class GeneralizedIonExchange(BindingBaseClass):
         'reference_liquid_phase_conc',
         'reference_solid_phase_conc',
     ]
+
+    @property
+    def n_pieces(self):
+        """int: Number of pieces for cubic polynomial description of nu."""
+        if self.characteristic_charge_breaks is None:
+            return 1
+
+        n_pieces_all = len(self.characteristic_charge_breaks) - self.n_comp
+        n_pieces_comp = int(n_pieces_all / self.n_comp)
+
+        return n_pieces_comp
