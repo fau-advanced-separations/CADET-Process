@@ -152,13 +152,42 @@ class SolutionIO(SolutionBase):
         self.update()
 
     def update(self):
-        self.solution_interpolated = InterpolatedSignal(self.time, self.solution)
-        vec_q_value = np.vectorize(self.flow_rate.value)
-        q_vector = vec_q_value(self.time)
-        dm_dt = self.solution * q_vector[:, None]
+        self._solution_interpolated = None
+        self._q_vector = None
+        self._interpolated_dm_dt = None
+        self._interpolated_Q = None
 
-        self.interpolated_dm_dt = InterpolatedSignal(self.time, dm_dt)
-        self.interpolated_Q = InterpolatedUnivariateSpline(self.time, q_vector)
+    @property
+    def solution_interpolated(self):
+        if self._solution_interpolated is None:
+            self._solution_interpolated = \
+                InterpolatedSignal(self.time, self.solution)
+
+        return self._solution_interpolated
+
+    @property
+    def q_vector(self):
+        if self._q_vector is None:
+            vec_q_value = np.vectorize(self.flow_rate.value)
+            self._q_vector = vec_q_value(self.time)
+
+        return self._q_vector
+
+    @property
+    def interpolated_dm_dt(self):
+        if self._interpolated_dm_dt is None:
+            dm_dt = self.solution * self.q_vector[:, None]
+            self._interpolated_dm_dt = InterpolatedSignal(self.time, dm_dt)
+
+        return self._interpolated_dm_dt
+
+    @property
+    def interpolated_Q(self):
+        if self._interpolated_Q is None:
+            self._interpolated_Q = \
+                InterpolatedUnivariateSpline(self.time, self.q_vector)
+
+        return self._interpolated_Q
 
     def normalize(self):
         if self.is_normalized:
@@ -192,9 +221,10 @@ class SolutionIO(SolutionBase):
             start = self.time[0]
         if end is None:
             end = self.time[-1]
-
+            
+        solution_interpolated = self.solution_interpolated
         self.time = np.linspace(start, end, nt)
-        self.solution = self.solution_interpolated(self.time)
+        self.solution = solution_interpolated(self.time)
 
         self.update()
 
