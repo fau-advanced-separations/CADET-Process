@@ -73,7 +73,7 @@ class Comparator(metaclass=StructMeta):
 
         self._metrics.append(metric)
 
-    def evaluate(self, simulation_results, smooth=True):
+    def evaluate(self, simulation_results):
         metrics = []
         for metric in self.metrics:
             try:
@@ -90,7 +90,7 @@ class Comparator(metaclass=StructMeta):
                 end=metric.reference.time[-1],
                 nt=len(metric.reference.time)
             )
-            if smooth:
+            if metric.smooth:
                 solution.smooth_data(
                     metric.reference.s,
                     metric.reference.crit_fs,
@@ -106,7 +106,7 @@ class Comparator(metaclass=StructMeta):
     __call__ = evaluate
 
     def plot_comparison(
-            self, simulation_results, smooth=True, file_name=None, show=True):
+            self, simulation_results, file_name=None, show=True):
         axs = []
         for metric in self.metrics:
             try:
@@ -123,7 +123,7 @@ class Comparator(metaclass=StructMeta):
                 end=metric.reference.time[-1],
                 nt=len(metric.reference.time)
             )
-            if smooth:
+            if metric.smooth:
                 solution.smooth_data(
                     metric.reference.s,
                     metric.reference.crit_fs,

@@ -79,10 +79,10 @@ class StationarityEvaluator(Comparator):
 
             for c in self.criteria:
                 self.add_difference_metric(
-                    str(c), chrom.name, f'{chrom.name}.outlet'
+                    str(c), chrom.name, f'{chrom.name}.outlet', smooth=False
                 )
 
-        differences = self.evaluate(simulation_results, smooth=False)
+        differences = self.evaluate(simulation_results)
 
         stationarity = True
         criteria = {}

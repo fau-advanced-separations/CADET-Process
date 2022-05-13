@@ -82,7 +82,8 @@ class DifferenceBase(MetricBase):
             use_total_concentration_components=True,
             start=0,
             end=None,
-            transform=None):
+            transform=None,
+            smooth=True):
         self.reference = reference
         self.reference_component_index = reference_component_index
         self.components = components
@@ -92,6 +93,7 @@ class DifferenceBase(MetricBase):
         self.start = start
         self.end = end
         self.transform = transform
+        self.smooth = smooth
 
     @property
     def n_metrics(self):
