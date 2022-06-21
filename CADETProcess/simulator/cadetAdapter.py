@@ -1105,6 +1105,33 @@ adsorption_parameters_map = {
             'EMPM_GAMMA': 'hydrophobicity',
             'EMPM_COMP_MODE': 'component_mode',
         },
+    },
+    'GeneralizedIonExchange': {
+        'name': 'GENERALIZED_ION_EXCHANGE',
+        'parameters': {
+            'IS_KINETIC': 'is_kinetic',
+            'GIEX_KA': 'adsorption_rate',
+            'GIEX_KA_LIN': 'adsorption_rate_linear',
+            'GIEX_KA_QUAD': 'adsorption_rate_quadratic',
+            'GIEX_KA_CUBE': 'adsorption_rate_cubic',
+            'GIEX_KA_SALT': 'adsorption_rate_salt',
+            'GIEX_KA_PROT': 'adsorption_rate_protein',
+            'GIEX_KD': 'desorption_rate',
+            'GIEX_KD_LIN': 'desorption_rate_linear',
+            'GIEX_KD_QUAD': 'desorption_rate_quadratic',
+            'GIEX_KD_CUBE': 'desorption_rate_cubic',
+            'GIEX_KD_SALT': 'desorption_rate_salt',
+            'GIEX_KD_PROT': 'desorption_rate_protein',
+            'GIEX_NU_BREAKS': 'characteristic_charge_breaks',
+            'GIEX_NU': 'characteristic_charge',
+            'GIEX_NU_LIN': 'characteristic_charge_linear',
+            'GIEX_NU_QUAD': 'characteristic_charge_quadratic',
+            'GIEX_NU_CUBE': 'characteristic_charge_cubic',
+            'GIEX_SIGMA': 'steric_factor',
+            'GIEX_LAMBDA': 'capacity',
+            'GIEX_REFC0': 'reference_liquid_phase_conc',
+            'GIEX_REFQ': 'reference_solid_phase_conc',
+        },
     }
 }
 
