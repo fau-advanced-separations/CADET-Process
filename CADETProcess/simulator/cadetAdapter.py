@@ -22,6 +22,7 @@ from CADETProcess.solution import (
     SolutionIO, SolutionBulk, SolutionParticle, SolutionSolid, SolutionVolume
 )
 from CADETProcess.processModel import NoBinding, BindingBaseClass
+from CADETProcess.processModel import GeneralizedIonExchange
 from CADETProcess.processModel import NoReaction, ReactionBaseClass
 from CADETProcess.processModel import NoDiscretization, DGMixin
 from CADETProcess.processModel import (
@@ -447,7 +448,7 @@ class Cadet(SimulatorBase):
                             SolutionSolid(
                                 unit.name,
                                 unit.component_system,
-                                unit.binding_model.n_states,
+                                unit.binding_model.bound_states,
                                 time, sol_solid,
                                 **unit_coordinates,
                                 particle_coordinates=particle_coordinates
@@ -656,7 +657,12 @@ class Cadet(SimulatorBase):
         unit_config = Dict(unit_parameters.to_dict())
 
         if not isinstance(unit.binding_model, NoBinding):
-            n_bound = [unit.binding_model.n_states] * unit.binding_model.n_comp
+            if unit.binding_model.n_binding_sites > 1:
+                n_bound = \
+                    [unit.binding_model.n_binding_sites] * unit.binding_model.n_comp
+            else:
+                n_bound = unit.binding_model.bound_states
+
             unit_config['adsorption'] = \
                 self.get_adsorption_config(unit.binding_model)
             unit_config['adsorption_model'] = \

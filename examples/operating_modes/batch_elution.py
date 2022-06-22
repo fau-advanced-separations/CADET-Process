@@ -34,12 +34,12 @@ eluent = Inlet(component_system, name='eluent')
 eluent.c = [0, 0]
 
 column = LumpedRateModelWithoutPores(component_system, name='column')
+column.binding_model = binding_model
+
 column.length = 0.6
 column.diameter = 0.024
 column.axial_dispersion = 4.7e-7
 column.total_porosity = 0.7
-
-column.binding_model = binding_model
 
 column.solution_recorder.write_solution_bulk = True
 

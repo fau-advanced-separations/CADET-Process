@@ -854,14 +854,14 @@ class SolutionSolid(SolutionBase):
     def __init__(
             self,
             name,
-            component_system, n_bound,
+            component_system, bound_states,
             time, solution,
             axial_coordinates=None,
             radial_coordinates=None,
             particle_coordinates=None):
         self.name = name
         self.component_system = component_system
-        self.n_bound = n_bound
+        self.bound_states = bound_states
         self.time = time
         self.axial_coordinates = axial_coordinates
         # Account for dimension reduction in case of only one cell (e.g. LRMP)
@@ -876,7 +876,7 @@ class SolutionSolid(SolutionBase):
 
     @property
     def n_comp(self):
-        return self.component_system.n_comp * self.n_bound
+        return sum(self.bound_states)
 
     @property
     def ncol(self):

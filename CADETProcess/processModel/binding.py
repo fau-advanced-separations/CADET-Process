@@ -2,8 +2,9 @@ from CADETProcess import CADETProcessError
 
 from CADETProcess.dataStructure import frozen_attributes
 from CADETProcess.dataStructure import StructMeta
-from CADETProcess.dataStructure import Bool, String, Integer, \
-    UnsignedInteger, UnsignedFloat, DependentlySizedList, \
+from CADETProcess.dataStructure import Bool, String, \
+    RangedInteger, UnsignedInteger, UnsignedFloat, DependentlySizedList, \
+    DependentlySizedRangedIntegerList, DependentlySizedUnsignedIntegerList, \
     DependentlySizedUnsignedList, DependentlyModulatedUnsignedList
 
 from .componentSystem import ComponentSystem
@@ -21,6 +22,14 @@ class BindingBaseClass(metaclass=StructMeta):
         system of components.
     n_comp : int
         number of components.
+    n_binding_sites : int
+        Number of binding sites.
+        Relevant for Multi-Site isotherms such as Bi-Langmuir.
+        The default is 1.
+    bound_states : list of unsigned integers.
+        Number of binding sites per component.
+    non_binding_component_indices : list
+        (Hardcoded) list of non binding modifier components (e.g. pH).
     is_kinetic : bool
         If False, adsorption is assumed to be in rapid equilibriu.
         The default is True.
@@ -30,7 +39,12 @@ class BindingBaseClass(metaclass=StructMeta):
     """
     name = String()
     is_kinetic = Bool(default=True)
-    n_states = Integer(lb=1, ub=1, default=1)
+
+    n_binding_sites = RangedInteger(lb=1, ub=1, default=1)
+    _bound_states = DependentlySizedRangedIntegerList(
+        dep=('n_binding_sites', 'n_comp'), lb=0, ub=1, default=1
+    )
+    non_binding_component_indices = []
 
     _parameter_names = ['is_kinetic']
 
@@ -60,6 +74,27 @@ class BindingBaseClass(metaclass=StructMeta):
     @property
     def n_comp(self):
         return self.component_system.n_comp
+
+    @property
+    def bound_states(self):
+        bound_states = self._bound_states
+        for i in self.non_binding_component_indices:
+            bound_states[i] = 0
+        return bound_states
+
+    @bound_states.setter
+    def bound_states(self, bound_states):
+        indices = self.non_binding_component_indices
+        if any(bound_states[i] > 0 for i in indices):
+            raise CADETProcessError(
+                "Cannot set bound state for non-binding component."
+            )
+
+        self._bound_states = bound_states
+
+    @property
+    def n_bound_states(self):
+        return sum(self.bound_states)
 
     @property
     def parameters(self):
@@ -176,28 +211,24 @@ class BiLangmuir(BindingBaseClass):
         Maximum adsorption capacities.
 
     """
-    adsorption_rate = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'))
+    n_binding_sites = UnsignedInteger(default=2)
+
+    adsorption_rate = DependentlySizedUnsignedList(dep='n_bound_states')
     desorption_rate = DependentlySizedUnsignedList(
-        dep=('n_comp', 'n_states'), default=1
+        dep='n_bound_states', default=1
     )
-    capacity = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'))
-    n_states = UnsignedInteger()
+    capacity = DependentlySizedUnsignedList(dep='n_bound_states')
 
     _parameter_names = BindingBaseClass._parameter_names + [
         'adsorption_rate',
         'desorption_rate',
         'capacity',
-        'n_states'
     ]
 
-    def __init__(self, *args, n_states=2, **kwargs):
-        self.n_states = n_states
+    def __init__(self, *args, n_binding_sites=2, **kwargs):
+        self.n_binding_sites = n_binding_sites
 
         super().__init__(*args, **kwargs)
-
-    @property
-    def n_total_states(self):
-        return self.n_comp * self.n_states
 
 
 class BiLangmuirLDF(BindingBaseClass):
@@ -213,26 +244,24 @@ class BiLangmuirLDF(BindingBaseClass):
         Maximum adsorption capacities.
 
     """
-    equilibrium_constant = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'))
-    driving_force_coefficient = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'), default=1)
-    capacity = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'))
-    n_states = UnsignedInteger()
+    n_binding_sites = UnsignedInteger(default=2)
+
+    equilibrium_constant = DependentlySizedUnsignedList(dep='n_bound_states')
+    driving_force_coefficient = DependentlySizedUnsignedList(
+        dep='n_bound_states', default=1
+    )
+    capacity = DependentlySizedUnsignedList(dep='n_bound_states')
 
     _parameter_names = BindingBaseClass._parameter_names + [
         'equilibrium_constant',
         'driving_force_coefficient',
         'capacity',
-        'n_states'
     ]
 
-    def __init__(self, *args, n_states=2, **kwargs):
-        self.n_states = n_states
+    def __init__(self, *args, n_binding_sites=2, **kwargs):
+        self.n_binding_sites = n_binding_sites
 
         super().__init__(*args, **kwargs)
-
-    @property
-    def n_total_states(self):
-        return self.n_comp * self.n_states
 
 
 class FreundlichLDF(BindingBaseClass):
@@ -279,9 +308,11 @@ class StericMassAction(BindingBaseClass):
         Stationary phase capacity (monovalent salt counterions); The total
         number of binding sites available on the resin surface.
     reference_liquid_phase_conc : unsigned float.
-        Reference liquid phase concentration (optional, default value = 1.0).
+        Reference liquid phase concentration.
+        The default is 1.0
     reference_solid_phase_conc : unsigned float.
-        Reference liquid phase concentration (optional, default value = 1.0).
+        Reference liquid phase concentration.
+        The default is 1.0
 
     """
     adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
@@ -289,8 +320,8 @@ class StericMassAction(BindingBaseClass):
     characteristic_charge = DependentlySizedUnsignedList(dep='n_comp')
     steric_factor = DependentlySizedUnsignedList(dep='n_comp')
     capacity = UnsignedFloat()
-    reference_liquid_phase_conc = UnsignedFloat()
-    reference_solid_phase_conc = UnsignedFloat()
+    reference_liquid_phase_conc = UnsignedFloat(default=1.0)
+    reference_solid_phase_conc = UnsignedFloat(default=1.0)
 
     _parameter_names = BindingBaseClass._parameter_names + [
             'adsorption_rate',
@@ -330,16 +361,8 @@ class AntiLangmuir(BindingBaseClass):
         'antilangmuir'
     ]
 
-    def __init__(self, *args, **kwargs):
-        self.adsorption_rate = [0.0] * self.n_comp
-        self.desorption_rate = [0.0] * self.n_comp
-        self.capacity = [0.0] * self.n_comp
-        self.antilangmuir = [0.0] * self.n_comp
 
-        super().__init__(*args, **kwargs)
-
-
-class KumarMultiComponentLangmuir(BindingBaseClass):
+class KumarLangmuir(BindingBaseClass):
     """Kumar Multi Component Langmuir adsoprtion isotherm.
 
     Attributes
@@ -358,6 +381,8 @@ class KumarMultiComponentLangmuir(BindingBaseClass):
         Temperature.
 
     """
+    non_binding_component_indices = [0]
+
     adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp', default=1)
     capacity = DependentlySizedUnsignedList(dep='n_comp')
@@ -393,10 +418,12 @@ class Spreading(BindingBaseClass):
     exchange_from_2_1 : list of unsigned floats.
         Exchange rates from the second to the first bound state.
     """
-    adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
-    desorption_rate = DependentlySizedUnsignedList(dep='n_comp', default=1)
-    capacity = DependentlySizedUnsignedList(dep='n_comp')
-    exchange_from_1_1 = DependentlySizedUnsignedList(dep='n_comp')
+    n_binding_sites = RangedInteger(lb=2, ub=2, default=2)
+
+    adsorption_rate = DependentlySizedUnsignedList(dep='n_total_bound')
+    desorption_rate = DependentlySizedUnsignedList(dep='n_total_bound', default=1)
+    capacity = DependentlySizedUnsignedList(dep='n_total_bound')
+    exchange_from_1_2 = DependentlySizedUnsignedList(dep='n_comp')
     exchange_from_2_1 = DependentlySizedUnsignedList(dep='n_comp')
 
     _parameter_names = BindingBaseClass._parameter_names + [
@@ -499,13 +526,15 @@ class SelfAssociation(BindingBaseClass):
         The characteristic charge v of the protein.
     steric_factor : list of unsigned floats.
         Steric factor of of the protein.
-    capacity : list of unsigned floats.
+    capacity : unsigned float.
         Stationary phase capacity (monovalent salt counterions); The total
         number of binding sites available on the resin surface.
-    reference_liquid_phase_conc : Parmater
+    reference_liquid_phase_conc : unsigned float
         Reference liquid phase concentration (optional, default value = 1.0).
-    reference_solid_phase_conc : Parmater
-        Reference liquid phase concentration (optional, default value = 1.0).
+        The default = 1.0
+    reference_solid_phase_conc : unsigned float
+        Reference liquid phase concentration (optional)
+        The default = 1.0
 
     """
     adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
@@ -513,9 +542,9 @@ class SelfAssociation(BindingBaseClass):
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     characteristic_charge = DependentlySizedUnsignedList(dep='n_comp')
     steric_factor = DependentlySizedUnsignedList(dep='n_comp')
-    capacity = DependentlySizedUnsignedList(dep='n_comp')
-    reference_liquid_phase_conc = DependentlySizedUnsignedList(dep='n_comp')
-    reference_solid_phase_conc = DependentlySizedUnsignedList(dep='n_comp')
+    capacity = UnsignedFloat()
+    reference_liquid_phase_conc = UnsignedFloat(default=1.0)
+    reference_solid_phase_conc = UnsignedFloat(default=1.0)
 
     _parameter_names = BindingBaseClass._parameter_names + [
         'adsorption_rate',
@@ -544,34 +573,34 @@ class BiStericMassAction(BindingBaseClass):
     steric_factor : list of unsigned floats.
         Steric factor o (i,j) of the it-h protein with respect to the j-th
         binding site type in state-major ordering.
-    capacity : list of unsigned floats.
-        Stationary phase capacity (monovalent salt counterions): The total
-        number of binding site types.
+    capacity : unsigned float.
+        Stationary phase capacity (monovalent salt counterions); The total
+        number of binding sites available on the resin surface.
     reference_liquid_phase_conc : list of unsigned floats.
         Reference liquid phase concentration for each binding site type or one
-        value for all types (optional, default value = 1.0).
+        value for all types.
+        The default is 1.0
     reference_solid_phase_conc : list of unsigned floats.
         Reference solid phase concentration for each binding site type or one
-        value for all types (optional, default value = 1.0).
+        value for all types.
+        The default is 1.0
 
     """
-    adsorption_rate = DependentlySizedUnsignedList(
-        dep=('n_comp', 'n_states')
-    )
+    n_binding_sites = UnsignedInteger(default=2)
+
+    adsorption_rate = DependentlySizedUnsignedList(dep='n_bound_states')
     adsorption_rate_dimerization = DependentlySizedUnsignedList(
-        dep=('n_comp', 'n_states')
+        dep='n_bound_states'
     )
-    desorption_rate = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'))
-    characteristic_charge = DependentlySizedUnsignedList(
-        dep=('n_comp', 'n_states')
-    )
-    steric_factor = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'))
-    capacity = DependentlySizedUnsignedList(dep='n_states')
+    desorption_rate = DependentlySizedUnsignedList(dep='n_bound_states')
+    characteristic_charge = DependentlySizedUnsignedList(dep='n_bound_states')
+    steric_factor = DependentlySizedUnsignedList(dep='n_bound_states')
+    capacity = DependentlySizedUnsignedList(dep='n_binding_sites')
     reference_liquid_phase_conc = DependentlySizedUnsignedList(
-        dep='n_states', default=1
+        dep='n_binding_sites', default=1
     )
     reference_solid_phase_conc = DependentlySizedUnsignedList(
-        dep='n_states', default=1
+        dep='n_binding_sites', default=1
     )
 
     _parameter_names = BindingBaseClass._parameter_names + [
@@ -609,27 +638,30 @@ class MultistateStericMassAction(BindingBaseClass):
     conversion_rate : list of unsigned floats.
         Conversion rates between different bound states in
         component-major ordering.
-    capacity : list of unsigned floats.
-        Stationary phase capacity (monovalent salt counterions): The total
+        Length: $sum_{i=1}^{n_{comp}} n_{bound, i}$
+    capacity : unsigned float.
+        Stationary phase capacity (monovalent salt counterions); The total
         number of binding sites available on the resin surface.
-    reference_liquid_phase_conc : list of unsigned floats.
-        Reference liquid phase concentration (optional, default value = 1.0).
-    reference_solid_phase_conc : list of unsigned floats.
-        Reference solid phase concentration (optional, default value = 1.0).
+    reference_liquid_phase_conc : unsigned float.
+        Reference liquid phase concentration.
+        The default = 1.0
+    reference_solid_phase_conc : unsigned float, optional
+        Reference solid phase concentration.
+        The default = 1.0
 
     """
-    adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
-    desorption_rate = DependentlySizedUnsignedList(dep='n_comp', default=1)
-    characteristic_charge = DependentlySizedUnsignedList(dep='n_comp')
-    steric_factor = DependentlySizedUnsignedList(dep='n_comp')
-    conversion_rate = DependentlySizedUnsignedList(dep='n_comp')
-    capacity = DependentlySizedUnsignedList(dep='n_comp')
-    reference_liquid_phase_conc = DependentlySizedUnsignedList(
-        dep='n_comp', default=1
+    bound_states = DependentlySizedUnsignedIntegerList(
+        dep=('n_binding_sites', 'n_comp'), default=1
     )
-    reference_solid_phase_conc = DependentlySizedUnsignedList(
-        dep='n_comp', default=1
-    )
+
+    adsorption_rate = DependentlySizedUnsignedList(dep='n_bound_states')
+    desorption_rate = DependentlySizedUnsignedList(dep='n_bound_states', default=1)
+    characteristic_charge = DependentlySizedUnsignedList(dep='n_bound_states')
+    steric_factor = DependentlySizedUnsignedList(dep='n_bound_states')
+    conversion_rate = DependentlySizedUnsignedList(dep='_conversion_entries')
+    capacity = UnsignedFloat()
+    reference_liquid_phase_conc = UnsignedFloat(default=1)
+    reference_solid_phase_conc = UnsignedFloat(default=1)
 
     _parameter_names = BindingBaseClass._parameter_names + [
         'adsorption_rate',
@@ -642,8 +674,16 @@ class MultistateStericMassAction(BindingBaseClass):
         'reference_solid_phase_conc'
     ]
 
+    @property
+    def _conversion_entries(self):
+        n = 0
+        for state in self.bound_states[1:]:
+            n += state**2
 
-class SimplifiedMultistateSteric_Mass_Action(BindingBaseClass):
+        return n
+
+
+class SimplifiedMultistateStericMassAction(BindingBaseClass):
     """ Simplified multistate Steric Mass Action adsoprtion isotherm.
 
     Attributes
@@ -670,7 +710,7 @@ class SimplifiedMultistateSteric_Mass_Action(BindingBaseClass):
     quadratic_modifiers_steric : list of unsigned floats.
         Quadratic modifiers of the sterif factors of the different components
         depending on the index of the bound state.
-    capacity : list of unsigned floats.
+    capacity : unsigned floats.
         Stationary phase capacity (monovalent salt counterions): The total
         number of binding sites available on the resin surface.
     exchange_from_weak_stronger : list of unsigned floats.
@@ -697,23 +737,27 @@ class SimplifiedMultistateSteric_Mass_Action(BindingBaseClass):
         Reference solid phase concentration (optional, default value = 1.0).
 
     """
-    adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
-    desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
+    bound_states = DependentlySizedUnsignedIntegerList(
+        dep=('n_binding_sites', 'n_comp'), default=1
+    )
+
+    adsorption_rate = DependentlySizedUnsignedList(dep='n_bound_states')
+    desorption_rate = DependentlySizedUnsignedList(dep='n_bound_states')
     characteristic_charge_first = DependentlySizedUnsignedList(dep='n_comp')
     characteristic_charge_last = DependentlySizedUnsignedList(dep='n_comp')
     quadratic_modifiers_charge = DependentlySizedUnsignedList(dep='n_comp')
     steric_factor_first = DependentlySizedUnsignedList(dep='n_comp')
     steric_factor_last = DependentlySizedUnsignedList(dep='n_comp')
     quadratic_modifiers_steric = DependentlySizedUnsignedList(dep='n_comp')
-    capacity = DependentlySizedUnsignedList(dep='n_comp')
+    capacity = UnsignedFloat()
     exchange_from_weak_stronger = DependentlySizedUnsignedList(dep='n_comp')
     linear_exchange_ws = DependentlySizedUnsignedList(dep='n_comp')
     quadratic_exchange_ws = DependentlySizedUnsignedList(dep='n_comp')
     exchange_from_stronger_weak = DependentlySizedUnsignedList(dep='n_comp')
     linear_exchange_sw = DependentlySizedUnsignedList(dep='n_comp')
     quadratic_exchange_sw = DependentlySizedUnsignedList(dep='n_comp')
-    reference_liquid_phase_conc = DependentlySizedUnsignedList(dep='n_comp')
-    reference_solid_phase_conc = DependentlySizedUnsignedList(dep='n_comp')
+    reference_liquid_phase_conc = UnsignedFloat(default=1)
+    reference_solid_phase_conc = UnsignedFloat(default=1)
 
     _parameter_names = BindingBaseClass._parameter_names + [
         'adsorption_rate',
@@ -748,7 +792,7 @@ class Saska(BindingBaseClass):
 
     """
     henry_const = DependentlySizedUnsignedList(dep='n_comp')
-    quadratic_factor = DependentlySizedUnsignedList(dep='n_comp')
+    quadratic_factor = DependentlySizedUnsignedList(dep=('n_comp', 'n_comp'))
 
     _parameter_names = BindingBaseClass._parameter_names + [
         'henry_const', 'quadratic_factor'
@@ -812,6 +856,8 @@ class GeneralizedIonExchange(BindingBaseClass):
         Reference liquid phase concentration (optional, default value = 1.0).
 
     """
+    non_binding_component_indices = [1]
+
     adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     adsorption_rate_linear = DependentlySizedList(dep='n_comp')
     adsorption_rate_quadratic = DependentlySizedList(
@@ -859,8 +905,8 @@ class GeneralizedIonExchange(BindingBaseClass):
     )
     steric_factor = DependentlySizedUnsignedList(dep='n_comp')
     capacity = UnsignedFloat()
-    reference_liquid_phase_conc = UnsignedFloat()
-    reference_solid_phase_conc = UnsignedFloat()
+    reference_liquid_phase_conc = UnsignedFloat(default=1)
+    reference_solid_phase_conc = UnsignedFloat(default=1)
 
     _parameter_names = BindingBaseClass._parameter_names + [
         'adsorption_rate',

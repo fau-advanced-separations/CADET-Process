@@ -37,6 +37,8 @@ elute = Source(component_system, name='elute')
 elute.c = [500.0, 0.0]
 
 column = GeneralRateModel(component_system, name='column')
+column.binding_model = binding_model
+
 column.length = 0.25
 column.diameter = 0.0115
 column.bed_porosity = 0.37
@@ -46,8 +48,6 @@ column.axial_dispersion = 2.0e-7
 column.film_diffusion = [2.0e-5, 2.0e-7]
 column.pore_diffusion = [7e-5, 1e-9]
 column.surface_diffusion = [0.0, 0.0]
-
-column.binding_model = binding_model
 
 column.c = [180, 0]
 column.q = [binding_model.capacity, 0]

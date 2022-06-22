@@ -477,6 +477,14 @@ class DependentlySizedUnsignedList(List, Unsigned, DependentlySized):
     pass
 
 
+class DependentlySizedRangedIntegerList(List, Ranged, Integer, DependentlySized):
+    pass
+
+
+class DependentlySizedUnsignedIntegerList(List, Unsigned, Integer, DependentlySized):
+    pass
+
+
 class DependentlyModulatedUnsignedList(List, Unsigned, DependentlyModulated):
     pass
 

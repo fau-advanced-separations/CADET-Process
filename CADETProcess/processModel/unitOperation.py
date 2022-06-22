@@ -23,7 +23,7 @@ from .discretization import (
 
 from .solutionRecorder import (
     SolutionRecorderIO,
-    TubularReactorRecorder, LRMRecorder, LRMPRecorder, GRMRecorder, 
+    TubularReactorRecorder, LRMRecorder, LRMPRecorder, GRMRecorder,
     CSTRRecorder
 )
 
@@ -226,8 +226,8 @@ class UnitBaseClass(metaclass=StructMeta):
         self._binding_model = binding_model
 
     @property
-    def _n_bound_states(self):
-        return self.binding_model.n_states
+    def n_bound_states(self):
+        return self.binding_model.n_bound_states
 
     @property
     def bulk_reaction_model(self):
@@ -664,9 +664,7 @@ class LumpedRateModelWithoutPores(TubularReactorBase):
     ]
 
     c = DependentlySizedList(dep='n_comp', default=0)
-    q = DependentlySizedUnsignedList(
-        dep=('n_comp', '_n_bound_states'), default=0
-    )
+    _q = DependentlySizedUnsignedList(dep='n_bound_states', default=0)
     _initial_state = TubularReactorBase._initial_state + ['c', 'q']
 
     def __init__(self, *args, discretization_scheme='FV', **kwargs):
@@ -678,6 +676,16 @@ class LumpedRateModelWithoutPores(TubularReactorBase):
             self.discretization = LRMDiscretizationDG()
 
         self.solution_recorder = LRMRecorder()
+
+    @property
+    def q(self):
+        return self._q
+
+    @q.setter
+    def q(self, q):
+        if isinstance(self.binding_model, NoBinding):
+            raise CADETProcessError("Cannot set q without binding model.")
+        self._q = q
 
 
 class LumpedRateModelWithPores(TubularReactorBase):
@@ -721,9 +729,8 @@ class LumpedRateModelWithPores(TubularReactorBase):
 
     c = DependentlySizedList(dep='n_comp', default=0)
     _cp = DependentlySizedUnsignedList(dep='n_comp')
-    q = DependentlySizedUnsignedList(
-        dep=('n_comp', '_n_bound_states'), default=0
-    )
+    _q = DependentlySizedUnsignedList(dep='n_bound_states', default=0)
+
     _initial_state = TubularReactorBase._initial_state + ['cp', 'q']
 
     def __init__(self, *args, **kwargs):
@@ -784,6 +791,16 @@ class LumpedRateModelWithPores(TubularReactorBase):
     def cp(self, cp):
         self._cp = cp
 
+    @property
+    def q(self):
+        return self._q
+
+    @q.setter
+    def q(self, q):
+        if isinstance(self.binding_model, NoBinding):
+            raise CADETProcessError("Cannot set q without binding model.")
+        self._q = q
+
 
 class GeneralRateModel(TubularReactorBase):
     """Parameters for the general rate model.
@@ -819,9 +836,7 @@ class GeneralRateModel(TubularReactorBase):
     particle_radius = UnsignedFloat()
     film_diffusion = DependentlySizedUnsignedList(dep='n_comp')
     pore_diffusion = DependentlySizedUnsignedList(dep='n_comp')
-    surface_diffusion = DependentlySizedUnsignedList(
-        dep=('n_comp', '_n_bound_states')
-    )
+    _surface_diffusion = DependentlySizedUnsignedList(dep='n_bound_states')
     pore_accessibility = DependentlySizedUnsignedList(dep='n_comp')
     _parameters = \
         TubularReactorBase._parameter_names + \
@@ -835,9 +850,8 @@ class GeneralRateModel(TubularReactorBase):
 
     c = DependentlySizedList(dep='n_comp', default=0)
     _cp = DependentlySizedUnsignedList(dep='n_comp')
-    q = DependentlySizedUnsignedList(
-        dep=('n_comp', '_n_bound_states'), default=0
-    )
+    _q = DependentlySizedUnsignedList(dep='n_bound_states', default=0)
+
     _initial_state = TubularReactorBase._initial_state + ['cp', 'q']
 
     def __init__(self, *args, **kwargs):
@@ -898,6 +912,28 @@ class GeneralRateModel(TubularReactorBase):
     def cp(self, cp):
         self._cp = cp
 
+    @property
+    def q(self):
+        return self._q
+
+    @q.setter
+    def q(self, q):
+        if isinstance(self.binding_model, NoBinding):
+            raise CADETProcessError("Cannot set q without binding model.")
+        self._q = q
+
+    @property
+    def surface_diffusion(self):
+        return self._surface_diffusion
+
+    @surface_diffusion.setter
+    def surface_diffusion(self, surface_diffusion):
+        if isinstance(self.binding_model, NoBinding):
+            raise CADETProcessError(
+                "Cannot set surface diffusion without binding model."
+            )
+        self._surface_diffusion = surface_diffusion
+
 
 class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     """Parameters for an ideal mixer.
@@ -935,9 +971,7 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         ['flow_rate_filter']
 
     c = DependentlySizedList(dep='n_comp', default=0)
-    q = DependentlySizedUnsignedList(
-        dep=('n_comp', '_n_bound_states'), default=0
-    )
+    _q = DependentlySizedUnsignedList(dep='n_bound_states', default=0)
     V = UnsignedFloat(default=0)
     volume = V
     _initial_state = \
@@ -977,3 +1011,13 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
 
         """
         return self.volume_liquid / flow_rate
+
+    @property
+    def q(self):
+        return self._q
+
+    @q.setter
+    def q(self, q):
+        if isinstance(self.binding_model, NoBinding):
+            raise CADETProcessError("Cannot set q without binding model.")
+        self._q = q
