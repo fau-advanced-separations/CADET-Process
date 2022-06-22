@@ -54,7 +54,9 @@ class Comparator(metaclass=StructMeta):
             self, difference_metric, reference, solution_path,
             *args, **kwargs):
         try:
-            module = importlib.import_module('CADETProcess.comparison')
+            module = importlib.import_module(
+                'CADETProcess.comparison.difference'
+            )
             cls_ = getattr(module, difference_metric)
         except KeyError:
             raise CADETProcessError("Unknown Metric Type.")
