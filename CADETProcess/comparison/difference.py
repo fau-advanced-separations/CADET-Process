@@ -65,6 +65,8 @@ def slice_solution(
         solution.component_system = ComponentSystem(1)
         solution.solution = np.array(solution_comp.total_concentration, ndmin=2).transpose()
 
+    solution.update_transform()
+
     return solution
 
 

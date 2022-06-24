@@ -144,18 +144,22 @@ class SolutionIO(SolutionBase):
         self.crit_fs_der = None
         self.is_smoothed = False
 
-        self.transform = transform.NormLinearTransform(
-            np.min(self.solution_original, axis=0),
-            np.max(self.solution_original, axis=0)
-        )
-
         self.update()
+        self.update_transform()
 
     def update(self):
         self._solution_interpolated = None
         self._q_vector = None
         self._interpolated_dm_dt = None
         self._interpolated_Q = None
+
+    def update_transform(self):
+        self.transform = transform.NormLinearTransform(
+            np.min(self.solution, axis=0),
+            np.max(self.solution, axis=0),
+            allow_extended_input=True,
+            allow_extended_output=True
+        )
 
     @property
     def solution_interpolated(self):
