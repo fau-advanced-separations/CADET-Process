@@ -83,7 +83,7 @@ class OptimizerBase(metaclass=StructMeta):
 
     @abstractmethod
     def run(optimization_problem, *args, **kwargs):
-        """Abstract Method for solving an optimizatio problem.
+        """Abstract Method for solving an optimization problem.
 
         Parameters
         ----------
@@ -93,7 +93,7 @@ class OptimizerBase(metaclass=StructMeta):
         Returns
         -------
         results : OptimizationResults
-            Optimization results including optimization_problem and solver
+            Optimization results including OptimizationProblem and Optimizer
             configuration.
 
         Raises

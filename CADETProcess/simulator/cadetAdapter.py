@@ -1075,8 +1075,8 @@ adsorption_parameters_map = {
             'SMA_LAMBDA': 'capacity',
             'SMA_NU': 'characteristic_charge',
             'SMA_SIGMA': 'steric_factor',
-            'SMA_REF0': 'reference_liquid_phase_conc',
-            'SMA_REFQ': 'reference_solid_phase_conc'
+            'SMA_REFC0': 'reference_liquid_phase_conc',
+            'SMA_REFQ0': 'reference_solid_phase_conc'
         },
     },
     'AntiLangmuir': {
@@ -1136,7 +1136,7 @@ adsorption_parameters_map = {
             'GIEX_SIGMA': 'steric_factor',
             'GIEX_LAMBDA': 'capacity',
             'GIEX_REFC0': 'reference_liquid_phase_conc',
-            'GIEX_REFQ': 'reference_solid_phase_conc',
+            'GIEX_REFQ0': 'reference_solid_phase_conc',
         },
     }
 }

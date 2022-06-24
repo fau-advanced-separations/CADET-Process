@@ -140,7 +140,7 @@ class Test_Events(unittest.TestCase):
         event_handler.evt0.time = 11
         self.assertEqual(event_handler.event_times, [0.0, 1.0])
 
-    def test_dependenciies(self):
+    def test_dependencies(self):
         event_handler = self.create_event_handler()
 
         event_handler.add_event_dependency('evt1', 'evt0')

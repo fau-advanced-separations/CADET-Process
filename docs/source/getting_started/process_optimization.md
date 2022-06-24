@@ -20,7 +20,7 @@ sys.path.append('../../../')
 # Process Optimization
 One of the main features of **CADET-Process** is process optimization. 
 
-an `OptimizationProblem` class is introduced that decouples the problem formulation from the `Optimizer` used for its solution (see {ref}`overview`), allowing for a simple comparison of different optimization approaches.
+An `OptimizationProblem` class is introduced that decouples the problem formulation from the `Optimizer` used for its solution (see {ref}`overview`), allowing for a simple comparison of different optimization approaches.
 The `OptimizationVariables` $x$ may refer to any attribute of the `ProcessModel`.
 This includes model parameters, as well as `FlowSheet`-events.
 As for the latter, not only the time when they are executed can be optimized, but also the value to which the attribute is changed when the `Event` is performed, allowing for structural optimization.

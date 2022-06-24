@@ -81,6 +81,28 @@ class OptimizationProblem(metaclass=StructMeta):
 
         self._x0 = None
 
+    def untransforms(func):
+        @wraps(func)
+        def wrapper(self, x, *args, untransform=False, **kwargs):
+            """Untransform population or individual before calling function."""
+            if untransform:
+                x = self.untransform(x)
+
+            return func(self, x, *args, **kwargs)
+
+        return wrapper
+
+    def ensures2d(func):
+        @wraps(func)
+        def wrapper(self, population, *args, **kwargs):
+            """Make sure population is 2d list."""
+            population = np.array(population, ndmin=2)
+            population = population.tolist()
+
+            return func(self, population, *args, **kwargs)
+
+        return wrapper
+
     @property
     def evaluation_objects(self):
         """list: Object to be evaluated during optimization.
@@ -180,7 +202,7 @@ class OptimizationProblem(metaclass=StructMeta):
             component_index=None, polynomial_index=None, name=None):
         """Add optimization variable to the OptimizationProblem.
 
-        The function encapsulates the creation of OoptimizationVariable objects
+        The function encapsulates the creation of OptimizationVariable objects
         in order to prevent invalid OptimizationVariables.
 
         Parameters
@@ -189,7 +211,9 @@ class OptimizationProblem(metaclass=StructMeta):
             Path of the parameter including the evaluation object.
         evaluation_objects : EvaluationObject or list of EvaluationObjects
             Evaluation object to set parameters.
-            If None, all evaluation objects are used.
+            If -1, all evaluation objects are used.
+            If None, no evaluation object is associated (dummy variable).
+            The default is -1.
         lb : float
             Lower bound of the variable value.
         ub : float
@@ -314,28 +338,6 @@ class OptimizationProblem(metaclass=StructMeta):
 
         vars = [self.variables_dict[indep] for indep in independent_variables]
         var.add_dependency(vars, transform)
-
-    def untransforms(func):
-        @wraps(func)
-        def wrapper(self, x, *args, untransform=False, **kwargs):
-            """Untransform population or individual before calling function."""
-            if untransform:
-                x = self.untransform(x)
-
-            return func(self, x, *args, **kwargs)
-
-        return wrapper
-
-    def ensures2d(func):
-        @wraps(func)
-        def wrapper(self, population, *args, **kwargs):
-            """Make sure population is 2d list."""
-            population = np.array(population, ndmin=2)
-            population = population.tolist()
-
-            return func(self, population, *args, **kwargs)
-
-        return wrapper
 
     @untransforms
     def get_dependent_values(self, x):
@@ -527,7 +529,7 @@ class OptimizationProblem(metaclass=StructMeta):
         return self._objectives
 
     @property
-    def objectives_names(self):
+    def objective_names(self):
         return [str(obj) for obj in self.objectives]
 
     @property
@@ -1836,12 +1838,14 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def x0(self):
-        """Initival values for optimization.
+        """Initial values for optimization.
+
+        Expected to only contain untransformed independent variables.
 
         Parameters
         ----------
         x0 : array_like
-            Initival values for optimization.
+            Initial values for optimization.
 
         Raises
         ------
@@ -2027,7 +2031,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
             if counter > burn_in:
                 raise CADETProcessError(
-                    "Cannot find invididuals that fulfill contraints"
+                    "Cannot find invididuals that fulfill constraints."
                 )
 
         if set_values:

@@ -294,7 +294,7 @@ class Dimensionalized(Parameter):
             return
 
         if self.n_dim != value.ndim:
-            raise ValueError("fExpected dimensions {self.n_dim}")
+            raise ValueError(f"Expected dimensions {self.n_dim}")
         super().__set__(instance, value)
 
 
