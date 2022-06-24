@@ -1,3 +1,5 @@
+import numpy as np
+
 from CADETProcess import CADETProcessError
 
 from CADETProcess.dataStructure import frozen_attributes
@@ -332,6 +334,34 @@ class StericMassAction(BindingBaseClass):
             'reference_liquid_phase_conc',
             'reference_solid_phase_conc'
         ]
+
+    @property
+    def adsorption_rate_transformed(self):
+        nu = np.array(self.characteristic_charge)
+        return \
+            self.adsorption_rate / \
+            self.reference_solid_phase_conc**(-nu)
+
+    @adsorption_rate_transformed.setter
+    def adsorption_rate_transformed(self, adsorption_rate_transformed):
+        nu = np.array(self.characteristic_charge)
+        self.adsorption_rate = \
+            adsorption_rate_transformed * \
+            self.reference_solid_phase_conc**(-nu)
+
+    @property
+    def desorption_rate_transformed(self):
+        nu = np.array(self.characteristic_charge)
+        return \
+            self.desorption_rate / \
+            self.reference_liquid_phase_conc**(-nu)
+
+    @desorption_rate_transformed.setter
+    def desorption_rate_transformed(self, desorption_rate_transformed):
+        nu = np.array(self.characteristic_charge)
+        self.desorption_rate = \
+            desorption_rate_transformed * \
+            self.reference_liquid_phase_conc**(-nu)
 
 
 class AntiLangmuir(BindingBaseClass):
