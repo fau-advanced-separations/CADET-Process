@@ -435,7 +435,11 @@ class OptimizationProblem(metaclass=StructMeta):
             if value > variable.ub:
                 raise ValueError("Exceeds upper bound")
             for eval_obj in variable.evaluation_objects:
-                eval_obj = eval_obj_dict[eval_obj.name]
+                try:
+                    eval_obj = eval_obj_dict[eval_obj.name]
+                except KeyError:
+                    continue
+
                 if variable.polynomial_index is not None:
                     value_array = get_nested_value(
                         eval_obj.parameters, variable.parameter_path
