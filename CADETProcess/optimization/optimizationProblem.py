@@ -676,7 +676,7 @@ class OptimizationProblem(metaclass=StructMeta):
                 )
                 f += objective.bad_metrics
 
-        if update_cache:
+        if cache is not None and update_cache:
             update(cache, cache_new)
 
         if not return_cache_new:
@@ -937,7 +937,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
         c = np.array(g) - np.array(self.nonlinear_constraints_bounds)
 
-        if update_cache:
+        if cache is not None and update_cache:
             update(cache, cache_new)
 
         if not return_cache_new:
@@ -1149,7 +1149,7 @@ class OptimizationProblem(metaclass=StructMeta):
                     f'Evaluation of {callback.name} failed at {x}. '
                 )
 
-        if update_cache:
+        if cache is not None and update_cache:
             update(cache, cache_new)
 
         if not return_cache_new:
