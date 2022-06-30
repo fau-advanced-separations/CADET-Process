@@ -114,11 +114,18 @@ class OptimizationProblem(metaclass=StructMeta):
         ------
         CADETProcessError
             If evaluation object already exists in optimization problem.
+            If evaluation object with same name already exists in optimization
+            problem.
 
         """
         if evaluation_object in self._evaluation_objects:
             raise CADETProcessError(
                 'Evaluation object already part of optimization problem.'
+            )
+
+        if str(evaluation_object) in self.evaluation_objects_dict:
+            raise CADETProcessError(
+                'Evaluation object with same name already exists.'
             )
 
         self._evaluation_objects.append(evaluation_object)
