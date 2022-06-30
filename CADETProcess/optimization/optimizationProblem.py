@@ -265,31 +265,25 @@ class OptimizationProblem(metaclass=StructMeta):
         self.__dict__.pop(var_name)
 
     def add_variable_dependency(
-            self, dependent_variable, independent_variables,
-            factors=None, transforms=None):
-        """Add dependency between two events.
+            self, dependent_variable, independent_variables, transform):
+        """Add dependency between two optimization variables.
 
         Parameters
         ----------
         dependent_variable : str
-            OptimizationVariables whose value will depend on other variables.
-        independent_variables : list
-            List of independent variables names.
-        factors : list, optional
-            List of factors used for the relation with the independent variables.
-            Length must be equal the length of independent variables.
-            If None, all factors are assumed to be 1.
-        transforms : list, optional
-            List of functions used to transform the parameter value.
-            Length must be equal the length of independent variables.
-            If None, no transform is applied.
+            OptimizationVariable whose value will depend on other variables.
+        independent_variables : {str, list}
+            Independent variable name or list of independent variables names.
+        transform : callable
+            Function to describe dependency.
+            Must take all independent variables as arguments in the order as
+            given by independent_variables.
+            Returns transformed dependent value.
 
         Raises
         ------
         CADETProcessError
             If dependent_variable OR independent_variables are not found.
-            If length of factors not equal length of independent variables.
-            If length of transforms not equal length of independent variables.
 
         See Also
         --------
@@ -311,28 +305,8 @@ class OptimizationProblem(metaclass=StructMeta):
                 "Cannot find one or more independent variables"
             )
 
-        if factors is None:
-            factors = [1]*len(independent_variables)
-
-        if not isinstance(factors, list):
-            factors = [factors]
-        if len(factors) != len(independent_variables):
-            raise CADETProcessError(
-                "Length of factors must equal length of independent variables"
-            )
-        if transforms is None:
-            transforms = [None]*len(independent_variables)
-
-        if not isinstance(transforms, list):
-            transforms = [transforms]
-        if len(transforms) != len(independent_variables):
-            raise CADETProcessError(
-                "Length of transforms must equal length of independent variables"
-            )
-
-        for indep, fac, trans in zip(independent_variables, factors, transforms):
-            indep = self.variables_dict[indep]
-            var.add_dependency(indep, fac, trans)
+        vars = [self.variables_dict[indep] for indep in independent_variables]
+        var.add_dependency(vars, transform)
 
     def untransforms(func):
         @wraps(func)
@@ -1402,7 +1376,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def lower_bounds(self):
-        """list : List of the lower bounds of all OptimizationVariables.
+        """list : Lower bounds of all OptimizationVariables.
 
         See Also
         --------
@@ -1413,7 +1387,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def lower_bounds_transformed(self):
-        """list : List of the lower bounds of all OptimizationVariables.
+        """list : Transformed lower bounds of all OptimizationVariables.
 
         See Also
         --------
@@ -1423,8 +1397,30 @@ class OptimizationProblem(metaclass=StructMeta):
         return [var.transform.lb for var in self.variables]
 
     @property
+    def lower_bounds_independent(self):
+        """list : Lower bounds of independent OptimizationVariables.
+
+        See Also
+        --------
+        upper_bounds
+
+        """
+        return [var.lb for var in self.independent_variables]
+
+    @property
+    def lower_bounds_independent_transformed(self):
+        """list : Transformed lower bounds of independent OptimizationVariables.
+
+        See Also
+        --------
+        upper_bounds
+
+        """
+        return [var.transform.lb for var in self.independent_variables]
+
+    @property
     def upper_bounds(self):
-        """list : List of the upper bounds of all OptimizationVariables.
+        """list : Upper bounds of all OptimizationVariables.
 
         See Also
         --------
@@ -1435,7 +1431,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def upper_bounds_transformed(self):
-        """list : List of the lower bounds of all OptimizationVariables.
+        """list : Transformed upper bounds of all OptimizationVariables.
 
         See Also
         --------
@@ -1443,6 +1439,28 @@ class OptimizationProblem(metaclass=StructMeta):
 
         """
         return [var._transform.ub for var in self.variables]
+
+    @property
+    def upper_bounds_independent(self):
+        """list : Upper bounds of independent OptimizationVariables.
+
+        See Also
+        --------
+        upper_bounds
+
+        """
+        return [var.ub for var in self.independent_variables]
+
+    @property
+    def upper_bounds_independent_transformed(self):
+        """list : Transformed upper bounds of independent OptimizationVariables.
+
+        See Also
+        --------
+        upper_bounds
+
+        """
+        return [var._transform.ub for var in self.independent_variables]
 
     @untransforms
     def check_bounds(self, x):
@@ -1456,14 +1474,17 @@ class OptimizationProblem(metaclass=StructMeta):
         Returns
         -------
         flag : Bool
-            True, if all values of x are within the bounds. False otherwise.
+            True, if all values are within the bounds. False otherwise.
 
         """
         flag = True
 
-        if np.any(np.less(x, self.lower_bounds)):
+        values = self.get_dependent_values(x)
+        values = np.array(values)
+
+        if np.any(np.less(values, self.lower_bounds)):
             flag = False
-        if np.any(np.greater(x, self.upper_bounds)):
+        if np.any(np.greater(values, self.upper_bounds)):
             flag = False
 
         return flag
@@ -1970,21 +1991,33 @@ class OptimizationProblem(metaclass=StructMeta):
                 )
                 values = states[0, ...]
 
-        for i, ind in enumerate(values):
-            for i_var, var in enumerate(self.variables):
-                values[i, i_var] = np.format_float_positional(
-                    values[i, i_var],
-                    precision=var.precision, fractional=False
-                )
-
-        indices = [
+        independent_indices = [
             i for i, variable in enumerate(self.variables)
             if variable in self.independent_variables
         ]
+        independent_values = values[:, independent_indices]
 
-        values = values[:, indices]
+        values = []
+        counter = 0
+        while len(values) < n_samples:
+            counter += 1
+            i = np.random.randint(0, burn_in)
+            ind = []
+            for i_var, var in enumerate(self.independent_variables):
+                ind.append(
+                    float(np.format_float_positional(
+                        independent_values[i, i_var],
+                        precision=var.precision, fractional=False
+                    ))
+                )
 
-        values = values.tolist()
+            if self.check_bounds(ind):
+                values.append(ind)
+
+            if counter > burn_in:
+                raise CADETProcessError(
+                    "Cannot find invididuals that fulfill contraints"
+                )
 
         if set_values:
             self.x0 = values
@@ -2156,8 +2189,7 @@ class OptimizationVariable():
         self.precision = precision
 
         self._dependencies = []
-        self._factors = []
-        self._dependency_transforms = []
+        self._dependency_transform = None
 
     @property
     def parameter_path(self):
@@ -2244,97 +2276,53 @@ class OptimizationVariable():
                 )
         self._polynomial_index = polynomial_index
 
-    def add_dependency(self, dependency, factor=1, transform=None):
-        """Add dependency of variable on other variables.
-
-        The value of the variable is determined with the following equation:
-
-        $$
-        v = \sum_i^{n_{dep}} \lambda_i \cdot f_i(v_{dep,i})
-        $$
+    def add_dependency(self, dependencies, transform):
+        """Add dependency of Variable on other Variables.
 
         Parameters
         ----------
-        dependency : OptimizationVariable
-            Variable object to be added as dependency.
-        factor : float, optional
-            Factor for the dependencies between to events. The default is 1.
+        dependencies : list
+            List of OptimizationVariables to be added as dependencies.
         transform: callable
-            Transform function for dependent variable.
+            Transform function describing dependency on /independent Variables.
 
         Raises
         ------
         CADETProcessError
-            If the dependency already exists in list dependencies.
+            If the variable is already dependent.
+            If transform signature does not match independent Variables.
 
         """
-        if dependency in self._dependencies:
-            raise CADETProcessError("Dependency already exists")
+        if not self.isIndependent:
+            raise CADETProcessError("Variable already is dependent.")
 
-        self._dependencies.append(dependency)
-        self._factors.append(factor)
-        if transform is None:
-            def transform(t):
-                return t
-        self.dependency_transforms.append(transform)
-
-    def remove_dependency(self, dependency):
-        """Remove dependencies of events.
-
-        Parameters
-        ----------
-        dependency : OptimizationVariable
-            Variable object to remove from dependencies.
-
-        Raises
-        ------
-        CADETProcessError
-            If the dependency doesn't exists in list dependencies.
-
-        """
-        if dependency in self._dependencies:
-            raise CADETProcessError("Dependency not found")
-
-        index = self._dependencies(dependency)
-
-        del(self._dependencies[index])
-        del(self._factors[index])
-        del(self._dependency_transforms[index])
+        self._dependencies = dependencies
+        self.dependency_transform = transform
 
     @property
     def dependencies(self):
-        """list: Events on which the Event depends."""
+        """list: Independent variables on which the Variable depends."""
         return self._dependencies
 
     @property
     def isIndependent(self):
-        """bool: True, if event is independent, False otherwise."""
+        """bool: True, if Variable is independent, False otherwise."""
         if len(self.dependencies) == 0:
             return True
         else:
             return False
 
     @property
-    def factors(self):
-        """list: Linear coefficients for dependent variables."""
-        return self._factors
-
-    @property
-    def dependency_transforms(self):
-        """list: Transform functions for dependent variables."""
-        return self._dependency_transforms
-
-    @property
     def value(self):
         """float: Value of the parameter.
 
-        If the variable is not independent, the value is calculated from its
+        If the Variable is not independent, the value is calculated from its
         dependencies.
 
         Raises
         ------
         CADETProcessError
-            If the variable is not independent.
+            If the Variable is not independent.
 
         """
         if self.isIndependent:
@@ -2343,11 +2331,9 @@ class OptimizationVariable():
 
             value = self._value
         else:
-            transformed_value = [
-                f(dep.value)
-                for f, dep in zip(self.transforms, self.dependencies)
-            ]
-            value = np.dot(transformed_value, self._factors)
+            dependencies = [dep.value for dep in self.dependencies]
+            value = self.dependency_transform(*dependencies)
+
         return value
 
     @value.setter

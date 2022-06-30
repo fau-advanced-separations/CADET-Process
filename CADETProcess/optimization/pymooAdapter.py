@@ -191,14 +191,22 @@ class PymooInterface(OptimizerBase):
     @property
     def _population_size(self):
         if self.pop_size is None:
-            return min(400, max(50*self.optimization_problem.n_variables, 50))
+            return min(
+                400, max(
+                    50*self.optimization_problem.n_independent_variables, 50
+                )
+            )
         else:
             return self.pop_size
 
     @property
     def _max_number_of_generations(self):
         if self.n_max_gen is None:
-            return min(100, max(10*self.optimization_problem.n_variables, 40))
+            return min(
+                100, max(
+                    10*self.optimization_problem.n_independent_variables, 40
+                    )
+            )
         else:
             return self.n_max_gen
 
@@ -285,11 +293,11 @@ class PymooProblem(Problem):
         self.n_cores = n_cores
 
         super().__init__(
-            n_var=optimization_problem.n_variables,
+            n_var=optimization_problem.n_independent_variables,
             n_obj=optimization_problem.n_objectives,
             n_constr=optimization_problem.n_nonlinear_constraints,
-            xl=optimization_problem.lower_bounds_transformed,
-            xu=optimization_problem.upper_bounds_transformed,
+            xl=optimization_problem.lower_bounds_independent_transformed,
+            xu=optimization_problem.upper_bounds_independent_transformed,
             **kwargs
         )
 
