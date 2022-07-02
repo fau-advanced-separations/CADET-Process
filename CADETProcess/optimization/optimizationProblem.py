@@ -1951,7 +1951,7 @@ class OptimizationProblem(metaclass=StructMeta):
                 self.log_space_indices = log_space_indices
 
             def compute_negative_log_likelihood(self, x):
-                return np.log(x[self.log_space_indices])
+                return np.sum(np.log(x[self.log_space_indices]))
 
         log_space_indices = []
         for i, var in enumerate(self.variables):
@@ -1960,8 +1960,8 @@ class OptimizationProblem(metaclass=StructMeta):
                     (
                         isinstance(var._transform, AutoTransform) and
                         var._transform.use_log
-                    )
-                ):
+                        )
+            ):
                 log_space_indices.append(i)
 
         with warnings.catch_warnings():
