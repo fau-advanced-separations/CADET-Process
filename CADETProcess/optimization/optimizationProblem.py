@@ -2246,16 +2246,15 @@ class OptimizationVariable():
                 parameter = get_nested_value(
                     eval_obj.parameters, self.parameter_sequence
                 )
-                is_polynomial = check_nested(
-                    eval_obj.polynomial_parameters, self.parameter_sequence
-                )
-                if is_polynomial:
+                if self.is_polynomial:
                     if component_index > parameter.shape[0]-1:
                         raise CADETProcessError(
                             'Index exceeds components'
                         )
                 else:
-                    if component_index > len(parameter)-1:
+                    if (
+                            np.isscalar(parameter) or
+                            component_index > len(parameter)-1):
                         raise CADETProcessError('Index exceeds components')
         self._component_index = component_index
 
@@ -2265,10 +2264,20 @@ class OptimizationVariable():
 
     @polynomial_index.setter
     def polynomial_index(self, polynomial_index):
+        is_polynomial = False
+
         for eval_obj in self.evaluation_objects:
-            is_polynomial = check_nested(
-                eval_obj.polynomial_parameters, self.parameter_sequence
-            )
+            try:
+                is_polynomial = check_nested(
+                    eval_obj.polynomial_parameters, self.parameter_sequence
+                )
+            except AttributeError as e:
+                if str(e) != "'EvaluationObject' object has no attribute 'polynomial_parameters'":
+                    raise
+                else:
+                    is_polynomial = False
+                    break
+
             if not is_polynomial and polynomial_index is None:
                 break
 
@@ -2289,7 +2298,13 @@ class OptimizationVariable():
                 raise CADETProcessError(
                     'Index exceeds polynomial coefficients'
                 )
+
+        self._is_polynomial = is_polynomial
         self._polynomial_index = polynomial_index
+
+    @property
+    def is_polynomial(self):
+        return self._is_polynomial
 
     def add_dependency(self, dependencies, transform):
         """Add dependency of Variable on other Variables.
