@@ -308,28 +308,22 @@ class PymooProblem(Problem):
     def _evaluate(self, x, out, *args, **kwargs):
         opt = self.optimization_problem
         if opt.n_objectives > 0:
-            f, cache = opt.evaluate_objectives_population(
+            f = opt.evaluate_objectives_population(
                 x,
                 untransform=True,
                 cache=self.cache,
                 n_cores=self.n_cores,
-                update_cache=True,
-                return_cache_new=True
             )
             out["F"] = np.array(f)
-            self.progress.cache = cache
 
         if opt.n_nonlinear_constraints > 0:
-            g, cache = opt.evaluate_nonlinear_constraints_population(
+            g = opt.evaluate_nonlinear_constraints_population(
                 x,
                 untransform=True,
                 cache=self.cache,
                 n_cores=self.n_cores,
-                update_cache=True,
-                return_cache_new=True
             )
             out["G"] = np.array(g)
-            self.progress.cache = cache
 
 
 class RepairIndividuals(Repair):

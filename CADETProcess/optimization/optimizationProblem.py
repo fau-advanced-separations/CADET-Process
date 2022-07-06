@@ -13,7 +13,6 @@ import pathos
 from CADETProcess import CADETProcessError
 from CADETProcess import log
 
-from CADETProcess.dataStructure import update
 from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import (
     String, Switch, RangedInteger, Callable, Tuple,
@@ -171,6 +170,11 @@ class OptimizationProblem(metaclass=StructMeta):
     def independent_variables(self):
         """list: Independent OptimizationVaribles."""
         return list(filter(lambda var: var.isIndependent, self.variables))
+
+    @property
+    def independent_variable_names(self):
+        """list: Independent optimization variable names."""
+        return [var.name for var in self.independent_variables]
 
     @property
     def n_independent_variables(self):
@@ -625,9 +629,7 @@ class OptimizationProblem(metaclass=StructMeta):
             x,
             cache=None,
             make_copy=False,
-            force=False,
-            update_cache=True,
-            return_cache_new=False):
+            force=False):
         """Evaluate objective functions at point x.
 
         Parameters
@@ -641,10 +643,6 @@ class OptimizationProblem(metaclass=StructMeta):
             for multiprocessing.
         force : bool
             If True, do not use cached results. The default if False.
-        update_cache : bool
-            If True, cache is updated with new results. The default is True.
-        return_cache_new : bool
-            If True, return new results cache. The default is False.
 
         Returns
         -------
@@ -663,12 +661,11 @@ class OptimizationProblem(metaclass=StructMeta):
 
         x = list(x)
         f = []
-        cache_new = self.setup_cache()
 
         for objective in self.objectives:
             try:
                 value = self._evaluate(
-                    x, objective, cache, cache_new, make_copy, force,
+                    x, objective, cache, make_copy, force,
                 )
                 f += value
             except CADETProcessError:
@@ -678,57 +675,39 @@ class OptimizationProblem(metaclass=StructMeta):
                 )
                 f += objective.bad_metrics
 
-        if cache is not None and update_cache:
-            update(cache, cache_new)
-
-        if not return_cache_new:
-            return f
-
-        return f, cache_new
+        return f
 
     @untransforms
     @ensures2d
     def evaluate_objectives_population(
-            self, population, cache=None, force=False, n_cores=-1,
-            update_cache=True, return_cache_new=False):
+            self, population, cache=None, force=False, n_cores=-1):
 
         def eval_fun(ind):
-            results, cache_new = self.evaluate_objectives(
+            results = self.evaluate_objectives(
                 ind,
                 cache=cache,
                 make_copy=True, force=force,
-                update_cache=False,
-                return_cache_new=True,
             )
+            if cache is not None:
+                cache.close()
 
-            return results, cache_new
+            return results
 
         if n_cores == 1:
             results = []
-            caches_new = []
             for ind in population:
                 try:
-                    res, cache_new = eval_fun(ind)
+                    res = eval_fun(ind)
                     results.append(res)
-                    caches_new.append(cache_new)
                 except CADETProcessError:
                     print(ind)
         else:
             if n_cores == 0 or n_cores == -1:
                 n_cores = None
             with pathos.pools.ProcessPool(ncpus=n_cores) as pool:
-                mapped_results = pool.map(eval_fun, population)
-                results = [m[0] for m in mapped_results]
-                caches_new = [m[1] for m in mapped_results]
+                results = pool.map(eval_fun, population)
 
-        if cache is not None and update_cache:
-            for new in caches_new:
-                update(cache, new)
-
-        if not return_cache_new:
-            return results
-
-        return results, cache
+        return results
 
     @untransforms
     def objective_jacobian(self, x, dx=1e-3):
@@ -880,9 +859,7 @@ class OptimizationProblem(metaclass=StructMeta):
             x,
             cache=None,
             make_copy=False,
-            force=False,
-            update_cache=True,
-            return_cache_new=False):
+            force=False):
         """Evaluate nonlinear constraint functions at point x.
 
         After evaluating the nonlinear constraint functions, the corresponding
@@ -899,10 +876,6 @@ class OptimizationProblem(metaclass=StructMeta):
             for multiprocessing.
         force : bool
             If True, do not use cached results. The default if False.
-        update_cache : bool
-            If True, cache is updated with new results. The default is True.
-        return_cache_new : bool
-            If True, return new results cache. The default is False.
 
         Returns
         -------
@@ -922,12 +895,11 @@ class OptimizationProblem(metaclass=StructMeta):
 
         x = list(x)
         g = []
-        cache_new = self.setup_cache()
 
         for nonlincon in self.nonlinear_constraints:
             try:
                 value = self._evaluate(
-                    x, nonlincon, cache, cache_new, make_copy, force,
+                    x, nonlincon, cache, make_copy, force,
                 )
                 g += value
             except CADETProcessError:
@@ -939,57 +911,39 @@ class OptimizationProblem(metaclass=StructMeta):
 
         c = np.array(g) - np.array(self.nonlinear_constraints_bounds)
 
-        if cache is not None and update_cache:
-            update(cache, cache_new)
-
-        if not return_cache_new:
-            return c
-
-        return c, cache_new
+        return c
 
     @untransforms
     @ensures2d
     def evaluate_nonlinear_constraints_population(
-            self, population, cache=None, force=False, n_cores=-1,
-            update_cache=True, return_cache_new=False):
+            self, population, cache=None, force=False, n_cores=-1):
 
         def eval_fun(ind):
-            results, cache_new = self.evaluate_nonlinear_constraints(
+            results = self.evaluate_nonlinear_constraints(
                 ind,
                 cache=cache,
                 make_copy=True, force=force,
-                update_cache=False,
-                return_cache_new=True,
             )
+            if cache is not None:
+                cache.close()
 
-            return results, cache_new
+            return results
 
         if n_cores == 1:
             results = []
-            caches_new = []
             for ind in population:
                 try:
-                    res, cache_new = eval_fun(ind)
+                    res = eval_fun(ind)
                     results.append(res)
-                    caches_new.append(cache_new)
                 except CADETProcessError:
                     print(ind)
         else:
             if n_cores == 0 or n_cores == -1:
                 n_cores = None
             with pathos.pools.ProcessPool(ncpus=n_cores) as pool:
-                mapped_results = pool.map(eval_fun, population)
-                results = [m[0] for m in mapped_results]
-                caches_new = [m[1] for m in mapped_results]
+                results = pool.map(eval_fun, population)
 
-        if cache is not None and update_cache:
-            for new in caches_new:
-                update(cache, new)
-
-        if not return_cache_new:
-            return results
-
-        return results, cache
+        return results
 
     @untransforms
     def check_nonlinear_constraints(self, x):
@@ -1094,9 +1048,7 @@ class OptimizationProblem(metaclass=StructMeta):
             make_copy=False,
             force=False,
             results_dir='./',
-            current_iteration=0,
-            update_cache=True,
-            return_cache_new=False):
+            current_iteration=0):
         """Evaluate callback functions at point x.
 
         Parameters
@@ -1114,10 +1066,6 @@ class OptimizationProblem(metaclass=StructMeta):
             Path to store results (e.g. figures, tables etc).
         current_iteration : int
             Current iteration to determine if callback should be evaluated.
-        update_cache : bool
-            If True, cache is updated with new results. The default is True.
-        return_cache_new : bool
-            If True, return new results cache. The default is False.
 
         Returns
         -------
@@ -1135,7 +1083,6 @@ class OptimizationProblem(metaclass=StructMeta):
 
         x = list(x)
         c = []
-        cache_new = self.setup_cache()
 
         for callback in self.callbacks:
             if not current_iteration % callback.frequency == 0:
@@ -1143,7 +1090,7 @@ class OptimizationProblem(metaclass=StructMeta):
             callback.results_dir = results_dir
             try:
                 value = self._evaluate(
-                    x, callback, cache, cache_new, make_copy, force,
+                    x, callback, cache, make_copy, force,
                 )
                 c += value
             except CADETProcessError:
@@ -1151,64 +1098,54 @@ class OptimizationProblem(metaclass=StructMeta):
                     f'Evaluation of {callback.name} failed at {x}. '
                 )
 
-        if cache is not None and update_cache:
-            update(cache, cache_new)
-
-        if not return_cache_new:
-            return c
-
-        return c, cache_new
+        return c
 
     @untransforms
     @ensures2d
     def evaluate_callbacks_population(
             self, population, results_dir, cache=None, force=False, n_cores=-1,
-            current_iteration=0, update_cache=True, return_cache_new=False):
+            current_iteration=0):
 
         def eval_fun(ind):
-            results, cache_new = self.evaluate_callbacks(
+            results = self.evaluate_callbacks(
                 ind,
                 cache=cache,
                 make_copy=True, force=force,
                 results_dir=results_dir, current_iteration=current_iteration,
-                update_cache=False,
-                return_cache_new=True,
             )
+            if cache is not None:
+                cache.close()
 
-            return results, cache_new
+            return results
 
         if n_cores == 1:
             results = []
-            caches_new = []
             for ind in population:
                 try:
-                    res, cache_new = eval_fun(ind)
+                    res = eval_fun(ind)
                     results.append(res)
-                    caches_new.append(cache_new)
                 except CADETProcessError:
                     print(ind)
         else:
             if n_cores == 0 or n_cores == -1:
                 n_cores = None
             with pathos.pools.ProcessPool(ncpus=n_cores) as pool:
-                mapped_results = pool.map(eval_fun, population)
-                results = [m[0] for m in mapped_results]
-                caches_new = [m[1] for m in mapped_results]
+                results = pool.map(eval_fun, population)
 
-        if cache is not None and update_cache:
-            for new in caches_new:
-                update(cache, new)
+        return results
 
-        if not return_cache_new:
-            return results
-
-        return results, cache
+    @property
+    def cached_steps(self):
+        return \
+            self.cached_evaluators + \
+            self.objectives + \
+            self.nonlinear_constraints
 
     @untransforms
     def _evaluate(
             self,
             x, func,
-            cache_prev=None, cache_new=None, make_copy=False, force=False,
+            cache=None, make_copy=False, force=False,
             *args, **kwargs):
         """Iterate over all evaluation objects and evaluate at x.
 
@@ -1218,15 +1155,13 @@ class OptimizationProblem(metaclass=StructMeta):
             Value of the optimization variables.
         func : Evaluator or Objective, or Nonlinear Constraint, or Callback
             Evaluation function.
-        cache_prev : dict, optional
-            Dictionary with previously cached results.
-        cache_new : dict, optional
-            Dictionary for caching new results.
+        cache : dict, optional
+            Dictionary with cached results.
         make_copy : bool
             If True, a copy of the EvaluationObjects is used which is required
             for multiprocessing.
         force : bool
-            If True, do not use cached results. The default if False.
+            If True, do not use cached results. The default is False.
         *args : tuple
             Additional positional arguments for evaluation function.
         **kwargs : TYPE
@@ -1247,145 +1182,72 @@ class OptimizationProblem(metaclass=StructMeta):
         else:
             requires = [func]
 
-        if len(func.evaluation_objects) == 0:
-            result = self._evaluate_inner(
-                x, func, requires,
-                cache_prev, cache_new, force,
-                *args, **kwargs
+        evaluation_objects = self.set_variables(x, make_copy=make_copy)
+        if len(evaluation_objects) == 0:
+            evaluation_objects = [None]
+
+        for eval_obj in evaluation_objects:
+            self.logger.info(
+                f"Evaluating {func}. "
+                f"requires evaluation of {[str(req) for req in requires]}"
             )
-            results += result
-        else:
-            for el in func.evaluation_objects:
-                evaluation_objects = self.set_variables(x, el, make_copy)
-                eval_obj = evaluation_objects[0]
 
-                if cache_prev is not None:
-                    inner_cache_prev = cache_prev[str(eval_obj)].copy()
-                else:
-                    inner_cache_prev = None
-                if cache_new is not None:
-                    inner_cache_new = cache_new[str(eval_obj)].copy()
-                else:
-                    inner_cache_new = None
+            if eval_obj is None:
+                current_request = x
+            else:
+                current_request = eval_obj
 
-                result = self._evaluate_inner(
-                    eval_obj, func, requires,
-                    inner_cache_prev,
-                    inner_cache_new,
-                    force, x=x,
-                    *args, **kwargs
+            if cache is not None and not force:
+                remaining = []
+                for step in reversed(requires):
+                    try:
+                        result = cache.get(eval_obj, step, x)
+                        self.logger.info(
+                            f'Got {str(step)} results from cache.'
+                        )
+                        current_request = result
+                        break
+                    except KeyError:
+                        pass
+
+                    remaining.insert(0, step)
+            else:
+                remaining = requires
+
+            self.logger.debug(
+                f'Evaluating remaining functions: '
+                f'{[str(step) for step in remaining]}.'
+            )
+
+            for step in remaining:
+                if isinstance(step, Callback):
+                    step.evaluate(
+                        current_request,
+                        x=x, evaluation_object=eval_obj,
+                        *args, **kwargs
+                    )
+                else:
+                    result = step.evaluate(current_request, *args, **kwargs)
+                    if cache is not None:
+                        if cache not in self.cached_steps:
+                            tag = 'temp'
+                        else:
+                            tag = None
+                        cache.set(eval_obj, step, x, result, tag=tag)
+                current_request = result
+
+            if not isinstance(result, list):
+                result = [result]
+
+            if len(result) != func.n_metrics:
+                raise CADETProcessError(
+                    f"Expected length {func.n_metrics} "
+                    f"for {str(func)}"
                 )
-                results += result
 
-                if cache_new is not None:
-                    cache_new[str(eval_obj)] = inner_cache_new
+            results += result
 
         return results
-
-    def _evaluate_inner(
-            self, request, func, requires,
-            cache_prev=None, cache_new=None, force=False, x=None,
-            *args, **kwargs):
-        """Iterate over all evaluation requirements and evaluate at request.
-
-        Parameters
-        ----------
-        request : object
-            Argument for evaluation function (e.g. x, EvaluationObject or some
-            intermediate result).
-        func : Evaluator or Objective, or Nonlinear Constraint, or Callback
-            Evaluation function.
-        requires : list
-            List of steps (evaluators) required for evaluation.
-        cache_prev : dict, optional
-            Dictionary with previously cached results.
-        cache_new : dict, optional
-            Dictionary for caching new results.
-        force : bool
-            If True, do not use cached results. The default if False.
-        x : array_like, optional.
-            Value of the optimization variables.
-            If None, request is used t
-        *args : tuple
-            Additional positional arguments for evaluation function.
-        **kwargs : TYPE
-            Additional keyword arguments for evaluation function.
-
-        Raises
-        ------
-        CADETProcessError
-            DESCRIPTION.
-
-        Returns
-        -------
-        result : TYPE
-            DESCRIPTION.
-
-        """
-        self.logger.info(
-            f"Evaluating {func}. "
-            f"requires evaluation of {[str(req) for req in requires]}"
-        )
-        if x is None:
-            x = request
-        current_request = request
-
-        if cache_prev is not None and not force:
-            remaining = []
-            for step in reversed(requires):
-                try:
-                    result = cache_prev[str(step)][tuple(x)]
-                    self.logger.info(
-                        f'Got {str(step)} results from cache.'
-                    )
-                    current_request = result
-                    break
-                except KeyError:
-                    pass
-
-                try:
-                    result = cache_new[str(step)][tuple(x)]
-                    self.logger.info(
-                        f'Got {str(step)} results from inner cache.'
-                    )
-                    current_request = result
-                    break
-                except KeyError:
-                    pass
-
-                remaining.insert(0, step)
-
-        else:
-            remaining = requires
-
-        self.logger.debug(
-            f'Evaluating remaining functions: '
-            f'{[str(step) for step in remaining]}.'
-        )
-
-        for step in remaining:
-            if isinstance(step, Callback):
-                step.evaluate(
-                    current_request,
-                    x=x, evaluation_object=request,
-                    *args, **kwargs
-                )
-            else:
-                result = step.evaluate(current_request, *args, **kwargs)
-                if cache_new is not None:
-                    cache_new[str(step)][tuple(x)] = result
-            current_request = result
-
-        if not isinstance(result, list):
-            result = [result]
-
-        if len(result) != func.n_metrics:
-            raise CADETProcessError(
-                f"Expected length {func.n_metrics} "
-                f"for {str(func)}"
-            )
-
-        return result
 
     @property
     def lower_bounds(self):
@@ -2049,73 +1911,6 @@ class OptimizationProblem(metaclass=StructMeta):
         parameters.linear_constraints = self.linear_constraints
 
         return parameters
-
-    def setup_cache(self, only_cached_evalutors=False):
-        """Helper function to setup cache dictionary structure.
-
-        Structure:
-        [evaluation_object][step][x]
-
-        For example:
-        [Process 1][ProcessSimulator][x] -> SimulationResults
-        [Process 1][Fractionator][x] -> Performance
-        [Process 1][Objective 1][x] -> f1.1
-        [Process 1][Objective 2][x] -> f2.1
-        [Process 1][Constraint 1][x] -> g1.1
-
-        [Process 2][ProcessSimulator][x] -> SimulationResults
-        [Process 2][Fractionator][x] -> erformance
-        [Process 2][Objective 1][x] -> f1.2
-        [Process 2][Objective 2][x] -> f2.2
-        [Process 2][Constraint 1]x] -> g1.2
-
-        [CustomSimulator][x] -> SimulationResults
-        [Custom Objective][x] -> f3
-        [Custom Constraint][x] -> g2
-
-        """
-        cache = {}
-
-        if only_cached_evalutors:
-            evaluators = self.cached_evaluators
-        else:
-            evaluators = self.evaluators
-
-        for objective in self.objectives:
-            if len(objective.evaluation_objects) == 0:
-                cache[objective.name] = {}
-                for evaluator in objective.evaluators:
-                    if evaluator in evaluators:
-                        cache[str(evaluator)] = {}
-            else:
-                for eval_obj in objective.evaluation_objects:
-                    if str(eval_obj) not in cache:
-                        cache[str(eval_obj)] = {}
-
-                    cache[str(eval_obj)][objective.name] = {}
-
-                for evaluator in objective.evaluators:
-                    if evaluator in evaluators:
-                        cache[str(eval_obj)][str(evaluator)] = {}
-
-        for nonlincon in self.nonlinear_constraints:
-            if len(nonlincon.evaluation_objects) == 0:
-                cache[nonlincon.name] = {}
-                for evaluator in nonlincon.evaluators:
-                    if evaluator in evaluators:
-                        cache[str(evaluator)] = {}
-            else:
-                for eval_obj in nonlincon.evaluation_objects:
-                    if str(eval_obj) not in cache:
-                        cache[str(eval_obj)] = {}
-
-                    cache[str(eval_obj)][nonlincon.name] = {}
-
-                for evaluator in nonlincon.evaluators:
-                    if evaluator in evaluators:
-                        cache[str(eval_obj)][str(evaluator)] = {}
-
-        return cache
 
     def __str__(self):
         return self.name

@@ -1,15 +1,17 @@
 import copy
+import shutil
 
 import corner
+from diskcache import Cache
 import numpy as np
 import matplotlib.pyplot as plt
+from pymoo.visualization.scatter import Scatter
 
 from CADETProcess import CADETProcessError
 from CADETProcess import plotting
 from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import List, Bool
-
-from pymoo.visualization.scatter import Scatter
+from CADETProcess.dataStructure import DillDisk
 
 
 class Individual(metaclass=StructMeta):
@@ -77,7 +79,9 @@ class Individual(metaclass=StructMeta):
 
 
 class OptimizationProgress():
-    def __init__(self, optimization_problem, save_results=False):
+    def __init__(
+            self, optimization_problem,
+            working_directory, save_results=False, overwrite=True):
         self.optimization_problem = optimization_problem
 
         self._individuals = []
@@ -90,18 +94,48 @@ class OptimizationProgress():
                 0, optimization_problem.n_nonlinear_constraints
             ))
 
-        self.cache = optimization_problem.setup_cache()
+        self.working_directory = working_directory
+        self.save_results = save_results
 
-        if save_results:
-            self.setup_convergence_figure('objectives', show=False)
-            if optimization_problem.n_nonlinear_constraints > 1:
-                self.setup_convergence_figure(
-                    'nonlinear_constraints', show=False
-                )
-            self.setup_space_figure(show=False)
+        self.setup_directories(overwrite)
 
-        self.progress_directory = None
-        self.results_directory = None
+        if self.save_results:
+            self.setup_figures()
+
+        self.cache = ResultsCache(
+            optimization_problem, self.cache_directory,
+            autoclean=not(save_results)
+        )
+
+    def setup_directories(self, overwrite=False):
+        if self.save_results:
+            progress_dir = self.working_directory / 'progress'
+            progress_dir.mkdir(exist_ok=overwrite)
+            self.progress_directory = progress_dir
+        else:
+            self.progress_directory = None
+
+        if self.save_results:
+            results_dir = self.working_directory / 'results'
+            progress_dir.mkdir(exist_ok=overwrite)
+            self.results_directory = results_dir
+        else:
+            self.results_directory = None
+
+        if self.save_results:
+            cache_dir = self.working_directory / 'cache'
+            results_dir.mkdir(exist_ok=overwrite)
+            self.cache_directory = cache_dir
+        else:
+            self.cache_directory = None
+
+    def setup_figures(self):
+        self.setup_convergence_figure('objectives', show=False)
+        if self.optimization_problem.n_nonlinear_constraints > 1:
+            self.setup_convergence_figure(
+                'nonlinear_constraints', show=False
+            )
+        self.setup_space_figure(show=False)
 
     def save_progress(self):
         self.plot_convergence('objectives', show=False)
@@ -130,58 +164,6 @@ class OptimizationProgress():
             untransform=untransform,
         )
 
-    def prune_cache(self):
-        """Only keep members of hall of fame."""
-        problem = self.optimization_problem
-        cache = problem.setup_cache(only_cached_evalutors=True)
-
-        evaluators = problem.cached_evaluators
-
-        x_hof = self.optimization_problem.untransform(
-            self.x_hof, enforce2d=True
-        )
-
-        for ind in x_hof:
-            try:
-                ind = tuple(ind)
-                for objective in problem.objectives:
-                    if len(objective.evaluation_objects) == 0:
-                        for evaluator in objective.evaluators:
-                            if evaluator in evaluators:
-                                cache[str(evaluator)][ind] = \
-                                    self.cache[str(evaluator)][ind]
-                    else:
-                        for eval_obj in objective.evaluation_objects:
-                            cache[str(eval_obj)][objective.name][ind] = \
-                                self.cache[str(eval_obj)][objective.name][ind]
-
-                        for evaluator in objective.evaluators:
-                            if evaluator in evaluators:
-                                cache[str(eval_obj)][str(evaluator)][ind] = \
-                                    self.cache[str(eval_obj)][str(evaluator)][ind]
-
-                for nonlincon in problem.nonlinear_constraints:
-                    if len(nonlincon.evaluation_objects) == 0:
-                        for evaluator in nonlincon.evaluators:
-                            if evaluator in evaluators:
-                                cache[str(evaluator)][ind] = \
-                                    self.cache[str(evaluator)][ind]
-                    else:
-                        for eval_obj in nonlincon.evaluation_objects:
-                            cache[str(eval_obj)][nonlincon.name][ind] = \
-                                self.cache[str(eval_obj)][nonlincon.name][ind]
-
-                        for evaluator in nonlincon.evaluators:
-                            if evaluator in evaluators:
-                                cache[str(eval_obj)][str(evaluator)][ind] = \
-                                    self.cache[str(eval_obj)][str(evaluator)][ind]
-            except KeyError:
-                pass
-
-        self.cache = cache
-
-        return cache
-
     @property
     def individuals(self):
         """list: Evaluated individuals."""
@@ -191,6 +173,9 @@ class OptimizationProgress():
         if not isinstance(individual, Individual):
             raise TypeError("Expected Individual")
         self._individuals.append(individual)
+
+    def prune_cache(self):
+        self.cache.prune()
 
     @property
     def hall_of_fame(self):
@@ -456,3 +441,81 @@ class OptimizationProgress():
 
         if not show:
             plt.close(plot.fig)
+
+
+class ResultsCache():
+    """
+    Internal structure:
+    [evaluation_object][step][x]
+
+    For example:
+    [EvaluationObject 1][Evaluator 1][x] -> IntermediateResults 1
+    [EvaluationObject 1][Evaluator 2][x] -> IntermediateResults 2
+    [EvaluationObject 1][Objective 1][x] -> f1.1
+    [EvaluationObject 1][Objective 2][x] -> f1.2
+    [EvaluationObject 1][Constraint 1][x] -> g1.1
+
+    [EvaluationObject 2][Evaluator 1][x] -> IntermediateResults 1
+    [EvaluationObject 2][Evaluator 2][x] -> IntermediateResults 2
+    [EvaluationObject 2][Objective 1][x] -> f2.1
+    [EvaluationObject 2][Objective 2][x] -> f2.2
+    [EvaluationObject 2][Constraint 1][x] -> g2.1
+
+    [None][Evaluator 1][x] -> IntermediateResults 1
+    [Objective 3][x] -> f3
+    [Constraint 2][x] -> g2
+
+    """
+
+    def __init__(self, optimization_problem, directory=None, cleanup=True):
+        self.directory = directory
+        self.cleanup = cleanup
+        self.cache = Cache(
+           directory, disk=DillDisk, disk_min_file_size=2**18
+        )
+
+    @property
+    def directory(self):
+        return self.cache.directory
+
+    @directory.setter
+    def directory(self, directory):
+        self._directory = directory
+
+    def set(self, eval_obj, step, x, result, tag=None):
+        key = f'{eval_obj}.{step}.{x}'
+
+        self.cache.set(key, result, expire=None, tag=tag)
+
+    def get(self, eval_obj, step, x):
+        key = f'{eval_obj}.{step}.{x}'
+
+        result = self.cache[key]
+
+        return result
+
+    def delete(self, eval_obj, step, x):
+        key = f'{eval_obj}.{step}.{x}'
+
+        self.cache.delete(key)
+
+    def prune(self, tag='temp'):
+        keys = self.tags[tag]
+
+        for key in keys:
+            try:
+                del self.cache[key]
+            except KeyError:
+                pass
+
+        self.close()
+
+    def close(self):
+        self.cache.close()
+
+    def __del__(self):
+        if hasattr(self, 'autoclean') and self.autoclean:
+            try:
+                shutil.rmtree(self.directory, ignore_errors=True)
+            except FileNotFoundError:
+                pass

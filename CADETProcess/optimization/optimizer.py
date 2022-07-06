@@ -43,11 +43,10 @@ class OptimizerBase(metaclass=StructMeta):
         if not isinstance(optimization_problem, OptimizationProblem):
             raise TypeError('Expected OptimizationProblem')
 
-        self.progress = OptimizationProgress(
-            optimization_problem, save_results
-        )
-
         self.setup_directories(save_results)
+        self.progress = OptimizationProgress(
+            optimization_problem, self.working_directory, save_results
+        )
 
         log.log_time('Optimization', self.logger.level)(self.run)
         log.log_results('Optimization', self.logger.level)(self.run)
@@ -64,22 +63,7 @@ class OptimizerBase(metaclass=StructMeta):
 
     def setup_directories(self, save_results, overwrite=True):
         self.working_directory = settings.working_directory
-
-        if save_results:
-            progress_dir = self.working_directory / 'progress'
-            progress_dir.mkdir(exist_ok=overwrite)
-        else:
-            progress_dir = None
-        self.progress.progress_directory = progress_dir
-
-        if save_results:
-            results_dir = self.working_directory / 'results'
-            results_dir.mkdir(exist_ok=overwrite)
-        else:
-            results_dir = None
-        self.progress.results_directory = results_dir
-
-        self.results_directory = results_dir
+        self.results_directory = self.working_directory / 'results'
 
     @abstractmethod
     def run(optimization_problem, *args, **kwargs):
