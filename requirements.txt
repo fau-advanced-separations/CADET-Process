@@ -10,3 +10,4 @@ addict
 hopsy
 pymoo
 numba
+diskcache
