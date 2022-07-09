@@ -85,32 +85,48 @@ class PymooInterface(OptimizerBase):
             self.algorithm.next()
 
             for ind in self.algorithm.pop:
+                x_untransformed \
+                    = optimization_problem.get_dependent_values(
+                        ind.X, untransform=True
+                    )
+
                 if self.optimization_problem.n_nonlinear_constraints > 0:
                     ind = Individual(
                         ind.X.tolist(),
                         ind.F.tolist(),
-                        ind.G.tolist()
+                        ind.G.tolist(),
+                        x_untransformed=x_untransformed
                     )
                 else:
                     ind = Individual(
                         ind.X.tolist(),
                         ind.F.tolist(),
+                        x_untransformed=x_untransformed
                     )
+
                 self.progress.add_individual(ind)
 
             self.progress.hall_of_fame = []
             for opt in self.algorithm.opt:
+                x_untransformed \
+                    = optimization_problem.get_dependent_values(
+                        opt.X, untransform=True
+                    )
+
                 if self.optimization_problem.n_nonlinear_constraints > 0:
                     ind = Individual(
                         opt.X.tolist(),
                         opt.F.tolist(),
-                        opt.G.tolist()
+                        opt.G.tolist(),
+                        x_untransformed=x_untransformed
                     )
                 else:
                     ind = Individual(
                         opt.X.tolist(),
                         opt.F.tolist(),
+                        x_untransformed=x_untransformed
                     )
+
                 self.progress.hall_of_fame.append(ind)
 
             self.progress.update_history()

@@ -1,4 +1,4 @@
-import copy
+from collections import defaultdict
 import shutil
 
 import corner
@@ -20,10 +20,14 @@ class Individual(metaclass=StructMeta):
     g = List()
     is_valid = Bool(default=True)
 
-    def __init__(self, x, f, g=None):
+    def __init__(self, x, f, g=None, x_untransformed=None):
         self.x = x
         self.f = f
         self.g = g
+
+        if x_untransformed is None:
+            x_untransformed = x
+        self.x_untransformed = x_untransformed
 
     def dominates(self, other, objectives_filter=slice(None)):
         """
@@ -196,6 +200,16 @@ class OptimizationProgress():
         return np.array([ind.x for ind in self.hall_of_fame])
 
     @property
+    def x_untransformed(self):
+        """np.array: All evaluated points."""
+        return np.array([ind.x_untransformed for ind in self.individuals])
+
+    @property
+    def x_hof_untransformed(self):
+        """list: Optimization variable values of hall of fame entires."""
+        return np.array([ind._untransformed for ind in self.hall_of_fame])
+
+    @property
     def f(self):
         """np.array: All evaluated objective function values."""
         return np.array([ind.f for ind in self.individuals])
@@ -342,10 +356,17 @@ class OptimizationProgress():
         if not show:
             plt.close(fig)
 
-    def plot_corner(self, show=True):
+    def plot_corner(self, untransformed=True, show=True):
+        if untransformed:
+            x = self.x
+            labels = self.optimization_problem.independent_variable_names
+        else:
+            x = self.x_untransformed
+            labels = self.optimization_problem.variable_names
+
         fig = corner.corner(
-            self.x,
-            labels=self.optimization_problem.variable_names,
+            x,
+            labels=labels,
             quantiles=[0.16, 0.5, 0.84],
             show_titles=True,
             title_kwargs={"fontsize": 12}
@@ -394,7 +415,7 @@ class OptimizationProgress():
         funcs = self.optimization_problem.objectives
 
         values = self.f
-        x = self.x
+        x = self.x_untransformed
 
         for i_var, (var, ax) in enumerate(zip(variables, axs)):
             x_var = x[:, i_var]
@@ -419,7 +440,10 @@ class OptimizationProgress():
 
             v_var = v_var.copy()
             v_var[np.where(np.isinf(v_var))] = np.nan
-            layout.x_lim = (np.min(x_var), np.max(x_var))
+            layout.x_lim = (
+                self.optimization_problem.lower_bounds[i_var],
+                self.optimization_problem.upper_bounds[i_var]
+            )
             layout.y_lim = (np.nanmin(v_var), np.nanmax(v_var))
             try:
                 plotting.set_layout(ax, layout)
@@ -433,7 +457,7 @@ class OptimizationProgress():
             plt.close(fig)
 
     def plot_pareto(self, show=True):
-        plot = Scatter(tight_layout=True)
+        plot = Scatter(tight_layout=True, plot_3D=False)
         plot.add(self.f, s=10)
 
         if self.progress_directory is not None:
@@ -467,9 +491,9 @@ class ResultsCache():
 
     """
 
-    def __init__(self, optimization_problem, directory=None, cleanup=True):
-        self.directory = directory
-        self.cleanup = cleanup
+    def __init__(self, optimization_problem, directory=None, autoclean=False):
+        self.autoclean = autoclean
+        self.tags = defaultdict(list)
         self.cache = Cache(
            directory, disk=DillDisk, disk_min_file_size=2**18
         )
@@ -478,12 +502,10 @@ class ResultsCache():
     def directory(self):
         return self.cache.directory
 
-    @directory.setter
-    def directory(self, directory):
-        self._directory = directory
-
     def set(self, eval_obj, step, x, result, tag=None):
         key = f'{eval_obj}.{step}.{x}'
+        if tag is not None:
+            self.tags[tag].append(key)
 
         self.cache.set(key, result, expire=None, tag=tag)
 
