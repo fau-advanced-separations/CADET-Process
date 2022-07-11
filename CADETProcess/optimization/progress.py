@@ -1,5 +1,6 @@
 from collections import defaultdict
 import shutil
+import warnings
 
 import corner
 from diskcache import Cache
@@ -142,13 +143,14 @@ class OptimizationProgress():
         self.setup_space_figure(show=False)
 
     def save_progress(self):
-        self.plot_convergence('objectives', show=False)
-        if self.optimization_problem.n_nonlinear_constraints > 1:
-            self.plot_convergence('nonlinear_constraints', show=False)
-
-        self.plot_corner(show=False)
-        self.plot_space(show=False)
-        self.plot_pareto(show=False)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            self.plot_convergence('objectives', show=False)
+            if self.optimization_problem.n_nonlinear_constraints > 1:
+                self.plot_convergence('nonlinear_constraints', show=False)
+            self.plot_corner(show=False)
+            self.plot_space(show=False)
+            self.plot_pareto(show=False)
 
     def save_callback(
             self, n_cores=1, current_iteration=None, untransform=False):
@@ -270,52 +272,67 @@ class OptimizationProgress():
 
     def setup_convergence_figure(self, target, show=False):
         if target == 'objectives':
-            n = len(self.optimization_problem.objectives)
+            n = self.optimization_problem.n_objectives
         elif target == 'nonlinear_constraints':
-            n = len(self.optimization_problem.nonlinear_constraints)
+            n = self.optimization_problem.n_nonlinear_constraints
         else:
             raise CADETProcessError("Unknown target.")
 
         if n == 0:
             return (None, None)
-        if n == 1:
-            fig, axs = plt.subplots()
-            axs = [axs]
-        else:
-            fig, axs = plt.subplots(
-                ncols=n,
-                figsize=(n*4, 6),
-            )
 
-        fig.tight_layout()
-
-        setattr(self, f'convergence_{target}_fig', fig)
-        setattr(self, f'convergence_{target}_axs', axs)
+        fig_all, axs_all = plt.subplots(
+            ncols=n,
+            figsize=(n*6 + 2, 6),
+        )
 
         if not show:
-            plt.close(fig)
+            plt.close(fig_all)
 
-        return fig, axs
+        setattr(self, f'convergence_{target}_fig_all', fig_all)
+        setattr(self, f'convergence_{target}_axs_all', axs_all)
 
-    def plot_convergence(self, target, fig=None, axs=None, show=True):
-        if fig is None and axs is None:
+        figs_ind = []
+        axs_ind = []
+        for i in range(n):
+            fig, ax = plt.subplots()
+            figs_ind.append(fig)
+            axs_ind.append(ax)
+            if not show:
+                plt.close(fig)
+
+        axs_ind = np.array(axs_ind).reshape(axs_all.shape)
+        setattr(self, f'convergence_{target}_fig_ind', figs_ind)
+        setattr(self, f'convergence_{target}_axs_ind', axs_ind)
+
+    def plot_convergence(
+            self,
+            target,
+            figs=None, axs=None,
+            plot_individual=False,
+            autoscale=True, show=True):
+
+        if axs is None:
             if target == 'objectives':
-                fig = self.convergence_objectives_fig
-                axs = self.convergence_objectives_axs
+                if plot_individual:
+                    axs = self.convergence_objectives_axs_ind
+                else:
+                    axs = self.convergence_objectives_axs_all
+
             if target == 'nonlinear_constraints':
-                fig = self.convergence_nonlinear_constraints_fig
-                axs = self.convergence_nonlinear_constraints_axs
+                if plot_individual:
+                    axs = self.convergence_nonlinear_constraints_axs_ind
+                else:
+                    axs = self.convergence_nonlinear_constraints_axs_all
 
         layout = plotting.Layout()
         layout.x_label = '$n_{Evaluations}$'
 
         if target == 'objectives':
             funcs = self.optimization_problem.objectives
-            layout.y_label = '$f~/~-$'
             values = self.f_history
         elif target == 'nonlinear_constraints':
             funcs = self.optimization_problem.nonlinear_constraints
-            layout.y_label = '$g~/~-$'
             values = self.g_history
         else:
             raise CADETProcessError("Unknown target.")
@@ -324,37 +341,83 @@ class OptimizationProgress():
             return
 
         counter = 0
-        for func, ax in zip(funcs, axs):
-            lines = ax.get_lines()
+        for func in funcs:
             start = counter
             stop = counter+func.n_metrics
             v_func = values[:, start:stop]
-            if len(lines) > 0:
-                for i, line in enumerate(lines):
-                    v_line = v_func[:, i]
-                    line.set_xdata(self.n_evals)
-                    layout.x_lim = (0, np.max(self.n_evals)+1)
-                    line.set_ydata(v_line)
-                layout.y_lim = (np.min(v_func), np.max(v_func))
-            else:
-                ax.plot(self.n_evals, v_func)
 
-            layout.title = str(func)
+            for i_metric in range(func.n_metrics):
+                v_line = v_func[:, i_metric]
 
-            try:
-                plotting.set_layout(ax, layout)
-            except ValueError:
-                pass
+                ax = axs[counter + i_metric]
+                lines = ax.get_lines()
+
+                if len(lines) > 0:
+                    lines[0].set_xdata(self.n_evals)
+                    lines[0].set_ydata(v_line)
+                else:
+                    ax.plot(self.n_evals, v_line)
+
+                layout.x_lim = (0, np.max(self.n_evals)+1)
+                layout.y_lim = (np.min(v_line), np.max(v_line))
+
+                try:
+                    label = func.labels[i_metric]
+                except AttributeError:
+                    label = f'{func}_{i_metric}'
+
+                y_min = np.nanmin(v_line)
+                y_max = np.nanmax(v_line)
+                y_lim = (0.9*y_min, 1.1*y_max)
+                layout.y_label = label
+                if autoscale and np.min(v_line) > 0:
+                    if np.max(v_line) / np.min(v_line[v_line > 0]) > 100.0:
+                        ax.set_yscale('log')
+                        layout.y_label = f"log10({label})"
+                        y_lim = (y_min/2, y_max*2)
+                if y_min != y_max:
+                    layout.y_lim = y_lim
+
+                try:
+                    plotting.set_layout(ax, layout)
+                except ValueError:
+                    pass
 
             counter += func.n_metrics
 
-        fig.tight_layout()
+        if figs is None:
+            if plot_individual:
+                if target == 'objectives':
+                    figs = self.convergence_objectives_fig_ind
+                elif target == 'nonlinear_constraints':
+                    figs = self.convergence_nonlinear_constraints_fig_ind
+            else:
+                if target == 'objectives':
+                    figs = [self.convergence_objectives_fig_all]
+                elif target == 'nonlinear_constraints':
+                    figs = [self.convergence_nonlinear_constraints_fig_all]
+
+        for fig in figs:
+            fig.tight_layout()
+            if not show:
+                plt.close(fig)
+            else:
+                dummy = plt.figure()
+                new_manager = dummy.canvas.manager
+                new_manager.canvas.figure = fig
+                fig.set_canvas(new_manager.canvas)
+                plt.show()
 
         if self.progress_directory is not None:
-            fig.savefig(f'{self.progress_directory / target}.png')
-
-        if not show:
-            plt.close(fig)
+            if plot_individual:
+                for i, fig in enumerate(figs):
+                    fig.savefig(
+                        f'{self.progress_directory / target}_{i}.png'
+                    )
+            else:
+                figs[0].savefig(
+                    f'{self.progress_directory / target}.png'
+                )
 
     def plot_corner(self, untransformed=True, show=True):
         if untransformed:
@@ -367,10 +430,16 @@ class OptimizationProgress():
         fig = corner.corner(
             x,
             labels=labels,
+            bins=20,
             quantiles=[0.16, 0.5, 0.84],
             show_titles=True,
-            title_kwargs={"fontsize": 12}
+            title_kwargs={"fontsize": 20},
+            title_fmt=".2g",
+            use_math_text=True,
+            quiet=True,
         )
+        fig_size = 6*len(labels)
+        fig.set_size_inches((fig_size, fig_size))
         fig.tight_layout()
 
         if self.progress_directory is not None:
@@ -381,83 +450,151 @@ class OptimizationProgress():
 
     def setup_space_figure(self, show=False):
         n = self.optimization_problem.n_variables
+        m = self.optimization_problem.n_objectives
 
         if n == 0:
             return (None, None)
-        if n == 1:
-            fig, axs = plt.subplots()
-            axs = [axs]
-        else:
-            fig, axs = plt.subplots(
-                ncols=n,
-                figsize=(n*4, 6),
-            )
 
-        fig.tight_layout()
-
-        self.space_fig = fig
-        self.space_axs = axs
+        fig_all, axs_all = plt.subplots(
+            nrows=m,
+            ncols=n,
+            figsize=(n*8 + 2, m*8 + 2),
+        )
 
         if not show:
-            plt.close(fig)
+            plt.close(fig_all)
 
-        return fig, axs
+        self.space_fig_all = fig_all
+        self.space_axs_all = axs_all
 
-    def plot_space(self, fig=None, axs=None, show=True):
-        if fig is None and axs is None:
-            fig, axs = self.space_fig, self.space_axs
+        figs_ind = []
+        axs_ind = []
+        for i in range(m*n):
+            fig, ax = plt.subplots()
+            figs_ind.append(fig)
+            axs_ind.append(ax)
+            if not show:
+                plt.close(fig)
+
+        self.space_fig_ind = figs_ind
+        self.space_axs_ind = np.array(axs_ind).reshape(axs_all.shape)
+
+    def plot_space(
+            self,
+            figs=None, axs=None,
+            plot_individual=False,
+            autoscale=True, show=True):
+        if axs is None:
+            if plot_individual:
+                axs = self.space_axs_ind
+            else:
+                axs = self.space_axs_all
 
         layout = plotting.Layout()
         layout.y_label = '$f~/~-$'
 
         variables = list(self.optimization_problem.variables_dict.keys())
 
-        funcs = self.optimization_problem.objectives
-
         values = self.f
         x = self.x_untransformed
 
-        for i_var, (var, ax) in enumerate(zip(variables, axs)):
+        for i_var, var in enumerate(variables):
             x_var = x[:, i_var]
-            collections = copy.deepcopy(ax.collections)
 
             counter = 0
-            for i_obj, func in enumerate(funcs):
+            for objective in self.optimization_problem.objectives:
                 start = counter
-                stop = counter+func.n_metrics
+                stop = counter+objective.n_metrics
                 v_var = values[:, start:stop]
 
-                for i in range(func.n_metrics):
-                    v_metric = v_var[:, i]
+                for i_metric in range(objective.n_metrics):
+                    v_metric = v_var[:, i_metric]
+
+                    ax = axs[counter+i_metric][i_var]
+                    collections = ax.collections
+
                     if len(collections) > 0:
-                        ax.collections[i].set_offsets(
+                        ax.collections[0].set_offsets(
                             np.vstack((x_var, v_metric)).transpose()
                         )
                     else:
                         ax.scatter(x_var, v_metric)
 
-            layout.title = var
+                    v_var = v_var.copy()
+                    v_var[np.where(np.isinf(v_var))] = np.nan
 
-            v_var = v_var.copy()
-            v_var[np.where(np.isinf(v_var))] = np.nan
-            layout.x_lim = (
-                self.optimization_problem.lower_bounds[i_var],
-                self.optimization_problem.upper_bounds[i_var]
-            )
-            layout.y_lim = (np.nanmin(v_var), np.nanmax(v_var))
-            try:
-                plotting.set_layout(ax, layout)
-            except ValueError:
-                pass
+                    layout.x_lim = (np.nanmin(x_var), np.nanmax(x_var))
+                    layout.x_label = f"{var}"
+                    if autoscale and np.min(x_var) > 0:
+                        if np.max(x_var) / np.min(x_var[x_var > 0]) > 100.0:
+                            ax.set_xscale('log')
+                            layout.x_label = f"log10({var})"
+
+                    try:
+                        label = objective.labels[i_metric]
+                    except AttributeError:
+                        label = f'{objective}'
+                        if objective.n_metrics > 1:
+                            label = f'{objective}_{i_metric}'
+
+                    y_min = np.nanmin(v_metric)
+                    y_max = np.nanmax(v_metric)
+                    y_lim = (
+                        min(0.9*y_min, y_min - 0.01*(y_max-y_min)),
+                        1.1*y_max
+                    )
+                    layout.y_label = label
+                    if autoscale and np.min(v_var) > 0:
+                        if np.max(v_var) / np.min(v_var[v_var > 0]) > 100.0:
+                            ax.set_yscale('log')
+                            layout.y_label = f"log10({label})"
+                            y_lim = (y_min/2, y_max*2)
+                    if y_min != y_max:
+                        layout.y_lim = y_lim
+
+                    try:
+                        plotting.set_layout(ax, layout)
+                    except ValueError:
+                        pass
+
+                counter += objective.n_metrics
+
+        if figs is None:
+            if plot_individual:
+                figs = self.space_fig_ind
+            else:
+                figs = [self.space_fig_all]
+
+        for fig in figs:
+            fig.tight_layout()
+            if not show:
+                plt.close(fig)
+            else:
+                dummy = plt.figure()
+                new_manager = dummy.canvas.manager
+                new_manager.canvas.figure = fig
+                fig.set_canvas(new_manager.canvas)
+                plt.show()
 
         if self.progress_directory is not None:
-            fig.savefig(f'{self.progress_directory / "parameter_space.png"}')
-
-        if not show:
-            plt.close(fig)
+            if plot_individual:
+                for i, fig in enumerate(figs):
+                    fig.savefig(
+                        f'{self.progress_directory / "parameter_space"}_{i}.png'
+                    )
+            else:
+                figs[0].savefig(
+                    f'{self.progress_directory / "parameter_space"}.png'
+                )
 
     def plot_pareto(self, show=True):
-        plot = Scatter(tight_layout=True, plot_3D=False)
+        n = self.optimization_problem.n_objectives
+
+        plot = Scatter(
+            figsize=(6 * n, 5 * n),
+            tight_layout=True,
+            plot_3D=False
+        )
         plot.add(self.f, s=10)
 
         if self.progress_directory is not None:

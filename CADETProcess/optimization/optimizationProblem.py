@@ -537,6 +537,14 @@ class OptimizationProblem(metaclass=StructMeta):
         return [str(obj) for obj in self.objectives]
 
     @property
+    def objective_labels(self):
+        labels = []
+        for obj in self.objectives:
+            labels += obj.labels
+
+        return labels
+
+    @property
     def n_objectives(self):
         n_objectives = 0
 
@@ -2256,7 +2264,8 @@ class Objective(metaclass=StructMeta):
             n_objectives=1,
             bad_metrics=np.inf,
             evaluation_objects=None,
-            evaluators=None):
+            evaluators=None,
+            labels=None):
         self.objective = objective
 
         if name is None:
@@ -2272,6 +2281,36 @@ class Objective(metaclass=StructMeta):
 
         self.evaluation_objects = evaluation_objects
         self.evaluators = evaluators
+
+        self.labels = labels
+
+    @property
+    def labels(self):
+        """list: List of metric labels."""
+        if self._labels is not None:
+            return self._labels
+
+        try:
+            labels = self.objective.labels
+        except AttributeError:
+            labels = [f'{self.objective}']
+            if self.objective.n_metrics > 1:
+                labels = [
+                    f'{self.objective}_{i}'
+                    for i in range(self.objective.n_metrics)
+                ]
+        return labels
+
+    @labels.setter
+    def labels(self, labels):
+        if labels is not None:
+
+            if len(labels) != self.n_metrics:
+                raise CADETProcessError(
+                    f"Expected length {self.objective.n_metrics} labels."
+                )
+
+        self._labels = labels
 
     def __call__(self, *args, **kwargs):
         f = self.objective(*args, **kwargs)

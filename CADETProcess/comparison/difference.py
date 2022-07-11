@@ -281,6 +281,17 @@ class Shape(DifferenceBase):
         else:
             return 3
 
+    @property
+    def labels(self):
+        labels = ['Pearson Correleation', 'Time offset', 'Peak Height']
+        if self.use_derivative:
+            labels += [
+                'Pearson Correlation Derivative',
+                'Peak Minimum Derivative',
+                'Peak Maximum Derivative'
+                ]
+        return labels
+
     def _evaluate(self, solution):
         """np.array: Shape similarity using pearson correlation.
 

@@ -138,8 +138,6 @@ def set_layout(
         if show_legend and len(labels) != 0:
             ax.legend()
 
-    plt.tight_layout()
-
 
 class Tick(Structure):
     location: Tuple()

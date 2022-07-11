@@ -49,6 +49,29 @@ class Comparator(metaclass=StructMeta):
 
         return np.hstack(bad_metrics).flatten().tolist()
 
+    @property
+    def labels(self):
+        """list: List of metric labels."""
+        labels = []
+        for metric in self.metrics:
+            try:
+                metric_labels = metric.labels
+            except AttributeError:
+                metric_labels = [f'{metric}']
+                if metric.n_metrics > 1:
+                    metric_labels = [
+                        f'{metric}_{i}' for i in range(metric.n_metrics)
+                    ]
+
+            if len(metric_labels) != metric.n_metrics:
+                raise CADETProcessError(
+                    f"Must return {metric.n_labels} labels."
+                )
+
+            labels += metric_labels
+
+        return labels
+
     @functools.wraps(DifferenceBase.__init__)
     def add_difference_metric(
             self, difference_metric, reference, solution_path,
