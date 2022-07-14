@@ -225,7 +225,7 @@ class SolutionIO(SolutionBase):
             start = self.time[0]
         if end is None:
             end = self.time[-1]
-            
+
         solution_interpolated = self.solution_interpolated
         self.time = np.linspace(start, end, nt)
         self.solution = solution_interpolated(self.time)
@@ -499,7 +499,6 @@ class SolutionIO(SolutionBase):
         )
 
         return ax
-
 
     @plotting.create_and_save_figure
     def plot_purity(
@@ -1209,8 +1208,10 @@ class InterpolatedSignal():
 
 def purity(
         component_system, solution,
-        sum_species=True, min_value=1e-6, exclude=None):
+        sum_species=True, min_value=1e-6):
     """Local purity profile of solution.
+
+    To exclude components from purity calculation, refer to ComponentSystem.
 
     Parameters
     ----------
@@ -1223,39 +1224,48 @@ def purity(
     min_value : float, optional
         Minimum concentration to be considered. Everything below min_value
         will be considered as 0. The default is 1e-6.
-    exclude : list, optional
-        List of component names to be excluded from purity calculation.
-        The default is None.
 
     Returns
     -------
     purity
         Local purity of components/species.
+        If sum_species, shape is nt * n_components, nt * n_comp otherwise.
+        Excluding components does not affect the shape.
 
+    See Also
+    --------
+    ComponentSystem
     """
-    if exclude is None:
-        exclude = []
-
-    c_total = total_concentration(component_system, solution, exclude)
+    c_total = total_concentration(
+        component_system, solution,
+        exclude=component_system.exclude_from_purity
+    )
 
     if sum_species:
         solution = component_concentration(component_system, solution)
+
+    exclude_indices = []
+    for i, comp in enumerate(component_system):
+        if comp.exclude_from_purity:
+            if sum_species:
+                exclude_indices.append(i)
+            else:
+                exclude_indices += component_system.indices[comp.name]
 
     purity = np.zeros(solution.shape)
 
     c_total[c_total < min_value] = np.nan
 
-    for i, comp in enumerate(component_system):
-        if comp.name in exclude:
+    for i, s in enumerate(solution.transpose()):
+        if i in exclude_indices:
             continue
 
-        s = solution[:, i]
         with np.errstate(divide='ignore', invalid='ignore'):
             purity[:, i] = np.divide(s, c_total)
 
     purity = np.nan_to_num(purity)
 
-    return np.nan_to_num(purity)
+    return purity
 
 
 def component_concentration(component_system, solution):
