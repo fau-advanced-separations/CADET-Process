@@ -325,6 +325,7 @@ class Shape(DifferenceBase):
 
         solution_der = copy.deepcopy(solution)
         solution_der.time_original = self.reference.time
+        solution_der.component_system_original = solution.component_system
         der_fun = solution_der.solution_interpolated.derivative
         solution_der.solution_original = der_fun(self.reference.time)
         solution_der.reset()
