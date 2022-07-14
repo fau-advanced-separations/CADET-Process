@@ -1,19 +1,141 @@
 from collections import defaultdict
+from functools import wraps
 
 from addict import Dict
-import numpy as np
 
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import Structure, StructMeta
 from CADETProcess.dataStructure import String, Integer, UnsignedFloat
 
 
+class Species(Structure):
+    name = String()
+    charge = Integer(default=0)
+    molecular_weight = UnsignedFloat()
+
+
+class Component(metaclass=StructMeta):
+    """Information about single component.
+
+    A component can contain subspecies (e.g. differently charged variants).
+
+    Attributes
+    ----------
+    name : String
+        Name of the component.
+    species : list
+        List of Subspecies.
+    n_species : int
+        Number of Subspecies.
+    label : list
+        Name of component (including species).
+    charge : list
+        Charge of component (including species).
+    molecular_weight : list
+        Molecular weight of component (including species).
+    exclude_from_purity : bool
+        Flag to exclude component from purity calculations.
+
+    See Also
+    --------
+    Species
+    ComponentSystem
+
+    """
+    name = String()
+
+    def __init__(
+            self, name=None,
+            species=None, charge=None, molecular_weight=None,
+            exclude_from_purity=False):
+        self.name = name
+        self._species = []
+
+        if species is None:
+            self.add_species(name, charge, molecular_weight)
+        elif isinstance(species, str):
+            self.add_species(species, charge, molecular_weight)
+        elif isinstance(species, list):
+            if charge is None:
+                charge = len(species) * [None]
+            if molecular_weight is None:
+                molecular_weight = len(species) * [None]
+            for i, spec in enumerate(species):
+                self.add_species(spec, charge[i], molecular_weight[i])
+        else:
+            raise CADETProcessError("Could not determine number of species")
+
+        self.exclude_from_purity = exclude_from_purity
+
+    @property
+    def species(self):
+        return self._species
+
+    @wraps(Species.__init__)
+    def add_species(self, name, charge, molecular_weight):
+        species = Species(name, charge, molecular_weight)
+        self._species.append(species)
+
+    @property
+    def n_species(self):
+        return len(self.species)
+
+    @property
+    def label(self):
+        return [spec.name for spec in self.species]
+
+    @property
+    def charge(self):
+        return [spec.charge for spec in self.species]
+
+    @property
+    def molecular_weight(self):
+        return [spec.molecular_weight for spec in self.molecular_weight]
+
+    def __iter__(self):
+        yield from self.species
+
+
 class ComponentSystem(metaclass=StructMeta):
+    """Information about components in system.
+
+    A component can contain subspecies (e.g. differently charged variants).
+
+    Attributes
+    ----------
+    name : String
+        Name of the component system.
+    components : list
+        List of individual components.
+    n_species : int
+        Number of Subspecies.
+    n_comp : int
+        Number of all components including species.
+    n_components : int
+        Number of components.
+    indices : dict
+        Component indices.
+    names : list
+        Names of all components.
+    labels : list
+        Labels of all components (including species).
+    charge : list
+        Charges of all components (including species).
+    molecular_weight : list
+        Molecular weights of all components (including species).
+
+    See Also
+    --------
+    Species
+    Component
+
+    """
     name = String()
 
     def __init__(
             self, components=None, name=None,
-            charges=None, molecular_weights=None):
+            charges=None, molecular_weights=None,
+            exclude_from_purity=None):
         self.name = name
 
         self._components = []
@@ -23,7 +145,7 @@ class ComponentSystem(metaclass=StructMeta):
 
         if isinstance(components, int):
             n_comp = components
-            components = n_comp*[None]
+            components = [str(i) for i in range(n_comp)]
         elif isinstance(components, list):
             n_comp = len(components)
         else:
@@ -33,21 +155,20 @@ class ComponentSystem(metaclass=StructMeta):
             charges = n_comp * [None]
         if molecular_weights is None:
             molecular_weights = n_comp * [None]
+        if exclude_from_purity is None:
+            exclude_from_purity = n_comp * [None]
 
         for i, comp in enumerate(components):
+            exclude = False
+            if comp in exclude_from_purity:
+                exclude = True
 
-            if isinstance(comp, list):
-                self.add_component(
-                    species=comp,
-                    charge=charges[i],
-                    molecular_weight=molecular_weights[i]
-                )
-            else:
-                self.add_component(
-                    name=comp,
-                    charge=charges[i],
-                    molecular_weight=molecular_weights[i]
-                )
+            self.add_component(
+                comp,
+                charge=charges[i],
+                molecular_weight=molecular_weights[i],
+                exclude_from_purity=exclude,
+            )
 
     @property
     def components(self):
@@ -68,13 +189,21 @@ class ComponentSystem(metaclass=StructMeta):
     def n_comp(self):
         return sum([comp.n_species for comp in self.components])
 
-    def add_component(self, *args, **kwargs):
-        """Todo: check duplicates"""
-        component = Component(*args, **kwargs)
+    @wraps(Component.__init__)
+    def add_component(self, component, *args, **kwargs):
+        if not isinstance(component, Component):
+            component = Component(component, *args, **kwargs)
+
+        if component.name in self.names:
+            raise CADETProcessError(
+                f"Component '{component.name}' "
+                "already exists in ComponentSystem."
+            )
+
         self._components.append(component)
 
     def remove_component(self, component):
-        if isinstance(component, (str, int)):
+        if isinstance(component, str):
             try:
                 component = self.components_dict[component]
             except KeyError:
@@ -100,7 +229,7 @@ class ComponentSystem(metaclass=StructMeta):
     @property
     def names(self):
         names = [
-            comp.name if comp.name is not None else i
+            comp.name if comp.name is not None else str(i)
             for i, comp in enumerate(self.components)
         ]
 
@@ -137,64 +266,14 @@ class ComponentSystem(metaclass=StructMeta):
 
         return molecular_weights
 
+    @property
+    def exclude_from_purity(self):
+        return [
+            comp.name for comp in self.components if comp.exclude_from_purity
+        ]
+
     def __repr__(self):
         return f'{self.__class__.__name__}({self.names})'
 
     def __iter__(self):
         yield from self.components
-
-
-class Component(metaclass=StructMeta):
-    name = String()
-
-    def __init__(
-            self, name=None, species=None, charge=None, molecular_weight=None):
-        self.name = name
-        self._species = []
-
-        if species is None:
-            self.add_species(name, charge, molecular_weight)
-        elif isinstance(species, str):
-            self.add_species(species, charge, molecular_weight)
-        elif isinstance(species, list):
-            if charge is None:
-                charge = len(species) * [None]
-            if molecular_weight is None:
-                molecular_weight = len(species) * [None]
-            for i, spec in enumerate(species):
-                self.add_species(spec, charge[i], molecular_weight[i])
-        else:
-            raise CADETProcessError("Could not determine number of species")
-
-    @property
-    def species(self):
-        return self._species
-
-    def add_species(self, name, charge, molecular_weight):
-        species = Species(name, charge, molecular_weight)
-        self._species.append(species)
-
-    @property
-    def n_species(self):
-        return len(self.species)
-
-    @property
-    def label(self):
-        return [spec.name for spec in self.species]
-
-    @property
-    def charge(self):
-        return [spec.charge for spec in self.species]
-
-    @property
-    def molecular_weight(self):
-        return [spec.molecular_weight for spec in self.molecular_weight]
-
-    def __iter__(self):
-        yield from self.species
-
-
-class Species(Structure):
-    name = String()
-    charge = Integer(default=0)
-    molecular_weight = UnsignedFloat()
