@@ -216,6 +216,13 @@ class TestTimeLine(unittest.TestCase):
 
         self.assertEqual(tl.section_times, [0, 1, 2, 3, 4, 5, 6])
 
+    def test_tl_from_profile(self):
+        time = np.linspace(0, 100, 1001)
+        y = np.sin(time/10)
+
+        tl = TimeLine.from_profile(time, y)
+        np.testing.assert_almost_equal(tl.value(time)[:, 0], y, decimal=3)
+
 
 if __name__ == '__main__':
     unittest.main()

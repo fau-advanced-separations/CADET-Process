@@ -367,6 +367,26 @@ class TimeLine():
 
         return tl
 
+    @classmethod
+    def from_profile(cls, time, profile, s=1e-6):
+        from scipy import interpolate
+        tl = cls()
+
+        tck = interpolate.splrep(time, profile, s=s)
+        ppoly = interpolate.PPoly.from_spline(tck)
+
+        for i, (start, sec) in enumerate(zip(ppoly.x, ppoly.c.T)):
+            if i < 3:
+                continue
+            elif i > len(ppoly.x) - 5:
+                continue
+            end = ppoly.x[i+1]
+            tl.add_section(
+                Section(start, end, np.flip(sec), n_entries=1, degree=3)
+            )
+
+        return tl
+
 
 class MultiTimeLine():
     def __init__(self, base_state):
