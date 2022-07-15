@@ -345,10 +345,10 @@ class TimeLine():
         """
         start = self.sections[0].start
         end = self.sections[-1].end
-        time = np.linspace(start, end, 1001)/60
+        time = np.linspace(start, end, 1001)
         y = self.value(time)
 
-        ax.plot(time, y)
+        ax.plot(time/60, y)
 
         layout = plotting.Layout()
         layout.x_label = '$time~/~min$'
