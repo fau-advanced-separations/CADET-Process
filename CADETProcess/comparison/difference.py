@@ -30,7 +30,7 @@ def slice_solution(
 
     start_index = np.where(solution.time >= start)[0][0]
     if end is not None:
-        end_index = np.where(solution.time > end)[0][0]
+        end_index = np.where(solution.time >= end)[0][0] + 1
     else:
         end_index = None
 
