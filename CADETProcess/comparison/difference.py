@@ -239,12 +239,10 @@ class RelativeArea(DifferenceBase):
 
 
 class Shape(DifferenceBase):
-    use_derivative = True
-
     @wraps(DifferenceBase.__init__)
     def __init__(
             self, *args,
-            use_derivative=0, normalize=True, normalization=None,
+            use_derivative=True, normalize=True, normalization=None,
             **kwargs):
         super().__init__(*args, **kwargs)
 
