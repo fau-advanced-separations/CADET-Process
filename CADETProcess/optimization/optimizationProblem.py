@@ -1,4 +1,3 @@
-import copy
 from functools import wraps
 import inspect
 import math
@@ -368,8 +367,7 @@ class OptimizationProblem(metaclass=StructMeta):
                 f'Expected {self.n_independent_variables} value(s)'
             )
 
-        optimization_problem = copy.deepcopy(self)
-        variables = optimization_problem.independent_variables
+        variables = self.independent_variables
 
         for variable, value in zip(variables, x):
             value = np.format_float_positional(
@@ -377,13 +375,12 @@ class OptimizationProblem(metaclass=StructMeta):
             )
             variable.value = float(value)
 
-        return optimization_problem.variable_values
+        return self.variable_values
 
     @untransforms
     def set_variables(
             self, x,
-            evaluation_objects=-1,
-            make_copy=False):
+            evaluation_objects=-1):
         """Set the values from the x-vector to the EvaluationObjects.
 
         Parameters
@@ -395,15 +392,11 @@ class OptimizationProblem(metaclass=StructMeta):
             If None, do not set variables.
             If -1, variables are set to all evaluation objects.
             The default is -1.
-        make_copy : bool
-            If True, a copy of the evaluation_object attribute is made on which
-            the values are set. Otherwise, the values are set on the attribute.
 
         Returns
         -------
-        evaluation_object : object
-            Returns copy of evaluation object if make_copy is True, else return
-            the attribute evaluation_object with the values set.
+        evaluation_object : list
+            Evaluation Objects with set paraemters.
 
         Raises
         ------
@@ -426,9 +419,6 @@ class OptimizationProblem(metaclass=StructMeta):
             evaluation_objects = self.evaluation_objects
         elif not isinstance(evaluation_objects, list):
             evaluation_objects = [evaluation_objects]
-
-        if make_copy:
-            evaluation_objects = copy.deepcopy(evaluation_objects)
 
         eval_obj_dict = {
             eval_obj.name: eval_obj
@@ -636,7 +626,6 @@ class OptimizationProblem(metaclass=StructMeta):
             self,
             x,
             cache=None,
-            make_copy=False,
             force=False):
         """Evaluate objective functions at point x.
 
@@ -646,9 +635,6 @@ class OptimizationProblem(metaclass=StructMeta):
             Value of the optimization variables.
         cache : dict, optional
             Dictionary with previously cached results.
-        make_copy : bool
-            If True, a copy of the EvaluationObjects is used which is required
-            for multiprocessing.
         force : bool
             If True, do not use cached results. The default if False.
 
@@ -673,7 +659,7 @@ class OptimizationProblem(metaclass=StructMeta):
         for objective in self.objectives:
             try:
                 value = self._evaluate(
-                    x, objective, cache, make_copy, force,
+                    x, objective, cache, force,
                 )
                 f += value
             except CADETProcessError:
@@ -694,7 +680,7 @@ class OptimizationProblem(metaclass=StructMeta):
             results = self.evaluate_objectives(
                 ind,
                 cache=cache,
-                make_copy=True, force=force,
+                force=force,
             )
             if cache is not None:
                 cache.close()
@@ -866,7 +852,6 @@ class OptimizationProblem(metaclass=StructMeta):
             self,
             x,
             cache=None,
-            make_copy=False,
             force=False):
         """Evaluate nonlinear constraint functions at point x.
 
@@ -879,9 +864,6 @@ class OptimizationProblem(metaclass=StructMeta):
             Value of the optimization variables.
         cache : dict, optional
             Dictionary with previously cached results.
-        make_copy : bool
-            If True, a copy of the EvaluationObjects is used which is required
-            for multiprocessing.
         force : bool
             If True, do not use cached results. The default if False.
 
@@ -907,7 +889,7 @@ class OptimizationProblem(metaclass=StructMeta):
         for nonlincon in self.nonlinear_constraints:
             try:
                 value = self._evaluate(
-                    x, nonlincon, cache, make_copy, force,
+                    x, nonlincon, cache, force,
                 )
                 g += value
             except CADETProcessError:
@@ -930,7 +912,7 @@ class OptimizationProblem(metaclass=StructMeta):
             results = self.evaluate_nonlinear_constraints(
                 ind,
                 cache=cache,
-                make_copy=True, force=force,
+                force=force,
             )
             if cache is not None:
                 cache.close()
@@ -1053,7 +1035,6 @@ class OptimizationProblem(metaclass=StructMeta):
             self,
             x,
             cache=None,
-            make_copy=False,
             force=False,
             results_dir='./',
             current_iteration=0):
@@ -1065,9 +1046,6 @@ class OptimizationProblem(metaclass=StructMeta):
             Value of the optimization variables.
         cache : dict, optional
             Dictionary with previously cached results.
-        make_copy : bool
-            If True, a copy of the EvaluationObjects is used which is required
-            for multiprocessing.
         force : bool
             If True, do not use cached results. The default if False.
         results_dir : path
@@ -1098,7 +1076,7 @@ class OptimizationProblem(metaclass=StructMeta):
             callback.results_dir = results_dir
             try:
                 value = self._evaluate(
-                    x, callback, cache, make_copy, force,
+                    x, callback, cache, force,
                 )
                 c += value
             except CADETProcessError:
@@ -1118,7 +1096,7 @@ class OptimizationProblem(metaclass=StructMeta):
             results = self.evaluate_callbacks(
                 ind,
                 cache=cache,
-                make_copy=True, force=force,
+                force=force,
                 results_dir=results_dir, current_iteration=current_iteration,
             )
             if cache is not None:
@@ -1153,7 +1131,7 @@ class OptimizationProblem(metaclass=StructMeta):
     def _evaluate(
             self,
             x, func,
-            cache=None, make_copy=False, force=False,
+            cache=None, force=False,
             *args, **kwargs):
         """Iterate over all evaluation objects and evaluate at x.
 
@@ -1165,9 +1143,6 @@ class OptimizationProblem(metaclass=StructMeta):
             Evaluation function.
         cache : dict, optional
             Dictionary with cached results.
-        make_copy : bool
-            If True, a copy of the EvaluationObjects is used which is required
-            for multiprocessing.
         force : bool
             If True, do not use cached results. The default is False.
         *args : tuple
@@ -1190,7 +1165,7 @@ class OptimizationProblem(metaclass=StructMeta):
         else:
             requires = [func]
 
-        evaluation_objects = self.set_variables(x, make_copy=make_copy)
+        evaluation_objects = self.set_variables(x)
         if len(evaluation_objects) == 0:
             evaluation_objects = [None]
 
