@@ -919,7 +919,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
         c = np.array(g) - np.array(self.nonlinear_constraints_bounds)
 
-        return c
+        return c.tolist()
 
     @untransforms
     @ensures2d
@@ -969,7 +969,7 @@ class OptimizationProblem(metaclass=StructMeta):
             False otherwise.
 
         """
-        c = self.evaluate_nonlinear_constraints(x)
+        c = np.array(self.evaluate_nonlinear_constraints(x))
 
         if np.any(c > 0):
             return False
