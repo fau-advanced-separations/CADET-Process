@@ -24,13 +24,17 @@ Flux: NCOL * NRAD * NPARTYPE * NCOMP
 
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.interpolate import InterpolatedUnivariateSpline
+from scipy.interpolate import PchipInterpolator
+from scipy import integrate
 
 from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import (
     String, UnsignedInteger, Vector, DependentlySizedNdArray
 )
+
 from CADETProcess.processModel import ComponentSystem
+from CADETProcess.dynamicEvents import TimeLine
+
 from CADETProcess import plotting
 
 from CADETProcess import smoothing
@@ -115,18 +119,23 @@ class SolutionIO(SolutionBase):
 
     IO: NCOL * NRAD
 
+    Notes
+    -----
+    The flow_rate is implemented as TimeLine to improve interpolation of
+    signals with discontinuous flow.
+
     """
 
     def __init__(self, name, component_system, time, solution, flow_rate):
         self.name = name
-        self.component_system = component_system
-        self.time = time
-        self.solution = solution
-        self.flow_rate = flow_rate
 
         self.component_system_original = component_system
         self.time_original = time
         self.solution_original = solution
+
+        if not isinstance(flow_rate, TimeLine):
+            flow_rate = TimeLine.from_profile(time, flow_rate)
+        self.flow_rate = flow_rate
 
         self.reset()
 
@@ -149,9 +158,7 @@ class SolutionIO(SolutionBase):
 
     def update(self):
         self._solution_interpolated = None
-        self._q_vector = None
-        self._interpolated_dm_dt = None
-        self._interpolated_Q = None
+        self._dm_dt_interpolated = None
 
     def update_transform(self):
         self.transform = transform.NormLinearTransform(
@@ -170,28 +177,18 @@ class SolutionIO(SolutionBase):
         return self._solution_interpolated
 
     @property
-    def q_vector(self):
-        if self._q_vector is None:
-            vec_q_value = np.vectorize(self.flow_rate.value)
-            self._q_vector = vec_q_value(self.time)
-
-        return self._q_vector
+    def dm_dt(self):
+        if self._dm_dt_interpolated is None:
+            dm_dt = TimeLine()
 
     @property
-    def interpolated_dm_dt(self):
-        if self._interpolated_dm_dt is None:
-            dm_dt = self.solution * self.q_vector[:, None]
-            self._interpolated_dm_dt = InterpolatedSignal(self.time, dm_dt)
+    def dm_dt_interpolated(self):
+        if self._dm_dt_interpolated is None:
+            self.resample()
+            dm_dt = self.solution * self.flow_rate.value(self.time)
+            self._dm_dt_interpolated = InterpolatedSignal(self.time, dm_dt)
 
-        return self._interpolated_dm_dt
-
-    @property
-    def interpolated_Q(self):
-        if self._interpolated_Q is None:
-            self._interpolated_Q = \
-                InterpolatedUnivariateSpline(self.time, self.q_vector)
-
-        return self._interpolated_Q
+        return self._dm_dt_interpolated
 
     def normalize(self):
         if self.is_normalized:
@@ -356,7 +353,24 @@ class SolutionIO(SolutionBase):
         if end is None:
             end = self.cycle_time
 
-        return self.interpolated_dm_dt.integral(start, end)
+        def dm_dt(t, flow_rate, solution):
+            dm_dt = flow_rate.value(t)*solution(t)
+            return dm_dt
+
+        points = None
+        if len(self.flow_rate.section_times) > 2:
+            points = self.flow_rate.section_times[1:-1]
+
+        mass = integrate.quad_vec(
+            dm_dt,
+            start, end,
+            epsabs=1e-6,
+            epsrel=1e-8,
+            args=(self.flow_rate, self.solution_interpolated),
+            points=points,
+        )[0]
+
+        return mass
 
     def fraction_volume(self, start=0, end=None):
         """Volume of a fraction interval
@@ -378,7 +392,7 @@ class SolutionIO(SolutionBase):
         if end is None:
             end = self.cycle_time
 
-        return self.interpolated_Q.integral(start, end)
+        return float(self.flow_rate.integral(start, end))
 
     @plotting.create_and_save_figure
     def plot(
@@ -1147,8 +1161,10 @@ def _plot_solution_1D(
 
 class InterpolatedSignal():
     def __init__(self, time, signal):
+        if len(signal.shape) == 1:
+            signal = np.array(signal, ndmin=2).transpose()
         self._solutions = [
-                InterpolatedUnivariateSpline(time, signal[:, comp])
+                PchipInterpolator(time, signal[:, comp])
                 for comp in range(signal.shape[1])
                 ]
         self._derivatives = [signal.derivative() for signal in self._solutions]
