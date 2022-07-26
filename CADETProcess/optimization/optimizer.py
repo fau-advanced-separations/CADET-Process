@@ -26,31 +26,50 @@ class OptimizerBase(metaclass=StructMeta):
     _options = []
     progress_frequency = RangedInteger(lb=1, default=1)
 
-    def __init__(self, log_level="INFO", save_log=True):
+    def optimize(
+            self,
+            optimization_problem,
+            save_results=True,
+            cache_dir=None,
+            log_level="INFO",
+            save_log=True,
+            cache_directory=None,
+            keep_cache=True,
+            overwrite=True,
+            *args, **kwargs):
+        """
+        """
+        if not isinstance(optimization_problem, OptimizationProblem):
+            raise TypeError('Expected OptimizationProblem')
+
         self.logger = log.get_logger(
             str(self), level=log_level, save_log=save_log
         )
 
-    def optimize(
-            self, optimization_problem,
-            save_results=True,
-            *args, **kwargs):
-        """
-        """
-        backend = plt.get_backend()
-        plt.switch_backend('agg')
+        self.working_directory = settings.working_directory
 
-        if not isinstance(optimization_problem, OptimizationProblem):
-            raise TypeError('Expected OptimizationProblem')
+        if save_results:
+            results_dir = self.working_directory / 'results'
+            results_dir.mkdir(exist_ok=overwrite)
+            self.results_directory = results_dir
+        else:
+            self.results_directory = None
 
-        self.setup_directories(save_results)
         self.progress = OptimizationProgress(
-            optimization_problem, self.working_directory, save_results
+            optimization_problem,
+            self.working_directory,
+            self.results_directory,
+            save_results,
+            cache_directory,
+            keep_cache,
         )
 
         log.log_time('Optimization', self.logger.level)(self.run)
         log.log_results('Optimization', self.logger.level)(self.run)
         log.log_exceptions('Optimization', self.logger.level)(self.run)
+
+        backend = plt.get_backend()
+        plt.switch_backend('agg')
 
         results = self.run(optimization_problem, *args, **kwargs)
 
@@ -59,11 +78,10 @@ class OptimizerBase(metaclass=StructMeta):
         if save_results:
             results.save(self.results_directory)
 
-        return results
+        if not keep_cache:
+            self.progress.delete_cache()
 
-    def setup_directories(self, save_results, overwrite=True):
-        self.working_directory = settings.working_directory
-        self.results_directory = self.working_directory / 'results'
+        return results
 
     @abstractmethod
     def run(optimization_problem, *args, **kwargs):

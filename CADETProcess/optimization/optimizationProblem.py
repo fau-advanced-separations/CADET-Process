@@ -698,6 +698,10 @@ class OptimizationProblem(metaclass=StructMeta):
         else:
             if n_cores == 0 or n_cores == -1:
                 n_cores = None
+
+            if cache is not None:
+                cache.close()
+
             with pathos.pools.ProcessPool(ncpus=n_cores) as pool:
                 results = pool.map(eval_fun, population)
 
@@ -930,6 +934,10 @@ class OptimizationProblem(metaclass=StructMeta):
         else:
             if n_cores == 0 or n_cores == -1:
                 n_cores = None
+
+            if cache is not None:
+                cache.close()
+
             with pathos.pools.ProcessPool(ncpus=n_cores) as pool:
                 results = pool.map(eval_fun, population)
 
@@ -1107,14 +1115,15 @@ class OptimizationProblem(metaclass=StructMeta):
         if n_cores == 1:
             results = []
             for ind in population:
-                try:
-                    res = eval_fun(ind)
-                    results.append(res)
-                except CADETProcessError:
-                    print(ind)
+                res = eval_fun(ind)
+                results.append(res)
         else:
             if n_cores == 0 or n_cores == -1:
                 n_cores = None
+
+            if cache is not None:
+                cache.close()
+
             with pathos.pools.ProcessPool(ncpus=n_cores) as pool:
                 results = pool.map(eval_fun, population)
 

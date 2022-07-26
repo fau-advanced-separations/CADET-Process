@@ -1,5 +1,6 @@
 from collections import defaultdict
 import shutil
+import tempfile
 import warnings
 
 import corner
@@ -85,8 +86,14 @@ class Individual(metaclass=StructMeta):
 
 class OptimizationProgress():
     def __init__(
-            self, optimization_problem,
-            working_directory, save_results=False, overwrite=True):
+            self,
+            optimization_problem,
+            working_directory,
+            results_directory,
+            save_results=False,
+            cache_directory=None,
+            keep_cache=True,
+            overwrite=True):
         self.optimization_problem = optimization_problem
 
         self._individuals = []
@@ -99,20 +106,10 @@ class OptimizationProgress():
                 0, optimization_problem.n_nonlinear_constraints
             ))
 
-        self.working_directory = working_directory
         self.save_results = save_results
+        self.working_directory = working_directory
+        self.results_directory = results_directory
 
-        self.setup_directories(overwrite)
-
-        if self.save_results:
-            self.setup_figures()
-
-        self.cache = ResultsCache(
-            optimization_problem, self.cache_directory,
-            autoclean=not(save_results)
-        )
-
-    def setup_directories(self, overwrite=False):
         if self.save_results:
             progress_dir = self.working_directory / 'progress'
             progress_dir.mkdir(exist_ok=overwrite)
@@ -120,19 +117,23 @@ class OptimizationProgress():
         else:
             self.progress_directory = None
 
-        if self.save_results:
-            results_dir = self.working_directory / 'results'
-            progress_dir.mkdir(exist_ok=overwrite)
-            self.results_directory = results_dir
-        else:
-            self.results_directory = None
+        self.keep_cache = keep_cache
+        if self.save_results and cache_directory is None:
+            cache_directory = self.working_directory / 'cache'
+            cache_directory.mkdir(exist_ok=overwrite)
+        self.cache_directory = cache_directory
+        self.cache = ResultsCache(self.cache_directory)
 
         if self.save_results:
-            cache_dir = self.working_directory / 'cache'
-            results_dir.mkdir(exist_ok=overwrite)
-            self.cache_directory = cache_dir
-        else:
-            self.cache_directory = None
+            self.setup_figures()
+
+    def prune_cache(self):
+        self.cache.prune()
+
+    def delete_cache(self):
+        self.cache.close()
+        self.cache.delete_database()
+        self.cache = None
 
     def setup_figures(self):
         self.setup_convergence_figure('objectives', show=False)
@@ -179,9 +180,6 @@ class OptimizationProgress():
         if not isinstance(individual, Individual):
             raise TypeError("Expected Individual")
         self._individuals.append(individual)
-
-    def prune_cache(self):
-        self.cache.prune()
 
     @property
     def hall_of_fame(self):
@@ -628,23 +626,23 @@ class ResultsCache():
 
     """
 
-    def __init__(self, optimization_problem, directory=None, autoclean=False):
-        self.autoclean = autoclean
-        self.tags = defaultdict(list)
+    def __init__(self, directory=None):
+        if directory is None:
+            directory = tempfile.mkdtemp(prefix='diskcache-')
+        self.directory = directory
+
         self.cache = Cache(
            directory, disk=DillDisk, disk_min_file_size=2**18
         )
 
-    @property
-    def directory(self):
-        return self.cache.directory
+        self.tags = defaultdict(list)
 
     def set(self, eval_obj, step, x, result, tag=None):
         key = f'{eval_obj}.{step}.{x}'
         if tag is not None:
             self.tags[tag].append(key)
 
-        self.cache.set(key, result, expire=None, tag=tag)
+        self.cache.set(key, result, expire=None)
 
     def get(self, eval_obj, step, x):
         key = f'{eval_obj}.{step}.{x}'
@@ -659,22 +657,20 @@ class ResultsCache():
         self.cache.delete(key)
 
     def prune(self, tag='temp'):
-        keys = self.tags[tag]
-
-        for key in keys:
-            try:
-                del self.cache[key]
-            except KeyError:
-                pass
-
-        self.close()
+        try:
+            keys = self.tags.pop(tag)
+            for key in keys:
+                self.cache.delete(key)
+        except KeyError:
+            pass
 
     def close(self):
         self.cache.close()
 
-    def __del__(self):
-        if hasattr(self, 'autoclean') and self.autoclean:
-            try:
-                shutil.rmtree(self.directory, ignore_errors=True)
-            except FileNotFoundError:
-                pass
+    def delete_database(self):
+        self.close()
+        try:
+            shutil.rmtree(self.directory, ignore_errors=True)
+        except FileNotFoundError:
+            pass
+        self.cache = None
