@@ -34,6 +34,7 @@ class Fractionator(EventHandler):
 
     def __init__(self, simulation_results, *args, **kwargs):
         self.simulation_results = simulation_results
+        self._cycle_time = None
 
         super().__init__(*args, **kwargs)
 
@@ -130,7 +131,13 @@ class Fractionator(EventHandler):
     @property
     def cycle_time(self):
         """float: cycle time"""
-        return self.process.cycle_time
+        if self._cycle_time is None:
+            return self.process.cycle_time
+        return self._cycle_time
+
+    @cycle_time.setter
+    def cycle_time(self, cycle_time):
+        self._cycle_time = cycle_time
 
     @property
     def time(self):
@@ -392,7 +399,7 @@ class Fractionator(EventHandler):
     def productivity(self):
         """ndarray: Specific productivity in corresponding fraction pool."""
         return self.mass / (
-            self.cycle_time * self.process.V_solid
+            self.process.cycle_time * self.process.V_solid
         )
 
     @property
