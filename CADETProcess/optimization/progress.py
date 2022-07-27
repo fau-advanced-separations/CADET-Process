@@ -632,7 +632,10 @@ class ResultsCache():
         self.directory = directory
 
         self.cache = Cache(
-           directory, disk=DillDisk, disk_min_file_size=2**18
+           directory,
+           disk=DillDisk,
+           disk_min_file_size=2**18,
+           size_limit=2**36,
         )
 
         self.tags = defaultdict(list)
