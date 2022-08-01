@@ -1967,6 +1967,8 @@ class OptimizationVariable():
             self.polynomial_index = None
             self.component_index = None
 
+        if lb > ub:
+            raise ValueError("Lower bound cannot be larger than upper bound.")
         self.lb = lb
         self.ub = ub
 
