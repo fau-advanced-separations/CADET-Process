@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from CADETProcess import CADETProcessError
 from CADETProcess import plotting
 from CADETProcess.dataStructure import StructMeta, String
-from CADETProcess.dataStructure import get_nested_value
+from CADETProcess.dataStructure import get_nested_value, check_nested
 from CADETProcess.solution import SolutionBase
 from CADETProcess.comparison import DifferenceBase
 
@@ -103,12 +103,17 @@ class Comparator(metaclass=StructMeta):
         for metric in self.metrics:
             try:
                 solution_path = self.solution_paths[metric]
-                solution = get_nested_value(
-                    simulation_results.solution_cycles, solution_path
-                )[-1]
             except KeyError:
                 raise CADETProcessError("Could not find solution path")
 
+            if not check_nested(simulation_results.solution_cycles, solution_path):
+                raise CADETProcessError(
+                    'Could not find solution in SimulationResults.'
+                )
+
+            solution = get_nested_value(
+                simulation_results.solution_cycles, solution_path
+            )[-1]
             solution = copy.deepcopy(solution)
             solution.resample(
                 start=metric.reference.time[0],
