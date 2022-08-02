@@ -33,6 +33,7 @@ class OptimizerBase(metaclass=StructMeta):
             cache_dir=None,
             log_level="INFO",
             save_log=True,
+            use_diskcache=True,
             cache_directory=None,
             keep_cache=True,
             overwrite=True,
@@ -60,6 +61,7 @@ class OptimizerBase(metaclass=StructMeta):
             self.working_directory,
             self.results_directory,
             save_results,
+            use_diskcache,
             cache_directory,
             keep_cache,
         )

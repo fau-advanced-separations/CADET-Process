@@ -200,6 +200,7 @@ class FractionationOptimizer():
                 save_results=False,
                 log_level=self.log_level,
                 save_log=self.save_log,
+                use_diskcache=False,
                 keep_cache=False,
             )
         except CADETProcessError as e:
