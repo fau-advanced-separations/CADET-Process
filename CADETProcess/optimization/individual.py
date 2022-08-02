@@ -137,7 +137,12 @@ class Individual(metaclass=StructMeta):
         else:
             similar_g = True
 
-        return similar_x and similar_f and similar_g
+        if self.m is not None:
+            similar_m = self.is_similar_m(other, tol)
+        else:
+            similar_m = True
+
+        return similar_x and similar_f and similar_g and similar_m
 
     def is_similar_x(self, other, tol=1e-1):
         """Determine if individual is similar to other based on parameter values.
@@ -198,6 +203,26 @@ class Individual(metaclass=StructMeta):
         similar_g = np.allclose(self.g, other.g, rtol=tol)
 
         return similar_g
+
+    def is_similar_m(self, other, tol=1e-1):
+        """Determine if individual is similar to other based on meta score values.
+
+        Parmeters
+        ---------
+        other : Individual
+            Other individual
+        tol : float
+            Relative tolerance parameter.
+            To reduce number of entries, a rather high rtol is chosen.
+
+        Returns
+        -------
+        is_similar : bool
+            True if parameters are close to each other. False otherwise
+        """
+        similar_m = np.allclose(self.m, other.m, rtol=tol)
+
+        return similar_m
 
     def __str__(self):
         return str(list(self.x))

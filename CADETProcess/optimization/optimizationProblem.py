@@ -56,6 +56,8 @@ class OptimizationProblem(metaclass=StructMeta):
         List with all linear equality constrains of an OptimizationProblem.
     callbacks : list
         List of callback functions to record progress.
+    meta_scores: list
+        Meta score functions.
 
     """
     name = String()
@@ -76,6 +78,7 @@ class OptimizationProblem(metaclass=StructMeta):
         self._linear_constraints = []
         self._linear_equality_constraints = []
         self._callbacks = []
+        self._meta_scores = []
 
         self._x0 = None
 
@@ -1132,6 +1135,146 @@ class OptimizationProblem(metaclass=StructMeta):
 
             if cache is not None:
                 cache.close()
+
+            with pathos.pools.ProcessPool(ncpus=n_cores) as pool:
+                results = pool.map(eval_fun, population)
+
+        return results
+
+    @property
+    def meta_scores(self):
+        """list: Meta scores for multi criteria selection."""
+        return self._meta_scores
+
+    @property
+    def meta_score_names(self):
+        return [str(meta_score) for meta_score in self.meta_scores]
+
+    @property
+    def meta_score_labels(self):
+        if self.n_meta_scores > 0:
+            labels = []
+            for meta_score in self.meta_scores:
+                labels += meta_score.labels
+
+            return labels
+
+    @property
+    def n_meta_scores(self):
+        n_meta_scores = 0
+
+        for meta_score in self.meta_scores:
+            if len(meta_score.evaluation_objects) != 0:
+                factor = len(meta_score.evaluation_objects)
+            else:
+                factor = 1
+            n_meta_scores += factor*meta_score.n_meta_scores
+
+        return n_meta_scores
+
+    def add_meta_score(
+            self,
+            meta_score,
+            n_meta_scores=1,
+            evaluation_objects=-1,
+            requires=None):
+
+        if not callable(meta_score):
+            raise TypeError("Expected callable meta score.")
+
+        if evaluation_objects is None:
+            evaluation_objects = []
+        elif evaluation_objects == -1:
+            evaluation_objects = self.evaluation_objects
+        elif not isinstance(evaluation_objects, list):
+            evaluation_objects = [evaluation_objects]
+        for el in evaluation_objects:
+            if el not in self.evaluation_objects:
+                raise CADETProcessError(
+                    f"Unknown EvaluationObject: {str(el)}"
+                )
+
+        if requires is None:
+            requires = []
+        elif not isinstance(requires, list):
+            requires = [requires]
+
+        try:
+            evaluators = [self.evaluators_dict[str(req)]for req in requires]
+        except KeyError as e:
+            raise CADETProcessError(f"Unknown Evaluator: {str(e)}")
+
+        meta_score = MetaScore(
+            meta_score,
+            n_meta_scores=n_meta_scores,
+            evaluation_objects=evaluation_objects,
+            evaluators=evaluators,
+        )
+        self._meta_scores.append(meta_score)
+
+    @untransforms
+    def evaluate_meta_scores(
+            self,
+            x,
+            force=False):
+        """Evaluate meta functions at point x.
+
+        Parameters
+        ----------
+        x : array_like
+            Value of the optimization variables.
+        force : bool
+            If True, do not use cached results. The default if False.
+
+        Returns
+        -------
+        m : list
+            Meta scores.
+
+        See Also
+        --------
+        _evaluate
+        evaluate_objectives
+        evaluate_nonlinear_constraints
+
+        """
+        self.logger.info(f'evaluate meta functions at {x}')
+
+        x = list(x)
+        m = []
+
+        for meta_score in self.meta_scores:
+            try:
+                value = self._evaluate(x, meta_score, force)
+                m += value
+            except CADETProcessError:
+                self.logger.warn(
+                    f'Evaluation of {meta_score.name} failed at {x}. '
+                )
+
+        return m
+
+    @untransforms
+    @ensures2d
+    def evaluate_meta_scores_population(
+            self, population, force=False, n_cores=-1):
+
+        def eval_fun(ind):
+            results = self.evaluate_meta_scores(ind, force=force)
+            self.cache.close()
+
+            return results
+
+        if n_cores == 1:
+            results = []
+            for ind in population:
+                res = eval_fun(ind)
+                results.append(res)
+        else:
+            if n_cores == 0 or n_cores == -1:
+                n_cores = None
+
+            self.cache.close()
 
             with pathos.pools.ProcessPool(ncpus=n_cores) as pool:
                 results = pool.map(eval_fun, population)
@@ -2440,6 +2583,82 @@ class Callback(metaclass=StructMeta):
             kwargs['results_dir'] = self.results_dir
 
         return self.callback(current_request, **kwargs)
+
+    evaluate = __call__
+
+    def __str__(self):
+        return self.name
+
+
+class MetaScore(metaclass=StructMeta):
+    meta_score = Callable()
+    name = String()
+    n_meta_scores = RangedInteger(lb=1)
+    n_metrics = n_meta_scores
+    bad_metrics = DependentlySizedList(dep='n_metrics', default=np.inf)
+
+    def __init__(
+            self,
+            meta_score,
+            name=None,
+            n_meta_scores=1,
+            bad_metrics=np.inf,
+            evaluation_objects=None,
+            evaluators=None,
+            labels=None):
+
+        self.meta_score = meta_score
+
+        if name is None:
+            name = str(meta_score)
+        self.name = name
+
+        self.n_meta_scores = n_meta_scores
+
+        if np.isscalar(bad_metrics):
+            bad_metrics = n_meta_scores * [bad_metrics]
+        self.bad_metrics = bad_metrics
+
+        self.evaluation_objects = evaluation_objects
+        self.evaluators = evaluators
+
+        self.labels = labels
+
+    @property
+    def labels(self):
+        """list: List of metric labels."""
+        if self._labels is not None:
+            return self._labels
+
+        try:
+            labels = self.meta_score.labels
+        except AttributeError:
+            labels = [f'{self.meta_score}']
+            if self.n_metrics > 1:
+                labels = [
+                    f'{self.meta_score}_{i}'
+                    for i in range(self.n_metrics)
+                ]
+        return labels
+
+    @labels.setter
+    def labels(self, labels):
+        if labels is not None:
+
+            if len(labels) != self.n_metrics:
+                raise CADETProcessError(
+                    f"Expected {self.n_metrics} labels."
+                )
+
+        self._labels = labels
+
+    def __call__(self, *args, **kwargs):
+        m = self.meta_score(*args, **kwargs)
+
+        if np.isscalar(m):
+            m = [m]
+
+        return m
 
     evaluate = __call__
 
