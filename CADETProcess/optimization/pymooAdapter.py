@@ -261,8 +261,8 @@ class PymooInterface(OptimizerBase):
         self.algorithm.progress = self.progress
 
     def update_algorithm(self, algorithm):
+        algorithm.problem = self.problem
         algorithm.pop_size = self._population_size
-        algorithm.problem.n_cores = self.n_cores
         algorithm.termination.terminations[0].n_max_gen = \
             self._max_number_of_generations
         algorithm.has_terminated = \
