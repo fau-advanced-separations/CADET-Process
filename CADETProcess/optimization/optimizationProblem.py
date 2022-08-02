@@ -58,6 +58,8 @@ class OptimizationProblem(metaclass=StructMeta):
         List of callback functions to record progress.
     meta_scores: list
         Meta score functions.
+    multi_criteria_decision_functions : list
+        Multi criteria decision functions.
 
     """
     name = String()
@@ -79,6 +81,7 @@ class OptimizationProblem(metaclass=StructMeta):
         self._linear_equality_constraints = []
         self._callbacks = []
         self._meta_scores = []
+        self._multi_criteria_decision_functions = []
 
         self._x0 = None
 
@@ -1280,6 +1283,50 @@ class OptimizationProblem(metaclass=StructMeta):
                 results = pool.map(eval_fun, population)
 
         return results
+
+    @property
+    def multi_criteria_decision_functions(self):
+        """list: Multi criteria decision functions."""
+        return self._multi_criteria_decision_functions
+
+    @property
+    def n_multi_criteria_decision_functions(self):
+        return len(self.multi_criteria_decision_functions)
+
+    def add_multi_criteria_decision_function(self, decision_function):
+
+        if not callable(decision_function):
+            raise TypeError("Expected callable decision function.")
+
+        meta_score = MultiCriteriaDecisionFunction(decision_function)
+        self._multi_criteria_decision_functions.append(meta_score)
+
+    def evaluate_multi_criteria_decision_functions(self, pareto_population):
+        """Evaluate evaluate multi criteria decision functions.
+
+        Parameters
+        ----------
+        pareto_population : Population
+            Pareto optimal solution
+
+        Returns
+        -------
+        x_pareto : list
+            Value of the optimization variables.
+
+        See Also
+        --------
+        _evaluate
+        evaluate_objectives
+        evaluate_nonlinear_constraints
+
+        """
+        self.logger.info('Evaluate multi criteria decision functions.')
+
+        for func in self.multi_criteria_decision_functions:
+            pareto_population = func(pareto_population)
+
+        return pareto_population
 
     @property
     def cached_steps(self):
@@ -2659,6 +2706,30 @@ class MetaScore(metaclass=StructMeta):
             m = [m]
 
         return m
+
+    evaluate = __call__
+
+    def __str__(self):
+        return self.name
+
+
+class MultiCriteriaDecisionFunction(metaclass=StructMeta):
+    decision_function = Callable()
+    name = String()
+
+    def __init__(
+            self,
+            decision_function,
+            name=None):
+
+        self.decision_function = decision_function
+
+        if name is None:
+            name = str(decision_function)
+        self.name = name
+
+    def __call__(self, *args, **kwargs):
+        return self.decision_function(*args, **kwargs)
 
     evaluate = __call__
 
