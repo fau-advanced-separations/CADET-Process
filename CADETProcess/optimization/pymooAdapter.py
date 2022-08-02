@@ -136,7 +136,7 @@ class PymooInterface(OptimizerBase):
                 self.progress.save_progress()
 
                 self.progress.save_callback(
-                    n_cores=1,
+                    n_cores=self.n_cores,
                     current_iteration=self.algorithm.n_gen,
                     untransform=True,
                 )
