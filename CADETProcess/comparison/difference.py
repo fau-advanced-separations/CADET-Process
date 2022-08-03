@@ -70,10 +70,6 @@ def slice_solution(
     return solution
 
 
-def calculate_sse(simulation, reference):
-    return np.sum((simulation - reference) ** 2, axis=0)
-
-
 class DifferenceBase(MetricBase):
     def __init__(
             self,
@@ -180,11 +176,26 @@ class DifferenceBase(MetricBase):
         return solution
 
 
+def calculate_sse(simulation, reference):
+    return np.sum((simulation - reference) ** 2, axis=0)
+
+
 class SSE(DifferenceBase):
     def _evaluate(self, solution):
         sse = calculate_sse(solution.solution, self.reference.solution)
 
         return sse
+
+
+def calculate_rmse(simulation, reference):
+    return np.sqrt(np.mean((simulation - reference) ** 2, axis=0))
+
+
+class RMSE(DifferenceBase):
+    def _evaluate(self, solution):
+        rmse = calculate_rmse(solution.solution, self.reference.solution)
+
+        return rmse
 
 
 class Norm(DifferenceBase):
