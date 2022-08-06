@@ -744,6 +744,15 @@ class OptimizationProblem(metaclass=StructMeta):
         return [str(nonlincon) for nonlincon in self.nonlinear_constraints]
 
     @property
+    def nonlinear_constraint_labels(self):
+        if self.n_nonlinear_constraints > 1:
+            labels = []
+            for nonlincon in self.nonlinear_constraints:
+                labels += nonlincon.labels
+
+            return labels
+
+    @property
     def nonlinear_constraints_bounds(self):
         bounds = []
         for nonlincon in self.nonlinear_constraints:
@@ -2293,7 +2302,7 @@ class Objective(metaclass=StructMeta):
 
             if len(labels) != self.n_metrics:
                 raise CADETProcessError(
-                    f"Expected length {self.objective.n_metrics} labels."
+                    f"Expected {self.objective.n_metrics} labels."
                 )
 
         self._labels = labels
@@ -2327,7 +2336,8 @@ class NonlinearConstraint(metaclass=StructMeta):
             n_nonlinear_constraints=1,
             bad_metrics=np.inf,
             evaluation_objects=None,
-            evaluators=None):
+            evaluators=None,
+            labels=None):
 
         self.nonlinear_constraint = nonlinear_constraint
 
@@ -2344,6 +2354,36 @@ class NonlinearConstraint(metaclass=StructMeta):
 
         self.evaluation_objects = evaluation_objects
         self.evaluators = evaluators
+
+        self.labels = labels
+
+    @property
+    def labels(self):
+        """list: List of metric labels."""
+        if self._labels is not None:
+            return self._labels
+
+        try:
+            labels = self.nonlinear_constraint.labels
+        except AttributeError:
+            labels = [f'{self.nonlinear_constraint}']
+            if self.nonlinear_constraint.n_metrics > 1:
+                labels = [
+                    f'{self.nonlinear_constraint}_{i}'
+                    for i in range(self.nonlinear_constraint.n_metrics)
+                ]
+        return labels
+
+    @labels.setter
+    def labels(self, labels):
+        if labels is not None:
+
+            if len(labels) != self.n_metrics:
+                raise CADETProcessError(
+                    f"Expected {self.nonlinear_constraint.n_metrics} labels."
+                )
+
+        self._labels = labels
 
     def __call__(self, *args, **kwargs):
         g = self.nonlinear_constraint(*args, **kwargs)
