@@ -64,12 +64,12 @@ optimization_problem.add_objective(
 )
 
 
-def callback(simulation_results, x, evaluation_object, results_dir='./'):
+def callback(simulation_results, individual, evaluation_object, callbacks_dir='./'):
     comparator.plot_comparison(
         simulation_results,
-        file_name=f'{results_dir}/{evaluation_object}_{x}_comparison.png',
+        file_name=f'{callbacks_dir}/{individual.id}_{evaluation_object}_comparison.png',
+        show=False
     )
-    plt.close()
 
 
 optimization_problem.add_callback(
@@ -83,11 +83,12 @@ optimizer.n_cores = 4
 optimizer.pop_size = 4
 optimizer.n_max_gen = 5
 
-from CADETProcess import settings
-settings.set_working_directory('./dextran')
 
+if __name__ == "__main__":
+    from CADETProcess import settings
+    settings.set_working_directory('./dextran')
 
-optimization_results = optimizer.optimize(
-    optimization_problem,
-    use_checkpoint=True
-)
+    optimization_results = optimizer.optimize(
+        optimization_problem,
+        use_checkpoint=True
+    )

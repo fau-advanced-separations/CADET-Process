@@ -67,9 +67,9 @@ elif case == 'multi':
     )
 
 
-def callback(fractionation, x, evaluation_object, results_dir='./'):
+def callback(fractionation, individual, evaluation_object, callbacks_dir):
     fractionation.plot_fraction_signal(
-        file_name=f'{results_dir}/{evaluation_object}_{x}_fractionation.png',
+        file_name=f'{callbacks_dir}/{individual.id}_{evaluation_object}_fractionation.png',
         show=False
     )
 
@@ -87,7 +87,7 @@ if __name__ == "__main__":
     optimizer.n_max_gen = 4
 
     from CADETProcess import settings
-    settings.set_working_directory(f'./batch_elution/{case}')
+    settings.working_directory = f'./batch_elution/{case}'
     results = optimizer.optimize(
         optimization_problem,
         save_results=True,

@@ -6,7 +6,7 @@ from CADETProcess import CADETProcessError
 
 LOG_LEVEL = getattr(logging, 'INFO')
 
-working_directory = Path('./')
+working_directory = Path('./').absolute()
 log_directory = working_directory / 'log'
 
 

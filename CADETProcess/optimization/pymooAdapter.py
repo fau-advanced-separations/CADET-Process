@@ -25,7 +25,6 @@ class PymooInterface(OptimizerBase):
     n_last = UnsignedInteger(default=30)
     n_max_gen = UnsignedInteger()
     n_max_evals = UnsignedInteger(default=100000)
-    n_cores = UnsignedInteger(default=0)
     _options = [
         'x_tol', 'cv_tol', 'f_tol', 'nth_gen',
         'n_last', 'n_max_gen', 'n_max_evals',
@@ -76,77 +75,15 @@ class PymooInterface(OptimizerBase):
         while self.algorithm.has_next():
             self.algorithm.next()
 
-            for ind in self.algorithm.pop:
-                x_untransformed \
-                    = optimization_problem.get_dependent_values(
-                        ind.X, untransform=True
-                    )
-
-                if self.optimization_problem.n_nonlinear_constraints > 0:
-                    ind = Individual(
-                        ind.X.tolist(),
-                        ind.F.tolist(),
-                        ind.G.tolist(),
-                        x_untransformed=x_untransformed
-                    )
-                else:
-                    ind = Individual(
-                        ind.X.tolist(),
-                        ind.F.tolist(),
-                        x_untransformed=x_untransformed
-                    )
-
-                self.progress.add_individual(ind)
-
-            self.progress.hall_of_fame = []
-            for opt in self.algorithm.opt:
-                x_untransformed \
-                    = optimization_problem.get_dependent_values(
-                        opt.X, untransform=True
-                    )
-
-                if self.optimization_problem.n_nonlinear_constraints > 0:
-                    ind = Individual(
-                        opt.X.tolist(),
-                        opt.F.tolist(),
-                        opt.G.tolist(),
-                        x_untransformed=x_untransformed
-                    )
-                else:
-                    ind = Individual(
-                        opt.X.tolist(),
-                        opt.F.tolist(),
-                        x_untransformed=x_untransformed
-                    )
-
-                self.progress.hall_of_fame.append(ind)
-
-            self.progress.update_history()
-
-            if self.progress.results_directory is not None \
-                    and self.algorithm.n_gen % self.progress_frequency == 0:
-                self.progress.save_progress()
-
-                self.progress.save_callback(
-                    n_cores=self.n_cores,
-                    current_iteration=self.algorithm.n_gen,
-                    untransform=True,
-                )
-
+            X = self.algorithm.pop.get("X").tolist()
+            F = self.algorithm.pop.get("F").tolist()
             if self.optimization_problem.n_nonlinear_constraints > 0:
-                for ind in self.progress.hall_of_fame:
-                    self.logger.info(
-                        f'Finished Generation {self.algorithm.n_gen}.'
-                        f'x: {ind.x}, f: {ind.f}, g: {ind.g}'
-                    )
+                G = self.algorithm.pop.get("G").tolist()
             else:
-                for ind in self.progress.hall_of_fame:
-                    self.logger.info(
-                        f'Finished Generation {self.algorithm.n_gen}.'
-                        f'x: {ind.x}, f: {ind.f}'
-                    )
+                G = len(X)*[None]
+            X_opt = self.algorithm.opt.get("X")
 
-            self.optimization_problem.prune_cache()
+            self.run_post_generation_processing(X, F, G, self.algorithm.n_gen, X_opt)
 
             with open(checkpoint_path, "wb") as dill_file:
                 self.algorithm.random_state = random.getstate()

@@ -1,4 +1,5 @@
 from abc import abstractmethod
+from pathlib import Path
 import time
 
 import matplotlib.pyplot as plt
@@ -11,6 +12,7 @@ from CADETProcess.dataStructure import (
 )
 
 from CADETProcess.optimization import OptimizationProblem
+from CADETProcess.optimization import Individual, Population, ParetoFront
 from CADETProcess.optimization import OptimizationResults
 
 
@@ -25,6 +27,7 @@ class OptimizerBase(metaclass=StructMeta):
     """
     _options = []
     progress_frequency = RangedInteger(lb=1, default=1)
+    n_cores = UnsignedInteger(default=1)
     cv_tol = UnsignedFloat(default=1e-6)
 
     def optimize(
@@ -35,6 +38,7 @@ class OptimizerBase(metaclass=StructMeta):
             log_level="INFO",
             save_log=True,
             delete_cache=False,
+            remove_similar=True,
             *args, **kwargs):
         """Solve OptimizationProblem.
 
@@ -53,6 +57,8 @@ class OptimizerBase(metaclass=StructMeta):
             If True, save log to file. The default is True.
         delete_cache : bool, optional
             If True, delete ResultsCache after finishing. The default is False.
+        remove_similar : bool, optional
+            If True, similar entries are removed from pareto front.
         *args : TYPE
             Additional arguments for Optimizer.
         **kwargs : TYPE
@@ -83,9 +89,18 @@ class OptimizerBase(metaclass=StructMeta):
         if save_results:
             if results_directory is None:
                 results_directory = settings.working_directory
+            results_directory = Path(results_directory)
             results_directory.mkdir(exist_ok=True)
         self.results_directory = results_directory
 
+        if self.optimization_problem.n_callbacks > 0:
+            callbacks_dir = results_directory / "callbacks"
+            callbacks_dir.mkdir(exist_ok=True)
+        else:
+            callbacks_dir = None
+        self.callbacks_dir = callbacks_dir
+
+        self.remove_similar = remove_similar
         self.results = OptimizationResults(
             optimization_problem=optimization_problem,
             optimizer=self,
@@ -141,6 +156,9 @@ class OptimizerBase(metaclass=StructMeta):
         return
 
     def _run_post_processing(self, current_iteration):
+        if self.remove_similar:
+            self.results.pareto_front.remove_similar()
+
         if self.optimization_problem.n_multi_criteria_decision_functions > 0:
             X_meta_population = \
                 self.optimization_problem.evaluate_multi_criteria_decision_functions(
@@ -153,21 +171,31 @@ class OptimizerBase(metaclass=StructMeta):
 
             self.results.meta_population = meta_population
 
+        self.results.update_progress()
+
         if current_iteration % self.progress_frequency == 0:
             self.results.plot_figures(show=False)
 
+        for callback in self.optimization_problem.callbacks:
+            if self.optimization_problem.n_callbacks > 1:
+                _callbacks_dir = self.callbacks_dir / str(callback)
+            else:
+                _callbacks_dir = self.callbacks_dir
+            callback.cleanup(_callbacks_dir, current_iteration)
+
         self.optimization_problem.evaluate_callbacks_population(
             self.results.meta_population,
-            self.results_directory,
+            current_iteration,
+            _callbacks_dir,
             n_cores=self.n_cores,
-            current_iteration=current_iteration,
         )
 
         self.results.save_results()
 
         self.optimization_problem.prune_cache()
 
-    def run_post_evaluation_processing(self, x, f, g, current_evaluation):
+    def run_post_evaluation_processing(
+            self, x, f, g, current_evaluation, x_opt=None):
         """Run post-processing of individual evaluation.
 
         Parameters
@@ -180,6 +208,9 @@ class OptimizerBase(metaclass=StructMeta):
             Nonlinear constraint function of individual.
         current_evaluation : int
             Current evaluation.
+        x_opt : list, optional
+            Best individual at current iteration.
+            If None, internal pareto front is used to determine best indiviudal.
 
         """
         if self.optimization_problem.n_meta_scores > 0:
@@ -205,6 +236,14 @@ class OptimizerBase(metaclass=StructMeta):
 
         self.results.update_individual(ind)
 
+        if x_opt is not None:
+            pareto_front = Population()
+            ind = self.results.population_all[x]
+            pareto_front.add_individual(ind)
+            self.results.pareto_front = pareto_front
+        else:
+            self.results.pareto_front.update_individual(ind)
+
         self._run_post_processing(current_evaluation)
 
         self.logger.info(
@@ -214,13 +253,14 @@ class OptimizerBase(metaclass=StructMeta):
             message = f'x: {ind.x}, f: {ind.f}'
 
             if self.optimization_problem.n_nonlinear_constraints > 0:
-                message += ', g: {ind.g}'
+                message += f', g: {ind.g}'
 
             if self.optimization_problem.n_meta_scores > 0:
-                message += ', m: {ind.m}'
+                message += f', m: {ind.m}'
             self.logger.info(message)
 
-    def run_post_generation_processing(self, X, F, G, current_generation):
+    def run_post_generation_processing(
+            self, X, F, G, current_generation, X_opt=None):
         """Run post-processing of generation.
 
         Parameters
@@ -233,6 +273,9 @@ class OptimizerBase(metaclass=StructMeta):
             Nonlinear constraint function values of generation.
         current_generation : int
             Current generation.
+        X_opt : list, optional
+            (Currently) best variable values.
+            If None, internal pareto front is used to determine best values.
 
         """
         if self.optimization_problem.n_meta_scores > 0:
@@ -262,6 +305,16 @@ class OptimizerBase(metaclass=StructMeta):
 
         self.results.update_population(population)
 
+        if X_opt is not None:
+            pareto_front = Population()
+            for x in X_opt:
+                ind = self.results.population_all[x]
+                pareto_front.add_individual(ind)
+
+            self.results.pareto_front = pareto_front
+        else:
+            self.results.pareto_front.update_population(population)
+
         self._run_post_processing(current_generation)
 
         self.logger.info(
@@ -271,10 +324,10 @@ class OptimizerBase(metaclass=StructMeta):
             message = f'x: {ind.x}, f: {ind.f}'
 
             if self.optimization_problem.n_nonlinear_constraints > 0:
-                message += ', g: {ind.g}'
+                message += f', g: {ind.g}'
 
             if self.optimization_problem.n_meta_scores > 0:
-                message += ', m: {ind.m}'
+                message += f', m: {ind.m}'
             self.logger.info(message)
 
     @property

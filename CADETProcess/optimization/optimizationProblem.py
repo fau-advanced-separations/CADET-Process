@@ -1,7 +1,9 @@
 from functools import wraps
 import inspect
 import math
+from pathlib import Path
 import random
+import shutil
 import warnings
 
 from addict import Dict
@@ -653,7 +655,7 @@ class OptimizationProblem(metaclass=StructMeta):
         x : array_like
             Value of the optimization variables.
         force : bool
-            If True, do not use cached results. The default if False.
+            If True, do not use cached results. The default is False.
 
         Returns
         -------
@@ -1012,12 +1014,18 @@ class OptimizationProblem(metaclass=StructMeta):
         """list: Callback functions for recording progress."""
         return self._callbacks
 
+    @property
+    def n_callbacks(self):
+        return len(self.callbacks)
+
     def add_callback(
             self,
             callback,
             evaluation_objects=-1,
             requires=None,
-            frequency=1):
+            frequency=1,
+            callbacks_dir=None,
+            keep_progress=False):
 
         if not callable(callback):
             raise TypeError("Expected callable callback.")
@@ -1048,29 +1056,30 @@ class OptimizationProblem(metaclass=StructMeta):
             callback,
             evaluation_objects=evaluation_objects,
             evaluators=evaluators,
-            frequency=frequency
+            frequency=frequency,
+            callbacks_dir=callbacks_dir,
+            keep_progress=keep_progress,
         )
         self._callbacks.append(callback)
 
     def evaluate_callbacks(
             self,
             ind,
-            force=False,
-            results_dir='./',
-            current_iteration=0,
-            individual=None):
+            current_iteration,
+            callbacks_dir,
+            force=False):
         """Evaluate callback functions at point x.
 
         Parameters
         ----------
-        x : array_like
-            Value of the optimization variables.
-        force : bool
-            If True, do not use cached results. The default if False.
-        results_dir : Path
-            Path to store results (e.g. figures, tables etc).
+        ind : Individual
+            Individual to be evalauted.
         current_iteration : int
             Current iteration to determine if callback should be evaluated.
+        callbacks_dir : Path
+            Path to store results (e.g. figures, tables etc).
+        force : bool
+            If True, do not use cached results. The default is False.
 
         See Also
         --------
@@ -1088,26 +1097,16 @@ class OptimizationProblem(metaclass=StructMeta):
             if not current_iteration % callback.frequency == 0:
                 continue
 
-            if current_iteration == 'final':
-                callback_dir = \
-                    results_dir / 'callbacks' / 'final'
-            else:
-                callback_dir = \
-                    results_dir / 'callbacks' / 'progress' / str(current_iteration)
-            callback_dir.mkdir(parents=True, exist_ok=True)
-
-            callback.results_dir = callback_dir
-            callback._ind = ind
             try:
-                self._evaluate(x, callback, force, ind)
+                self._evaluate(x, callback, force, ind, callbacks_dir)
             except CADETProcessError:
                 self.logger.warn(
-                    f'Evaluation of {callback.name} failed at {x}. '
+                    f'Evaluation of {callback} failed at {x}.'
                 )
 
     def evaluate_callbacks_population(
-            self, population, results_dir, force=False, n_cores=-1,
-            current_iteration=0):
+            self, population, current_iteration, callbacks_dir,
+            force=False, n_cores=-1):
 
         if not self.cache.use_diskcache and n_cores != 1:
             raise CADETProcessError(
@@ -1115,12 +1114,11 @@ class OptimizationProblem(metaclass=StructMeta):
             )
 
         def eval_fun(ind):
-            results = self.evaluate_callbacks(
             self.evaluate_callbacks(
                 ind,
-                force=force,
-                results_dir=results_dir,
-                current_iteration=current_iteration
+                current_iteration,
+                callbacks_dir,
+                force=force
             )
             self.cache.close()
 
@@ -1219,7 +1217,7 @@ class OptimizationProblem(metaclass=StructMeta):
         x : array_like
             Value of the optimization variables.
         force : bool
-            If True, do not use cached results. The default if False.
+            If True, do not use cached results. The default is False.
 
         Returns
         -------
@@ -1416,9 +1414,6 @@ class OptimizationProblem(metaclass=StructMeta):
             for step in remaining:
                 if isinstance(step, Callback):
                     step.evaluate(
-                        current_request,
-                        x=x, evaluation_object=eval_obj,
-                        *args, **kwargs
                         current_request, x, eval_obj, *args, **kwargs
                     )
                 else:
@@ -2610,8 +2605,9 @@ class Callback(metaclass=StructMeta):
             name=None,
             evaluation_objects=None,
             evaluators=None,
-            results_dir='./',
-            frequency=10):
+            frequency=10,
+            callbacks_dir=None,
+            keep_progress=False):
         self.callback = callback
 
         if name is None:
@@ -2620,17 +2616,60 @@ class Callback(metaclass=StructMeta):
 
         self.evaluation_objects = evaluation_objects
         self.evaluators = evaluators
-        self.results_dir = './'
+
         self.frequency = frequency
 
-    def __call__(self, current_request, x, evaluation_object, ind):
+        if callbacks_dir is not None:
+            callbacks_dir = Path(callbacks_dir)
+            callbacks_dir.mkdir(exist_ok=True, parents=True)
+        self.callbacks_dir = callbacks_dir
+
+        self.keep_progress = keep_progress
+
+    def cleanup(self, callbacks_dir, current_iteration):
+        if \
+                not current_iteration % self.frequency == 0 \
+                or current_iteration <= self.frequency:
+            return
+
+        previous_iteration = current_iteration - self.frequency
+
+        if self.callbacks_dir is not None:
+            callbacks_dir = self.callbacks_dir
+
+        if self.keep_progress:
+            new_directory = callbacks_dir / "progress" / str(previous_iteration)
+            new_directory.mkdir(exist_ok=True, parents=True)
+
+        for file in callbacks_dir.iterdir():
+            if not file.is_file():
+                continue
+            if self.keep_progress:
+                shutil.copy(file, new_directory)
+            file.unlink()
+
+
+    def __call__(
+            self,
+            current_request,
+            x,
+            evaluation_object,
+            ind,
+            callbacks_dir):
+
         kwargs = {}
-        if 'ind' in inspect.signature(self.callback).parameters:
-            kwargs['ind'] = self._ind
-        if 'evaluation_object' in inspect.signature(self.callback).parameters:
+
+        signature = inspect.signature(self.callback).parameters
+        if 'individual' in signature:
+            kwargs['individual'] = ind
+        if 'evaluation_object' in signature:
             kwargs['evaluation_object'] = evaluation_object
-        if 'results_dir' in inspect.signature(self.callback).parameters:
-            kwargs['results_dir'] = self.results_dir
+        if 'callbacks_dir' in signature:
+            if self.callbacks_dir is not None:
+                callbacks_dir = self.callbacks_dir
+            else:
+                callbacks_dir = self._callbacks_dir
+            kwargs['callbacks_dir'] = callbacks_dir
 
         return self.callback(current_request, **kwargs)
 

@@ -43,11 +43,24 @@ class SciPyInterface(OptimizerBase):
         scipy.optimize.minimize
 
         """
+        self.n_evals = 0
+
         if optimization_problem.n_objectives > 1:
             raise CADETProcessError("Can only handle single objective.")
 
         def objective_function(x):
             return optimization_problem.evaluate_objectives(x)[0]
+
+        def callback_function(x, state=None):
+            self.n_evals += 1
+
+            x = x.tolist()
+            f = self.optimization_problem.evaluate_objectives(x)
+            g = self.optimization_problem.evaluate_nonlinear_constraints(x)
+
+            self.run_post_evaluation_processing(x, f, g, self.n_evals)
+
+            return True
 
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore', category=OptimizeWarning)
@@ -59,14 +72,12 @@ class SciPyInterface(OptimizerBase):
                 tol=self.tol,
                 jac=self.jac,
                 constraints=self.get_constraint_objects(optimization_problem),
-                options=self.options
-                )
+                options=self.options,
+                callback=callback_function,
+            )
 
         self.results.exit_flag = scipy_results.status
         self.results.exit_message = scipy_results.message
-
-
-        return results
 
     def get_bounds(self, optimization_problem):
         """Returns the optimized bounds of a given optimization_problem as a

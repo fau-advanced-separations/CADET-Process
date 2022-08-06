@@ -115,21 +115,7 @@ class OptimizationResults(metaclass=StructMeta):
         if not isinstance(individual, Individual):
             raise CADETProcessError("Expected Individual")
 
-        try:
-            self.population_all.add_individual(individual)
-        except CADETProcessError:
-            pass
-
-        progress = self.pareto_front.update_individual(individual)
-
-        self.progress.update(
-            1,
-            self.pareto_front.f_min,
-            self.pareto_front.g_min,
-            self.pareto_front.m_min,
-        )
-
-        return progress
+        self.population_all.add_individual(individual, ignore_duplicate=True)
 
     def update_population(self, population):
         """Update Results.
@@ -149,16 +135,18 @@ class OptimizationResults(metaclass=StructMeta):
         self._populations.append(population)
         self.population_all.update(population)
 
-        new_members, progress = self.pareto_front.update_population(population)
+    def update_progress(self):
+        if len(self.populations) == 0:
+            n_evals = 1
+        else:
+            n_evals = len(self.populations[-1])
 
         self.progress.update(
-            len(population),
+            n_evals,
             self.pareto_front.f_min,
             self.pareto_front.g_min,
             self.pareto_front.m_min,
         )
-
-        return progress
 
     @property
     def x(self):
