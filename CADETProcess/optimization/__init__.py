@@ -1,4 +1,5 @@
 from .individual import *
+from .population import *
 from .progress import *
 from .optimizationProblem import *
 from .optimizer import *
