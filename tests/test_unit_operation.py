@@ -193,6 +193,9 @@ class Test_Unit_Operation(unittest.TestCase):
                 'flow_rate': np.array([1, 0, 0, 0]),
                 'porosity': total_porosity,
                 'flow_rate_filter': np.array([0, 0, 0, 0]),
+                'c': [0, 0],
+                'q': [],
+                'V': 0,
         }
         np.testing.assert_equal(parameters_expected, cstr.parameters)
 

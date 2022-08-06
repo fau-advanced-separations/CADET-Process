@@ -623,6 +623,7 @@ class TubularReactor(TubularReactorBase):
 
     c = DependentlySizedList(dep='n_comp', default=0)
     _initial_state = UnitBaseClass._initial_state + ['c']
+    _parameter_names = UnitBaseClass._parameter_names + _initial_state
 
     def __init__(self, *args, discretization_scheme='FV', **kwargs):
         super().__init__(*args, **kwargs)
@@ -666,6 +667,7 @@ class LumpedRateModelWithoutPores(TubularReactorBase):
     c = DependentlySizedList(dep='n_comp', default=0)
     _q = DependentlySizedUnsignedList(dep='n_bound_states', default=0)
     _initial_state = TubularReactorBase._initial_state + ['c', 'q']
+    _parameter_names = _parameter_names + _initial_state
 
     def __init__(self, *args, discretization_scheme='FV', **kwargs):
         super().__init__(*args, **kwargs)
@@ -732,6 +734,7 @@ class LumpedRateModelWithPores(TubularReactorBase):
     _q = DependentlySizedUnsignedList(dep='n_bound_states', default=0)
 
     _initial_state = TubularReactorBase._initial_state + ['cp', 'q']
+    _parameter_names = _parameter_names + _initial_state
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -838,7 +841,7 @@ class GeneralRateModel(TubularReactorBase):
     pore_diffusion = DependentlySizedUnsignedList(dep='n_comp')
     _surface_diffusion = DependentlySizedUnsignedList(dep='n_bound_states')
     pore_accessibility = DependentlySizedUnsignedList(dep='n_comp')
-    _parameters = \
+    _parameter_names = \
         TubularReactorBase._parameter_names + \
         [
             'bed_porosity', 'particle_porosity', 'particle_radius',
@@ -853,6 +856,7 @@ class GeneralRateModel(TubularReactorBase):
     _q = DependentlySizedUnsignedList(dep='n_bound_states', default=0)
 
     _initial_state = TubularReactorBase._initial_state + ['cp', 'q']
+    _parameter_names = _parameter_names + _initial_state
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -977,6 +981,7 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     _initial_state = \
         UnitBaseClass._initial_state + \
         ['c', 'q', 'V']
+    _parameter_names = _parameter_names + _initial_state
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
