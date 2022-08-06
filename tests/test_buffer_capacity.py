@@ -230,4 +230,5 @@ class TestBufferCapacity(unittest.TestCase):
 
 
 if __name__ == '__main__':
+    enable_plot = True
     unittest.main()
