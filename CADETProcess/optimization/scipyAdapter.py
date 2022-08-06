@@ -47,7 +47,7 @@ class SciPyInterface(OptimizerBase):
             raise CADETProcessError("Can only handle single objective.")
 
         def objective_function(x):
-            return optimization_problem.evaluate_objectives(x, cache=self.progress.cache)[0]
+            return optimization_problem.evaluate_objectives(x)[0]
 
         start = time.time()
         with warnings.catch_warnings():
@@ -220,7 +220,7 @@ class SciPyInterface(OptimizerBase):
 
         def makeConstraint(i):
             constr = optimize.NonlinearConstraint(
-                lambda x: opt.evaluate_nonlinear_constraints(x, cache=self.progress.cache)[i],
+                lambda x: opt.evaluate_nonlinear_constraints(x)[i],
                 lb=-np.inf, ub=0,
                 finite_diff_rel_step=self.finite_diff_rel_step,
                 keep_feasible=True

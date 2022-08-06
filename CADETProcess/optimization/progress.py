@@ -18,9 +18,6 @@ class OptimizationProgress():
             working_directory,
             results_directory,
             save_results=False,
-            use_diskcache=True,
-            cache_directory=None,
-            keep_cache=True,
             overwrite=True):
         self.optimization_problem = optimization_problem
 
@@ -45,23 +42,8 @@ class OptimizationProgress():
         else:
             self.progress_directory = None
 
-        self.keep_cache = keep_cache
-        if use_diskcache:
-            if self.save_results and cache_directory is None:
-                cache_directory = self.working_directory / 'cache'
-                cache_directory.mkdir(exist_ok=overwrite)
-        self.cache = ResultsCache(use_diskcache, cache_directory)
-
         if self.save_results:
             self.setup_figures()
-
-    def prune_cache(self):
-        self.cache.prune()
-
-    def delete_cache(self):
-        self.cache.close()
-        self.cache.delete_database()
-        self.cache = None
 
     def setup_figures(self):
         self.setup_convergence_figure('objectives', show=False)
@@ -93,7 +75,6 @@ class OptimizationProgress():
         self.optimization_problem.evaluate_callbacks_population(
             self.x_hof.tolist(),
             results_dir,
-            cache=self.cache,
             n_cores=n_cores,
             current_iteration=current_iteration,
             untransform=untransform,

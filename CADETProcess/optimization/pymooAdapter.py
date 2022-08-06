@@ -154,7 +154,7 @@ class PymooInterface(OptimizerBase):
                         f'x: {ind.x}, f: {ind.f}'
                     )
 
-            self.progress.prune_cache()
+            self.optimization_problem.prune_cache()
 
             with open(checkpoint_path, "wb") as dill_file:
                 self.algorithm.random_state = random.getstate()
@@ -317,17 +317,12 @@ class PymooProblem(Problem):
             **kwargs
         )
 
-    @property
-    def cache(self):
-        return self.progress.cache
-
     def _evaluate(self, x, out, *args, **kwargs):
         opt = self.optimization_problem
         if opt.n_objectives > 0:
             f = opt.evaluate_objectives_population(
                 x,
                 untransform=True,
-                cache=self.cache,
                 n_cores=self.n_cores,
             )
             out["F"] = np.array(f)
@@ -336,7 +331,6 @@ class PymooProblem(Problem):
             g = opt.evaluate_nonlinear_constraints_population(
                 x,
                 untransform=True,
-                cache=self.cache,
                 n_cores=self.n_cores,
             )
             out["G"] = np.array(g)

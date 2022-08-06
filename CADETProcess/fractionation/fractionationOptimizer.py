@@ -80,7 +80,8 @@ class FractionationOptimizer():
         opt = OptimizationProblem(
             'FractionationOptimization',
             log_level=self.log_level,
-            save_log=self.save_log
+            save_log=self.save_log,
+            use_diskcache=False,
         )
 
         opt.add_evaluation_object(frac)
@@ -169,9 +170,9 @@ class FractionationOptimizer():
         Raises
         ------
         TypeError
-            If simulation_results is not an instance of SimulationResult.
+            If simulation_results is not an instance of SimulationResults.
         CADETProcessError
-            If simulation_results do not contain chromatograms
+            If simulation_results do not contain chromatograms.
         Warning
             If purity requirements cannot be fulfilled.
 
@@ -206,8 +207,7 @@ class FractionationOptimizer():
                 save_results=False,
                 log_level=self.log_level,
                 save_log=self.save_log,
-                use_diskcache=False,
-                keep_cache=False,
+                delete_cache=True,
             )
         except CADETProcessError as e:
             if ignore_failed:

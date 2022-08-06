@@ -30,12 +30,9 @@ class OptimizerBase(metaclass=StructMeta):
             self,
             optimization_problem,
             save_results=True,
-            cache_dir=None,
             log_level="INFO",
             save_log=True,
-            use_diskcache=True,
-            cache_directory=None,
-            keep_cache=True,
+            delete_cache=False,
             overwrite=True,
             *args, **kwargs):
         """
@@ -61,9 +58,6 @@ class OptimizerBase(metaclass=StructMeta):
             self.working_directory,
             self.results_directory,
             save_results,
-            use_diskcache,
-            cache_directory,
-            keep_cache,
         )
 
         log.log_time('Optimization', self.logger.level)(self.run)
@@ -80,8 +74,8 @@ class OptimizerBase(metaclass=StructMeta):
         if save_results:
             results.save(self.results_directory)
 
-        if not keep_cache:
-            self.progress.delete_cache()
+        if delete_cache:
+            optimization_problem.delete_cache()
 
         return results
 
