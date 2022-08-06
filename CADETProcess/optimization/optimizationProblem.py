@@ -93,9 +93,9 @@ class OptimizationProblem(metaclass=StructMeta):
         self._nonlinear_constraints = []
         self._linear_constraints = []
         self._linear_equality_constraints = []
-        self._callbacks = []
         self._meta_scores = []
         self._multi_criteria_decision_functions = []
+        self._callbacks = []
 
         self._x0 = None
 
@@ -759,7 +759,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def nonlinear_constraint_labels(self):
-        if self.n_nonlinear_constraints > 1:
+        if self.n_nonlinear_constraints > 0:
             labels = []
             for nonlincon in self.nonlinear_constraints:
                 labels += nonlincon.labels
@@ -1052,13 +1052,13 @@ class OptimizationProblem(metaclass=StructMeta):
         )
         self._callbacks.append(callback)
 
-    @untransforms
     def evaluate_callbacks(
             self,
-            x,
+            ind,
             force=False,
             results_dir='./',
-            current_iteration=0):
+            current_iteration=0,
+            individual=None):
         """Evaluate callback functions at point x.
 
         Parameters
@@ -1072,11 +1072,6 @@ class OptimizationProblem(metaclass=StructMeta):
         current_iteration : int
             Current iteration to determine if callback should be evaluated.
 
-        Returns
-        -------
-        c : list
-            Return values of callback functions.
-
         See Also
         --------
         _evaluate
@@ -1085,26 +1080,31 @@ class OptimizationProblem(metaclass=StructMeta):
 
         """
         self.logger.info(f'evaluate nonlinear constraints at {x}')
+        x = self.untransform(ind.x)
 
-        x = list(x)
-        c = []
+        self.logger.debug(f'evaluate nonlinear constraints at {ind.x}')
 
         for callback in self.callbacks:
             if not current_iteration % callback.frequency == 0:
                 continue
-            callback.results_dir = results_dir
+
+            if current_iteration == 'final':
+                callback_dir = \
+                    results_dir / 'callbacks' / 'final'
+            else:
+                callback_dir = \
+                    results_dir / 'callbacks' / 'progress' / str(current_iteration)
+            callback_dir.mkdir(parents=True, exist_ok=True)
+
+            callback.results_dir = callback_dir
+            callback._ind = ind
             try:
-                value = self._evaluate(x, callback, force)
-                c += value
+                self._evaluate(x, callback, force, ind)
             except CADETProcessError:
                 self.logger.warn(
                     f'Evaluation of {callback.name} failed at {x}. '
                 )
 
-        return c
-
-    @untransforms
-    @ensures2d
     def evaluate_callbacks_population(
             self, population, results_dir, force=False, n_cores=-1,
             current_iteration=0):
@@ -1116,20 +1116,17 @@ class OptimizationProblem(metaclass=StructMeta):
 
         def eval_fun(ind):
             results = self.evaluate_callbacks(
+            self.evaluate_callbacks(
                 ind,
                 force=force,
                 results_dir=results_dir,
-                current_iteration=current_iteration,
+                current_iteration=current_iteration
             )
             self.cache.close()
 
-            return results
-
         if n_cores == 1:
-            results = []
             for ind in population:
-                res = eval_fun(ind)
-                results.append(res)
+                eval_fun(ind)
         else:
             if n_cores == 0 or n_cores == -1:
                 n_cores = None
@@ -1137,9 +1134,7 @@ class OptimizationProblem(metaclass=StructMeta):
             self.cache.close()
 
             with pathos.pools.ProcessPool(ncpus=n_cores) as pool:
-                results = pool.map(eval_fun, population)
-
-        return results
+                pool.map(eval_fun, population)
 
     @property
     def meta_scores(self):
@@ -1424,6 +1419,7 @@ class OptimizationProblem(metaclass=StructMeta):
                         current_request,
                         x=x, evaluation_object=eval_obj,
                         *args, **kwargs
+                        current_request, x, eval_obj, *args, **kwargs
                     )
                 else:
                     result = step.evaluate(current_request, *args, **kwargs)
@@ -2486,10 +2482,10 @@ class Objective(metaclass=StructMeta):
             labels = self.objective.labels
         except AttributeError:
             labels = [f'{self.objective}']
-            if self.objective.n_metrics > 1:
+            if self.n_metrics > 1:
                 labels = [
                     f'{self.objective}_{i}'
-                    for i in range(self.objective.n_metrics)
+                    for i in range(self.n_metrics)
                 ]
         return labels
 
@@ -2499,7 +2495,7 @@ class Objective(metaclass=StructMeta):
 
             if len(labels) != self.n_metrics:
                 raise CADETProcessError(
-                    f"Expected {self.objective.n_metrics} labels."
+                    f"Expected {self.n_metrics} labels."
                 )
 
         self._labels = labels
@@ -2564,10 +2560,10 @@ class NonlinearConstraint(metaclass=StructMeta):
             labels = self.nonlinear_constraint.labels
         except AttributeError:
             labels = [f'{self.nonlinear_constraint}']
-            if self.nonlinear_constraint.n_metrics > 1:
+            if self.n_metrics > 1:
                 labels = [
                     f'{self.nonlinear_constraint}_{i}'
-                    for i in range(self.nonlinear_constraint.n_metrics)
+                    for i in range(self.n_metrics)
                 ]
         return labels
 
@@ -2577,7 +2573,7 @@ class NonlinearConstraint(metaclass=StructMeta):
 
             if len(labels) != self.n_metrics:
                 raise CADETProcessError(
-                    f"Expected {self.nonlinear_constraint.n_metrics} labels."
+                    f"Expected {self.n_metrics} labels."
                 )
 
         self._labels = labels
@@ -2627,10 +2623,10 @@ class Callback(metaclass=StructMeta):
         self.results_dir = './'
         self.frequency = frequency
 
-    def __call__(self, current_request, x, evaluation_object):
+    def __call__(self, current_request, x, evaluation_object, ind):
         kwargs = {}
-        if 'x' in inspect.signature(self.callback).parameters:
-            kwargs['x'] = x
+        if 'ind' in inspect.signature(self.callback).parameters:
+            kwargs['ind'] = self._ind
         if 'evaluation_object' in inspect.signature(self.callback).parameters:
             kwargs['evaluation_object'] = evaluation_object
         if 'results_dir' in inspect.signature(self.callback).parameters:

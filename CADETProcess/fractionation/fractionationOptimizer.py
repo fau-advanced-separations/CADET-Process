@@ -202,7 +202,7 @@ class FractionationOptimizer():
             opt = self.setup_optimization_problem(
                 frac, purity_required, ranking, obj_fun, n_objectives
             )
-            opt_results = self.optimizer.optimize(
+            self.optimizer.optimize(
                 opt,
                 save_results=False,
                 log_level=self.log_level,
@@ -217,7 +217,7 @@ class FractionationOptimizer():
                 raise CADETProcessError(str(e))
 
         if return_optimization_results:
-            return opt_results
+            return self.optimizer.results
         else:
             return frac
 

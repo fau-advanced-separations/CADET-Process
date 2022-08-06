@@ -1,6 +1,5 @@
 import os
 import random
-import time
 
 import dill
 import numpy as np
@@ -12,8 +11,7 @@ from pymoo.util.termination.default import MultiObjectiveDefaultTermination
 from pymoo.core.repair import Repair
 
 from CADETProcess.dataStructure import UnsignedInteger, UnsignedFloat
-from CADETProcess.optimization import OptimizerBase, OptimizationResults
-from CADETProcess.optimization import Individual
+from CADETProcess.optimization import OptimizerBase
 
 
 class PymooInterface(OptimizerBase):
@@ -60,14 +58,10 @@ class PymooInterface(OptimizerBase):
         options
 
         """
-        self.optimization_problem = optimization_problem
-
-        self.problem = PymooProblem(
-            optimization_problem, self.progress, self.n_cores
-        )
+        self.problem = PymooProblem(optimization_problem, self.n_cores)
 
         checkpoint_path = os.path.join(
-            self.working_directory, f'{optimization_problem.name}.checkpoint'
+            self.results_directory, f'{optimization_problem.name}.checkpoint'
         )
 
         if use_checkpoint and os.path.isfile(checkpoint_path):
@@ -78,8 +72,6 @@ class PymooInterface(OptimizerBase):
         else:
             random.seed(self.seed)
             self.setup_algorithm()
-
-        start = time.time()
 
         while self.algorithm.has_next():
             self.algorithm.next()
@@ -160,8 +152,6 @@ class PymooInterface(OptimizerBase):
                 self.algorithm.random_state = random.getstate()
                 dill.dump(self.algorithm, dill_file)
 
-        elapsed = time.time() - start
-
         if self.algorithm.n_gen >= self._max_number_of_generations:
             exit_message = 'Max number of generations exceeded.'
             exit_flag = 1
@@ -169,19 +159,10 @@ class PymooInterface(OptimizerBase):
             exit_flag = 0
             exit_message = 'success'
 
-        results = OptimizationResults(
-            optimization_problem=optimization_problem,
-            optimizer=str(self),
-            optimizer_options=self.options,
-            exit_flag=exit_flag,
-            exit_message=exit_message,
-            time_elapsed=elapsed,
-            x=self.progress.x_hof.tolist(),
-            f=self.progress.f_hof,
-            g=self.progress.g_hof,
-            progress=self.progress,
-        )
-        return results
+        self.results.exit_flag = exit_flag
+        self.results.exit_message = exit_message
+
+        return self.results
 
     def load_checkpoint(self, checkpoint_path=None, update_parameters=True):
         if checkpoint_path is None:
@@ -196,7 +177,7 @@ class PymooInterface(OptimizerBase):
         with open(checkpoint_path, "rb") as dill_file:
             self.algorithm = dill.load(dill_file)
 
-        self.progress = self.algorithm.progress
+        self.results = self.algorithm.results
         random.setstate(self.algorithm.random_state)
 
         if update_parameters:
@@ -258,7 +239,7 @@ class PymooInterface(OptimizerBase):
             seed=self.seed, verbose=True, save_history=False,
         )
 
-        self.algorithm.progress = self.progress
+        self.algorithm.results = self.results
 
     def update_algorithm(self, algorithm):
         algorithm.problem = self.problem
@@ -303,9 +284,8 @@ class U_NSGA3(PymooInterface):
 
 
 class PymooProblem(Problem):
-    def __init__(self, optimization_problem, progress, n_cores, **kwargs):
+    def __init__(self, optimization_problem, n_cores, **kwargs):
         self.optimization_problem = optimization_problem
-        self.progress = progress
         self.n_cores = n_cores
 
         super().__init__(

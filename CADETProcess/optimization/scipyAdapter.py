@@ -9,7 +9,7 @@ from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import (
     Bool, Switch, UnsignedInteger, UnsignedFloat
 )
-from CADETProcess.optimization import OptimizerBase, OptimizationResults
+from CADETProcess.optimization import OptimizerBase
 
 
 class SciPyInterface(OptimizerBase):
@@ -49,7 +49,6 @@ class SciPyInterface(OptimizerBase):
         def objective_function(x):
             return optimization_problem.evaluate_objectives(x)[0]
 
-        start = time.time()
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore', category=OptimizeWarning)
             warnings.filterwarnings('ignore', category=RuntimeWarning)
@@ -62,23 +61,10 @@ class SciPyInterface(OptimizerBase):
                 constraints=self.get_constraint_objects(optimization_problem),
                 options=self.options
                 )
-        elapsed = time.time() - start
 
-        x = list(scipy_results.x)
-        f = optimization_problem.evaluate_objectives(x)
-        g = optimization_problem.evaluate_nonlinear_constraints(x)
+        self.results.exit_flag = scipy_results.status
+        self.results.exit_message = scipy_results.message
 
-        results = OptimizationResults(
-            optimization_problem=optimization_problem,
-            optimizer=str(self),
-            optimizer_options=self.options,
-            exit_flag=scipy_results.status,
-            exit_message=scipy_results.message,
-            time_elapsed=elapsed,
-            x=x,
-            f=f,
-            g=g,
-        )
 
         return results
 
@@ -248,6 +234,7 @@ class TrustConstr(SciPyInterface):
 
     """
     gtol = UnsignedFloat(default=1e-6)
+    cv_tol = gtol
     xtol = UnsignedFloat(default=1e-8)
     barrier_tol = UnsignedFloat(default=1e-8)
     initial_constr_penalty = UnsignedFloat(default=1.0)
@@ -286,6 +273,7 @@ class COBYLA(SciPyInterface):
     maxiter = UnsignedInteger(default=10000)
     disp = Bool(default=False)
     catol = UnsignedFloat(default=0.0002)
+    cv_tol = catol
     _options = ['rhobeg', 'maxiter', 'disp', 'catol']
 
 
