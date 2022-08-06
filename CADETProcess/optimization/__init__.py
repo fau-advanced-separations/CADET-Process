@@ -1,3 +1,4 @@
+from .individual import *
 from .progress import *
 from .optimizationProblem import *
 from .optimizer import *

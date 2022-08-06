@@ -11,77 +11,9 @@ from pymoo.visualization.scatter import Scatter
 
 from CADETProcess import CADETProcessError
 from CADETProcess import plotting
-from CADETProcess.dataStructure import StructMeta
-from CADETProcess.dataStructure import List, Bool
 from CADETProcess.dataStructure import DillDisk
 
-
-class Individual(metaclass=StructMeta):
-    x = List()
-    f = List()
-    g = List()
-    is_valid = Bool(default=True)
-
-    def __init__(self, x, f, g=None, x_untransformed=None):
-        self.x = x
-        self.f = f
-        self.g = g
-
-        if x_untransformed is None:
-            x_untransformed = x
-        self.x_untransformed = x_untransformed
-
-    def dominates(self, other, objectives_filter=slice(None)):
-        """
-        Return true if each objective of *self* is not strictly worse than
-        the corresponding objective of *other* and at least one objective is
-        strictly better.
-
-        Parmeters
-        ---------
-        other : Individual
-            Other individual
-        param objectives_filter: slice
-            Slice indicating on which objectives the domination is tested.
-            The default value is `slice(None)`, representing all objectives.
-        """
-        dominates = False
-        for self_value, other_value in zip(
-                self.f[objectives_filter], other.f[objectives_filter]):
-            if self_value < other_value:
-                dominates = True
-            elif self_value > other_value:
-                return False
-        return dominates
-
-    def is_similar(self, other, tol=1e-8):
-        """
-
-        Return True if objectives are close to each other.
-
-        To reduce number of entries, a rather high rtol is chosen.
-
-        """
-        similar_f = np.allclose(self.f, other.f, rtol=tol)
-
-        if self.g is not None:
-            similar_g = np.allclose(self.g, other.g, rtol=tol)
-        else:
-            similar_g = True
-
-        if similar_f and similar_g:
-            return True
-        else:
-            return False
-
-    def __str__(self):
-        return str(list(self.x))
-
-    def __repr__(self):
-        if self.g is None:
-            return f'{self.__class__.__name__}({self.x}, {self.f})'
-        else:
-            return f'{self.__class__.__name__}({self.x}, {self.f}, {self.g})'
+from CADETProcess.optimization import Individual
 
 
 class OptimizationProgress():
