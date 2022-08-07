@@ -54,17 +54,20 @@ class FractionationOptimizer():
             raise TypeError('Expected OptimizerBase')
         self._optimizer = optimizer
 
-    def setup_fractionator(self, simulation_results, purity_required):
+    def setup_fractionator(
+            self, simulation_results, purity_required, ignore_failed=True):
         frac = Fractionator(simulation_results)
 
         frac.process.lock = False
-
         frac.initial_values(purity_required)
+        frac.process.lock = True
 
         if len(frac.events) == 0:
-            raise CADETProcessError("No areas found with sufficient purity.")
+            if not ignore_failed:
+                raise CADETProcessError(
+                    "No areas found with sufficient purity."
+                )
 
-        frac.process.lock = True
         return frac
 
     def setup_optimization_problem(
@@ -174,11 +177,12 @@ class FractionationOptimizer():
 
         See Also
         --------
-        CADETProcess.common.Chromatogram
         setup_fractionator
-        Fractionator
         setup_optimization_problem
+        Fractionator
+        CADETProcess.solution.SolutionIO
         CADETProcess.optimization.OptimizationProblem
+        CADETProcess.optimization.OptimizerBase
 
         """
         if not isinstance(simulation_results, SimulationResults):
@@ -189,7 +193,9 @@ class FractionationOptimizer():
                 'Simulation results do not contain chromatogram'
             )
 
-        frac = self.setup_fractionator(simulation_results, purity_required)
+        frac = self.setup_fractionator(
+            simulation_results, purity_required, ignore_failed
+        )
 
         try:
             opt = self.setup_optimization_problem(
