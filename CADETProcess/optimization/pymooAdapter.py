@@ -1,13 +1,13 @@
+import importlib
 import os
 import random
 
 import dill
 import numpy as np
 
-import pymoo
 from pymoo.core.problem import Problem
 from pymoo.factory import get_reference_directions
-from pymoo.util.termination.default import MultiObjectiveDefaultTermination
+from pymoo.termination.default import DefaultMultiObjectiveTermination
 from pymoo.core.repair import Repair
 
 from CADETProcess.dataStructure import UnsignedInteger, UnsignedFloat
@@ -17,17 +17,15 @@ from CADETProcess.optimization import OptimizerBase
 class PymooInterface(OptimizerBase):
     """Wrapper around pymoo."""
     seed = UnsignedInteger(default=12345)
-    x_tol = UnsignedFloat(default=1e-8)
-    cv_tol = UnsignedFloat(default=1e-6)
-    f_tol = UnsignedFloat(default=0.0025)
+    xtol = UnsignedFloat(default=1e-8)
+    cvtol = UnsignedFloat(default=1e-6)
+    cv_tol = cvtol
+    ftol = UnsignedFloat(default=0.0025)
     pop_size = UnsignedInteger()
-    nth_gen = UnsignedInteger(default=1)
-    n_last = UnsignedInteger(default=30)
     n_max_gen = UnsignedInteger()
     n_max_evals = UnsignedInteger(default=100000)
     _options = [
-        'x_tol', 'cv_tol', 'f_tol', 'nth_gen',
-        'n_last', 'n_max_gen', 'n_max_evals',
+        'xtol', 'cvtol', 'ftol', 'n_max_gen', 'n_max_evals',
     ]
 
     def run(
@@ -72,6 +70,7 @@ class PymooInterface(OptimizerBase):
             random.seed(self.seed)
             self.setup_algorithm()
 
+        n_gen = 1
         while self.algorithm.has_next():
             self.algorithm.next()
 
@@ -83,13 +82,15 @@ class PymooInterface(OptimizerBase):
                 G = len(X)*[None]
             X_opt = self.algorithm.opt.get("X")
 
-            self.run_post_generation_processing(X, F, G, self.algorithm.n_gen, X_opt)
+            self.run_post_generation_processing(X, F, G, n_gen, X_opt)
 
             with open(checkpoint_path, "wb") as dill_file:
                 self.algorithm.random_state = random.getstate()
                 dill.dump(self.algorithm, dill_file)
 
-        if self.algorithm.n_gen >= self._max_number_of_generations:
+            n_gen += 1
+
+        if n_gen >= self._max_number_of_generations:
             exit_message = 'Max number of generations exceeded.'
             exit_flag = 1
         else:
@@ -164,13 +165,17 @@ class PymooInterface(OptimizerBase):
         elif len(pop) > self._population_size:
             pop = pop[0:self._population_size]
 
-        self.algorithm = pymoo.factory.get_algorithm(
-            str(self),
+        module = importlib.import_module(
+            f'pymoo.algorithms.moo.{str(self).lower()}'
+        )
+        cls_ = getattr(module, str(self))
+        self.algorithm = cls_(
             ref_dirs=self.ref_dirs,
             pop_size=self._population_size,
             sampling=pop,
             repair=RepairIndividuals(self.optimization_problem),
         )
+
         self.algorithm.setup(
             self.problem, termination=self.termination,
             seed=self.seed, verbose=True, save_history=False,
@@ -181,19 +186,16 @@ class PymooInterface(OptimizerBase):
     def update_algorithm(self, algorithm):
         algorithm.problem = self.problem
         algorithm.pop_size = self._population_size
-        algorithm.termination.terminations[0].n_max_gen = \
+        algorithm.termination.n_max_gen = \
             self._max_number_of_generations
-        algorithm.has_terminated = \
-            not algorithm.termination.do_continue(algorithm)
+        algorithm.termination.update(algorithm)
 
     @property
     def termination(self):
-        termination = MultiObjectiveDefaultTermination(
-            x_tol=self.x_tol,
-            cv_tol=self.cv_tol,
-            f_tol=self.f_tol,
-            nth_gen=self.nth_gen,
-            n_last=self.n_last,
+        termination = DefaultMultiObjectiveTermination(
+            xtol=self.xtol,
+            cvtol=self.cvtol,
+            ftol=self.ftol,
             n_max_gen=self._max_number_of_generations,
             n_max_evals=self.n_max_evals
         )
@@ -212,12 +214,12 @@ class PymooInterface(OptimizerBase):
 
 class NSGA2(PymooInterface):
     def __str__(self):
-        return 'nsga2'
+        return 'NSGA2'
 
 
 class U_NSGA3(PymooInterface):
     def __str__(self):
-        return 'unsga3'
+        return 'UNSGA3'
 
 
 class PymooProblem(Problem):
@@ -237,29 +239,28 @@ class PymooProblem(Problem):
     def _evaluate(self, x, out, *args, **kwargs):
         opt = self.optimization_problem
         if opt.n_objectives > 0:
-            f = opt.evaluate_objectives_population(
+            F = opt.evaluate_objectives_population(
                 x,
                 untransform=True,
                 n_cores=self.n_cores,
             )
-            out["F"] = np.array(f)
+            out["F"] = np.array(F)
 
         if opt.n_nonlinear_constraints > 0:
-            g = opt.evaluate_nonlinear_constraints_population(
+            G = opt.evaluate_nonlinear_constraints_population(
                 x,
                 untransform=True,
                 n_cores=self.n_cores,
             )
-            out["G"] = np.array(g)
+            out["G"] = np.array(G)
 
 
 class RepairIndividuals(Repair):
-    def __init__(self, optimization_problem):
+    def __init__(self, optimization_problem, *args, **kwargs):
         self.optimization_problem = optimization_problem
+        super().__init__(*args, **kwargs)
 
-    def _do(self, problem, pop, **kwargs):
-        Z = pop.get("X")
-
+    def _do(self, problem, Z, **kwargs):
         # Check if linear constraints are met
         for i, ind in enumerate(Z):
             if not self.optimization_problem.check_linear_constraints(
@@ -269,7 +270,4 @@ class RepairIndividuals(Repair):
                 )
                 Z[i, :] = self.optimization_problem.transform(x_new)
 
-        # set the design variables for the population
-        pop.set("X", Z)
-
-        return pop
+        return Z

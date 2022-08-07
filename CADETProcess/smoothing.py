@@ -4,7 +4,7 @@ import numpy as np
 import scipy.signal
 
 from pymoo.core.problem import ElementwiseProblem
-from pymoo.factory import get_algorithm
+from pymoo.algorithms.soo.nonconvex.pattern import PatternSearch
 from pymoo.optimize import minimize
 
 butter_order = 3
@@ -112,7 +112,7 @@ def refine_signal(func, times, values, x, y, fs, start):
         lb, ub, func, fs, values, x_min, y_min, p1, p2, factor
     )
 
-    algorithm = get_algorithm('pattern-search', n_sample_points=50, eps=1e-13)
+    algorithm = PatternSearch(n_sample_points=50, eps=1e-13)
 
     res = minimize(
         problem,
@@ -187,7 +187,7 @@ def find_max_signal(func, times, values, sse_target, filters, sse):
         filters[0], filters[-1], sse_target, func, values, fs
     )
 
-    algorithm = get_algorithm('pattern-search', n_sample_points=50, eps=1e-13)
+    algorithm = PatternSearch(n_sample_points=50, eps=1e-13)
 
     res = minimize(
         problem,
