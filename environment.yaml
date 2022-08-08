@@ -15,3 +15,4 @@ dependencies:
     - sphinx-sitemap>=2.2.0
     - numpydoc>=1.2
     - myst-nb>=0.13.2
+    - pymoo==0.5.0

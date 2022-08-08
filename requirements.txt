@@ -1,5 +1,5 @@
-numpy
-scipy
+numpy==1.21.*
+scipy==1.7.3
 matplotlib
 corner
 sympy
@@ -8,5 +8,5 @@ multiprocess
 cadet-python
 addict
 hopsy
-pymoo
+pymoo==0.5.0
 numba
