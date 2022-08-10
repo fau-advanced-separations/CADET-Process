@@ -260,7 +260,7 @@ class Cadet(SimulatorBase):
             return_information = cadet.run_load(timeout=self.timeout)
             elapsed = time.time() - start
         except TimeoutExpired:
-            raise CADETProcessError('Simulator timed out')
+            raise CADETProcessError('Simulator timed out') from None
 
         if return_information.returncode != 0:
             self.logger.error(
@@ -268,8 +268,8 @@ class Cadet(SimulatorBase):
                 f'with parameters {process.config} failed.'
             )
             raise CADETProcessError(
-                f'CADET Error: {return_information.stderr}'
-            )
+                f'CADET Error: Simulation failed with {return_information.stderr}'
+            ) from None
 
         try:
             results = self.get_simulation_results(
