@@ -198,6 +198,14 @@ class RMSE(DifferenceBase):
         return rmse
 
 
+class NRMSE(DifferenceBase):
+    def _evaluate(self, solution):
+        rmse = calculate_rmse(solution.solution, self.reference.solution)
+        nrmse = rmse / np.max(solution.solution, axis=0)
+
+        return nrmse
+
+
 class Norm(DifferenceBase):
     order = UnsignedInteger()
 
