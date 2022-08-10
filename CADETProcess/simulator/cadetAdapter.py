@@ -261,6 +261,9 @@ class Cadet(SimulatorBase):
             elapsed = time.time() - start
         except TimeoutExpired:
             raise CADETProcessError('Simulator timed out') from None
+        finally:
+            if file_path is None:
+                os.remove(cadet.filename)
 
         if return_information.returncode != 0:
             self.logger.error(
@@ -279,10 +282,6 @@ class Cadet(SimulatorBase):
             raise CADETProcessError(
                 'Unexpected error reading SimulationResults.'
             )
-
-        # Remove files
-        if file_path is None:
-            os.remove(cadet.filename)
 
         return results
 
