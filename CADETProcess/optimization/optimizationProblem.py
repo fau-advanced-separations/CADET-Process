@@ -44,18 +44,18 @@ class OptimizationProblem(metaclass=StructMeta):
     ----------
     name : str
         Name of the optimization problem
-    evaluation_object :  obj
-        Object containing parameters to be optimized.
-    evaluator : obj
-        Object used to evaluate evaluation_object. Returns performance.
+    evaluation_objects : list
+        Objects containing parameters to be optimized.
+    evaluators : obj
+        Objects used to evaluate evaluation_object.
     cache : ResultsCache
         Cache to store (intermediate) results.
     variables : list
-        List of optimization variables
-    objectives: list of callables
-        Functions that return value of objective function for performance.
+        List of optimization variables.
+    objectives: list
+        Objective functions.
     nonlinear_constraints: list of callables
-        Functions that return value of nonlinear constraints for performance.
+        Nonlinear constraint functions.
     linear_constraints : list
         List of all linear constraints of an OptimizationProblem.
     linear_equality_constraints : list
@@ -234,6 +234,7 @@ class OptimizationProblem(metaclass=StructMeta):
         ----------
         parameter_path : str, optional
             Path of the parameter including the evaluation object.
+            If None, name must be provided.
         evaluation_objects : EvaluationObject or list of EvaluationObjects
             Evaluation object to set parameters.
             If -1, all evaluation objects are used.
@@ -259,7 +260,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
         See Also
         --------
-        evaluation_object
+        evaluation_objects
         OptimizationVariable
         remove_variable
 
