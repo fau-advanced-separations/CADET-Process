@@ -4,13 +4,14 @@ on: [push, pull_request]
 
 jobs:
   test-job:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     defaults:
       run:
         shell: bash -l {0}
     strategy:
       matrix:
         python-version: ["3.8", "3.9", "3.10"]
+        os: [ubuntu-latest, windows-latest]
     steps:
     - uses: actions/checkout@v2
     - name: Cache conda
