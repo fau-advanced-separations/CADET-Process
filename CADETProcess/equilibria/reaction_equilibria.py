@@ -59,7 +59,7 @@ def calculate_buffer_equilibrium(
 
 
 def dydx_mal(c, reaction_system, constant_indices=None, c_init=None):
-    cc = np.asarray(c)
+    cc = np.asarray(c, dtype='float64')
     if constant_indices is not None:
         if c_init is None:
             c_init = c
@@ -94,7 +94,7 @@ def dydx_mal(c, reaction_system, constant_indices=None, c_init=None):
 
 
 def jac_mal(c, reaction_system, constant_indices=None, c_init=None):
-    cc = np.asarray(c)
+    cc = np.asarray(c, dtype='float64')
 
     if constant_indices is not None:
         if c_init is None:

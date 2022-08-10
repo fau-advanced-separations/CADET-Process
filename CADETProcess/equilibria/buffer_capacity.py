@@ -28,7 +28,7 @@ def preprocessing(reaction_system, buffer, pH=None, components=None):
     if pH is None:
         pH = -np.log10(buffer_M[:, proton_index]).reshape((-1))
     else:
-        pH = np.asarray(pH, dtype=float)
+        pH = np.asarray(pH, dtype='float64')
 
     scalar_input = False
     if pH.ndim == 0:
@@ -357,7 +357,7 @@ def ionic_strength(component_system, buffer):
     if len(buffer) != component_system.n_comp:
         raise CADETProcessError("Number of components does not match")
 
-    buffer = np.asarray(buffer)
+    buffer = np.asarray(buffer, dtype='float64')
     z = np.asarray(component_system.charges)
     return 1/2 * np.sum(buffer*z**2)
 
