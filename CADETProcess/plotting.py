@@ -29,7 +29,7 @@ color_list = list(color_dict.values())
 from matplotlib import cycler
 chromapy_cycler = cycler(color=color_list)
 
-textbox_props = dict(boxstyle='round', facecolor='white', alpha=1)
+textbox_props = dict(facecolor='white', alpha=1)
 
 
 def set_style(style='medium'):
@@ -156,10 +156,13 @@ def set_xticks(ax, x_ticks):
     plt.xticks(locs, labels, rotation=72, horizontalalignment='center')
 
 
-def add_text(ax, text):
+def add_text(ax, text, position=(0.05, 0.9), tb_props=None, **kwargs):
+    if tb_props is not None:
+        textbox_props.update(tb_props)
+
     ax.text(
-        0.05, 0.9, text, transform=ax.transAxes, verticalalignment='top',
-        bbox=textbox_props
+        *position, text, transform=ax.transAxes, verticalalignment='top',
+        bbox=textbox_props, **kwargs
     )
 
 
@@ -269,6 +272,8 @@ def create_and_save_figure(func):
 
         if show:
             plt.show()
+        else:
+            plt.close()
 
         return artist
     return wrapper

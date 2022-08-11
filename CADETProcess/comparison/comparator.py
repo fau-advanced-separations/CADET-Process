@@ -1,6 +1,7 @@
 import copy
 import importlib
 import functools
+from pathlib import Path
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -135,10 +136,46 @@ class Comparator(metaclass=StructMeta):
 
     __call__ = evaluate
 
+    def setup_comparison_figure(self, plot_individual=False):
+        n = len(self.metrics)
+
+        if n == 0:
+            return (None, None)
+
+        comparison_fig_all, comparison_axs_all = plt.subplots(
+            nrows=n,
+            figsize=(8 + 4 + 2, n*8 + 2),
+            squeeze=False
+        )
+        plt.close(comparison_fig_all)
+        comparison_axs_all = comparison_axs_all.reshape(-1)
+
+        comparison_fig_ind = []
+        comparison_axs_ind = []
+        for i in range(n):
+            fig, axs = plt.subplots()
+            comparison_fig_ind.append(fig)
+            comparison_axs_ind.append(axs)
+            plt.close(fig)
+
+        comparison_axs_ind = \
+            np.array(comparison_axs_ind).reshape(comparison_axs_all.shape)
+
+        if plot_individual:
+            return comparison_fig_ind, comparison_axs_ind
+        else:
+            return comparison_fig_all, comparison_axs_all
+
     def plot_comparison(
-            self, simulation_results, file_name=None, show=True):
-        axs = []
-        for metric in self.metrics:
+            self, simulation_results, axs=None, figs=None,
+            file_name=None, show=True, plot_individual=False):
+
+        if axs is None:
+            figs, axs = self.setup_comparison_figure(plot_individual)
+        if not isinstance(figs, list):
+            figs = [figs]
+
+        for ax, metric in zip(axs, self.metrics):
             try:
                 solution_path = self.solution_paths[metric]
                 solution = get_nested_value(
@@ -159,17 +196,10 @@ class Comparator(metaclass=StructMeta):
                     metric.reference.crit_fs,
                     metric.reference.crit_fs_der
                 )
-            m = metric.evaluate(solution)
-            m = [
-                np.format_float_scientific(
-                    n, precision=2,
-                )
-                for n in m
-            ]
-
             solution = metric.slice_and_transform(solution)
 
             ax = solution.plot(
+                ax=ax,
                 show=False, start=metric.start, end=metric.end,
                 y_max=1.1*np.max(metric.reference.solution)
             )
@@ -183,19 +213,51 @@ class Comparator(metaclass=StructMeta):
                 ax, metric.reference.solution, metric.reference.time/60,
                 **plot_args
             )
-            plotting.add_text(ax, f'{metric}: {m}')
-
             ax.legend(loc=1)
 
-            axs.append(ax)
+            m = metric.evaluate(solution)
+            m = [
+                np.format_float_scientific(
+                    n, precision=2,
+                )
+                for n in m
+            ]
+
+            text = f"{metric}: "
+            if metric.n_metrics > 1:
+                try:
+                    text += "\n"
+                    for i, (label, m) in enumerate(zip(metric.labels, m)):
+                        text += f"{label}: ${m}$"
+                        if i < metric.n_metrics - 1:
+                            text += " \n"
+                except AttributeError:
+                    text += f"{m}"
+            else:
+                text += m[0]
+
+            plotting.add_text(ax, text, fontsize=14)
+
+        for fig in figs:
+            fig.tight_layout()
+            if not show:
+                plt.close(fig)
+            else:
+                dummy = plt.figure(figsize=fig.get_size_inches())
+                new_manager = dummy.canvas.manager
+                new_manager.canvas.figure = fig
+                fig.set_canvas(new_manager.canvas)
+                plt.show()
 
         if file_name is not None:
-            plt.savefig(file_name)
+            if plot_individual:
+                name, suffix = file_name.split('.')
+                for fig, metric in zip(figs, self.metrics):
+                    fig.savefig(f'{name}_{metric}.{suffix}')
+            else:
+                figs[0].savefig(file_name)
 
-        if not show:
-            plt.close()
-
-        return axs
+        return figs, axs
 
     def __iter__(self):
         yield from self.metrics
