@@ -54,7 +54,7 @@ optimization_problem.add_variable(
     'flow_sheet.column.axial_dispersion', lb=1e-8, ub=1e-5, transform='auto'
 )
 
-simulator = Cadet(temp_dir='/dev/shm/')
+simulator = Cadet()
 optimization_problem.add_evaluator(simulator, cache=True)
 
 optimization_problem.add_objective(
@@ -86,7 +86,7 @@ optimizer.n_max_gen = 5
 
 if __name__ == "__main__":
     from CADETProcess import settings
-    settings.set_working_directory('./dextran')
+    settings.working_directory = './dextran'
 
     optimization_results = optimizer.optimize(
         optimization_problem,

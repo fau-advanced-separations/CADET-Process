@@ -33,13 +33,11 @@ class StationarityEvaluator(Comparator):
     def __init__(
             self,
             criteria=None,
-            log_level='WARNING', save_log=False,
+            log_level='WARNING',
             *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.logger = log.get_logger(
-            'StationarityEvaluator', level=log_level, save_log=save_log
-        )
+        self.logger = log.get_logger('StationarityEvaluator', level=log_level)
 
         self._criteria = []
 

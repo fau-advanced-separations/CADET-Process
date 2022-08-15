@@ -33,7 +33,7 @@ class FractionationOptimizer():
 
     """
 
-    def __init__(self, optimizer=None, log_level='WARNING', save_log=False):
+    def __init__(self, optimizer=None, log_level='WARNING'):
         if optimizer is None:
             optimizer = COBYLA()
             optimizer.tol = 0.1
@@ -41,7 +41,6 @@ class FractionationOptimizer():
             optimizer.rhobeg = 1
         self.optimizer = optimizer
         self.log_level = log_level
-        self.save_log = save_log
 
     @property
     def optimizer(self):
@@ -80,7 +79,6 @@ class FractionationOptimizer():
         opt = OptimizationProblem(
             'FractionationOptimization',
             log_level=self.log_level,
-            save_log=self.save_log,
             use_diskcache=False,
         )
 
@@ -206,7 +204,6 @@ class FractionationOptimizer():
                 opt,
                 save_results=False,
                 log_level=self.log_level,
-                save_log=self.save_log,
                 delete_cache=True,
             )
         except CADETProcessError as e:

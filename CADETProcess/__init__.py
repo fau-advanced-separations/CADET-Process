@@ -15,8 +15,11 @@ __version__ = '0.6.3'
 # Imports
 from .CADETProcessError import *
 
-from . import settings
 from . import log
+
+from .settings import Settings
+settings = Settings()
+ 
 from . import dataStructure
 from . import transform
 from . import plotting

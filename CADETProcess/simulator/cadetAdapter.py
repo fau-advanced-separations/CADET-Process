@@ -12,6 +12,7 @@ import numpy as np
 from cadet import Cadet as CadetAPI
 
 from CADETProcess import CADETProcessError
+from CADETProcess import settings
 from CADETProcess.dataStructure import (
     Bool, Switch, UnsignedFloat, UnsignedInteger,
 )
@@ -38,8 +39,6 @@ class Cadet(SimulatorBase):
     ----------
     install_path: str
         Path to the installation of CADET
-    temp_dir : str
-        Path to directory for temporary files
     time_out : UnsignedFloat
         Maximum duration for simulations
     model_solver_parameters : ModelSolverParametersGroup
@@ -75,11 +74,10 @@ class Cadet(SimulatorBase):
     use_c_api = Bool(default=False)
     _force_constant_flow_rate = False
 
-    def __init__(self, install_path=None, temp_dir=None, *args, **kwargs):
+    def __init__(self, install_path=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.install_path = install_path
-        self.temp_dir = temp_dir
 
         self.model_solver_parameters = ModelSolverParametersGroup()
         self.solver_parameters = SolverParametersGroup()
@@ -160,7 +158,7 @@ class Cadet(SimulatorBase):
             [lwe_path.as_posix()],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            cwd=self.temp_dir
+            cwd=settings.temp_dir
         )
         if ret.returncode != 0:
             if ret.stdout:
@@ -171,7 +169,7 @@ class Cadet(SimulatorBase):
                 "Failure: Creation of test simulation ran into problems"
             )
 
-        lwe_hdf5_path = Path(self.temp_dir) / 'LWE.h5'
+        lwe_hdf5_path = Path(settings.temp_dir) / 'LWE.h5'
 
         sim = CadetAPI()
         sim.filename = lwe_hdf5_path.as_posix()
@@ -186,25 +184,9 @@ class Cadet(SimulatorBase):
                 "Simulation failed"
             )
 
-    @property
-    def temp_dir(self):
-        return tempfile.gettempdir()
-
-    @temp_dir.setter
-    def temp_dir(self, temp_dir):
-        if temp_dir is not None:
-            try:
-                exists = Path(temp_dir).exists()
-            except TypeError:
-                raise CADETProcessError('Not a valid path')
-            if not exists:
-                raise CADETProcessError('Not a valid path')
-
-        tempfile.tempdir = temp_dir
-
     def get_tempfile_name(self):
         f = next(tempfile._get_candidate_names())
-        return os.path.join(self.temp_dir, f + '.h5')
+        return os.path.join(settings.temp_dir, f + '.h5')
 
     def run(self, process, cadet=None, file_path=None):
         """Interface to the solver run function

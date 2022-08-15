@@ -36,7 +36,6 @@ class OptimizerBase(metaclass=StructMeta):
             save_results=True,
             results_directory=None,
             log_level="INFO",
-            save_log=True,
             delete_cache=False,
             remove_similar=True,
             *args, **kwargs):
@@ -53,8 +52,6 @@ class OptimizerBase(metaclass=StructMeta):
             Only has an effect, if save_results == True.
         log_level : str, optional
             log level. The default is "INFO".
-        save_log : bool, optional
-            If True, save log to file. The default is True.
         delete_cache : bool, optional
             If True, delete ResultsCache after finishing. The default is False.
         remove_similar : bool, optional
@@ -108,9 +105,7 @@ class OptimizerBase(metaclass=StructMeta):
             cv_tol=self.cv_tol
         )
 
-        self.logger = log.get_logger(
-            str(self), level=log_level, save_log=save_log
-        )
+        self.logger = log.get_logger(str(self), level=log_level)
 
         log.log_time('Optimization', self.logger.level)(self.run)
         log.log_results('Optimization', self.logger.level)(self.run)

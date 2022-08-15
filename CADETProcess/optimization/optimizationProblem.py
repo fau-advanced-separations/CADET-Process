@@ -75,12 +75,9 @@ class OptimizationProblem(metaclass=StructMeta):
             name,
             use_diskcache=True,
             cache_directory=None,
-            log_level='INFO',
-            save_log=True):
+            log_level='INFO'):
         self.name = name
-        self.logger = log.get_logger(
-            self.name, level=log_level, save_log=save_log
-        )
+        self.logger = log.get_logger(self.name, level=log_level)
 
         self._evaluation_objects = []
         self._evaluators = []
@@ -671,7 +668,7 @@ class OptimizationProblem(metaclass=StructMeta):
         evaluate_nonlinear_constraints
 
         """
-        self.logger.info(f'evaluate objectives at {x}')
+        self.logger.debug(f'evaluate objectives at {x}')
 
         x = list(x)
         f = []
@@ -908,7 +905,7 @@ class OptimizationProblem(metaclass=StructMeta):
         evaluate_objectives
 
         """
-        self.logger.info(f'evaluate nonlinear constraints at {x}')
+        self.logger.debug(f'evaluate nonlinear constraints at {x}')
 
         x = list(x)
         g = []
@@ -1089,10 +1086,8 @@ class OptimizationProblem(metaclass=StructMeta):
         evaluate_nonlinear_constraints
 
         """
-        self.logger.info(f'evaluate nonlinear constraints at {x}')
+        self.logger.debug(f'evaluate callbacks at {ind.x}')
         x = self.untransform(ind.x)
-
-        self.logger.debug(f'evaluate nonlinear constraints at {ind.x}')
 
         for callback in self.callbacks:
             if not current_iteration % callback.frequency == 0:
@@ -1232,7 +1227,7 @@ class OptimizationProblem(metaclass=StructMeta):
         evaluate_nonlinear_constraints
 
         """
-        self.logger.info(f'evaluate meta functions at {x}')
+        self.logger.debug(f'evaluate meta functions at {x}')
 
         x = list(x)
         m = []
@@ -1317,7 +1312,7 @@ class OptimizationProblem(metaclass=StructMeta):
         evaluate_nonlinear_constraints
 
         """
-        self.logger.info('Evaluate multi criteria decision functions.')
+        self.logger.debug('Evaluate multi criteria decision functions.')
 
         for func in self.multi_criteria_decision_functions:
             pareto_population = func(pareto_population)
@@ -1366,7 +1361,7 @@ class OptimizationProblem(metaclass=StructMeta):
             DESCRIPTION.
 
         """
-        self.logger.info(f'evaluate {str(func)} at {x}')
+        self.logger.debug(f'evaluate {str(func)} at {x}')
 
         results = []
 
@@ -1380,7 +1375,7 @@ class OptimizationProblem(metaclass=StructMeta):
             evaluation_objects = [None]
 
         for eval_obj in evaluation_objects:
-            self.logger.info(
+            self.logger.debug(
                 f"Evaluating {func}. "
                 f"requires evaluation of {[str(req) for req in requires]}"
             )
@@ -1395,7 +1390,7 @@ class OptimizationProblem(metaclass=StructMeta):
                 for step in reversed(requires):
                     try:
                         result = self.cache.get(eval_obj, step, x)
-                        self.logger.info(
+                        self.logger.debug(
                             f'Got {str(step)} results from cache.'
                         )
                         current_request = result
