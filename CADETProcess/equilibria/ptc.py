@@ -1,12 +1,16 @@
-"""Pseudo-transient continuation for solving nonlinear equation systems
+"""Pseudo-transient continuation for solving nonlinear equation systems.
 
-.. moduleauthor:: Samuel Leweke <leweke@math.uni-koeln.de>
+The main method is ptc, a pseudo-transient continuation method with
+switched evolution relaxation.
 
-    The main method is ptc, a pseudo-transient continuation method with
-    switched evolution relaxation.
+This code was written by Samuel Leweke (University of Cologne) in 2020.
 
-    This code was written by Samuel Leweke (University of Cologne) in 2020.
 """
+
+__author__ = "Samuel Leweke"
+__contact__ = "leweke@math.uni-koeln.de"
+__copyright__ = "Copyright 2020, University of Cologne"
+
 
 import numpy as np
 import scipy.linalg
@@ -29,8 +33,7 @@ def ptc(
         x, f, jacF, tau, tol,
         scale=None, maxIter=50, maxNonMonotone=5,
         quiet=True, variant=False):
-    """
-    Solve a nonlinear equation system using pseudo-transient continuation.
+    """Solve a nonlinear equation system using pseudo-transient continuation.
 
     The nonlinear equation system f(x) = 0 is solved using pseudo-transient
     continuation (PTC), which introduce pseudo time and computes the steady
@@ -48,37 +51,51 @@ def ptc(
     (Vol. 35). Berlin, Heidelberg: Springer.
     http://doi.org/10.1007/978-3-642-23899-4
 
-    Args:
-        x: Initial point as numpy array
-        f: Function with signature f(x) that returns the residual
-        jacF: Function with signature jacF(x) that returns the Jacobian of f
-        tau: Initial pseudo time step size
-        tol: Target tolerance for scaled root mean square residual
-        scale: A numpy vector with (positive) diagonal scaling coefficients or
-        None if no scaling is applied.
-        The scaled root mean square norm is given by
-            || x || = \sqrt{ (1/n) * \sum (x_i / v_i)^2}
-        maxIter: Maximum number of iterations
-        maxNonMonotone: Maximum number of iterations with non-decreasing 
-            residual in a row
-        quiet: Determines whether iteration number, norm of step, scaled root
-            mean square residual, and step size are printed on each iteration.
-        variant: Determines whether
-            (1/tau * I - F'(x)) * dx = F(x) is solved (True)
-            or
-            (I - tau * F'(x)) * dx = F(x) is solved (False).
 
-    Returns:
-        tuple: (
-            Status code,
-            solution as numpy vector,
-            scaled root mean square residual
-        )
-            The status code determines whether the algorithm succeeded:
-                -2: Failed due to non-decreasing residual
-                -1: Failed due to singular Jacobian
-                 0: Converged with passing residual test
-                 1: Exceeded maximum number of iterations
+    Parameters
+    ----------
+    x : list
+        Initial point as numpy array.
+    f : callable
+        Function with signature f(x) that returns the residual.
+    jacF : callable
+        Function with signature jacF(x) that returns the Jacobian of f.
+    tau : TYPE
+        Initial pseudo time step size.
+    tol : TYPE
+        Target tolerance for scaled root mean square residual.
+    scale : np.array, optional
+        (positive) diagonal scaling coefficients.
+        The scaled root mean square norm is given by
+        .. math:: || x || = \sqrt{ (1/n) * \sum (x_i / v_i)^2}
+        If None, no scaling is applied. The default is None.
+    maxIter : int, optional
+        Maximum number of iterations. The default is 50.
+    maxNonMonotone : int, optional
+        Maximum number of iterations with non-decreasing residual in a row.
+        The default is 5.
+    quiet : bool, optional
+        If True, norm of step, scaled root mean square residual, and step size
+        are printed on each iteration. The default is True.
+    variant : bool, optional
+        If True, (1/tau * I - F'(x)) * dx = F(x) is solved.
+        If False, (I - tau * F'(x)) * dx = F(x) is solved.
+        The default is False
+
+    Returns
+    -------
+    status : int
+        -2: Failed due to non-decreasing residual
+        -1: Failed due to singular Jacobian
+         0: Converged with passing residual test
+         1: Exceeded maximum number of iterations.
+    x : np.array
+        Solution.
+    normfk : np.array
+        Scaled root mean square residual.
+    k : int
+        Number of iterations.
+
     """
 
     fxk = f(x)

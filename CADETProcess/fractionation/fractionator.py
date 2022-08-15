@@ -87,7 +87,7 @@ class Fractionator(EventHandler):
         """list: Chromatograms to be fractionized.
 
         See Also
-        ---------
+        --------
         add_chromatogram
         SoltionIO
         reset
@@ -145,7 +145,8 @@ class Fractionator(EventHandler):
         return self.chromatograms[0].time
 
     @plotting.create_and_save_figure
-    def plot_fraction_signal(self, chromatogram=None, ax=None, *args, **kwargs):
+    def plot_fraction_signal(
+            self, chromatogram=None, ax=None, *args, **kwargs):
         """Plot the signal without the waste fractions.
 
         Parameters

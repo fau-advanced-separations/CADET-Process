@@ -164,8 +164,7 @@ class Test_CompartmentBuilder(unittest.TestCase):
 
     def test_tracer(self):
         """
-        Todo
-        ----
+        ..todo::
             flow rate validation not working for flow rate filter
         """
         self.builder_complex.add_tracer(4, [1, 1], 10, 0.1)

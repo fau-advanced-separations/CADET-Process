@@ -625,8 +625,8 @@ class Event():
         If performner does not have attribute.
         If state is not valid for attribute.
 
-    See Also:
-    ---------
+    See Also
+    --------
     EventHandler
     Duration
 
@@ -729,9 +729,7 @@ class Event():
 
         The time of the event is determined with the following equation:
 
-        $$
-        t = \sum_i^{n_{dep}} \lambda_i \cdot f_i(t_{dep,i})
-        $$
+        ..math:: t = \sum_i^{n_{dep}} \lambda_i \cdot f_i(t_{dep,i})
 
         Parameters
         ----------
@@ -907,7 +905,7 @@ class Event():
 
     def __repr__(self):
         return \
-            f'{self.__class__.__name__}( '\
+            f'{self.__class__.__name__}('\
             f'name={self.name}, '\
             f'parameter_path={self.parameter_path}, '\
             f'state={self.state}, '\

@@ -1,9 +1,8 @@
 """
-Todo
-----
-- add/remove events (check component indices)
-- add/remove durations
-- add/remove dependencies
+..todo::
+    add/remove events (check component indices)
+    add/remove durations
+    add/remove dependencies
 
 
 - event times (especially considerung time modulo cycle time)

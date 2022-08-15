@@ -1,3 +1,4 @@
+from collections import defaultdict
 import os
 import platform
 from pathlib import Path
@@ -23,7 +24,6 @@ from CADETProcess.solution import (
     SolutionIO, SolutionBulk, SolutionParticle, SolutionSolid, SolutionVolume
 )
 from CADETProcess.processModel import NoBinding, BindingBaseClass
-from CADETProcess.processModel import GeneralizedIonExchange
 from CADETProcess.processModel import NoReaction, ReactionBaseClass
 from CADETProcess.processModel import NoDiscretization, DGMixin
 from CADETProcess.processModel import (
@@ -56,10 +56,9 @@ class Cadet(SimulatorBase):
     return_parameters : ReturnParametersGroup
         Container for return information of the system
 
-    Todo
-    ----
-    Implement method for loading CADET file that have not been generated
-    with CADETProcess and create Process
+    ..todo::
+        Implement method for loading CADET file that have not been generated
+        with CADETProcess and create Process
 
     See Also
     --------
@@ -346,9 +345,8 @@ class Cadet(SimulatorBase):
         results : SimulationResults
             Simulation results including process and solver configuration.
 
-        Todo
-        ----
-        Implement method to read .h5 files that have no process associated.
+        ..todo::
+            Implement method to read .h5 files that have no process associated.
 
         """
         if time_elapsed is None:
@@ -362,7 +360,6 @@ class Cadet(SimulatorBase):
             exit_message = return_information.stderr.decode()
 
         solution = Dict()
-        from collections import defaultdict
         try:
             for unit in process.flow_sheet.units:
                 solution[unit.name] = defaultdict(list)

@@ -82,8 +82,8 @@ class Individual(metaclass=StructMeta):
     def dominates(self, other):
         """Determine if individual dominates other.
 
-        Parmeters
-        ---------
+        Parameters
+        ----------
         other : Individual
             Other individual
 
@@ -108,16 +108,19 @@ class Individual(metaclass=StructMeta):
             self_values = self.f
             other_values = other.f
 
-        if np.any(self_values < other_values):
+        if np.any(self_values > other_values):
             return False
 
-        return True
+        if np.any(self_values < other_values):
+            return True
+
+        return False
 
     def is_similar(self, other, tol=1e-1):
         """Determine if individual is similar to other.
 
-        Parmeters
-        ---------
+        Parameters
+        ----------
         other : Individual
             Other individual
         tol : float
@@ -147,8 +150,8 @@ class Individual(metaclass=StructMeta):
     def is_similar_x(self, other, tol=1e-1):
         """Determine if individual is similar to other based on parameter values.
 
-        Parmeters
-        ---------
+        Parameters
+        ----------
         other : Individual
             Other individual
         tol : float
@@ -167,8 +170,8 @@ class Individual(metaclass=StructMeta):
     def is_similar_f(self, other, tol=1e-1):
         """Determine if individual is similar to other based on objective values.
 
-        Parmeters
-        ---------
+        Parameters
+        ----------
         other : Individual
             Other individual
         tol : float
@@ -187,8 +190,8 @@ class Individual(metaclass=StructMeta):
     def is_similar_g(self, other, tol=1e-1):
         """Determine if individual is similar to other based on constraint values.
 
-        Parmeters
-        ---------
+        Parameters
+        ----------
         other : Individual
             Other individual
         tol : float
@@ -207,8 +210,8 @@ class Individual(metaclass=StructMeta):
     def is_similar_m(self, other, tol=1e-1):
         """Determine if individual is similar to other based on meta score values.
 
-        Parmeters
-        ---------
+        Parameters
+        ----------
         other : Individual
             Other individual
         tol : float

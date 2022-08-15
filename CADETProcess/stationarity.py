@@ -22,12 +22,7 @@ class SSE(CriterionBase):
 
 
 class StationarityEvaluator(Comparator):
-    """Class for checking two succeding chromatograms for stationarity
-
-    Attributes
-    ----------
-
-    """
+    """Class for checking two succeding chromatograms for stationarity"""
     valid_criteria = ['RelativeArea', 'SSE']
 
     def __init__(

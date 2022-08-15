@@ -1,7 +1,6 @@
 """
-Todo
-----
-Add more tests for checking manual setting of exponents.
+..todo::
+    Add more tests for checking manual setting of exponents.
 """
 
 import unittest
