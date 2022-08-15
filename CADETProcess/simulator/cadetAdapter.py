@@ -377,8 +377,8 @@ class Cadet(SimulatorBase):
                 flow_out = process.flow_rate_timelines[unit.name].total_out
 
                 for cycle in range(self.n_cycles):
-                    start = cycle * (len(time) - 1)
-                    end = (cycle + 1) * (len(time) - 1) + 1
+                    start = cycle * len(time)
+                    end = (cycle + 1) * len(time)
 
                     if 'solution_inlet' in unit_solution.keys():
                         sol_inlet = unit_solution.solution_inlet[start:end, :]

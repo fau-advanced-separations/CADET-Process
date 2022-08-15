@@ -62,7 +62,7 @@ class SimulatorBase(metaclass=StructMeta):
     def sig_fig(self):
         return int(-np.log10(self.resolution_cutoff))
 
-    def get_solution_time(self, process):
+    def get_solution_time(self, process, cycle=1):
         """np.array: Time vector for one cycle.
 
         See Also
@@ -71,8 +71,13 @@ class SimulatorBase(metaclass=StructMeta):
         get_solution_time_complete
 
         """
-        solution_times = np.arange(0, process.cycle_time, self.time_resolution)
-        solution_times = np.append(solution_times, process.section_times)
+        solution_times = np.arange((
+            cycle-1)*process.cycle_time,
+            cycle*process.cycle_time,
+            self.time_resolution
+        )
+        section_times = self.get_section_times(process)
+        solution_times = np.append(solution_times, section_times)
         solution_times = np.round(solution_times, self.sig_fig)
         solution_times = np.sort(solution_times)
         solution_times = np.unique(solution_times)
@@ -103,34 +108,51 @@ class SimulatorBase(metaclass=StructMeta):
         solution_times = np.array([])
         for i in range(self.n_cycles):
             solution_times = np.append(
-                solution_times, (i)*process.cycle_time + time
+                solution_times, (i)*time[-1] + time
             )
-
         solution_times = np.round(solution_times, self.sig_fig)
-        solution_times = np.unique(solution_times)
 
-        return solution_times
+        return solution_times.tolist()
 
-    def get_section_times_complete(self, process):
-        """list: Section timesfor multiple cycles of a process.
+    def get_section_times(self, process):
+        """list: Section times for single cycle of a process.
 
         Includes 0 and cycle_time if they do not coincide with event time.
 
         See Also
         --------
+        get_section_times_complete
+        get_solution_time_complete
+        Process.section_times
+
+        """
+        section_times = np.array(process.section_times)
+        section_times = np.round(section_times, self.sig_fig)
+
+        return section_times.tolist()
+
+    def get_section_times_complete(self, process):
+        """list: Section times for multiple cycles of a process.
+
+        Includes 0 and cycle_time if they do not coincide with event time.
+
+        See Also
+        --------
+        get_section_times
         n_cycles
         get_solution_time_complete
         Process.section_times
 
         """
-        sections = np.array(process.section_times[0:-1])
+        sections = np.array(self.get_section_times(process))
+        cycle_time = sections[-1]
 
         section_times_complete = []
         for cycle in range(self.n_cycles):
-            cycle_section_times = cycle * process.cycle_time + sections
-            section_times_complete += cycle_section_times.tolist()
+            section_cycle = cycle * cycle_time + sections[0:-1]
+            section_times_complete += section_cycle.tolist()
 
-        section_times_complete.append(self.n_cycles * process.cycle_time)
+        section_times_complete.append(self.n_cycles * sections[-1])
 
         section_times_complete = np.round(section_times_complete, self.sig_fig)
 
