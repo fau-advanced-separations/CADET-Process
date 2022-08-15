@@ -177,11 +177,11 @@ class OptimizerBase(metaclass=StructMeta):
             else:
                 _callbacks_dir = self.callbacks_dir
             callback.cleanup(_callbacks_dir, current_iteration)
+            callback._callbacks_dir = _callbacks_dir
 
         self.optimization_problem.evaluate_callbacks_population(
             self.results.meta_population,
             current_iteration,
-            _callbacks_dir,
             n_cores=self.n_cores,
         )
 

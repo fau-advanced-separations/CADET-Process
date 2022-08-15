@@ -573,7 +573,8 @@ class OptimizationProblem(metaclass=StructMeta):
             n_objectives=1,
             bad_metrics=None,
             evaluation_objects=-1,
-            requires=None):
+            requires=None,
+            *args, **kwargs):
         """Add objective function to optimization problem.
 
         Parameters
@@ -592,6 +593,10 @@ class OptimizationProblem(metaclass=StructMeta):
         requires : {None, Evaluator, list}
             Evaluators used for preprocessing.
             If None, no preprocessing is required.
+        args : tuple, optional
+            Additional arguments for objective function.
+        kwargs : dict, optional
+            Additional keyword arguments for objective function.
 
         Raises
         ------
@@ -794,7 +799,8 @@ class OptimizationProblem(metaclass=StructMeta):
             bad_metrics=None,
             evaluation_objects=-1,
             bounds=0,
-            requires=None):
+            requires=None,
+            *args, **kwargs):
         """Add nonliner constraint function to optimization problem.
 
         Parameters
@@ -818,11 +824,15 @@ class OptimizationProblem(metaclass=StructMeta):
             Evaluators used for preprocessing.
             If None, no preprocessing is required.
             The default is None.
+        args : tuple, optional
+            Additional arguments for nonlinear constraint function.
+        kwargs : dict, optional
+            Additional keyword arguments for nonlinear constraint function.
 
         Raises
         ------
         TypeError
-            If constraint is not callable.
+            If nonlinear constraint function is not callable.
         CADETProcessError
             If EvaluationObject is not found.
         CADETProcessError
@@ -889,7 +899,7 @@ class OptimizationProblem(metaclass=StructMeta):
         x : array_like
             Value of the optimization variables.
         force : bool
-            If True, do not use cached results. The default if False.
+            If True, do not use cached results. The default is False.
 
         Returns
         -------
@@ -1023,7 +1033,40 @@ class OptimizationProblem(metaclass=StructMeta):
             requires=None,
             frequency=1,
             callbacks_dir=None,
-            keep_progress=False):
+            keep_progress=False,
+            *args, **kwargs):
+        """Add callback function for processing (intermediate) results.
+
+        Parameters
+        ----------
+        callback : callable
+            Callback function.
+        evaluation_objects : {EvaluationObject, None, -1, list}
+            EvaluationObjects which are evaluated by objective.
+            If None, no EvaluationObject is used.
+            If -1, all EvaluationObjects are used.
+        requires : {None, Evaluator, list}, optional
+            Evaluators used for preprocessing.
+            If None, no preprocessing is required.
+            The default is None.
+        callbacks_dir : Path, optional
+            Dicretory to store results. If None, folder in working directory is
+            created.
+        args : tuple, optional
+            Additional arguments for callback function.
+        kwargs : dict, optional
+            Additional keyword arguments for callback function.
+
+        Raises
+        ------
+        TypeError
+            If callback is not callable.
+        CADETProcessError
+            If EvaluationObject is not found.
+        CADETProcessError
+            If Evaluator is not found.
+
+        """
 
         if not callable(callback):
             raise TypeError("Expected callable callback.")
@@ -1063,8 +1106,7 @@ class OptimizationProblem(metaclass=StructMeta):
     def evaluate_callbacks(
             self,
             ind,
-            current_iteration,
-            callbacks_dir,
+            current_iteration=1,
             force=False):
         """Evaluate callback functions at point x.
 
@@ -1074,8 +1116,6 @@ class OptimizationProblem(metaclass=StructMeta):
             Individual to be evalauted.
         current_iteration : int
             Current iteration to determine if callback should be evaluated.
-        callbacks_dir : Path
-            Path to store results (e.g. figures, tables etc).
         force : bool
             If True, do not use cached results. The default is False.
 
@@ -1093,16 +1133,17 @@ class OptimizationProblem(metaclass=StructMeta):
             if not current_iteration % callback.frequency == 0:
                 continue
 
+            callback._ind = ind
+
             try:
-                self._evaluate(x, callback, force, ind, callbacks_dir)
+                self._evaluate(x, callback, force)
             except CADETProcessError:
                 self.logger.warn(
                     f'Evaluation of {callback} failed at {x}.'
                 )
 
     def evaluate_callbacks_population(
-            self, population, current_iteration, callbacks_dir,
-            force=False, n_cores=-1):
+            self, population, current_iteration, force=False, n_cores=-1):
 
         if not self.cache.use_diskcache and n_cores != 1:
             raise CADETProcessError(
@@ -1113,7 +1154,6 @@ class OptimizationProblem(metaclass=StructMeta):
             self.evaluate_callbacks(
                 ind,
                 current_iteration,
-                callbacks_dir,
                 force=force
             )
             self.cache.close()
@@ -1335,11 +1375,7 @@ class OptimizationProblem(metaclass=StructMeta):
         self.cache = None
 
     @untransforms
-    def _evaluate(
-            self,
-            x, func,
-            force=False,
-            *args, **kwargs):
+    def _evaluate(self, x, func, force=False):
         """Iterate over all evaluation objects and evaluate at x.
 
         Parameters
@@ -1350,10 +1386,6 @@ class OptimizationProblem(metaclass=StructMeta):
             Evaluation function.
         force : bool
             If True, do not use cached results. The default is False.
-        *args : tuple
-            Additional positional arguments for evaluation function.
-        **kwargs : TYPE
-            Additional keyword arguments for evaluation function.
 
         Returns
         -------
@@ -1409,11 +1441,9 @@ class OptimizationProblem(metaclass=StructMeta):
 
             for step in remaining:
                 if isinstance(step, Callback):
-                    step.evaluate(
-                        current_request, x, eval_obj, *args, **kwargs
-                    )
+                    step.evaluate(current_request, eval_obj)
                 else:
-                    result = step.evaluate(current_request, *args, **kwargs)
+                    result = step.evaluate(current_request)
                     if step not in self.cached_steps:
                         tag = 'temp'
                     else:
@@ -2444,7 +2474,10 @@ class Objective(metaclass=StructMeta):
             bad_metrics=np.inf,
             evaluation_objects=None,
             evaluators=None,
-            labels=None):
+            labels=None,
+            args=None,
+            kwargs=None):
+
         self.objective = objective
 
         if name is None:
@@ -2462,6 +2495,9 @@ class Objective(metaclass=StructMeta):
         self.evaluators = evaluators
 
         self.labels = labels
+
+        self.args = args
+        self.kwargs = kwargs
 
     @property
     def labels(self):
@@ -2491,8 +2527,18 @@ class Objective(metaclass=StructMeta):
 
         self._labels = labels
 
-    def __call__(self, *args, **kwargs):
-        f = self.objective(*args, **kwargs)
+    def __call__(self, request):
+        if self.args is None:
+            args = ()
+        else:
+            args = self.args
+
+        if self.kwargs is None:
+            kwargs = {}
+        else:
+            kwargs = self.kwargs
+
+        f = self.objective(request, *args, **kwargs)
 
         if np.isscalar(f):
             f = [f]
@@ -2521,7 +2567,9 @@ class NonlinearConstraint(metaclass=StructMeta):
             bad_metrics=np.inf,
             evaluation_objects=None,
             evaluators=None,
-            labels=None):
+            labels=None,
+            args=None,
+            kwargs=None):
 
         self.nonlinear_constraint = nonlinear_constraint
 
@@ -2540,6 +2588,9 @@ class NonlinearConstraint(metaclass=StructMeta):
         self.evaluators = evaluators
 
         self.labels = labels
+
+        self.args = args
+        self.kwargs = kwargs
 
     @property
     def labels(self):
@@ -2569,8 +2620,18 @@ class NonlinearConstraint(metaclass=StructMeta):
 
         self._labels = labels
 
-    def __call__(self, *args, **kwargs):
-        g = self.nonlinear_constraint(*args, **kwargs)
+    def __call__(self, request):
+        if self.args is None:
+            args = ()
+        else:
+            args = self.args
+
+        if self.kwargs is None:
+            kwargs = {}
+        else:
+            kwargs = self.kwargs
+
+        g = self.nonlinear_constraint(request, *args, **kwargs)
 
         if np.isscalar(g):
             g = [g]
@@ -2603,7 +2664,10 @@ class Callback(metaclass=StructMeta):
             evaluators=None,
             frequency=10,
             callbacks_dir=None,
-            keep_progress=False):
+            keep_progress=False,
+            args=None,
+            kwargs=None):
+
         self.callback = callback
 
         if name is None:
@@ -2621,6 +2685,9 @@ class Callback(metaclass=StructMeta):
         self.callbacks_dir = callbacks_dir
 
         self.keep_progress = keep_progress
+
+        self.args = args
+        self.kwargs = kwargs
 
     def cleanup(self, callbacks_dir, current_iteration):
         if \
@@ -2644,20 +2711,20 @@ class Callback(metaclass=StructMeta):
                 shutil.copy(file, new_directory)
             file.unlink()
 
+    def __call__(self, request, evaluation_object):
+        if self.args is None:
+            args = ()
+        else:
+            args = self.args
 
-    def __call__(
-            self,
-            current_request,
-            x,
-            evaluation_object,
-            ind,
-            callbacks_dir):
-
-        kwargs = {}
+        if self.kwargs is None:
+            kwargs = {}
+        else:
+            kwargs = self.kwargs
 
         signature = inspect.signature(self.callback).parameters
         if 'individual' in signature:
-            kwargs['individual'] = ind
+            kwargs['individual'] = self._ind
         if 'evaluation_object' in signature:
             kwargs['evaluation_object'] = evaluation_object
         if 'callbacks_dir' in signature:
@@ -2667,7 +2734,7 @@ class Callback(metaclass=StructMeta):
                 callbacks_dir = self._callbacks_dir
             kwargs['callbacks_dir'] = callbacks_dir
 
-        return self.callback(current_request, **kwargs)
+        return self.callback(request, *args, **kwargs)
 
     evaluate = __call__
 
