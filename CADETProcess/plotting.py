@@ -246,6 +246,7 @@ def create_and_save_figure(func):
     @wraps(func)
     def wrapper(
             *args,
+            fig=None,
             ax=None,
             show=True, file_name=None, style='medium',
             **kwargs):
@@ -265,15 +266,19 @@ def create_and_save_figure(func):
 
         artist = func(*args, ax=ax, **kwargs)
 
-        plt.tight_layout()
-
         if file_name is not None:
             plt.savefig(file_name)
 
-        if show:
-            plt.show()
-        else:
-            plt.close()
+        if fig is not None:
+            fig.tight_layout()
+
+            plt.close(fig)
+            if show:
+                dummy = plt.figure(figsize=fig.get_size_inches())
+                new_manager = dummy.canvas.manager
+                new_manager.canvas.figure = fig
+                fig.set_canvas(new_manager.canvas)
+                plt.show()
 
         return artist
     return wrapper
