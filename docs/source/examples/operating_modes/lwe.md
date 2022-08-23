@@ -36,6 +36,7 @@ Events of load-wash-elute process using a single inlet and modifying its concent
 
 ```
 
+(lwe_example_flow_rate)=
 ## Flow rate gradients
 
 ```{figure} ./figures/lwe_flow_rate_flow_sheet.svg
@@ -48,6 +49,5 @@ Events of load-wash-elute process using multiple inlets and mofifying their flow
 
 ```{code-cell} ipython3
 :load: ../../../../examples/operating_modes/lwe_flow_rate.py
-
 ```
 

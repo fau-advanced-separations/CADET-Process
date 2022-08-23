@@ -33,7 +33,7 @@ To demonstrate this concept, consider a SSR process (see {ref}`here <ssr_example
 
 ```{code-cell} ipython3
 :tags: [remove-cell]
-from examples.operating_modes.ssr import process
+from examples.operating_modes.steady_state_recycling import process
 ```
 
 A first strategy is to simulate multiple cycles at once.

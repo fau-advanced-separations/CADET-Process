@@ -9,12 +9,25 @@
 
 .. autoclass:: OptimizationVariable
    :members:
-.. 
+
 ```
+
+## Individuals and Population
+```{eval-rst}
+
+.. currentmodule:: CADETProcess.optimization
+.. autoclass:: Individual
+   :members:
+
+.. autoclass:: Population
+   :members:
+
+```
+.. 
 ## Optimizer
 ```{eval-rst}
-.. currentmodule:: CADETProcess.optimization
 
+.. currentmodule:: CADETProcess.optimization
 .. autoclass:: OptimizerBase
    :members:
 
@@ -40,12 +53,20 @@
 
 .. autoclass:: NSGA2
    :members:
+
 ```
 
 ## Optimization Results
 ```{eval-rst}
 .. currentmodule:: CADETProcess.optimization
+.. autoclass:: ResultsCache
+   :members:
+
+.. autoclass:: OptimizationProgress
+   :members:
 
 .. autoclass:: OptimizationResults 
+   :members:
+
 ```
 

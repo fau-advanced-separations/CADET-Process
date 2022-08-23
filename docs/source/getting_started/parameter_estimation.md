@@ -156,5 +156,4 @@ optimization_problem.add_objective(
     comparator,
     requires=[simulator]
 )
-
 ```

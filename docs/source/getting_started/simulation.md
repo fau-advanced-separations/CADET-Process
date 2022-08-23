@@ -240,7 +240,7 @@ Similarly, the `eluent_on` event occurs simultaneously with the `feed_off` event
 To add a dependency to the process, the `add_dependency` method requires the following arguments:
 - `dependent_event` : Name of the event whose value will depend on other events.
 - `independent_events` : List of other events on which event depends
-For more information, see {ref}`event_dependencies`.
+For more information, see {ref}`event_dependencies_tutorial`.
 
 ```{code-cell} ipython3
 process.add_event_dependency('eluent_on', ['feed_off'])

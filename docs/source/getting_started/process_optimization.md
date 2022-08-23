@@ -16,7 +16,7 @@ import sys
 sys.path.append('../../../')
 ```
 
-(optimization_tutorial)=
+(process_optimization_tutorial)=
 # Process Optimization
 One of the main features of **CADET-Process** is process optimization. 
 

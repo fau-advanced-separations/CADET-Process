@@ -241,7 +241,7 @@ class OptimizationProblem(metaclass=StructMeta):
             Lower bound of the variable value.
         ub : float
             Upper bound of the variable value.
-        transform : {'auto', 'log', None}:
+        transform : {'auto', 'log', 'linear', None}:
             Variable transform. The default is auto.
         component_index : int
             Index for component specific variables.

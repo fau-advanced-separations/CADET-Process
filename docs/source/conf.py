@@ -39,15 +39,17 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.intersphinx",
     "sphinx.ext.todo",
+    "sphinx.ext.viewcode",
     "sphinxcontrib.bibtex",
 ]
 
 # Myst-NB
-jupyter_execute_notebooks = "auto"
+nb_execution_mode = "auto"
 source_suffix = {
     '.ipynb': 'myst-nb',
     '.myst': 'myst-nb',
     '.md': 'myst-nb',
+    '.rst': 'restructuredtext',
 }
 
 # Autosummary
@@ -60,20 +62,6 @@ todo_include_todos = True
 # Bibliography
 bibtex_bibfiles = ['references.bib']
 
-# Sphinx-Gallery
-from sphinx_gallery.sorting import ExplicitOrder
-sphinx_gallery_conf = {
-    # path to your examples scripts
-    "examples_dirs": "../examples",
-    "subsection_order": ExplicitOrder(
-        [
-            "../examples/operation_modes",
-            "../examples/optimization",
-        ]
-    ),
-    # path where to save gallery generated examples
-    "gallery_dirs": "examples",
-}
 # Intersphinx mapping
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),

@@ -33,7 +33,8 @@ advanced_use/buffer_capacity
 :caption: Examples
 :hidden:
 
-examples/index
+examples/operating_modes
+examples/parameter_estimation
 ```
 
 ```{toctree}
@@ -44,8 +45,11 @@ examples/index
 reference/dynamic_events
 reference/process_model/index
 reference/simulation
+reference/stationarity
 reference/fractionation
+reference/comparison
 reference/optimization
+reference/equilibria
 ```
 
 ```{toctree}
@@ -56,3 +60,4 @@ reference/optimization
 license
 bibliography
 ```
+

@@ -29,7 +29,7 @@ Events of SSR process.
 ```
 
 ```{code-cell} ipython3
-:load: ../../../../examples/operating_modes/ssr.py
+:load: ../../../../examples/operating_modes/steady_state_recycling.py
 
 ```
 

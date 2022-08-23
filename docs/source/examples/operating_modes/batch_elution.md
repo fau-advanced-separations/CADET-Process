@@ -21,14 +21,10 @@ sys.path.append('../../../../')
 tags: single column, langmuir, batch elution
 
 ```{figure} ./figures/batch_elution_flow_sheet.svg
-:name: batch_elution_flow_sheet
-
 Flow sheet for batch elution process.
 ```
 
 ```{figure} ./figures/batch_elution_events.svg
-:name: batch_elution_events
-
 Events of batch elution process.
 ```
 

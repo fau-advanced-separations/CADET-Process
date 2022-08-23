@@ -115,7 +115,7 @@ For reference, this is the chromatogram at the outlet that needs to be fractiona
 ```{code-cell} ipython3
 ---
 tags: [remove-input]
-render:
+mystnb:
   figure:
     caption: |
       Concentration profile at column outlet.

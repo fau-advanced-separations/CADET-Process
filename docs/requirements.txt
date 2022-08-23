@@ -1,5 +1,4 @@
 sphinx>=2.2.0
-sphinx-gallery>=0.10.0
 sphinxcontrib-bibtex>=2.4.1
 sphinx_book_theme>=0.2.0
 sphinx-sitemap>=2.2.0

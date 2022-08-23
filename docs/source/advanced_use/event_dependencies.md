@@ -47,8 +47,8 @@ Alternatively, the dependencies can also already be added in the `add_event` met
 ## Simple Dependency
 Consider the batch elution process (see {ref}`here <batch_elution_example>`).
 
-```{figure} ../examples/operating_modes/figures/batch_elution_events_simple.svg
-Events of batch elution.
+```{figure} ../../../examples/operating_modes/figures/batch_elution_events_simple.svg
+Events of batch elution process.
 ```
 
 Here, every time the feed is switched on, the elution buffer should be switched off and vice versa.
@@ -95,7 +95,7 @@ print(f'eluent_on: {process.eluent_on.time}')
 ## Complex Dependency
 Another, more complex scenario can be applied for the {ref}`SSR process <ssr_example>`.
 
-```{figure} ../examples/operating_modes/figures/ssr_events.svg
+```{figure} ../../../examples/operating_modes/figures/ssr_events.svg
 Events of SSR process.
 ```
 
@@ -117,7 +117,7 @@ To model this system such that feed duration and recycle times can be modified i
 ```{code-cell} ipython3
 :tags: [remove-cell]
 
-from examples.operating_modes.ssr import flow_sheet
+from examples.operating_modes.steady_state_recycling import flow_sheet
 
 from CADETProcess.processModel import Process
 process = Process(flow_sheet, 'ssr')
