@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
 """
-===============================================
-Simulate Batch Chromatography of Binary Mixture
-===============================================
+============================================================
+Simulate Steady State Recycling Separation of Binary Mixture
+============================================================
 """
 
 from CADETProcess.processModel import ComponentSystem

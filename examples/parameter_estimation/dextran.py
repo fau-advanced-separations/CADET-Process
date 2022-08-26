@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 
 """
-===============================================
-Optimize Batch Chromatography of Binary Mixture
-===============================================
+======================================
+Estimate Porosity and Axial Dispersion
+======================================
 
 """
 import sys
 sys.path.append('../../')
+import os
+from pathlib import Path
 
 import numpy as np
 
@@ -17,7 +19,12 @@ from CADETProcess.comparison import Comparator
 from CADETProcess.optimization import OptimizationProblem
 
 # Reference Data
-data = np.loadtxt('./reference_data/dextran.csv', delimiter=',')
+try:
+    file_path = Path(__file__).parent / 'reference_data/dextran.csv'
+except NameError:
+    file_path = Path(os.getcwd()) / 'reference_data/dextran.csv'
+
+data = np.loadtxt(file_path, delimiter=',')
 time_experiment = data[:, 0]
 dextran_experiment = data[:, 1]
 
@@ -30,29 +37,18 @@ comparator = Comparator()
 
 comparator.add_reference(reference)
 
-# comparator.add_difference_metric(
-#     'SSE', reference, 'column.outlet'
-# )
 comparator.add_difference_metric(
     'Shape', reference, 'column.outlet', use_derivative=False
 )
 
-# comparator.add_difference_metric(
-#     'Shape', reference, 'column.outlet', start=5*60, end=7*60,
-#     components=['Dextran'],
-#     reference_component_index=[0]
-# )
-
 # Setup Optimization Problem
 optimization_problem = OptimizationProblem('dextran')
 
-from reference_simulation.dextran_pulse import process
+from examples.parameter_estimation.reference_simulation.dextran_pulse import process
 optimization_problem.add_evaluation_object(process)
 
 optimization_problem.add_variable('flow_sheet.column.bed_porosity', lb=0.3, ub=0.6)
-optimization_problem.add_variable(
-    'flow_sheet.column.axial_dispersion', lb=1e-8, ub=1e-5, transform='auto'
-)
+optimization_problem.add_variable('flow_sheet.column.axial_dispersion', lb=1e-8, ub=1e-5, transform='auto')
 
 simulator = Cadet()
 optimization_problem.add_evaluator(simulator, cache=True)
@@ -64,7 +60,7 @@ optimization_problem.add_objective(
 )
 
 
-def callback(simulation_results, individual, evaluation_object, callbacks_dir='./'):
+def callback(simulation_results, individual, evaluation_object, callbacks_dir):
     comparator.plot_comparison(
         simulation_results,
         file_name=f'{callbacks_dir}/{individual.id}_{evaluation_object}_comparison.png',
@@ -72,21 +68,17 @@ def callback(simulation_results, individual, evaluation_object, callbacks_dir='.
     )
 
 
-optimization_problem.add_callback(
-    callback, requires=[simulator], frequency=1
-)
+optimization_problem.add_callback(callback, requires=[simulator])
+
 
 from CADETProcess.optimization import U_NSGA3
 optimizer = U_NSGA3()
-optimizer.progress_frequency = 1
-optimizer.n_cores = 4
-optimizer.pop_size = 4
-optimizer.n_max_gen = 5
 
 
 if __name__ == "__main__":
     from CADETProcess import settings
     settings.working_directory = './dextran'
+    settings.temp_dir = '/dev/shm'
 
     optimization_results = optimizer.optimize(
         optimization_problem,
