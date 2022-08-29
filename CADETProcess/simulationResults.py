@@ -123,8 +123,12 @@ class SimulationResults(metaclass=StructMeta):
                     solution_complete = np.vstack((
                         solution_complete, cycles[i].solution[1:]
                     ))
-                solution[unit][sol].time = time_complete
-                solution[unit][sol].solution = solution_complete
+                solution[unit][sol].time_original = time_complete
+                solution[unit][sol].solution_original = solution_complete
+                try:
+                    solution[unit][sol].reset()
+                except AttributeError:
+                    pass
 
         self._solution = solution
 
