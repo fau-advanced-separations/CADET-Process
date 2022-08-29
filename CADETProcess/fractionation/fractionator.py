@@ -168,8 +168,9 @@ class Fractionator(EventHandler):
 
         """
         if chromatogram is None:
-            chromatogram = self.chromatograms[0]
-        elif isinstance(chromatogram, str):
+            chromatogram = \
+                list(self.performer_timelines['fractionation_states'].keys())[0]
+        if isinstance(chromatogram, str):
             chromatogram = self.chromatograms_dict[chromatogram]
 
         time_line = \
