@@ -99,6 +99,8 @@ class Comparator(metaclass=StructMeta):
 
         self._metrics.append(metric)
 
+        return metric
+
     def evaluate(self, simulation_results):
         metrics = []
         for metric in self.metrics:

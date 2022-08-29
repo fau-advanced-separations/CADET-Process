@@ -1,9 +1,11 @@
+from addict import Dict
 import numpy as np
 
 from CADETProcess import log
 from CADETProcess.dataStructure import StructMeta, UnsignedFloat
 from CADETProcess import SimulationResults
 from CADETProcess.comparison import Comparator
+from CADETProcess.processModel import Source
 
 
 class CriterionBase(metaclass=StructMeta):
@@ -61,28 +63,31 @@ class StationarityEvaluator(Comparator):
 
         """
         self._metrics = []
-
+        criteria = Dict()
         if not isinstance(simulation_results, SimulationResults):
             raise TypeError('Expcected SimulationResults')
 
-        for chrom in simulation_results.chromatograms:
-            chrom_previous = \
-                simulation_results.solution_cycles[chrom.name].outlet[-2]
-            self.add_reference(chrom_previous, update=True, smooth=False)
+        stationarity = True
+        for unit, solution in simulation_results.solution_cycles.items():
+            if isinstance(simulation_results.process.flow_sheet[unit], Source):
+                continue
+            solution_previous = solution.outlet[-2]
+            solution_this = solution.outlet[-1]
+            self.add_reference(solution_previous, update=True, smooth=False)
 
             for c in self.criteria:
-                self.add_difference_metric(
-                    str(c), chrom.name, f'{chrom.name}.outlet', smooth=False
+                metric = self.add_difference_metric(
+                    str(c), unit, f'{unit}.outlet', smooth=False
                 )
-
-        differences = self.evaluate(simulation_results)
-
-        stationarity = True
-        criteria = {}
-        for crit, r in zip(self.criteria, differences):
-            if not np.all(r <= crit.threshold):
-                stationarity = False
-            criteria[str(crit)] = r
+                criteria[unit][str(c)]['threshold'] = c.threshold
+                diff = metric.evaluate(solution_this)
+                criteria[unit][str(c)]['metric'] = diff
+                if not np.all(diff <= c.threshold):
+                    s = False
+                    stationarity = s
+                else:
+                    s = True
+                criteria[unit][str(c)]['stationarity'] = s
 
         self.logger.debug(f'Stationrity criteria: {criteria}')
 
