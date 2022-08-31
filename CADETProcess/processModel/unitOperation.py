@@ -389,7 +389,7 @@ class TubularReactorBase(UnitBaseClass):
     """
     length = UnsignedFloat(default=0)
     diameter = UnsignedFloat(default=0)
-    axial_dispersion = UnsignedFloat()
+    axial_dispersion = UnsignedFloat(default=0)
     flow_direction = Switch(valid=[-1, 1], default=1)
     _parameter_names = UnitBaseClass._parameter_names + [
         'length', 'diameter',
