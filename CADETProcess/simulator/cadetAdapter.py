@@ -27,7 +27,7 @@ from CADETProcess.processModel import NoBinding, BindingBaseClass
 from CADETProcess.processModel import NoReaction, ReactionBaseClass
 from CADETProcess.processModel import NoDiscretization, DGMixin
 from CADETProcess.processModel import (
-    UnitBaseClass, Source, Cstr, LumpedRateModelWithoutPores
+    UnitBaseClass, Source, Cstr, TubularReactor, LumpedRateModelWithoutPores
 )
 from CADETProcess.processModel import Process
 
@@ -661,8 +661,15 @@ class Cadet(SimulatorBase):
 
         if not isinstance(unit.bulk_reaction_model, NoReaction):
             parameters = self.get_reaction_config(unit.bulk_reaction_model)
-            unit_config['reaction_model'] = parameters['REACTION_MODEL']
-            unit_config['reaction_bulk'] = parameters
+
+            if isinstance(unit, TubularReactor):
+                unit_config['reaction_model'] = parameters['REACTION_MODEL']
+                for key, value in parameters.items():
+                    key = key.replace('bulk', 'liquid')
+                    unit_config['reaction'][key] = value
+            else:
+                unit_config['reaction_model'] = parameters['REACTION_MODEL']
+                unit_config['reaction_bulk'] = parameters
 
         if not isinstance(unit.particle_reaction_model, NoReaction):
             parameters = self.get_reaction_config(unit.particle_reaction_model)
