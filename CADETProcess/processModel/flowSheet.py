@@ -493,9 +493,10 @@ class FlowSheet(metaclass=StructMeta):
         self._output_states[unit] = output_state
 
     def get_flow_rates(self, state=None):
-        """Calculate flow rate for all connections.unit operation flow rates.
+        """Calculate flow rate for all connections.
 
-        If an additional state is passed, it will b
+        Optionally, an additional output state can be passed to update the
+        current output states.
 
         Parameters
         ----------
@@ -597,7 +598,7 @@ class FlowSheet(metaclass=StructMeta):
         coeffs = np.array(
             [source_flow_rates[unit.name][coeff] for unit in self.sources]
         )
-        if not np.any(coeffs):
+        if coeff > 0 and not np.any(coeffs):
             return None
 
         # Setup lists for symbols
