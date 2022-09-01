@@ -387,8 +387,8 @@ class TubularReactorBase(UnitBaseClass):
         Dispersion rate of compnents in axial direction.
 
     """
-    length = UnsignedFloat(default=0)
-    diameter = UnsignedFloat(default=0)
+    length = UnsignedFloat()
+    diameter = UnsignedFloat()
     axial_dispersion = UnsignedFloat(default=0)
     flow_direction = Switch(valid=[-1, 1], default=1)
     _parameter_names = UnitBaseClass._parameter_names + [
@@ -415,7 +415,8 @@ class TubularReactorBase(UnitBaseClass):
         cross_section_area_solid
 
         """
-        return math.pi/4 * self.diameter**2
+        if self.diameter is not None:
+            return math.pi/4 * self.diameter**2
 
     @cross_section_area.setter
     def cross_section_area(self, cross_section_area):
@@ -976,7 +977,7 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
 
     c = DependentlySizedList(dep='n_comp', default=0)
     _q = DependentlySizedUnsignedList(dep='n_bound_states', default=0)
-    V = UnsignedFloat(default=0)
+    V = UnsignedFloat()
     volume = V
     _initial_state = \
         UnitBaseClass._initial_state + \
