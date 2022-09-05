@@ -37,7 +37,7 @@ class FractionationOptimizer():
         if optimizer is None:
             optimizer = COBYLA()
             optimizer.tol = 0.1
-            optimizer.catol = 1
+            optimizer.catol = 1e-3
             optimizer.rhobeg = 1
         self.optimizer = optimizer
         self.log_level = log_level
@@ -104,7 +104,7 @@ class FractionationOptimizer():
         )
 
         for evt in frac.events:
-            opt.add_variable(evt.name + '.time', name=evt.name)
+            opt.add_variable(evt.name, parameter_path=evt.name + '.time')
 
         for chrom_index, chrom in enumerate(frac.chromatograms):
             chrom_events = frac.chromatogram_events[chrom]

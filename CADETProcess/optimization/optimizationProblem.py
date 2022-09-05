@@ -219,9 +219,9 @@ class OptimizationProblem(metaclass=StructMeta):
         return [var.value for var in self.variables]
 
     def add_variable(
-            self, parameter_path=None, evaluation_objects=-1,
+            self, name, evaluation_objects=-1, parameter_path=None,
             lb=-math.inf, ub=math.inf, transform=None,
-            component_index=None, polynomial_index=None, name=None):
+            component_index=None, polynomial_index=None):
         """Add optimization variable to the OptimizationProblem.
 
         The function encapsulates the creation of OptimizationVariable objects
@@ -229,14 +229,16 @@ class OptimizationProblem(metaclass=StructMeta):
 
         Parameters
         ----------
-        parameter_path : str, optional
-            Path of the parameter including the evaluation object.
-            If None, name must be provided.
+        name : str, optional
+            Name of the variable. If None, parameter_path is used.
         evaluation_objects : EvaluationObject or list of EvaluationObjects
             Evaluation object to set parameters.
             If -1, all evaluation objects are used.
             If None, no evaluation object is associated (dummy variable).
             The default is -1.
+        parameter_path : str, optional
+            Path of the parameter including the evaluation object.
+            If None, name must be provided.
         lb : float
             Lower bound of the variable value.
         ub : float
@@ -247,8 +249,6 @@ class OptimizationProblem(metaclass=StructMeta):
             Index for component specific variables.
         polynomial_index : int
             Index for specific polynomial coefficient.
-        name : str, optional
-            Name of the variable. If None, parameter_path is used.
 
         Raises
         ------
@@ -262,9 +262,6 @@ class OptimizationProblem(metaclass=StructMeta):
         remove_variable
 
         """
-        if name is None:
-            name = parameter_path
-
         if name in self.variables_dict:
             raise CADETProcessError("Variable already exists")
 
@@ -280,6 +277,9 @@ class OptimizationProblem(metaclass=StructMeta):
             else eval_obj
             for eval_obj in evaluation_objects
         ]
+
+        if parameter_path is None and len(evaluation_objects) > 0:
+            parameter_path = name
 
         var = OptimizationVariable(
             name, evaluation_objects, parameter_path,
