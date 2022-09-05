@@ -1402,7 +1402,7 @@ class OptimizationProblem(metaclass=StructMeta):
         else:
             requires = [func]
 
-        evaluation_objects = self.set_variables(x)
+        evaluation_objects = self.set_variables(x, func.evaluation_objects)
         if len(evaluation_objects) == 0:
             evaluation_objects = [None]
 
