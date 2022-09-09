@@ -93,6 +93,11 @@ class OptimizerBase(metaclass=StructMeta):
         if self.optimization_problem.n_callbacks > 0:
             callbacks_dir = results_directory / "callbacks"
             callbacks_dir.mkdir(exist_ok=True)
+
+            if self.optimization_problem.n_callbacks > 1:
+                for callback in self.optimization_problem.callbacks:
+                    callback_dir = callbacks_dir / str(callback)
+                    callback_dir.mkdir(exist_ok=True)
         else:
             callbacks_dir = None
         self.callbacks_dir = callbacks_dir

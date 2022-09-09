@@ -2671,7 +2671,7 @@ class Callback(metaclass=StructMeta):
         self.callback = callback
 
         if name is None:
-            name = str(callback)
+            name = str(callback.__name__)
         self.name = name
 
         self.evaluation_objects = evaluation_objects
