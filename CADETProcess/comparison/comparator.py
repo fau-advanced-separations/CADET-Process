@@ -200,7 +200,7 @@ class Comparator(metaclass=StructMeta):
                 )
             solution = metric.slice_and_transform(solution)
 
-            ax = solution.plot(
+            fig, ax = solution.plot(
                 ax=ax,
                 show=False, start=metric.start, end=metric.end,
                 y_max=1.1*np.max(metric.reference.solution)

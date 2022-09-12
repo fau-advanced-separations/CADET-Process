@@ -264,12 +264,11 @@ def create_and_save_figure(func):
         if ax is None:
             fig, ax = setup_figure(style=style)
 
-        artist = func(*args, ax=ax, **kwargs)
+        ax = func(*args, ax=ax, **kwargs)
 
         if file_name is not None:
             plt.savefig(file_name)
 
-        if fig is not None:
             fig.tight_layout()
 
             plt.close(fig)
@@ -280,5 +279,6 @@ def create_and_save_figure(func):
                 fig.set_canvas(new_manager.canvas)
                 plt.show()
 
-        return artist
+        return fig, ax
+
     return wrapper

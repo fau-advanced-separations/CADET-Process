@@ -185,7 +185,7 @@ class Fractionator(EventHandler):
         except KeyError:
             end = np.max(chromatogram.time)
 
-        ax = chromatogram.plot(show=False, ax=ax, *args, **kwargs)
+        _,  ax = chromatogram.plot(show=False, ax=ax, *args, **kwargs)
 
         y_max = 1.1*np.max(chromatogram.solution)
 
