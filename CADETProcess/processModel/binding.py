@@ -888,7 +888,7 @@ class GeneralizedIonExchange(BindingBaseClass):
     """
     non_binding_component_indices = [1]
 
-    adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
+    adsorption_rate = DependentlySizedList(dep='n_comp')
     adsorption_rate_linear = DependentlySizedList(dep='n_comp')
     adsorption_rate_quadratic = DependentlySizedList(
         dep='n_comp', default=0
@@ -896,13 +896,13 @@ class GeneralizedIonExchange(BindingBaseClass):
     adsorption_rate_cubic = DependentlySizedList(
         dep='n_comp', default=0
     )
-    adsorption_rate_salt = DependentlySizedUnsignedList(
+    adsorption_rate_salt = DependentlySizedList(
         dep='n_comp', default=0
     )
-    adsorption_rate_protein = DependentlySizedUnsignedList(
+    adsorption_rate_protein = DependentlySizedList(
         dep='n_comp', default=0
     )
-    desorption_rate = DependentlySizedUnsignedList(dep='n_comp', default=1)
+    desorption_rate = DependentlySizedList(dep='n_comp', default=1)
     desorption_rate_linear = DependentlySizedList(
         dep='n_comp', default=0
     )
@@ -912,16 +912,16 @@ class GeneralizedIonExchange(BindingBaseClass):
     desorption_rate_cubic = DependentlySizedList(
         dep='n_comp', default=0
     )
-    desorption_rate_salt = DependentlySizedUnsignedList(
+    desorption_rate_salt = DependentlySizedList(
         dep='n_comp', default=0
     )
-    desorption_rate_protein = DependentlySizedUnsignedList(
+    desorption_rate_protein = DependentlySizedList(
         dep='n_comp', default=0
     )
     characteristic_charge_breaks = DependentlyModulatedUnsignedList(
         dep='n_comp'
     )
-    characteristic_charge = DependentlySizedUnsignedList(
+    characteristic_charge = DependentlySizedList(
         dep=('n_pieces', 'n_comp'), default=1
     )
     characteristic_charge_linear = DependentlySizedList(
