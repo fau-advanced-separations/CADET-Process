@@ -978,7 +978,6 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     c = DependentlySizedList(dep='n_comp', default=0)
     _q = DependentlySizedUnsignedList(dep='n_bound_states', default=0)
     V = UnsignedFloat()
-    volume = V
     _initial_state = \
         UnitBaseClass._initial_state + \
         ['c', 'q', 'V']
@@ -987,6 +986,11 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.solution_recorder = CSTRRecorder()
+
+    @property
+    def volume(self):
+        """float: Alias for volume."""
+        return self.V
 
     @property
     def volume_liquid(self):

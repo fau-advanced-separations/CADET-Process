@@ -195,7 +195,7 @@ class Test_Unit_Operation(unittest.TestCase):
                 'flow_rate_filter': np.array([0, 0, 0, 0]),
                 'c': [0, 0],
                 'q': [],
-                'V': 0,
+                'V': volume,
         }
         np.testing.assert_equal(parameters_expected, cstr.parameters)
 
