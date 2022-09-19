@@ -748,10 +748,8 @@ class OptimizationProblem(metaclass=StructMeta):
         approximate_jac
 
         """
-        jacobian = [
-            approximate_jac(x, obj, dx)
-            for obj in self.objectives
-        ]
+        jacobian = approximate_jac(x, self.evaluate_objectives, dx)
+
         return jacobian
 
     @property
@@ -1011,10 +1009,8 @@ class OptimizationProblem(metaclass=StructMeta):
         approximate_jac
 
         """
-        jacobian = [
-            approximate_jac(x, constr, dx)
-            for constr in self.nonlinear_constraints
-        ]
+        jacobian = approximate_jac(x, self.evaluate_nonlinear_constraints, dx)
+
         return jacobian
 
     @property
@@ -2877,14 +2873,15 @@ def approximate_jac(xk, f, epsilon, args=()):
                             epsilon[i]
 
     """
-    f0 = f(*((xk,) + args))
+    f0 = np.array(f(*((xk,) + args)))
 
     jac = np.zeros((len(f0), len(xk)), float)
     ei = np.zeros((len(xk),), float)
     for k in range(len(xk)):
         ei[k] = 1.0
         d = epsilon * ei
-        jac[:, k] = (f(*((xk + d,) + args)) - f0) / d[k]
+        f_k = np.array(f(*((xk + d,) + args)))
+        jac[:, k] = (f_k - f0) / d[k]
         ei[k] = 0.0
 
     return jac
