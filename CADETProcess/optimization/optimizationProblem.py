@@ -2053,6 +2053,10 @@ class OptimizationProblem(metaclass=StructMeta):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
 
+            lp = hopsy.LP()
+            lp.reset()
+            lp.settings.thresh = 1e-15
+
             if len(log_space_indices) > 0:
                 model = CustomModel(log_space_indices)
             else:
@@ -2070,15 +2074,32 @@ class OptimizationProblem(metaclass=StructMeta):
                 self.upper_bounds,
                 simplify=False,
             )
-            problem = hopsy.round(problem)
 
-            chebyshev = hopsy.compute_chebyshev_center(problem)
+            # !!! Additional checks in place to handle PolyRound.round()
+            # removing "small" dimensions.
+            # Bug reported, Check for future release!
+            chebyshev_orig = hopsy.compute_chebyshev_center(problem)[:, 0]
+
+            try:
+                problem_rounded = hopsy.round(problem)
+            except ValueError:
+                problem_rounded = problem
+
+            if problem_rounded.A.shape[1] == problem.A.shape[1]:
+                chebyshev_rounded = hopsy.compute_chebyshev_center(problem_rounded)[:, 0]
+
+                if np.all(np.greater(chebyshev_rounded, self.lower_bounds)):
+                    problem = problem_rounded
+                    chebyshev = chebyshev_rounded
+                else:
+                    chebyshev = chebyshev_orig
 
             if n_samples == 1 and method == 'chebyshev':
-                values = np.array(chebyshev, ndmin=2)
+                values = np.array(chebyshev_orig, ndmin=2)
             else:
                 if seed is None:
                     seed = random.randint(0, 255)
+                np.random.seed(seed)
 
                 mc = hopsy.MarkovChain(
                     problem,
@@ -2098,28 +2119,35 @@ class OptimizationProblem(metaclass=StructMeta):
         ]
         independent_values = values[:, independent_indices]
 
-        values = []
-        counter = 0
-        while len(values) < n_samples:
-            counter += 1
-            i = np.random.randint(0, burn_in)
-            ind = []
-            for i_var, var in enumerate(self.independent_variables):
-                ind.append(
-                    float(np.format_float_positional(
-                        independent_values[i, i_var],
-                        precision=var.precision, fractional=False
-                    ))
-                )
+        if n_samples == 1 and method == 'chebyshev':
+            values = independent_values
+        else:
+            values = []
+            counter = 0
+            while len(values) < n_samples:
+                if counter > burn_in:
+                    raise CADETProcessError(
+                        "Cannot find invididuals that fulfill constraints."
+                    )
 
-            if self.check_bounds(ind):
+                counter += 1
+                i = np.random.randint(0, burn_in)
+                ind = []
+                for i_var, var in enumerate(self.independent_variables):
+                    ind.append(
+                        float(np.format_float_positional(
+                            independent_values[i, i_var],
+                            precision=var.precision, fractional=False
+                        ))
+                    )
+
+                if not self.check_bounds(ind, get_dependent_values=True):
+                    continue
+                if not self.check_linear_constraints(ind, get_dependent_values=True):
+                    continue
                 values.append(ind)
 
-            if counter > burn_in:
-                raise CADETProcessError(
-                    "Cannot find invididuals that fulfill constraints."
-                )
-
+                
         if set_values:
             self.x0 = values
 
