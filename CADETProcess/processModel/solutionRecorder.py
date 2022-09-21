@@ -1,6 +1,8 @@
 from CADETProcess.dataStructure import Bool, ParametersGroup
+from CADETProcess.dataStructure import frozen_attributes
 
 
+@frozen_attributes
 class SolutionRecorderBase(ParametersGroup):
     pass
 
