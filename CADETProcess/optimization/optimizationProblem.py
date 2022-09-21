@@ -398,9 +398,7 @@ class OptimizationProblem(metaclass=StructMeta):
         return self.variable_values
 
     @untransforms
-    def set_variables(
-            self, x,
-            evaluation_objects=-1):
+    def set_variables(self, x, evaluation_objects=-1):
         """Set the values from the x-vector to the EvaluationObjects.
 
         Parameters
@@ -1620,6 +1618,9 @@ class OptimizationProblem(metaclass=StructMeta):
         linear_equality_constraints
 
         """
+        if not isinstance(opt_vars, list):
+            opt_vars = [opt_vars]
+
         if not all(var in self.variables_dict for var in opt_vars):
             raise CADETProcessError('Variable not in variables.')
 
@@ -2644,7 +2645,14 @@ class Callback(metaclass=StructMeta):
     """
 
     Must implement function with the following signature:
-    (fractionation, x, evaluation_object, results_dir)
+        results : obj
+            x or final result of evaluation toolchain.
+        individual : Individual, optional
+            Information about current step of optimzer.
+        evaluation_object : obj, optional
+            Current evaluation object.
+        callbacks_dir : Path, optional
+            Path to store results.
     """
 
     callback = Callable()
