@@ -58,17 +58,21 @@ class SolutionRecorderParticle(SolutionRecorderBase):
     write_sens_particle = Bool(default=False)
     write_sensdot_particle = Bool(default=False)
 
+    _parameters = [
+            'write_solution_particle',
+            'write_soldot_particle',
+            'write_sens_particle',
+            'write_sensdot_particle',
+    ]
+
+
+class SolutionRecorderSolid(SolutionRecorderBase):
     write_solution_solid = Bool(default=False)
     write_soldot_solid = Bool(default=False)
     write_sens_solid = Bool(default=False)
     write_sensdot_solid = Bool(default=False)
 
     _parameters = [
-            'write_solution_particle',
-            'write_soldot_particle',
-            'write_sens_particle',
-            'write_sensdot_particle',
-
             'write_solution_solid',
             'write_soldot_solid',
             'write_sens_solid',
@@ -109,23 +113,23 @@ class TubularReactorRecorder(SolutionRecorderIO, SolutionRecorderBulk):
 
 
 class LRMRecorder(
-        SolutionRecorderIO, SolutionRecorderBulk, SolutionRecorderParticle):
+        SolutionRecorderIO, SolutionRecorderBulk, SolutionRecorderSolid):
     pass
 
 
 class LRMPRecorder(
         SolutionRecorderIO, SolutionRecorderBulk, SolutionRecorderFlux,
-        SolutionRecorderParticle, SolutionRecorderVolume):
+        SolutionRecorderParticle, SolutionRecorderSolid):
     pass
 
 
 class GRMRecorder(
         SolutionRecorderIO, SolutionRecorderBulk, SolutionRecorderFlux,
-        SolutionRecorderParticle):
+        SolutionRecorderParticle, SolutionRecorderSolid):
     pass
 
 
 class CSTRRecorder(
-        SolutionRecorderIO, SolutionRecorderBulk, SolutionRecorderFlux,
-        SolutionRecorderParticle, SolutionRecorderVolume):
+        SolutionRecorderIO, SolutionRecorderBulk,
+        SolutionRecorderSolid, SolutionRecorderVolume):
     pass
