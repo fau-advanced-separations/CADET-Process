@@ -1,4 +1,3 @@
-import time
 import warnings
 
 from scipy import optimize
@@ -92,8 +91,8 @@ class SciPyInterface(OptimizerBase):
             Returns the optimized bounds as an object called bounds.
         """
         return optimize.Bounds(
-            optimization_problem.lower_bounds,
-            optimization_problem.upper_bounds,
+            optimization_problem.lower_bounds_independent_transformed,
+            optimization_problem.upper_bounds_independent_transformed,
             keep_feasible=True
         )
 

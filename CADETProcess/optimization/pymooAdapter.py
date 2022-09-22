@@ -264,7 +264,7 @@ class RepairIndividuals(Repair):
         # Check if linear constraints are met
         for i, ind in enumerate(Z):
             if not self.optimization_problem.check_linear_constraints(
-                    ind, untransform=True):
+                    ind, untransform=True, get_dependent_values=True):
                 x_new = self.optimization_problem.create_initial_values(
                     method='random', set_values=False
                 )

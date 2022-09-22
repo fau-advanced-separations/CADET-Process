@@ -109,6 +109,17 @@ class OptimizationProblem(metaclass=StructMeta):
 
         return wrapper
 
+    def gets_dependent_values(func):
+        @wraps(func)
+        def wrapper(self, x, *args, get_dependent_values=False, **kwargs):
+            """Get dependent values of individual before calling function."""
+            if get_dependent_values:
+                x = self.get_dependent_values(x)
+
+            return func(self, x, *args, **kwargs)
+
+        return wrapper
+
     def ensures2d(func):
         @wraps(func)
         def wrapper(self, population, *args, **kwargs):
@@ -1547,6 +1558,7 @@ class OptimizationProblem(metaclass=StructMeta):
         return [var._transform.ub for var in self.independent_variables]
 
     @untransforms
+    @gets_dependent_values
     def check_bounds(self, x):
         """Checks if all bound constraints are kept.
 
@@ -1563,8 +1575,7 @@ class OptimizationProblem(metaclass=StructMeta):
         """
         flag = True
 
-        values = self.get_dependent_values(x)
-        values = np.array(values)
+        values = np.array(x)
 
         if np.any(np.less(values, self.lower_bounds)):
             flag = False
@@ -1691,6 +1702,7 @@ class OptimizationProblem(metaclass=StructMeta):
         return np.array(b)
 
     @untransforms
+    @gets_dependent_values
     def evaluate_linear_constraints(self, x):
         """Calculate value of linear inequality constraints at point x.
 
@@ -1711,12 +1723,12 @@ class OptimizationProblem(metaclass=StructMeta):
         linear_constraints
 
         """
-        values = self.get_dependent_values(x)
-        values = np.array(values)
+        values = np.array(x)
 
         return self.A.dot(values) - self.b
 
     @untransforms
+    @gets_dependent_values
     def check_linear_constraints(self, x):
         """Check if linear inequality constraints are met at point x.
 
@@ -1938,9 +1950,9 @@ class OptimizationProblem(metaclass=StructMeta):
             )
 
         for x in x0:
-            if not self.check_bounds(x):
+            if not self.check_bounds(x, get_dependent_values=True):
                 raise CADETProcessError(f'{x} exceeds bounds')
-            if not self.check_linear_constraints(x):
+            if not self.check_linear_constraints(x, get_dependent_values=True):
                 raise CADETProcessError(f'{x} violates linear constraints')
 
         if len(x0) == 1:
@@ -2187,8 +2199,10 @@ class OptimizationVariable():
             self.polynomial_index = None
             self.component_index = None
 
-        if lb > ub:
-            raise ValueError("Lower bound cannot be larger than upper bound.")
+        if lb >= ub:
+            raise ValueError(
+                "Lower bound cannot be larger or equal than upper bound."
+            )
         self.lb = lb
         self.ub = ub
 
