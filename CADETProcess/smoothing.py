@@ -11,7 +11,6 @@ butter_order = 3
 
 
 class TargetProblem(ElementwiseProblem):
-
     def __init__(self, lb, ub, sse_target, func, values, fs):
         super().__init__(n_var=1, n_obj=1, n_constr=0, xl=lb, xu=ub)
         self.sse_target = sse_target
@@ -27,13 +26,12 @@ class TargetProblem(ElementwiseProblem):
             sse = np.sum((low_passed - self.values) ** 2)
 
             error = (sse - self.sse_target)**2
-        except ValueError:
+        except (ValueError, np.linalg.LinAlgError):
             error = np.inf
         out["F"] = error
 
 
 class MaxDistance(ElementwiseProblem):
-
     def __init__(self, lb, ub, func, fs, values, x_min, y_min, p1, p2, factor):
         super().__init__(n_var=1, n_obj=1, n_constr=0, xl=lb, xu=ub)
         self.func = func
@@ -213,7 +211,10 @@ def smoothing_filter_signal(func, times, values, crit_fs):
 def find_smoothing_factors(times, values, rmse_target=1e-4):
     sse_target = (rmse_target**2.0)*len(values)
 
-    crit_fs = find_signal(signal_bessel, times, values, sse_target)
+    try:
+        crit_fs = find_signal(signal_bessel, times, values, sse_target)
+    except np.linalg.LinAlgError:
+        crit_fs = None
 
     if crit_fs is None:
         multiprocessing.get_logger().info(
