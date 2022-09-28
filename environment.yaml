@@ -7,7 +7,6 @@ dependencies:
   - jupyter_contrib_nbextensions
   - pip
   - pip:
-    - cadet-process
     - sphinx>=2.2.0
     - sphinx-gallery>=0.10.0
     - sphinxcontrib-bibtex>=2.4.1

@@ -4,10 +4,9 @@ matplotlib
 corner
 sympy
 pathos
-multiprocess
 cadet-python
 addict
-hopsy
-pymoo
+hopsy>=1.0.0
+pymoo>=0.6.0
 numba
 diskcache
