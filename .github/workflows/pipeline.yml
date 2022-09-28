@@ -39,7 +39,7 @@ jobs:
       run: |
         pip install -r requirements.txt
         mamba install cadet
-    - name: Test 
+    - name: Test
       run: |
         python -m unittest
     - name: Install pypa/build

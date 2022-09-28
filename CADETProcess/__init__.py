@@ -19,7 +19,7 @@ from . import log
 
 from .settings import Settings
 settings = Settings()
- 
+
 from . import dataStructure
 from . import transform
 from . import plotting
@@ -38,4 +38,3 @@ from . import simulator
 from . import fractionation
 from . import equilibria
 from . import modelBuilder
-

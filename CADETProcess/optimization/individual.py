@@ -239,4 +239,3 @@ class Individual(metaclass=StructMeta):
     @property
     def id(self):
         return hex(hash(self))[2:]
-        

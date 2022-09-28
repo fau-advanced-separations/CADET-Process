@@ -69,7 +69,7 @@ class TestIndividual(unittest.TestCase):
         self.assertFalse(
             self.individual_multi_3.dominates(self.individual_multi_2)
         )
-        
+
         self.assertFalse(
             self.individual_multi_3.dominates(self.individual_multi_2)
         )

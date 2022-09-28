@@ -2147,7 +2147,7 @@ class OptimizationProblem(metaclass=StructMeta):
                     continue
                 values.append(ind)
 
-                
+
         if set_values:
             self.x0 = values
 
