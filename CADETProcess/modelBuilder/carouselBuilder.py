@@ -286,7 +286,7 @@ class CarouselBuilder(metaclass=StructMeta):
 class ZoneBaseClass(UnitBaseClass):
     n_columns = UnsignedInteger()
     flow_direction = Integer(default=1)
-    _valve_dead_volume = 1e-6
+    _valve_dead_volume = 1e-12
 
     def __init__(
             self,
