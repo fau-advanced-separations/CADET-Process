@@ -48,10 +48,10 @@ outlet = Outlet(component_system, name='outlet')
 # flow sheet
 flow_sheet = FlowSheet(component_system)
 
-flow_sheet.add_unit(feed, feed_source=True)
-flow_sheet.add_unit(eluent, eluent_source=True)
+flow_sheet.add_unit(feed, feed_inlet=True)
+flow_sheet.add_unit(eluent, eluent_inlet=True)
 flow_sheet.add_unit(column)
-flow_sheet.add_unit(outlet, chromatogram_sink=True)
+flow_sheet.add_unit(outlet, product_outlet=True)
 
 flow_sheet.add_connection(feed, column)
 flow_sheet.add_connection(eluent, column)
@@ -93,4 +93,3 @@ if __name__ == '__main__':
 
     print(fractionator.performance)
     _ = fractionator.plot_fraction_signal()
-

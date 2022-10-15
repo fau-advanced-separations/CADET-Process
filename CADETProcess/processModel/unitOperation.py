@@ -331,7 +331,7 @@ class SinkMixin():
     pass
 
 
-class Source(UnitBaseClass, SourceMixin):
+class Inlet(UnitBaseClass, SourceMixin):
     """Pseudo unit operation model for streams entering the system."""
     c = NdPolynomial(dep=('n_comp', '_n_poly_coeffs'), default=0)
     _n_poly_coeffs = 4
@@ -349,15 +349,15 @@ class Source(UnitBaseClass, SourceMixin):
         ['c']
 
 
-Inlet = Source
+Source = Inlet
 
 
-class Sink(UnitBaseClass, SinkMixin):
+class Outlet(UnitBaseClass, SinkMixin):
     """Pseudo unit operation model for streams leaving the system."""
     pass
 
 
-Outlet = Sink
+Sink = Outlet
 
 
 class MixerSplitter(UnitBaseClass):

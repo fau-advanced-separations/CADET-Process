@@ -12,7 +12,7 @@ from CADETProcess.dynamicEvents import EventHandler
 from CADETProcess.dynamicEvents import Section, TimeLine
 
 from .flowSheet import FlowSheet
-from .unitOperation import Source, SourceMixin, Sink
+from .unitOperation import Inlet, SourceMixin, Outlet
 
 
 class Process(EventHandler):
@@ -78,7 +78,7 @@ class Process(EventHandler):
         flow_rate_timelines = self.flow_rate_timelines
 
         feed_all = np.zeros((self.n_comp,))
-        for feed in self.flow_sheet.feed_sources:
+        for feed in self.flow_sheet.feed_inlets:
             feed_flow_rate_time_line = flow_rate_timelines[feed.name].total_out
             feed_signal_param = f'flow_sheet.{feed.name}.c'
             if feed_signal_param in self.parameter_timelines:
@@ -110,7 +110,7 @@ class Process(EventHandler):
         flow_rate_timelines = self.flow_rate_timelines
 
         V_all = 0
-        for eluent in self.flow_sheet.eluent_sources:
+        for eluent in self.flow_sheet.eluent_inlets:
             eluent_time_line = flow_rate_timelines[eluent.name]['total_out']
             V_eluent = eluent_time_line.integral()
             V_all += V_eluent
@@ -153,7 +153,7 @@ class Process(EventHandler):
                 unit_flow_rates = flow_rate_timelines[unit]
 
                 # If inlet, also use outlet for total_in
-                if isinstance(self.flow_sheet[unit], Source):
+                if isinstance(self.flow_sheet[unit], Inlet):
                     section = Section(
                         start, end, flow_rate.total_out, n_entries=1, degree=3
                     )
@@ -169,7 +169,7 @@ class Process(EventHandler):
                     unit_flow_rates['origins'][orig].add_section(section)
 
                 # If outlet, also use inlet for total_out
-                if isinstance(self.flow_sheet[unit], Sink):
+                if isinstance(self.flow_sheet[unit], Outlet):
                     section = Section(
                         start, end, flow_rate.total_in, n_entries=1, degree=3
                     )
@@ -202,7 +202,7 @@ class Process(EventHandler):
 
         for sec_time in self.section_times[0:-1]:
             for unit, unit_flow_rates in self.flow_rate_timelines.items():
-                if isinstance(self.flow_sheet[unit], Source):
+                if isinstance(self.flow_sheet[unit], Inlet):
                     section_states[sec_time][unit]['total_in'] \
                         = unit_flow_rates['total_out'].coefficients(sec_time)[0]
                 else:
@@ -213,7 +213,7 @@ class Process(EventHandler):
                         section_states[sec_time][unit]['origins'][orig] \
                             = tl.coefficients(sec_time)[0]
 
-                if isinstance(self.flow_sheet[unit], Sink):
+                if isinstance(self.flow_sheet[unit], Outlet):
                     section_states[sec_time][unit]['total_out'] \
                         = unit_flow_rates['total_in'].coefficients(sec_time)[0]
                 else:
@@ -308,8 +308,8 @@ class Process(EventHandler):
         self.initial_state = config['initial_state']
 
     def add_concentration_profile(self, unit, time, c, component_index=None, s=1e-6):
-        if not isinstance(unit, Source):
-            raise TypeError('Expected Source')
+        if not isinstance(unit, Inlet):
+            raise TypeError('Expected Inlet')
 
         if max(time) > self.cycle_time:
             raise ValueError('Inlet profile exceeds cycle time')

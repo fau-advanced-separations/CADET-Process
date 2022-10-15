@@ -10,7 +10,7 @@ import numpy as np
 
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess.processModel import (
-    Source, Cstr,
+    Inlet, Cstr,
     TubularReactor, LumpedRateModelWithPores, LumpedRateModelWithoutPores
 )
 
@@ -37,7 +37,7 @@ class Test_Unit_Operation(unittest.TestCase):
         self.component_system = ComponentSystem(2)
 
     def create_source(self):
-        source = Source(self.component_system, name='test')
+        source = Inlet(self.component_system, name='test')
 
         return source
 

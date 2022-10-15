@@ -7,13 +7,13 @@ Simulate Dextran Pulse Experiment
 
 """
 from CADETProcess.processModel import ComponentSystem
-from CADETProcess.processModel import Source, LumpedRateModelWithPores, Sink
+from CADETProcess.processModel import Inlet, LumpedRateModelWithPores, Outlet
 from CADETProcess.processModel import FlowSheet
 from CADETProcess.processModel import Process
 
 component_system = ComponentSystem(['Dextran'])
 
-inlet = Source(component_system, 'inlet')
+inlet = Inlet(component_system, 'inlet')
 inlet.flow_rate = 2.88e-8
 
 column = LumpedRateModelWithPores(component_system, 'column')
@@ -25,7 +25,7 @@ column.particle_porosity = 0.33
 column.axial_dispersion = 1.0e-7
 column.film_diffusion = [0.0]
 
-outlet = Sink(component_system, 'outlet')
+outlet = Outlet(component_system, 'outlet')
 
 flow_sheet = FlowSheet(component_system)
 flow_sheet.add_unit(inlet)

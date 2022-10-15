@@ -454,7 +454,7 @@ class Cadet(SimulatorBase):
 
             chromatograms = [
                 solution[chrom.name].outlet[-1]
-                for chrom in process.flow_sheet.chromatogram_sinks
+                for chrom in process.flow_sheet.product_outlets
             ]
 
         except KeyError:
@@ -938,7 +938,7 @@ unit_parameters_map = {
             'FLOWRATE_FILTER': 'flow_rate_filter',
         },
     },
-    'Source': {
+    'Inlet': {
         'name': 'INLET',
         'parameters': {
             'NCOMP': 'n_comp',
@@ -947,7 +947,7 @@ unit_parameters_map = {
             'INLET_TYPE': 'PIECEWISE_CUBIC_POLY',
         },
     },
-    'Sink': {
+    'Outlet': {
         'name': 'OUTLET',
         'parameters': {
             'NCOMP': 'n_comp',

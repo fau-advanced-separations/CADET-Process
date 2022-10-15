@@ -7,7 +7,7 @@ from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import String, UnsignedInteger
 
 from CADETProcess.processModel import FlowSheet, Process
-from CADETProcess.processModel import Cstr, Source, Sink
+from CADETProcess.processModel import Cstr, Inlet, Outlet
 
 
 class CompartmentBuilder(metaclass=StructMeta):
@@ -71,7 +71,7 @@ class CompartmentBuilder(metaclass=StructMeta):
 
     @property
     def _real_compartments(self):
-        """list: Compartment units excluding pseudo units s.a. Source/Sink"""
+        """list: Compartment units excluding pseudo units s.a. Inlet/Outlet"""
         compartments = []
         for i in range(self.n_compartments):
             name = f'compartment_{i}'
@@ -151,9 +151,9 @@ class CompartmentBuilder(metaclass=StructMeta):
             name = f'compartment_{i}'
 
             if vol == 'inlet':
-                unit = Source(self.component_system, name)
+                unit = Inlet(self.component_system, name)
             elif vol == 'outlet':
-                unit = Sink(self.component_system, name)
+                unit = Outlet(self.component_system, name)
             else:
                 unit = Cstr(self.component_system, name)
                 unit.V = vol
@@ -187,7 +187,7 @@ class CompartmentBuilder(metaclass=StructMeta):
 
                 self.flow_sheet.add_connection(origin, destination)
 
-            if isinstance(origin, Sink):
+            if isinstance(origin, Outlet):
                 continue
 
             self.flow_sheet[origin.name].flow_rate = flow_rate
@@ -234,7 +234,7 @@ class CompartmentBuilder(metaclass=StructMeta):
 
         for i in range(self.n_compartments):
             compartment = self.flow_sheet[f'compartment_{i}']
-            if not isinstance(compartment, Sink):
+            if not isinstance(compartment, Outlet):
                 compartment.c = init_c[i, :].tolist()
 
     def add_tracer(self, compartment_index, c, t_inj, flow_rate, t_start=0, flow_rate_filter=True):
@@ -266,7 +266,7 @@ class CompartmentBuilder(metaclass=StructMeta):
             If compartment is not a real compartment.
 
         """
-        tracer = Source(self.component_system, 'tracer')
+        tracer = Inlet(self.component_system, 'tracer')
         tracer.flow_rate = flow_rate
 
         compartment_unit = self.flow_sheet[f'compartment_{compartment_index}']

@@ -8,7 +8,7 @@ Simulate Load/Wash/Elute with salt gradient
 """
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess.processModel import StericMassAction
-from CADETProcess.processModel import Source, GeneralRateModel, Sink
+from CADETProcess.processModel import Inlet, GeneralRateModel, Outlet
 from CADETProcess.processModel import FlowSheet
 from CADETProcess.processModel import Process
 
@@ -27,13 +27,13 @@ binding_model.steric_factor = [0.0, 50.0]
 binding_model.capacity = 225.0
 
 # Unit Operations
-load = Source(component_system, name='load')
+load = Inlet(component_system, name='load')
 load.c = [180.0, 0.1]
 
-wash = Source(component_system, name='wash')
+wash = Inlet(component_system, name='wash')
 wash.c = [70.0, 0.0]
 
-elute = Source(component_system, name='elute')
+elute = Inlet(component_system, name='elute')
 elute.c = [500.0, 0.0]
 
 column = GeneralRateModel(component_system, name='column')
@@ -52,16 +52,16 @@ column.surface_diffusion = [0.0, 0.0]
 column.c = [180, 0]
 column.q = [binding_model.capacity, 0]
 
-outlet = Sink(component_system, name='outlet')
+outlet = Outlet(component_system, name='outlet')
 
 # flow sheet
 flow_sheet = FlowSheet(component_system)
 
-flow_sheet.add_unit(load, feed_source=True)
-flow_sheet.add_unit(wash, eluent_source=True)
-flow_sheet.add_unit(elute, eluent_source=True)
+flow_sheet.add_unit(load, feed_inlet=True)
+flow_sheet.add_unit(wash, eluent_inlet=True)
+flow_sheet.add_unit(elute, eluent_inlet=True)
 flow_sheet.add_unit(column)
-flow_sheet.add_unit(outlet, chromatogram_sink=True)
+flow_sheet.add_unit(outlet, product_outlet=True)
 
 flow_sheet.add_connection(load, column)
 flow_sheet.add_connection(wash, column)

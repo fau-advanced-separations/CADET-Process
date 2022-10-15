@@ -10,7 +10,7 @@ import numpy as np
 
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess.processModel import StericMassAction
-from CADETProcess.processModel import Source, GeneralRateModel, Sink
+from CADETProcess.processModel import Inlet, GeneralRateModel, Outlet
 from CADETProcess.processModel import FlowSheet
 from CADETProcess.processModel import Process
 
@@ -29,7 +29,7 @@ binding_model.steric_factor = [0.0, 50.0]
 binding_model.capacity = 225.0
 
 # Unit Operations
-inlet = Source(component_system, name='inlet')
+inlet = Inlet(component_system, name='inlet')
 inlet.flow_rate = 2.88e-8
 
 
@@ -49,14 +49,14 @@ column.surface_diffusion = [0.0, 0.0]
 column.c = [180, 0]
 column.q = [binding_model.capacity, 0]
 
-outlet = Sink(component_system, name='outlet')
+outlet = Outlet(component_system, name='outlet')
 
 # flow sheet
 flow_sheet = FlowSheet(component_system)
 
 flow_sheet.add_unit(inlet)
 flow_sheet.add_unit(column)
-flow_sheet.add_unit(outlet, chromatogram_sink=True)
+flow_sheet.add_unit(outlet, product_outlet=True)
 
 flow_sheet.add_connection(inlet, column)
 flow_sheet.add_connection(column, outlet)

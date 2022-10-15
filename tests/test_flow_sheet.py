@@ -5,7 +5,7 @@ import numpy as np
 from CADETProcess import CADETProcessError
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess.processModel import (
-    Source, Cstr, LumpedRateModelWithoutPores, Sink
+    Inlet, Cstr, LumpedRateModelWithoutPores, Outlet
 )
 from CADETProcess.processModel import FlowSheet
 
@@ -21,12 +21,12 @@ class Test_flow_sheet(unittest.TestCase):
 
         flow_sheet = FlowSheet(self.component_system)
 
-        feed = Source(self.component_system, name='feed')
-        eluent = Source(self.component_system, name='eluent')
+        feed = Inlet(self.component_system, name='feed')
+        eluent = Inlet(self.component_system, name='eluent')
         column = LumpedRateModelWithoutPores(
             self.component_system, name='column'
         )
-        outlet = Sink(self.component_system, name='outlet')
+        outlet = Outlet(self.component_system, name='outlet')
 
         flow_sheet.add_unit(feed)
         flow_sheet.add_unit(eluent)
@@ -42,13 +42,13 @@ class Test_flow_sheet(unittest.TestCase):
         # SSR
         flow_sheet = FlowSheet(self.component_system)
 
-        feed = Source(self.component_system, name='feed')
-        eluent = Source(self.component_system, name='eluent')
+        feed = Inlet(self.component_system, name='feed')
+        eluent = Inlet(self.component_system, name='eluent')
         cstr = Cstr(self.component_system, name='cstr')
         column = LumpedRateModelWithoutPores(
             self.component_system, name='column'
         )
-        outlet = Sink(self.component_system, name='outlet')
+        outlet = Outlet(self.component_system, name='outlet')
 
         flow_sheet.add_unit(feed)
         flow_sheet.add_unit(eluent)
@@ -62,9 +62,9 @@ class Test_flow_sheet(unittest.TestCase):
         flow_sheet.add_connection(column, cstr)
         flow_sheet.add_connection(column, outlet)
 
-        flow_sheet.add_eluent_source(eluent)
-        flow_sheet.add_feed_source(feed)
-        flow_sheet.add_chromatogram_sink(outlet)
+        flow_sheet.add_eluent_inlet(eluent)
+        flow_sheet.add_feed_inlet(feed)
+        flow_sheet.add_product_outlet(outlet)
 
         self.ssr_flow_sheet = flow_sheet
 
@@ -125,13 +125,13 @@ class Test_flow_sheet(unittest.TestCase):
         self.assertFalse(self.ssr_flow_sheet.connection_exists(feed, eluent))
 
     def test_name_decorator(self):
-        feed = Source(self.component_system, name='feed')
-        eluent = Source(self.component_system, name='eluent')
+        feed = Inlet(self.component_system, name='feed')
+        eluent = Inlet(self.component_system, name='eluent')
         cstr = Cstr(self.component_system, name='cstr')
         column = LumpedRateModelWithoutPores(
             self.component_system, name='column'
         )
-        outlet = Sink(self.component_system, name='outlet')
+        outlet = Outlet(self.component_system, name='outlet')
 
         flow_sheet = FlowSheet(self.component_system)
 

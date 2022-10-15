@@ -8,7 +8,7 @@ Simulate Steady State Recycling Separation of Binary Mixture
 
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess.processModel import Langmuir
-from CADETProcess.processModel import Source, LumpedRateModelWithoutPores, Cstr, Sink
+from CADETProcess.processModel import Inlet, LumpedRateModelWithoutPores, Cstr, Outlet
 from CADETProcess.processModel import FlowSheet
 from CADETProcess.processModel import Process
 
@@ -26,10 +26,10 @@ binding_model.desorption_rate = [1, 1]
 binding_model.capacity = [100, 100]
 
 # Unit Operations
-feed = Source(component_system, name='feed')
+feed = Inlet(component_system, name='feed')
 feed.c = [10, 10]
 
-eluent = Source(component_system, name='eluent')
+eluent = Inlet(component_system, name='eluent')
 eluent.c = [0, 0]
 
 tank = Cstr(component_system, name='tank')
@@ -44,16 +44,16 @@ column.total_porosity = 0.7
 
 column.binding_model = binding_model
 
-outlet = Sink(component_system, name='outlet')
+outlet = Outlet(component_system, name='outlet')
 
 # Flow sheet
 flow_sheet = FlowSheet(component_system, name=flow_sheet_name)
 
-flow_sheet.add_unit(feed, feed_source=True)
-flow_sheet.add_unit(eluent, eluent_source=True)
+flow_sheet.add_unit(feed, feed_inlet=True)
+flow_sheet.add_unit(eluent, eluent_inlet=True)
 flow_sheet.add_unit(tank)
 flow_sheet.add_unit(column)
-flow_sheet.add_unit(outlet, chromatogram_sink=True)
+flow_sheet.add_unit(outlet, product_outlet=True)
 
 flow_sheet.add_connection(feed, tank)
 flow_sheet.add_connection(tank, column)

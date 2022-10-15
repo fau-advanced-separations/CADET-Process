@@ -36,7 +36,7 @@ class SimulationResults(metaclass=StructMeta):
     system_state : dict
         Final state and state_derivative of the system.
     chromatograms : List of chromatogram
-        Solution of the final cycle of the chromatogram_sinks.
+        Solution of the final cycle of the product outlets.
     n_cycles : int
         Number of cycles that were simulated.
 

@@ -43,9 +43,9 @@ class FlowSheet(metaclass=StructMeta):
         self.component_system = component_system
         self.name = name
         self._units = []
-        self._feed_sources = []
-        self._eluent_sources = []
-        self._chromatogram_sinks = []
+        self._feed_inlets = []
+        self._eluent_inlets = []
+        self._product_outlets = []
         self._connections = Dict()
         self._output_states = Dict()
         self._flow_rates = Dict()
@@ -191,19 +191,19 @@ class FlowSheet(metaclass=StructMeta):
     @update_parameters_decorator
     def add_unit(
             self, unit,
-            feed_source=False, eluent_source=False, chromatogram_sink=False):
+            feed_inlet=False, eluent_inlet=False, product_outlet=False):
         """Add unit to the flow sheet.
 
         Parameters
         ----------
         unit : UnitBaseClass
             UnitBaseClass object to be added to the flow sheet.
-        feed_source : bool
-            If True, add unit to feed sources.
-        eluent_source : bool
-            If True, add unit to eluent sources.
-        chromatogram_sink : bool
-            If True, add unit to chromatogram sinks.
+        feed_inlet : bool
+            If True, add unit to feed inlets.
+        eluent_inlet : bool
+            If True, add unit to eluent inlets.
+        product_outlet : bool
+            If True, add unit to product outlets.
 
         Raises
         ------
@@ -237,12 +237,12 @@ class FlowSheet(metaclass=StructMeta):
 
         super().__setattr__(unit.name, unit)
 
-        if feed_source:
-            self.add_feed_source(unit)
-        if eluent_source:
-            self.add_eluent_source(unit)
-        if chromatogram_sink:
-            self.add_chromatogram_sink(unit)
+        if feed_inlet:
+            self.add_feed_inlet(unit)
+        if eluent_inlet:
+            self.add_eluent_inlet(unit)
+        if product_outlet:
+            self.add_product_outlet(unit)
 
     @unit_name_decorator
     @update_parameters_decorator
@@ -252,8 +252,8 @@ class FlowSheet(metaclass=StructMeta):
         Removes unit from the list. Tries to remove units which are twice
         located as desinations. For this the origins and destinations are
         deleted for the unit. Raises a CADETProcessError if an ValueError is
-        excepted. If the unit is specified as feed_source, eluent_source
-        or chromatogram_sink, the corresponding attributes are deleted.
+        excepted. If the unit is specified as feed_inlet, eluent_inlet
+        or product_outlet, the corresponding attributes are deleted.
 
         Parameters
         ----------
@@ -268,20 +268,20 @@ class FlowSheet(metaclass=StructMeta):
         See Also
         --------
         add_unit
-        feed_source
-        eluent_source
-        chromatogram_sink
+        feed_inlet
+        eluent_inlet
+        product_outlet
 
         """
         if unit not in self.units:
             raise CADETProcessError('Unit not in flow sheet')
 
-        if unit is self.feed_sources:
-            self.remove_feed_source(unit)
-        if unit is self.eluent_sources:
-            self.remove_eluent_source(unit)
-        if unit is self.chromatogram_sinks:
-            self.remove_chromatogram_sink(unit)
+        if unit is self.feed_inlets:
+            self.remove_feed_inlet(unit)
+        if unit is self.eluent_inlets:
+            self.remove_eluent_inlet(unit)
+        if unit is self.product_outlets:
+            self.remove_product_outlet(unit)
 
         origins = self.connections[unit].origins.copy()
         for origin in origins:
@@ -683,149 +683,149 @@ class FlowSheet(metaclass=StructMeta):
                 )
 
     @property
-    def feed_sources(self):
-        """list: Sources considered for calculating recovery yield."""
-        return self._feed_sources
+    def feed_inlets(self):
+        """list: Inlets considered for calculating recovery yield."""
+        return self._feed_inlets
 
     @unit_name_decorator
-    def add_feed_source(self, feed_source):
+    def add_feed_inlet(self, feed_inlet):
         """Add source to list of units to be considered for recovery.
 
         Parameters
         ----------
-        feed_source : SourceMixin
-            Unit to be added to list of feed sources
+        feed_inlet : SourceMixin
+            Unit to be added to list of feed inlets.
 
         Raises
         ------
         CADETProcessError
-            If unit is not in a source object
-            If unit is already marked as feed source
+            If unit is not a source object.
+            If unit is already marked as feed inlet.
 
         """
-        if feed_source not in self.sources:
+        if feed_inlet not in self.sources:
             raise CADETProcessError('Expected Source')
-        if feed_source in self._feed_sources:
+        if feed_inlet in self._feed_inlets:
             raise CADETProcessError(
-                f'Unit \'{feed_source}\' is already a feed source'
+                f'Unit \'{feed_inlet}\' is already a feed inlet.'
             )
-        self._feed_sources.append(feed_source)
+        self._feed_inlets.append(feed_inlet)
 
     @unit_name_decorator
-    def remove_feed_source(self, feed_source):
-        """Remove source from list of units to be considered for recovery.
+    def remove_feed_inlet(self, feed_inlet):
+        """Remove inlet from list of units to be considered for recovery.
 
         Parameters
         ----------
-        feed_source : SourceMixin
-            Unit to be removed from list of feed sources.
+        feed_inlet : SourceMixin
+            Unit to be removed from list of feed inlets.
 
         """
-        if feed_source not in self._feed_sources:
+        if feed_inlet not in self._feed_inlets:
             raise CADETProcessError(
-                f'Unit \'{feed_source}\' is not a feed source.'
+                f'Unit \'{feed_inlet}\' is not a feed inlet.'
             )
-        self._feed_sources.remove(feed_source)
+        self._feed_inlets.remove(feed_inlet)
 
     @property
-    def eluent_sources(self):
-        """list: Sources to be considered for eluent consumption."""
-        return self._eluent_sources
+    def eluent_inlets(self):
+        """list: Inlets to be considered for eluent consumption."""
+        return self._eluent_inlets
 
     @unit_name_decorator
-    def add_eluent_source(self, eluent_source):
-        """Add source to list of units to be considered for eluent consumption.
+    def add_eluent_inlet(self, eluent_inlet):
+        """Add inlet to list of units to be considered for eluent consumption.
 
         Parameters
         ----------
-        eluent_source : SourceMixin
-            Unit to be added to list of eluent sources.
+        eluent_inlet : SourceMixin
+            Unit to be added to list of eluent inlets.
 
         Raises
         ------
         CADETProcessError
-            If unit is not in a source object
-            If unit is already marked as eluent source
+            If unit is not an Inlet.
+            If unit is already marked as eluent inlet.
 
         """
-        if eluent_source not in self.sources:
-            raise CADETProcessError('Expected Source')
-        if eluent_source in self._eluent_sources:
+        if eluent_inlet not in self.sources:
+            raise CADETProcessError('Expected Inlet')
+        if eluent_inlet in self._eluent_inlets:
             raise CADETProcessError(
-                f'Unit \'{eluent_source}\' is already an eluent source'
+                f'Unit \'{eluent_inlet}\' is already an eluent inlet'
             )
-        self._eluent_sources.append(eluent_source)
+        self._eluent_inlets.append(eluent_inlet)
 
     @unit_name_decorator
-    def remove_eluent_source(self, eluent_source):
-        """Remove source from list of units considered for eluent consumption.
+    def remove_eluent_inlet(self, eluent_inlet):
+        """Remove inlet from list of units considered for eluent consumption.
 
         Parameters
         ----------
-        eluent_source : SourceMixin
-            Unit to be added to list of eluent sources.
+        eluent_inlet : SourceMixin
+            Unit to be added to list of eluent inlets.
 
         Raises
         ------
         CADETProcessError
-            If unit is not in eluent sources
+            If unit is not in eluent inlets.
 
         """
-        if eluent_source not in self._eluent_sources:
+        if eluent_inlet not in self._eluent_inlets:
             raise CADETProcessError(
-                f'Unit \'{eluent_source}\' is not an eluent source.'
+                f'Unit \'{eluent_inlet}\' is not an eluent inlet.'
             )
-        self._eluent_sources.remove(eluent_source)
+        self._eluent_inlets.remove(eluent_inlet)
 
     @property
-    def chromatogram_sinks(self):
-        """list: Sinks to be considered for fractionation."""
-        return self._chromatogram_sinks
+    def product_outlets(self):
+        """list: Outlets to be considered for fractionation."""
+        return self._product_outlets
 
     @unit_name_decorator
-    def add_chromatogram_sink(self, chromatogram_sink):
-        """Add sink to list of units considered for fractionation.
+    def add_product_outlet(self, product_outlet):
+        """Add outlet to list of units considered for fractionation.
 
         Parameters
         ----------
-        chromatogram_sink : SinkMixin
-            Unit to be added to list of chromatogram sinks.
+        product_outlet : SinkMixin
+            Unit to be added to list of product outlets.
 
         Raises
         ------
         CADETProcessError
-            If unit is not a sink object.
-            If unit is already marked as chromatogram sink.
+            If unit is not an Outlet.
+            If unit is already marked as product outlet.
 
         """
-        if chromatogram_sink not in self.sinks:
+        if product_outlet not in self.sinks:
             raise CADETProcessError('Expected Sink')
-        if chromatogram_sink in self._chromatogram_sinks:
+        if product_outlet in self._product_outlets:
             raise CADETProcessError(
-                f'Unit \'{chromatogram_sink}\' is already an chomatogram sink'
+                f'Unit \'{product_outlet}\' is already a product outlet'
             )
-        self._chromatogram_sinks.append(chromatogram_sink)
+        self._product_outlets.append(product_outlet)
 
     @unit_name_decorator
-    def remove_chromatogram_sink(self, chromatogram_sink):
+    def remove_product_outlet(self, product_outlet):
         """Remove sink from list of units to be considered for fractionation.
 
         Parameters
         ----------
-        chromatogram_sink : SinkMixin
-            Unit to be added to list of chromatogram sinks.
+        product_outlet : SinkMixin
+            Unit to be added to list of product outlets.
 
         Raises
         ------
         CADETProcessError
-            If unit is not a chromatogram sink.
+            If unit is not a product outlet.
 
         """
-        if chromatogram_sink not in self._chromatogram_sinks:
+        if product_outlet not in self._product_outlets:
             raise CADETProcessError(
-                f'Unit \'{chromatogram_sink}\' is not a chromatogram sink.'
+                f'Unit \'{product_outlet}\' is not a product outlet.'
             )
-        self._chromatogram_sinks.remove(chromatogram_sink)
+        self._product_outlets.remove(product_outlet)
 
     @property
     def parameters(self):

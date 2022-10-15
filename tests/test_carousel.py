@@ -3,7 +3,7 @@ import numpy as np
 
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess.processModel import Linear
-from CADETProcess.processModel import Source, Sink, LumpedRateModelWithoutPores
+from CADETProcess.processModel import Inlet, Outlet, LumpedRateModelWithoutPores
 
 from CADETProcess.modelBuilder import CarouselBuilder, SerialZone, ParallelZone
 
@@ -33,11 +33,11 @@ class Test_Carousel(unittest.TestCase):
         self.column.binding_model = self.binding_model
 
     def create_serial(self):
-        source = Source(self.component_system, name='source')
+        source = Inlet(self.component_system, name='source')
         source.c = [10, 10]
         source.flow_rate = 2e-7
 
-        sink = Sink(self.component_system, name='sink')
+        sink = Outlet(self.component_system, name='sink')
 
         serial_zone = SerialZone(
             self.component_system, 'serial', 2, flow_direction=1
@@ -58,11 +58,11 @@ class Test_Carousel(unittest.TestCase):
         return builder
 
     def create_parallel(self):
-        source = Source(self.component_system, name='source')
+        source = Inlet(self.component_system, name='source')
         source.c = [10, 10]
         source.flow_rate = 2e-7
 
-        sink = Sink(self.component_system, name='sink')
+        sink = Outlet(self.component_system, name='sink')
 
         parallel_zone = ParallelZone(
             self.component_system, 'parallel', 2, flow_direction=1
@@ -83,16 +83,16 @@ class Test_Carousel(unittest.TestCase):
         return builder
 
     def create_smb(self):
-        feed = Source(self.component_system, name='feed')
+        feed = Inlet(self.component_system, name='feed')
         feed.c = [10, 10]
         feed.flow_rate = 2e-7
 
-        eluent = Source(self.component_system, name='eluent')
+        eluent = Inlet(self.component_system, name='eluent')
         eluent.c = [0, 0]
         eluent.flow_rate = 6e-7
 
-        raffinate = Sink(self.component_system, name='raffinate')
-        extract = Sink(self.component_system, name='extract')
+        raffinate = Outlet(self.component_system, name='raffinate')
+        extract = Outlet(self.component_system, name='extract')
 
         zone_I = SerialZone(self.component_system, 'zone_I', 1)
         zone_II = SerialZone(self.component_system, 'zone_II', 1)
@@ -135,21 +135,21 @@ class Test_Carousel(unittest.TestCase):
         return builder
 
     def create_multi_zone(self):
-        source_serial = Source(self.component_system, name='source_serial')
+        source_serial = Inlet(self.component_system, name='source_serial')
         source_serial.c = [10, 10]
         source_serial.flow_rate = 2e-7
 
-        sink_serial = Sink(self.component_system, name='sink_serial')
+        sink_serial = Outlet(self.component_system, name='sink_serial')
 
         serial_zone = SerialZone(
             self.component_system, 'serial', 2, flow_direction=1
         )
 
-        source_parallel = Source(self.component_system, name='source_parallel')
+        source_parallel = Inlet(self.component_system, name='source_parallel')
         source_parallel.c = [10, 10]
         source_parallel.flow_rate = 2e-7
 
-        sink_parallel = Sink(self.component_system, name='sink_parallel')
+        sink_parallel = Outlet(self.component_system, name='sink_parallel')
 
         parallel_zone = ParallelZone(
             self.component_system, 'parallel', 2, flow_direction=-1

@@ -95,7 +95,7 @@ def simulate_solid_equilibria(
     fs.add_unit(buffer_source)
     fs.add_unit(flush_source)
     fs.add_unit(unit)
-    fs.add_unit(outlet, chromatogram_sink=True)
+    fs.add_unit(outlet, product_outlet=True)
 
     fs.add_connection(buffer_source, unit)
     fs.add_connection(flush_source, unit)
