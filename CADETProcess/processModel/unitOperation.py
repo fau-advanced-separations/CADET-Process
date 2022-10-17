@@ -624,7 +624,7 @@ class TubularReactor(TubularReactorBase):
 
     c = DependentlySizedList(dep='n_comp', default=0)
     _initial_state = UnitBaseClass._initial_state + ['c']
-    _parameter_names = UnitBaseClass._parameter_names + _initial_state
+    _parameter_names = TubularReactorBase._parameter_names + _initial_state
 
     def __init__(self, *args, discretization_scheme='FV', **kwargs):
         super().__init__(*args, **kwargs)
@@ -689,6 +689,8 @@ class LumpedRateModelWithoutPores(TubularReactorBase):
         if isinstance(self.binding_model, NoBinding):
             raise CADETProcessError("Cannot set q without binding model.")
         self._q = q
+
+        self._parameters['q'] = q
 
 
 class LumpedRateModelWithPores(TubularReactorBase):
@@ -790,10 +792,14 @@ class LumpedRateModelWithPores(TubularReactorBase):
     def cp(self):
         if self._cp is None:
             return self.c
+        else:
+            return self._cp
 
     @cp.setter
     def cp(self, cp):
         self._cp = cp
+
+        self._parameters['cp'] = cp
 
     @property
     def q(self):
@@ -804,6 +810,8 @@ class LumpedRateModelWithPores(TubularReactorBase):
         if isinstance(self.binding_model, NoBinding):
             raise CADETProcessError("Cannot set q without binding model.")
         self._q = q
+
+        self._parameters['q'] = q
 
 
 class GeneralRateModel(TubularReactorBase):
@@ -912,10 +920,14 @@ class GeneralRateModel(TubularReactorBase):
     def cp(self):
         if self._cp is None:
             return self.c
+        else:
+            return self._cp
 
     @cp.setter
     def cp(self, cp):
         self._cp = cp
+
+        self._parameters['cp'] = cp
 
     @property
     def q(self):
@@ -926,6 +938,8 @@ class GeneralRateModel(TubularReactorBase):
         if isinstance(self.binding_model, NoBinding):
             raise CADETProcessError("Cannot set q without binding model.")
         self._q = q
+
+        self._parameters['q'] = q
 
     @property
     def surface_diffusion(self):
@@ -938,6 +952,8 @@ class GeneralRateModel(TubularReactorBase):
                 "Cannot set surface diffusion without binding model."
             )
         self._surface_diffusion = surface_diffusion
+
+        self._parameters['_surface_diffusion'] = surface_diffusion
 
 
 class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
@@ -1031,3 +1047,5 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         if isinstance(self.binding_model, NoBinding):
             raise CADETProcessError("Cannot set q without binding model.")
         self._q = q
+
+        self._parameters['q'] = q
