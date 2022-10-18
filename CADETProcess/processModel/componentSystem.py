@@ -236,6 +236,10 @@ class ComponentSystem(metaclass=StructMeta):
         return names
 
     @property
+    def species(self):
+        return self.labels
+
+    @property
     def labels(self):
         labels = []
         index = 0
