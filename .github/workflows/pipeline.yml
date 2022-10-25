@@ -12,10 +12,6 @@ jobs:
       matrix:
         python-version: ["3.8", "3.9", "3.10"]
         os: [ubuntu-latest, windows-latest]
-        exclude:
-          # excludes node 8 on macOS
-          - os: windows-latest
-            python-version: 3.10
     steps:
     - uses: actions/checkout@v2
     - name: Cache conda
@@ -37,8 +33,8 @@ jobs:
         channels: conda-forge,
     - name: Install dependencies
       run: |
-        pip install -r requirements.txt
         mamba install cadet
+        pip install -r requirements.txt
     - name: Test
       run: |
         python -m unittest
