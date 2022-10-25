@@ -2099,17 +2099,18 @@ class OptimizationProblem(metaclass=StructMeta):
             else:
                 if seed is None:
                     seed = random.randint(0, 255)
-                np.random.seed(seed)
+
+                rng = np.random.default_rng(seed)
 
                 mc = hopsy.MarkovChain(
                     problem,
                     proposal=hopsy.UniformCoordinateHitAndRunProposal,
                     starting_point=chebyshev
                 )
-                rng = hopsy.RandomNumberGenerator(seed=seed)
+                rng_hopsy = hopsy.RandomNumberGenerator(seed=seed)
 
                 acceptance_rate, states = hopsy.sample(
-                    mc, rng, n_samples=burn_in, thinning=2
+                    mc, rng_hopsy, n_samples=burn_in, thinning=2
                 )
                 values = states[0, ...]
 
@@ -2131,7 +2132,7 @@ class OptimizationProblem(metaclass=StructMeta):
                     )
 
                 counter += 1
-                i = np.random.randint(0, burn_in)
+                i = rng.integers(0, burn_in)
                 ind = []
                 for i_var, var in enumerate(self.independent_variables):
                     ind.append(
@@ -2146,7 +2147,6 @@ class OptimizationProblem(metaclass=StructMeta):
                 if not self.check_linear_constraints(ind, get_dependent_values=True):
                     continue
                 values.append(ind)
-
 
         if set_values:
             self.x0 = values
