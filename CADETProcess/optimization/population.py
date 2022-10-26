@@ -293,12 +293,10 @@ class Population():
 
                 ax.scatter(x_var, v_metric, color=color)
 
-                points = np.array(
-                    [col.get_offsets() for col in ax.collections]
-                ).copy()
+                points = np.vstack([col.get_offsets() for col in ax.collections])
 
-                x_all = points[:, :, 0].flatten()
-                v_all = points[:, :, 1].flatten()
+                x_all = points[:, 0]
+                v_all = points[:, 1]
 
                 layout.x_lim = (np.nanmin(x_all), np.nanmax(x_all))
                 layout.x_label = var
