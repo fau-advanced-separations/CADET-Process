@@ -76,6 +76,11 @@ class Test_flow_sheet(unittest.TestCase):
         self.assertEqual(self.ssr_flow_sheet.unit_names, unit_names_expected)
         self.assertEqual(unit_names, unit_names_expected)
 
+        # Connection already exists
+        duplicate_unit_name = Inlet(self.component_system, 'feed')
+        with self.assertRaises(CADETProcessError):
+            self.batch_flow_sheet.add_unit(duplicate_unit_name)
+
     def test_sources(self):
         self.assertIn(self.ssr_flow_sheet.feed, self.ssr_flow_sheet.sources)
         self.assertIn(self.ssr_flow_sheet.eluent, self.ssr_flow_sheet.sources)

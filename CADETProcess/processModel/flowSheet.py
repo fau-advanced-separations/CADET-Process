@@ -221,7 +221,7 @@ class FlowSheet(metaclass=StructMeta):
         if not isinstance(unit, UnitBaseClass):
             raise TypeError('Expected UnitOperation')
 
-        if unit in self._units:
+        if unit in self._units or unit.name in self.unit_names:
             raise CADETProcessError('Unit already part of System')
 
         if unit.component_system is not self.component_system:
