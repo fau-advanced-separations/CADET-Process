@@ -14,7 +14,7 @@ class ReferenceIO(SolutionIO):
             self, name, time, solution,
             flow_rate=None, component_system=None):
 
-        solution = np.array(solution, ndmin=2).reshape(len(time), -1)
+        solution = np.array(solution, ndmin=2, dtype=np.float64).reshape(len(time), -1)
 
         if component_system is None:
             n_comp = solution.shape[1]
