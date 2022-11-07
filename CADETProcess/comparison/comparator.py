@@ -217,7 +217,7 @@ class Comparator(metaclass=StructMeta):
             )
             ax.legend(loc=1)
 
-            m = metric.evaluate(solution)
+            m = metric.evaluate(solution, slice=False)
             m = [
                 np.format_float_scientific(
                     n, precision=2,
