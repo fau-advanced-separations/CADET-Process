@@ -4,7 +4,7 @@ matplotlib
 corner
 sympy
 pathos
-cadet-python
+cadet-python>=0.12.0
 addict
 hopsy>=1.0.0
 pymoo>=0.6.0
