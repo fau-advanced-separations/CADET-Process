@@ -17,15 +17,15 @@ from CADETProcess.optimization import OptimizerBase
 class PymooInterface(OptimizerBase):
     """Wrapper around pymoo."""
     seed = UnsignedInteger(default=12345)
+    pop_size = UnsignedInteger()
     xtol = UnsignedFloat(default=1e-8)
     cvtol = UnsignedFloat(default=1e-6)
     cv_tol = cvtol
     ftol = UnsignedFloat(default=0.0025)
-    pop_size = UnsignedInteger()
     n_max_gen = UnsignedInteger()
     n_max_evals = UnsignedInteger(default=100000)
     _options = [
-        'xtol', 'cvtol', 'ftol', 'n_max_gen', 'n_max_evals',
+        'seed', 'pop_size', 'xtol', 'cvtol', 'ftol', 'n_max_gen', 'n_max_evals',
     ]
 
     def run(
