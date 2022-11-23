@@ -22,6 +22,8 @@ Particle_solid: NCOL * NRAD * sum_{j}^{NPARTYPE}{NBOUND,j * NPAR,j}
 Flux: NCOL * NRAD * NPARTYPE * NCOMP
 """
 
+import copy
+
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.interpolate import PchipInterpolator
@@ -139,6 +141,28 @@ class SolutionIO(SolutionBase):
         self.flow_rate = flow_rate
 
         self.reset()
+
+    @property
+    def derivative(self):
+        """SolutionIO: Derivative of this solution."""
+        derivative = copy.deepcopy(self)
+        derivative.reset()
+        derivative_fun = derivative.solution_interpolated.derivative
+        derivative.solution_original = derivative_fun(derivative.time)
+        derivative.reset()
+
+        return derivative
+
+    @property
+    def antiderivative(self):
+        """SolutionIO: Antiderivative of this solution."""
+        antiderivative = copy.deepcopy(self)
+        antiderivative.reset()
+        antiderivative_fun = antiderivative.solution_interpolated.antiderivative
+        antiderivative.solution_original = antiderivative_fun(antiderivative.time)
+        antiderivative.reset()
+
+        return antiderivative
 
     def reset(self):
         self.component_system = self.component_system_original
@@ -1294,6 +1318,7 @@ class InterpolatedSignal():
                 for comp in range(signal.shape[1])
                 ]
         self._derivatives = [signal.derivative() for signal in self._solutions]
+        self._antiderivatives = [signal.antiderivative() for signal in self._solutions]
 
     @property
     def solutions(self):
@@ -1304,9 +1329,11 @@ class InterpolatedSignal():
         return self._derivatives
 
     def derivative(self, time):
-        """ Return all derivatives of the spline(s) at given time.
+        """Derivatives of the solution spline(s) at given time points.
 
-        x : np.array
+        Parameters
+        ----------
+        time : np.array
             The time points to evaluate the derivatives at.
 
         Returns
@@ -1315,11 +1342,33 @@ class InterpolatedSignal():
             Derivatives of the solution spline(s) at given time.
 
         """
-        der = np.empty((len(time), len(self._solutions)))
-        for comp, der_i in enumerate(self._derivatives):
+        der = np.empty((len(time), len(self.solutions)))
+        for comp, der_i in enumerate(self.derivatives):
             der[:, comp] = der_i(time)
 
         return der
+
+    @property
+    def antiderivatives(self):
+        return self._antiderivatives
+
+    def antiderivative(self, time):
+        """ Return all antiderivative of the spline(s) at given time.
+
+        x : np.array
+            The time points to evaluate the antiderivatives at.
+
+        Returns
+        -------
+        anti : ndarray
+            Antiderivatives of the solution spline(s) at given time.
+
+        """
+        anti = np.empty((len(time), len(self.solutions)))
+        for comp, anti_i in enumerate(self.antiderivatives):
+            anti[:, comp] = anti_i(time)
+
+        return anti
 
     def integral(self, start=0, end=-1):
         """Definite integral between start and end.

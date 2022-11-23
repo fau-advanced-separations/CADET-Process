@@ -340,12 +340,7 @@ class Shape(DifferenceBase):
         if not self.use_derivative:
             return np.array([corr, offset, peak_height[0][0]])
 
-        solution_der = copy.deepcopy(solution)
-        solution_der.time_original = self.reference.time
-        solution_der.component_system_original = solution.component_system
-        der_fun = solution_der.solution_interpolated.derivative
-        solution_der.solution_original = der_fun(self.reference.time)
-        solution_der.reset()
+        solution_der = solution.derivative
 
         corr_der = pearson_offset(
             self.reference.time,
