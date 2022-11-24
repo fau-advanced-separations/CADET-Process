@@ -243,6 +243,10 @@ class TrustConstr(SciPyInterface):
     running the optimization.
 
     """
+    supports_linear_constraints = True
+    supports_linear_equality_constraints = True
+    supports_nonlinear_constraints = True
+
     gtol = UnsignedFloat(default=1e-6)
     cv_tol = gtol
     xtol = UnsignedFloat(default=1e-8)
@@ -279,6 +283,10 @@ class COBYLA(SciPyInterface):
     running the optimization.
 
     """
+    supports_linear_constraints = True
+    supports_linear_equality_constraints = True
+    supports_nonlinear_constraints = True
+
     rhobeg = UnsignedFloat(default=1)
     maxiter = UnsignedInteger(default=10000)
     disp = Bool(default=False)
@@ -311,6 +319,10 @@ class SLSQP(SciPyInterface):
     variable options as a dictionary and implements the abstract method run for
     running the optimization.
     """
+    supports_linear_constraints = True
+    supports_linear_equality_constraints = True
+    supports_nonlinear_constraints = True
+
     ftol = UnsignedFloat(default=1e-2)
     eps = UnsignedFloat(default=1e-6)
     disp = Bool(default=False)

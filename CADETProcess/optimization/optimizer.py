@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 
 from CADETProcess import settings
 from CADETProcess import log
+from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import (
     UnsignedInteger, RangedInteger, UnsignedFloat
@@ -25,6 +26,11 @@ class OptimizerBase(metaclass=StructMeta):
     convert the results back to the CADET-Process format.
 
     """
+    supports_multi_objective = False
+    supports_linear_constraints = False
+    supports_linear_equality_constraints = False
+    supports_nonlinear_constraints = False
+
     _options = []
     progress_frequency = RangedInteger(lb=1, default=1)
     n_cores = UnsignedInteger(default=1)
@@ -65,6 +71,8 @@ class OptimizerBase(metaclass=StructMeta):
         ------
         TypeError
             If optimization_problem is not an instance of OptimizationProblem.
+        CADETProcessError
+            If Optimizer is not suited for OptimizationProblem (e.g. multi-objective).
 
         Returns
         -------
@@ -80,6 +88,26 @@ class OptimizerBase(metaclass=StructMeta):
         """
         if not isinstance(optimization_problem, OptimizationProblem):
             raise TypeError('Expected OptimizationProblem')
+
+        if optimization_problem.n_objectives > 1 and not self.supports_multi_objective:
+            raise CADETProcessError(
+                "Optimizer does not support multi-objective problems"
+            )
+        if optimization_problem.n_linear_constraints > 0\
+                and not self.supports_nonlinear_constraints:
+            raise CADETProcessError(
+                "Optimizer does not support problems with linear constraints."
+            )
+        if optimization_problem.n_linear_equality_constraints > 0 \
+                and not self.supports_nonlinear_constraints:
+            raise CADETProcessError(
+                "Optimizer does not support problems with linear equality constraints."
+            )
+        if optimization_problem.n_nonlinear_constraints > 0 \
+                and not self.supports_nonlinear_constraints:
+            raise CADETProcessError(
+                "Optimizer does not support problems with nonlinear constraints."
+            )
 
         self.optimization_problem = optimization_problem
 

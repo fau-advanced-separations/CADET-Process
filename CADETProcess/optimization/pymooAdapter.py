@@ -16,6 +16,11 @@ from CADETProcess.optimization import OptimizerBase
 
 class PymooInterface(OptimizerBase):
     """Wrapper around pymoo."""
+    supports_multi_objective = True
+    supports_linear_constraints = True
+    supports_linear_equality_constraints = True
+    supports_nonlinear_constraints = True
+
     seed = UnsignedInteger(default=12345)
     pop_size = UnsignedInteger()
     xtol = UnsignedFloat(default=1e-8)
