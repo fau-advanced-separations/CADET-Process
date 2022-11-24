@@ -141,6 +141,9 @@ class SciPyInterface(OptimizerBase):
         A
         b
         """
+        if optimization_problem.n_linear_constraints == 0:
+            return None
+
         lb = [-np.inf]*len(optimization_problem.b)
         ub = optimization_problem.b
 
@@ -170,7 +173,7 @@ class SciPyInterface(OptimizerBase):
         Aeq
         beq
         """
-        if len(optimization_problem.beq) == 0:
+        if optimization_problem.n_linear_equality_constraints == 0:
             return None
 
         lb = optimization_problem.beq
@@ -210,9 +213,10 @@ class SciPyInterface(OptimizerBase):
         constraint_objects
         nonlinear_constraints
         """
+        if optimization_problem.n_nonlinear_constraints == 0:
+            return [None]
+
         opt = optimization_problem
-        if opt.nonlinear_constraints is None:
-            return None
 
         def makeConstraint(i):
             constr = optimize.NonlinearConstraint(
