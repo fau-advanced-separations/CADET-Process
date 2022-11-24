@@ -257,8 +257,8 @@ class TrustConstr(SciPyInterface):
     barrier_tol = UnsignedFloat(default=1e-8)
     initial_constr_penalty = UnsignedFloat(default=1.0)
     initial_tr_radius = UnsignedFloat(default=1.0)
-    initial_barrier_parameter = UnsignedFloat(default=0.01)
-    initial_barrier_tolerance = UnsignedFloat(default=0.01)
+    initial_barrier_parameter = UnsignedFloat(default=0.1)
+    initial_barrier_tolerance = UnsignedFloat(default=0.1)
     factorization_method = None
     maxiter = UnsignedInteger(default=1000)
     verbose = UnsignedInteger(default=0)
