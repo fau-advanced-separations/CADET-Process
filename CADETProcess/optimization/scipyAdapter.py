@@ -313,6 +313,9 @@ class NelderMead(SciPyInterface):
         'maxiter', 'maxfev', 'initial_simplex', 'xatol', 'fatol', 'adaptive'
     ]
 
+    def __str__(self):
+        return 'Nelder-Mead'
+
 
 class SLSQP(SciPyInterface):
     """Class from scipy for optimization with SLSQP as method for the
