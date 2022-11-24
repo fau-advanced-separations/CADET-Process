@@ -1773,7 +1773,7 @@ class OptimizationProblem(metaclass=StructMeta):
     @property
     def n_linear_equality_constraints(self):
         """int: number of linear equality constraints"""
-        return len(self.linear_constraints)
+        return len(self.linear_equality_constraints)
 
     def add_linear_equality_constraint(self, opt_vars, lhs=1, beq=0):
         """Add linear equality constraints.
