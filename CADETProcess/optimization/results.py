@@ -115,6 +115,9 @@ class OptimizationResults(metaclass=StructMeta):
         if not isinstance(individual, Individual):
             raise CADETProcessError("Expected Individual")
 
+        population = Population()
+        population.add_individual(individual)
+        self._populations.append(population)
         self.population_all.add_individual(individual, ignore_duplicate=True)
 
     def update_population(self, population):
@@ -205,15 +208,16 @@ class OptimizationResults(metaclass=StructMeta):
                         show=show,
                         plot_directory=self.plot_directory
                     )
-                self.plot_corner(
-                    show=show, plot_directory=self.plot_directory
-                )
                 self.plot_space(
                     show=show, plot_directory=self.plot_directory
                 )
-                self.plot_pareto(
-                    show=show, plot_directory=self.plot_directory
-                )
+                if self.optimization_problem.n_variables > 1:
+                    self.plot_corner(
+                        show=show, plot_directory=self.plot_directory
+                    )
+                    self.plot_pareto(
+                        show=show, plot_directory=self.plot_directory
+                    )
 
     def plot_space(
             self,
