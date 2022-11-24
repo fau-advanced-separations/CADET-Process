@@ -59,7 +59,7 @@ class SciPyInterface(OptimizerBase):
 
             self.run_post_evaluation_processing(x, f, g, self.n_evals)
 
-            return True
+            return False
 
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore', category=OptimizeWarning)
