@@ -408,7 +408,7 @@ class Test_flow_sheet(unittest.TestCase):
     def test_connectivity(self):
         self.batch_flow_sheet.remove_unit('outlet')
 
-        with self.assertRaises(CADETProcessError):
+        with self.assertWarns(Warning):
             self.batch_flow_sheet.check_connections()
 
 

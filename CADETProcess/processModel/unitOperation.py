@@ -1,5 +1,6 @@
 from abc import abstractproperty
 import math
+from warnings import warn
 
 from CADETProcess import CADETProcessError
 
@@ -61,6 +62,7 @@ class UnitBaseClass(metaclass=StructMeta):
     _section_dependent_parameters = []
     _polynomial_parameters = []
     _initial_state = []
+    _required_parameters = []
 
     supports_bulk_reaction = False
     supports_particle_reaction = False
@@ -201,6 +203,27 @@ class UnitBaseClass(metaclass=StructMeta):
                 setattr(self, st, value)
 
     @property
+    def missing_parameters(self):
+        missing_parameters = []
+        for param in self._required_parameters:
+            if getattr(self, param) is None:
+                missing_parameters.append(param)
+
+        missing_parameters += [
+            f'binding_model.{param}' for param in self.binding_model.missing_parameters
+        ]
+
+        return missing_parameters
+
+    def check_required_parameters(self):
+        if len(self.missing_parameters) == 0:
+            return True
+        else:
+            for param in self.missing_parameters:
+                warn(f'Unit {self.name}: Missing parameter "{param}".')
+            return False
+
+    @property
     def binding_model(self):
         """binding_model: BindingModel of the unit_operation.
 
@@ -334,6 +357,7 @@ class SinkMixin():
 class Inlet(UnitBaseClass, SourceMixin):
     """Pseudo unit operation model for streams entering the system."""
     c = NdPolynomial(dep=('n_comp', '_n_poly_coeffs'), default=0)
+    flow_rate = Polynomial(dep=('_n_poly_coeffs'), default=0)
     _n_poly_coeffs = 4
     _parameter_names = \
         UnitBaseClass._parameter_names + \
@@ -389,7 +413,7 @@ class TubularReactorBase(UnitBaseClass):
     """
     length = UnsignedFloat()
     diameter = UnsignedFloat()
-    axial_dispersion = UnsignedFloat(default=0)
+    axial_dispersion = UnsignedFloat()
     flow_direction = Switch(valid=[-1, 1], default=1)
     _parameter_names = UnitBaseClass._parameter_names + [
         'length', 'diameter',
@@ -398,6 +422,7 @@ class TubularReactorBase(UnitBaseClass):
     _section_dependent_parameters = \
         UnitBaseClass._section_dependent_parameters + \
         ['axial_dispersion', 'flow_direction']
+    _required_parameters = ['length', 'axial_dispersion', 'diameter']
 
     @abstractproperty
     def total_porosity(self):
@@ -664,6 +689,7 @@ class LumpedRateModelWithoutPores(TubularReactorBase):
     _parameter_names = TubularReactorBase._parameter_names + [
         'total_porosity'
     ]
+    _required_parameters = TubularReactorBase._required_parameters + ['total_porosity']
 
     c = DependentlySizedList(dep='n_comp', default=0)
     _q = DependentlySizedUnsignedList(dep='n_bound_states', default=0)
@@ -731,6 +757,9 @@ class LumpedRateModelWithPores(TubularReactorBase):
             ]
     _section_dependent_parameters = \
         TubularReactorBase._section_dependent_parameters + ['film_diffusion']
+    _required_parameters = TubularReactorBase._required_parameters + [
+        'bed_porosity', 'particle_porosity', 'particle_radius', 'film_diffusion'
+    ]
 
     c = DependentlySizedList(dep='n_comp', default=0)
     _cp = DependentlySizedUnsignedList(dep='n_comp')
@@ -859,6 +888,10 @@ class GeneralRateModel(TubularReactorBase):
     _section_dependent_parameters = \
         TubularReactorBase._section_dependent_parameters + \
         ['film_diffusion', 'pore_diffusion', 'surface_diffusion']
+    _required_parameters = TubularReactorBase._required_parameters + [
+        'bed_porosity', 'particle_porosity', 'particle_radius', 'film_diffusion',
+        'pore_diffusion'
+    ]
 
     c = DependentlySizedList(dep='n_comp', default=0)
     _cp = DependentlySizedUnsignedList(dep='n_comp')
@@ -990,6 +1023,7 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         UnitBaseClass._polynomial_parameters + \
         SourceMixin._polynomial_parameters + \
         ['flow_rate_filter']
+    _required_parameters = UnitBaseClass._required_parameters + ['V']
 
     c = DependentlySizedList(dep='n_comp', default=0)
     _q = DependentlySizedUnsignedList(dep='n_bound_states', default=0)

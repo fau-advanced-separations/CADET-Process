@@ -1,4 +1,5 @@
 from collections import defaultdict
+from warnings import warn
 
 from addict import Dict
 import numpy as np
@@ -358,6 +359,56 @@ class Process(EventHandler):
                 f'{unit}_flow_rate_{i-3}', f'flow_sheet.{unit}.flow_rate',
                 np.flip(sec), t
             )
+
+    def check_config(self):
+        """Validate that process config is setup correctly.
+
+        Returns
+        -------
+        check : Bool
+            True if process is setup correctly. False otherwise.
+
+        """
+        flag = True
+
+        missing_parameters = self.flow_sheet.missing_parameters
+        if len(missing_parameters) > 0:
+            for param in missing_parameters:
+                if f'flow_sheet.{param}' not in self.event_parameters:
+                    warn(f"Missing parameter {param}.")
+                    flag = False
+
+        if not self.flow_sheet.check_connections():
+            flag = False
+
+        if self.cycle_time is None:
+            warn('Cycle time is not set')
+            flag = False
+
+        if not self.check_cstr_volume():
+            flag = False
+
+        return flag
+
+    def check_cstr_volume(self):
+        """Check if CSTRs run empty.
+
+        Returns
+        -------
+        flag : bool
+            False if any of the CSTRs run empty. True otherwise.
+
+        """
+        flag = True
+        for cstr in self.flow_sheet.cstrs:
+            V_0 = cstr.V
+            V_in = self.flow_rate_timelines[cstr.name].total_in.integral()
+            V_out = self.flow_rate_timelines[cstr.name].total_out.integral()
+            if V_0 + V_in - V_out < 0:
+                flag = False
+                warn(f'CSTR {cstr.name} runs empty during process.')
+
+        return flag
 
     def __str__(self):
         return self.name

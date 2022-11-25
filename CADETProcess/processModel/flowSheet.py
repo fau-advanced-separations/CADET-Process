@@ -1,5 +1,6 @@
 from collections import defaultdict
 from functools import wraps
+from warnings import warn
 
 import numpy as np
 import sympy as sym
@@ -181,6 +182,11 @@ class FlowSheet(metaclass=StructMeta):
     def sinks(self):
         """list: All UnitOperations implementing the SinkMixin interface."""
         return [unit for unit in self._units if isinstance(unit, SinkMixin)]
+
+    @property
+    def cstrs(self):
+        """list: All Cstrs in the system."""
+        return [unit for unit in self._units if isinstance(unit, Cstr)]
 
     @property
     def units_with_binding(self):
@@ -404,42 +410,77 @@ class FlowSheet(metaclass=StructMeta):
 
         Raises
         ------
-        CADETProcessError
+        Warning
             If Inlets have ingoing streams.
             If Outlets have outgoint streams.
             If Units (other than Cstr) are not fully connected.
 
+        Returns
+        -------
+        flag : bool
+            True if all units are connected correctly. False otherwise.
+
         """
+        flag = True
         for unit, connections in self.connections.items():
             if isinstance(unit, Source):
                 if len(connections.origins) != 0:
-                    raise CADETProcessError(
-                        "Inlet unit cannot have ingoing stream."
-                    )
+                    flag = False
+                    warn("Inlet unit cannot have ingoing stream.")
                 if len(connections.destinations) == 0:
-                    raise CADETProcessError(
-                        f" Unit '{unit.name}' does not have outgoing stream."
-                    )
+                    flag = False
+                    warn(f" Unit '{unit.name}' does not have outgoing stream.")
             elif isinstance(unit, Sink):
                 if len(connections.destinations) != 0:
-                    raise CADETProcessError(
-                        "Outlet unit cannot have outgoing stream."
-                    )
+                    flag = False
+                    warn("Outlet unit cannot have outgoing stream.")
                 if len(connections.origins) == 0:
-                    raise CADETProcessError(
-                        f"Unit '{unit.name}' does not have ingoing stream."
-                    )
+                    flag = False
+                    warn(f"Unit '{unit.name}' does not have ingoing stream.")
             elif isinstance(unit, Cstr):
                 continue
             else:
                 if len(connections.origins) == 0:
-                    raise CADETProcessError(
-                        f"Unit '{unit.name}' does not have ingoing stream."
-                    )
+                    flag = False
+                    warn(f"Unit '{unit.name}' does not have ingoing stream.")
                 if len(connections.destinations) == 0:
-                    raise CADETProcessError(
-                        f" Unit '{unit.name}' does not have outgoing stream."
-                    )
+                    flag = False
+                    warn(f" Unit '{unit.name}' does not have outgoing stream.")
+
+        return flag
+
+    @property
+    def missing_parameters(self):
+        missing_parameters = []
+
+        for unit in self.units:
+            missing_parameters += [
+                f'{unit.name}.{param}' for param in unit.missing_parameters
+            ]
+
+        return missing_parameters
+
+    def check_units_config(self):
+        """Check if units are configured correctly.
+
+        Returns
+        -------
+        flag : bool
+            True if units are configured correctly. False otherwise.
+
+        """
+        if len(self.missing_parameters) == 0:
+            return True
+        else:
+            for param in self.missing_parameters:
+                warn(f'Missing parameter "{param}".')
+            return False
+
+        flag = True
+        for unit in self.units:
+            if not unit.check_required_parameters():
+                flag = False
+        return flag
 
     @property
     def output_states(self):

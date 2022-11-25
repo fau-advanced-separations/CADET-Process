@@ -184,6 +184,7 @@ class TestAdsorptionEquilibrium(unittest.TestCase):
 
         self.linear = Linear(component_system_mono, 'linear')
         self.linear.adsorption_rate = [1]
+        self.linear.desorption_rate = [1]
 
         self.langmuir = Langmuir(component_system_di, 'langmuir')
         self.langmuir.adsorption_rate = [2, 1]

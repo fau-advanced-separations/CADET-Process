@@ -191,6 +191,9 @@ class SimulatorBase(metaclass=StructMeta):
         if not isinstance(process, Process):
             raise TypeError('Expected Process')
 
+        if not process.check_config():
+            raise CADETProcessError("Process is not configured correctly.")
+
         process.lock = True
         if not self.evaluate_stationarity:
             results = self.simulate_n_cycles(

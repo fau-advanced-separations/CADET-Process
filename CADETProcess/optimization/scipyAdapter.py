@@ -61,6 +61,9 @@ class SciPyInterface(OptimizerBase):
 
             return False
 
+        if optimization_problem.x0 is None:
+            optimization_problem.create_initial_values(1)
+
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore', category=OptimizeWarning)
             warnings.filterwarnings('ignore', category=RuntimeWarning)
