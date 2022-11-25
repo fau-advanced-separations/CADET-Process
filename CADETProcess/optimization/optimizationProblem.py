@@ -1801,8 +1801,11 @@ class OptimizationProblem(metaclass=StructMeta):
         linear_constraints
 
         """
-        if not all(var in self.variables for var in opt_vars):
-            return CADETProcessError('Variables not in variables')
+        if not isinstance(opt_vars, list):
+            opt_vars = [opt_vars]
+
+        if not all(var in self.variables_dict for var in opt_vars):
+            raise CADETProcessError('Variable not in variables.')
 
         if np.isscalar(lhs):
             lhs = len(opt_vars) * [1]
@@ -1850,12 +1853,10 @@ class OptimizationProblem(metaclass=StructMeta):
             (len(self.linear_equality_constraints), len(self.variables))
         )
 
-        for lineqcon_index, lineqcon in enumerate(
-            self.linear_equality_constraints
-        ):
-            for var_index, var in enumerate(lineqcon.opt_vars):
-                index = self.variables.index(var)
-                Aeq[lineqcon_index, index] = lineqcon.lhs[var_index]
+        for lineqcon_index, lineqcon in enumerate(self.linear_equality_constraints):
+            for var_index, var in enumerate(lineqcon['opt_vars']):
+                index = self.variables.index(self.variables_dict[var])
+                Aeq[lineqcon_index, index] = lineqcon['lhs'][var_index]
 
         return Aeq
 
@@ -1871,11 +1872,12 @@ class OptimizationProblem(metaclass=StructMeta):
 
         """
         beq = np.zeros((len(self.linear_equality_constraints),))
-        beq = [lineqcon.beq for lineqcon in self.linear_equality_constraints]
+        beq = [lineqcon['beq'] for lineqcon in self.linear_equality_constraints]
 
         return beq
 
     @untransforms
+    @gets_dependent_values
     def evaluate_linear_equality_constraints(self, x):
         """Calculate value of linear equality constraints at point x.
 
@@ -1896,11 +1898,12 @@ class OptimizationProblem(metaclass=StructMeta):
         linear_equality_constraints
 
         """
-        values = self.get_dependent_values(x)
-        values = np.array(values)
+        values = np.array(x)
 
         return self.Aeq.dot(values) - self.beq
 
+    @untransforms
+    @gets_dependent_values
     def check_linear_equality_constraints(self, x):
         """Check if linear equality constraints are met at point x.
 
@@ -2145,6 +2148,8 @@ class OptimizationProblem(metaclass=StructMeta):
                 if not self.check_bounds(ind, get_dependent_values=True):
                     continue
                 if not self.check_linear_constraints(ind, get_dependent_values=True):
+                    continue
+                if not self.check_linear_equality_constraints(ind, get_dependent_values=True):
                     continue
                 values.append(ind)
 
