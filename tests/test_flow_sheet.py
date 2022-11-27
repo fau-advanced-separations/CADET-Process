@@ -81,14 +81,15 @@ class Test_flow_sheet(unittest.TestCase):
         with self.assertRaises(CADETProcessError):
             self.batch_flow_sheet.add_unit(duplicate_unit_name)
 
-    def test_sources(self):
-        self.assertIn(self.ssr_flow_sheet.feed, self.ssr_flow_sheet.sources)
-        self.assertIn(self.ssr_flow_sheet.eluent, self.ssr_flow_sheet.sources)
-        self.assertIn(self.ssr_flow_sheet.cstr, self.ssr_flow_sheet.sources)
+    def test_inlets(self):
+        self.assertIn(self.ssr_flow_sheet.feed, self.ssr_flow_sheet.inlets)
+        self.assertIn(self.ssr_flow_sheet.eluent, self.ssr_flow_sheet.inlets)
 
-    def test_sinks(self):
-        self.assertIn(self.ssr_flow_sheet.cstr, self.ssr_flow_sheet.sinks)
-        self.assertIn(self.ssr_flow_sheet.outlet, self.ssr_flow_sheet.sinks)
+    def test_outlets(self):
+        self.assertIn(self.ssr_flow_sheet.outlet, self.ssr_flow_sheet.outlets)
+
+    def test_cstrs(self):
+        self.assertIn(self.ssr_flow_sheet.cstr, self.ssr_flow_sheet.cstrs)
 
     def test_connections(self):
         feed = self.ssr_flow_sheet['feed']
@@ -405,11 +406,93 @@ class Test_flow_sheet(unittest.TestCase):
             self.ssr_flow_sheet.get_flow_rates(), expected_flow_rates
         )
 
-    def test_connectivity(self):
+    def test_check_connectivity(self):
+        self.assertTrue(self.batch_flow_sheet.check_connections())
+
         self.batch_flow_sheet.remove_unit('outlet')
 
         with self.assertWarns(Warning):
             self.batch_flow_sheet.check_connections()
+
+
+class TestCstrFlowRate(unittest.TestCase):
+    def __init__(self, methodName='runTest'):
+        super().__init__(methodName)
+
+    def setUp(self):
+        self.component_system = ComponentSystem(2)
+
+        flow_sheet = FlowSheet(self.component_system)
+
+        inlet = Inlet(self.component_system, name='inlet')
+        cstr = Cstr(self.component_system, name='cstr')
+        outlet = Outlet(self.component_system, name='outlet')
+
+        flow_sheet.add_unit(inlet)
+        flow_sheet.add_unit(cstr)
+        flow_sheet.add_unit(outlet)
+
+        flow_sheet.add_connection(inlet, cstr)
+        flow_sheet.add_connection(cstr, outlet)
+
+        self.flow_sheet = flow_sheet
+
+    def test_continuous_flow(self):
+        self.flow_sheet.inlet.flow_rate = 1
+
+        flow_rates = self.flow_sheet.get_flow_rates()
+
+        cstr_in = flow_rates['cstr']['total_in']
+        cstr_in_expected = [1., 0., 0., 0.]
+        np.testing.assert_almost_equal(cstr_in, cstr_in_expected)
+
+        cstr_out = flow_rates['cstr']['total_out']
+        cstr_out_expected = [1., 0., 0., 0.]
+        np.testing.assert_almost_equal(cstr_out, cstr_out_expected)
+
+        # Test dynamic flow
+        self.flow_sheet.inlet.flow_rate = [1, 1]
+
+        flow_rates = self.flow_sheet.get_flow_rates()
+
+        cstr_in = flow_rates['cstr']['total_in']
+        cstr_in_expected = [1., 1., 0., 0.]
+        np.testing.assert_almost_equal(cstr_in, cstr_in_expected)
+
+        cstr_out = flow_rates['cstr']['total_out']
+        cstr_out_expected = [1., 1., 0., 0.]
+        np.testing.assert_almost_equal(cstr_out, cstr_out_expected)
+
+    def test_holdup(self):
+        self.flow_sheet.inlet.flow_rate = 1
+        self.flow_sheet.cstr.flow_rate = 0
+
+        flow_rates = self.flow_sheet.get_flow_rates()
+
+        cstr_in = flow_rates['cstr']['total_in']
+        cstr_in_expected = [1., 0., 0., 0.]
+        np.testing.assert_almost_equal(cstr_in, cstr_in_expected)
+
+        cstr_out = flow_rates['cstr']['total_out']
+        cstr_out_expected = [0., 0., 0., 0.]
+        np.testing.assert_almost_equal(cstr_out, cstr_out_expected)
+
+    def test_state_update(self):
+        self.flow_sheet.inlet.flow_rate = [1, 1]
+
+        state = {
+            'flow_sheet.cstr.flow_rate': np.array([2, 2, 0, 0], ndmin=2)
+        }
+
+        flow_rates = self.flow_sheet.get_flow_rates(state)
+
+        cstr_in = flow_rates['cstr']['total_in']
+        cstr_in_expected = [1., 1., 0., 0.]
+        np.testing.assert_almost_equal(cstr_in, cstr_in_expected)
+
+        cstr_out = flow_rates['cstr']['total_out']
+        cstr_out_expected = [2., 2., 0., 0.]
+        np.testing.assert_almost_equal(cstr_out, cstr_out_expected)
 
 
 if __name__ == '__main__':

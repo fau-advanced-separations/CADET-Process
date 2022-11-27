@@ -11,7 +11,7 @@ from CADETProcess.dataStructure import frozen_attributes
 from CADETProcess.dataStructure import StructMeta, UnsignedInteger, String
 from .componentSystem import ComponentSystem
 from .unitOperation import UnitBaseClass
-from .unitOperation import Source, SourceMixin, Sink, SinkMixin, Cstr
+from .unitOperation import Inlet, Outlet, Cstr
 from .binding import NoBinding
 
 
@@ -174,14 +174,14 @@ class FlowSheet(metaclass=StructMeta):
         return self.units.index(unit)
 
     @property
-    def sources(self):
-        """list: All UnitOperations implementing the SourceMixin interface."""
-        return [unit for unit in self._units if isinstance(unit, SourceMixin)]
+    def inlets(self):
+        """list: All Inlets in the system."""
+        return [unit for unit in self._units if isinstance(unit, Inlet)]
 
     @property
-    def sinks(self):
-        """list: All UnitOperations implementing the SinkMixin interface."""
-        return [unit for unit in self._units if isinstance(unit, SinkMixin)]
+    def outlets(self):
+        """list: All Outlets in the system."""
+        return [unit for unit in self._units if isinstance(unit, Outlet)]
 
     @property
     def cstrs(self):
@@ -423,14 +423,14 @@ class FlowSheet(metaclass=StructMeta):
         """
         flag = True
         for unit, connections in self.connections.items():
-            if isinstance(unit, Source):
+            if isinstance(unit, Inlet):
                 if len(connections.origins) != 0:
                     flag = False
                     warn("Inlet unit cannot have ingoing stream.")
                 if len(connections.destinations) == 0:
                     flag = False
                     warn(f" Unit '{unit.name}' does not have outgoing stream.")
-            elif isinstance(unit, Sink):
+            elif isinstance(unit, Outlet):
                 if len(connections.destinations) != 0:
                     flag = False
                     warn("Outlet unit cannot have outgoing stream.")
@@ -438,7 +438,9 @@ class FlowSheet(metaclass=StructMeta):
                     flag = False
                     warn(f"Unit '{unit.name}' does not have ingoing stream.")
             elif isinstance(unit, Cstr):
-                continue
+                if unit.flow_rate is None and len(connections.destinations) == 0:
+                    flag = False
+                    warn("Cstr cannot have flow rate without outgoing stream.")
             else:
                 if len(connections.origins) == 0:
                     flag = False
@@ -551,8 +553,10 @@ class FlowSheet(metaclass=StructMeta):
 
         """
         flow_rates = {
-            unit.name: unit.flow_rate for unit in self.sources
+            unit.name: unit.flow_rate for unit in (self.inlets + self.cstrs)
+            if unit.flow_rate is not None
         }
+
         output_states = self.output_states
 
         if state is not None:
@@ -596,12 +600,12 @@ class FlowSheet(metaclass=StructMeta):
                 flow_rates[unit.name].origins[origin] = np.array(flow_rate)
 
         for unit in self.units:
-            if not isinstance(unit, Source):
+            if not isinstance(unit, Inlet):
                 flow_rate_in = np.sum(
                     list(flow_rates[unit.name].origins.values()), axis=0
                 )
                 flow_rates[unit.name].total_in = flow_rate_in
-            if not isinstance(unit, Sink):
+            if not isinstance(unit, Outlet):
                 flow_rate_out = np.sum(
                     list(flow_rates[unit.name].destinations.values()), axis=0
                 )
@@ -609,7 +613,7 @@ class FlowSheet(metaclass=StructMeta):
 
         return flow_rates
 
-    def solve_flow_rates(self, source_flow_rates, output_states, coeff=0):
+    def solve_flow_rates(self, inlet_flow_rates, output_states, coeff=0):
         """Solve flow rates of system using sympy.
 
         Because a simple 'push' algorithm cannot be used when closed loops are
@@ -618,8 +622,8 @@ class FlowSheet(metaclass=StructMeta):
 
         Parameters
         ----------
-        source_flow_rates: dict
-            Flow rates of Source UnitOperations.
+        inlet_flow_rates: dict
+            Flow rates of Inlet UnitOperations.
         output_states: dict
             Output states of all UnitOperations.
         coeff: int
@@ -634,11 +638,14 @@ class FlowSheet(metaclass=StructMeta):
         -----
             Since dynamic flow rates can be described as cubic polynomials, the
             flow rates are solved individually for all coefficients.
+            To comply to the interface, the flow rates are always computed for the first
+            (constant) coefficient. For higher orders, the function returns None if all
+            coefficients are zero.
 
+            The problem could definitely be solved more elegantly (and efficiently) by
+            using proper liner algebra.
         """
-        coeffs = np.array(
-            [source_flow_rates[unit.name][coeff] for unit in self.sources]
-        )
+        coeffs = np.array(list(inlet_flow_rates.values()), ndmin=2)[:, coeff]
         if coeff > 0 and not np.any(coeffs):
             return None
 
@@ -654,11 +661,17 @@ class FlowSheet(metaclass=StructMeta):
 
         # Setup symbolic equations
         for unit_index, unit in enumerate(self.units):
-            if isinstance(unit, SourceMixin):
+            if \
+                    isinstance(unit, Inlet) or \
+                    isinstance(unit, Cstr) and (
+                        unit.flow_rate is not None
+                        or
+                        unit.name in inlet_flow_rates
+                    ):
                 unit_total_flow_eq.append(
                     sym.Add(
                         unit_total_flow_symbols[unit_index],
-                        - float(source_flow_rates[unit.name][coeff])
+                        - float(inlet_flow_rates[unit.name][coeff])
                     )
                 )
             else:
@@ -679,7 +692,7 @@ class FlowSheet(metaclass=StructMeta):
                 unit_inflow_symbols += unit_i_inflow_symbols
                 unit_total_flow_eq.append(unit_i_total_flow_eq)
 
-            if not isinstance(unit, Sink):
+            if not isinstance(unit, Outlet):
                 output_state = output_states[unit]
                 unit_i_outflow_symbols = []
 
@@ -716,8 +729,11 @@ class FlowSheet(metaclass=StructMeta):
     def check_flow_rates(self, state=None):
         flow_rates = self.get_flow_rates(state)
         for unit, q in flow_rates.items():
-            if isinstance(unit, (SourceMixin, SinkMixin)):
+            if isinstance(unit, (Inlet, Outlet)):
                 continue
+            elif isinstance(unit, Cstr) and Cstr.flow_rate is not None:
+                continue
+
             if not np.all(q.total_in == q.total_out):
                 raise CADETProcessError(
                     f"Unbalanced flow rate for unit '{unit}'."
@@ -730,7 +746,7 @@ class FlowSheet(metaclass=StructMeta):
 
     @unit_name_decorator
     def add_feed_inlet(self, feed_inlet):
-        """Add source to list of units to be considered for recovery.
+        """Add inlet to list of units to be considered for recovery.
 
         Parameters
         ----------
@@ -740,12 +756,12 @@ class FlowSheet(metaclass=StructMeta):
         Raises
         ------
         CADETProcessError
-            If unit is not a source object.
+            If unit is not an Inlet.
             If unit is already marked as feed inlet.
 
         """
-        if feed_inlet not in self.sources:
-            raise CADETProcessError('Expected Source')
+        if feed_inlet not in self.inlets:
+            raise CADETProcessError('Expected Inlet')
         if feed_inlet in self._feed_inlets:
             raise CADETProcessError(
                 f'Unit \'{feed_inlet}\' is already a feed inlet.'
@@ -789,7 +805,7 @@ class FlowSheet(metaclass=StructMeta):
             If unit is already marked as eluent inlet.
 
         """
-        if eluent_inlet not in self.sources:
+        if eluent_inlet not in self.inlets:
             raise CADETProcessError('Expected Inlet')
         if eluent_inlet in self._eluent_inlets:
             raise CADETProcessError(
@@ -829,7 +845,7 @@ class FlowSheet(metaclass=StructMeta):
 
         Parameters
         ----------
-        product_outlet : SinkMixin
+        product_outlet : Outlet
             Unit to be added to list of product outlets.
 
         Raises
@@ -839,8 +855,8 @@ class FlowSheet(metaclass=StructMeta):
             If unit is already marked as product outlet.
 
         """
-        if product_outlet not in self.sinks:
-            raise CADETProcessError('Expected Sink')
+        if product_outlet not in self.outlets:
+            raise CADETProcessError('Expected Outlet')
         if product_outlet in self._product_outlets:
             raise CADETProcessError(
                 f'Unit \'{product_outlet}\' is already a product outlet'
@@ -849,11 +865,11 @@ class FlowSheet(metaclass=StructMeta):
 
     @unit_name_decorator
     def remove_product_outlet(self, product_outlet):
-        """Remove sink from list of units to be considered for fractionation.
+        """Remove outlet from list of units to be considered for fractionation.
 
         Parameters
         ----------
-        product_outlet : SinkMixin
+        product_outlet : Outlet
             Unit to be added to list of product outlets.
 
         Raises

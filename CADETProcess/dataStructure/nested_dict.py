@@ -1,5 +1,6 @@
 import collections.abc
 from functools import reduce
+from operator import getitem
 
 
 def check_nested(nested_dict, path):
@@ -22,7 +23,7 @@ def check_nested(nested_dict, path):
 
     try:
         value = get_nested_value(nested_dict, path)
-        if isinstance(value, dict) or value is None:
+        if isinstance(value, dict):
             return False
         return True
     except:
@@ -65,7 +66,7 @@ def get_nested_value(nested_dict, path):
     if isinstance(path, str):
         path = path.split('.')
     """Access a value in a nested dict using path in dot notation."""
-    return reduce(dict.get, path, nested_dict)
+    return reduce(getitem, path, nested_dict)
 
 
 def set_nested_value(nested_dict, path, value):

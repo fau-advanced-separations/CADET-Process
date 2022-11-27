@@ -504,17 +504,18 @@ class Polynomial(DependentlySizedNdArray):
                 raise ValueError("Duplicate entries for n_coeff")
             kwargs['dep'] = (n_coeff,)
 
-        kwargs['default'] = 0
-
         super().__init__(*args, **kwargs)
 
     def __set__(self, instance, value):
+        if value is None:
+            try:
+                del(instance.__dict__[self.name])
+            except KeyError:
+                pass
+            return
+
         shape = self.get_expected_shape(instance)
         degree = shape[0]
-
-        if value is None:
-            del(instance.__dict__[self.name])
-            return
 
         if isinstance(value, (int, float)):
             value = np.array((value))
@@ -525,7 +526,9 @@ class Polynomial(DependentlySizedNdArray):
 
         value = np.array(value, ndmin=1)
 
-        _value = self.get_default_values(instance)
+        expected_shape = self.get_expected_shape(instance)
+        _value = np.zeros(expected_shape)
+
         _value[0:value.shape[0]] = value
 
         super().__set__(instance, _value)
