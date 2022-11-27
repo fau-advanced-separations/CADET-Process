@@ -131,8 +131,6 @@ class CarouselBuilder(metaclass=StructMeta):
             flow_sheet.set_output_state(zone.outlet_unit, output_state)
 
             zone_flow_flow_rate = flow_rates[zone.name].total_out
-            flow_sheet[zone.inlet_unit.name].flow_rate = zone_flow_flow_rate
-            flow_sheet[zone.outlet_unit.name].flow_rate = zone_flow_flow_rate
 
     def add_intra_zone_connections(self, flow_sheet):
         """Add connections within zones."""

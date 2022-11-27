@@ -336,7 +336,7 @@ class SourceMixin(metaclass=StructMeta):
 
     """
     _n_poly_coeffs = 4
-    flow_rate = Polynomial(dep=('_n_poly_coeffs'), default=0)
+    flow_rate = Polynomial(dep=('_n_poly_coeffs'))
     _parameter_names = ['flow_rate']
     _section_dependent_parameters = ['flow_rate']
     _polynomial_parameters = ['flow_rate']
@@ -371,6 +371,7 @@ class Inlet(UnitBaseClass, SourceMixin):
         UnitBaseClass._polynomial_parameters + \
         SourceMixin._polynomial_parameters + \
         ['c']
+    _required_parameters = ['flow_rate']
 
 
 Source = Inlet
