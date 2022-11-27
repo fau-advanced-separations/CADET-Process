@@ -80,7 +80,7 @@ class OptimizationProgress():
 
     def plot_convergence(
             self,
-            target,
+            target='objectives',
             figs=None, axs=None,
             plot_individual=False,
             autoscale=True,
