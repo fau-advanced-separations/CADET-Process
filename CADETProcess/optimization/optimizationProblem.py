@@ -4,6 +4,7 @@ import math
 from pathlib import Path
 import random
 import shutil
+import uuid
 import warnings
 
 from addict import Dict
@@ -13,6 +14,7 @@ import pathos
 
 from CADETProcess import CADETProcessError
 from CADETProcess import log
+from CADETProcess import settings
 
 from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import (
@@ -76,6 +78,18 @@ class OptimizationProblem(metaclass=StructMeta):
             use_diskcache=True,
             cache_directory=None,
             log_level='INFO'):
+        """
+
+        Parameters
+        ----------
+        name : str
+            Name of the optimization problem.
+        use_diskcache : bool, optional
+            If True, use diskcache to cache intermediate results. The default is True.
+        log_level : {'DEBUG', INFO, WARN, ERROR, CRITICAL}, optional
+            Log level. The default is 'INFO'.
+
+        """
         self.name = name
         self.logger = log.get_logger(self.name, level=log_level)
 
@@ -84,7 +98,8 @@ class OptimizationProblem(metaclass=StructMeta):
 
         self.cached_evaluators = []
         self.use_diskcache = use_diskcache
-        self.cache = ResultsCache(use_diskcache, cache_directory)
+        self.cache_directory = cache_directory
+        self.setup_cache()
 
         self._variables = []
         self._dependent_variables = []
@@ -506,7 +521,7 @@ class OptimizationProblem(metaclass=StructMeta):
     def evaluators_dict(self):
         return {evaluator.name: evaluator for evaluator in self.evaluators}
 
-    def add_evaluator(self, evaluator, cache=False, args=None, kwargs=None):
+    def add_evaluator(self, evaluator, name=None, cache=False, args=None, kwargs=None):
         """Add Evaluator to OptimizationProblem.
 
         Evaluators can be referenced by objective and constraint functions to
@@ -523,6 +538,10 @@ class OptimizationProblem(metaclass=StructMeta):
         kwargs : dict, optional
             Additional keyword arguments for evaluation function.
 
+        Warnings
+        --------
+        If evaluator with same name already exists.
+
         Raises
         ------
         TypeError
@@ -532,13 +551,18 @@ class OptimizationProblem(metaclass=StructMeta):
         if not callable(evaluator):
             raise TypeError("Expected callable evaluator.")
 
-        if str(evaluator) in self.evaluators:
-            raise CADETProcessError(
-                "Evaluator already exists in OptimizationProblem."
-            )
+        if name is None:
+            if inspect.isfunction(evaluator):
+                name = evaluator.__name__
+            else:
+                name = str(evaluator)
+
+        if name in self.evaluators_dict:
+            warnings.warn("Evaluator with same name already exists.")
 
         evaluator = Evaluator(
             evaluator,
+            name,
             args=args,
             kwargs=kwargs,
         )
@@ -549,14 +573,17 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def objectives(self):
+        """list: Objective functions."""
         return self._objectives
 
     @property
     def objective_names(self):
-        return [str(obj) for obj in self.objectives]
+        """list: Objective function names."""
+        return [obj.name for obj in self.objectives]
 
     @property
     def objective_labels(self):
+        """list: Objective function metric labels."""
         labels = []
         for obj in self.objectives:
             labels += obj.labels
@@ -565,6 +592,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def n_objectives(self):
+        """int: Number of objectives."""
         n_objectives = 0
 
         for objective in self.objectives:
@@ -579,6 +607,7 @@ class OptimizationProblem(metaclass=StructMeta):
     def add_objective(
             self,
             objective,
+            name=None,
             n_objectives=1,
             bad_metrics=None,
             evaluation_objects=-1,
@@ -590,6 +619,8 @@ class OptimizationProblem(metaclass=StructMeta):
         ----------
         objective : callable or MetricBase
             Objective function.
+        name : str, optional
+            Name of the objective.
         n_objectives : int, optional
             Number of metrics returned by objective function.
             The default is 1.
@@ -607,18 +638,30 @@ class OptimizationProblem(metaclass=StructMeta):
         kwargs : dict, optional
             Additional keyword arguments for objective function.
 
+        Warnings
+        --------
+        If objective with same name already exists.
+
         Raises
         ------
         TypeError
             If objective is not callable.
         CADETProcessError
             If EvaluationObject is not found.
-        CADETProcessError
             If Evaluator is not found.
 
         """
         if not callable(objective):
             raise TypeError("Expected callable objective.")
+
+        if name is None:
+            if inspect.isfunction(objective):
+                name = objective.__name__
+            else:
+                name = str(objective)
+
+        if name in self.objective_names:
+            warnings.warn("Objective with same name already exists.")
 
         if bad_metrics is None and isinstance(objective, MetricBase):
             bad_metrics = n_objectives * objective.bad_metrics
@@ -647,6 +690,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
         objective = Objective(
             objective,
+            name,
             type='minimize',
             n_objectives=n_objectives,
             bad_metrics=bad_metrics,
@@ -763,14 +807,17 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def nonlinear_constraints(self):
+        """list: Nonlinear constraint functions."""
         return self._nonlinear_constraints
 
     @property
     def nonlinear_constraint_names(self):
-        return [str(nonlincon) for nonlincon in self.nonlinear_constraints]
+        """list: Nonlinear constraint function names."""
+        return [nonlincon.name for nonlincon in self.nonlinear_constraints]
 
     @property
     def nonlinear_constraint_labels(self):
+        """list: Nonlinear constraint function metric labels."""
         if self.n_nonlinear_constraints > 0:
             labels = []
             for nonlincon in self.nonlinear_constraints:
@@ -780,6 +827,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def nonlinear_constraints_bounds(self):
+        """list: Bounds of nonlinear constraint functions."""
         bounds = []
         for nonlincon in self.nonlinear_constraints:
             bounds += nonlincon.bounds
@@ -788,6 +836,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def n_nonlinear_constraints(self):
+        """int: Number of nonlinear_constraints."""
         n_nonlinear_constraints = 0
 
         for nonlincon in self.nonlinear_constraints:
@@ -802,6 +851,7 @@ class OptimizationProblem(metaclass=StructMeta):
     def add_nonlinear_constraint(
             self,
             nonlincon,
+            name=None,
             n_nonlinear_constraints=1,
             bad_metrics=None,
             evaluation_objects=-1,
@@ -814,6 +864,8 @@ class OptimizationProblem(metaclass=StructMeta):
         ----------
         nonlincon : callable
             Nonlinear constraint function.
+        name : str, optional
+            Name of the nonlinear constraint.
         n_nonlinear_constraints : int, optional
             Number of metrics returned by nonlinear constraint function.
             The default is 1.
@@ -836,18 +888,30 @@ class OptimizationProblem(metaclass=StructMeta):
         kwargs : dict, optional
             Additional keyword arguments for nonlinear constraint function.
 
+        Warnings
+        --------
+        If nonlinear constraint with same name already exists.
+
         Raises
         ------
         TypeError
             If nonlinear constraint function is not callable.
         CADETProcessError
             If EvaluationObject is not found.
-        CADETProcessError
             If Evaluator is not found.
 
         """
         if not callable(nonlincon):
             raise TypeError("Expected callable constraint function.")
+
+        if name is None:
+            if inspect.isfunction(nonlincon):
+                name = nonlincon.__name__
+            else:
+                name = str(nonlincon)
+
+        if name in self.nonlinear_constraint_names:
+            warnings.warn("Nonlinear constraint with same name already exists.")
 
         if bad_metrics is None and isinstance(nonlincon, MetricBase):
             bad_metrics = nonlincon.bad_metrics
@@ -883,6 +947,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
         nonlincon = NonlinearConstraint(
             nonlincon,
+            name,
             bounds=bounds,
             n_nonlinear_constraints=n_nonlinear_constraints,
             bad_metrics=bad_metrics,
@@ -1028,12 +1093,19 @@ class OptimizationProblem(metaclass=StructMeta):
         return self._callbacks
 
     @property
+    def callback_names(self):
+        """list: Callback function names."""
+        return [obj.name for obj in self.callbacks]
+
+    @property
     def n_callbacks(self):
+        """int: Number of callback functions."""
         return len(self.callbacks)
 
     def add_callback(
             self,
             callback,
+            name=None,
             evaluation_objects=-1,
             requires=None,
             frequency=1,
@@ -1046,6 +1118,8 @@ class OptimizationProblem(metaclass=StructMeta):
         ----------
         callback : callable
             Callback function.
+        name : str, optional
+            Name of the callback.
         evaluation_objects : {EvaluationObject, None, -1, list}
             EvaluationObjects which are evaluated by objective.
             If None, no EvaluationObject is used.
@@ -1062,19 +1136,33 @@ class OptimizationProblem(metaclass=StructMeta):
         kwargs : dict, optional
             Additional keyword arguments for callback function.
 
+        Warnings
+        --------
+        If callback with same name already exists.
+
         Raises
         ------
         TypeError
             If callback is not callable.
         CADETProcessError
             If EvaluationObject is not found.
-        CADETProcessError
             If Evaluator is not found.
 
         """
 
         if not callable(callback):
             raise TypeError("Expected callable callback.")
+
+        if name is None:
+            if inspect.isfunction(callback):
+                name = callback.__name__
+            else:
+                name = str(callback)
+
+        if name in self.callback_names:
+            warnings.warn("Callback with same name already exists.")
+
+            raise CADETProcessError("Callback with same name already exists.")
 
         if evaluation_objects is None:
             evaluation_objects = []
@@ -1100,6 +1188,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
         callback = Callback(
             callback,
+            name,
             evaluation_objects=evaluation_objects,
             evaluators=evaluators,
             frequency=frequency,
@@ -1182,10 +1271,12 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def meta_score_names(self):
-        return [str(meta_score) for meta_score in self.meta_scores]
+        """list: Meta score function names."""
+        return [meta_score.name for meta_score in self.meta_scores]
 
     @property
     def meta_score_labels(self):
+        """int: Meta score function metric labels."""
         if self.n_meta_scores > 0:
             labels = []
             for meta_score in self.meta_scores:
@@ -1195,6 +1286,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def n_meta_scores(self):
+        """int: Number of meta score functions."""
         n_meta_scores = 0
 
         for meta_score in self.meta_scores:
@@ -1209,12 +1301,52 @@ class OptimizationProblem(metaclass=StructMeta):
     def add_meta_score(
             self,
             meta_score,
+            name=None,
             n_meta_scores=1,
             evaluation_objects=-1,
             requires=None):
 
+        Parameters
+        ----------
+        meta_score : callable
+            Objective function.
+        name : str, optional
+            Name of the meta score.
+        n_meta_scores : int, optional
+            Number of meta scores returned by callable.
+            The default is 1.
+        evaluation_objects : {EvaluationObject, None, -1, list}
+            EvaluationObjects which are evaluated by objective.
+            If None, no EvaluationObject is used.
+            If -1, all EvaluationObjects are used.
+        requires : {None, Evaluator, list}
+            Evaluators used for preprocessing.
+            If None, no preprocessing is required.
+
+        Warnings
+        --------
+        If meta score with same name already exists.
+
+        Raises
+        ------
+        TypeError
+            If meta_score is not callable.
+        CADETProcessError
+            If EvaluationObject is not found.
+            If Evaluator is not found.
+
+        """
         if not callable(meta_score):
             raise TypeError("Expected callable meta score.")
+
+        if name is None:
+            if inspect.isfunction(meta_score):
+                name = meta_score.__name__
+            else:
+                name = str(meta_score)
+
+        if name in self.meta_score_names:
+            warnings.warn("Meta score with same name already exists.")
 
         if evaluation_objects is None:
             evaluation_objects = []
@@ -1326,15 +1458,50 @@ class OptimizationProblem(metaclass=StructMeta):
         return self._multi_criteria_decision_functions
 
     @property
+    def multi_criteria_decision_function_names(self):
+        """list: Multi criteria decision function names."""
+        return [mcdf.name for mcdf in self.multi_criteria_decision_functions]
+
+    @property
     def n_multi_criteria_decision_functions(self):
+        """int: number of multi criteria decision functions."""
         return len(self.multi_criteria_decision_functions)
 
-    def add_multi_criteria_decision_function(self, decision_function):
+    def add_multi_criteria_decision_function(self, decision_function, name=None):
+        """Add multi criteria decision function to OptimizationProblem.
 
+        Parameters
+        ----------
+        decision_function : callable
+            Multi criteria decision function.
+        name : str, optional
+            Name of the multi criteria decision function.
+
+        Warnings
+        --------
+        If multi criteria decision with same name already exists.
+
+        Raises
+        ------
+        TypeError
+            If decision_function is not callable.
+
+        """
         if not callable(decision_function):
             raise TypeError("Expected callable decision function.")
 
-        meta_score = MultiCriteriaDecisionFunction(decision_function)
+        if name is None:
+            if inspect.isfunction(decision_function):
+                name = decision_function.__name__
+            else:
+                name = str(decision_function)
+
+        if name in self.multi_criteria_decision_function_names:
+            warnings.warn(
+                "Multi criteria decision function with same name already exists."
+            )
+
+        meta_score = MultiCriteriaDecisionFunction(decision_function, name)
         self._multi_criteria_decision_functions.append(meta_score)
 
     def evaluate_multi_criteria_decision_functions(self, pareto_population):
@@ -1371,13 +1538,35 @@ class OptimizationProblem(metaclass=StructMeta):
             self.objectives + \
             self.nonlinear_constraints
 
+    @property
+    def cache_directory(self):
+        if self._cache_directory is None:
+            _cache_directory = settings.working_directory / f'diskcache_{self.name}'
+        else:
+            _cache_directory = Path(self._cache_directory).absolute()
+
+        if self.use_diskcache:
+            _cache_directory.mkdir(exist_ok=True, parents=True)
+
+        return _cache_directory
+
+    @cache_directory.setter
+    def cache_directory(self, cache_directory):
+        self._cache_directory = cache_directory
+
+    def setup_cache(self):
+        self.cache = ResultsCache(self.use_diskcache, self.cache_directory)
+
+    def delete_cache(self, reinit=False):
+        try:
+            self.cache.delete_database()
+        except AttributeError:
+            pass
+        if reinit:
+            self.setup_cache()
+
     def prune_cache(self):
         self.cache.prune()
-
-    def delete_cache(self):
-        self.cache.close()
-        self.cache.delete_database()
-        self.cache = None
 
     @untransforms
     def _evaluate(self, x, func, force=False):
@@ -1426,7 +1615,8 @@ class OptimizationProblem(metaclass=StructMeta):
                 remaining = []
                 for step in reversed(requires):
                     try:
-                        result = self.cache.get(eval_obj, step, x)
+                        key = (eval_obj, step.id, str(x))
+                        result = self.cache.get(key)
                         self.logger.debug(
                             f'Got {str(step)} results from cache.'
                         )
@@ -1449,11 +1639,12 @@ class OptimizationProblem(metaclass=StructMeta):
                     step.evaluate(current_request, eval_obj)
                 else:
                     result = step.evaluate(current_request)
-                    if step not in self.cached_steps:
-                        tag = 'temp'
-                    else:
-                        tag = None
-                    self.cache.set(eval_obj, step, x, result, tag=tag)
+                if step not in self.cached_steps:
+                    tag = 'temp'
+                else:
+                    tag = None
+                key = (str(eval_obj), step.id, str(x))
+                self.cache.set(key, result, tag=tag)
                 current_request = result
 
             if not isinstance(result, list):
@@ -1586,7 +1777,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def linear_constraints(self):
-        """list : linear inequality constraints of OptimizationProblem
+        """list : Linear inequality constraints of OptimizationProblem
 
         See Also
         --------
@@ -1599,8 +1790,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def n_linear_constraints(self):
-        """int: number of linear inequality constraints
-        """
+        """int: Number of linear inequality constraints."""
         return len(self.linear_constraints)
 
     def add_linear_constraint(self, opt_vars, lhs=1, b=0):
@@ -1759,7 +1949,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def linear_equality_constraints(self):
-        """list: linear equality constraints of OptimizationProblem
+        """list: Linear equality constraints of OptimizationProblem
 
         See Also
         --------
@@ -1772,7 +1962,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def n_linear_equality_constraints(self):
-        """int: number of linear equality constraints"""
+        """int: Number of linear equality constraints"""
         return len(self.linear_equality_constraints)
 
     def add_linear_equality_constraint(self, opt_vars, lhs=1, beq=0):
@@ -2468,17 +2658,15 @@ class Evaluator(metaclass=StructMeta):
     def __init__(
             self,
             evaluator,
-            name=None,
+            name,
             args=None,
             kwargs=None):
 
         self.evaluator = evaluator
-
-        if name is None:
-            name = str(evaluator)
         self.name = name
         self.args = args
         self.kwargs = kwargs
+        self.id = uuid.uuid4()
 
     def __call__(self, request):
         if self.args is None:
@@ -2512,7 +2700,7 @@ class Objective(metaclass=StructMeta):
     def __init__(
             self,
             objective,
-            name=None,
+            name,
             type='minimize',
             n_objectives=1,
             bad_metrics=np.inf,
@@ -2523,9 +2711,6 @@ class Objective(metaclass=StructMeta):
             kwargs=None):
 
         self.objective = objective
-
-        if name is None:
-            name = str(objective)
         self.name = name
 
         self.type = type
@@ -2542,6 +2727,8 @@ class Objective(metaclass=StructMeta):
 
         self.args = args
         self.kwargs = kwargs
+
+        self.id = uuid.uuid4()
 
     @property
     def labels(self):
@@ -2605,7 +2792,7 @@ class NonlinearConstraint(metaclass=StructMeta):
     def __init__(
             self,
             nonlinear_constraint,
-            name=None,
+            name,
             bounds=0,
             n_nonlinear_constraints=1,
             bad_metrics=np.inf,
@@ -2616,9 +2803,6 @@ class NonlinearConstraint(metaclass=StructMeta):
             kwargs=None):
 
         self.nonlinear_constraint = nonlinear_constraint
-
-        if name is None:
-            name = str(nonlinear_constraint)
         self.name = name
 
         self.bounds = bounds
@@ -2635,6 +2819,8 @@ class NonlinearConstraint(metaclass=StructMeta):
 
         self.args = args
         self.kwargs = kwargs
+
+        self.id = uuid.uuid4()
 
     @property
     def labels(self):
@@ -2710,7 +2896,7 @@ class Callback(metaclass=StructMeta):
     def __init__(
             self,
             callback,
-            name=None,
+            name,
             evaluation_objects=None,
             evaluators=None,
             frequency=10,
@@ -2720,9 +2906,6 @@ class Callback(metaclass=StructMeta):
             kwargs=None):
 
         self.callback = callback
-
-        if name is None:
-            name = str(callback.__name__)
         self.name = name
 
         self.evaluation_objects = evaluation_objects
@@ -2739,6 +2922,8 @@ class Callback(metaclass=StructMeta):
 
         self.args = args
         self.kwargs = kwargs
+
+        self.id = uuid.uuid4()
 
     def cleanup(self, callbacks_dir, current_iteration):
         if \
@@ -2803,7 +2988,7 @@ class MetaScore(metaclass=StructMeta):
     def __init__(
             self,
             meta_score,
-            name=None,
+            name,
             n_meta_scores=1,
             bad_metrics=np.inf,
             evaluation_objects=None,
@@ -2811,9 +2996,6 @@ class MetaScore(metaclass=StructMeta):
             labels=None):
 
         self.meta_score = meta_score
-
-        if name is None:
-            name = str(meta_score)
         self.name = name
 
         self.n_meta_scores = n_meta_scores
@@ -2826,6 +3008,8 @@ class MetaScore(metaclass=StructMeta):
         self.evaluators = evaluators
 
         self.labels = labels
+
+        self.id = uuid.uuid4()
 
     @property
     def labels(self):
@@ -2873,16 +3057,12 @@ class MultiCriteriaDecisionFunction(metaclass=StructMeta):
     decision_function = Callable()
     name = String()
 
-    def __init__(
-            self,
-            decision_function,
-            name=None):
+    def __init__(self, decision_function, name):
 
         self.decision_function = decision_function
-
-        if name is None:
-            name = str(decision_function)
         self.name = name
+
+        self.id = uuid.uuid4()
 
     def __call__(self, *args, **kwargs):
         return self.decision_function(*args, **kwargs)

@@ -1,14 +1,19 @@
 from collections import defaultdict
+from pathlib import Path
 import shutil
 import tempfile
 
 from diskcache import Cache
 
+from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import DillDisk
 
 
 class ResultsCache():
-    """
+    """Cache to store (intermediate) results.
+
+    Optinally uses diskcache library to store large objects in sqlite database.
+
     Internal structure:
     [evaluation_object][step][x]
 
@@ -29,20 +34,31 @@ class ResultsCache():
     [Objective 3][x] -> f3
     [Constraint 2][x] -> g2
 
+    See Also
+    --------
+    CADETProcess.optimization.OptimizationProblem.add_evaluator
     """
 
-    def __init__(self, use_diskcache=True, directory=None):
-        self.init_cache(use_diskcache, directory)
+    def __init__(self, use_diskcache=False, directory=None):
+        self.use_diskcache = use_diskcache
+        self.directory = directory
+        self.init_cache()
+
         self.tags = defaultdict(list)
 
-    def init_cache(self, use_diskcache, directory):
-        if use_diskcache:
-            if directory is None:
-                directory = tempfile.mkdtemp(prefix='diskcache-')
-            self.directory = directory
+    def init_cache(self):
+        """Initialize ResultsCache."""
+        if self.use_diskcache:
+            if self.directory is None:
+                self.directory = Path(tempfile.mkdtemp(prefix='diskcache-'))
+
+            if self.directory.exists():
+                shutil.rmtree(self.directory, ignore_errors=True)
+
+            self.directory.mkdir(exist_ok=True, parents=True)
 
             self.cache = Cache(
-               directory,
+               self.directory.as_posix(),
                disk=DillDisk,
                disk_min_file_size=2**18,    # 256 kb
                size_limit=2**36,            # 64 GB
@@ -50,57 +66,108 @@ class ResultsCache():
             self.directory = self.cache.directory
         else:
             self.cache = {}
-            self.directory = None
 
-        self.use_diskcache = use_diskcache
+    def set(self, key, value, tag=None, close=True):
+        """Add entry to cache.
 
-    def set(self, eval_obj, step, x, result, tag=None):
-        key = (eval_obj, step, str(x))
+        Parameters
+        ----------
+        key : hashable
+            The key to retrieve the results for.
+        value : object
+            The value corresponding to the key.
+        tag : str, optional
+            Tag to associate with result. The default is None.
+        """
         if tag is not None:
             self.tags[tag].append(key)
 
         if self.use_diskcache:
-            self.cache.set(key, result, expire=None)
+            self.cache.set(key, value, expire=None)
         else:
-            self.cache[key] = result
+            self.cache[key] = value
 
-    def get(self, eval_obj, step, x):
-        key = (eval_obj, step, str(x))
+        if close:
+            self.close()
 
-        result = self.cache[key]
+    def get(self, key, close=True):
+        """Get entry from cache.
 
-        return result
+        Parameters
+        ----------
+        key : hashable
+            The key to retrieve the results for.
 
-    def delete(self, eval_obj, step, x):
-        key = (eval_obj, step, str(x))
+        Returns
+        -------
+        value : object
+            The value corresponding to the key.
+        """
+        value = self.cache[key]
 
+        if close:
+            self.close()
+
+        return value
+
+    def delete(self, key, close=True):
+        """Remove entry from cache.
+
+        Parameters
+        ----------
+        key : hashable
+            The key to retrieve the results for.
+        value : object
+            The value corresponding to the key.
+
+        """
         if self.use_diskcache:
-            self.cache.delete(key)
+            found = self.cache.delete(key)
+            if not found:
+                raise KeyError(key)
         else:
             self.cache.pop(key)
 
+        if close:
+            self.close()
+
     def prune(self, tag='temp'):
-        try:
-            keys = self.tags.pop(tag)
-            for key in keys:
-                eval_obj, step, x = key
-                self.delete(eval_obj, step, x)
-        except KeyError:
-            pass
+        """Remove tagged entries from cache.
+
+        Parameters
+        ----------
+        tag : str, optional
+            Tag to be removed. The default is 'temp'.
+        """
+        keys = self.tags.pop(tag, [])
+
+        for key in keys:
+            try:
+                self.delete(key, close=False)
+            except KeyError:
+                pass
+
+        self.close()
 
     def close(self):
+        """Close cache."""
         if self.use_diskcache:
             self.cache.close()
 
     def delete_database(self, reinit=False):
+        """Delte database.
+
+        Parameters
+        ----------
+        reinit : bool, optional
+            If True, reinitialize cache. The default is False.
+        """
+        self.close()
         if self.use_diskcache:
-            self.close()
             try:
                 shutil.rmtree(self.directory, ignore_errors=True)
             except FileNotFoundError:
                 pass
 
-        self.cache = None
-
         if reinit:
-            self.init_cache(self.use_diskcache, self.directory)
+            self.init_cache()

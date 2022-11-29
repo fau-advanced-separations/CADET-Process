@@ -84,6 +84,18 @@ class Cadet(SimulatorBase):
 
         self.return_parameters = ReturnParametersGroup()
 
+        self.temp_dir = settings.temp_dir / 'simulation_files'
+
+    @property
+    def temp_dir(self):
+        if not self._temp_dir.exists():
+            self._temp_dir.mkdir(exist_ok=True, parents=True)
+        return self._temp_dir
+
+    @temp_dir.setter
+    def temp_dir(self, temp_dir):
+        self._temp_dir = temp_dir
+
     @property
     def install_path(self):
         """str: Path to the installation of CADET
@@ -157,7 +169,7 @@ class Cadet(SimulatorBase):
             [lwe_path.as_posix()],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            cwd=settings.temp_dir
+            cwd=self.temp_dir
         )
         if ret.returncode != 0:
             if ret.stdout:
@@ -168,7 +180,7 @@ class Cadet(SimulatorBase):
                 "Failure: Creation of test simulation ran into problems"
             )
 
-        lwe_hdf5_path = Path(settings.temp_dir) / 'LWE.h5'
+        lwe_hdf5_path = Path(self.temp_dir) / 'LWE.h5'
 
         sim = CadetAPI()
         sim.filename = lwe_hdf5_path.as_posix()
@@ -185,7 +197,7 @@ class Cadet(SimulatorBase):
 
     def get_tempfile_name(self):
         f = next(tempfile._get_candidate_names())
-        return os.path.join(settings.temp_dir, f + '.h5')
+        return self.temp_dir / f'{f}.h5'
 
     def run(self, process, cadet=None, file_path=None):
         """Interface to the solver run function
