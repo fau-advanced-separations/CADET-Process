@@ -13,6 +13,7 @@ import pathos
 
 from CADETProcess import CADETProcessError
 from CADETProcess import log
+from CADETProcess import settings
 
 from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import (
@@ -76,6 +77,18 @@ class OptimizationProblem(metaclass=StructMeta):
             use_diskcache=True,
             cache_directory=None,
             log_level='INFO'):
+        """
+
+        Parameters
+        ----------
+        name : str
+            Name of the optimization problem.
+        use_diskcache : bool, optional
+            If True, use diskcache to cache intermediate results. The default is True.
+        log_level : {'DEBUG', INFO, WARN, ERROR, CRITICAL}, optional
+            Log level. The default is 'INFO'.
+
+        """
         self.name = name
         self.logger = log.get_logger(self.name, level=log_level)
 
@@ -84,7 +97,8 @@ class OptimizationProblem(metaclass=StructMeta):
 
         self.cached_evaluators = []
         self.use_diskcache = use_diskcache
-        self.cache = ResultsCache(use_diskcache, cache_directory)
+        self.cache_directory = cache_directory
+        self.setup_cache()
 
         self._variables = []
         self._dependent_variables = []
@@ -579,6 +593,7 @@ class OptimizationProblem(metaclass=StructMeta):
     def add_objective(
             self,
             objective,
+            name=None,
             n_objectives=1,
             bad_metrics=None,
             evaluation_objects=-1,
@@ -590,6 +605,8 @@ class OptimizationProblem(metaclass=StructMeta):
         ----------
         objective : callable or MetricBase
             Objective function.
+        name : str, optional
+            Name of the objective.
         n_objectives : int, optional
             Number of metrics returned by objective function.
             The default is 1.
@@ -647,6 +664,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
         objective = Objective(
             objective,
+            name,
             type='minimize',
             n_objectives=n_objectives,
             bad_metrics=bad_metrics,
@@ -802,6 +820,7 @@ class OptimizationProblem(metaclass=StructMeta):
     def add_nonlinear_constraint(
             self,
             nonlincon,
+            name=None,
             n_nonlinear_constraints=1,
             bad_metrics=None,
             evaluation_objects=-1,
@@ -814,6 +833,8 @@ class OptimizationProblem(metaclass=StructMeta):
         ----------
         nonlincon : callable
             Nonlinear constraint function.
+        name : str, optional
+            Name of the objective.
         n_nonlinear_constraints : int, optional
             Number of metrics returned by nonlinear constraint function.
             The default is 1.
@@ -842,7 +863,6 @@ class OptimizationProblem(metaclass=StructMeta):
             If nonlinear constraint function is not callable.
         CADETProcessError
             If EvaluationObject is not found.
-        CADETProcessError
             If Evaluator is not found.
 
         """
@@ -883,6 +903,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
         nonlincon = NonlinearConstraint(
             nonlincon,
+            name,
             bounds=bounds,
             n_nonlinear_constraints=n_nonlinear_constraints,
             bad_metrics=bad_metrics,
@@ -1209,6 +1230,7 @@ class OptimizationProblem(metaclass=StructMeta):
     def add_meta_score(
             self,
             meta_score,
+            name=None,
             n_meta_scores=1,
             evaluation_objects=-1,
             requires=None):
@@ -1371,13 +1393,30 @@ class OptimizationProblem(metaclass=StructMeta):
             self.objectives + \
             self.nonlinear_constraints
 
+    @property
+    def cache_directory(self):
+        return self._cache_directory
+
+    @cache_directory.setter
+    def cache_directory(self, cache_directory):
+        if cache_directory is None:
+            cache_directory = settings.working_directory / f'diskcache_{self.name}'
+
+        self._cache_directory = cache_directory
+
+    def setup_cache(self):
+        self.cache = ResultsCache(self.use_diskcache, self.cache_directory)
+
+    def delete_cache(self, reinit=False):
+        try:
+            self.cache.delete_database()
+        except AttributeError:
+            pass
+        if reinit:
+            self.setup_cache()
+
     def prune_cache(self):
         self.cache.prune()
-
-    def delete_cache(self):
-        self.cache.close()
-        self.cache.delete_database()
-        self.cache = None
 
     @untransforms
     def _evaluate(self, x, func, force=False):
@@ -1449,11 +1488,11 @@ class OptimizationProblem(metaclass=StructMeta):
                     step.evaluate(current_request, eval_obj)
                 else:
                     result = step.evaluate(current_request)
-                    if step not in self.cached_steps:
-                        tag = 'temp'
-                    else:
-                        tag = None
-                    self.cache.set(eval_obj, step, x, result, tag=tag)
+                if step not in self.cached_steps:
+                    tag = 'temp'
+                else:
+                    tag = None
+                self.cache.set(eval_obj, step, x, result, tag=tag)
                 current_request = result
 
             if not isinstance(result, list):

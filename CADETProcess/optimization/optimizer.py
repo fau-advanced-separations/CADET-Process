@@ -1,5 +1,6 @@
 from abc import abstractmethod
 from pathlib import Path
+import shutil
 import time
 
 import matplotlib.pyplot as plt
@@ -41,8 +42,11 @@ class OptimizerBase(metaclass=StructMeta):
             optimization_problem,
             save_results=True,
             results_directory=None,
+            overwrite_results_directory=False,
+            exist_ok=True,
             log_level="INFO",
-            delete_cache=False,
+            reinit_cache=True,
+            delete_cache=True,
             remove_similar=True,
             *args, **kwargs):
         """Solve OptimizationProblem.
@@ -56,12 +60,14 @@ class OptimizerBase(metaclass=StructMeta):
         results_directory : str, optional
             Results directory. If None, working directory is used.
             Only has an effect, if save_results == True.
+        overwrite_results_directory : bool, optional
+            If True, overwrite existing results directory. The default is False.
         log_level : str, optional
             log level. The default is "INFO".
         delete_cache : bool, optional
-            If True, delete ResultsCache after finishing. The default is False.
+            If True, delete ResultsCache after finishing. The default is True.
         remove_similar : bool, optional
-            If True, similar entries are removed from pareto front.
+            If True, similar entries are removed from pareto front. The default is True.
         *args : TYPE
             Additional arguments for Optimizer.
         **kwargs : TYPE
@@ -113,9 +119,20 @@ class OptimizerBase(metaclass=StructMeta):
 
         if save_results:
             if results_directory is None:
-                results_directory = settings.working_directory
+                results_directory = settings.working_directory / f"results_{optimization_problem.name}"
             results_directory = Path(results_directory)
-            results_directory.mkdir(exist_ok=True)
+            if overwrite_results_directory and results_directory.exists():
+                shutil.rmtree(results_directory)
+            try:
+                results_directory.mkdir(
+                    exist_ok=exist_ok, parents=True
+                )
+            except FileExistsError:
+                raise CADETProcessError(
+                    "Results directory already exists. "
+                    "To continue using same directory, 'exist_ok=True'. "
+                    "To overwrite, set 'overwrite_results_directory=True. "
+                )
         self.results_directory = results_directory
 
         if self.optimization_problem.n_callbacks > 0:
@@ -138,6 +155,8 @@ class OptimizerBase(metaclass=StructMeta):
             cv_tol=self.cv_tol
         )
 
+        if reinit_cache:
+            optimization_problem.setup_cache()
         self.logger = log.get_logger(str(self), level=log_level)
 
         log.log_time('Optimization', self.logger.level)(self.run)
@@ -154,7 +173,7 @@ class OptimizerBase(metaclass=StructMeta):
         self.results.time_elapsed = time.time() - start
 
         if delete_cache:
-            optimization_problem.delete_cache()
+            optimization_problem.delete_cache(reinit=True)
 
         plt.switch_backend(backend)
 

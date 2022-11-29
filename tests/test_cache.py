@@ -87,6 +87,8 @@ class TestCache(unittest.TestCase):
         cached_result = self.cache_disk.get(None, 'objective', [1, 2, 3])
         self.assertEqual(result_expected, cached_result)
 
+    def test_delete_database(self):
+        pass
 
 if __name__ == '__main__':
     unittest.main()
