@@ -1,7 +1,6 @@
 import copy
 import importlib
 import functools
-from pathlib import Path
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -9,7 +8,7 @@ import matplotlib.pyplot as plt
 from CADETProcess import CADETProcessError
 from CADETProcess import plotting
 from CADETProcess.dataStructure import StructMeta, String
-from CADETProcess.dataStructure import get_nested_value, check_nested
+from CADETProcess.dataStructure import get_nested_value
 from CADETProcess.solution import SolutionBase
 from CADETProcess.comparison import DifferenceBase
 
@@ -101,34 +100,34 @@ class Comparator(metaclass=StructMeta):
 
         return metric
 
-    def evaluate(self, simulation_results):
-        metrics = []
-        for metric in self.metrics:
-            try:
-                solution_path = self.solution_paths[metric]
-            except KeyError:
-                raise CADETProcessError("Could not find solution path")
-
-            if not check_nested(simulation_results.solution_cycles, solution_path):
-                raise CADETProcessError(
-                    'Could not find solution in SimulationResults.'
-                )
-
+    def extract_solution(self, simulation_results, metric):
+        """Prepare solution for evaluation and plotting."""
+        try:
+            solution_path = self.solution_paths[metric]
             solution = get_nested_value(
                 simulation_results.solution_cycles, solution_path
             )[-1]
-            solution = copy.deepcopy(solution)
-            solution.resample(
-                start=metric.reference.time[0],
-                end=metric.reference.time[-1],
-                nt=len(metric.reference.time)
+        except KeyError:
+            raise CADETProcessError("Could not find solution path")
+
+        solution.resample(
+            start=metric.reference.time[0],
+            end=metric.reference.time[-1],
+            nt=len(metric.reference.time)
+        )
+        if metric.smooth:
+            solution.smooth_data(
+                metric.reference.s,
+                metric.reference.crit_fs,
+                metric.reference.crit_fs_der
             )
-            if metric.smooth:
-                solution.smooth_data(
-                    metric.reference.s,
-                    metric.reference.crit_fs,
-                    metric.reference.crit_fs_der
-                )
+
+        return solution
+
+    def evaluate(self, simulation_results):
+        metrics = []
+        for metric in self.metrics:
+            solution = self.extract_solution(simulation_results, metric)
             m = metric.evaluate(solution)
             metrics.append(m)
 
@@ -178,29 +177,10 @@ class Comparator(metaclass=StructMeta):
             figs = [figs]
 
         for ax, metric in zip(axs, self.metrics):
-            try:
-                solution_path = self.solution_paths[metric]
-                solution = get_nested_value(
-                    simulation_results.solution_cycles, solution_path
-                )[-1]
-            except KeyError:
-                raise CADETProcessError("Could not find solution path")
+            solution = self.extract_solution(simulation_results, metric)
+            solution_sliced = metric.slice_and_transform(solution)
 
-            solution = copy.deepcopy(solution)
-            solution.resample(
-                start=metric.reference.time[0],
-                end=metric.reference.time[-1],
-                nt=len(metric.reference.time)
-            )
-            if metric.smooth:
-                solution.smooth_data(
-                    metric.reference.s,
-                    metric.reference.crit_fs,
-                    metric.reference.crit_fs_der
-                )
-            solution = metric.slice_and_transform(solution)
-
-            fig, ax = solution.plot(
+            fig, ax = solution_sliced.plot(
                 ax=ax,
                 show=False, start=metric.start, end=metric.end,
                 y_max=1.1*np.max(metric.reference.solution)
@@ -217,7 +197,7 @@ class Comparator(metaclass=StructMeta):
             )
             ax.legend(loc=1)
 
-            m = metric.evaluate(solution, slice=False)
+            m = metric.evaluate(solution_sliced, slice=False)
             m = [
                 np.format_float_scientific(
                     n, precision=2,
