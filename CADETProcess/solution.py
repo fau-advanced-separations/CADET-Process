@@ -53,9 +53,16 @@ class SolutionBase(metaclass=StructMeta):
 
     def __init__(self, name, component_system, time, solution):
         self.name = name
-        self.component_system = component_system
-        self.time = time
-        self.solution = solution
+        self.component_system_original = component_system
+        self.time_original = time
+        self.solution_original = solution
+
+        self.reset()
+
+    def reset(self):
+        self.component_system = self.component_system_original
+        self.time = self.time_original
+        self.solution = self.solution_original
 
     @property
     def component_system(self):
@@ -130,11 +137,8 @@ class SolutionIO(SolutionBase):
     """
 
     def __init__(self, name, component_system, time, solution, flow_rate):
-        self.name = name
 
-        self.component_system_original = component_system
-        self.time_original = time
-        self.solution_original = solution
+        super().__init__(name, component_system, time, solution)
 
         if not isinstance(flow_rate, TimeLine):
             flow_rate = TimeLine.from_profile(time, flow_rate)
@@ -165,10 +169,7 @@ class SolutionIO(SolutionBase):
         return antiderivative
 
     def reset(self):
-        self.component_system = self.component_system_original
-        self.time = self.time_original
-        self.solution = self.solution_original
-
+        super().reset()
         self.is_resampled = False
         self.is_normalized = False
         self.is_smoothed = False
@@ -637,14 +638,18 @@ class SolutionBulk(SolutionBase):
             axial_coordinates=None, radial_coordinates=None
             ):
         self.name = name
-        self.component_system = component_system
-        self.time = time
+        self.component_system_original = component_system
+        self.time_original = time
+
         self.axial_coordinates = axial_coordinates
         # Account for dimension reduction in case of only one cell (e.g. LRMP)
         if radial_coordinates is not None and len(radial_coordinates) == 1:
             radial_coordinates = None
         self.radial_coordinates = radial_coordinates
-        self.solution = solution
+
+        self.solution_original = solution
+
+        self.reset()
 
     @property
     def ncol(self):
@@ -834,9 +839,7 @@ class SolutionParticle(SolutionBase):
             radial_coordinates=None,
             particle_coordinates=None
             ):
-        self.name = name
-        self.component_system = component_system
-        self.time = time
+
         self.axial_coordinates = axial_coordinates
         # Account for dimension reduction in case of only one cell (e.g. LRMP)
         if radial_coordinates is not None and len(radial_coordinates) == 1:
@@ -846,7 +849,8 @@ class SolutionParticle(SolutionBase):
         if particle_coordinates is not None and len(particle_coordinates) == 1:
             particle_coordinates = None
         self.particle_coordinates = particle_coordinates
-        self.solution = solution
+
+        super().__init__(name, component_system, time, solution)
 
     @property
     def ncol(self):
@@ -963,10 +967,9 @@ class SolutionSolid(SolutionBase):
             axial_coordinates=None,
             radial_coordinates=None,
             particle_coordinates=None):
-        self.name = name
-        self.component_system = component_system
+
         self.bound_states = bound_states
-        self.time = time
+
         self.axial_coordinates = axial_coordinates
         # Account for dimension reduction in case of only one cell (e.g. LRMP)
         if radial_coordinates is not None and len(radial_coordinates) == 1:
@@ -976,7 +979,8 @@ class SolutionSolid(SolutionBase):
         if particle_coordinates is not None and len(particle_coordinates) == 1:
             particle_coordinates = None
         self.particle_coordinates = particle_coordinates
-        self.solution = solution
+
+        super().__init__(name, component_system, time, solution)
 
     @property
     def n_comp(self):
@@ -1147,11 +1151,6 @@ class SolutionSolid(SolutionBase):
 
 class SolutionVolume(SolutionBase):
     """Volume solution (of e.g. CSTR)."""
-
-    def __init__(self, name, component_system, time, solution):
-        self.name = name
-        self.time = time
-        self.solution = solution
 
     @property
     def solution_shape(self):
