@@ -392,46 +392,6 @@ class AntiLangmuir(BindingBaseClass):
     ]
 
 
-class KumarLangmuir(BindingBaseClass):
-    """Kumar Multi Component Langmuir adsoprtion isotherm.
-
-    Attributes
-    ----------
-    adsorption_rate : list of unsigned floats.
-        Adsorption rate constants.
-    desorption_rate : list of unsigned floats.
-        Desorption rate constants.
-    capacity : list of unsigned floats.
-        Maximum adsoprtion capacities.
-    characteristic_charge: list of unsigned floats.
-        Salt exponents/characteristic charges.
-    activation_temp : list of unsigned floats.
-        Activation temperatures.
-    temperature : unsigned float.
-        Temperature.
-
-    """
-    non_binding_component_indices = [0]
-
-    adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
-    desorption_rate = DependentlySizedUnsignedList(dep='n_comp', default=1)
-    capacity = DependentlySizedUnsignedList(dep='n_comp')
-    characteristic_charge = DependentlySizedUnsignedList(
-        dep='n_comp', default=1
-    )
-    activation_temp = DependentlySizedUnsignedList(dep='n_comp')
-    temperature = UnsignedFloat()
-
-    _parameter_names = BindingBaseClass._parameter_names + [
-        'adsorption_rate',
-        'desorption_rate',
-        'capacity',
-        'characteristic_charge',
-        'activation_temp',
-        'temperature'
-    ]
-
-
 class Spreading(BindingBaseClass):
     """Multi Component Spreading adsoprtion isotherm.
 
