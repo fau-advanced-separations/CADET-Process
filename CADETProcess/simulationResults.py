@@ -118,17 +118,14 @@ class SimulationResults(metaclass=StructMeta):
         for unit, solutions in self.solution_cycles.items():
             for sol, cycles in solutions.items():
                 solution[unit][sol] = copy.deepcopy(cycles[0])
-                solution_complete = cycles[0].solution
+                solution_complete = cycles[0].solution_original
                 for i in range(1, self.n_cycles):
                     solution_complete = np.vstack((
-                        solution_complete, cycles[i].solution[1:]
+                        solution_complete, cycles[i].solution_original[1:]
                     ))
                 solution[unit][sol].time_original = time_complete
                 solution[unit][sol].solution_original = solution_complete
-                try:
-                    solution[unit][sol].reset()
-                except AttributeError:
-                    pass
+                solution[unit][sol].reset()
 
         self._solution = solution
 
@@ -151,7 +148,7 @@ class SimulationResults(metaclass=StructMeta):
     @property
     def time_cycle(self):
         """np.array: Solution times vector"""
-        return self.solution_cycles[self._first_unit][self._first_solution][0].time
+        return self.solution_cycles[self._first_unit][self._first_solution][0].time_original
 
     def save(self, case_dir=None, unit=None, start=0, end=None):
         path = settings.working_directory
