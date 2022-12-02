@@ -22,7 +22,26 @@ class Comparator(metaclass=StructMeta):
         self.references = {}
         self.solution_paths = {}
 
-    def add_reference(self, reference, update=False, smooth=True):
+    def add_reference(self, reference, update=False, smooth=False):
+        """Add Reference to Comparator
+
+        Parameters
+        ----------
+        reference : ReferenceIO
+            Reference for comparison with SimulationResults.
+        update : bool, optional
+            DESCRIPTION. The default is False.
+        smooth : bool, optional
+            If True, smooth data before comparison. The default is False.
+
+        Raises
+        ------
+        TypeError
+            If reference is not an instance of SolutionBase.
+        CADETProcessError
+            If Reference already exists.
+
+        """
         if not isinstance(reference, SolutionBase):
             raise TypeError("Expeced SolutionBase")
 
@@ -101,7 +120,7 @@ class Comparator(metaclass=StructMeta):
         return metric
 
     def extract_solution(self, simulation_results, metric):
-        """Prepare solution for evaluation and plotting."""
+        """Extract solution from SimulationResults."""
         try:
             solution_path = self.solution_paths[metric]
             solution = get_nested_value(
@@ -109,18 +128,6 @@ class Comparator(metaclass=StructMeta):
             )[-1]
         except KeyError:
             raise CADETProcessError("Could not find solution path")
-
-        solution.resample(
-            start=metric.reference.time[0],
-            end=metric.reference.time[-1],
-            nt=len(metric.reference.time)
-        )
-        if metric.smooth:
-            solution.smooth_data(
-                metric.reference.s,
-                metric.reference.crit_fs,
-                metric.reference.crit_fs_der
-            )
 
         return solution
 
@@ -178,6 +185,10 @@ class Comparator(metaclass=StructMeta):
 
         for ax, metric in zip(axs, self.metrics):
             solution = self.extract_solution(simulation_results, metric)
+            if metric.normalize:
+                solution.normalize()
+            if metric.smooth:
+                solution.smooth_data()
             solution_sliced = metric.slice_and_transform(solution)
 
             fig, ax = solution_sliced.plot(
