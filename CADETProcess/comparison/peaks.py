@@ -2,7 +2,7 @@ import numpy as np
 import scipy.signal
 
 
-def find_peaks(solution, normalize=True, height=0.1, find_minima=False):
+def find_peaks(solution, normalize=True, prominence=0.5, find_minima=False):
     """Find peaks in solution.
 
     Parameters
@@ -12,8 +12,8 @@ def find_peaks(solution, normalize=True, height=0.1, find_minima=False):
     normalize : bool, optional
         If true, normalize data to maximum value (for each component).
         The default is True.
-    height : float, optional
-        Required height of peaks. The default is 0.1.
+    prominence : float, optional
+        Required prominence to  detekt peak. The default is 0.5.
     find_minima : bool, optional
         Find negative peaks/minima of solution. The default is False.
 
@@ -37,13 +37,13 @@ def find_peaks(solution, normalize=True, height=0.1, find_minima=False):
         if find_minima:
             sol *= -1
 
-        peak_indices, _ = scipy.signal.find_peaks(sol, height=height)
+        peak_indices, _ = scipy.signal.find_peaks(sol, prominence=prominence)
         if len(peak_indices) == 0:
             peak_indices = [np.argmax(sol)]
         time = solution.time[peak_indices]
         peak_heights = solution.solution[peak_indices, i]
 
-        if solution.is_normalized:
+        if normalized:
             peak_heights = solution.transform.untransform(peak_heights)
 
         peaks.append([(t, h) for t, h in zip(time, peak_heights)])
