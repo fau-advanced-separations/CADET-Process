@@ -53,7 +53,7 @@ class Settings(metaclass=StructMeta):
 
     @property
     def temp_dir(self):
-        return tempfile.gettempdir()
+        return Path(tempfile.gettempdir())
 
     @temp_dir.setter
     def temp_dir(self, temp_dir=None):
