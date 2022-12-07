@@ -1460,3 +1460,52 @@ def total_concentration(component_system, solution, exclude=None):
         counter += comp.n_species
 
     return total_concentration
+
+
+def slice_solution(
+        solution_original,
+        components=None,
+        use_total_concentration=False, use_total_concentration_components=True,
+        start=0, end=None):
+    solution = copy.deepcopy(solution_original)
+
+    start_index = np.where(solution.time >= start)[0][0]
+    if end is not None:
+        end_index = np.where(solution.time >= end)[0][0] + 1
+    else:
+        end_index = None
+
+    solution.time = solution.time[start_index:end_index]
+    solution.solution = solution.solution[start_index:end_index, ...]
+
+    if components is not None:
+        component_system = copy.deepcopy(solution.component_system)
+        component_indices = []
+        for i, (name, component) in enumerate(
+                solution.component_system.components_dict.items()):
+            if name not in components:
+                component_system.remove_component(component.name)
+            else:
+                if use_total_concentration_components:
+                    component_indices.append(i)
+                else:
+                    component_indices.append(
+                        component_system.indices[component.name]
+                    )
+
+        if use_total_concentration_components:
+            solution.component_system = component_system
+            solution.solution = \
+                solution_original.total_concentration_components[start_index:end_index, ..., component_indices]
+        else:
+            solution.solution = \
+                solution_original.solution[start_index:end_index, ..., component_indices]
+
+    if use_total_concentration:
+        solution_comp = copy.deepcopy(solution)
+        solution.component_system = ComponentSystem(1)
+        solution.solution = np.array(solution_comp.total_concentration, ndmin=2).transpose()
+
+    solution.update_transform()
+
+    return solution
