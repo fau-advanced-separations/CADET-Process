@@ -30,9 +30,13 @@ class SimulationResults(metaclass=StructMeta):
     process: Process
         Simulated Process.
     solution : dict
-        Solution objects  for all cycles of all Unit Operations.
+        Solution objects for all cycles of all Unit Operations.
     solution_cycles : dict
         Solution objects  for individual cycles of all Unit Operations.
+    sensitivity : dict
+        Solution objects for all sensitivities of all cycles of all Unit Operations.
+    sensitivity_cycles : dict
+        Solution objects for all sensitivities of individual cycles of all Unit Operations.
     system_state : dict
         Final state and state_derivative of the system.
     chromatograms : List of chromatogram
@@ -52,6 +56,7 @@ class SimulationResults(metaclass=StructMeta):
     exit_message = String()
     time_elapsed = UnsignedFloat()
     solution_cycles = Dict()
+    sensitivity_cycles = Dict()
     system_state = Dict()
     chromatograms = List()
 
@@ -60,7 +65,7 @@ class SimulationResults(metaclass=StructMeta):
             solver_name, solver_parameters,
             exit_flag, exit_message, time_elapsed,
             process,
-            solution_cycles, system_state,
+            solution_cycles, sensitivity_cycles, system_state,
             chromatograms
             ):
         self.solver_name = solver_name
@@ -73,9 +78,12 @@ class SimulationResults(metaclass=StructMeta):
         self.process = process
 
         self.solution_cycles = solution_cycles
+        self.sensitivity_cycles = sensitivity_cycles
         self.system_state = system_state
         self.chromatograms = chromatograms
 
+        self._time_complete = None
+        self._solution = None
         self._solution = None
 
     def update(self, new_results):
@@ -94,7 +102,9 @@ class SimulationResults(metaclass=StructMeta):
                 solution = new_results.solution_cycles[unit][sol]
                 self.solution_cycles[unit][sol] += solution
 
+        self._time_complete = None
         self._solution = None
+        self._sensitivity = None
 
     @property
     def component_system(self):
@@ -107,12 +117,7 @@ class SimulationResults(metaclass=StructMeta):
         if self._solution is not None:
             return self._solution
 
-        time_complete = self.time_cycle
-        for i in range(1, self.n_cycles):
-            time_complete = np.hstack((
-                time_complete,
-                self.time_cycle[1:] + i*self.process.cycle_time
-            ))
+        time_complete = self.time_complete
 
         solution = addict.Dict()
         for unit, solutions in self.solution_cycles.items():
@@ -132,6 +137,32 @@ class SimulationResults(metaclass=StructMeta):
         return solution
 
     @property
+    def sensitivity(self):
+        """Construct complete sensitivity from individual cyles."""
+        if self._sensitivity is not None:
+            return self._sensitivity
+
+        time_complete = self.time_complete
+
+        sensitivity = addict.Dict()
+        for unit, sensitivities in self.sensitivity_cycles.items():
+            for sens_name, sensitivities in sensitivities.items():
+                for sens, cycles in sensitivities.items():
+                    sensitivity[unit][sens_name][sens] = copy.deepcopy(cycles[0])
+                    sensitivity_complete = cycles[0].solution_original
+                    for i in range(1, self.n_cycles):
+                        sensitivity_complete = np.vstack((
+                            sensitivity_complete, cycles[i].solution_original[1:]
+                        ))
+                    sensitivity[unit][sens_name][sens].time_original = time_complete
+                    sensitivity[unit][sens_name][sens].solution_original = sensitivity_complete
+                    sensitivity[unit][sens_name][sens].reset()
+
+        self._sensitivity = sensitivity
+
+        return sensitivity
+
+    @property
     def n_cycles(self):
         return len(
             self.solution_cycles[self._first_unit][self._first_solution]
@@ -149,6 +180,22 @@ class SimulationResults(metaclass=StructMeta):
     def time_cycle(self):
         """np.array: Solution times vector"""
         return self.solution_cycles[self._first_unit][self._first_solution][0].time_original
+
+    @property
+    def time_complete(self):
+        if self._time_complete is not None:
+            return self._time_complete
+
+        time_complete = self.time_cycle
+        for i in range(1, self.n_cycles):
+            time_complete = np.hstack((
+                time_complete,
+                self.time_cycle[1:] + i*self.process.cycle_time
+            ))
+
+        self._time_complete = time_complete
+
+        return time_complete
 
     def save(self, case_dir=None, unit=None, start=0, end=None):
         path = settings.working_directory

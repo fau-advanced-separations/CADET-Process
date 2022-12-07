@@ -371,8 +371,8 @@ class Cadet(SimulatorBase):
             exit_flag = return_information.returncode
             exit_message = return_information.stderr.decode()
 
-        solution = Dict()
         try:
+            solution = Dict()
             for unit in process.flow_sheet.units:
                 solution[unit.name] = defaultdict(list)
                 unit_index = self.get_unit_index(process, unit)
@@ -400,8 +400,7 @@ class Cadet(SimulatorBase):
                         )
 
                     if 'solution_outlet' in unit_solution.keys():
-                        sol_outlet = \
-                            unit_solution.solution_outlet[start:end, :]
+                        sol_outlet = unit_solution.solution_outlet[start:end, :]
                         solution[unit.name]['outlet'].append(
                             SolutionIO(
                                 unit.name,
@@ -421,8 +420,7 @@ class Cadet(SimulatorBase):
                         )
 
                     if 'solution_particle' in unit_solution.keys():
-                        sol_particle = \
-                            unit_solution.solution_particle[start:end, :]
+                        sol_particle = unit_solution.solution_particle[start:end, :]
                         solution[unit.name]['particle'].append(
                             SolutionParticle(
                                 unit.name,
@@ -446,8 +444,7 @@ class Cadet(SimulatorBase):
                         )
 
                     if 'solution_volume' in unit_solution.keys():
-                        sol_volume = \
-                            unit_solution.solution_volume[start:end, :]
+                        sol_volume = unit_solution.solution_volume[start:end, :]
                         solution[unit.name]['volume'].append(
                             SolutionVolume(
                                 unit.name,
@@ -458,6 +455,92 @@ class Cadet(SimulatorBase):
                         )
 
             solution = Dict(solution)
+
+            sensitivity = Dict()
+            for i, sens in enumerate(process.parameter_sensitivities):
+                sens_index = f'param_{i:03d}'
+                for unit in process.flow_sheet.units:
+                    sensitivity[i][unit.name] = defaultdict(list)
+                    unit_index = self.get_unit_index(process, unit)
+                    unit_sensitivity = cadet.root.output.sensitivity[sens_index][unit_index]
+                    unit_coordinates = \
+                        cadet.root.output.coordinates[unit_index].copy()
+                    particle_coordinates = \
+                        unit_coordinates.pop('particle_coordinates_000', None)
+
+                    flow_in = process.flow_rate_timelines[unit.name].total_in
+                    flow_out = process.flow_rate_timelines[unit.name].total_out
+
+                    for cycle in range(self.n_cycles):
+                        start = cycle * len(time)
+                        end = (cycle + 1) * len(time)
+
+                        if 'sens_inlet' in unit_sensitivity.keys():
+                            sens_inlet = unit_sensitivity.sens_inlet[start:end, :]
+                            sensitivity[i][unit.name]['inlet'].append(
+                                SolutionIO(
+                                    unit.name,
+                                    unit.component_system, time, sens_inlet,
+                                    flow_in
+                                )
+                            )
+
+                        if 'sens_outlet' in unit_sensitivity.keys():
+                            sens_outlet = unit_sensitivity.sens_outlet[start:end, :]
+                            sensitivity[i][unit.name]['outlet'].append(
+                                SolutionIO(
+                                    unit.name,
+                                    unit.component_system, time, sens_outlet,
+                                    flow_out
+                                )
+                            )
+
+                        if 'sens_bulk' in unit_sensitivity.keys():
+                            sens_bulk = unit_sensitivity.sens_bulk[start:end, :]
+                            sensitivity[i][unit.name]['bulk'].append(
+                                SolutionBulk(
+                                    unit.name,
+                                    unit.component_system, time, sens_bulk,
+                                    **unit_coordinates
+                                )
+                            )
+
+                        if 'sens_particle' in unit_sensitivity.keys():
+                            sens_particle = unit_sensitivity.sens_particle[start:end, :]
+                            sensitivity[i][unit.name]['particle'].append(
+                                SolutionParticle(
+                                    unit.name,
+                                    unit.component_system, time, sens_particle,
+                                    **unit_coordinates,
+                                    particle_coordinates=particle_coordinates
+                                )
+                            )
+
+                        if 'sens_solid' in unit_sensitivity.keys():
+                            sens_solid = unit_sensitivity.sens_solid[start:end, :]
+                            sensitivity[i][unit.name]['solid'].append(
+                                SolutionSolid(
+                                    unit.name,
+                                    unit.component_system,
+                                    unit.binding_model.bound_states,
+                                    time, sens_solid,
+                                    **unit_coordinates,
+                                    particle_coordinates=particle_coordinates
+                                )
+                            )
+
+                        if 'sens_volume' in unit_sensitivity.keys():
+                            sens_volume = unit_sensitivity.sens_volume[start:end, :]
+                            sensitivity[i][unit.name]['volume'].append(
+                                SolutionVolume(
+                                    unit.name,
+                                    unit.component_system,
+                                    time,
+                                    sens_volume
+                                )
+                            )
+
+            sensitivity = Dict(sensitivity)
 
             system_state = {
                 'state': cadet.root.output.last_state_y,
@@ -480,6 +563,7 @@ class Cadet(SimulatorBase):
             time_elapsed=time_elapsed,
             process=process,
             solution_cycles=solution,
+            sensitivity_cycles=sensitivity,
             system_state=system_state,
             chromatograms=chromatograms
         )
@@ -842,6 +926,83 @@ class Cadet(SimulatorBase):
                 unit.solution_recorder.parameters
 
         return unit_return_parameters
+
+    def get_input_sensitivity(self, process):
+        """Config branch /input/sensitivity"""
+        sensitivity_parameters = self.sensitivity_parameters.to_dict()
+        parameter_sensitivities = self.get_parameter_sensitivities(process)
+        return {**sensitivity_parameters, **parameter_sensitivities}
+
+    def get_parameter_sensitivities(self, process):
+        """Config branches for all parameter sensitivities /input/sensitivity/param_000 ... param_xxx"""
+        parameter_sensitivities = Dict()
+        parameter_sensitivities.nsens = process.n_sensitivities
+        for i, sens in enumerate(process.parameter_sensitivities):
+            sens_index = f'param_{i:03d}'
+            parameter_sensitivities[sens_index] = \
+                self.get_sensitivity_config(process, sens)
+
+        return parameter_sensitivities
+
+    def get_sensitivity_config(self, process, sens):
+        config = Dict()
+
+        unit_indices = []
+        parameters = []
+        components = []
+
+        for param, unit, associated_model, comp in zip(
+                sens.parameters, sens.units, sens.associated_models, sens.components):
+            unit_index = process.flow_sheet.get_unit_index(unit)
+            unit_indices.append(unit_index)
+
+            if associated_model is None:
+                model = unit.model
+                parameter = inv_unit_parameters_map[model]['parameters'][param]
+            else:
+                model = associated_model.model
+                if isinstance(associated_model, BindingBaseClass):
+                    parameter = inv_adsorption_parameters_map[model]['parameters'][param]
+                if isinstance(associated_model, ReactionBaseClass):
+                    parameter = inv_reaction_parameters_map[model]['parameters'][param]
+            parameters.append(parameter)
+
+            component_system = unit.component_system
+            comp = -1 if comp is None else component_system.indices[comp]
+            components.append(comp)
+
+        config.sens_unit = unit_indices
+        config.sens_name = parameters
+        config.sens_comp = components
+
+        config.sens_partype = -1    # !!! Check when multiple particle types enabled.
+        if not all([index is None for index in sens.bound_state_indices]):
+            config.sens_reaction = [
+                -1 if index is None else index for index in sens.bound_state_indices
+            ]
+        else:
+            config.sens_reaction = -1
+
+        if not all([index is None for index in sens.bound_state_indices]):
+            config.sens_boundphase = [
+                -1 if index is None else index for index in sens.bound_state_indices
+            ]
+        else:
+            config.sens_boundphase = -1
+
+        if not all([index is None for index in sens.section_indices]):
+            config.sens_section = [
+                -1 if index is None else index for index in sens.section_indices
+            ]
+        else:
+            config.sens_section = -1
+
+        if not all([index is None for index in sens.abstols]):
+            config.sens_abstol = sens.abstols
+
+        config.factors = sens.factors
+
+        return config
 
     def __str__(self):
         return 'CADET'
