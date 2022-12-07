@@ -10,6 +10,7 @@ from CADETProcess.dataStructure import String
 from CADETProcess.dynamicEvents import EventHandler
 from CADETProcess import plotting
 from CADETProcess.performance import Performance
+from CADETProcess.solution import slice_solution
 from CADETProcess import SimulationResults
 
 from CADETProcess.fractionation.fractions import Fraction, FractionPool
@@ -32,7 +33,15 @@ class Fractionator(EventHandler):
         'productivity', 'eluent_consumption'
     ]
 
-    def __init__(self, simulation_results, *args, **kwargs):
+    def __init__(
+            self,
+            simulation_results,
+            components=None,
+            use_total_concentration_components=True,
+            *args, **kwargs):
+
+        self.components = components
+        self.use_total_concentration_components = use_total_concentration_components
         self.simulation_results = simulation_results
         self._cycle_time = None
 
@@ -53,6 +62,29 @@ class Fractionator(EventHandler):
             )
 
         self._simulation_results = simulation_results
+
+        self._chromatograms = [
+            slice_solution(
+                chrom,
+                components=self.components,
+                use_total_concentration_components=self.use_total_concentration_components
+            )
+            for chrom in simulation_results.chromatograms
+        ]
+
+        m_feed = np.zeros((self.component_system.n_comp, ))
+        counter = 0
+        for comp, indices in simulation_results.component_system.indices.items():
+            if comp in self.component_system.names:
+                m_feed_comp = simulation_results.process.m_feed[indices]
+                if self.use_total_concentration_components:
+                    m_feed[counter] = np.sum(m_feed_comp)
+                    counter += 1
+                else:
+                    n_species = len(indices)
+                    m_feed[counter:counter+n_species] = m_feed_comp
+                    counter += n_species
+        self.m_feed = m_feed
 
         self._fractionation_states = Dict({
             chrom: []
@@ -93,7 +125,7 @@ class Fractionator(EventHandler):
         reset
         cycle_time
         """
-        return self.simulation_results.chromatograms
+        return self._chromatograms
 
     @property
     def chromatograms_dict(self):
@@ -393,7 +425,7 @@ class Fractionator(EventHandler):
     def recovery(self):
         """ndarray: Component recovery yield in corresponding fraction pool."""
         with np.errstate(divide='ignore', invalid='ignore'):
-            recovery = self.mass / self.process.m_feed
+            recovery = self.mass / self.m_feed
 
         return np.nan_to_num(recovery)
 
@@ -471,7 +503,7 @@ class Fractionator(EventHandler):
             purity_required = [purity_required]*self.n_comp
         elif len(purity_required) != self.n_comp:
             raise ValueError(
-                f'Expected array with size {self.chromatogram.n_comp}'
+                f'Expected purity array with size {self.n_comp}'
             )
 
         self._events = []

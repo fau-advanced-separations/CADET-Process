@@ -54,8 +54,17 @@ class FractionationOptimizer():
         self._optimizer = optimizer
 
     def setup_fractionator(
-            self, simulation_results, purity_required, ignore_failed=True):
-        frac = Fractionator(simulation_results)
+            self,
+            simulation_results,
+            purity_required,
+            components=None,
+            use_total_concentration_components=True,
+            ignore_failed=True):
+        frac = Fractionator(
+            simulation_results,
+            components=components,
+            use_total_concentration_components=use_total_concentration_components,
+        )
 
         frac.process.lock = False
         frac.initial_values(purity_required)
@@ -130,6 +139,8 @@ class FractionationOptimizer():
             self,
             simulation_results,
             purity_required,
+            components=None,
+            use_total_concentration_components=True,
             ranking=1,
             obj_fun=None,
             n_objectives=1,
@@ -193,7 +204,11 @@ class FractionationOptimizer():
             )
 
         frac = self.setup_fractionator(
-            simulation_results, purity_required, ignore_failed
+            simulation_results,
+            purity_required,
+            components=components,
+            use_total_concentration_components=use_total_concentration_components,
+            ignore_failed=ignore_failed
         )
 
         try:

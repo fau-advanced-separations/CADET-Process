@@ -4,6 +4,7 @@ import sys
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+from matplotlib import cycler
 
 from CADETProcess import CADETProcessError
 
@@ -25,9 +26,9 @@ color_dict = {
     'grey':  matplotlib.colors.to_rgb('#444444'),
          }
 color_list = list(color_dict.values())
-
-from matplotlib import cycler
 chromapy_cycler = cycler(color=color_list)
+
+linestyle_cycler = cycler('linestyle', ['--', ':', '-.'])
 
 textbox_props = dict(facecolor='white', alpha=1)
 
@@ -84,7 +85,7 @@ def setup_figure(n_rows=1, n_cols=1, style=None):
 
 
 class SecondaryAxis(Structure):
-    component_indices = List()
+    components = List()
     y_label = String()
     y_lim = Tuple()
     transform = Callable()
@@ -254,6 +255,7 @@ def create_and_save_figure(func):
 
         Parameters
         ----------
+        fig : Figure, optional
         ax : Axes, optional
            Axes to plot on. If None, a new standard figure will be created.
         show : bool, optional

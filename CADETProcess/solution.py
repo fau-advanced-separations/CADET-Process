@@ -31,7 +31,7 @@ from scipy import integrate
 
 from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import (
-    String, UnsignedInteger, Vector, DependentlySizedNdArray
+    String, UnsignedInteger, UnsignedFloat, Vector, DependentlySizedNdArray
 )
 
 from CADETProcess.processModel import ComponentSystem
@@ -48,8 +48,9 @@ class SolutionBase(metaclass=StructMeta):
     name = String()
     time = Vector()
     solution = DependentlySizedNdArray(dep='solution_shape')
+    c_min = UnsignedFloat(default=1e-6)
 
-    _coordinates = []
+    dimensions = ['time']
 
     def __init__(self, name, component_system, time, solution):
         self.name = name
@@ -63,6 +64,9 @@ class SolutionBase(metaclass=StructMeta):
         self.component_system = self.component_system_original
         self.time = self.time_original
         self.solution = self.solution_original
+
+    def update(self):
+        pass
 
     @property
     def component_system(self):
@@ -87,10 +91,14 @@ class SolutionBase(metaclass=StructMeta):
         return len(self.time)
 
     @property
+    def component_coordinates(self):
+        return np.arange(self.n_comp)
+
+    @property
     def coordinates(self):
         coordinates = {}
 
-        for c in self._coordinates:
+        for c in self.dimensions:
             v = getattr(self, c)
             if v is None:
                 continue
@@ -101,27 +109,57 @@ class SolutionBase(metaclass=StructMeta):
     def solution_shape(self):
         """tuple: (Expected) shape of the solution
         """
-        coordinates = tuple(len(c) for c in self.coordinates.values())
-        return (self.nt,) + coordinates + (self.n_comp,)
+        return tuple(len(c) for c in self.coordinates.values())
 
     @property
     def total_concentration_components(self):
         """np.array: Total concentration of components (sum of species)."""
-        return component_concentration(self.component_system, self.solution)
+        component_concentration = np.zeros(
+            self.solution.shape[0:-1] + (self.component_system.n_components,)
+        )
+
+        counter = 0
+        for index, comp in enumerate(self.component_system):
+            comp_indices = slice(counter, counter + comp.n_species)
+            c_comp = np.sum(self.solution[..., comp_indices], axis=-1)
+            component_concentration[..., index] = c_comp
+            counter += comp.n_species
+
+        return component_concentration
 
     @property
     def total_concentration(self):
         """np.array: Total concentration all of components."""
-        return total_concentration(self.component_system, self.solution)
+        return np.sum(self.solution, axis=-1, keepdims=True)
 
     @property
     def local_purity_components(self):
-        return purity(self.component_system, self.solution, sum_species=True)
+        solution = self.total_concentration_components
+        c_total = self.total_concentration
+        c_total[c_total < self.c_min] = np.nan
+
+        purity = np.zeros(solution.shape)
+        with np.errstate(divide='ignore', invalid='ignore'):
+            purity = solution/c_total
+
+        purity = np.nan_to_num(purity)
+
+        return purity
 
     @property
     def local_purity_species(self):
         """np.array: Local purity of components."""
-        return purity(self.component_system, self.solution, sum_species=False)
+        solution = self.solution
+        c_total = self.total_concentration
+        c_total[c_total < self.c_min] = np.nan
+
+        purity = np.zeros(solution.shape)
+        with np.errstate(divide='ignore', invalid='ignore'):
+            purity = solution/c_total
+
+        purity = np.nan_to_num(purity)
+
+        return purity
 
 
 class SolutionIO(SolutionBase):
@@ -135,6 +173,7 @@ class SolutionIO(SolutionBase):
     signals with discontinuous flow.
 
     """
+    dimensions = SolutionBase.dimensions + ['component_coordinates']
 
     def __init__(self, name, component_system, time, solution, flow_rate):
 
@@ -332,7 +371,7 @@ class SolutionIO(SolutionBase):
 
         self.is_smoothed = True
 
-    def integral(self, start=0, end=None):
+    def integral(self, start=None, end=None):
         """Peak area in a fraction interval.
 
         Parameters
@@ -354,7 +393,7 @@ class SolutionIO(SolutionBase):
 
         return self.solution_interpolated.integral(start, end)
 
-    def fraction_mass(self, start=0, end=None):
+    def fraction_mass(self, start=None, end=None):
         """Component mass in a fraction interval
 
         Parameters
@@ -393,7 +432,7 @@ class SolutionIO(SolutionBase):
 
         return mass
 
-    def fraction_volume(self, start=0, end=None):
+    def fraction_volume(self, start=None, end=None):
         """Volume of a fraction interval
 
         Parameters
@@ -418,21 +457,30 @@ class SolutionIO(SolutionBase):
     @plotting.create_and_save_figure
     def plot(
             self,
-            start=0, end=None, y_max=None,
+            start=None,
+            end=None,
+            components=None,
             layout=None,
-            only_plot_components=False,
-            alpha=1, hide_labels=False,
-            secondary_axis=None, secondary_layout=None,
-            show_legend=True,
-            ax=None):
-        """Plots the whole time_signal for each component.
+            y_max=None,
+            ax=None,
+            *args,
+            **kwargs,
+            ):
+        """Plot the entire time_signal for each component.
 
         Parameters
         ----------
-        start : float
-            start time for plotting
-        end : float
-            end time for plotting
+        start : float, optional
+            Start time for plotting. The default is 0.
+        end : float, optional
+            End time for plotting.
+        components : list, optional.
+            List of components to be plotted. If None, all components are plotted.
+        layout : plotting.Layout
+            Plot layout options.
+        y_max : float, optional
+            Maximum value of y axis.
+            If None, value is automatically deferred from solution.
         ax : Axes
             Axes to plot on.
 
@@ -443,9 +491,21 @@ class SolutionIO(SolutionBase):
 
         See Also
         --------
+        _plot_solution_1D
+        slice_solution
         plotlib
         plot_purity
         """
+        solution = slice_solution(
+            self,
+            components=components,
+            use_total_concentration=False,
+            use_total_concentration_components=False,
+            coordinates={'time': [start, end]}
+        )
+
+        x = solution.time / 60
+
         if layout is None:
             layout = plotting.Layout()
             layout.x_label = '$time~/~min$'
@@ -455,27 +515,17 @@ class SolutionIO(SolutionBase):
             if end is not None:
                 end /= 60
             layout.x_lim = (start, end)
-            if y_max is not None:
-                layout.y_lim = (None, y_max)
+        if y_max is not None:
+            layout.y_lim = (None, y_max)
 
-        ax = _plot_solution_1D(
-            self,
-            layout=layout,
-            only_plot_components=only_plot_components,
-            alpha=alpha,
-            hide_labels=hide_labels,
-            secondary_axis=secondary_axis,
-            secondary_layout=secondary_layout,
-            show_legend=show_legend,
-            ax=ax,
-        )
+        ax = _plot_solution_1D(ax, x, solution, layout, *args, **kwargs)
 
         return ax
 
     @plotting.create_and_save_figure
     def plot_purity(
             self,
-            start=0, end=None, y_max=None,
+            start=None, end=None, y_max=None,
             layout=None,
             only_plot_components=False,
             alpha=1, hide_labels=False,
@@ -565,7 +615,11 @@ class SolutionBulk(SolutionBase):
 
     Bulk/Interstitial: NCOL * NRAD * NCOMP
     """
-    _coordinates = ['axial_coordinates', 'radial_coordinates']
+    dimensions = SolutionBase.dimensions + [
+        'axial_coordinates',
+        'radial_coordinates',
+        'component_coordinates',
+    ]
 
     def __init__(
             self,
@@ -603,21 +657,30 @@ class SolutionBulk(SolutionBase):
     @plotting.create_and_save_figure
     def plot(
             self,
-            start=0, end=None, y_max=None,
+            start=None,
+            end=None,
+            components=None,
             layout=None,
-            only_plot_components=False,
-            alpha=1, hide_labels=False,
-            secondary_axis=None, secondary_layout=None,
-            show_legend=True,
-            ax=None):
-        """Plots the whole time_signal for each component.
+            y_max=None,
+            ax=None,
+            *args,
+            **kwargs,
+            ):
+        """Plot the entire time_signal for each component.
 
         Parameters
         ----------
-        start : float
-            start time for plotting
-        end : float
-            end time for plotting
+        start : float, optional
+            Start time for plotting. The default is 0.
+        end : float, optional
+            End time for plotting.
+        components : list, optional.
+            List of components to be plotted. If None, all components are plotted.
+        layout : plotting.Layout
+            Plot layout options.
+        y_max : float, optional
+            Maximum value of y axis.
+            If None, value is automatically deferred from solution.
         ax : Axes
             Axes to plot on.
 
@@ -626,16 +689,34 @@ class SolutionBulk(SolutionBase):
         ax : Axes
             Axes object with concentration profile.
 
+        Raises
+        ------
+        CADETProcessError
+            If solution is not 1D.
+
         See Also
         --------
+        _plot_solution_1D
+        slice_solution
         plotlib
         plot_purity
         """
         if not (self.ncol is None and self.nrad is None):
             raise CADETProcessError(
                 "Solution has more single dimension. Please use `plot_at_time`"
-                "or `plot_at_location`."
+                "or `plot_at_position`."
             )
+
+        solution = slice_solution(
+            self,
+            components=components,
+            use_total_concentration=False,
+            use_total_concentration_components=False,
+            start=start,
+            end=end,
+        )
+
+        x = solution.time / 60
 
         if layout is None:
             layout = plotting.Layout()
@@ -649,22 +730,20 @@ class SolutionBulk(SolutionBase):
             if y_max is not None:
                 layout.y_lim = (None, y_max)
 
-        ax = _plot_solution_1D(
-            self,
-            layout=layout,
-            only_plot_components=only_plot_components,
-            alpha=alpha,
-            hide_labels=hide_labels,
-            secondary_axis=secondary_axis,
-            secondary_layout=secondary_layout,
-            show_legend=show_legend,
-            ax=ax,
-        )
+        ax = _plot_solution_1D(ax, x, solution, layout, *args, **kwargs)
 
         return ax
 
     @plotting.create_and_save_figure
-    def plot_at_time(self, t, overlay=None, y_min=None, y_max=None, ax=None):
+    def plot_at_time(
+            self,
+            t,
+            components=None,
+            layout=None,
+            ax=None,
+            *args,
+            **kwargs,
+            ):
         """Plot bulk solution over space at given time.
 
         Parameters
@@ -672,87 +751,99 @@ class SolutionBulk(SolutionBase):
         t : float
             Time for plotting
             If t == -1, the final solution is plotted.
+        components : list, optional.
+            List of components to be plotted. If None, all components are plotted.
+        layout : plotting.Layout
+            Plot layout options.
         ax : Axes
             Axes to plot on.
 
+        Returns
+        -------
+        ax : Axes
+            Axes object with concentration profile.
+
         See Also
         --------
-        plot_at_location
-        CADETProcess.plotting
+        _plot_solution_1D
+        slice_solution
+        plot_at_position
+        plotlib
         """
+        solution = slice_solution(
+            self,
+            components=components,
+            use_total_concentration=False,
+            use_total_concentration_components=False,
+            coordinates={'time': [t, t]},
+        )
+
         x = self.axial_coordinates
 
-        if t == -1:
-            t = self.time[-1]
+        if layout is None:
+            layout = plotting.Layout()
+            layout.x_label = '$z~/~m$'
+            layout.y_label = '$c~/~mM$'
 
-        if not self.time[0] <= t <= self.time[-1]:
-            raise ValueError("Time exceeds bounds.")
-        t_i = np.where(t <= self.time)[0][0]
-
-        y = self.solution[t_i, :]
-        if y_max is None:
-            y_max = 1.1*np.max(y)
-        if y_min is None:
-            y_min = min(0, np.min(y))
-
-        ax.plot(x, y)
+        ax = _plot_solution_1D(ax, x, solution, layout, *args, **kwargs)
 
         plotting.add_text(ax, f'time = {t:.2f} s')
-
-        if overlay is not None:
-            y_max = np.max(overlay)
-            plotting.add_overlay(ax, overlay)
-
-        layout = plotting.Layout()
-        layout.x_label = '$z~/~m$'
-        layout.y_label = '$c~/~mM$'
-        layout.y_lim = (y_min, y_max)
-        plotting.set_layout(ax, layout)
 
         return ax
 
     @plotting.create_and_save_figure
-    def plot_at_location(
-            self, z, overlay=None, y_min=None, y_max=None, ax=None):
-        """Plot bulk solution over time at given location.
+    def plot_at_position(
+            self,
+            z,
+            components=None,
+            layout=None,
+            ax=None,
+            *args,
+            **kwargs,
+            ):
+        """Plot bulk solution over time at given position.
 
         Parameters
         ----------
         z : float
-            space for plotting
+            Position for plotting.
+        components : list, optional.
+            List of components to be plotted. If None, all components are plotted.
+        layout : plotting.Layout
+            Plot layout options.
         ax : Axes
             Axes to plot on.
 
+        Returns
+        -------
+        ax : Axes
+            Axes object with concentration profile.
+
         See Also
         --------
-        plot_at_time
-        CADETProcess.plotting
+        _plot_solution_1D
+        slice_solution
+        plot_at_position
+        plotlib
         """
-        x = self.time
+        solution = slice_solution(
+            self,
+            components=components,
+            use_total_concentration=False,
+            use_total_concentration_components=False,
+            coordinates={'axial_coordinates': [z, z]},
+        )
 
-        if not self.axial_coordinates[0] <= z <= self.axial_coordinates[-1]:
-            raise ValueError("Axial coordinate exceets boundaries.")
-        z_i = np.where(z <= self.axial_coordinates)[0][0]
+        x = self.time / 60
 
-        y = self.solution[:, z_i]
-        if y_max is None:
-            y_max = 1.1*np.max(y)
-        if y_min is None:
-            y_min = min(0, np.min(y))
+        if layout is None:
+            layout = plotting.Layout()
+            layout.x_label = '$time~/~min$'
+            layout.y_label = '$c~/~mM$'
 
-        ax.plot(x, y)
+        ax = _plot_solution_1D(ax, x, solution, layout, *args, **kwargs)
 
         plotting.add_text(ax, f'z = {z:.2f} m')
-
-        if overlay is not None:
-            y_max = np.max(overlay)
-            plotting.add_overlay(ax, overlay)
-
-        layout = plotting.Layout()
-        layout.x_label = '$time~/~min$'
-        layout.y_label = '$c~/~mM$'
-        layout.y_lim = (y_min, y_max)
-        plotting.set_layout(ax, layout)
 
         return ax
 
@@ -763,8 +854,11 @@ class SolutionParticle(SolutionBase):
     Particle_liquid: NCOL * NRAD * sum_{j}^{NPARTYPE}{NCOMP * NPAR,j}
     """
 
-    _coordinates = [
-        'axial_coordinates', 'radial_coordinates', 'particle_coordinates'
+    dimensions = SolutionBase.dimensions + [
+        'axial_coordinates',
+        'radial_coordinates',
+        'particle_coordinates',
+        'component_coordinates',
     ]
 
     def __init__(
@@ -807,28 +901,62 @@ class SolutionParticle(SolutionBase):
             return
         return len(self.particle_coordinates)
 
-    def _plot_1D(self, t, ymax, ax=None):
+    def _plot_1D(
+            self,
+            t,
+            components=None,
+            layout=None,
+            ax=None,
+            *args,
+            **kwargs,
+            ):
+        """Plot bulk solution over space at given time.
+
+        Parameters
+        ----------
+        t : float
+            Time for plotting
+            If t == -1, the final solution is plotted.
+        components : list, optional.
+            List of components to be plotted. If None, all components are plotted.
+        layout : plotting.Layout
+            Plot layout options.
+        ax : Axes
+            Axes to plot on.
+
+        Returns
+        -------
+        ax : Axes
+            Axes object with concentration profile.
+
+        See Also
+        --------
+        _plot_solution_1D
+        _plot_2D
+        slice_solution
+        plotlib
+        """
+        solution = slice_solution(
+            self,
+            components=components,
+            use_total_concentration=False,
+            use_total_concentration_components=False,
+            coordinates={'time': [t, t]},
+        )
+
         x = self.axial_coordinates
 
-        if not self.time[0] <= t <= self.time[-1]:
-            raise ValueError("Time exceeds bounds.")
-        t_i = np.where(t <= self.time)[0][0]
-        y = self.solution[t_i, :]
+        if layout is None:
+            layout = plotting.Layout()
+            layout.x_label = '$z~/~m$'
+            layout.y_label = '$c~/~mM$'
 
-        if ymax is None:
-            ymax = 1.1*np.max(y)
-
-        ax.plot(x, y)
+        ax = _plot_solution_1D(ax, x, solution, layout, *args, **kwargs)
 
         plotting.add_text(ax, f'time = {t:.2f} s')
 
-        layout = plotting.Layout()
-        layout.x_label = '$z~/~m$'
-        layout.y_label = '$c~/~mM$'
-        layout.y_lim = (0, ymax)
-        plotting.set_layout(ax, layout)
-
         return ax
+
 
     def _plot_2D(self, t, comp, vmax, ax=None):
         x = self.axial_coordinates
@@ -892,8 +1020,11 @@ class SolutionSolid(SolutionBase):
 
     n_bound = UnsignedInteger()
 
-    _coordinates = [
-        'axial_coordinates', 'radial_coordinates', 'particle_coordinates'
+    dimensions = SolutionBase.dimensions + [
+        'axial_coordinates',
+        'radial_coordinates',
+        'particle_coordinates',
+        'component_coordinates',
     ]
 
     def __init__(
@@ -945,21 +1076,30 @@ class SolutionSolid(SolutionBase):
     @plotting.create_and_save_figure
     def plot(
             self,
-            start=0, end=None, y_max=None,
+            start=None,
+            end=None,
+            components=None,
             layout=None,
-            only_plot_components=False,
-            alpha=1, hide_labels=False,
-            secondary_axis=None, secondary_layout=None,
-            show_legend=True,
-            ax=None):
-        """Plots the whole time_signal for each component.
+            y_max=None,
+            ax=None,
+            *args,
+            **kwargs,
+            ):
+        """Plot the entire time_signal for each component.
 
         Parameters
         ----------
-        start : float
-            start time for plotting
-        end : float
-            end time for plotting
+        start : float, optional
+            Start time for plotting. The default is 0.
+        end : float, optional
+            End time for plotting.
+        components : list, optional.
+            List of components to be plotted. If None, all components are plotted.
+        layout : plotting.Layout
+            Plot layout options.
+        y_max : float, optional
+            Maximum value of y axis.
+            If None, value is automatically deferred from solution.
         ax : Axes
             Axes to plot on.
 
@@ -968,8 +1108,13 @@ class SolutionSolid(SolutionBase):
         ax : Axes
             Axes object with concentration profile.
 
+        Raises CADETProcessError
+            If solution is not 1D.
+
         See Also
         --------
+        _plot_solution_1D
+        slice_solution
         plotlib
         plot_purity
         """
@@ -978,6 +1123,17 @@ class SolutionSolid(SolutionBase):
                 "Solution has more single dimension. "
                 "Please use `plot_at_time`."
             )
+
+        solution = slice_solution(
+            self,
+            components=components,
+            use_total_concentration=False,
+            use_total_concentration_components=False,
+            start=start,
+            end=end,
+        )
+
+        x = solution.time / 60
 
         if layout is None:
             layout = plotting.Layout()
@@ -988,46 +1144,66 @@ class SolutionSolid(SolutionBase):
             if end is not None:
                 end /= 60
             layout.x_lim = (start, end)
-            if y_max is not None:
-                layout.y_lim = (None, y_max)
+        if y_max is not None:
+            layout.y_lim = (None, y_max)
 
-        ax = _plot_solution_1D(
-            self,
-            layout=layout,
-            only_plot_components=only_plot_components,
-            alpha=alpha,
-            hide_labels=hide_labels,
-            secondary_axis=secondary_axis,
-            secondary_layout=secondary_layout,
-            show_legend=show_legend,
-            ax=ax,
-        )
+        ax = _plot_solution_1D(ax, x, solution, layout, *args, **kwargs)
 
         return ax
 
-    def _plot_1D(self, t, y_min=None, y_max=None, ax=None):
+    def _plot_1D(
+            self,
+            t,
+            components=None,
+            layout=None,
+            ax=None,
+            *args,
+            **kwargs,
+            ):
+        """Plot bulk solution over space at given time.
+
+        Parameters
+        ----------
+        t : float
+            Time for plotting
+            If t == -1, the final solution is plotted.
+        components : list, optional.
+            List of components to be plotted. If None, all components are plotted.
+        layout : plotting.Layout
+            Plot layout options.
+        ax : Axes
+            Axes to plot on.
+
+        Returns
+        -------
+        ax : Axes
+            Axes object with concentration profile.
+
+        See Also
+        --------
+        _plot_solution_1D
+        slice_solution
+        plot_at_position
+        plotlib
+        """
+        solution = slice_solution(
+            self,
+            components=components,
+            use_total_concentration=False,
+            use_total_concentration_components=False,
+            coordinates={'time': [t, t]},
+        )
+
         x = self.axial_coordinates
 
-        if not self.time[0] <= t <= self.time[-1]:
-            raise ValueError("Time exceeds bounds.")
-        t_i = np.where(t <= self.time)[0][0]
-        y = self.solution[t_i, :]
+        if layout is None:
+            layout = plotting.Layout()
+            layout.x_label = '$z~/~m$'
+            layout.y_label = '$c~/~mM$'
 
-        if y_max is None:
-            y_max = 1.1*np.max(y)
-        if y_min is None:
-            y_min = min(0, np.min(y))
-
-        ax.plot(x, y)
+        ax = _plot_solution_1D(ax, x, solution, layout, *args, **kwargs)
 
         plotting.add_text(ax, f'time = {t:.2f} s')
-
-        layout = plotting.Layout()
-        layout.x_label = '$z~/~m$'
-        layout.y_label = '$c~/~mM$'
-        layout.labels = self.component_system.labels
-        layout.y_lim = (y_min, y_max)
-        plotting.set_layout(ax, layout)
 
         return ax
 
@@ -1095,7 +1271,7 @@ class SolutionVolume(SolutionBase):
         return (self.nt, 1)
 
     @plotting.create_and_save_figure
-    def plot(self, start=0, end=None, overlay=None, ax=None):
+    def plot(self, start=None, end=None, ax=None, update_layout=True, **kwargs):
         """Plot the whole time_signal for each component.
 
         Parameters
@@ -1115,13 +1291,7 @@ class SolutionVolume(SolutionBase):
         y = self.solution * 1000
 
         y_min = np.min(y)
-        y_max = np.max(y)
-
-        ax.plot(x, y)
-
-        if overlay is not None:
-            y_max = 1.1*np.max(overlay)
-            plotting.add_overlay(ax, overlay)
+        y_max = 1.1 * np.max(y)
 
         layout = plotting.Layout()
         layout.x_label = '$time~/~min$'
@@ -1132,23 +1302,29 @@ class SolutionVolume(SolutionBase):
             end /= 60
         layout.x_lim = (start, end)
         layout.y_lim = (y_min, y_max)
-        plotting.set_layout(ax, layout)
+        ax.plot(x, y, **kwargs)
+
+        if update_layout:
+            plotting.set_layout(ax, layout)
 
         return ax
 
 
 def _plot_solution_1D(
+        ax,
+        x,
         solution,
         layout=None,
-        only_plot_components=False,
-        alpha=1, hide_labels=False, hide_species_labels=True,
+        plot_species=False,
+        plot_components=True,
+        plot_total_concentration=False,
+        alpha=1, hide_labels=False, hide_species_labels=False,
         secondary_axis=None, secondary_layout=None,
         show_legend=True,
-        ax=None):
+        update_layout=True,
+        ):
 
-    time = solution.time / 60
     sol = solution.solution
-
     c_total_comp = solution.total_concentration_components
 
     if secondary_axis is not None:
@@ -1161,9 +1337,10 @@ def _plot_solution_1D(
     y_max = 0
     y_min_sec = 0
     y_max_sec = 0
+
     for i, comp in enumerate(solution.component_system.components):
         color = next(ax._get_lines.prop_cycler)['color']
-        if hide_labels:
+        if hide_labels or not update_layout:
             label = None
         else:
             label = comp.name
@@ -1174,58 +1351,86 @@ def _plot_solution_1D(
         else:
             a = ax
 
-        if secondary_axis is not None \
-                and secondary_axis.transform is not None \
-                and i in secondary_axis.component_indices:
-            y = secondary_axis.transform(c_total_comp[..., i])
-        else:
-            y = c_total_comp[..., i]
+        if plot_components:
+            if secondary_axis is not None \
+                    and secondary_axis.transform is not None \
+                    and i in secondary_axis.components:
+                y_comp = secondary_axis.transform(c_total_comp[..., i])
+                y_min_sec = min(min(y_comp), y_min_sec)
+                y_max_sec = max(max(y_comp), y_max_sec)
+            else:
+                y_comp = c_total_comp[..., i]
+                y_min = min(min(y_comp), y_min)
+                y_max = max(max(y_comp), y_max)
 
-        if secondary_axis is not None \
-                and i in secondary_axis.component_indices:
-            y_min_sec = min(min(y), y_min_sec)
-            y_max_sec = max(max(y), y_max_sec)
-        else:
-            y_min = min(min(y), y_min)
-            y_max = max(max(y), y_max)
+            a.plot(
+                x, y_comp,
+                linestyle='-',
+                color=color,
+                alpha=alpha,
+                label=label,
+            )
 
-        a.plot(
-            time, y,
-            label=label,
-            color=color,
-            alpha=alpha
-        )
-
-        if not only_plot_components:
+        if plot_species:
             if comp.n_species == 1:
-                species_index += 1
-                continue
+                if plot_components:
+                    species_index += 1
+                    continue
 
-            for s, species in enumerate(comp.species):
-                if hide_species_labels:
+            linestyle_iter = iter(plotting.linestyle_cycler)
+
+            for s, species in enumerate(comp.label):
+                if hide_species_labels or not update_layout:
                     label = None
                 else:
-                    label = s
-                if secondary_axis is not None \
-                        and i in secondary_axis.component_indices:
-                    a = ax_secondary
+                    label = species
+
+                if comp.n_species == 1 \
+                        and not plot_total_concentration\
+                        and not plot_components:
+                    linestyle = '-'
                 else:
-                    a = ax
+                    linestyle = next(linestyle_iter)['linestyle']
 
                 if secondary_axis is not None \
                         and secondary_axis.transform is not None \
-                        and i in secondary_axis.component_indices:
-                    y = secondary_axis.transform(sol[..., species_index])
+                        and i in secondary_axis.components:
+                    y_spec = secondary_axis.transform(sol[..., species_index])
+                    y_min_sec = min(min(y_spec), y_min_sec)
+                    y_max_sec = max(max(y_spec), y_max_sec)
                 else:
-                    y = sol[..., species_index]
+                    y_spec = sol[..., species_index]
+                    y_min = min(min(y_spec), y_min)
+                    y_max = max(max(y_spec), y_max)
+
+                y_spec = np.squeeze(y_spec)
 
                 a.plot(
-                    time, y, '--',
+                    x, y_spec,
+                    linestyle=linestyle,
                     label=label,
                     color=color,
                     alpha=alpha
                 )
                 species_index += 1
+
+    if plot_total_concentration:
+        if hide_labels or not update_layout:
+            label = None
+        else:
+            label = 'Total concentration'
+
+        y_total = solution.total_concentration
+        y_total = np.squeeze(y_total)
+        y_min = min(min(y_total), y_min)
+        y_max = max(max(y_total), y_max)
+        a.plot(
+            x, y_total, '-',
+            label=label,
+            color='k',
+            alpha=alpha
+        )
+
     if layout.y_lim is None:
         layout.y_lim = (y_min, 1.1*y_max)
 
@@ -1234,13 +1439,14 @@ def _plot_solution_1D(
         secondary_layout.y_label = secondary_axis.y_label
         secondary_layout.y_lim = (y_min_sec, 1.1*y_max_sec)
 
-    plotting.set_layout(
-        ax,
-        layout,
-        show_legend,
-        ax_secondary,
-        secondary_layout,
-    )
+    if update_layout:
+        plotting.set_layout(
+            ax,
+            layout,
+            show_legend,
+            ax_secondary,
+            secondary_layout,
+        )
 
     return ax
 
@@ -1306,7 +1512,7 @@ class InterpolatedSignal():
 
         return anti
 
-    def integral(self, start=0, end=-1):
+    def integral(self, start=None, end=None):
         """Definite integral between start and end.
 
         Parameters
@@ -1333,152 +1539,49 @@ class InterpolatedSignal():
         ]).transpose()
 
 
-def purity(
-        component_system, solution,
-        sum_species=True, min_value=1e-6):
-    """Local purity profile of solution.
-
-    To exclude components from purity calculation, refer to ComponentSystem.
-
-    Parameters
-    ----------
-    component_system : ComponentSystem
-        DESCRIPTION.
-    solution : np.array
-        Array containing concentrations.
-    sum_species : bool, optional
-        DESCRIPTION. The default is True.
-    min_value : float, optional
-        Minimum concentration to be considered. Everything below min_value
-        will be considered as 0. The default is 1e-6.
-
-    Returns
-    -------
-    purity
-        Local purity of components/species.
-        If sum_species, shape is nt * n_components, nt * n_comp otherwise.
-        Excluding components does not affect the shape.
-
-    See Also
-    --------
-    ComponentSystem
-    """
-    c_total = total_concentration(
-        component_system, solution,
-        exclude=component_system.exclude_from_purity
-    )
-
-    if sum_species:
-        solution = component_concentration(component_system, solution)
-
-    exclude_indices = []
-    for i, comp in enumerate(component_system):
-        if comp.exclude_from_purity:
-            if sum_species:
-                exclude_indices.append(i)
-            else:
-                exclude_indices += component_system.indices[comp.name]
-
-    purity = np.zeros(solution.shape)
-
-    c_total[c_total < min_value] = np.nan
-
-    for i, s in enumerate(solution.transpose()):
-        if i in exclude_indices:
-            continue
-
-        with np.errstate(divide='ignore', invalid='ignore'):
-            purity[:, i] = np.divide(s, c_total)
-
-    purity = np.nan_to_num(purity)
-
-    return purity
-
-
-def component_concentration(component_system, solution):
-    """Compute total concentration of components by summing up species.
-
-    Parameters
-    ----------
-    component_system : ComponentSystem
-        ComponentSystem containing information about subspecies.
-    solution : np.array
-        Solution array.
-
-    Returns
-    -------
-    component_concentration : np.array
-        Total concentration of components.
-
-    """
-    component_concentration = np.zeros(
-        solution.shape[0:-1] + (component_system.n_components,)
-    )
-
-    counter = 0
-    for index, comp in enumerate(component_system):
-        comp_indices = slice(counter, counter+comp.n_species)
-        c_total = np.sum(solution[..., comp_indices], axis=1)
-        component_concentration[:, index] = c_total
-        counter += comp.n_species
-
-    return component_concentration
-
-
-def total_concentration(component_system, solution, exclude=None):
-    """Compute total concentration of all components.
-
-    Parameters
-    ----------
-    component_system : ComponentSystem
-        ComponentSystem containing information about subspecies.
-    solution : np.array
-        Solution array.
-    Exclude : list
-        Component names to be excluded from total concentration.
-
-    Returns
-    -------
-    total_concentration : np.array
-        Total concentration of all components.
-
-    """
-    if exclude is None:
-        exclude = []
-
-    total_concentration = np.zeros(solution.shape[0:-1])
-
-    counter = 0
-    for index, comp in enumerate(component_system):
-        if comp.name not in exclude:
-
-            comp_indices = slice(counter, counter+comp.n_species)
-            c_total = np.sum(solution[..., comp_indices], axis=1)
-
-            total_concentration += c_total
-
-        counter += comp.n_species
-
-    return total_concentration
-
-
 def slice_solution(
         solution_original,
         components=None,
-        use_total_concentration=False, use_total_concentration_components=True,
-        start=0, end=None):
+        use_total_concentration=False,
+        use_total_concentration_components=False,
+        coordinates=None):
     solution = copy.deepcopy(solution_original)
 
-    start_index = np.where(solution.time >= start)[0][0]
-    if end is not None:
-        end_index = np.where(solution.time >= end)[0][0] + 1
-    else:
-        end_index = None
+    slices = ()
+    if coordinates is not None:
+        coordinates = copy.deepcopy(coordinates)
+        for i, (dim, coord) in enumerate(solution.coordinates.items()):
+            if dim == 'component_coordinates':
+                continue
+            if dim in coordinates:
+                sl = list(coordinates.pop(dim))
+                if sl[0] is None:
+                    sl[0] = coord[0]
+                if sl[1] is None:
+                    sl[1] = coord[-1]
+                if not coord[0] <= sl[0] <= sl[1] <= coord[-1]:
+                    raise ValueError(f"{dim} coordinates exceed bounds.")
+                start_index = np.where(coord >= sl[0])[0][0]
+                if sl[1] is not None:
+                    end_index = np.where(coord >= sl[1])[0][0] + 1
+                else:
+                    end_index = None
+                sl = slice(start_index, end_index)
+                slices += (sl,)
+                setattr(solution, dim, coord[sl])
+            else:
+                slices += (slice(None),)
 
-    solution.time = solution.time[start_index:end_index]
-    solution.solution = solution.solution[start_index:end_index, ...]
+        if len(coordinates) > 0:
+            raise CADETProcessError(f"Unknown dimensions: {coordinates.keys()}")
+
+        solution.solution = solution.solution[slices]
 
     if components is not None:
+        if not isinstance(components, list):
+            components = [components]
+        components = copy.deepcopy(components)
+
         component_system = copy.deepcopy(solution.component_system)
         component_indices = []
         for i, (name, component) in enumerate(
@@ -1486,26 +1589,33 @@ def slice_solution(
             if name not in components:
                 component_system.remove_component(component.name)
             else:
+                name = str(name)
+                components.remove(name)
                 if use_total_concentration_components:
                     component_indices.append(i)
                 else:
-                    component_indices.append(
-                        component_system.indices[component.name]
-                    )
+                    component_indices += solution.component_system.indices[component.name]
 
-        if use_total_concentration_components:
-            solution.component_system = component_system
-            solution.solution = \
-                solution_original.total_concentration_components[start_index:end_index, ..., component_indices]
-        else:
-            solution.solution = \
-                solution_original.solution[start_index:end_index, ..., component_indices]
+        if len(components) != 0:
+            raise CADETProcessError(f"Unknown components: {components}")
+
+        solution.component_system = component_system
+        solution.solution = solution.solution[..., component_indices]
+
+    if use_total_concentration_components:
+        sol = solution.total_concentration_components
+        for comp in solution.component_system:
+            if comp.n_species > 1:
+                comp._species = []
+                comp.add_species(comp.name)
+        solution.solution = sol
 
     if use_total_concentration:
-        solution_comp = copy.deepcopy(solution)
-        solution.component_system = ComponentSystem(1)
-        solution.solution = np.array(solution_comp.total_concentration, ndmin=2).transpose()
+        sol = solution.total_concentration
+        solution.component_system = ComponentSystem(['total_concentration'])
+        solution.solution = sol
 
+    solution.update()
     solution.update_transform()
 
     return solution
