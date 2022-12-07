@@ -1165,63 +1165,71 @@ class AdsorptionParametersGroup(ParameterWrapper):
     _model_type = 'ADSORPTION_MODEL'
 
 
+reaction_parameters_map = {
+    'NoReaction': {
+        'name': 'NONE',
+        'parameters': {},
+    },
+    'MassActionLaw': {
+        'name': 'MASS_ACTION_LAW',
+        'parameters': {
+            'mal_stoichiometry_bulk': 'stoich',
+            'mal_exponents_bulk_fwd': 'exponents_fwd',
+            'mal_exponents_bulk_bwd': 'exponents_bwd',
+            'mal_kfwd_bulk': 'k_fwd',
+            'mal_kbwd_bulk': 'k_bwd',
+            }
+    },
+    'MassActionLawParticle': {
+        'name': 'MASS_ACTION_LAW',
+        'parameters': {
+            'mal_stoichiometry_liquid': 'stoich_liquid',
+            'mal_exponents_liquid_fwd': 'exponents_fwd_liquid',
+            'mal_exponents_liquid_bwd': 'exponents_bwd_liquid',
+            'mal_kfwd_liquid': 'k_fwd_liquid',
+            'mal_kbwd_liquid': 'k_bwd_liquid',
+
+            'mal_stoichiometry_solid': 'stoich_solid',
+            'mal_exponents_solid_fwd': 'exponents_fwd_solid',
+            'mal_exponents_solid_bwd': 'exponents_bwd_solid',
+            'mal_kfwd_solid': 'k_fwd_solid',
+            'mal_kbwd_solid': 'k_bwd_solid',
+
+            'mal_exponents_liquid_fwd_modsolid':
+                'exponents_fwd_liquid_modsolid',
+            'mal_exponents_liquid_bwd_modsolid':
+                'exponents_bwd_liquid_modsolid',
+            'mal_exponents_solid_fwd_modliquid':
+                'exponents_fwd_solid_modliquid',
+            'mal_exponents_solid_bwd_modliquid':
+                'exponents_bwd_solid_modliquid',
+        }
+    }
+}
+
+
+inv_reaction_parameters_map = {
+    model: {
+        'name': values['name'],
+        'parameters': {
+            v: k for k, v in values['parameters'].items()
+        }
+    } for model, values in adsorption_parameters_map.items()
+}
+
+
 class ReactionParametersGroup(ParameterWrapper):
     """Converter for Reaction model parameters from CADETProcess to CADET.
 
-    See Also
+    See also
     --------
     ParameterWrapper
-    ReactionParametersGroup
+    AdsorptionParametersGroup
     UnitParametersGroup
-
     """
     _baseClass = ReactionBaseClass
 
-    _reaction_models = {
-        'NoReaction': 'NONE',
-        'MassAction': 'MASS_ACTION_LAW',
-                }
-    _reaction_parameters = {
-        'NoReaction': {
-            'name': 'NONE',
-            'parameters': {},
-        },
-        'MassActionLaw': {
-            'name': 'MASS_ACTION_LAW',
-            'parameters': {
-                'mal_stoichiometry_bulk': 'stoich',
-                'mal_exponents_bulk_fwd': 'exponents_fwd',
-                'mal_exponents_bulk_bwd': 'exponents_bwd',
-                'mal_kfwd_bulk': 'k_fwd',
-                'mal_kbwd_bulk': 'k_bwd',
-                }
-        },
-        'MassActionLawParticle': {
-            'name': 'MASS_ACTION_LAW',
-            'parameters': {
-                'mal_stoichiometry_liquid': 'stoich_liquid',
-                'mal_exponents_liquid_fwd': 'exponents_fwd_liquid',
-                'mal_exponents_liquid_bwd': 'exponents_bwd_liquid',
-                'mal_kfwd_liquid': 'k_fwd_liquid',
-                'mal_kbwd_liquid': 'k_bwd_liquid',
-
-                'mal_stoichiometry_solid': 'stoich_solid',
-                'mal_exponents_solid_fwd': 'exponents_fwd_solid',
-                'mal_exponents_solid_bwd': 'exponents_bwd_solid',
-                'mal_kfwd_solid': 'k_fwd_solid',
-                'mal_kbwd_solid': 'k_bwd_solid',
-
-                'mal_exponents_liquid_fwd_modsolid':
-                    'exponents_fwd_liquid_modsolid',
-                'mal_exponents_liquid_bwd_modsolid':
-                    'exponents_bwd_liquid_modsolid',
-                'mal_exponents_solid_fwd_modliquid':
-                    'exponents_fwd_solid_modliquid',
-                'mal_exponents_solid_bwd_modliquid':
-                    'exponents_bwd_solid_modliquid',
-            }
-        }
-    }
+    _reaction_parameters = reaction_parameters_map
 
     _model_parameters = _reaction_parameters
     _model_type = 'REACTION_MODEL'
