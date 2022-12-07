@@ -1,5 +1,6 @@
 from collections import defaultdict
 from warnings import warn
+from dataclasses import dataclass
 
 from addict import Dict
 import numpy as np
@@ -42,6 +43,8 @@ class Process(EventHandler):
 
         self.system_state = None
         self.system_state_derivative = None
+
+        self._parameter_sensitivities = []
 
         super().__init__(*args, **kwargs)
 
@@ -228,6 +231,171 @@ class Process(EventHandler):
         return Dict(section_states)
 
     @property
+    def n_sensitivities(self):
+        """int: Number of parameter sensitivities."""
+        return len(self.parameter_sensitivities)
+
+    @property
+    def parameter_sensitivities(self):
+        """list: Parameter sensitivites."""
+        return self._parameter_sensitivities
+
+    @property
+    def parameter_sensitivity_names(self):
+        """list: Parameter sensitivity names."""
+        return [sens.name for sens in self.parameter_sensitivities]
+
+    def add_parameter_sensitivity(
+            self, parameter_paths, name=None,
+            components=None, reaction_indices=None, bound_state_indices=None,
+            section_indices=None, abstols=None, factors=None):
+        """Add parameter sensitivty to Process.
+
+        Parameters
+        ----------
+        parameter_paths : str
+            Path to the parameter of the DESCRIPTION.
+        name : str, optional
+            Name of the parameter sensitivity. The default is None.
+        components : TYPE, optional
+            DESCRIPTION. The default is None.
+        reaction_indices : TYPE, optional
+            DESCRIPTION. The default is None.
+        bound_state_indices : TYPE, optional
+            DESCRIPTION. The default is None.
+        section_indices : TYPE, optional
+            DESCRIPTION. The default is None.
+        abstols : TYPE, optional
+            DESCRIPTION. The default is None.
+        factors : TYPE, optional
+            DESCRIPTION. The default is None.
+
+        Raises
+        ------
+        CADETProcessError
+            Number of indices do not match for:
+                - components
+                - reaction
+                - bound_state
+                - sections
+                - tolerances
+                - factors
+            Component is not found.
+            Unit is not found.
+            Parameter is not found.
+            Name is not provided (if number of parameters larger than 1).
+            If sensitivity name already exists.
+
+        """
+
+        if not isinstance(parameter_paths, list):
+            parameter_paths = [parameter_paths]
+        n_params = len(parameter_paths)
+
+        if name is None:
+            if n_params > 1:
+                raise CADETProcessError(
+                    "Must provide sensitivity name if n_params > 1."
+                )
+            else:
+                name = parameter_paths[0]
+
+        if name in self.parameter_sensitivity_names:
+            raise CADETProcessError(
+                "Parameter sensitivity with same name already exists."
+            )
+
+        if components is None:
+            components = n_params * [None]
+        if not isinstance(components, list):
+            components = [components]
+        if len(components) != n_params:
+            raise CADETProcessError("Number of components indices does not match.")
+
+        if reaction_indices is None:
+            reaction_indices = n_params * [None]
+        if not isinstance(reaction_indices, list):
+            reaction_indices = [reaction_indices]
+        if len(reaction_indices) != n_params:
+            raise CADETProcessError("Number of reaction indices does not match.")
+
+        if bound_state_indices is None:
+            bound_state_indices = n_params * [None]
+        if not isinstance(bound_state_indices, list):
+            bound_state_indices = [bound_state_indices]
+        if len(bound_state_indices) != n_params:
+            raise CADETProcessError("Number of bound_state indices does not match.")
+
+        if section_indices is None:
+            section_indices = n_params * [None]
+        if not isinstance(section_indices, list):
+            section_indices = [section_indices]
+        if len(section_indices) != n_params:
+            raise CADETProcessError("Number of section indices does not match.")
+
+        if abstols is None:
+            abstols = n_params * [None]
+        if not isinstance(abstols, list):
+            abstols = [abstols]
+        if len(abstols) != n_params:
+            raise CADETProcessError("Number of abstol entries does not match.")
+
+        if factors is None:
+            factors = n_params * [1]
+        if not isinstance(factors, list):
+            factors = [factors]
+        if len(factors) != n_params:
+            raise CADETProcessError("Number of factor entries does not match.")
+
+        units = []
+        associated_models = []
+        parameters = []
+        for param, comp, reac, state, section, tol, fac in zip(
+                parameter_paths, components, reaction_indices, bound_state_indices,
+                section_indices, abstols, factors):
+            param_parts = param.split('.')
+            unit = param_parts[0]
+            parameter = param_parts[-1]
+            parameters.append(parameter)
+
+            associated_model = None
+            if len(param_parts) == 3:
+                associated_model = param_parts[1]
+
+            if comp is not None and comp not in self.component_system.labels:
+                raise CADETProcessError(f'Unknown component {comp}.')
+
+            unit = self.flow_sheet[unit]
+            if unit not in self.flow_sheet.units:
+                raise CADETProcessError('Not a valid unit')
+            units.append(unit)
+
+            if associated_model is None:
+                if parameter not in unit.parameters:
+                    raise CADETProcessError('Not a valid parameter.')
+            else:
+                associated_model = getattr(unit, associated_model)
+
+                if state is not None \
+                        and state > associated_model.n_binding_sites:
+                    raise ValueError('Binding site index exceed number of binding sites.')
+                if reac is not None \
+                        and reac > associated_model.n_reactions:
+                    raise ValueError('Reaction index exceed number of reactions.')
+
+                if parameter not in associated_model.parameters:
+                    raise CADETProcessError('Not a valid parameter')
+            associated_models.append(associated_model)
+
+        sens = ParameterSensitivity(
+            name,
+            units, parameters, associated_models,
+            components, reaction_indices, bound_state_indices,
+            section_indices, abstols, factors
+        )
+        self._parameter_sensitivities.append(sens)
+
+    @property
     def system_state(self):
         return self._system_state
 
@@ -412,3 +580,17 @@ class Process(EventHandler):
 
     def __str__(self):
         return self.name
+
+
+@dataclass
+class ParameterSensitivity():
+    name: str
+    units: list
+    parameters: list
+    associated_models: list = None
+    components: list = None
+    reaction_indices: list = None
+    bound_state_indices: list = None
+    section_indices: list = None
+    abstols: list = None
+    factors: list = None

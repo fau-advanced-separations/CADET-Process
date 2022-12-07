@@ -14,12 +14,12 @@ class SolutionRecorderIO(SolutionRecorderBase):
 
     write_solution_inlet = Bool(default=True)
     write_soldot_inlet = Bool(default=False)
-    write_sens_inlet = Bool(default=False)
+    write_sens_inlet = Bool(default=True)
     write_sensdot_inlet = Bool(default=False)
 
     write_solution_outlet = Bool(default=True)
     write_soldot_outlet = Bool(default=False)
-    write_sens_outlet = Bool(default=False)
+    write_sens_outlet = Bool(default=True)
     write_sensdot_outlet = Bool(default=False)
 
     _parameters = [
