@@ -193,7 +193,7 @@ class Comparator(metaclass=StructMeta):
 
             fig, ax = solution_sliced.plot(
                 ax=ax,
-                show=False, start=metric.start, end=metric.end,
+                show=False,
                 y_max=1.1*np.max(metric.reference.solution)
             )
 

@@ -20,7 +20,6 @@ class TestComponents(unittest.TestCase):
             'Ammonia',
             species=['NH4+', 'NH3'],
             charge=[1, 0],
-            exclude_from_purity=True
         )
         self.component_system_3.add_component(
             'Lysine',
@@ -30,7 +29,6 @@ class TestComponents(unittest.TestCase):
         self.component_system_3.add_component(
             'H+',
             charge=1,
-            exclude_from_purity=True
         )
 
         self.component_system_4 = ComponentSystem(2)
@@ -114,11 +112,6 @@ class TestComponents(unittest.TestCase):
         charges_expected = [1, 0, 2, 1, 0, -1, 1]
         charges = self.component_system_3.charges
         np.testing.assert_equal(charges_expected, charges)
-
-    def test_exclude_from_purity(self):
-        exclude_expectected = ['Ammonia', 'H+']
-        exclude = self.component_system_3.exclude_from_purity
-        np.testing.assert_equal(exclude_expectected, exclude)
 
 
 if __name__ == '__main__':

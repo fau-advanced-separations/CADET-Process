@@ -27,7 +27,7 @@ class DifferenceBase(MetricBase):
             components=None,
             use_total_concentration=False,
             use_total_concentration_components=True,
-            start=0,
+            start=None,
             end=None,
             transform=None,
             resample=True,
@@ -47,7 +47,7 @@ class DifferenceBase(MetricBase):
         use_total_concentration_components : bool, optional
             If True, sum concentration of species. The default is True.
         start : float, optional
-            End time of solution slice to be considerd. The default is 0.
+            End time of solution slice to be considerd. The default is None.
         end : float, optional
             End time of solution slice to be considerd. The default is None.
         transform : callable, optional
@@ -60,7 +60,6 @@ class DifferenceBase(MetricBase):
             If True, normalize data. The default is False.
 
         """
-        self.reference = reference
         self.components = components
         self.use_total_concentration = use_total_concentration
         self.use_total_concentration_components = \
@@ -71,6 +70,7 @@ class DifferenceBase(MetricBase):
         self.resample = resample
         self.smooth = smooth
         self.normalize = normalize
+        self.reference = reference
 
     @property
     def n_metrics(self):
@@ -82,20 +82,6 @@ class DifferenceBase(MetricBase):
 
     @property
     def reference(self):
-        if self._reference_sliced_and_transformed is None:
-            if self.normalize and not self._reference.is_normalized:
-                self._reference.normalize()
-            if self.smooth and not self._reference.is_smoothed:
-                self._reference.smooth_data()
-            reference = slice_solution(
-                self._reference,
-                None,
-                self.use_total_concentration,
-                self.use_total_concentration_components,
-                self.start, self.end,
-            )
-
-            self._reference_sliced_and_transformed = reference
         return self._reference_sliced_and_transformed
 
     @reference.setter
@@ -104,7 +90,21 @@ class DifferenceBase(MetricBase):
             raise TypeError("Expected SolutionBase")
 
         self._reference = copy.deepcopy(reference)
-        self._reference_sliced_and_transformed = None
+        if self.resample and not self._reference.is_resampled:
+            self._reference.resample()
+        if self.normalize and not self._reference.is_normalized:
+            self._reference.normalize()
+        if self.smooth and not self._reference.is_smoothed:
+            self._reference.smooth_data()
+        reference = slice_solution(
+            self._reference,
+            None,
+            self.use_total_concentration,
+            self.use_total_concentration_components,
+            coordinates={'time': (self.start, self.end)}
+        )
+
+        self._reference_sliced_and_transformed = reference
 
     def checks_dimensions(func):
         """Decorator to automatically check reference and solution dimensions."""
@@ -128,7 +128,7 @@ class DifferenceBase(MetricBase):
                     self.components,
                     self.use_total_concentration,
                     self.use_total_concentration_components,
-                    self.start, self.end,
+                    coordinates={'time': (self.start, self.end)}
                 )
 
             value = func(self, solution, *args, **kwargs)
@@ -298,16 +298,16 @@ class Shape(DifferenceBase):
         if use_derivative:
             self.reference_der = self.reference.derivative
             self.reference_der.resample(
-                start=self.reference.time[0],
-                end=self.reference.time[-1],
-                nt=len(self.reference.time)
+                start=self._reference.time[0],
+                end=self._reference.time[-1],
+                nt=len(self._reference.time)
             )
             self.reference_der_sliced = slice_solution(
                 self.reference_der,
                 None,
                 self.use_total_concentration,
                 self.use_total_concentration_components,
-                self.start, self.end,
+                coordinates={'time': (self.start, self.end)}
             )
 
             self.peak_der_min = PeakHeight(

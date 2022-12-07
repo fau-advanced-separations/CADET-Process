@@ -33,8 +33,6 @@ class Component(metaclass=StructMeta):
         Charge of component (including species).
     molecular_weight : list
         Molecular weight of component (including species).
-    exclude_from_purity : bool
-        Flag to exclude component from purity calculations.
 
     See Also
     --------
@@ -45,9 +43,7 @@ class Component(metaclass=StructMeta):
     name = String()
 
     def __init__(
-            self, name=None,
-            species=None, charge=None, molecular_weight=None,
-            exclude_from_purity=False):
+            self, name=None, species=None, charge=None, molecular_weight=None):
         self.name = name
         self._species = []
 
@@ -65,14 +61,12 @@ class Component(metaclass=StructMeta):
         else:
             raise CADETProcessError("Could not determine number of species")
 
-        self.exclude_from_purity = exclude_from_purity
-
     @property
     def species(self):
         return self._species
 
     @wraps(Species.__init__)
-    def add_species(self, name, charge, molecular_weight):
+    def add_species(self, name, charge=None, molecular_weight=None):
         species = Species(name, charge, molecular_weight)
         self._species.append(species)
 
@@ -133,9 +127,7 @@ class ComponentSystem(metaclass=StructMeta):
     name = String()
 
     def __init__(
-            self, components=None, name=None,
-            charges=None, molecular_weights=None,
-            exclude_from_purity=None):
+            self, components=None, name=None, charges=None, molecular_weights=None):
         self.name = name
 
         self._components = []
@@ -155,19 +147,12 @@ class ComponentSystem(metaclass=StructMeta):
             charges = n_comp * [None]
         if molecular_weights is None:
             molecular_weights = n_comp * [None]
-        if exclude_from_purity is None:
-            exclude_from_purity = n_comp * [None]
 
         for i, comp in enumerate(components):
-            exclude = False
-            if comp in exclude_from_purity:
-                exclude = True
-
             self.add_component(
                 comp,
                 charge=charges[i],
                 molecular_weight=molecular_weights[i],
-                exclude_from_purity=exclude,
             )
 
     @property
@@ -269,12 +254,6 @@ class ComponentSystem(metaclass=StructMeta):
             molecular_weights += comp.molecular_weight
 
         return molecular_weights
-
-    @property
-    def exclude_from_purity(self):
-        return [
-            comp.name for comp in self.components if comp.exclude_from_purity
-        ]
 
     def __repr__(self):
         return f'{self.__class__.__name__}({self.names})'
