@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-import math
 import time
 import unittest
 
@@ -345,10 +344,16 @@ class Test_OptimizationProblemDepVar(unittest.TestCase):
         )
         np.testing.assert_almost_equal(x0_chebyshev, x0_chebyshev_expected)
 
-        variables_expected = [0.7928932188134523, 0.2071067811865475, 0.2071067811865475, 0.4999999999999999]
+        variables_expected = [
+            0.7928932188134523,
+            0.2071067811865475,
+            0.2071067811865475,
+            0.4999999999999999
+        ]
         variables = self.optimization_problem.get_dependent_values(
             x0_chebyshev[0, :]
         )
+        np.testing.assert_almost_equal(variables, variables_expected)
 
         self.assertTrue(
             self.optimization_problem.check_linear_constraints(
