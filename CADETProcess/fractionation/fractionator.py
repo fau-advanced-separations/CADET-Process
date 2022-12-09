@@ -401,7 +401,7 @@ class Fractionator(EventHandler):
     def productivity(self):
         """ndarray: Specific productivity in corresponding fraction pool."""
         return self.mass / (
-            self.process.cycle_time * self.process.V_solid
+            self.cycle_time * self.process.V_solid
         )
 
     @property
