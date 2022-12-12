@@ -313,9 +313,9 @@ class Cadet(SimulatorBase):
 
         See Also
         --------
-        input_model
-        input_solver
-        input_return
+        get_input_model
+        get_input_solver
+        get_input_return
 
         """
         process.lock = True

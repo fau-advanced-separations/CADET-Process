@@ -78,7 +78,7 @@ class OptimizationProblem(metaclass=StructMeta):
             use_diskcache=True,
             cache_directory=None,
             log_level='INFO'):
-        """
+        """Initialize OptimizationProblem.
 
         Parameters
         ----------
@@ -125,9 +125,9 @@ class OptimizationProblem(metaclass=StructMeta):
         return wrapper
 
     def gets_dependent_values(func):
+        """Get dependent values of individual before calling function."""
         @wraps(func)
         def wrapper(self, x, *args, get_dependent_values=False, **kwargs):
-            """Get dependent values of individual before calling function."""
             if get_dependent_values:
                 x = self.get_dependent_values(x)
 
@@ -136,9 +136,9 @@ class OptimizationProblem(metaclass=StructMeta):
         return wrapper
 
     def ensures2d(func):
+        """Make sure population is 2d list."""
         @wraps(func)
         def wrapper(self, population, *args, **kwargs):
-            """Make sure population is 2d list."""
             population = np.array(population, ndmin=2)
             population = population.tolist()
 
@@ -164,7 +164,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def evaluation_objects_dict(self):
-        """dict: Evaluation objects names and objects"""
+        """dict: Evaluation objects names and objects."""
         return {obj.name: obj for obj in self.evaluation_objects}
 
     def add_evaluation_object(self, evaluation_object):
@@ -1305,6 +1305,7 @@ class OptimizationProblem(metaclass=StructMeta):
             n_meta_scores=1,
             evaluation_objects=-1,
             requires=None):
+        """Add Meta score to the OptimizationProblem.
 
         Parameters
         ----------
@@ -1372,6 +1373,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
         meta_score = MetaScore(
             meta_score,
+            name,
             n_meta_scores=n_meta_scores,
             evaluation_objects=evaluation_objects,
             evaluators=evaluators,
