@@ -24,16 +24,20 @@ class FractionationEvaluator():
 
 
 class FractionationOptimizer():
-    """Configuration for fractionating Chromatograms.
-
-    Attributes
-    ----------
-    optimizer: OptimizerBase
-        Optimizer for optimizing the fractionaton times.
-
-    """
+    """Configuration for fractionating Chromatograms."""
 
     def __init__(self, optimizer=None, log_level='WARNING'):
+        """Initialize fractionation optimizer.
+
+        Parameters
+        ----------
+        optimizer: OptimizerBase, optional
+            Optimizer for optimizing the fractionation times.
+            If no value is specified, a default COBYLA optimizer will be used.
+        log_level: {'WARNING', 'INFO', 'DEBUG', 'ERROR'}
+            Log level for the fractionation optimization process.
+            The default is 'WARNING'.
+        """
         if optimizer is None:
             optimizer = COBYLA()
             optimizer.tol = 0.1
@@ -60,6 +64,32 @@ class FractionationOptimizer():
             components=None,
             use_total_concentration_components=True,
             ignore_failed=True):
+        """Set up Fractionator for optimizing the fractionation times of Chromatograms.
+
+        Parameters
+        ----------
+        simulation_results: object
+            Simulation results to be used for setting up the Fractionator object.
+        purity_required: float
+            Minimum purity required for the fractionation process.
+        components: list, optional
+            List of components to consider in the fractionation process.
+        use_total_concentration_components: bool, optional
+            If True, use the total concentration of the components. The default is True.
+        ignore_failed: bool, optional
+            If True, ignore cases where no areas were found with sufficient purity.
+            The default is True.
+
+        Returns
+        -------
+        Fractionator
+            The Fractionator object that has been set up using the provided arguments.
+
+        Raises
+        ------
+        CADETProcessError
+            If no areas with sufficient purity were found and ignore_failed is False.
+        """
         frac = Fractionator(
             simulation_results,
             components=components,
@@ -85,6 +115,37 @@ class FractionationOptimizer():
             ranking=1,
             obj_fun=None,
             n_objectives=1):
+        """Set up OptimizationProblem for optimizing the fractionation times.
+
+        Parameters
+        ----------
+        frac : Fractionator
+            DESCRIPTION.
+        purity_required : {list, float}
+            Minimum purity required.
+            If float, same value will be used for all components.
+        ranking : {float, list, None}
+            Weighting factors for individual components.
+            If float, same value is usued for all components.
+            If None, no rankining is used and the problem is solved as multi-objective.
+        obj_fun : callable, optional
+            Alternative objective function.
+            If no function is provided, the fractiton mass is maximized.
+            The default is None.
+        n_objectives : int
+            Number of objectives. The default is 1.
+
+        Raises
+        ------
+        CADETProcessError
+            DESCRIPTION.
+
+        Returns
+        -------
+        opt : TYPE
+            DESCRIPTION.
+
+        """
         opt = OptimizationProblem(
             'FractionationOptimization',
             log_level=self.log_level,
@@ -196,11 +257,11 @@ class FractionationOptimizer():
 
         """
         if not isinstance(simulation_results, SimulationResults):
-            raise TypeError('Expected SimulationResults')
+            raise TypeError('Expected SimulationResults.')
 
         if len(simulation_results.chromatograms) == 0:
             raise CADETProcessError(
-                'Simulation results do not contain chromatogram'
+                'Simulation results do not contain chromatogram.'
             )
 
         frac = self.setup_fractionator(

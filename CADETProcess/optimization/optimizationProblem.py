@@ -77,7 +77,7 @@ class OptimizationProblem(metaclass=StructMeta):
             use_diskcache=True,
             cache_directory=None,
             log_level='INFO'):
-        """
+        """Initialize OptimizationProblem.
 
         Parameters
         ----------
@@ -124,9 +124,9 @@ class OptimizationProblem(metaclass=StructMeta):
         return wrapper
 
     def gets_dependent_values(func):
+        """Get dependent values of individual before calling function."""
         @wraps(func)
         def wrapper(self, x, *args, get_dependent_values=False, **kwargs):
-            """Get dependent values of individual before calling function."""
             if get_dependent_values:
                 x = self.get_dependent_values(x)
 
@@ -135,9 +135,9 @@ class OptimizationProblem(metaclass=StructMeta):
         return wrapper
 
     def ensures2d(func):
+        """Make sure population is 2d list."""
         @wraps(func)
         def wrapper(self, population, *args, **kwargs):
-            """Make sure population is 2d list."""
             population = np.array(population, ndmin=2)
             population = population.tolist()
 
@@ -163,7 +163,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def evaluation_objects_dict(self):
-        """dict: Evaluation objects names and objects"""
+        """dict: Evaluation objects names and objects."""
         return {obj.name: obj for obj in self.evaluation_objects}
 
     def add_evaluation_object(self, evaluation_object):
@@ -1234,7 +1234,34 @@ class OptimizationProblem(metaclass=StructMeta):
             n_meta_scores=1,
             evaluation_objects=-1,
             requires=None):
+        """Add Meta score to the OptimizationProblem.
 
+        Parameters
+        ----------
+        meta_score : callable
+            Objective function.
+        name : str, optional
+            Name of the objective.
+        n_meta_scores : int, optional
+            Number of meta scores returned by callable.
+            The default is 1.
+        evaluation_objects : {EvaluationObject, None, -1, list}
+            EvaluationObjects which are evaluated by objective.
+            If None, no EvaluationObject is used.
+            If -1, all EvaluationObjects are used.
+        requires : {None, Evaluator, list}
+            Evaluators used for preprocessing.
+            If None, no preprocessing is required.
+
+        Raises
+        ------
+        TypeError
+            If meta_score is not callable.
+        CADETProcessError
+            If EvaluationObject is not found.
+            If Evaluator is not found.
+
+        """
         if not callable(meta_score):
             raise TypeError("Expected callable meta score.")
 
@@ -1262,6 +1289,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
         meta_score = MetaScore(
             meta_score,
+            name,
             n_meta_scores=n_meta_scores,
             evaluation_objects=evaluation_objects,
             evaluators=evaluators,
@@ -1352,6 +1380,19 @@ class OptimizationProblem(metaclass=StructMeta):
         return len(self.multi_criteria_decision_functions)
 
     def add_multi_criteria_decision_function(self, decision_function):
+        """Add multi criteria decision function to OptimizationProblem.
+
+        Parameters
+        ----------
+        decision_function : callable
+            Multi criteria decision function.
+
+        Raises
+        ------
+        TypeError
+            If decision_function is not callable.
+
+        """
 
         if not callable(decision_function):
             raise TypeError("Expected callable decision function.")
