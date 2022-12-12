@@ -497,7 +497,7 @@ class FlowSheet(metaclass=StructMeta):
         ----------
         unit : UnitBaseClass
             UnitOperation of flowsheet.
-        state : int or list of floats
+        state : int or list of floats or dict
             new output state of the unit.
 
         Raises
@@ -524,14 +524,28 @@ class FlowSheet(metaclass=StructMeta):
             output_state = [0] * state_length
             output_state[state] = 1
 
-        else:
+        elif isinstance(state, dict):
+            output_state = [0] * state_length
+            for dest, value in state.items():
+                try:
+                    assert self.connection_exists(unit, dest)
+                except AssertionError:
+                    raise CADETProcessError(f'{unit} does not connect to {dest}.')
+                dest = self[dest]
+                index = self.connections[unit].destinations.index(dest)
+                output_state[index] = value
+
+        elif isinstance(state, list):
             if len(state) != state_length:
                 raise CADETProcessError(f'Expected length {state_length}.')
 
-            elif not np.isclose(sum(state), 1):
-                raise CADETProcessError('Sum of fractions must be 1')
-
             output_state = state
+
+        else:
+            raise TypeError("Output state must be integer, list or dict.")
+
+        if not np.isclose(sum(output_state), 1):
+            raise CADETProcessError('Sum of fractions must be 1')
 
         self._output_states[unit] = output_state
 
