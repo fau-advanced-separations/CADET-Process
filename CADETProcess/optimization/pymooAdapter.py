@@ -6,7 +6,7 @@ import dill
 import numpy as np
 
 from pymoo.core.problem import Problem
-from pymoo.factory import get_reference_directions
+from pymoo.util.ref_dirs import get_reference_directions
 from pymoo.termination.default import DefaultMultiObjectiveTermination
 from pymoo.core.repair import Repair
 
@@ -175,14 +175,14 @@ class PymooInterface(OptimizerBase):
         )
         cls_ = getattr(module, str(self))
         self.algorithm = cls_(
-            ref_dirs=self.ref_dirs,
+            ref_dirs=self.setup_ref_dirs(),
             pop_size=self._population_size,
             sampling=pop,
             repair=RepairIndividuals(self.optimization_problem),
         )
 
         self.algorithm.setup(
-            self.problem, termination=self.termination,
+            self.problem, termination=self.setup_termination(),
             seed=self.seed, verbose=True, save_history=False,
         )
 
@@ -195,8 +195,7 @@ class PymooInterface(OptimizerBase):
             self._max_number_of_generations
         algorithm.termination.update(algorithm)
 
-    @property
-    def termination(self):
+    def setup_termination(self):
         termination = DefaultMultiObjectiveTermination(
             xtol=self.xtol,
             cvtol=self.cvtol,
@@ -206,8 +205,7 @@ class PymooInterface(OptimizerBase):
         )
         return termination
 
-    @property
-    def ref_dirs(self):
+    def setup_ref_dirs(self):
         ref_dirs = get_reference_directions(
             "energy",
             self.optimization_problem.n_objectives,
