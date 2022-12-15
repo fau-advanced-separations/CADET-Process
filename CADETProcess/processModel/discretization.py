@@ -54,7 +54,7 @@ class NoDiscretization(DiscretizationParametersBase):
     pass
 
 
-class DGMixin():
+class DGMixin(DiscretizationParametersBase):
     pass
 
 
@@ -69,17 +69,17 @@ class LRMDiscretizationFV(DiscretizationParametersBase):
     _dimensionality = ['ncol']
 
 
-class LRMDiscretizationDG(DiscretizationParametersBase, DGMixin):
+class LRMDiscretizationDG(DGMixin):
     ncol = UnsignedInteger(default=16)
     use_analytic_jacobian = Bool(default=True)
     reconstruction = Switch(default='WENO', valid=['WENO'])
     polynomial_degree = UnsignedInteger(default=3)
     polydeg = polynomial_degree
-    polynomial_basis = Switch(valid=['LAGRANGE', 'JACOBI'], default='LAGRANGE')
+    exact_integration = Bool(default=False)
 
     _parameters = DiscretizationParametersBase._parameters + [
         'ncol', 'use_analytic_jacobian', 'reconstruction',
-        'polydeg', 'polynomial_basis'
+        'polydeg', 'exact_integration'
     ]
     _dimensionality = ['axial_dof']
 
@@ -110,6 +110,38 @@ class LRMPDiscretizationFV(DiscretizationParametersBase):
         'gs_type', 'max_krylov', 'max_restarts', 'schur_safety'
     ]
     _dimensionality = ['ncol']
+
+
+class LRMPDiscretizationDG(DGMixin):
+    ncol = UnsignedInteger(default=16)
+
+    par_geom = Switch(
+        default='SPHERE',
+        valid=['SPHERE', 'CYLINDER', 'SLAB']
+    )
+
+    use_analytic_jacobian = Bool(default=True)
+    reconstruction = Switch(default='WENO', valid=['WENO'])
+    polynomial_degree = UnsignedInteger(default=3)
+    polydeg = polynomial_degree
+    exact_integration = Bool(default=False)
+
+    gs_type = Bool(default=True)
+    max_krylov = UnsignedInteger(default=0)
+    max_restarts = UnsignedInteger(default=10)
+    schur_safety = UnsignedFloat(default=1.0e-8)
+
+    _parameters = DiscretizationParametersBase._parameters + [
+        'ncol', 'par_geom',
+        'use_analytic_jacobian', 'reconstruction',
+        'polydeg', 'exact_integration',
+        'gs_type', 'max_krylov', 'max_restarts', 'schur_safety'
+    ]
+    _dimensionality = ['axial_dof']
+
+    @property
+    def axial_dof(self):
+        return self.ncol * (self.polynomial_degree + 1)
 
 
 class GRMDiscretizationFV(DiscretizationParametersBase):
@@ -148,6 +180,67 @@ class GRMDiscretizationFV(DiscretizationParametersBase):
         'fix_zero_surface_diffusion',
     ]
     _dimensionality = ['ncol', 'npar']
+
+    @property
+    def par_disc_vector_length(self):
+        return self.npar + 1
+
+
+class GRMDiscretizationDG(DGMixin):
+    ncol = UnsignedInteger(default=16)
+    npar = UnsignedInteger(default=1)
+    nparcell = npar
+
+    par_geom = Switch(
+        default='SPHERE',
+        valid=['SPHERE', 'CYLINDER', 'SLAB']
+    )
+    par_disc_type = Switch(
+        default='EQUIDISTANT_PAR',
+        valid=['EQUIDISTANT_PAR', 'EQUIVOLUME_PAR', 'USER_DEFINED_PAR']
+    )
+    par_disc_vector = DependentlySizedRangedList(
+        lb=0, ub=1, dep='par_disc_vector_length'
+    )
+
+    par_boundary_order = RangedInteger(lb=1, ub=2, default=2)
+
+    use_analytic_jacobian = Bool(default=True)
+    reconstruction = Switch(default='WENO', valid=['WENO'])
+    polynomial_degree = UnsignedInteger(default=3)
+    polydeg = polynomial_degree
+    polynomial_degree_particle = UnsignedInteger(default=3)
+    parpolydeg = polynomial_degree_particle
+    exact_integration = Bool(default=False)
+    exact_integration_particle = Bool(default=True)
+    par_exact_integration = exact_integration_particle
+
+    gs_type = Bool(default=True)
+    max_krylov = UnsignedInteger(default=0)
+    max_restarts = UnsignedInteger(default=10)
+    schur_safety = UnsignedFloat(default=1.0e-8)
+
+    fix_zero_surface_diffusion = Bool(default=False)
+
+    _parameters = DiscretizationParametersBase._parameters + [
+        'ncol', 'nparcell',
+        'par_geom', 'par_disc_type', 'par_disc_vector', 'par_boundary_order',
+        'use_analytic_jacobian', 'reconstruction',
+        'polydeg', 'parpolydeg',
+        'exact_integration', 'par_exact_integration',
+        'gs_type', 'max_krylov', 'max_restarts', 'schur_safety',
+        'fix_zero_surface_diffusion',
+    ]
+    _dimensionality = ['axial_dof', 'par_dof']
+
+    @property
+    def axial_dof(self):
+        return self.ncol * (self.polynomial_degree + 1)
+
+    @property
+    def par_dof(self):
+        return self.ncol * (self.polynomial_degree_particle + 1)
+
 
     @property
     def par_disc_vector_length(self):

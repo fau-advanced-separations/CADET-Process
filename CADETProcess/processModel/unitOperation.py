@@ -19,7 +19,8 @@ from .reaction import ReactionBaseClass, NoReaction
 from .discretization import (
     DiscretizationParametersBase, NoDiscretization,
     LRMDiscretizationFV, LRMDiscretizationDG,
-    LRMPDiscretizationFV, GRMDiscretizationFV
+    LRMPDiscretizationFV, LRMPDiscretizationDG,
+    GRMDiscretizationFV, GRMDiscretizationDG
 )
 
 from .solutionRecorder import (
@@ -745,7 +746,7 @@ class LumpedRateModelWithPores(TubularReactorBase):
     """
     supports_bulk_reaction = True
     supports_particle_reaction = True
-    discretization_schemes = (LRMPDiscretizationFV)
+    discretization_schemes = (LRMPDiscretizationFV, LRMPDiscretizationDG)
 
     bed_porosity = UnsignedFloat(ub=1)
     particle_porosity = UnsignedFloat(ub=1)
@@ -769,10 +770,13 @@ class LumpedRateModelWithPores(TubularReactorBase):
     _initial_state = TubularReactorBase._initial_state + ['cp', 'q']
     _parameter_names = _parameter_names + _initial_state
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, discretization_scheme='FV', **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.discretization = LRMPDiscretizationFV()
+        if discretization_scheme == 'FV':
+            self.discretization = LRMPDiscretizationFV()
+        elif discretization_scheme == 'DG':
+            self.discretization = LRMPDiscretizationDG()
 
         self.solution_recorder = LRMPRecorder()
 
@@ -871,7 +875,7 @@ class GeneralRateModel(TubularReactorBase):
     """
     supports_bulk_reaction = True
     supports_particle_reaction = True
-    discretization_schemes = (GRMDiscretizationFV)
+    discretization_schemes = (GRMDiscretizationFV, GRMDiscretizationDG)
 
     bed_porosity = UnsignedFloat(ub=1)
     particle_porosity = UnsignedFloat(ub=1)
@@ -901,10 +905,13 @@ class GeneralRateModel(TubularReactorBase):
     _initial_state = TubularReactorBase._initial_state + ['cp', 'q']
     _parameter_names = _parameter_names + _initial_state
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, discretization_scheme='FV', **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.discretization = GRMDiscretizationFV()
+        if discretization_scheme == 'FV':
+            self.discretization = GRMDiscretizationFV()
+        elif discretization_scheme == 'DG':
+            self.discretization = GRMDiscretizationDG()
 
         self.solution_recorder = GRMRecorder()
 
