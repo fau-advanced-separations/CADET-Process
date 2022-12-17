@@ -8,6 +8,7 @@ import numpy as np
 from pymoo.core.problem import Problem
 from pymoo.util.ref_dirs import get_reference_directions
 from pymoo.termination.default import DefaultMultiObjectiveTermination
+from pymoo.util.display.multi import MultiObjectiveOutput
 from pymoo.core.repair import Repair
 
 from CADETProcess.dataStructure import UnsignedInteger, UnsignedFloat
@@ -184,6 +185,7 @@ class PymooInterface(OptimizerBase):
         self.algorithm.setup(
             self.problem, termination=self.setup_termination(),
             seed=self.seed, verbose=True, save_history=False,
+            output=MultiObjectiveOutput(),
         )
 
         self.algorithm.results = self.results
