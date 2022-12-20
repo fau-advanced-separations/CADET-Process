@@ -214,7 +214,7 @@ class RMSE(DifferenceBase):
 class NRMSE(DifferenceBase):
     def _evaluate(self, solution):
         rmse = calculate_rmse(solution.solution, self.reference.solution)
-        nrmse = rmse / np.max(solution.solution, axis=0)
+        nrmse = rmse / np.max(self.reference.solution, axis=0)
 
         return nrmse
 
