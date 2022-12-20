@@ -71,6 +71,42 @@ class TestSSE(unittest.TestCase):
         np.testing.assert_almost_equal(metrics, metrics_expected)
 
 
+from CADETProcess.comparison import NRMSE
+class TestNRMSE(unittest.TestCase):
+    def __init__(self, methodName='runTest'):
+        super().__init__(methodName)
+
+    def test_metric(self):
+        # Compare with itself
+        component_system = ComponentSystem(1)
+        reference = ReferenceIO(
+            'simple', time, solution_2_gaussian[:, [0]],
+            component_system=component_system
+        )
+
+        difference = NRMSE(reference)
+        metrics_expected = [0]
+        metrics = difference.evaluate(reference)
+        np.testing.assert_almost_equal(metrics, metrics_expected)
+
+        # Compare with other Gaussian Peak
+        component_system = ComponentSystem(1)
+        solution = ReferenceIO(
+            'simple', time, solution_2_gaussian[:, [1]],
+            component_system=component_system
+        )
+
+        difference = NRMSE(reference, resample=False)
+        metrics_expected = [0.3345572]
+        metrics = difference.evaluate(solution)
+        np.testing.assert_almost_equal(metrics, metrics_expected)
+
+        difference = NRMSE(reference, resample=True)
+        metrics_expected = [0.33469097]
+        metrics = difference.evaluate(solution)
+        np.testing.assert_almost_equal(metrics, metrics_expected)
+
+
 from CADETProcess.comparison import PeakHeight
 class TestPeakHeight(unittest.TestCase):
     def __init__(self, methodName='runTest'):
