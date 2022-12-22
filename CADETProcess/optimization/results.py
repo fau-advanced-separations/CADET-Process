@@ -215,6 +215,8 @@ class OptimizationResults(metaclass=StructMeta):
                     self.plot_corner(
                         show=show, plot_directory=self.plot_directory
                     )
+
+                if self.optimization_problem.n_objectives> 1:
                     self.plot_pareto(
                         show=show, plot_directory=self.plot_directory
                     )
