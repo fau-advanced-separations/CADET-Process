@@ -6,7 +6,7 @@ from CADETProcess.log import get_logger, log_time, log_results, log_exceptions
 from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import Bool, UnsignedFloat, UnsignedInteger
 from CADETProcess.processModel import Process
-from CADETProcess.stationarity import StationarityEvaluator, RelativeArea, SSE
+from CADETProcess.stationarity import StationarityEvaluator, RelativeArea, NRMSE
 
 
 class SimulatorBase(metaclass=StructMeta):
@@ -53,7 +53,7 @@ class SimulatorBase(metaclass=StructMeta):
         if stationarity_evaluator is None:
             self.stationarity_evaluator = StationarityEvaluator()
             self.stationarity_evaluator.add_criterion(RelativeArea())
-            self.stationarity_evaluator.add_criterion(SSE())
+            self.stationarity_evaluator.add_criterion(NRMSE())
         else:
             self.stationarity_evaluator = stationarity_evaluator
             self.evaluate_stationarity = True

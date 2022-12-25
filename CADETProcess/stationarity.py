@@ -19,13 +19,13 @@ class RelativeArea(CriterionBase):
     pass
 
 
-class SSE(CriterionBase):
+class NRMSE(CriterionBase):
     pass
 
 
 class StationarityEvaluator(Comparator):
     """Class for checking two succeding chromatograms for stationarity"""
-    valid_criteria = ['RelativeArea', 'SSE']
+    valid_criteria = ['RelativeArea', 'NRMSE']
 
     def __init__(
             self,
