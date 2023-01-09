@@ -558,7 +558,7 @@ class OptimizationProblem(metaclass=StructMeta):
                 name = str(evaluator)
 
         if name in self.evaluators_dict:
-            warnings.warn("Evaluator with same name already exists.")
+            raise CADETProcessError("Evaluator with same name already exists.")
 
         evaluator = Evaluator(
             evaluator,
