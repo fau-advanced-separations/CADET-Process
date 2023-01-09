@@ -1617,7 +1617,7 @@ class OptimizationProblem(metaclass=StructMeta):
                 remaining = []
                 for step in reversed(requires):
                     try:
-                        key = (eval_obj, step.id, str(x))
+                        key = (str(eval_obj), step.id, str(x))
                         result = self.cache.get(key)
                         self.logger.debug(
                             f'Got {str(step)} results from cache.'
