@@ -79,12 +79,11 @@ class ResultsCache():
         tag : str, optional
             Tag to associate with result. The default is None.
         """
-        if tag is not None:
-            self.tags[tag].append(key)
-
         if self.use_diskcache:
-            self.cache.set(key, value, expire=None)
+            self.cache.set(key, value, tag=tag, expire=None)
         else:
+            if tag is not None:
+                self.tags[tag].append(key)
             self.cache[key] = value
 
         if close:
@@ -139,13 +138,16 @@ class ResultsCache():
         tag : str, optional
             Tag to be removed. The default is 'temp'.
         """
-        keys = self.tags.pop(tag, [])
+        if self.use_diskcache:
+            self.cache.evict(tag)
+        else:
+            keys = self.tags.pop(tag, [])
 
-        for key in keys:
-            try:
-                self.delete(key, close=False)
-            except KeyError:
-                pass
+            for key in keys:
+                try:
+                    self.delete(key, close=False)
+                except KeyError:
+                    pass
 
         self.close()
 
