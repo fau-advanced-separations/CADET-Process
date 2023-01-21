@@ -68,6 +68,9 @@ class SolutionBase(metaclass=StructMeta):
     def update(self):
         pass
 
+    def update_transform(self):
+        pass
+
     @property
     def component_system(self):
         return self._component_system
@@ -703,8 +706,8 @@ class SolutionBulk(SolutionBase):
         """
         if not (self.ncol is None and self.nrad is None):
             raise CADETProcessError(
-                "Solution has more single dimension. Please use `plot_at_time`"
-                "or `plot_at_position`."
+                "Solution has more than single dimension. "
+                "Please use `plot_at_time` or `plot_at_position`."
             )
 
         solution = slice_solution(
@@ -1120,7 +1123,7 @@ class SolutionSolid(SolutionBase):
         """
         if not (self.ncol is None and self.nrad is None):
             raise CADETProcessError(
-                "Solution has more single dimension. "
+                "Solution has more than single dimension. "
                 "Please use `plot_at_time`."
             )
 
@@ -1360,8 +1363,10 @@ def _plot_solution_1D(
                 y_max_sec = max(max(y_comp), y_max_sec)
             else:
                 y_comp = c_total_comp[..., i]
-                y_min = min(min(y_comp), y_min)
-                y_max = max(max(y_comp), y_max)
+                y_min = np.min((np.min(y_comp), y_min))
+                y_max = np.max((np.max(y_comp), y_max))
+
+            y_comp = np.squeeze(y_comp)
 
             a.plot(
                 x, y_comp,
