@@ -424,6 +424,39 @@ class OptimizationProblem(metaclass=StructMeta):
         return self.variable_values
 
     @untransforms
+    def get_independent_values(self, x):
+        """Remove dependent values from x.
+
+        Parameters
+        ----------
+        x : list
+            (Transformed) Optimization variables values.
+
+        Raises
+        ------
+        CADETProcessError
+            If length of parameters does not match.
+
+        Returns
+        -------
+        x_independent : list
+            Values of all independent optimization variables.
+
+        """
+        if len(x) != self.n_variables:
+            raise CADETProcessError(
+                f'Expected {self.n_variables} value(s)'
+            )
+
+        x_independent = []
+
+        for variable, value in zip(self.variables, x):
+            if variable.isIndependent:
+                x_independent.append(value)
+
+        return x_independent
+
+    @untransforms
     def set_variables(self, x, evaluation_objects=-1):
         """Set the values from the x-vector to the EvaluationObjects.
 
