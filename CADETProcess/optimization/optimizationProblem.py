@@ -1410,7 +1410,10 @@ class OptimizationProblem(metaclass=StructMeta):
         x = self.untransform(ind.x)
 
         for callback in self.callbacks:
-            if not current_iteration % callback.frequency == 0:
+            if not (
+                    current_iteration == 'final'
+                    or
+                    current_iteration % callback.frequency == 0):
                 continue
 
             callback._ind = ind
@@ -1930,7 +1933,7 @@ class OptimizationProblem(metaclass=StructMeta):
         linear_equality_constraint
 
         """
-        del(self._linear_constraints[index])
+        del self._linear_constraints[index]
 
     @property
     def A(self):
@@ -2102,7 +2105,7 @@ class OptimizationProblem(metaclass=StructMeta):
         linear_equality_constraint
 
         """
-        del(self._linear_equality_constraints[index])
+        del self._linear_equality_constraints[index]
 
     @property
     def Aeq(self):
@@ -2348,11 +2351,12 @@ class OptimizationProblem(metaclass=StructMeta):
         log_space_indices = []
         for i, var in enumerate(self.variables):
             if (
-                    isinstance(var._transform, NormLogTransform) or
+                    isinstance(var._transform, NormLogTransform)
+                    or
                     (
                         isinstance(var._transform, AutoTransform) and
                         var._transform.use_log
-                        )
+                    )
             ):
                 log_space_indices.append(i)
 

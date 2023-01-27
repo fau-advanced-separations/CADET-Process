@@ -412,7 +412,7 @@ class FlowSheet(metaclass=StructMeta):
         ------
         Warning
             If Inlets have ingoing streams.
-            If Outlets have outgoint streams.
+            If Outlets have outgoing streams.
             If Units (other than Cstr) are not fully connected.
 
         Returns
