@@ -384,6 +384,18 @@ class Population():
             x = self.x_untransformed
             labels = self.variable_names
 
+        # To avoid error, remove dimensions where all entries are the same value.
+        singular_indices = []
+        singular_labels = []
+
+        for i, col in enumerate(x.transpose()):
+            if len(np.unique(col)) == 1:
+                singular_indices.append(i)
+                singular_labels.append(labels[i])
+
+        x = np.delete(x.transpose(), singular_indices, 0).transpose()
+        labels = [label for label in labels if label not in singular_labels]
+
         fig = corner.corner(
             x,
             labels=labels,
