@@ -251,6 +251,22 @@ class OptimizerBase(Structure):
 
         self.run(self.optimization_problem, x0, *args, **kwargs)
 
+        self.results.plot_figures(show=False)
+
+        for callback in self.optimization_problem.callbacks:
+            if self.optimization_problem.n_callbacks > 1:
+                _callbacks_dir = self.callbacks_dir / str(callback)
+            else:
+                _callbacks_dir = self.callbacks_dir
+            callback.cleanup(_callbacks_dir, 0)
+            callback._callbacks_dir = _callbacks_dir
+
+        self.optimization_problem.evaluate_callbacks_population(
+            self.results.meta_population,
+            'final',
+            n_cores=self.n_cores,
+        )
+
         self.results.time_elapsed = time.time() - start
 
         if delete_cache:
