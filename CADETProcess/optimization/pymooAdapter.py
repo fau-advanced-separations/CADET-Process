@@ -10,6 +10,8 @@ from pymoo.util.ref_dirs import get_reference_directions
 from pymoo.termination.default import DefaultMultiObjectiveTermination
 from pymoo.util.display.multi import MultiObjectiveOutput
 from pymoo.core.repair import Repair
+from pymoo.core.evaluator import Evaluator
+from pymoo.problems.static import StaticProblem
 
 from CADETProcess.dataStructure import UnsignedInteger, UnsignedFloat
 from CADETProcess.optimization import OptimizerBase
@@ -61,6 +63,8 @@ class PymooInterface(OptimizerBase):
         options
 
         """
+        self.remove_similar = False
+
         self.problem = PymooProblem(optimization_problem, self.n_cores)
 
         checkpoint_path = os.path.join(
@@ -78,18 +82,26 @@ class PymooInterface(OptimizerBase):
 
         n_gen = 1
         while self.algorithm.has_next():
-            self.algorithm.next()
+            # Get current generation
+            pop = self.algorithm.ask()
+            X = pop.get("X").tolist()
 
-            X = self.algorithm.pop.get("X").tolist()
-            F = self.algorithm.pop.get("F").tolist()
+            # Evaluate objectives and report results
+            self.algorithm.evaluator.eval(self.problem, pop)
+
+            F = pop.get("F").tolist()
             if self.optimization_problem.n_nonlinear_constraints > 0:
-                G = self.algorithm.pop.get("G").tolist()
+                G = pop.get("G").tolist()
             else:
                 G = len(X)*[None]
-            X_opt = self.algorithm.opt.get("X")
 
+            self.algorithm.tell(infills=pop)
+
+            # Post generation processing
+            X_opt = self.algorithm.opt.get("X").tolist()
             self.run_post_generation_processing(X, F, G, n_gen, X_opt)
 
+            # Store checkpoint
             with open(checkpoint_path, "wb") as dill_file:
                 self.algorithm.random_state = random.getstate()
                 dill.dump(self.algorithm, dill_file)
