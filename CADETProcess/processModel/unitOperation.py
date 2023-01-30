@@ -417,6 +417,7 @@ class TubularReactorBase(UnitBaseClass):
     diameter = UnsignedFloat()
     axial_dispersion = UnsignedFloat()
     flow_direction = Switch(valid=[-1, 1], default=1)
+    _initial_state = UnitBaseClass._initial_state + ['c']
     _parameter_names = UnitBaseClass._parameter_names + [
         'length', 'diameter',
         'axial_dispersion', 'flow_direction'
@@ -695,7 +696,7 @@ class LumpedRateModelWithoutPores(TubularReactorBase):
 
     c = DependentlySizedList(dep='n_comp', default=0)
     _q = DependentlySizedUnsignedList(dep='n_bound_states', default=0)
-    _initial_state = TubularReactorBase._initial_state + ['c', 'q']
+    _initial_state = TubularReactorBase._initial_state + ['q']
     _parameter_names = _parameter_names + _initial_state
 
     def __init__(self, *args, discretization_scheme='FV', **kwargs):
