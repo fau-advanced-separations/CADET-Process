@@ -1,7 +1,3 @@
-import os
-import random
-
-import dill
 import numpy as np
 
 from pymoo.core.problem import Problem
@@ -35,9 +31,7 @@ class PymooInterface(OptimizerBase):
         'seed', 'pop_size', 'xtol', 'cvtol', 'ftol', 'n_max_gen', 'n_max_evals',
     ]
 
-    def run(
-            self, optimization_problem, x0=None,
-            use_checkpoint=True, update_parameters=True):
+    def run(self, optimization_problem, x0=None):
         """Solve optimization problem using functional pymoo implementation.
 
         Parameters
@@ -46,11 +40,6 @@ class PymooInterface(OptimizerBase):
             DESCRIPTION.
         x0 : list, optional
             Initial population
-        use_checkpoint : bool, optional
-            If True, try continuing fom checkpoint. The default is True.
-        update_parameters : bool, optional
-            If True, update parameters when loading from checkpoint.
-            The default is True.
 
         Returns
         -------
@@ -85,29 +74,44 @@ class PymooInterface(OptimizerBase):
         elif len(pop) > self._population_size:
             pop = pop[0:self._population_size]
 
-        self.problem = PymooProblem(optimization_problem, self.n_cores)
+        problem = PymooProblem(optimization_problem, self.n_cores)
 
-        checkpoint_path = os.path.join(
-            self.results_directory, f'{optimization_problem.name}.checkpoint'
+        ref_dirs = get_reference_directions(
+            "energy",
+            optimization_problem.n_objectives,
+            self._population_size,
+            seed=1
         )
 
-        if use_checkpoint and os.path.isfile(checkpoint_path):
-            self.algorithm = self.load_checkpoint(
-                checkpoint_path, update_parameters
-            )
-            self.logger.info("Continue optimization from checkpoint.")
-        else:
-            random.seed(self.seed)
-            self.setup_algorithm()
+        algorithm = self._cls(
+            ref_dirs=ref_dirs,
+            pop_size=self._population_size,
+            sampling=pop,
+            repair=RepairIndividuals(optimization_problem),
+        )
+
+        termination = DefaultMultiObjectiveTermination(
+            xtol=self.xtol,
+            cvtol=self.cvtol,
+            ftol=self.ftol,
+            n_max_gen=self._max_number_of_generations,
+            n_max_evals=self.n_max_evals
+        )
+
+        algorithm.setup(
+            problem, termination=termination,
+            seed=self.seed, verbose=True, save_history=False,
+            output=MultiObjectiveOutput(),
+        )
 
         n_gen = 1
-        while self.algorithm.has_next():
+        while algorithm.has_next():
             # Get current generation
-            pop = self.algorithm.ask()
+            pop = algorithm.ask()
             X = pop.get("X").tolist()
 
             # Evaluate objectives and report results
-            self.algorithm.evaluator.eval(self.problem, pop)
+            algorithm.evaluator.eval(problem, pop)
 
             F = pop.get("F").tolist()
             if self.optimization_problem.n_nonlinear_constraints > 0:
@@ -115,16 +119,12 @@ class PymooInterface(OptimizerBase):
             else:
                 G = len(X)*[None]
 
-            self.algorithm.tell(infills=pop)
+            algorithm.tell(infills=pop)
 
             # Post generation processing
-            X_opt = self.algorithm.opt.get("X").tolist()
+            X_opt = algorithm.opt.get("X").tolist()
             self.run_post_generation_processing(X, F, G, n_gen, X_opt)
 
-            # Store checkpoint
-            with open(checkpoint_path, "wb") as dill_file:
-                self.algorithm.random_state = random.getstate()
-                dill.dump(self.algorithm, dill_file)
 
             n_gen += 1
 
@@ -139,27 +139,6 @@ class PymooInterface(OptimizerBase):
         self.results.exit_message = exit_message
 
         return self.results
-
-    def load_checkpoint(self, checkpoint_path=None, update_parameters=True):
-        if checkpoint_path is None:
-            try:
-                checkpoint_path = os.path.join(
-                    self.working_directory,
-                    f'{self.optimization_problem.name}.checkpoint'
-                )
-            except AttributeError:
-                raise ValueError("No Optimization Problem set, provide path!")
-
-        with open(checkpoint_path, "rb") as dill_file:
-            self.algorithm = dill.load(dill_file)
-
-        self.results = self.algorithm.results
-        random.setstate(self.algorithm.random_state)
-
-        if update_parameters:
-            self.update_algorithm(self.algorithm)
-
-        return self.algorithm
 
     @property
     def _population_size(self):
@@ -182,48 +161,6 @@ class PymooInterface(OptimizerBase):
             )
         else:
             return self.n_max_gen
-
-    def setup_algorithm(self, pop):
-        self.algorithm = self._cls(
-            ref_dirs=self.setup_ref_dirs(),
-            pop_size=self._population_size,
-            sampling=pop,
-            repair=RepairIndividuals(self.optimization_problem),
-        )
-
-        self.algorithm.setup(
-            self.problem, termination=self.setup_termination(),
-            seed=self.seed, verbose=True, save_history=False,
-            output=MultiObjectiveOutput(),
-        )
-
-        self.algorithm.results = self.results
-
-    def update_algorithm(self, algorithm):
-        algorithm.problem = self.problem
-        algorithm.pop_size = self._population_size
-        algorithm.termination.n_max_gen = \
-            self._max_number_of_generations
-        algorithm.termination.update(algorithm)
-
-    def setup_termination(self):
-        termination = DefaultMultiObjectiveTermination(
-            xtol=self.xtol,
-            cvtol=self.cvtol,
-            ftol=self.ftol,
-            n_max_gen=self._max_number_of_generations,
-            n_max_evals=self.n_max_evals
-        )
-        return termination
-
-    def setup_ref_dirs(self):
-        ref_dirs = get_reference_directions(
-            "energy",
-            self.optimization_problem.n_objectives,
-            self._population_size,
-            seed=1
-        )
-        return ref_dirs
 
 
 class NSGA2(PymooInterface):
