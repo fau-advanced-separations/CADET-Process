@@ -291,7 +291,7 @@ class Shape(DifferenceBase):
                 )
 
         self.peak_height = PeakHeight(
-            *args, normalize=True, normalize_metrics=normalize_metrics, **kwargs
+            *args, normalize=False, normalize_metrics=normalize_metrics, **kwargs
         )
 
         self.use_derivative = use_derivative
@@ -311,12 +311,12 @@ class Shape(DifferenceBase):
             )
 
             self.peak_der_min = PeakHeight(
-                self.reference_der, *args[1:],
+                self.reference_der, *args[1:], normalize=False,
                 find_minima=True, normalize_metrics=normalize_metrics,
                 **kwargs
             )
             self.peak_der_max = PeakHeight(
-                self.reference_der, *args[1:],
+                self.reference_der, *args[1:], normalize=False,
                 find_minima=False, normalize_metrics=normalize_metrics,
                 **kwargs
             )
