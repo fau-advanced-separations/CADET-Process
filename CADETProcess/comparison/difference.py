@@ -599,6 +599,121 @@ class Shape(DifferenceBase):
         )
 
 
+class ShapeFront(DifferenceBase):
+    @wraps(DifferenceBase.__init__)
+    def __init__(
+            self, *args,
+            use_derivative=True, normalize_metrics=True, normalization_factor=None,
+            **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if self.reference.n_comp > 1 and not self.use_total_concentration:
+            if self.components is not None and len(self.components) == 1:
+                pass
+            else:
+                raise CADETProcessError(
+                    "Shape currently only supports single component."
+                )
+
+        self.peak_height = PeakHeight(
+            *args, normalize=False, normalize_metrics=normalize_metrics, **kwargs
+        )
+
+        self.use_derivative = use_derivative
+        if use_derivative:
+            self.reference_der = self.reference.derivative
+            self.reference_der.resample(
+                start=self._reference.time[0],
+                end=self._reference.time[-1],
+                nt=len(self._reference.time)
+            )
+            self.reference_der_sliced = slice_solution(
+                self.reference_der,
+                None,
+                self.use_total_concentration,
+                self.use_total_concentration_components,
+                coordinates={'time': (self.start, self.end)}
+            )
+
+            self.peak_der_max = PeakHeight(
+                self.reference_der, *args[1:], normalize=False,
+                find_minima=False, normalize_metrics=normalize_metrics,
+                **kwargs
+            )
+
+        self.normalize_metrics = normalize_metrics
+        if normalization_factor is None:
+            normalization_factor = self.reference.time[-1]/10
+        self.normalization_factor = normalization_factor
+
+    @property
+    def n_metrics(self):
+        if self.use_derivative:
+            return 5
+        else:
+            return 3
+
+    @property
+    def labels(self):
+        labels = ['Pearson Correleation', 'Time offset', 'Peak Height']
+        if self.use_derivative:
+            labels += [
+                'Pearson Correlation Derivative',
+                'Peak Maximum Derivative'
+                ]
+        return labels
+
+    def _evaluate(self, solution):
+        """np.array: Shape similarity using pearson correlation.
+
+        Parameters
+        ----------
+        solution : SolutionIO
+            Concentration profile of simulation.
+
+        Note
+        ----
+        Currently only works for single component with one peak.
+
+        """
+        corr, offset_original = pearson(
+            self.reference.time,
+            self.reference.solution_interpolated.solutions[0],
+            solution.solution_interpolated.solutions[0],
+        )
+
+        peak_height = self.peak_height(solution, slice=False)
+
+        if self.normalize_metrics:
+            offset = squishify(
+                offset_original, target=0, normalization=self.normalization_factor
+            )
+        else:
+            offset = np.abs(offset_original)
+
+        if not self.use_derivative:
+            return np.array([corr, offset, peak_height[0]])
+
+        solution_der = solution.derivative
+        solution_der_sliced = self.slice_and_transform(solution_der)
+
+        corr_der = pearson_offset(
+            self.reference_der_sliced.time,
+            self.reference_der_sliced.solution_interpolated.solutions[0],
+            solution_der_sliced.solution_interpolated.solutions[0],
+            offset_original,
+        )
+
+        der_max = self.peak_der_max(solution_der_sliced, slice=False)
+
+        return np.array(
+            [
+                corr, offset, peak_height[0],
+                corr_der, der_max[0]
+            ]
+        )
+
+
 class PeakHeight(DifferenceBase):
     """Absolute difference in peak height difference metric.
 
