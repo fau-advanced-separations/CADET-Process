@@ -1,4 +1,5 @@
 from pathlib import Path
+import uuid
 
 import corner
 import numpy as np
@@ -7,7 +8,7 @@ from pymoo.visualization.scatter import Scatter
 
 from CADETProcess import CADETProcessError
 from CADETProcess import plotting
-from CADETProcess.optimization.individual import Individual
+from CADETProcess.optimization.individual import hash_array, Individual
 
 
 class Population():
@@ -25,8 +26,12 @@ class Population():
 
     """
 
-    def __init__(self):
+    def __init__(self, id=None):
         self._individuals = {}
+        if id is None:
+            self.id = uuid.uuid4()
+        else:
+            self.id = uuid.UUID(id)
 
     @property
     def dimensions(self):
@@ -86,7 +91,30 @@ class Population():
                 return
             else:
                 raise CADETProcessError("Individual already exists.")
-        self._individuals[tuple(individual.x)] = individual
+
+        self._individuals[individual.id] = individual
+
+    def remove_individual(self, individual):
+        """Remove individual from population.
+
+        Parameters
+        ----------
+        individual: Individual
+            Individual to be removed.
+
+        Raises
+        ------
+        TypeError
+            If individual is not an instance of Individual.
+        CADETProcessError
+            If individual is not in population.
+        """
+        if not isinstance(individual, Individual):
+            raise TypeError("Expected Individual")
+
+        if individual not in self:
+            raise CADETProcessError("Individual is not in population.")
+        self._individuals.pop(individual.id)
 
     def update(self, other):
         """Update Population with individuals of other Population.
@@ -110,28 +138,6 @@ class Population():
             raise CADETProcessError("Dimensions do not match")
 
         self._individuals.update(other._individuals)
-
-    def remove_individual(self, individual):
-        """Remove individual from population.
-
-        Parameters
-        ----------
-        individual: Individual
-            Individual to be removed.
-
-        Raises
-        ------
-        TypeError
-            If individual is not an instance of Individual.
-        CADETProcessError
-            If individual is not in population.
-        """
-        if not isinstance(individual, Individual):
-            raise TypeError("Expected Individual")
-
-        if individual not in self:
-            raise CADETProcessError("Individual is not in population.")
-        self._individuals.pop(tuple(individual.x))
 
     def remove_similar(self):
         """Remove similar individuals from population."""
@@ -420,9 +426,9 @@ class Population():
 
     def __contains__(self, other):
         if isinstance(other, Individual):
-            key = tuple(other.x)
-        elif isinstance(other, list):
-            key = tuple(other)
+            key = other.id
+        elif isinstance(other, (np.array, list)):
+            key = hash_array(other)
         else:
             key = None
 
@@ -432,14 +438,48 @@ class Population():
             return False
 
     def __getitem__(self, x):
-        x = tuple(x)
-        return self._individuals[x]
+        key = hash_array(x)
+
+        return self._individuals[key]
 
     def __len__(self):
         return self.n_individuals
 
     def __iter__(self):
         return iter(self.individuals)
+
+    def to_dict(self):
+        """Convert Population to a dictionary.
+        Returns
+        -------
+        dict
+            Population as a dictionary with individuals stored as list of dictionaries.
+        """
+        individuals_list = [ind.to_dict() for ind in self._individuals.values()]
+        return {
+            'individuals': individuals_list,
+            'id': str(self.id),
+        }
+
+    @classmethod
+    def from_dict(cls, data):
+        """Create Population from dictionary.
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary containing population data.
+
+        Returns
+        -------
+        Population
+            Population created from data.
+        """
+        population = cls(data['id'])
+        for individual_data in data['individuals']:
+            individual = Individual.from_dict(individual_data)
+            population.add_individual(individual)
+        return population
 
 
 class ParetoFront(Population):

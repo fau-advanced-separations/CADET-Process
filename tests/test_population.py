@@ -94,12 +94,13 @@ class TestPopulation(unittest.TestCase):
             )
 
         new_individual = Individual([9, 10], [3], [-1])
-
-        new_individual = Individual([9, 10], [3], [-1])
         with self.assertRaises(CADETProcessError):
             self.population.add_individual(new_individual)
 
         self.population_constr.add_individual(new_individual)
+
+        self.assertFalse(new_individual in self.population)
+        self.assertTrue(self.individual_1 in self.population_constr)
 
         x_expected = np.array([
             [1, 2],
@@ -173,6 +174,22 @@ class TestPopulation(unittest.TestCase):
     def test_plot(self):
         if enable_plot:
             pass
+
+    def test_to_dict(self):
+        # Test that Population can be converted to a dictionary
+        population_dict = self.population.to_dict()
+        individuals_list = population_dict['individuals']
+        self.assertEqual(len(individuals_list), 3)
+        self.assertEqual(population_dict['id'], str(self.population.id))
+
+    def test_from_dict(self):
+        # Test that a Population can be created from a dictionary
+        population_dict = self.population.to_dict()
+        new_population = Population.from_dict(population_dict)
+        self.assertEqual(new_population.id, self.population.id)
+        self.assertEqual(len(new_population), len(self.population))
+
+        self.assertTrue(self.individual_1 in new_population)
 
 
 class TestPareto(unittest.TestCase):

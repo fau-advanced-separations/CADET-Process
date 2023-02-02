@@ -1,7 +1,32 @@
+import hashlib
+
 import numpy as np
 
 from CADETProcess.dataStructure import StructMeta
-from CADETProcess.dataStructure import List, Bool
+from CADETProcess.dataStructure import Vector
+
+
+def hash_array(array):
+    """Compute a hash value for an array of floats using the sha256 hash function.
+
+    Parameters
+    ----------
+    array : numpy.ndarray
+        An array of floats.
+
+    Returns
+    -------
+    str
+        A hash value as a string of hexadecimal characters.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> hash_array(np.array([1, 2.0]))
+    '3dfc9d56e04dcd01590f48b1b57c9ed9fecb1e94e11d3c3f13cf0fd97b7a9f0f'
+    """
+    array = np.asarray(array)
+    return hashlib.sha256(array.tobytes()).hexdigest()
 
 
 class Individual(metaclass=StructMeta):
@@ -22,17 +47,15 @@ class Individual(metaclass=StructMeta):
     --------
     CADETProcess.optimization.Population
     """
-    x = List()
-    f = List()
-    g = List()
-    m = List()
-
-    feasible = Bool(default=True)
+    x = Vector()
+    f = Vector()
+    g = Vector()
+    m = Vector()
 
     def __init__(
             self,
             x,
-            f,
+            f=None,
             g=None,
             m=None,
             x_untransformed=None,
@@ -58,8 +81,19 @@ class Individual(metaclass=StructMeta):
         self.contraint_labels = contraint_labels
         self.meta_score_labels = meta_score_labels
 
+        self.id = hash_array(self.x)
+
+    @property
+    def is_evaluated(self):
+        """bool: Return True if individual has been evaluated. False otherwise."""
+        if self.f is None:
+            return False
+        else:
+            return True
+
     @property
     def is_feasible(self):
+        """bool: Return False if any constraint is not met. True otherwise."""
         if self.g is not None and np.any(np.array(self.g) > 0):
             return False
         else:
@@ -236,6 +270,39 @@ class Individual(metaclass=StructMeta):
         else:
             return f'{self.__class__.__name__}({self.x}, {self.f}, {self.g})'
 
-    @property
-    def id(self):
-        return hex(hash(self))[2:]
+    def to_dict(self):
+        """Converts individual to a dictionary.
+
+        Returns
+        -------
+        dict: A dictionary representation of the individual's attributes.
+        """
+        return {
+            "x": self.x,
+            "f": self.f,
+            "g": self.g,
+            "m": self.m,
+            "x_untransformed": self.x_untransformed,
+            "variable_names": self.variable_names,
+            "independent_variable_names": self.independent_variable_names,
+            "objective_labels": self.objective_labels,
+            "contraint_labels": self.contraint_labels,
+            "meta_score_labels": self.meta_score_labels,
+        }
+
+    @classmethod
+    def from_dict(cls, data):
+        """Create Individual from dictionary representation of its attributes.
+
+        Parameters
+        ----------
+        data : dict
+            A dictionary representation of the individual's attributes.
+
+        Returns
+        -------
+        individual
+            Individual idual created from the dictionary.
+        """
+
+        return cls(**data)

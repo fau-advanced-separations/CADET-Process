@@ -1,6 +1,15 @@
 import unittest
 
-from CADETProcess.optimization import Individual
+import numpy as np
+
+from CADETProcess.optimization import hash_array, Individual
+
+
+class TestHashArray(unittest.TestCase):
+    def test_hash_array(self):
+        array = np.array([1, 2.0])
+        expected_hash = 'dc91ce9a50ddc828740aa26743716897fdb2bb64f1db662fe263a59be56145ae'
+        self.assertEqual(hash_array(array), expected_hash)
 
 
 class TestIndividual(unittest.TestCase):
@@ -84,6 +93,54 @@ class TestIndividual(unittest.TestCase):
         self.assertFalse(
             self.individual_multi_2.is_similar(self.individual_multi_1, 1e-8)
         )
+
+    def test_to_dict(self):
+        data = self.individual_1.to_dict()
+
+        np.testing.assert_equal(data['x'], self.individual_1.x)
+        np.testing.assert_equal(data['f'], self.individual_1.f)
+        np.testing.assert_equal(data['g'], self.individual_1.g)
+        np.testing.assert_equal(data['m'], self.individual_1.m)
+        np.testing.assert_equal(
+            data['x_untransformed'], self.individual_1.x_untransformed
+        )
+        self.assertEqual(data['variable_names'], self.individual_1.variable_names)
+        self.assertEqual(
+            data['independent_variable_names'],
+            self.individual_1.independent_variable_names
+        )
+        self.assertEqual(data['objective_labels'], self.individual_1.objective_labels)
+        self.assertEqual(data['contraint_labels'], self.individual_1.contraint_labels)
+        self.assertEqual(data['meta_score_labels'], self.individual_1.meta_score_labels)
+
+    def test_from_dict(self):
+        data = self.individual_1.to_dict()
+        test_individual = Individual.from_dict(data)
+
+        np.testing.assert_equal(test_individual.x, self.individual_1.x)
+        np.testing.assert_equal(test_individual.f, self.individual_1.f)
+        np.testing.assert_equal(test_individual.g, self.individual_1.g)
+        np.testing.assert_equal(test_individual.m, self.individual_1.m)
+        np.testing.assert_equal(
+            test_individual.x_untransformed, self.individual_1.x_untransformed
+        )
+        self.assertEqual(
+            test_individual.variable_names, self.individual_1.variable_names
+        )
+        self.assertEqual(
+            test_individual.independent_variable_names,
+            self.individual_1.independent_variable_names
+        )
+        self.assertEqual(
+            test_individual.objective_labels, self.individual_1.objective_labels
+        )
+        self.assertEqual(
+            test_individual.contraint_labels, self.individual_1.contraint_labels
+        )
+        self.assertEqual(
+            test_individual.meta_score_labels, self.individual_1.meta_score_labels
+        )
+        self.assertEqual(test_individual.id, self.individual_1.id)
 
 
 if __name__ == '__main__':
