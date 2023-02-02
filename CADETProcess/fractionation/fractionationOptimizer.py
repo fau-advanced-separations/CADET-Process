@@ -63,7 +63,7 @@ class FractionationOptimizer():
             purity_required,
             components=None,
             use_total_concentration_components=True,
-            ignore_failed=True):
+            allow_empty_fractions=True):
         """Set up Fractionator for optimizing the fractionation times of Chromatograms.
 
         Parameters
@@ -76,9 +76,8 @@ class FractionationOptimizer():
             List of components to consider in the fractionation process.
         use_total_concentration_components: bool, optional
             If True, use the total concentration of the components. The default is True.
-        ignore_failed: bool, optional
-            If True, ignore cases where no areas were found with sufficient purity.
-            The default is True.
+        allow_empty_fractions: bool, optional
+            If True, allow empty fractions. The default is True.
 
         Returns
         -------
@@ -88,7 +87,7 @@ class FractionationOptimizer():
         Raises
         ------
         CADETProcessError
-            If no areas with sufficient purity were found and ignore_failed is False.
+            If no areas with sufficient purity were found and `ignore_failed` is False.
         """
         frac = Fractionator(
             simulation_results,
@@ -100,10 +99,16 @@ class FractionationOptimizer():
         frac.initial_values(purity_required)
         frac.process.lock = True
 
-        if len(frac.events) == 0:
-            if not ignore_failed:
+        if not allow_empty_fractions:
+            empty_fractions = []
+            for i, comp in enumerate(purity_required):
+                if comp > 0:
+                    if frac.fraction_pools[i].n_fractions == 0:
+                        empty_fractions.append(i)
+            if len(empty_fractions) != 0:
                 raise CADETProcessError(
-                    "No areas found with sufficient purity."
+                    "No areas found with sufficient purity for component(s) "
+                    f"{[str(frac.component_system[i]) for i in empty_fractions]}."
                 )
 
         return frac
@@ -206,6 +211,7 @@ class FractionationOptimizer():
             obj_fun=None,
             n_objectives=1,
             ignore_failed=True,
+            allow_empty_fractions=True,
             return_optimization_results=False):
         """Optimize the fractionation times w.r.t. purity constraints.
 
@@ -224,6 +230,8 @@ class FractionationOptimizer():
             If is None, the mass of all components is maximized.
         n_objectives : int, optional
             Number of objectives returned by obj_fun. The default is 1.
+        allow_empty_fractions: bool, optional
+            If True, allow empty fractions. The default is True.
         ignore_failed : bool, optional
             Ignore failed optimization and use initial values.
             The default is True.
@@ -269,7 +277,7 @@ class FractionationOptimizer():
             purity_required,
             components=components,
             use_total_concentration_components=use_total_concentration_components,
-            ignore_failed=ignore_failed
+            allow_empty_fractions=allow_empty_fractions
         )
 
         try:
