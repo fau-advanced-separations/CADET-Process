@@ -46,11 +46,17 @@ class Process(EventHandler):
 
         self._parameter_sensitivities = []
 
+        self._meta_information = Dict()
+
         super().__init__(*args, **kwargs)
 
     @property
     def n_comp(self):
         return self.flow_sheet.n_comp
+
+    @property
+    def meta_information(self):
+        return self._meta_information
 
     @property
     def component_system(self):
