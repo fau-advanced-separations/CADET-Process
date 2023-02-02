@@ -260,3 +260,6 @@ class ComponentSystem(metaclass=StructMeta):
 
     def __iter__(self):
         yield from self.components
+
+    def __getitem__(self, item):
+        return self._components[item]
