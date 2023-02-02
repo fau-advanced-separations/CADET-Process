@@ -312,6 +312,11 @@ class Fractionator(EventHandler):
         self._fractionation_states[chrom] = fractionation_state
 
     @property
+    def n_fractions_per_pool(self):
+        """list: number of fractions per pool."""
+        return [pool.n_fractions for pool in self.fraction_pools]
+
+    @property
     def fraction_pools(self):
         """List of the component and waste fraction pools.
 

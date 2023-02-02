@@ -104,6 +104,10 @@ class FractionPool(metaclass=StructMeta):
         return self._fractions
 
     @property
+    def n_fractions(self):
+        return len(self._fractions)
+
+    @property
     def volume(self):
         """Returns the sum of all fraction volumes in the fraction pool
 
