@@ -210,8 +210,8 @@ class FractionationOptimizer():
             ranking=1,
             obj_fun=None,
             n_objectives=1,
-            ignore_failed=True,
             allow_empty_fractions=True,
+            ignore_failed=False,
             return_optimization_results=False):
         """Optimize the fractionation times w.r.t. purity constraints.
 
@@ -234,7 +234,7 @@ class FractionationOptimizer():
             If True, allow empty fractions. The default is True.
         ignore_failed : bool, optional
             Ignore failed optimization and use initial values.
-            The default is True.
+            The default is False.
         return_optimization_results : bool, optional
             If True, return optimization results.
             Otherwise, return fractionation object.
@@ -284,7 +284,7 @@ class FractionationOptimizer():
             opt = self.setup_optimization_problem(
                 frac, purity_required, ranking, obj_fun, n_objectives
             )
-            self.optimizer.optimize(
+            results = self.optimizer.optimize(
                 opt,
                 save_results=False,
                 log_level=self.log_level,
@@ -297,8 +297,10 @@ class FractionationOptimizer():
             else:
                 raise CADETProcessError(str(e))
 
+        frac = opt.set_variables(results.x[0])[0]
+
         if return_optimization_results:
-            return self.optimizer.results
+            return results
         else:
             return frac
 
