@@ -86,6 +86,9 @@ class Component(metaclass=StructMeta):
     def molecular_weight(self):
         return [spec.molecular_weight for spec in self.molecular_weight]
 
+    def __str__(self):
+        return self.name
+
     def __iter__(self):
         yield from self.species
 
