@@ -470,6 +470,7 @@ class Population():
 
     def to_dict(self):
         """Convert Population to a dictionary.
+
         Returns
         -------
         dict
@@ -670,6 +671,7 @@ class ParetoFront(Population):
 
     def to_dict(self):
         """Convert ParetoFront to a dictionary.
+
         Returns
         -------
         dict

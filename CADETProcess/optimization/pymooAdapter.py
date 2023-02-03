@@ -1,3 +1,4 @@
+import time
 import warnings
 
 import numpy as np
@@ -9,6 +10,9 @@ from pymoo.util.display.multi import MultiObjectiveOutput
 from pymoo.core.repair import Repair
 from pymoo.algorithms.moo.nsga2 import NSGA2
 from pymoo.algorithms.moo.unsga3 import UNSGA3
+from pymoo.core.evaluator import Evaluator
+from pymoo.core.population import Population
+from pymoo.problems.static import StaticProblem
 
 from CADETProcess.dataStructure import UnsignedInteger, UnsignedFloat
 from CADETProcess.optimization import OptimizerBase
@@ -85,7 +89,7 @@ class PymooInterface(OptimizerBase):
             "energy",
             optimization_problem.n_objectives,
             pop_size,
-            seed=1  # [TODO]: restore from optimizer state (if from checkpoint)
+            seed=1,
         )
 
         algorithm = self._cls(
@@ -111,7 +115,42 @@ class PymooInterface(OptimizerBase):
             output=MultiObjectiveOutput(),
         )
 
-        n_gen = 1
+        if self.results.n_gen > 0:
+            pop = Population.new("X", self.results.population_last.x)
+            pop = Evaluator().eval(
+                StaticProblem(
+                    problem,
+                    F=self.results.population_last.f,
+                    G=self.results.population_last.g
+                ),
+                pop
+            )
+            algorithm.pop = pop
+
+            opt = Population.new("X", self.results.pareto_front.x)
+            opt = Evaluator().eval(
+                StaticProblem(
+                    problem,
+                    F=self.results.pareto_front.f,
+                    G=self.results.pareto_front.g
+                ),
+                opt
+            )
+            algorithm.opt = opt
+
+            # Re-initialize Algorithm
+            algorithm.start_time = time.time()
+            algorithm.off = pop
+            algorithm.n_gen = self.results.n_gen + 1
+            algorithm.evaluator.n_evals = self.results.n_evals
+            algorithm._initialize_advance(infills=pop)
+            algorithm.is_initialized = True
+
+            algorithm.termination.update(algorithm)
+            algorithm.output.initialize(algorithm)
+
+            algorithm.ref_dirs = self.results.optimizer_state.ref_dirs
+
         while algorithm.has_next():
             # Get current generation
             pop = algorithm.ask()
@@ -130,11 +169,10 @@ class PymooInterface(OptimizerBase):
 
             # Post generation processing
             X_opt = algorithm.opt.get("X").tolist()
-            self.run_post_generation_processing(X, F, G, n_gen, X_opt)
+            self.results.optimizer_state.ref_dirs = algorithm.ref_dirs
+            self.run_post_generation_processing(X, F, G, algorithm.n_gen-1, X_opt)
 
-            n_gen += 1
-
-        if n_gen >= n_max_gen:
+        if algorithm.n_gen >= n_max_gen:
             exit_message = 'Max number of generations exceeded.'
             exit_flag = 1
         else:

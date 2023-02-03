@@ -53,11 +53,22 @@ class SciPyInterface(OptimizerBase):
             return optimization_problem.evaluate_objectives(x)[0]
 
         def callback_function(x, state=None):
+            """Internal callback to report progress after evaluation.
+
+            Note
+            ----
+            Currently, this evaluates all functions again. This should not be a problem
+            since objectives and constraints are automatically cached.
+
+            Unfortunately, only `trust-constr` returns a `state` which contains the
+            current best point. Hence, the internal pareto front is used.
+            """
+
             self.n_evals += 1
 
             x = x.tolist()
-            f = self.optimization_problem.evaluate_objectives(x)
-            g = self.optimization_problem.evaluate_nonlinear_constraints(x)
+            f = optimization_problem.evaluate_objectives(x)
+            g = optimization_problem.evaluate_nonlinear_constraints(x)
 
             self.run_post_evaluation_processing(x, f, g, self.n_evals)
 

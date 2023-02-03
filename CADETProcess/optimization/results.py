@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 cmap = plt.get_cmap('winter')
 import numpy as np
 
+from cadet import H5
 from CADETProcess import plotting
 from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import (
@@ -44,10 +45,13 @@ class OptimizationResults(metaclass=StructMeta):
         Last population.
     pareto_front : ParetoFront
         Pareto optimal solutions.
+    meta_front : ParetoFront
+        Reduced pareto optimal solutions using meta scores and multi-criteria decision
+        functions.
 
     """
-    exit_flag = UnsignedInteger(default=0)
-    exit_message = String(default='Unfinished')
+    exit_flag = UnsignedInteger()
+    exit_message = String()
     time_elapsed = UnsignedFloat()
 
     x = NdArray()
@@ -56,39 +60,51 @@ class OptimizationResults(metaclass=StructMeta):
     m = NdArray()
 
     def __init__(
-            self, optimization_problem, optimizer, results_directory=None,
-            cv_tol=1e-6):
+            self, optimization_problem, optimizer,
+            remove_similar=True, cv_tol=1e-6):
         self.optimization_problem = optimization_problem
         self.optimizer = optimizer
 
-        self.population_all = Population()
+        self._optimizer_state = Dict()
+
+        self._population_all = Population()
         self._populations = []
-        self.pareto_front = ParetoFront(cv_tol=cv_tol)
-        self._meta_population = None
+        self._remove_similar = remove_similar
+        self._cv_tol = cv_tol
+        self._pareto_fronts = []
 
-        self.progress = OptimizationProgress(optimization_problem)
-        self.has_finished = False
+        if optimization_problem.n_meta_scores > 0:
+            self._meta_fronts = []
+        else:
+            self._meta_fronts = None
 
-        self.results_directory = results_directory
+        self.results_directory = None
 
-        if self.results_directory is not None:
-            self.plot_directory = Path(self.results_directory / 'figures')
+    @property
+    def results_directory(self):
+        return self._results_directory
+
+    @results_directory.setter
+    def results_directory(self, results_directory):
+        if results_directory is not None:
+            results_directory = Path(results_directory)
+            self.plot_directory = Path(results_directory / 'figures')
             self.plot_directory.mkdir(exist_ok=True)
-            self.setup_csv('results_meta')
-            self.setup_csv('results_all')
         else:
             self.plot_directory = None
 
-    @property
-    def meta_population(self):
-        if self._meta_population is None:
-            return self.pareto_front
-        else:
-            return self._meta_population
+        self._results_directory = results_directory
 
-    @meta_population.setter
-    def meta_population(self, meta_population):
-        self._meta_population = meta_population
+    @property
+    def is_finished(self):
+        if self.exit_flag is None:
+            return False
+        else:
+            return True
+
+    @property
+    def optimizer_state(self):
+        return self._optimizer_state
 
     @property
     def populations(self):
@@ -97,6 +113,32 @@ class OptimizationResults(metaclass=StructMeta):
     @property
     def population_last(self):
         return self.populations[-1]
+
+    @property
+    def population_all(self):
+        return self._population_all
+
+    @property
+    def pareto_fronts(self):
+        return self._pareto_fronts
+
+    @property
+    def pareto_front(self):
+        return self._pareto_fronts[-1]
+
+    @property
+    def meta_fronts(self):
+        if self._meta_fronts is None:
+            return self.pareto_fronts
+        else:
+            return self._meta_fronts
+
+    @property
+    def meta_front(self):
+        if self._meta_fronts is None:
+            return self.pareto_front
+        else:
+            return self._meta_fronts[-1]
 
     def update_individual(self, individual):
         """Update Results.
@@ -137,88 +179,137 @@ class OptimizationResults(metaclass=StructMeta):
         self._populations.append(population)
         self.population_all.update(population)
 
-    def update_progress(self):
-        if len(self.populations) == 0:
-            n_evals = 1
-        else:
-            n_evals = len(self.populations[-1])
+    def update_pareto(self, pareto_new=None):
+        """Update pareto front with new population.
 
-        self.progress.update(
-            n_evals,
-            self.pareto_front.f_min,
-            self.pareto_front.g_min,
-            self.pareto_front.m_min,
-        )
+        Parameters
+        ----------
+        pareto_new : Population, optional
+            New pareto front. If None, update existing front with latest population.
+        """
+        pareto_front = ParetoFront(cv_tol=self._cv_tol)
+
+        if pareto_new is not None:
+            pareto_front.update_population(pareto_new)
+        else:
+            if len(self._pareto_fronts) > 0:
+                pareto_front.update_population(self.pareto_front)
+            pareto_front.update_population(self.population_last)
+
+        if self._remove_similar:
+            pareto_front.remove_similar()
+        self._pareto_fronts.append(pareto_front)
+
+    def update_meta(self, meta_front):
+        """Update meta front with new population.
+
+        Parameters
+        ----------
+        meta_front : Population
+            New meta front.
+        """
+        if self._remove_similar:
+            meta_front.remove_similar()
+        self._meta_fronts.append(meta_front)
+
+    @property
+    def n_evals(self):
+        """int: Number of evaluations."""
+        return sum([len(pop) for pop in self.populations])
+
+    @property
+    def n_gen(self):
+        """int: Number of generations."""
+        return len(self.populations)
 
     @property
     def x(self):
         """np.array: Optimal points."""
-        if self.meta_population is not None:
-            return self.meta_population.x
-        return self.pareto_front.x
+        return self.meta_front.x
 
     @property
     def x_untransformed(self):
         """np.array: Optimal points."""
-        if self.meta_population is not None:
-            return self.meta_population.x_untransformed
-        return self.pareto_front.x_untransformed
+        return self.meta_front.x_untransformed
 
     @property
     def f(self):
         """np.array: Optimal objective values."""
-        if self.meta_population is not None:
-            return self.meta_population.f
-        return self.pareto_front.f
+        return self.meta_front.f
 
     @property
     def g(self):
         """np.array: Optimal nonlinear constraint values."""
-        if self.meta_population is not None:
-            return self.meta_population.g
-        return self.pareto_front.g
+        return self.meta_front.g
 
     @property
     def m(self):
         """np.array: Optimal meta score values."""
-        if self.meta_population is not None:
-            return self.meta_population.m
-        return self.pareto_front.m
+        return self.meta_front.m
+
+    @property
+    def n_evals_history(self):
+        """int: Number of evaluations per generation."""
+        n_evals = [len(pop) for pop in self.populations]
+        return np.cumsum(n_evals)
+
+    @property
+    def f_min_history(self):
+        """np.array: Minimum objective values per generation."""
+        return np.array([pop.f_min for pop in self.meta_fronts])
+
+    @property
+    def g_min_history(self):
+        """np.array: Minimum nonlinera constraint values per generation."""
+        if self.optimization_problem.n_nonlinear_constraints == 0:
+            return None
+        else:
+            return np.array([pop.g_min for pop in self.meta_fronts])
+
+    @property
+    def m_min_history(self):
+        """np.array: Minimum meta score values per generation."""
+        if self.optimization_problem.n_meta_scores == 0:
+            return None
+        else:
+            return np.array([pop.m_min for pop in self.meta_fronts])
 
     def plot_figures(self, show=True):
-        if self.plot_directory is not None:
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
+        if self.plot_directory is None:
+            return
 
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+
+            self.plot_convergence(
+                'objectives',
+                show=show,
+                plot_directory=self.plot_directory
+            )
+            if self.optimization_problem.n_nonlinear_constraints > 0:
                 self.plot_convergence(
-                    'objectives',
+                    'nonlinear_constraints',
                     show=show,
                     plot_directory=self.plot_directory
                 )
-                if self.optimization_problem.n_nonlinear_constraints > 0:
-                    self.plot_convergence(
-                        'nonlinear_constraints',
-                        show=show,
-                        plot_directory=self.plot_directory
-                    )
-                if self.optimization_problem.n_meta_scores > 0:
-                    self.plot_convergence(
-                        'meta_scores',
-                        show=show,
-                        plot_directory=self.plot_directory
-                    )
-                self.plot_space(
+            if self.optimization_problem.n_meta_scores > 0:
+                self.plot_convergence(
+                    'meta_scores',
+                    show=show,
+                    plot_directory=self.plot_directory
+                )
+            self.plot_space(
+                show=show, plot_directory=self.plot_directory
+            )
+            if self.optimization_problem.n_variables > 1:
+                self.plot_corner(
                     show=show, plot_directory=self.plot_directory
                 )
-                if self.optimization_problem.n_variables > 1:
-                    self.plot_corner(
-                        show=show, plot_directory=self.plot_directory
-                    )
 
-                if self.optimization_problem.n_objectives> 1:
-                    self.plot_pareto(
-                        show=show, plot_directory=self.plot_directory
-                    )
+            if self.optimization_problem.n_objectives > 1:
+                self.plot_pareto(
+                    show=show, plot_directory=self.plot_directory
+                )
 
     def plot_space(
             self,
@@ -417,7 +508,58 @@ class OptimizationResults(metaclass=StructMeta):
     def save_results(self):
         if self.results_directory is not None:
             self.update_csv(self.population_last, 'results_all', mode='a')
-            self.update_csv(self.pareto_front, 'results_meta', mode='w')
+            self.update_csv(self.meta_front, 'results_meta', mode='w')
+
+            results = H5()
+            results.root = Dict(self.to_dict())
+            results.filename = self.results_directory / 'checkpoint.h5'
+            results.save()
+
+    def to_dict(self):
+        """Convert Results to a dictionary.
+
+        Returns
+        -------
+        addict.Dict
+            Results as a dictionary with populations stored as list of dictionaries.
+        """
+        data = Dict()
+        data.optimizer_state = self.optimizer_state
+        data.population_all_id = str(self.population_all.id)
+        data.populations = {i: pop.to_dict() for i, pop in enumerate(self.populations)}
+        data.population_all = self.population_all.to_dict()
+        data.pareto_fronts = {
+            i: front.to_dict() for i, front in enumerate(self.pareto_fronts)
+        }
+        if self._meta_fronts is not None:
+            data.meta_fronts = {
+                i: front.to_dict() for i, front in enumerate(self.meta_fronts)
+            }
+
+        return data
+
+    def update_from_dict(self, data):
+        """Update internal state from dictionary.
+
+        Parameters
+        ----------
+        data : dict
+            Serialized data.
+        """
+        self._optimizer_state = data['optimizer_state']
+        self._population_all = Population(id=data['population_all_id'])
+
+        for pop_dict in data['populations'].values():
+            pop = Population.from_dict(pop_dict)
+            self.update_population(pop)
+
+        self._pareto_fronts = [
+            ParetoFront.from_dict(d) for d in data['pareto_fronts'].values()
+        ]
+        if self._meta_fronts is not None:
+            self._meta_fronts = [
+                ParetoFront.from_dict(d) for d in data['meta_fronts'].values()
+            ]
 
     def setup_csv(self, file_name):
         """Create csv file for optimization results.
@@ -473,9 +615,13 @@ class OptimizationResults(metaclass=StructMeta):
             writer = csv.writer(csvfile, delimiter=",")
 
             for ind in population:
-                row = [ind.id, *ind.x_untransformed, *ind.f]
+                row = [
+                    ind.id,
+                    *ind.x_untransformed.tolist(),
+                    *ind.f.tolist()
+                ]
                 if ind.g is not None:
-                    row += ind.g
+                    row += ind.g.tolist()
                 if ind.m is not None:
-                    row += ind.m
+                    row += ind.m.tolist()
                 writer.writerow(row)

@@ -1,8 +1,10 @@
 from abc import abstractmethod
+import os
 from pathlib import Path
 import shutil
 import time
 
+from cadet import H5
 import matplotlib.pyplot as plt
 
 from CADETProcess import settings
@@ -43,6 +45,7 @@ class OptimizerBase(metaclass=StructMeta):
             x0=None,
             save_results=True,
             results_directory=None,
+            use_checkpoint=False,
             overwrite_results_directory=False,
             exist_ok=True,
             log_level="INFO",
@@ -63,11 +66,17 @@ class OptimizerBase(metaclass=StructMeta):
         results_directory : str, optional
             Results directory. If None, working directory is used.
             Only has an effect, if save_results == True.
+        use_checkpoint : bool, optional
+            If True, try continuing fom checkpoint. The default is True.
+            Only has an effect, if save_results == True.
         overwrite_results_directory : bool, optional
             If True, overwrite existing results directory. The default is False.
+        exist_ok : bool, optional
+            If False, Exception is raised when results_directory is not empty.
+            The default is True.
         log_level : str, optional
             log level. The default is "INFO".
-        delete_cache : bool, optional
+        reinit_cache : bool, optional
             If True, delete ResultsCache after finishing. The default is True.
         remove_similar : bool, optional
             If True, similar entries are removed from pareto front. The default is True.
@@ -95,8 +104,16 @@ class OptimizerBase(metaclass=StructMeta):
         CADETProcess.optimization.ResultsCache
 
         """
+        self.logger = log.get_logger(str(self), level=log_level)
+
+        # Check OptimizationProblem
         if not isinstance(optimization_problem, OptimizationProblem):
             raise TypeError('Expected OptimizationProblem')
+
+        if not optimization_problem.check():
+            raise CADETProcessError(
+                "OptimizationProblem is not configured correctly."
+            )
 
         if optimization_problem.n_objectives > 1 and not self.supports_multi_objective:
             raise CADETProcessError(
@@ -120,6 +137,14 @@ class OptimizerBase(metaclass=StructMeta):
 
         self.optimization_problem = optimization_problem
 
+        # Setup OptimizationResults
+        self.results = OptimizationResults(
+            optimization_problem=optimization_problem,
+            optimizer=self,
+            remove_similar=remove_similar,
+            cv_tol=self.cv_tol,
+        )
+
         if save_results:
             if results_directory is None:
                 results_directory = settings.working_directory / f"results_{optimization_problem.name}"
@@ -136,31 +161,36 @@ class OptimizerBase(metaclass=StructMeta):
                     "To continue using same directory, 'exist_ok=True'. "
                     "To overwrite, set 'overwrite_results_directory=True. "
                 )
-        self.results_directory = results_directory
 
-        if self.optimization_problem.n_callbacks > 0:
+            self.results.results_directory = results_directory
+
+            checkpoint_path = os.path.join(results_directory, 'checkpoint.h5')
+            if use_checkpoint and os.path.isfile(checkpoint_path):
+                self.logger.info("Continue optimization from checkpoint.")
+                data = H5()
+                data.filename = checkpoint_path
+                data.load()
+
+                self.results.update_from_dict(data)
+            else:
+                self.results.setup_csv('results_meta')
+                self.results.setup_csv('results_all')
+
+        # Setup Callbacks
+        if save_results and optimization_problem.n_callbacks > 0:
             callbacks_dir = results_directory / "callbacks"
             callbacks_dir.mkdir(exist_ok=True)
 
-            if self.optimization_problem.n_callbacks > 1:
-                for callback in self.optimization_problem.callbacks:
+            if optimization_problem.n_callbacks > 1:
+                for callback in optimization_problem.callbacks:
                     callback_dir = callbacks_dir / str(callback)
                     callback_dir.mkdir(exist_ok=True)
         else:
             callbacks_dir = None
         self.callbacks_dir = callbacks_dir
 
-        self.remove_similar = remove_similar
-        self.results = OptimizationResults(
-            optimization_problem=optimization_problem,
-            optimizer=self,
-            results_directory=self.results_directory,
-            cv_tol=self.cv_tol
-        )
-
         if reinit_cache:
-            optimization_problem.setup_cache()
-        self.logger = log.get_logger(str(self), level=log_level)
+            self.optimization_problem.setup_cache()
 
         log.log_time('Optimization', self.logger.level)(self.run)
         log.log_results('Optimization', self.logger.level)(self.run)
@@ -171,7 +201,7 @@ class OptimizerBase(metaclass=StructMeta):
 
         start = time.time()
 
-        self.run(optimization_problem, x0, *args, **kwargs)
+        self.run(self.optimization_problem, x0, *args, **kwargs)
 
         self.results.time_elapsed = time.time() - start
 
@@ -206,22 +236,19 @@ class OptimizerBase(metaclass=StructMeta):
         return
 
     def _run_post_processing(self, current_iteration):
-        if self.remove_similar:
-            self.results.pareto_front.remove_similar()
-
         if self.optimization_problem.n_multi_criteria_decision_functions > 0:
-            X_meta_population = \
+            pareto_front = self.results.pareto_front
+
+            X_meta_front = \
                 self.optimization_problem.evaluate_multi_criteria_decision_functions(
-                    self.results.pareto_front
+                    pareto_front
                 )
 
-            meta_population = Population()
-            for x in X_meta_population:
-                meta_population.add_individual(self.results.pareto_front[x])
+            meta_front = Population()
+            for x in X_meta_front:
+                meta_front.add_individual(pareto_front[x])
 
-            self.results.meta_population = meta_population
-
-        self.results.update_progress()
+            self.results.update_meta(meta_front)
 
         if current_iteration % self.progress_frequency == 0:
             self.results.plot_figures(show=False)
@@ -235,7 +262,7 @@ class OptimizerBase(metaclass=StructMeta):
             callback._callbacks_dir = _callbacks_dir
 
         self.optimization_problem.evaluate_callbacks_population(
-            self.results.meta_population,
+            self.results.meta_front,
             current_iteration,
             n_cores=self.n_cores,
         )
@@ -244,8 +271,7 @@ class OptimizerBase(metaclass=StructMeta):
 
         self.optimization_problem.prune_cache()
 
-    def run_post_evaluation_processing(
-            self, x, f, g, current_evaluation, x_opt=None):
+    def run_post_evaluation_processing(self, x, f, g, current_evaluation, x_opt=None):
         """Run post-processing of individual evaluation.
 
         Parameters
@@ -286,13 +312,14 @@ class OptimizerBase(metaclass=StructMeta):
 
         self.results.update_individual(ind)
 
-        if x_opt is not None:
+        if x_opt is None:
+            self.results.update_pareto()
+        else:
             pareto_front = Population()
             ind = self.results.population_all[x]
             pareto_front.add_individual(ind)
-            self.results.pareto_front = pareto_front
-        else:
-            self.results.pareto_front.update_individual(ind)
+
+            self.results.update_pareto(pareto_front)
 
         self._run_post_processing(current_evaluation)
 
@@ -355,15 +382,15 @@ class OptimizerBase(metaclass=StructMeta):
 
         self.results.update_population(population)
 
-        if X_opt is not None:
+        if X_opt is None:
+            self.results.update_pareto()
+        else:
             pareto_front = Population()
             for x in X_opt:
                 ind = self.results.population_all[x]
                 pareto_front.add_individual(ind)
 
-            self.results.pareto_front = pareto_front
-        else:
-            self.results.pareto_front.update_population(population)
+            self.results.update_pareto(pareto_front)
 
         self._run_post_processing(current_generation)
 

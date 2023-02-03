@@ -50,6 +50,7 @@ class Individual(metaclass=StructMeta):
     CADETProcess.optimization.Population
     """
     x = Vector()
+    x_untransformed = Vector()
     f = Vector()
     g = Vector()
     m = Vector()
