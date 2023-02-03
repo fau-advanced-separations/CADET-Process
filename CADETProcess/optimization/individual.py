@@ -271,7 +271,7 @@ class Individual(metaclass=StructMeta):
             return f'{self.__class__.__name__}({self.x}, {self.f}, {self.g})'
 
     def to_dict(self):
-        """Converts individual to a dictionary.
+        """Convert individual to a dictionary.
 
         Returns
         -------

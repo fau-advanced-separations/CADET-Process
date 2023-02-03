@@ -5,6 +5,17 @@ import numpy as np
 from CADETProcess.optimization import hash_array, Individual
 
 
+def setup_individual(n_vars=2, n_obj=1, n_nonlin=0):
+    x = np.random.random(n_vars)
+    f = -np.random.random(n_obj)
+    if n_nonlin > 0:
+        g = np.random.random(n_nonlin)
+    else:
+        g = None
+
+    return Individual(x, f, g)
+
+
 class TestHashArray(unittest.TestCase):
     def test_hash_array(self):
         array = np.array([1, 2.0])

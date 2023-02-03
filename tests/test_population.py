@@ -4,8 +4,18 @@ import numpy as np
 
 from CADETProcess import CADETProcessError
 from CADETProcess.optimization import Individual, Population, ParetoFront
-
+from test_individual import setup_individual
 enable_plot = False
+
+
+def setup_population(n_ind, n_vars, n_obj, n_nonlin):
+    population = Population()
+
+    for i in range(n_ind):
+        ind = setup_individual(n_vars, n_obj, n_nonlin)
+        population.add_individual(ind)
+
+    return population
 
 
 class TestPopulation(unittest.TestCase):

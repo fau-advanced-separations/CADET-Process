@@ -151,6 +151,29 @@ class Test_OptimizationVariable(unittest.TestCase):
             )
 
 
+def setup_dummy_eval_fun(n_metrics):
+    def dummy_eval_fun(x):
+        return np.random(n_metrics)
+
+    return dummy_eval_fun
+
+
+def setup_optimization_problem(n_vars=2, n_obj=1, n_nonlincon=0):
+    optimization_problem = OptimizationProblem('simple')
+
+    for i_var in range(n_vars):
+        optimization_problem.add_variable(f'var_{i_var}', lb=0, ub=1)
+
+    optimization_problem.add_objective(setup_dummy_eval_fun(n_obj), n_objectives=n_obj)
+
+    if n_nonlincon > 0:
+        optimization_problem.add_nonlinear_constraint(
+            setup_dummy_eval_fun(n_nonlincon), n_nonlinear_constraints=n_nonlincon
+        )
+
+    return optimization_problem
+
+
 class Test_OptimizationProblemSimple(unittest.TestCase):
     def __init__(self, methodName='runTest'):
         super().__init__(methodName)
@@ -158,28 +181,28 @@ class Test_OptimizationProblemSimple(unittest.TestCase):
     def setUp(self):
         optimization_problem = OptimizationProblem('simple')
 
-        optimization_problem.add_variable('foo', lb=0, ub=1)
-        optimization_problem.add_variable('bar', lb=0, ub=10)
+        optimization_problem.add_variable('var_0', lb=0, ub=1)
+        optimization_problem.add_variable('var_1', lb=0, ub=10)
 
         self.optimization_problem = optimization_problem
 
     def test_variable_names(self):
-        names_expected = ['foo', 'bar']
+        names_expected = ['var_0', 'var_1']
         names = self.optimization_problem.variable_names
         self.assertEqual(names_expected, names)
 
         # Variable already exists
         with self.assertRaises(CADETProcessError):
-            self.optimization_problem.add_variable('foo')
+            self.optimization_problem.add_variable('var_0')
 
     def test_bounds(self):
         lb_expected = [0, 0]
         lb = self.optimization_problem.lower_bounds
-        self.assertAlmostEqual(lb_expected, lb)
+        np.testing.assert_almost_equal(lb_expected, lb)
 
         ub_expected = [1, 10]
         ub = self.optimization_problem.upper_bounds
-        self.assertAlmostEqual(ub_expected, ub)
+        np.testing.assert_almost_equal(ub_expected, ub)
 
         # lb >= ub
         with self.assertRaises(ValueError):
@@ -191,24 +214,21 @@ class Test_OptimizationProblemLinCon(unittest.TestCase):
         super().__init__(methodName)
 
     def setUp(self):
-        optimization_problem = OptimizationProblem('simple')
-
-        optimization_problem.add_variable('foo', lb=0, ub=1)
-        optimization_problem.add_variable('bar', lb=0, ub=1)
+        optimization_problem = setup_optimization_problem()
 
         optimization_problem.add_linear_constraint(
-            ['foo', 'bar'], [1, -1]
+            ['var_0', 'var_1'], [1, -1]
         )
 
         self.optimization_problem = optimization_problem
 
     def test_add_linear_constraints(self):
-        self.optimization_problem.add_linear_constraint('foo')
-        self.optimization_problem.add_linear_constraint(['foo', 'bar'])
+        self.optimization_problem.add_linear_constraint('var_0')
+        self.optimization_problem.add_linear_constraint(['var_0', 'var_1'])
 
-        self.optimization_problem.add_linear_constraint(['foo', 'bar'], [2, 2])
+        self.optimization_problem.add_linear_constraint(['var_0', 'var_1'], [2, 2])
         self.optimization_problem.add_linear_constraint(
-            ['foo', 'bar'], [3, 3], 1
+            ['var_0', 'var_1'], [3, 3], 1
         )
 
         A_expected = np.array([
@@ -232,16 +252,16 @@ class Test_OptimizationProblemLinCon(unittest.TestCase):
 
         # Incorrect shape
         with self.assertRaises(CADETProcessError):
-            self.optimization_problem.add_linear_constraint('foo', [])
+            self.optimization_problem.add_linear_constraint('var_0', [])
 
     def test_initial_values(self):
-        x0_chebyshev_expected = [[0.29289322, 0.70710678]]
+        x0_chebyshev_expected = [[0.2928932, 0.7071068]]
         x0_chebyshev = self.optimization_problem.create_initial_values(
             1, method='chebyshev'
         )
         np.testing.assert_almost_equal(x0_chebyshev, x0_chebyshev_expected)
 
-        x0_seed_1_expected = [[0.566652437432882, 0.8499365450601801]]
+        x0_seed_1_expected = [[0.5666524, 0.8499365]]
         x0_seed_1 = self.optimization_problem.create_initial_values(
             1, method='random', seed=1
         )
