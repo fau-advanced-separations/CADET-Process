@@ -111,8 +111,6 @@ class OptimizationProblem(metaclass=StructMeta):
         self._multi_criteria_decision_functions = []
         self._callbacks = []
 
-        self._x0 = None
-
     def untransforms(func):
         @wraps(func)
         def wrapper(self, x, *args, untransform=False, **kwargs):
@@ -2194,48 +2192,6 @@ class OptimizationProblem(metaclass=StructMeta):
 
         return flag
 
-    @property
-    def x0(self):
-        """Initial values for optimization.
-
-        Expected to only contain untransformed independent variables.
-
-        Parameters
-        ----------
-        x0 : array_like
-            Initial values for optimization.
-
-        Raises
-        ------
-        CADETProcessError
-            If length of x0 does not match length of optimization variables.
-
-        """
-        return self._x0
-
-    @x0.setter
-    def x0(self, x0):
-        x0 = np.array(x0, ndmin=2)
-        if not x0.shape[-1] == len(self.independent_variables):
-            raise CADETProcessError(
-                "Starting value must be given for all variables"
-            )
-
-        for x in x0:
-            if not self.check_bounds(x, get_dependent_values=True):
-                raise CADETProcessError(f'{x} exceeds bounds')
-            if not self.check_linear_constraints(x, get_dependent_values=True):
-                raise CADETProcessError(f'{x} violates linear constraints')
-
-        if len(x0) == 1:
-            x0 = x0[0]
-
-        self._x0 = x0.tolist()
-
-    @property
-    def x0_transformed(self):
-        return self.transform(self.x0)
-
     def transform(self, x, enforce2d=False):
         x = np.array(x, ndmin=2)
         transform = np.zeros(x.shape)
@@ -2306,8 +2262,7 @@ class OptimizationProblem(metaclass=StructMeta):
         self.cache.prune()
 
     def create_initial_values(
-            self, n_samples=1, method='random', seed=None, burn_in=100000,
-            set_values=True):
+            self, n_samples=1, method='random', seed=None, burn_in=100000):
         """Create initial value within parameter space.
 
         Uses hopsy (Highly Optimized toolbox for Polytope Sampling) to retrieve
@@ -2327,8 +2282,6 @@ class OptimizationProblem(metaclass=StructMeta):
             Number of samples that are created to ensure uniform sampling.
             The actual initial values are then drawn from this set.
             The default is 100000.
-        set_values : bool, optional
-            If True, set the created values as x0. The default is True.
 
         Raises
         ------
@@ -2459,9 +2412,6 @@ class OptimizationProblem(metaclass=StructMeta):
                 if not self.check_linear_equality_constraints(ind, get_dependent_values=True):
                     continue
                 values.append(ind)
-
-        if set_values:
-            self.x0 = values
 
         return values
 

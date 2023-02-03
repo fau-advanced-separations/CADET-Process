@@ -40,6 +40,7 @@ class OptimizerBase(metaclass=StructMeta):
     def optimize(
             self,
             optimization_problem,
+            x0=None,
             save_results=True,
             results_directory=None,
             overwrite_results_directory=False,
@@ -55,6 +56,8 @@ class OptimizerBase(metaclass=StructMeta):
         ----------
         optimization_problem : OptimizationProblem
             OptimizationProblem to be solved.
+        x0 : list, optional
+            Initial values. If None, valid points are generated.
         save_results : bool, optional
             If True, save results. The default is True.
         results_directory : str, optional
@@ -168,7 +171,7 @@ class OptimizerBase(metaclass=StructMeta):
 
         start = time.time()
 
-        self.run(optimization_problem, *args, **kwargs)
+        self.run(optimization_problem, x0, *args, **kwargs)
 
         self.results.time_elapsed = time.time() - start
 

@@ -36,7 +36,7 @@ class PymooInterface(OptimizerBase):
     ]
 
     def run(
-            self, optimization_problem,
+            self, optimization_problem, x0=None,
             use_checkpoint=True, update_parameters=True):
         """Solve optimization problem using functional pymoo implementation.
 
@@ -44,6 +44,8 @@ class PymooInterface(OptimizerBase):
         ----------
         optimization_problem : OptimizationProblem
             DESCRIPTION.
+        x0 : list, optional
+            Initial population
         use_checkpoint : bool, optional
             If True, try continuing fom checkpoint. The default is True.
         update_parameters : bool, optional
@@ -63,6 +65,25 @@ class PymooInterface(OptimizerBase):
 
         """
         self.remove_similar = False
+
+        if x0 is not None:
+            pop = x0
+        else:
+            pop = optimization_problem.create_initial_values(
+                self._population_size, method='chebyshev', seed=self.seed
+            )
+            pop = optimization_problem.transform(pop)
+
+        pop = np.array(pop, ndmin=2)
+
+        if len(pop) < self._population_size:
+            n_remaining = self._population_size - len(pop)
+            remaining = optimization_problem.create_initial_values(
+                n_remaining, method='chebyshev', seed=self.seed
+            )
+            pop = np.vstack((pop, remaining))
+        elif len(pop) > self._population_size:
+            pop = pop[0:self._population_size]
 
         self.problem = PymooProblem(optimization_problem, self.n_cores)
 
@@ -162,26 +183,7 @@ class PymooInterface(OptimizerBase):
         else:
             return self.n_max_gen
 
-    def setup_algorithm(self):
-        if self.optimization_problem.x0 is not None:
-            pop = self.optimization_problem.x0_transformed
-        else:
-            pop = self.optimization_problem.create_initial_values(
-                self._population_size, method='chebyshev', seed=self.seed
-            )
-            pop = self.optimization_problem.transform(pop)
-
-        pop = np.array(pop, ndmin=2)
-
-        if len(pop) < self._population_size:
-            n_remaining = self._population_size - len(pop)
-            remaining = self.optimization_problem.create_initial_values(
-                n_remaining, method='chebyshev', seed=self.seed
-            )
-            pop = np.vstack((pop, remaining))
-        elif len(pop) > self._population_size:
-            pop = pop[0:self._population_size]
-
+    def setup_algorithm(self, pop):
         self.algorithm = self._cls(
             ref_dirs=self.setup_ref_dirs(),
             pop_size=self._population_size,
@@ -281,9 +283,7 @@ class RepairIndividuals(Repair):
         for i, ind in enumerate(Z):
             if not self.optimization_problem.check_linear_constraints(
                     ind, untransform=True, get_dependent_values=True):
-                x_new = self.optimization_problem.create_initial_values(
-                    method='random', set_values=False
-                )
+                x_new = self.optimization_problem.create_initial_values(method='random')
                 Z[i, :] = self.optimization_problem.transform(x_new)
 
         return Z

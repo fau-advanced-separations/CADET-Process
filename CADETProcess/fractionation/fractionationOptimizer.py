@@ -194,12 +194,12 @@ class FractionationOptimizer():
                         [evt_names[0], evt_names[-1]], [-1, 1], frac.cycle_time
                     )
 
-        opt.x0 = [evt.time for evt in frac.events]
+        x0 = [evt.time for evt in frac.events]
 
-        if not opt.check_nonlinear_constraints(opt.x0):
+        if not opt.check_nonlinear_constraints(x0):
             raise CADETProcessError("No areas found with sufficient purity.")
 
-        return opt
+        return opt, x0
 
     def optimize_fractionation(
             self,
@@ -281,11 +281,11 @@ class FractionationOptimizer():
         )
 
         try:
-            opt = self.setup_optimization_problem(
+            opt, x0 = self.setup_optimization_problem(
                 frac, purity_required, ranking, obj_fun, n_objectives
             )
             results = self.optimizer.optimize(
-                opt,
+                opt, x0,
                 save_results=False,
                 log_level=self.log_level,
                 delete_cache=True,

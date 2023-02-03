@@ -22,7 +22,7 @@ class SciPyInterface(OptimizerBase):
     tol = UnsignedFloat()
     jac = '2-point'
 
-    def run(self, optimization_problem):
+    def run(self, optimization_problem, x0=None):
         """Solve the optimization problem using any of the scipy methods.
 
         Returns
@@ -30,6 +30,8 @@ class SciPyInterface(OptimizerBase):
         results : OptimizationResults
             Optimization results including optimization_problem and solver
             configuration.
+        x0 : list, optional
+            Initial values.
 
         See Also
         --------
@@ -61,15 +63,15 @@ class SciPyInterface(OptimizerBase):
 
             return False
 
-        if optimization_problem.x0 is None:
-            optimization_problem.create_initial_values(1)
+        if x0 is None:
+            x0 = optimization_problem.create_initial_values(1, method='chebyshev')
 
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore', category=OptimizeWarning)
             warnings.filterwarnings('ignore', category=RuntimeWarning)
             scipy_results = optimize.minimize(
                 objective_function,
-                x0=optimization_problem.x0,
+                x0=x0,
                 method=str(self),
                 tol=self.tol,
                 jac=self.jac,
