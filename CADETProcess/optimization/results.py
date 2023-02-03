@@ -2,20 +2,21 @@ import csv
 from pathlib import Path
 import warnings
 
+from addict import Dict
 import matplotlib.colors as colors
 import matplotlib.cm as cmx
 import matplotlib.pyplot as plt
 cmap = plt.get_cmap('winter')
+import numpy as np
 
+from CADETProcess import plotting
 from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import (
     NdArray, String, UnsignedInteger, UnsignedFloat
 )
 
 from CADETProcess import CADETProcessError
-from CADETProcess.optimization import (
-    Individual, Population, ParetoFront, OptimizationProgress
-)
+from CADETProcess.optimization import Individual, Population, ParetoFront
 
 
 class OptimizationResults(metaclass=StructMeta):
@@ -43,8 +44,6 @@ class OptimizationResults(metaclass=StructMeta):
         Last population.
     pareto_front : ParetoFront
         Pareto optimal solutions.
-    progress : OptimizationProgress
-        Convergence information.
 
     """
     exit_flag = UnsignedInteger(default=0)
@@ -280,8 +279,143 @@ class OptimizationResults(metaclass=StructMeta):
         except AssertionError:
             pass
 
-    def plot_convergence(self, *args, **kwargs):
-        self.progress.plot_convergence(*args, **kwargs)
+    def setup_convergence_figure(self, target, plot_individual=False):
+        if target == 'objectives':
+            n = self.optimization_problem.n_objectives
+        elif target == 'nonlinear_constraints':
+            n = self.optimization_problem.n_nonlinear_constraints
+        elif target == 'meta_scores':
+            n = self.optimization_problem.n_meta_scores
+        else:
+            raise CADETProcessError("Unknown target.")
+
+        if n == 0:
+            return (None, None)
+
+        fig_all, axs_all = plt.subplots(
+            ncols=n,
+            figsize=(n*6 + 2, 6),
+            squeeze=False,
+        )
+        axs_all = axs_all.reshape((-1,))
+
+        plt.close(fig_all)
+
+        figs_ind = []
+        axs_ind = []
+        for i in range(n):
+            fig, ax = plt.subplots()
+            figs_ind.append(fig)
+            axs_ind.append(ax)
+            plt.close(fig)
+
+        axs_ind = np.array(axs_ind).reshape(axs_all.shape)
+
+        if plot_individual:
+            return figs_ind, axs_ind
+        else:
+            return fig_all, axs_all
+
+    def plot_convergence(
+            self,
+            target='objectives',
+            figs=None, axs=None,
+            plot_individual=False,
+            autoscale=True,
+            show=True,
+            plot_directory=None):
+
+        if axs is None:
+            figs, axs = self.setup_convergence_figure(target, plot_individual)
+
+        if not isinstance(figs, list):
+            figs = [figs]
+
+        layout = plotting.Layout()
+        layout.x_label = '$n_{Evaluations}$'
+
+        if target == 'objectives':
+            funcs = self.optimization_problem.objectives
+            values = self.f_min_history
+        elif target == 'nonlinear_constraints':
+            funcs = self.optimization_problem.nonlinear_constraints
+            values = self.g_min_history
+        elif target == 'meta_scores':
+            funcs = self.optimization_problem.meta_scores
+            values = self.m_min_history
+        else:
+            raise CADETProcessError("Unknown target.")
+
+        if len(funcs) == 0:
+            return
+
+        counter = 0
+        for func in funcs:
+            start = counter
+            stop = counter+func.n_metrics
+            v_func = values[:, start:stop]
+
+            for i_metric in range(func.n_metrics):
+                v_line = v_func[:, i_metric]
+
+                ax = axs[counter + i_metric]
+                lines = ax.get_lines()
+
+                if len(lines) > 0:
+                    lines[0].set_xdata(self.n_evals_history)
+                    lines[0].set_ydata(v_line)
+                else:
+                    ax.plot(self.n_evals_history, v_line)
+
+                layout.x_lim = (0, np.max(self.n_evals_history)+1)
+                layout.y_lim = (np.min(v_line), np.max(v_line))
+
+                try:
+                    label = func.labels[i_metric]
+                except AttributeError:
+                    label = f'{func}_{i_metric}'
+
+                y_min = np.nanmin(v_line)
+                y_max = np.nanmax(v_line)
+                y_lim = (0.9*y_min, 1.1*y_max)
+                layout.y_label = label
+                if autoscale and np.min(v_line) > 0:
+                    if np.max(v_line) / np.min(v_line[v_line > 0]) > 100.0:
+                        ax.set_yscale('log')
+                        layout.y_label = f"$log_{{10}}$({label})"
+                        y_lim = (y_min/2, y_max*2)
+                if y_min != y_max:
+                    layout.y_lim = y_lim
+
+                try:
+                    plotting.set_layout(ax, layout)
+                except ValueError:
+                    pass
+
+            counter += func.n_metrics
+
+        for fig in figs:
+            fig.tight_layout()
+            if not show:
+                plt.close(fig)
+            else:
+                dummy = plt.figure(figsize=fig.get_size_inches())
+                new_manager = dummy.canvas.manager
+                new_manager.canvas.figure = fig
+                fig.set_canvas(new_manager.canvas)
+                plt.show()
+
+        if plot_directory is not None:
+            plot_directory = Path(plot_directory)
+            if plot_individual:
+                for i, fig in enumerate(figs):
+                    fig.savefig(
+                        f'{plot_directory / target}_{i}.png'
+                    )
+            else:
+                figs[0].savefig(
+                    f'{plot_directory / target}.png'
+                )
 
     def save_results(self):
         if self.results_directory is not None:
