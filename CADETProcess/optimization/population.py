@@ -59,7 +59,10 @@ class Population():
 
     @property
     def variable_names(self):
-        return self.individuals[0].variable_names
+        if self.individuals[0].variable_names is None:
+            return [f'x_{i}' for i in range(self.n_x)]
+        else:
+            return self.individuals[0].variable_names
 
     @property
     def independent_variable_names(self):
@@ -400,11 +403,11 @@ class Population():
 
     def plot_corner(self, untransformed=True, show=True, plot_directory=None):
         if untransformed:
-            x = self.x
-            labels = self.independent_variable_names
-        else:
             x = self.x_untransformed
             labels = self.variable_names
+        else:
+            x = self.x
+            labels = self.independent_variable_names
 
         # To avoid error, remove dimensions where all entries are the same value.
         singular_indices = []
