@@ -2,6 +2,7 @@ import hashlib
 
 import numpy as np
 
+from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import Vector
 
@@ -143,6 +144,10 @@ class Individual(metaclass=StructMeta):
             corresponding objectives of "other" and at least one objective is
             strictly better. False otherwise
         """
+        if not self.is_evaluated:
+            raise CADETProcessError("Individual needs to be evaluated first.")
+        if not other.is_evaluated:
+            raise CADETProcessError("Other individual needs to be evaluated first.")
         if self.is_feasible and not other.is_feasible:
             return True
 
