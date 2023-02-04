@@ -1,4 +1,3 @@
-import importlib
 import os
 import random
 
@@ -10,8 +9,8 @@ from pymoo.util.ref_dirs import get_reference_directions
 from pymoo.termination.default import DefaultMultiObjectiveTermination
 from pymoo.util.display.multi import MultiObjectiveOutput
 from pymoo.core.repair import Repair
-from pymoo.core.evaluator import Evaluator
-from pymoo.problems.static import StaticProblem
+from pymoo.algorithms.moo.nsga2 import NSGA2
+from pymoo.algorithms.moo.unsga3 import UNSGA3
 
 from CADETProcess.dataStructure import UnsignedInteger, UnsignedFloat
 from CADETProcess.optimization import OptimizerBase
@@ -183,11 +182,7 @@ class PymooInterface(OptimizerBase):
         elif len(pop) > self._population_size:
             pop = pop[0:self._population_size]
 
-        module = importlib.import_module(
-            f'pymoo.algorithms.moo.{str(self).lower()}'
-        )
-        cls_ = getattr(module, str(self))
-        self.algorithm = cls_(
+        self.algorithm = self._cls(
             ref_dirs=self.setup_ref_dirs(),
             pop_size=self._population_size,
             sampling=pop,
@@ -230,11 +225,15 @@ class PymooInterface(OptimizerBase):
 
 
 class NSGA2(PymooInterface):
+    _cls = NSGA2
+
     def __str__(self):
         return 'NSGA2'
 
 
 class U_NSGA3(PymooInterface):
+    _cls = UNSGA3
+
     def __str__(self):
         return 'UNSGA3'
 
