@@ -34,6 +34,22 @@ class Population():
             self.id = uuid.UUID(id)
 
     @property
+    def n_x(self):
+        return self.individuals[0].n_x
+
+    @property
+    def n_f(self):
+        return self.individuals[0].n_f
+
+    @property
+    def n_g(self):
+        return self.individuals[0].n_g
+
+    @property
+    def n_m(self):
+        return self.individuals[0].n_m
+
+    @property
     def dimensions(self):
         """tuple: Individual dimensions (n_x, n_f, n_g, n_m)"""
         if self.n_individuals == 0:

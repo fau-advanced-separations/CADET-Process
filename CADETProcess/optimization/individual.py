@@ -100,18 +100,33 @@ class Individual(metaclass=StructMeta):
             return True
 
     @property
+    def n_x(self):
+        return len(self.x)
+
+    @property
+    def n_f(self):
+        if self.f is None:
+            return 0
+        return len(self.f)
+
+    @property
+    def n_g(self):
+        if self.g is None:
+            return 0
+        else:
+            return len(self.g)
+
+    @property
+    def n_m(self):
+        if self.m is None:
+            return 0
+        else:
+            return len(self.m)
+
+    @property
     def dimensions(self):
         """tuple: Individual dimensions (n_x, n_f, n_g)"""
-        if self.g is None:
-            g = 0
-        else:
-            g = len(self.g)
-        if self.m is None:
-            m = 0
-        else:
-            m = len(self.m)
-
-        return (len(self.x), len(self.f), g, m)
+        return (self.n_x, self.n_f, self.n_g, self.n_m)
 
     def dominates(self, other):
         """Determine if individual dominates other.
