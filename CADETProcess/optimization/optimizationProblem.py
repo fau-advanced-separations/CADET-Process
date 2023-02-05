@@ -1190,9 +1190,11 @@ class OptimizationProblem(metaclass=StructMeta):
         """
         self.logger.debug(f'Evaluate nonlinear constraints at {x}.')
 
-        f = self._evaluate_individual(self.nonlinear_constraints, x, force=False)
+        g = self._evaluate_individual(self.nonlinear_constraints, x, force=False)
 
-        return f
+        c = np.array(g) - np.array(self.nonlinear_constraints_bounds)
+
+        return c.tolist()
 
     @untransforms
     @ensures2d
