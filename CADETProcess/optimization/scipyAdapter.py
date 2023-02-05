@@ -226,7 +226,7 @@ class SciPyInterface(OptimizerBase):
         def makeConstraint(i):
             constr = optimize.NonlinearConstraint(
                 lambda x: opt.evaluate_nonlinear_constraints(x)[i],
-                lb=-np.inf, ub=0,
+                lb=-np.inf, ub=opt.nonlinear_constraints_bounds[i],
                 finite_diff_rel_step=self.finite_diff_rel_step,
                 keep_feasible=True
                 )

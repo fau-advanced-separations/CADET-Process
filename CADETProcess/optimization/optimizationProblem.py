@@ -1246,7 +1246,7 @@ class OptimizationProblem(metaclass=StructMeta):
         """
         c = np.array(self.evaluate_nonlinear_constraints(x))
 
-        if np.any(c > 0):
+        if np.any(c > self.nonlinear_constraints_bounds):
             return False
         return True
 
