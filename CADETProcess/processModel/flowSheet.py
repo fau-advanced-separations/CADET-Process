@@ -471,13 +471,6 @@ class FlowSheet(metaclass=StructMeta):
             True if units are configured correctly. False otherwise.
 
         """
-        if len(self.missing_parameters) == 0:
-            return True
-        else:
-            for param in self.missing_parameters:
-                warn(f'Missing parameter "{param}".')
-            return False
-
         flag = True
         for unit in self.units:
             if not unit.check_required_parameters():
