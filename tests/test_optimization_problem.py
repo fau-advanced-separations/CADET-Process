@@ -158,7 +158,11 @@ def setup_dummy_eval_fun(n_metrics):
     return dummy_eval_fun
 
 
-def setup_optimization_problem(n_vars=2, n_obj=1, n_nonlincon=0):
+def dummy_meta_score(f):
+    return np.sum(f)
+
+
+def setup_optimization_problem(n_vars=2, n_obj=1, n_nonlincon=0, n_meta=0):
     optimization_problem = OptimizationProblem('simple')
 
     for i_var in range(n_vars):
@@ -170,6 +174,9 @@ def setup_optimization_problem(n_vars=2, n_obj=1, n_nonlincon=0):
         optimization_problem.add_nonlinear_constraint(
             setup_dummy_eval_fun(n_nonlincon), n_nonlinear_constraints=n_nonlincon
         )
+
+    if n_meta > 0:
+        optimization_problem.add_meta_score(dummy_meta_score)
 
     return optimization_problem
 

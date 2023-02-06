@@ -1,5 +1,6 @@
 import hashlib
 
+from addict import Dict
 import numpy as np
 
 from CADETProcess import CADETProcessError
@@ -76,10 +77,20 @@ class Individual(metaclass=StructMeta):
 
         self.x_untransformed = x_untransformed
 
+        if isinstance(variable_names, np.ndarray):
+            variable_names = [s.decode() for s in variable_names]
         self.variable_names = variable_names
+        if isinstance(independent_variable_names, np.ndarray):
+            independent_variable_names = [s.decode() for s in independent_variable_names]
         self.independent_variable_names = independent_variable_names
+        if isinstance(objective_labels, np.ndarray):
+            objective_labels = [s.decode() for s in objective_labels]
         self.objective_labels = objective_labels
+        if isinstance(contraint_labels, np.ndarray):
+            contraint_labels = [s.decode() for s in contraint_labels]
         self.contraint_labels = contraint_labels
+        if isinstance(meta_score_labels, np.ndarray):
+            meta_score_labels = [s.decode() for s in meta_score_labels]
         self.meta_score_labels = meta_score_labels
 
         self.id = hash_array(self.x)
@@ -297,18 +308,25 @@ class Individual(metaclass=StructMeta):
         -------
         dict: A dictionary representation of the individual's attributes.
         """
-        return {
-            "x": self.x,
-            "f": self.f,
-            "g": self.g,
-            "m": self.m,
-            "x_untransformed": self.x_untransformed,
-            "variable_names": self.variable_names,
-            "independent_variable_names": self.independent_variable_names,
-            "objective_labels": self.objective_labels,
-            "contraint_labels": self.contraint_labels,
-            "meta_score_labels": self.meta_score_labels,
-        }
+        data = Dict()
+
+        data.x = self.x
+        data.f = self.f
+        if self.g is not None:
+            data.g = self.g
+        if self.m is not None:
+            data.m = self.m
+        data.x_untransformed = self.x_untransformed
+        data.variable_names = self.variable_names
+        data.independent_variable_names = self.independent_variable_names
+        if self.objective_labels is not None:
+            data.objective_labels = self.objective_labels
+        if self.contraint_labels is not None:
+            data.contraint_labels = self.contraint_labels
+        if self.meta_score_labels is not None:
+            data.meta_score_labels = self.meta_score_labels
+
+        return data
 
     @classmethod
     def from_dict(cls, data):

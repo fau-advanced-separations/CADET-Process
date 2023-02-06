@@ -1,6 +1,7 @@
 from pathlib import Path
 import uuid
 
+from addict import Dict
 import corner
 import numpy as np
 import matplotlib.pyplot as plt
@@ -474,11 +475,13 @@ class Population():
         dict
             Population as a dictionary with individuals stored as list of dictionaries.
         """
-        individuals_list = [ind.to_dict() for ind in self._individuals.values()]
-        return {
-            'individuals': individuals_list,
-            'id': str(self.id),
-        }
+        data = Dict()
+        data.id = str(self.id)
+
+        for i, ind in enumerate(self.individuals):
+            data.individuals[i] = ind.to_dict()
+
+        return data
 
     @classmethod
     def from_dict(cls, data):
@@ -494,8 +497,11 @@ class Population():
         Population
             Population created from data.
         """
-        population = cls(data['id'])
-        for individual_data in data['individuals']:
+        id = data['id']
+        if isinstance(id, bytes):
+            id = id.decode(encoding='utf=8')
+        population = cls(id)
+        for individual_data in data['individuals'].values():
             individual = Individual.from_dict(individual_data)
             population.add_individual(individual)
         return population
@@ -661,3 +667,40 @@ class ParetoFront(Population):
                     self.remove_individual(i)
                 except CADETProcessError:
                     pass
+
+    def to_dict(self):
+        """Convert ParetoFront to a dictionary.
+        Returns
+        -------
+        dict
+            ParetoFront as a dictionary with individuals stored as list of dictionaries.
+        """
+        front = super().to_dict()
+        front['similarity_tol'] = self.similarity_tol
+        front['cv_tol'] = self.cv_tol
+
+        return front
+
+    @classmethod
+    def from_dict(cls, data):
+        """Create ParetoFront from dictionary.
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary containing population data.
+
+        Returns
+        -------
+        ParetoFront
+            ParetoFront created from data.
+        """
+        id = data['id']
+        if isinstance(id, bytes):
+            id = id.decode(encoding='utf=8')
+        front = cls(data['similarity_tol'], data['cv_tol'], id)
+        for individual_data in data['individuals'].values():
+            individual = Individual.from_dict(individual_data)
+            front.add_individual(individual)
+
+        return front

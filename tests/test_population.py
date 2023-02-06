@@ -8,11 +8,14 @@ from test_individual import setup_individual
 enable_plot = False
 
 
-def setup_population(n_ind, n_vars, n_obj, n_nonlin):
+def setup_population(n_ind, n_vars, n_obj, n_nonlin=0, n_meta=0, rng=None):
     population = Population()
 
+    if rng is None:
+        rng = np.random.default_rng(12345)
+
     for i in range(n_ind):
-        ind = setup_individual(n_vars, n_obj, n_nonlin)
+        ind = setup_individual(n_vars, n_obj, n_nonlin, n_meta, rng)
         population.add_individual(ind)
 
     return population
@@ -53,6 +56,12 @@ class TestPopulation(unittest.TestCase):
         g = [0]
         self.individual_constr_2 = Individual(x, f, g)
 
+        x = [2, 3]
+        f = [-2, -2]
+        g = [0]
+        m = [-4]
+        self.individual_multi_meta_1 = Individual(x, f, m=m)
+
         self.population = Population()
         self.population.add_individual(self.individual_1)
         self.population.add_individual(self.individual_2)
@@ -65,6 +74,32 @@ class TestPopulation(unittest.TestCase):
         self.population_constr = Population()
         self.population_constr.add_individual(self.individual_constr_1)
         self.population_constr.add_individual(self.individual_constr_2)
+
+        self.population_meta = Population()
+        self.population_meta.add_individual(self.individual_multi_meta_1)
+
+    def test_dimensions(self):
+        dimensions_expected = (2, 1, 0, 0)
+        dimensions = self.population.dimensions
+        self.assertEqual(dimensions, dimensions_expected)
+
+        self.assertEqual(2, self.population.n_x)
+        self.assertEqual(1, self.population.n_f)
+        self.assertEqual(0, self.population.n_g)
+        self.assertEqual(0, self.population.n_m)
+
+        dimensions_expected = (2, 1, 1, 0)
+        dimensions = self.population_constr.dimensions
+        self.assertEqual(dimensions, dimensions_expected)
+
+        dimensions_expected = (2, 1, 1, 0)
+        dimensions = self.population_constr.dimensions
+        self.assertEqual(dimensions, dimensions_expected)
+
+        self.assertEqual(2, self.population_meta.n_x)
+        self.assertEqual(2, self.population_meta.n_f)
+        self.assertEqual(0, self.population_meta.n_g)
+        self.assertEqual(1, self.population_meta.n_m)
 
     def test_values(self):
         x_expected = np.array([
