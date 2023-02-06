@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 
 from pymoo.core.problem import Problem
@@ -55,46 +57,51 @@ class PymooInterface(OptimizerBase):
         """
         self.remove_similar = False
 
+        pop_size = self.get_population_size(optimization_problem)
+
         if x0 is not None:
             pop = x0
         else:
             pop = optimization_problem.create_initial_values(
-                self._population_size, method='chebyshev', seed=self.seed
+                pop_size, method='chebyshev', seed=self.seed
             )
             pop = optimization_problem.transform(pop)
 
         pop = np.array(pop, ndmin=2)
 
-        if len(pop) < self._population_size:
-            n_remaining = self._population_size - len(pop)
+        if len(pop) < pop_size:
+            n_remaining = pop_size - len(pop)
             remaining = optimization_problem.create_initial_values(
                 n_remaining, method='chebyshev', seed=self.seed
             )
             pop = np.vstack((pop, remaining))
-        elif len(pop) > self._population_size:
-            pop = pop[0:self._population_size]
+        elif len(pop) > pop_size:
+            warnings.warn("Initial population larger than popsize. Omitting overhead.")
+            pop = pop[0:pop_size]
 
         problem = PymooProblem(optimization_problem, self.n_cores)
 
         ref_dirs = get_reference_directions(
             "energy",
             optimization_problem.n_objectives,
-            self._population_size,
-            seed=1
+            pop_size,
+            seed=1  # [TODO]: restore from optimizer state (if from checkpoint)
         )
 
         algorithm = self._cls(
             ref_dirs=ref_dirs,
-            pop_size=self._population_size,
+            pop_size=pop_size,
             sampling=pop,
             repair=RepairIndividuals(optimization_problem),
         )
+
+        n_max_gen = self.get_max_number_of_generations(optimization_problem)
 
         termination = DefaultMultiObjectiveTermination(
             xtol=self.xtol,
             cvtol=self.cvtol,
             ftol=self.ftol,
-            n_max_gen=self._max_number_of_generations,
+            n_max_gen=n_max_gen,
             n_max_evals=self.n_max_evals
         )
 
@@ -114,7 +121,7 @@ class PymooInterface(OptimizerBase):
             algorithm.evaluator.eval(problem, pop)
 
             F = pop.get("F").tolist()
-            if self.optimization_problem.n_nonlinear_constraints > 0:
+            if optimization_problem.n_nonlinear_constraints > 0:
                 G = pop.get("G").tolist()
             else:
                 G = len(X)*[None]
@@ -125,10 +132,9 @@ class PymooInterface(OptimizerBase):
             X_opt = algorithm.opt.get("X").tolist()
             self.run_post_generation_processing(X, F, G, n_gen, X_opt)
 
-
             n_gen += 1
 
-        if n_gen >= self._max_number_of_generations:
+        if n_gen >= n_max_gen:
             exit_message = 'Max number of generations exceeded.'
             exit_flag = 1
         else:
@@ -140,24 +146,22 @@ class PymooInterface(OptimizerBase):
 
         return self.results
 
-    @property
-    def _population_size(self):
+    def get_population_size(self, optimization_problem):
         if self.pop_size is None:
             return min(
                 400, max(
-                    50*self.optimization_problem.n_independent_variables, 50
+                    50*optimization_problem.n_independent_variables, 50
                 )
             )
         else:
             return self.pop_size
 
-    @property
-    def _max_number_of_generations(self):
+    def get_max_number_of_generations(self, optimization_problem):
         if self.n_max_gen is None:
             return min(
                 100, max(
-                    10*self.optimization_problem.n_independent_variables, 40
-                    )
+                    10*optimization_problem.n_independent_variables, 40
+                )
             )
         else:
             return self.n_max_gen
