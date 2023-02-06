@@ -2428,6 +2428,23 @@ class OptimizationProblem(metaclass=StructMeta):
 
         return parameters
 
+    def check(self):
+        """Check if OptimizationProblem is configured correctly.
+
+        Returns
+        -------
+        flag : bool
+            True if OptimizationProblem is configured correctly. False otherwise.
+
+        """
+        flag = True
+        if self.n_variables == 0:
+            flag = False
+        if self.n_objectives == 0:
+            flag = False
+
+        return flag
+
     def __str__(self):
         return self.name
 
