@@ -89,7 +89,7 @@ if __name__ == '__main__':
 
     from CADETProcess.plotting import SecondaryAxis
     sec = SecondaryAxis()
-    sec.component_indices = [0]
+    sec.components = ['Salt']
     sec.y_label = '$c_{salt}$'
-
+    # %%
     simulation_results.solution.column.outlet.plot(secondary_axis=sec)

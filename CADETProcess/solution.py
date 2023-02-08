@@ -1348,21 +1348,19 @@ def _plot_solution_1D(
         else:
             label = comp.name
 
-        if secondary_axis is not None \
-                and i in secondary_axis.component_indices:
+        if secondary_axis is not None and comp.name in secondary_axis.components:
             a = ax_secondary
         else:
             a = ax
 
         if plot_components:
-            if secondary_axis is not None \
-                    and secondary_axis.transform is not None \
-                    and i in secondary_axis.components:
-                y_comp = secondary_axis.transform(c_total_comp[..., i])
+            y_comp = c_total_comp[..., i]
+            if secondary_axis is not None and comp.name in secondary_axis.components:
+                if secondary_axis.transform is not None:
+                    y_comp = secondary_axis.transform(y_comp)
                 y_min_sec = min(min(y_comp), y_min_sec)
                 y_max_sec = max(max(y_comp), y_max_sec)
             else:
-                y_comp = c_total_comp[..., i]
                 y_min = np.min((np.min(y_comp), y_min))
                 y_max = np.max((np.max(y_comp), y_max))
 
@@ -1399,7 +1397,7 @@ def _plot_solution_1D(
 
                 if secondary_axis is not None \
                         and secondary_axis.transform is not None \
-                        and i in secondary_axis.components:
+                        and comp.name in secondary_axis.components:
                     y_spec = secondary_axis.transform(sol[..., species_index])
                     y_min_sec = min(min(y_spec), y_min_sec)
                     y_max_sec = max(max(y_spec), y_max_sec)
