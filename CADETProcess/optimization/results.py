@@ -368,7 +368,6 @@ class OptimizationResults(metaclass=StructMeta):
                     ax.plot(self.n_evals_history, v_line)
 
                 layout.x_lim = (0, np.max(self.n_evals_history)+1)
-                layout.y_lim = (np.min(v_line), np.max(v_line))
 
                 try:
                     label = func.labels[i_metric]
@@ -377,18 +376,16 @@ class OptimizationResults(metaclass=StructMeta):
 
                 y_min = np.nanmin(v_line)
                 y_max = np.nanmax(v_line)
-                y_lim = (0.9*y_min, 1.1*y_max)
                 layout.y_label = label
                 if autoscale and np.min(v_line) > 0:
                     if np.max(v_line) / np.min(v_line[v_line > 0]) > 100.0:
                         ax.set_yscale('log')
                         layout.y_label = f"$log_{{10}}$({label})"
-                        y_lim = (y_min/2, y_max*2)
-                if y_min != y_max:
-                    layout.y_lim = y_lim
 
                 try:
                     plotting.set_layout(ax, layout)
+                    ax.relim()
+                    ax.autoscale_view()
                 except ValueError:
                     pass
 
