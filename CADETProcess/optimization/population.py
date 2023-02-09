@@ -35,6 +35,22 @@ class Population():
             self.id = uuid.UUID(id)
 
     @property
+    def feasible(self):
+        """Population: Population containing only feasible individuals."""
+        pop = Population()
+        pop._individuals = {ind.id: ind for ind in self.individuals if ind.is_feasible}
+
+        return pop
+
+    @property
+    def infeasible(self):
+        """Population: Population containing only infeasible individuals."""
+        pop = Population()
+        pop._individuals = {ind.id: ind for ind in self.individuals if not ind.is_feasible}
+
+        return pop
+
+    @property
     def n_x(self):
         return self.individuals[0].n_x
 
