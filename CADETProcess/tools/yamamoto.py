@@ -8,6 +8,9 @@ from CADETProcess import CADETProcessError
 from CADETProcess.processModel import TubularReactorBase, StericMassAction
 
 
+__all__ = ['GradientExperiment', 'plot_experiments', 'YamamotoResults', 'fit_parameters']
+
+
 class GradientExperiment():
     def __init__(
             self, time, c_salt, c_protein, gradient_volume,
@@ -172,7 +175,7 @@ def fit_parameters(experiments, column):
     Parameters
     ----------
     experiments : list
-        DESCRIPTION.
+        List of GradientExperiments.
     column : Column
         Column object with binding model
 

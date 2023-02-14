@@ -67,6 +67,7 @@ class CompartmentBuilder(metaclass=StructMeta):
 
     @property
     def n_comp(self):
+        """int: Number of components."""
         return self.component_system.n_comp
 
     @property

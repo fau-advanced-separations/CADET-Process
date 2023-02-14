@@ -20,6 +20,9 @@ from CADETProcess.optimization import Individual, Population, ParetoFront
 from CADETProcess.optimization import OptimizationResults
 
 
+__all__ = ['OptimizerBase']
+
+
 class OptimizerBase(metaclass=StructMeta):
     """BaseClass for optimization solver APIs
 
@@ -28,7 +31,32 @@ class OptimizerBase(metaclass=StructMeta):
     OptimizationProblem configuration to the APIs configuration format and
     convert the results back to the CADET-Process format.
 
+    Attributes
+    ----------
+    supports_multi_objective : bool
+        True, if optimizer supports multi-objective optimization.
+    supports_linear_constraints : bool
+        True, if optimizer supports linear constraints.
+    supports_linear_equality_constraints : bool
+        True, if optimizer supports linear equality constraints.
+    supports_nonlinear_constraints : bool
+        True, if optimizer supports nonlinear constraints.
+    progress_frequency : int
+        Number of generations after which optimizer reports progress.
+        The default is 1.
+    n_cores : int, optional
+        The number of cores that the optimizer should use.
+        The default is 1.
+    cv_tol : float
+        Tolerance for constraint violation.
+        The default is 1e-6.
+    similarity_tol : UnsignedFloat
+        Tolerance for individuals to be considered similar.
+        Similar items are removed from the Pareto front to limit its size.
+        The default is None, indicating that all individuals should be kept.
+
     """
+
     supports_multi_objective = False
     supports_linear_constraints = False
     supports_linear_equality_constraints = False
@@ -440,6 +468,7 @@ class OptimizerBase(metaclass=StructMeta):
 
     @property
     def options(self):
+        """dict: Optimizer options."""
         return {opt: getattr(self, opt) for opt in self._options}
 
     def __str__(self):

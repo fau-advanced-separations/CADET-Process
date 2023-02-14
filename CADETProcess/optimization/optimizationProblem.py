@@ -36,11 +36,15 @@ from CADETProcess.optimization import ResultsCache
 
 @frozen_attributes
 class OptimizationProblem(metaclass=StructMeta):
-    """Class for configuring optimization problems
+    """Class for configuring optimization problems.
 
-    Defines lists, dictionaries and variables for creating an
-    OptimizationProblem. If no name is set it tries to set the name by the
-    evaluation_object name. An excepted AttributeError is ignored.
+    Stores information about
+    - optimization variables
+    - objectives
+    - linear and nonlinear constraints
+    - callbacks
+    - meta scores
+    - multi-criteria-decision functions
 
     Attributes
     ----------
@@ -70,6 +74,7 @@ class OptimizationProblem(metaclass=StructMeta):
         Multi criteria decision functions.
 
     """
+
     name = String()
 
     def __init__(
@@ -86,6 +91,9 @@ class OptimizationProblem(metaclass=StructMeta):
             Name of the optimization problem.
         use_diskcache : bool, optional
             If True, use diskcache to cache intermediate results. The default is True.
+        cache_directory : Path, optional
+            Path for results cache database. If None, `working_directory` is used.
+            Only has an effect if `use_diskcache` is True.
         log_level : {'DEBUG', INFO, WARN, ERROR, CRITICAL}, optional
             Log level. The default is 'INFO'.
 
@@ -112,6 +120,7 @@ class OptimizationProblem(metaclass=StructMeta):
         self._callbacks = []
 
     def untransforms(func):
+        """Untransform population or individual before calling function."""
         @wraps(func)
         def wrapper(self, x, *args, untransform=False, **kwargs):
             """Untransform population or individual before calling function."""
@@ -733,10 +742,12 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def evaluators(self):
+        """list: Evaluators in OptimizationProblem."""
         return self._evaluators
 
     @property
     def evaluators_dict(self):
+        """dict: Evaluator objects indexed by name."""
         return {evaluator.name: evaluator for evaluator in self.evaluators}
 
     def add_evaluator(self, evaluator, name=None, cache=False, args=None, kwargs=None):
@@ -1392,6 +1403,9 @@ class OptimizationProblem(metaclass=StructMeta):
             Evaluators used for preprocessing.
             If None, no preprocessing is required.
             The default is None.
+        frequency : int, optional
+            Number of generations after which callback is evaluated.
+            The default is 1.
         callbacks_dir : Path, optional
             Dicretory to store results. If None, folder in working directory is
             created.
@@ -1413,7 +1427,6 @@ class OptimizationProblem(metaclass=StructMeta):
             If Evaluator is not found.
 
         """
-
         if not callable(callback):
             raise TypeError("Expected callable callback.")
 
@@ -1525,7 +1538,6 @@ class OptimizationProblem(metaclass=StructMeta):
         add_callback
         evaluate_callbacks
         """
-
         if not self.cache.use_diskcache and n_cores != 1:
             raise CADETProcessError(
                 "Cannot use dict cache for multiprocessing."
@@ -1724,7 +1736,6 @@ class OptimizationProblem(metaclass=StructMeta):
         _evaluate_individual
         _evaluate
         """
-
         results = self._evaluate_population(
             self.evaluate_meta_scores, population, force, n_cores
         )
@@ -1903,7 +1914,7 @@ class OptimizationProblem(metaclass=StructMeta):
     @untransforms
     @gets_dependent_values
     def check_bounds(self, x):
-        """Checks if all bound constraints are kept.
+        """Check if all bound constraints are kept.
 
         Parameters
         ----------
@@ -2165,7 +2176,7 @@ class OptimizationProblem(metaclass=StructMeta):
         self._linear_equality_constraints.append(lineqcon)
 
     def remove_linear_equality_constraint(self, index):
-        """Removes at given index the added linear equality constraint.
+        """Remove linear equality constraint.
 
         Parameters
         ----------
@@ -2293,6 +2304,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def cached_steps(self):
+        """list: Cached evaluation steps."""
         return \
             self.cached_evaluators + \
             self.objectives + \
@@ -2300,6 +2312,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def cache_directory(self):
+        """pathlib.Path: Path for results cache database."""
         if self._cache_directory is None:
             _cache_directory = settings.working_directory / f'diskcache_{self.name}'
         else:
@@ -2315,9 +2328,11 @@ class OptimizationProblem(metaclass=StructMeta):
         self._cache_directory = cache_directory
 
     def setup_cache(self):
+        """Setup cache to store (intermediate) results."""
         self.cache = ResultsCache(self.use_diskcache, self.cache_directory)
 
     def delete_cache(self, reinit=False):
+        """Delete cache with (intermediate) results."""
         try:
             self.cache.delete_database()
         except AttributeError:
@@ -2326,6 +2341,7 @@ class OptimizationProblem(metaclass=StructMeta):
             self.setup_cache()
 
     def prune_cache(self):
+        """Prune cache with (intermediate) results."""
         self.cache.prune()
 
     def create_initial_values(
@@ -2340,8 +2356,7 @@ class OptimizationProblem(metaclass=StructMeta):
         n_samples : int
             Number of initial values to be drawn
         method : str, optional
-            chebyshev: Return center of the minimal-radius ball enclosing the
-                entire set .
+            chebyshev: Return center of the minimal-radius ball enclosing the entire set .
             random: Any random valid point in the parameter space.
         seed : int, optional
             Seed to initialize random numbers. Only used if method == 'random'
@@ -2802,6 +2817,8 @@ class OptimizationVariable():
 
 
 class Evaluator(metaclass=StructMeta):
+    """Wrapper class to call evvaluator."""
+
     evaluator = Callable()
     args = Tuple()
     kwargs = Dict()
@@ -2841,6 +2858,8 @@ class Evaluator(metaclass=StructMeta):
 
 
 class Objective(metaclass=StructMeta):
+    """Wrapper class to evaluate objective functions."""
+
     objective = Callable()
     name = String()
     type = Switch(valid=['minimize', 'maximize'])
@@ -2931,6 +2950,8 @@ class Objective(metaclass=StructMeta):
 
 
 class NonlinearConstraint(metaclass=StructMeta):
+    """Wrapper class to evaluate nonlinear constraint functions."""
+
     nonlinear_constraint = Callable()
     name = String()
     n_nonlinear_constraints = RangedInteger(lb=1)
@@ -3020,9 +3041,9 @@ class NonlinearConstraint(metaclass=StructMeta):
 
 
 class Callback(metaclass=StructMeta):
-    """
+    """Wrapper class to evaluate callbacks.
 
-    Must implement function with the following signature:
+    Callable must implement function with the following signature:
         results : obj
             x or final result of evaluation toolchain.
         individual : Individual, optional
@@ -3124,6 +3145,8 @@ class Callback(metaclass=StructMeta):
 
 
 class MetaScore(metaclass=StructMeta):
+    """Wrapper class to evaluate meta scores."""
+
     meta_score = Callable()
     name = String()
     n_meta_scores = RangedInteger(lb=1)
@@ -3196,6 +3219,8 @@ class MetaScore(metaclass=StructMeta):
 
 
 class MultiCriteriaDecisionFunction(metaclass=StructMeta):
+    """Wrapper class to evaluate multi-criteria decision functions."""
+
     decision_function = Callable()
     name = String()
 

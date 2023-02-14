@@ -21,6 +21,9 @@ from CADETProcess import plotting
 from .section import Section, TimeLine, MultiTimeLine
 
 
+__all__ = ['EventHandler', 'Event', 'Duration']
+
+
 @frozen_attributes
 class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
     """Baseclass for handling Events that dynamically change parameters.
@@ -46,6 +49,7 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
     Duration
 
     """
+
     cycle_time = UnsignedFloat(default=np.inf)
 
     def __init__(self, *args, **kwargs):
@@ -99,6 +103,10 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
             List with factors for linear combination of dependencies.
         entry_index : int
             Index for events that only modify one entry of a parameter.
+        transforms : list, optional
+            List of functions used to transform the parameter value.
+            Length must be equal the length of independent events.
+            If None, no transform is applied.
 
         Raises
         ------
@@ -591,7 +599,7 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
 
 
 class Event():
-    """Class for defining dynamic changes.
+    """Class for defining dynamic changes of (model) parameters.
 
     An Event is defined by the performer whose attribute is to be changed to a
     certain state at a given time. The time can depend on other Events or
@@ -604,7 +612,7 @@ class Event():
         Name of the event.
     event_handler : EventHandler
         Reference to the object holding the performers and the cycle time.
-    parameter_path : str.
+    parameter_path : str
         Path of the evaluation_object parameter in dot notation.
     state : float
         Value of the attribute to be set by the event.
@@ -635,6 +643,23 @@ class Event():
     def __init__(
             self, name, event_handler,
             parameter_path, state, time=0.0, entry_index=None):
+        """Initialize the Event object.
+
+        Parameters
+        ----------
+        name : str
+            Name of the event.
+        event_handler : EventHandler
+            Reference to the object holding the performers and the cycle time.
+        parameter_path : str
+            Path of the evaluation_object parameter in dot notation.
+        state : float
+            Value of the attribute to be set by the event.
+        time : float, optional
+            Time at which the event is performed. Default is 0.0.
+        entry_index : int, optional
+            Index for events that only modify one entry of a parameter. Default is None.
+        """
         self.event_handler = event_handler
         self.parameter_path = parameter_path
         self.entry_index = entry_index
@@ -655,6 +680,7 @@ class Event():
 
     @property
     def parameter_path(self):
+        """str: Path of the evaluation_object parameter in dot notation."""
         return self._parameter_path
 
     @parameter_path.setter
@@ -672,6 +698,7 @@ class Event():
 
     @property
     def parameter_shape(self):
+        """tuple: Shape of the parameter array."""
         parameter = get_nested_value(
                 self.event_handler.parameters, self.parameter_sequence
             )
@@ -679,6 +706,7 @@ class Event():
 
     @property
     def entry_index(self):
+        """int: Index for events that only modify one entry of a parameter array."""
         return self._entry_index
 
     @entry_index.setter
@@ -694,10 +722,12 @@ class Event():
 
     @property
     def is_polynomial(self):
+        """bool: True if the event state is a polynomial, False otherwise."""
         return self._is_polynomial
 
     @property
     def degree(self):
+        """int: The degree of the polynomial event state."""
         if self.is_polynomial:
             state = np.array(self.state, ndmin=2)
             return state.shape[1] - 1
@@ -706,6 +736,7 @@ class Event():
 
     @property
     def n_entries(self):
+        """int: The number of entries in the event state."""
         if self.is_polynomial:
             state = np.array(self.state, ndmin=2)
             return state.shape[0]
@@ -719,31 +750,33 @@ class Event():
 
     @property
     def is_entry_specific(self):
+        """bool:  True if event modifies only one entry of the parameter array, False otherwise."""
         if self.entry_index is not None:
             return True
         else:
             return False
 
     def add_dependency(self, dependency, factor=1, transform=None):
-        """Add dependency of event time on other events.
+        r"""Add a dependency of the event time on another event.
 
-        The time of the event is determined with the following equation:
+        The time of the event is determined by the following equation:
 
-        ..math:: t = \sum_i^{n_{dep}} \lambda_i \cdot f_i(t_{dep,i})
+        .. math::
+            t = sum(i=1 to n_dep)(lambda_i * f_i(t_dep,i))
 
         Parameters
         ----------
         dependency : Event
-            Event object to be added as dependency.
+            The event object to be added as a dependency.
         factor : float, optional
-            Factor for the dependencies between to events. The default is 1.
-        transform: callable
-            Transform function for dependent variable.
+            The factor for the dependencies between two events. The default is 1.
+        transform : callable, optional
+            The transform function for the dependent variable. The default is None.
 
         Raises
         ------
         CADETProcessError
-            If the dependency already exists in list dependencies.
+            If the dependency already exists in the list of dependencies.
 
         """
         if dependency in self._dependencies:
@@ -807,9 +840,8 @@ class Event():
         """float: Time when the event is executed.
 
         If the value is larger than the cycle time, the time modulo cycle time
-        is returned.
-        If the Event is not independent, the time is calculated from its
-        dependencies.
+        is returned. If the Event is not independent, the time is calculated
+        from its dependencies.
 
         Raises
         ------
@@ -840,6 +872,7 @@ class Event():
 
     @property
     def state(self):
+        """{float, np.array): The state of the parameter event."""
         return self._state
 
     @state.setter
@@ -874,6 +907,7 @@ class Event():
 
     @property
     def performer(self):
+        """str: The name of the performer of the event."""
         if len(self.parameter_sequence) == 1:
             return self.parameter_sequence[0]
         else:
@@ -881,14 +915,7 @@ class Event():
 
     @property
     def parameters(self):
-        """Returns the parameters in a list.
-
-        Returns
-        -------
-        parameters : dict
-            list with all the parameters.
-
-        """
+        """dict: list with all parameters."""
         return Dict({
             param: getattr(self, param) for param in self._parameters
         })
@@ -931,14 +958,7 @@ class Duration():
 
     @property
     def parameters(self):
-        """Returns the parameters in a list.
-
-        Returns
-        -------
-        parameters : dict
-            list with all the parameters.
-
-        """
+        """dict: list with all parameters."""
         return Dict({
             param: getattr(self, param) for param in self._parameters
         })

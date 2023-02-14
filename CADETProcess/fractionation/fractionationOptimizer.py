@@ -11,6 +11,9 @@ from CADETProcess.optimization import COBYLA
 from CADETProcess.performance import Mass, Purity
 
 
+__all__ = ['FractionationOptimizer']
+
+
 class FractionationEvaluator():
     """Dummy Evaluator to enable caching."""
 

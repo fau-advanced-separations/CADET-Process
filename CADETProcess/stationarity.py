@@ -1,3 +1,21 @@
+"""
+======================================================
+Cyclic Stationarity (:mod:`CADETProcess.stationarity`)
+======================================================
+
+.. currentmodule:: CADETProcess.stationarity
+
+Module to evaluate cyclic stationarity of succeeding cycles.
+
+.. autosummary::
+    :toctree: generated/
+
+    RelativeArea
+    NRMSE
+    StationarityEvaluator
+
+"""
+
 from addict import Dict
 import numpy as np
 
@@ -5,7 +23,10 @@ from CADETProcess import log
 from CADETProcess.dataStructure import StructMeta, UnsignedFloat
 from CADETProcess import SimulationResults
 from CADETProcess.comparison import Comparator
-from CADETProcess.processModel import Source
+from CADETProcess.processModel import Inlet
+
+
+__all__ = ['RelativeArea', 'NRMSE', 'StationarityEvaluator']
 
 
 class CriterionBase(metaclass=StructMeta):
@@ -16,15 +37,20 @@ class CriterionBase(metaclass=StructMeta):
 
 
 class RelativeArea(CriterionBase):
+    """Class to evaluate difference in relative area as stationarity critereon."""
+
     pass
 
 
 class NRMSE(CriterionBase):
+    """Class to evaluate NRMSE as stationarity critereon."""
+
     pass
 
 
 class StationarityEvaluator(Comparator):
-    """Class for checking two succeding chromatograms for stationarity"""
+    """Class for checking two succeding chromatograms for stationarity."""
+
     valid_criteria = ['RelativeArea', 'NRMSE']
 
     def __init__(
@@ -32,6 +58,19 @@ class StationarityEvaluator(Comparator):
             criteria=None,
             log_level='WARNING',
             *args, **kwargs):
+        """Initialize the stationarity evaluator.
+
+        Parameters
+        ----------
+        criteria : List[CriterionBase], optional
+            List of criteria for stationarity evaluation, by default None
+        log_level : str, optional
+            The logging level, by default 'WARNING'
+        args : list
+            Additional arguments.
+        kwargs : dict
+            Additional keyword arguments.
+        """
         super().__init__(*args, **kwargs)
 
         self.logger = log.get_logger('StationarityEvaluator', level=log_level)
@@ -40,9 +79,18 @@ class StationarityEvaluator(Comparator):
 
     @property
     def criteria(self):
+        """list: List of criteria."""
         return self._criteria
 
     def add_criterion(self, criterion):
+        """Add a criterion to the list of criteria.
+
+        Parameters
+        ----------
+        criterion : CriterionBase
+            Criterion to add to the list of criteria.
+
+        """
         if not isinstance(criterion, CriterionBase):
             raise TypeError("Expected CriterionBase.")
 
@@ -59,7 +107,12 @@ class StationarityEvaluator(Comparator):
         Returns
         -------
         bool
-            True if stationarity is reached. False otherwise
+            True if stationarity is reached. False otherwise.
+
+        Raises
+        ------
+        TypeError
+            If simulation_results is not a SimulationResults object.
 
         """
         self._metrics = []
@@ -69,7 +122,7 @@ class StationarityEvaluator(Comparator):
 
         stationarity = True
         for unit, solution in simulation_results.solution_cycles.items():
-            if isinstance(simulation_results.process.flow_sheet[unit], Source):
+            if isinstance(simulation_results.process.flow_sheet[unit], Inlet):
                 continue
             solution_previous = solution.outlet[-2]
             solution_this = solution.outlet[-1]

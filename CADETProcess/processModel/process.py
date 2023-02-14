@@ -29,7 +29,7 @@ class Process(EventHandler):
     system_state_derivate : ndarray
         Derivative of the state
 
-    See also
+    See Also
     --------
     EventHandler
     CADETProcess.processModel.FlowSheet
@@ -292,13 +292,14 @@ class Process(EventHandler):
         ------
         CADETProcessError
             Number of indices do not match for:
-                - components
-                - polynomial_coefficients
-                - reaction
-                - bound_state
-                - sections
-                - tolerances
-                - factors
+            - components
+            - polynomial_coefficients
+            - reaction
+            - bound_state
+            - sections
+            - tolerances
+            - factors
+
             Component is not found.
             Unit is not found.
             Parameter is not found.
@@ -309,10 +310,9 @@ class Process(EventHandler):
         -----
         This functionality is still work in progress.
 
-        Todo
-        ----
-        - [ ] Check if compoment/reaction/polynomial index are required.
-        - [ ] Specify time instead of section index;
+        .. todo::
+            - [ ] Check if compoment/reaction/polynomial index are required.
+            - [ ] Specify time instead of section index;
 
         """
         if not isinstance(parameter_paths, list):
@@ -522,7 +522,43 @@ class Process(EventHandler):
         self.initial_state = config['initial_state']
 
     def add_concentration_profile(self, unit, time, c, component_index=None, s=1e-6):
-        if not isinstance(unit, Inlet):
+        """Add concentration profile to Process.
+
+        Parameters
+        ----------
+        unit : str
+            The name of the inlet unit operation.
+        time : np.ndarray
+            An array containing the time values of the concentration profile.
+        c : np.ndarray
+            An array containing the concentration profile. If `component_index`
+            is not provided, this array should have shape (len(time), self.n_comp).
+            If `component_index` is provided, this array should have shape (len(time),).
+        component_index : int, optional
+            An integer representing the index of the component to which the
+            concentration profile is being added. If `None`, the profile is added
+            to all components. If `-1`, the same profile is added to all components.
+            The default is `None`.
+        s : float, optional
+            A smoothing factor used to generate the spline representation of the
+            concentration profile. The default is 1e-6.
+
+        Raises
+        ------
+        TypeError
+            If the specified `unit` is not an Inlet unit operation.
+        ValueError
+            If the time values in `time` exceed the cycle time of the Process or
+            if `c` has an invalid shape.
+        CADETProcessError
+            If the number of components in `c` does not match the number of
+            components in the Process.
+
+        """
+        if isinstance(unit, str):
+            unit = self.flow_sheet[unit]
+
+        if unit not in self.flow_sheet.inlets:
             raise TypeError('Expected Inlet')
 
         if max(time) > self.cycle_time:
@@ -554,6 +590,27 @@ class Process(EventHandler):
                 )
 
     def add_flow_rate_profile(self, unit, time, flow_rate, s=1e-6):
+        """Add flow rate profile to a SourceMixin unit operation.
+
+        Parameters
+        ----------
+        unit : str
+            The name of the SourceMixin unit operation.
+        time : np.ndarray
+            An array containing the time values of the flow rate profile.
+        flow_rate : np.ndarray
+            An array containing the flow rate profile.
+        s : float, optional
+            A smoothing factor used to generate the spline representation of the
+            flow rate profile. The default is 1e-6.
+
+        Raises
+        ------
+        TypeError
+            If the specified `unit` is not a SourceMixin unit operation.
+        ValueError
+            If the time values in `time` exceed the cycle time of the Process.
+        """
         if isinstance(unit, str):
             unit = self.flow_sheet[unit]
 

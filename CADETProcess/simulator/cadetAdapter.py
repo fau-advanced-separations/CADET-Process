@@ -27,9 +27,22 @@ from CADETProcess.processModel import NoBinding, BindingBaseClass
 from CADETProcess.processModel import NoReaction, ReactionBaseClass
 from CADETProcess.processModel import NoDiscretization, DGMixin
 from CADETProcess.processModel import (
-    UnitBaseClass, Source, Cstr, TubularReactor, LumpedRateModelWithoutPores
+    UnitBaseClass, Inlet, Cstr, TubularReactor, LumpedRateModelWithoutPores
 )
 from CADETProcess.processModel import Process
+
+
+__all__ = [
+    'Cadet',
+    'ModelSolverParametersGroup',
+    'UnitParametersGroup',
+    'AdsorptionParametersGroup',
+    'ReactionParametersGroup',
+    'SolverParametersGroup',
+    'SolverTimeIntegratorParametersGroup',
+    'ReturnParametersGroup',
+    'SensitivityParametersGroup',
+]
 
 
 class Cadet(SimulatorBase):
@@ -69,6 +82,7 @@ class Cadet(SimulatorBase):
     CadetAPI
 
     """
+
     timeout = UnsignedFloat()
     use_c_api = Bool(default=False)
     _force_constant_flow_rate = False
@@ -101,7 +115,7 @@ class Cadet(SimulatorBase):
 
     @property
     def install_path(self):
-        """str: Path to the installation of CADET
+        """str: Path to the installation of CADET.
 
         Parameters
         ----------
@@ -116,7 +130,7 @@ class Cadet(SimulatorBase):
 
         See Also
         --------
-        check_cadet()
+        check_cadet
 
         """
         return self._install_path
@@ -161,7 +175,7 @@ class Cadet(SimulatorBase):
             os.environ['LD_LIBRARY_PATH'] = cadet_lib_path.as_posix()
 
     def check_cadet(self):
-        """Wrapper around a basic CADET example for testing functionality"""
+        """Check CADET installation can run basic LWE example."""
         executable = 'createLWE'
         if platform.system() == 'Windows':
             executable += '.exe'
@@ -203,7 +217,7 @@ class Cadet(SimulatorBase):
         return self.temp_dir / f'{f}.h5'
 
     def run(self, process, cadet=None, file_path=None):
-        """Interface to the solver run function
+        """Interface to the solver run function.
 
         The configuration is extracted from the process object and then saved
         as a temporary .h5 file. After termination, the same file is processed
@@ -783,7 +797,7 @@ class Cadet(SimulatorBase):
                 unit_config['reaction_model_particle'] = parameters['REACTION_MODEL']
                 unit_config['reaction_particle'].update(parameters)
 
-        if isinstance(unit, Source):
+        if isinstance(unit, Inlet):
             unit_config['sec_000']['const_coeff'] = unit.c[:, 0]
             unit_config['sec_000']['lin_coeff'] = unit.c[:, 1]
             unit_config['sec_000']['quad_coeff'] = unit.c[:, 2]
@@ -814,7 +828,7 @@ class Cadet(SimulatorBase):
                     if param_name == 'flow_rate':
                         continue
                     unit_index = process.flow_sheet.get_unit_index(unit)
-                    if isinstance(unit, Source) and param_name == 'c':
+                    if isinstance(unit, Inlet) and param_name == 'c':
                         self.add_inlet_section(
                             model_units, section_index, unit_index, state
                         )
@@ -1031,22 +1045,47 @@ from CADETProcess.dataStructure import ParametersGroup, ParameterWrapper
 class ModelSolverParametersGroup(ParametersGroup):
     """Converter for model solver parameters from CADETProcess to CADET.
 
+    Attributes
+    ----------
+    gs_type : {1, 0}, optional
+        Valid modes:
+        - 0: Classical Gram-Schmidet orthogonalization.
+        - 1: Modified Gram-Schmidt.
+        The default is 1.
+    max_krylov : int, optional
+        Size of the Krylov subspace in the iterative linear GMRES solver.
+        The default is 0.
+    max_restarts : int, optional
+        Maximum number of restarts in the GMRES algorithm. If lack of memory is not an
+        issue, better use a larger Krylov space than restarts.
+        The default is 10.
+    schur_safety : float, optional
+        Schur safety factor.
+        Influences the tradeoff between linear iterations and nonlinear error control
+        The default is 1e-8.
+    linear_solution_mode : int
+        Valid modes:
+        - 0: Automatically chose mode based on heuristic.
+        - 1: Solve system of models in parallel
+        - 2: Solve system of models sequentially (only possible for systems without cyclic connections)
+        The default is 0.
+
     See Also
     --------
     ParametersGroup
 
     """
-    GS_TYPE = UnsignedInteger(default=1, ub=1)
-    MAX_KRYLOV = UnsignedInteger(default=0)
-    MAX_RESTARTS = UnsignedInteger(default=10)
-    SCHUR_SAFETY = UnsignedFloat(default=1e-8)
-    LINEAR_SOLUTION_MODE = UnsignedInteger(default=2, ub=2)
+    gs_type = Switch(default=1, valid=[0, 1])
+    max_krylov = UnsignedInteger(default=0)
+    max_restarts = UnsignedInteger(default=10)
+    schur_safety = UnsignedFloat(default=1e-8)
+    linear_solution_mode = UnsignedInteger(default=0, ub=2)
     _parameters = [
-        'GS_TYPE',
-        'MAX_KRYLOV',
-        'MAX_RESTARTS',
-        'SCHUR_SAFETY',
-        'LINEAR_SOLUTION_MODE',
+        'gs_type',
+        'max_krylov',
+        'max_restarts',
+        'schur_safety',
+        'linear_solution_mode',
     ]
 
 
@@ -1331,7 +1370,7 @@ inv_adsorption_parameters_map = {
 class AdsorptionParametersGroup(ParameterWrapper):
     """Converter for Binding model parameters from CADETProcess to CADET.
 
-    See also
+    See Also
     --------
     ParameterWrapper
     ReactionParametersGroup
@@ -1401,7 +1440,7 @@ inv_reaction_parameters_map = {
 class ReactionParametersGroup(ParameterWrapper):
     """Converter for Reaction model parameters from CADETProcess to CADET.
 
-    See also
+    See Also
     --------
     ParameterWrapper
     AdsorptionParametersGroup
@@ -1416,7 +1455,37 @@ class ReactionParametersGroup(ParameterWrapper):
 
 
 class SolverParametersGroup(ParametersGroup):
-    """Class for defining the solver parameters for cadet.
+    """Class for defining the solver parameters for CADET.
+
+    Attributes
+    ----------
+    nthreads : int
+        Number of used threads.
+    consistent_init_mode : int, optional
+        Consistent initialization mode.
+        Valid values are:
+        - 0: None
+        - 1: Full
+        - 2: Once, full
+        - 3: Lean
+        - 4: Once, lean
+        - 5: Full once, then lean
+        - 6: None once, then full
+        - 7: None once, then lean
+        The default is 1.
+    consistent_init_mode_sens : int, optional
+        Consistent initialization mode for parameter sensitivities.
+        Valid values are:
+        - 0: None
+        - 1: Full
+        - 2: Once, full
+        - 3: Lean
+        - 4: Once, lean
+        - 5: Full once, then lean
+        - 6: None once, then full
+        - 7: None once, then lean
+        The default is 1.
+
 
     See Also
     --------
@@ -1434,6 +1503,45 @@ class SolverParametersGroup(ParametersGroup):
 
 class SolverTimeIntegratorParametersGroup(ParametersGroup):
     """Converter for time integartor parameters from CADETProcess to CADET.
+
+    Attributes
+    ----------
+    abstol: float, optional
+        Absolute tolerance in the solution of the original system.
+        The default is 1e-8.
+    algtol: float, optional
+        Tolerance in the solution of the nonlinear consistency equations.
+        The default is 1e-12.
+    reltol: float, optional
+        Relative tolerance in the solution of the original system.
+        The default is 1e-6.
+    reltol_sens: float, optional
+        Relative tolerance in the solution of the sensitivity systems.
+        The default is 1e-12.
+    init_step_size: float, optional
+        Initial time integrator step size.
+        The default is 1e-6.
+    max_steps: int, optional
+        Maximum number of timesteps taken by IDAS
+        The default is 1000000.
+    max_step_size: float, optional
+        Maximum size of timesteps taken by IDAS.
+        The default is 0.0 (unlimited).
+    errortest_sens: bool, optional
+        If True: Use (forward) sensitivities in local error test
+        The default is True.
+    max_newton_iter: int, optional
+        Maximum number of Newton iterations in time step.
+        The default is 3.
+    max_errtest_fail: int, optional
+        Maximum number of local error test failures in time step
+        The default is 7.
+    max_convtest_fail: int, optional
+        Maximum number of Newton convergence test failures
+        The default is 10.
+    max_newton_iter_sens: int, optional
+        Maximum number of Newton iterations in forward sensitivity time step
+        The default is 3.
 
     See Also
     --------

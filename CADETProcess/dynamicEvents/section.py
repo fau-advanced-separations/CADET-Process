@@ -10,6 +10,9 @@ from CADETProcess.dataStructure import NdPolynomial
 from CADETProcess import plotting
 
 
+__all__ = ['Section', 'TimeLine', 'MultiTimeLine']
+
+
 class Section(metaclass=StructMeta):
     """Helper class to store parameter states between events.
 
@@ -33,6 +36,7 @@ class Section(metaclass=StructMeta):
         if coeffs is ndarray (or list of lists): set polynomial coefficients
 
     """
+
     coeffs = NdPolynomial(dep=('n_entries', 'n_poly_coeffs'), default=0)
 
     def __init__(self, start, end, coeffs, n_entries=None, degree=0):
@@ -72,6 +76,7 @@ class Section(metaclass=StructMeta):
 
     @property
     def n_poly_coeffs(self):
+        """int: Number of polynomial coefficients."""
         return self.degree + 1
 
     def value(self, t):
@@ -101,6 +106,18 @@ class Section(metaclass=StructMeta):
         return value
 
     def coefficients(self, offset=0):
+        """Get coefficients at (time) offset.
+
+        Parameters
+        ----------
+        offset : float
+            (Time) offset to be evaluated.
+
+        Returns
+        -------
+        coeffs : np.ndarray
+            Coefficients at offset.
+        """
         coeffs = []
         for i in range(self.n_entries):
             c = self.coeffs[i].copy()
@@ -173,6 +190,18 @@ class Section(metaclass=StructMeta):
 
 
 class TimeLine():
+    """Class representing a timeline of time-varying data.
+
+    The timeline is made up of Sections, which are continuous time intervals.
+    Each Section represents a piecewise polynomial function that defines the
+    variation of a given parameter over time.
+
+    Attributes
+    ----------
+    sections : List[Section]
+        List of Sections that make up the timeline.
+    """
+
     def __init__(self, n_entries=None):
         if n_entries:
             pass
@@ -184,30 +213,36 @@ class TimeLine():
 
     @property
     def degree(self):
+        """int: Degree of the polynomial functions used to represent each Section."""
         if len(self.sections) > 0:
             return self.sections[0].degree
 
     @property
     def n_entries(self):
+        """int: Number of entries in the parameter vector for each Section."""
         if len(self.sections) > 0:
             return self.sections[0].n_entries
 
     def add_section(self, section, entry_index=None):
-        """Add section to TimeLine.
+        """Add a Section to the timeline.
 
         Parameters
         ----------
         section : Section
-            Section to be added.
+            The Section to be added to the timeline.
+        entry_index : int or None, optional
+            The index of the entry to be modified by the Section. If None,
+            all entries are modified. The default is None.
 
         Raises
         ------
         TypeError
-            If section is not instance of Section.
+            If section is not an instance of the Section class.
         CADETProcessError
-            If polynomial degree does not match.
+            If the polynomial degree of the Section does not match the degree of
+            the other Sections in the timeline.
         CADETProcessError
-            If section introduces a gap.
+            If the Section introduces a gap in the timeline.
 
         """
         if not isinstance(section, Section):
@@ -225,6 +260,7 @@ class TimeLine():
         self.update_piecewise_poly()
 
     def update_piecewise_poly(self):
+        """Updates the piecewise polynomial representation of the timeline."""
         x = []
         coeffs = []
         for sec in self.sections:
@@ -310,12 +346,25 @@ class TimeLine():
         ).T
 
     def section_index(self, time):
+        """Return the index of the section that contains the specified time.
+
+        Parameters
+        ----------
+        time : float
+            The time to check.
+
+        Returns
+        -------
+        int
+            The index of the section that contains the specified time.
+        """
         section_times = np.array(self.section_times)
 
         return np.argmin(time >= section_times) - 1
 
     @property
     def section_times(self):
+        """list of float: The start and end times of all sections in the timeline."""
         if len(self.sections) == 0:
             return []
 
@@ -323,25 +372,27 @@ class TimeLine():
 
     @property
     def start(self):
+        """float: The start time of the timeline."""
         return self.section_times[0]
 
     @property
     def end(self):
+        """float: The end time of the timeline."""
         return self.section_times[-1]
 
     @plotting.create_and_save_figure
     def plot(self, ax):
-        """Plot section state over time.
+        """Plot the state of the timeline over time.
+
         Parameters
         ----------
         ax : Axes
-            Axes to plot on.
+            The axes to plot on.
 
         Returns
         -------
         ax : Axes
-            Axes with plot of parameter state.
-
+            The axes with the plot of the timeline state.
         """
         start = self.sections[0].start
         end = self.sections[-1].end
@@ -362,6 +413,22 @@ class TimeLine():
 
     @classmethod
     def from_constant(cls, start, end, value):
+        """Create a timeline with a constant value for a given time range.
+
+        Parameters
+        ----------
+        start : float
+            The start time of the time range.
+        end : float
+            The end time of the time range.
+        value : float
+            The value of the timeline during the time range.
+
+        Returns
+        -------
+        TimeLine
+            A TimeLine instance with a single section with the specified constant value.
+        """
         tl = cls()
         tl.add_section(Section(start, end, value))
 
@@ -369,6 +436,23 @@ class TimeLine():
 
     @classmethod
     def from_profile(cls, time, profile, s=1e-6):
+        """Create a timeline from a profile.
+
+        Parameters
+        ----------
+        time : array_like
+            The time values of the profile.
+        profile : array_like
+            The profile values.
+        smoothing : float, optional
+            The smoothing factor for the spline interpolation. The default is 1e-6.
+
+        Returns
+        -------
+        TimeLine
+            A TimeLine instance with polynomial sections created from the profile.
+
+        """
         from scipy import interpolate
         tl = cls()
 
@@ -389,7 +473,29 @@ class TimeLine():
 
 
 class MultiTimeLine():
+    """Class for a collection of TimeLines with the same number of entries.
+
+    Attributes
+    ----------
+    base_state : list
+        The base state that each TimeLine represents.
+    n_entries : int
+        The number of entries in each TimeLine.
+    time_lines : list of TimeLine
+        The collection of TimeLines.
+    degree : int
+        The degree of the polynomials in each section.
+    """
+
     def __init__(self, base_state):
+        """Initialize a MultiTimeLine instance.
+
+        Parameters
+        ----------
+        base_state : list
+            The base state that each TimeLine represents.
+
+        """
         self.base_state = base_state
         self.n_entries = len(base_state)
         self._degree = None
@@ -397,6 +503,7 @@ class MultiTimeLine():
 
     @property
     def degree(self):
+        """int: The degree of the polynomials in each section."""
         return self._degree
 
     @degree.setter
@@ -405,6 +512,7 @@ class MultiTimeLine():
 
     @property
     def section_times(self):
+        """list of float: A list of all the section times of all the TimeLines."""
         time_line_sections = [tl.section_times for tl in self.time_lines]
 
         section_times = set(itertools.chain.from_iterable(time_line_sections))
@@ -412,6 +520,24 @@ class MultiTimeLine():
         return sorted(list(section_times))
 
     def add_section(self, section, entry_index=None):
+        """Add section to each timeline in MultiTimeLine, or to a specific entry.
+
+        Parameters
+        ----------
+        section : Section
+            Section to be added.
+        entry_index : int, optional
+            Index of the entry where the section will be added.
+            If not provided, the section will be added to each timeline.
+
+        Raises
+        ------
+        CADETProcessError
+            If polynomial degree does not match the degree of the MultiTimeLine.
+        ValueError
+            If the provided entry_index is greater than the number of entries.
+
+        """
         if self.degree is None:
             self.degree = section.degree
 
@@ -428,6 +554,7 @@ class MultiTimeLine():
             self.time_lines[entry_index].add_section(section)
 
     def combined_time_line(self):
+        """TimeLine: Object representing combination of all timelines in the MultiTimeLine."""
         tl = TimeLine()
 
         section_times = self.section_times

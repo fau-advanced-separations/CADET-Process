@@ -19,11 +19,11 @@ class ParametersGroup(Structure):
     ParameterWrapper
 
     """
+
     _parameters = []
 
     def to_dict(self):
-        """dict: Dictionary with names and values of the parameters.
-        """
+        """dict: Dictionary with names and values of the parameters."""
         return {
             param: getattr(self, param) for param in self._parameters
             if getattr(self, param) is not None
@@ -71,6 +71,7 @@ class ParameterWrapper(ParametersGroup):
     ParametersGroup
 
     """
+
     _base_class = object
 
     def __init__(self, wrapped_object):
@@ -86,7 +87,7 @@ class ParameterWrapper(ParametersGroup):
         self._wrapped_object = wrapped_object
 
     def to_dict(self):
-        """Returns the parameters for the model and solver in a dictionary.
+        """Return the parameters for the model and solver in a dictionary.
 
         Defines the parameters for the model and solver and saves them into the
         respective dictionary. The cadet_parameters are get by the

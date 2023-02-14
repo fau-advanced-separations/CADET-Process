@@ -14,23 +14,45 @@ from CADETProcess.comparison import DifferenceBase
 
 
 class Comparator(metaclass=StructMeta):
+    """
+    Class for comparing simulation results against reference data.
+
+    Attributes
+    ----------
+    name : str
+        Name of the Comparator instance.
+    references : dict
+        Dictionary containing the reference data to be compared against.
+    solution_paths : dict
+        Dictionary containing the solution path for each difference metric.
+    metrics : list
+        List of difference metrics to be evaluated.
+    """
+
     name = String()
 
     def __init__(self, name=None):
+        """Initialize a new Comparator instance.
+
+        Parameters
+        ----------
+        name : str, optional
+            Name of the Comparator instance.
+        """
         self.name = name
         self._metrics = []
         self.references = {}
         self.solution_paths = {}
 
     def add_reference(self, reference, update=False, smooth=False):
-        """Add Reference to Comparator
+        """Add Reference to Comparator.
 
         Parameters
         ----------
         reference : ReferenceIO
             Reference for comparison with SimulationResults.
         update : bool, optional
-            DESCRIPTION. The default is False.
+            If True, update existing reference. The default is False.
         smooth : bool, optional
             If True, smooth data before comparison. The default is False.
 
@@ -56,14 +78,17 @@ class Comparator(metaclass=StructMeta):
 
     @property
     def metrics(self):
+        """list: List of difference metrics."""
         return self._metrics
 
     @property
     def n_metrics(self):
+        """int: Number of metrics to be evaluated."""
         return sum([metric.n_metrics for metric in self.metrics])
 
     @property
     def bad_metrics(self):
+        """list: Worst case metrics for all difference metrics."""
         bad_metrics = [metric.bad_metrics for metric in self.metrics]
 
         return np.hstack(bad_metrics).flatten().tolist()
@@ -95,6 +120,25 @@ class Comparator(metaclass=StructMeta):
     def add_difference_metric(
             self, difference_metric, reference, solution_path,
             *args, **kwargs):
+        """Add a difference metric to the Comparator.
+
+        Parameters
+        ----------
+        difference_metric : str
+            Name of the difference metric to be evaluated.
+        reference : str or SolutionBase
+            Name of the reference or reference itself.
+        solution_path : str
+            Path to the solution in SimulationResults.
+        *args, **kwargs
+            Additional arguments and keyword arguments to be passed to the
+            difference metric constructor.
+
+        Raises
+        ------
+        CADETProcessError
+            If the difference metric or reference is unknown.
+        """
         try:
             module = importlib.import_module(
                 'CADETProcess.comparison.difference'
@@ -120,7 +164,25 @@ class Comparator(metaclass=StructMeta):
         return metric
 
     def extract_solution(self, simulation_results, metric):
-        """Extract solution from SimulationResults."""
+        """Extract the solution for a given metric from the SimulationResults object.
+
+        Parameters
+        ----------
+        simulation_results : SimulationResults
+            The SimulationResults object containing the solution.
+        metric : Metric
+            The Metric object for which to extract the solution.
+
+        Returns
+        -------
+        numpy.ndarray
+            The solution array for the given metric.
+
+        Raises
+        ------
+        CADETProcessError
+            If the solution path for the given metric is not found.
+        """
         try:
             solution_path = self.solution_paths[metric]
             solution = get_nested_value(
@@ -132,6 +194,18 @@ class Comparator(metaclass=StructMeta):
         return solution
 
     def evaluate(self, simulation_results):
+        """Evaluate all metrics for a given simulation and return the results as a list.
+
+        Parameters
+        ----------
+        simulation_results : SimulationResults
+            The SimulationResults object containing the solutions for all metrics.
+
+        Returns
+        -------
+        list
+            A list of metric evaluation results, where each element is a numpy array.
+        """
         metrics = []
         for metric in self.metrics:
             solution = self.extract_solution(simulation_results, metric)
@@ -145,6 +219,20 @@ class Comparator(metaclass=StructMeta):
     __call__ = evaluate
 
     def setup_comparison_figure(self, plot_individual=False):
+        """Set up a figure for comparing simulation results.
+
+        Parameters
+        ----------
+        plot_individual : bool, optional
+            If True, return figures for individual metrics.
+            Otherwise, return a single figure for all metrics.
+            Default is False.
+
+        Returns
+        -------
+        tuple
+            A tuple of the comparison figure(s) and axes object(s).
+        """
         n = len(self.metrics)
 
         if n == 0:
@@ -177,7 +265,30 @@ class Comparator(metaclass=StructMeta):
     def plot_comparison(
             self, simulation_results, axs=None, figs=None,
             file_name=None, show=True, plot_individual=False):
+        """Plot the comparison of the simulation results with the reference data.
 
+        Parameters
+        ----------
+        simulation_results : list of SimulationResults
+            List of simulation results to compare to reference data.
+        axs : list of AxesSubplot, optional
+            List of subplot axes to use for plotting the metrics.
+        figs : list of Figure, optional
+            List of figures to use for plotting the metrics.
+        file_name : str, optional
+            Name of the file to save the figure to.
+        show : bool, optional
+            If True, displays the figure(s) on the screen.
+        plot_individual : bool, optional
+            If True, generates a separate figure for each metric.
+
+        Returns
+        -------
+        figs : list of Figure
+            List of figures used for plotting the metrics.
+        axs : list of AxesSubplot
+            List of subplot axes used for plotting the metrics.
+        """
         if axs is None:
             figs, axs = self.setup_comparison_figure(plot_individual)
         if not isinstance(figs, list):

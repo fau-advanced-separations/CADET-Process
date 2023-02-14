@@ -126,7 +126,7 @@ class SciPyInterface(OptimizerBase):
             List containing  a sorted list of all constraints of an
             optimization_problem, if they're not None.
 
-        See also
+        See Also
         --------
         lincon_obj
         lincon_obj
@@ -152,7 +152,7 @@ class SciPyInterface(OptimizerBase):
             Linear Constraint object with optimized upper and lower bounds of b
             of the optimization_problem.
 
-        See also
+        See Also
         --------
         constraint_objects
         A
@@ -184,7 +184,7 @@ class SciPyInterface(OptimizerBase):
             Linear equality Constraint object with optimized upper and lower
             bounds of beq of the optimization_problem.
 
-        See also
+        See Also
         --------
         constraint_objects
         Aeq
@@ -225,7 +225,7 @@ class SciPyInterface(OptimizerBase):
             Linear equality Constraint object with optimized upper and lower
             bounds of beq of the optimization_problem.
 
-        See also
+        See Also
         --------
         constraint_objects
         nonlinear_constraints
