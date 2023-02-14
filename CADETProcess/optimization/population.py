@@ -264,7 +264,7 @@ class Population():
         if self.dimensions[3] > 0:
             return np.max(self.m, axis=0)
 
-    def setup_space_figure(self, include_meta=True, plot_individual=False):
+    def setup_objectives_figure(self, include_meta=True, plot_individual=False):
         n = len(self.variable_names)
         if include_meta and self.m is not None:
             m = len(self.objective_labels) + len(self.meta_score_labels)
@@ -297,7 +297,7 @@ class Population():
         else:
             return space_fig_all, space_axs_all
 
-    def plot_space(
+    def plot_objectives(
             self,
             figs=None, axs=None,
             include_meta=True,
@@ -309,7 +309,7 @@ class Population():
             plot_directory=None):
 
         if axs is None:
-            figs, axs = self.setup_space_figure(include_meta, plot_individual)
+            figs, axs = self.setup_objectives_figure(include_meta, plot_individual)
 
         if not isinstance(figs, list):
             figs = [figs]
@@ -395,11 +395,11 @@ class Population():
             if plot_individual:
                 for i, fig in enumerate(figs):
                     fig.savefig(
-                        f'{plot_directory / "parameter_space"}_{i}.png'
+                        f'{plot_directory / "objectives"}_{i}.png'
                     )
             else:
                 figs[0].savefig(
-                    f'{plot_directory / "parameter_space"}.png'
+                    f'{plot_directory / "objectives"}.png'
                 )
 
         return figs, axs

@@ -299,7 +299,7 @@ class OptimizationResults(metaclass=StructMeta):
                     show=show,
                     plot_directory=self.plot_directory
                 )
-            self.plot_space(
+            self.plot_objectives(
                 show=show, plot_directory=self.plot_directory
             )
             if self.optimization_problem.n_variables > 1:
@@ -312,7 +312,7 @@ class OptimizationResults(metaclass=StructMeta):
                     show=show, plot_directory=self.plot_directory
                 )
 
-    def plot_space(
+    def plot_objectives(
             self,
             include_meta=True,
             plot_individual=False,
@@ -332,7 +332,7 @@ class OptimizationResults(metaclass=StructMeta):
             if gen is self.population_last:
                 _plot_directory = plot_directory
                 _show = show
-            axs, figs = gen.plot_space(
+            axs, figs = gen.plot_objectives(
                 axs, figs,
                 include_meta=include_meta,
                 plot_individual=plot_individual,
@@ -499,12 +499,14 @@ class OptimizationResults(metaclass=StructMeta):
             plot_directory = Path(plot_directory)
             if plot_individual:
                 for i, fig in enumerate(figs):
+                    figname = f'convergence_{target}_{i}'
                     fig.savefig(
-                        f'{plot_directory / target}_{i}.png'
+                        f'{plot_directory / figname}.png'
                     )
             else:
+                figname = f'convergence_{target}'
                 figs[0].savefig(
-                    f'{plot_directory / target}.png'
+                    f'{plot_directory / figname}.png'
                 )
 
     def save_results(self):
@@ -529,7 +531,6 @@ class OptimizationResults(metaclass=StructMeta):
         data.optimizer_state = self.optimizer_state
         data.population_all_id = str(self.population_all.id)
         data.populations = {i: pop.to_dict() for i, pop in enumerate(self.populations)}
-        data.population_all = self.population_all.to_dict()
         data.pareto_fronts = {
             i: front.to_dict() for i, front in enumerate(self.pareto_fronts)
         }
