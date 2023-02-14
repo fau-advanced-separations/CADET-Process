@@ -1,3 +1,19 @@
+"""
+=======================================
+Settings (:mod:`CADETProcess.settings`)
+=======================================
+
+.. currentmodule:: CADETProcess.settings
+
+This module provides functionality for general settings.
+
+.. autosummary::
+    :toctree: generated/
+
+    Settings
+
+"""
+
 from pathlib import Path
 import shutil
 import tempfile
@@ -7,7 +23,33 @@ from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import Bool, Switch
 
 
+__all__ = ['Settings']
+
+
 class Settings(metaclass=StructMeta):
+    """A class for managing general settings.
+
+    Attributes
+    ----------
+    working_directory : str or None
+        The path of the working directory. If None, the current directory is used.
+    save_log : bool
+        Whether to save log files or not.
+    temp_dir : str or None
+        The path of the temporary directory.
+        If None, a directory named "tmp" is created in the working directory.
+    debug_mode : bool
+        Whether to enable debug mode or not.
+    LOG_LEVEL : str
+        The log level to use.
+        Must be one of 'DEBUG', 'INFO', 'WARNING', 'ERROR', or 'CRITICAL'.
+
+    Methods
+    -------
+    delete_temporary_files()
+        Deletes the temporary simulation files.
+    """
+
     _save_log = Bool(default=False)
     debug_mode = Bool(default=False)
     LOG_LEVEL = Switch(
@@ -21,6 +63,20 @@ class Settings(metaclass=StructMeta):
 
     @property
     def working_directory(self):
+        """The path of the working directory.
+
+        If the working directory is not set, the current directory is used.
+
+        Raises
+        ------
+        TypeError
+            If the working directory is not a string or None.
+
+        Returns
+        -------
+        pathlib.Path
+            The absolute path of the working directory.
+        """
         if self._working_directory is None:
             _working_directory = Path('./')
         else:
@@ -45,6 +101,7 @@ class Settings(metaclass=StructMeta):
 
     @property
     def save_log(self):
+        """bool: If True, save log files."""
         return self._save_log
 
     @save_log.setter
@@ -56,10 +113,12 @@ class Settings(metaclass=StructMeta):
 
     @property
     def log_directory(self):
+        """pathlib.Path: Log directory."""
         return self.working_directory / 'log'
 
     @property
     def temp_dir(self):
+        """pathlib.Path: Directory for temporary files."""
         if self._temp_dir is None:
             _temp_dir = self.working_directory / 'tmp'
         else:
@@ -75,5 +134,6 @@ class Settings(metaclass=StructMeta):
         self._temp_dir = temp_dir
 
     def delete_temporary_files(self):
+        """Delete the temporary files directory."""
         shutil.rmtree(self.temp_dir / "simulation_files", ignore_errors=True)
         self.temp_dir = self._temp_dir

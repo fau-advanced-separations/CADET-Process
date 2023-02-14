@@ -20,6 +20,7 @@ from CADETProcess.optimization import OptimizerBase
 
 class PymooInterface(OptimizerBase):
     """Wrapper around pymoo."""
+
     supports_multi_objective = True
     supports_linear_constraints = True
     supports_linear_equality_constraints = True

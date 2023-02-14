@@ -1,3 +1,21 @@
+"""
+=========================================
+Smoothing (:mod:`CADETProcess.smoothing`)
+=========================================
+
+.. currentmodule:: CADETProcess.smoothing
+
+This module provides functionality for smoothing data.
+
+
+.. autosummary::
+    :toctree: generated/
+
+    find_smoothing_factors
+    full_smooth
+
+"""
+
 import multiprocessing
 
 import numpy as np
@@ -8,6 +26,8 @@ from pymoo.algorithms.soo.nonconvex.pattern import PatternSearch
 from pymoo.optimize import minimize
 
 butter_order = 3
+
+__all__ = ['find_smoothing_factors', 'full_smooth']
 
 
 class TargetProblem(ElementwiseProblem):

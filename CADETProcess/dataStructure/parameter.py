@@ -44,7 +44,6 @@ class Parameter(Descriptor):
         self._default = value
 
     def __get__(self, instance, cls):
-        """ !!!TODO!!! Consider raising ValueError if Parameter not set"""
         try:
             return Descriptor.__get__(self, instance, cls)
         except KeyError:

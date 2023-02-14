@@ -15,6 +15,18 @@ from .shape import pearson, pearson_offset
 from .peaks import find_peaks, find_breakthroughs
 
 
+__all__ = [
+    'DifferenceBase',
+    'calculate_sse', 'calculate_rmse',
+    'SSE', 'RMSE', 'NRMSE',
+    'Norm', 'L1', 'L2',
+    'AbsoluteArea', 'RelativeArea',
+    'Shape',
+    'PeakHeight', 'PeakPosition',
+    'BreakthroughHeight', 'BreakthroughPosition',
+]
+
+
 def squishify(*args, **kwargs):
     warn(
         'This function is deprecated, use sigmoid_distance.',
@@ -57,6 +69,34 @@ def sigmoid_distance(measurement, target, normalization=1):
 
 
 class DifferenceBase(MetricBase):
+    """
+    Base class for difference metric evaluation between a reference and a solution.
+
+    Parameters
+    ----------
+    reference : ReferenceIO
+        Reference used for calculating difference metric.
+    components : {str, list}, optional
+        Solution components to be considered.
+        If None, all components are considered. The default is None.
+    use_total_concentration : bool, optional
+        If True, use sum of all components. The default is False.
+    use_total_concentration_components : bool, optional
+        If True, sum concentration of species. The default is True.
+    start : float, optional
+        End time of solution slice to be considered. The default is None.
+    end : float, optional
+        End time of solution slice to be considered. The default is None.
+    transform : callable, optional
+        Function to transform solution. The default is None.
+    resample : bool, optional
+        If True, resample data. The default is True.
+    smooth : bool, optional
+        If True, smooth data. The default is False.
+    normalize : bool, optional
+        If True, normalize data. The default is False.
+    """
+
     def __init__(
             self,
             reference,
@@ -69,7 +109,7 @@ class DifferenceBase(MetricBase):
             resample=True,
             smooth=False,
             normalize=False):
-        """
+        """Initialize an instance of DifferenceBase.
 
         Parameters
         ----------
@@ -110,14 +150,17 @@ class DifferenceBase(MetricBase):
 
     @property
     def n_metrics(self):
+        """int: Number of metrics."""
         return self.reference.solution.shape[-1]
 
     @property
     def bad_metrics(self):
+        """list: Worst case values for each metric."""
         return self.n_metrics * [np.inf]
 
     @property
     def reference(self):
+        """SolutionBase: The reference Solution, sliced and transformed."""
         return self._reference_sliced_and_transformed
 
     @reference.setter
@@ -206,6 +249,13 @@ class DifferenceBase(MetricBase):
 
     @abstractmethod
     def _evaluate(self):
+        """Abstract method to compute the difference metric.
+
+        Returns
+        -------
+        np.ndarray
+            The computed difference metric.
+        """
         return
 
     @resamples_smoothes_and_normalizes_solution
@@ -213,6 +263,19 @@ class DifferenceBase(MetricBase):
     @transforms_solution
     @checks_dimensions
     def evaluate(self, solution):
+        """Compute the difference between the reference solution and the input solution.
+
+        Parameters
+        ----------
+        solution : Solution
+            The solution to compare with the reference solution.
+
+        Returns
+        -------
+        np.ndarray
+            The difference between the two solutions.
+
+        """
         metric = self._evaluate(solution)
         return metric
 
@@ -222,14 +285,42 @@ class DifferenceBase(MetricBase):
     @slices_solution
     @transforms_solution
     def slice_and_transform(self, solution):
+        """Slice the solution and applies the transform callable (if defined).
+
+        Parameters
+        ----------
+        solution : Solution
+            The solution to slice and transform.
+
+        Returns
+        -------
+        Solution
+            The sliced and transformed solution.
+        """
         return solution
 
 
 def calculate_sse(simulation, reference):
+    """Calculate the sum of squared errors (SSE) between simulation and reference.
+
+    Parameters
+    ----------
+    simulation : np.ndarray
+        Array of simulated values.
+    reference : np.ndarray
+        Array of reference values.
+
+    Returns
+    -------
+    np.ndarray
+        The SSE between simulation and reference.
+    """
     return np.sum((simulation - reference) ** 2, axis=0)
 
 
 class SSE(DifferenceBase):
+    """Sum of squared errors (SSE) difference metric."""
+
     def _evaluate(self, solution):
         sse = calculate_sse(solution.solution, self.reference.solution)
 
@@ -237,10 +328,26 @@ class SSE(DifferenceBase):
 
 
 def calculate_rmse(simulation, reference):
+    """Calculate the root mean squared error (RMSE) between simulation and reference.
+
+    Parameters
+    ----------
+    simulation : np.ndarray
+        Array of simulated values.
+    reference : np.ndarray
+        Array of reference values.
+
+    Returns
+    -------
+    np.ndarray
+        The RMSE between simulation and reference.
+    """
     return np.sqrt(np.mean((simulation - reference) ** 2, axis=0))
 
 
 class RMSE(DifferenceBase):
+    """Root mean squared errors (RMSE) difference metric."""
+
     def _evaluate(self, solution):
         rmse = calculate_rmse(solution.solution, self.reference.solution)
 
@@ -248,6 +355,8 @@ class RMSE(DifferenceBase):
 
 
 class NRMSE(DifferenceBase):
+    """Normalized root mean squared errors (RRMSE) difference metric."""
+
     def _evaluate(self, solution):
         rmse = calculate_rmse(solution.solution, self.reference.solution)
         nrmse = rmse / np.max(self.reference.solution, axis=0)
@@ -256,6 +365,14 @@ class NRMSE(DifferenceBase):
 
 
 class Norm(DifferenceBase):
+    """Norm difference metric.
+
+    Attributes
+    ----------
+    order : int
+        The order of the norm.
+    """
+
     order = UnsignedInteger()
 
     def _evaluate(self, solution):
@@ -267,14 +384,20 @@ class Norm(DifferenceBase):
 
 
 class L1(Norm):
+    """L1 norm difference metric."""
+
     order = 1
 
 
 class L2(Norm):
+    """L2 norm difference metric."""
+
     order = 2
 
 
 class AbsoluteArea(DifferenceBase):
+    """Absolute difference in area difference metric."""
+
     def _evaluate(self, solution):
         """np.array: Absolute difference in area compared to reference.
 
@@ -293,6 +416,8 @@ class AbsoluteArea(DifferenceBase):
 
 
 class RelativeArea(DifferenceBase):
+    """Relative difference in area difference metric."""
+
     def _evaluate(self, solution):
         """np.array: Relative difference in area compared to reference.
 
@@ -311,11 +436,57 @@ class RelativeArea(DifferenceBase):
 
 
 class Shape(DifferenceBase):
+    """Shape similarity difference metric.
+
+    The similarity is calculated using the Pearson correlation between the reference
+    and solution profiles, as well as the time offset between their peak positions, and
+    the peak height of the solution profile. Additionally, if `use_derivative` is set to
+    True, the similarity is also calculated using the Pearson correlation of the derivative
+    profiles, and the minimum and maximum peak heights of the derivative profile.
+
+    Attributes
+    ----------
+    n_metrics : int
+        Number of similarity metrics calculated by the class.
+    labels : list of str
+        List of labels for each similarity metric calculated by the class.
+
+    Raises
+    ------
+    CADETProcessError
+        If `components` is not None and has more than one element.
+
+    Notes
+    -----
+    Currently, this class only works for single-component systems with one peak.
+
+    """
+
     @wraps(DifferenceBase.__init__)
     def __init__(
             self, *args,
             use_derivative=True, normalize_metrics=True, normalization_factor=None,
             **kwargs):
+        """Initialize Shape metric.
+
+        Parameters
+        ----------
+        *args :
+            Positional arguments for DifferenceBase.
+        use_derivative : bool, optional
+            If True, use the derivative profiles to calculate similarity.
+            Default is True.
+        normalize_metrics : bool, optional
+            If True, normalize the similarity metrics to a range of [0, 1] using a
+            sigmoid function.
+            Default is True.
+        normalization_factor : float, optional
+            Normalization factor used by the sigmoid function.
+            Default is None, which sets it to 1/10 of the simulation time.
+        **kwargs : dict
+            Keyword arguments passed to the base class constructor.
+
+        """
         super().__init__(*args, **kwargs)
 
         if self.reference.n_comp > 1 and not self.use_total_concentration:
@@ -388,10 +559,6 @@ class Shape(DifferenceBase):
         solution : SolutionIO
             Concentration profile of simulation.
 
-        Note
-        ----
-        Currently only works for single component with one peak.
-
         """
         corr, offset_original = pearson(
             self.reference.time,
@@ -433,11 +600,44 @@ class Shape(DifferenceBase):
 
 
 class PeakHeight(DifferenceBase):
+    """Absolute difference in peak height difference metric.
+
+    Attributes
+    ----------
+    find_minima : bool
+        Indicates whether the minima instead of maxima of the peaks are found.
+    reference_peaks : list of tuple
+        Contains the peaks found in the reference.
+    normalize_metrics : bool
+        Indicates whether normalization is applied to the peak height difference scores.
+    normalization_factor : list of list
+        Contains the normalization factors for each peak in each component.
+    """
+
     @wraps(DifferenceBase.__init__)
     def __init__(
             self, *args,
             find_minima=False, normalize_metrics=True, normalization_factor=None,
             **kwargs):
+        """Initialize the PeakHeight object.
+
+        Parameters
+        ----------
+        *args : tuple
+            Positional arguments passed to the base class constructor.
+        find_minima : bool, optional
+            If True, finds the minima instead of maxima of the peaks, by default False.
+        normalize_metrics : bool, optional
+            If True, applies normalization to the peak height difference scores.
+            The default is True.
+        normalization_factor : int or None, optional
+            If not None, sets the normalization factor to a constant value for all peaks.
+            If None, calculates the normalization factor based on the reference peaks
+            The default is None.
+        **kwargs : dict
+            Keyword arguments passed to the base class constructor.
+
+        """
         super().__init__(*args, **kwargs)
 
         self.find_minima = find_minima
@@ -494,8 +694,37 @@ class PeakHeight(DifferenceBase):
 
 
 class PeakPosition(DifferenceBase):
+    """Absolute difference in peak peak position difference metric.
+
+    Attributes
+    ----------
+    reference_peaks : list of tuple
+        Contains the peaks found in the reference.
+    normalize_metrics : bool
+        Indicates whether normalization is applied to the peak height difference scores.
+    normalization_factor : list of list
+        Contains the normalization factors for each peak in each component.
+    """
+
     @wraps(DifferenceBase.__init__)
     def __init__(self, *args, normalize_metrics=True, normalization_factor=None, **kwargs):
+        """Initialize PeakPosition object.
+
+        Parameters
+        ----------
+        *args : tuple
+            Positional arguments to pass to the parent class constructor.
+        normalize_metrics : bool, optional
+            Whether to normalize the difference metrics, by default True.
+        normalization_factor : float or list of float, optional
+            Normalization factor(s) to use for the difference metric(s). If a single
+            float is given, it will be used for all the metrics. If a list of floats is
+            given, it must have one element per component in the reference, by default
+            None.
+        **kwargs : dict
+            Keyword arguments passed to the base class constructor.
+
+        """
         super().__init__(*args, **kwargs)
 
         self.reference_peaks = find_peaks(self.reference)
@@ -552,8 +781,31 @@ class PeakPosition(DifferenceBase):
 
 
 class BreakthroughHeight(DifferenceBase):
+    """Absolute difference in breakthrough curve height difference metric.
+
+    Attributes
+    ----------
+    normalize_metrics : bool
+        Whether to normalize the difference scores based on a sigmoid function.
+    reference_bt : list of tuple
+        List of breakthrough curves in the reference solution.
+
+    """
+
     @wraps(DifferenceBase.__init__)
     def __init__(self, *args, normalize_metrics=True, **kwargs):
+        """Initialize BreakthroughHeight metric.
+
+        Parameters
+        ----------
+        *args : tuple
+            Positional arguments to pass to the base class constructor.
+        normalize_metrics : bool, optional
+            Whether to normalize the difference scores based on a sigmoid function.
+            Default is True.
+        **kwargs : dict
+            Keyword arguments passed to the base class constructor.
+        """
         super().__init__(*args, **kwargs)
 
         self.normalize_metrics = normalize_metrics
@@ -589,8 +841,28 @@ class BreakthroughHeight(DifferenceBase):
 
 
 class BreakthroughPosition(DifferenceBase):
+    """Absolute difference in breakthrough curve position difference metric."""
+
     @wraps(DifferenceBase.__init__)
     def __init__(self, *args, normalize_metrics=True, normalization_factor=None, **kwargs):
+        """
+        Initialize the BreakthroughPosition object.
+
+        Parameters
+        ----------
+        *args :
+            Positional arguments for DifferenceBase.
+        normalize_metrics : bool, optional
+            Whether to normalize the metrics. Default is True.
+        normalization_factor : float, optional
+            Factor to use for normalization.
+            If None, it is set to the maximum of the difference between the reference
+            breakthrough and the start time, and the difference between the end time and
+            the reference breakthrough.
+        **kwargs : dict
+            Keyword arguments passed to the base class constructor.
+
+        """
         super().__init__(*args, **kwargs)
 
         self.reference_bt = find_breakthroughs(self.reference)

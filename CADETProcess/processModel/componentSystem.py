@@ -8,7 +8,24 @@ from CADETProcess.dataStructure import Structure, StructMeta
 from CADETProcess.dataStructure import String, Integer, UnsignedFloat
 
 
+__all__ = ['ComponentSystem', 'Component', 'Species']
+
+
 class Species(Structure):
+    """Species class.
+
+    Represent a species in a chemical system.
+
+    Attributes
+    ----------
+    name : str
+        The name of the species.
+    charge : int, optional
+        The charge of the species. Default is 0.
+    molecular_weight : float
+        The molecular weight of the species.
+
+    """
     name = String()
     charge = Integer(default=0)
     molecular_weight = UnsignedFloat()
@@ -44,6 +61,18 @@ class Component(metaclass=StructMeta):
 
     def __init__(
             self, name=None, species=None, charge=None, molecular_weight=None):
+        """
+        Parameters
+        ----------
+        name : str, optional
+            Name of the component.
+        species : str or list of str, optional
+            Names of the subspecies.
+        charge : int or list of int or None, optional
+            Charges of the subspecies.
+        molecular_weight : float or list of float or None, optional
+            Molecular weights of the subspecies.
+        """
         self.name = name
         self._species = []
 
@@ -63,33 +92,56 @@ class Component(metaclass=StructMeta):
 
     @property
     def species(self):
+        """list: The subspecies of the component."""
         return self._species
 
     @wraps(Species.__init__)
-    def add_species(self, name, charge=None, molecular_weight=None):
-        species = Species(name, charge, molecular_weight)
+    def add_species(self, species, *args, **kwargs):
+        """
+        Add a subspecies to the component.
+
+        Parameters
+        ----------
+        *args
+            Variable length argument list.
+        **kwargs
+            Arbitrary keyword arguments.
+
+        Returns
+        -------
+        Species
+            The subspecies that was added.
+        """
+        if not isinstance(species, Species):
+            species = Species(species, *args, **kwargs)
         self._species.append(species)
 
     @property
     def n_species(self):
+        """int: The number of subspecies in the component."""
         return len(self.species)
 
     @property
     def label(self):
+        """list of str: The names of the subspecies."""
         return [spec.name for spec in self.species]
 
     @property
     def charge(self):
+        """list of int or None: The charges of the subspecies."""
         return [spec.charge for spec in self.species]
 
     @property
     def molecular_weight(self):
+        """list of float or None: The molecular weights of the subspecies."""
         return [spec.molecular_weight for spec in self.molecular_weight]
 
     def __str__(self):
+        """String representation of the component."""
         return self.name
 
     def __iter__(self):
+        """Iterate over the subspecies of the component."""
         yield from self.species
 
 
@@ -131,6 +183,26 @@ class ComponentSystem(metaclass=StructMeta):
 
     def __init__(
             self, components=None, name=None, charges=None, molecular_weights=None):
+        """Initialize the ComponentSystem object.
+
+        Parameters
+        ----------
+        components : int, list, None
+            The number of components or the list of components to be added.
+            If None, no components are added.
+        name : str, None
+            The name of the ComponentSystem.
+        charges : list, None
+            The charges of each component.
+        molecular_weights : list, None
+            The molecular weights of each component.
+
+        Raises
+        ------
+        CADETProcessError
+            If the `components` argument is neither an int nor a list.
+
+        """
         self.name = name
 
         self._components = []
@@ -160,10 +232,12 @@ class ComponentSystem(metaclass=StructMeta):
 
     @property
     def components(self):
+        """list: List of components in the system."""
         return self._components
 
     @property
     def components_dict(self):
+        """dict: Components indexed by name."""
         return {
             name: comp
             for name, comp in zip(self.names, self.components)
@@ -171,14 +245,34 @@ class ComponentSystem(metaclass=StructMeta):
 
     @property
     def n_components(self):
+        """int: Number of components."""
         return len(self.components)
 
     @property
     def n_comp(self):
+        """int: Number of species."""
+        return self.n_species
+
+    @property
+    def n_species(self):
+        """int: Number of species."""
         return sum([comp.n_species for comp in self.components])
 
     @wraps(Component.__init__)
     def add_component(self, component, *args, **kwargs):
+        """
+        Add a component to the system.
+
+        Parameters
+        ----------
+        component : {str, Component}
+            The class of the component to be added.
+        *args : list
+            The positional arguments to be passed to the component class's constructor.
+        **kwargs : dict
+            The keyword arguments to be passed to the component class's constructor.
+
+        """
         if not isinstance(component, Component):
             component = Component(component, *args, **kwargs)
 
@@ -191,6 +285,19 @@ class ComponentSystem(metaclass=StructMeta):
         self._components.append(component)
 
     def remove_component(self, component):
+        """Remove a component from the system.
+
+        Parameters
+        ----------
+        component : {str, Component}
+            The name of the component or the component instance to be removed.
+
+        Raises
+        ------
+        CADETProcessError
+            If the component is unknown or not present in the system.
+
+        """
         if isinstance(component, str):
             try:
                 component = self.components_dict[component]
@@ -216,6 +323,7 @@ class ComponentSystem(metaclass=StructMeta):
 
     @property
     def names(self):
+        """list: List of component names."""
         names = [
             comp.name if comp.name is not None else str(i)
             for i, comp in enumerate(self.components)
@@ -225,10 +333,12 @@ class ComponentSystem(metaclass=StructMeta):
 
     @property
     def species(self):
+        """list: List of species names."""
         return self.labels
 
     @property
     def labels(self):
+        """list: List of species names."""
         labels = []
         index = 0
         for comp in self.components:
@@ -244,6 +354,7 @@ class ComponentSystem(metaclass=StructMeta):
 
     @property
     def charges(self):
+        """list: List of species charges."""
         charges = []
         for comp in self.components:
             charges += comp.charge
@@ -252,6 +363,7 @@ class ComponentSystem(metaclass=StructMeta):
 
     @property
     def molecular_weights(self):
+        """list: List of species molecular weights."""
         molecular_weights = []
         for comp in self.components:
             molecular_weights += comp.molecular_weight

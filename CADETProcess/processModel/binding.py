@@ -13,6 +13,26 @@ from CADETProcess.dataStructure import Bool, String, \
 
 from .componentSystem import ComponentSystem
 
+__all__ = [
+    'BindingBaseClass',
+    'NoBinding',
+    'Linear',
+    'Langmuir',
+    'LangmuirLDF',
+    'BiLangmuir',
+    'BiLangmuirLDF',
+    'FreundlichLDF',
+    'StericMassAction',
+    'AntiLangmuir',
+    'Spreading',
+    'SelfAssociation',
+    'BiStericMassAction',
+    'MultistateStericMassAction',
+    'SimplifiedMultistateStericMassAction',
+    'Saska',
+    'GeneralizedIonExchange',
+]
+
 
 @frozen_attributes
 class BindingBaseClass(metaclass=StructMeta):
@@ -41,6 +61,7 @@ class BindingBaseClass(metaclass=StructMeta):
         dict with parameter values.
 
     """
+
     name = String()
     is_kinetic = Bool(default=True)
 
@@ -119,6 +140,7 @@ class BindingBaseClass(metaclass=StructMeta):
 
     @property
     def missing_parameters(self):
+        """list: List of missing parameters."""
         missing_parameters = []
         for param in self.required_parameters:
             if getattr(self, param) is None:
@@ -127,6 +149,19 @@ class BindingBaseClass(metaclass=StructMeta):
         return missing_parameters
 
     def check_required_parameters(self):
+        """Check if al required parameters are set.
+
+        Returns
+        -------
+        bool
+            True if all parameters are set. False otherwise.
+
+        Raises
+        ------
+        Warning
+            If any required parameters are missing.
+
+        """
         if len(self.missing_parameters) == 0:
             return True
         else:
@@ -166,6 +201,7 @@ class Linear(BindingBaseClass):
         Desorption rate constants.
 
     """
+
     adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
 
@@ -187,6 +223,7 @@ class Langmuir(BindingBaseClass):
         Maximum adsorption capacities.
 
     """
+
     adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     capacity = DependentlySizedUnsignedList(dep='n_comp')
@@ -212,6 +249,7 @@ class LangmuirLDF(BindingBaseClass):
         Maximum adsorption capacities.
 
     """
+
     equilibrium_constant = DependentlySizedUnsignedList(
         dep=('n_comp', 'n_states')
     )
@@ -245,6 +283,7 @@ class BiLangmuir(BindingBaseClass):
         Maximum adsorption capacities.
 
     """
+
     n_binding_sites = UnsignedInteger(default=2)
 
     adsorption_rate = DependentlySizedUnsignedList(dep='n_bound_states')
@@ -281,6 +320,7 @@ class BiLangmuirLDF(BindingBaseClass):
         Maximum adsorption capacities.
 
     """
+
     n_binding_sites = UnsignedInteger(default=2)
 
     equilibrium_constant = DependentlySizedUnsignedList(dep='n_bound_states')
@@ -317,6 +357,7 @@ class FreundlichLDF(BindingBaseClass):
         Exponent for each component. Length depends on n_comp.
 
     """
+
     driving_force_coefficient = DependentlySizedUnsignedList(dep='n_comp')
     freundlich_coefficient = DependentlySizedUnsignedList(dep='n_comp')
     exponent = DependentlySizedUnsignedList(dep='n_comp')
@@ -360,6 +401,7 @@ class StericMassAction(BindingBaseClass):
         The default is 1.0
 
     """
+
     adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     characteristic_charge = DependentlySizedUnsignedList(dep='n_comp')
@@ -429,6 +471,7 @@ class AntiLangmuir(BindingBaseClass):
         Anti-Langmuir coefficients. Length depends on n_comp.
 
     """
+
     adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     capacity = DependentlySizedUnsignedList(dep='n_comp')
@@ -463,7 +506,9 @@ class Spreading(BindingBaseClass):
         Exchange rates from the first to the second bound state.
     exchange_from_2_1 : list of unsigned floats.
         Exchange rates from the second to the first bound state.
+
     """
+
     n_binding_sites = RangedInteger(lb=2, ub=2, default=2)
 
     adsorption_rate = DependentlySizedUnsignedList(dep='n_total_bound')
@@ -507,6 +552,7 @@ class MobilePhaseModulator(BindingBaseClass):
         Parameters describing the hydrophobicity (HIC).
 
     """
+
     adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     capacity = DependentlySizedUnsignedList(dep='n_comp')
@@ -553,6 +599,7 @@ class ExtendedMobilePhaseModulator(BindingBaseClass):
         2 is modified Langmuir binding.
 
     """
+
     adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     capacity = DependentlySizedUnsignedList(dep='n_comp')
@@ -606,6 +653,7 @@ class SelfAssociation(BindingBaseClass):
         The default = 1.0
 
     """
+
     adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
     adsorption_rate_dimerization = DependentlySizedUnsignedList(dep='n_comp')
     desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
@@ -636,7 +684,7 @@ class SelfAssociation(BindingBaseClass):
 
 
 class BiStericMassAction(BindingBaseClass):
-    """ Bi Steric Mass Action adsoprtion isotherm.
+    """Bi Steric Mass Action adsoprtion isotherm.
 
     Attributes
     ----------
@@ -663,6 +711,7 @@ class BiStericMassAction(BindingBaseClass):
         The default is 1.0
 
     """
+
     n_binding_sites = UnsignedInteger(default=2)
 
     adsorption_rate = DependentlySizedUnsignedList(dep='n_bound_states')
@@ -703,7 +752,7 @@ class BiStericMassAction(BindingBaseClass):
 
 
 class MultistateStericMassAction(BindingBaseClass):
-    """ Multistate Steric Mass Action adsoprtion isotherm.
+    """Multistate Steric Mass Action adsoprtion isotherm.
 
     Attributes
     ----------
@@ -734,6 +783,7 @@ class MultistateStericMassAction(BindingBaseClass):
         The default = 1.0
 
     """
+
     bound_states = DependentlySizedUnsignedIntegerList(
         dep=('n_binding_sites', 'n_comp'), default=1
     )
@@ -776,7 +826,7 @@ class MultistateStericMassAction(BindingBaseClass):
 
 
 class SimplifiedMultistateStericMassAction(BindingBaseClass):
-    """ Simplified multistate Steric Mass Action adsoprtion isotherm.
+    """Simplified multistate Steric Mass Action adsoprtion isotherm.
 
     Attributes
     ----------
@@ -829,6 +879,7 @@ class SimplifiedMultistateStericMassAction(BindingBaseClass):
         Reference solid phase concentration (optional, default value = 1.0).
 
     """
+
     bound_states = DependentlySizedUnsignedIntegerList(
         dep=('n_binding_sites', 'n_comp'), default=1
     )
@@ -900,6 +951,7 @@ class Saska(BindingBaseClass):
         Quadratic factors.
 
     """
+
     henry_const = DependentlySizedUnsignedList(dep='n_comp')
     quadratic_factor = DependentlySizedUnsignedList(dep=('n_comp', 'n_comp'))
 
@@ -968,6 +1020,7 @@ class GeneralizedIonExchange(BindingBaseClass):
         Reference liquid phase concentration (optional, default value = 1.0).
 
     """
+
     non_binding_component_indices = [1]
 
     adsorption_rate = DependentlySizedList(dep='n_comp')

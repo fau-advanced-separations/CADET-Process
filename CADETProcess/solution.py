@@ -1,25 +1,30 @@
-"""Store and plot solution of simulation.
+"""
+=======================================
+Solution (:mod:`CADETProcess.solution`)
+=======================================
 
-NCOL/N_Z: Number of axial cells
-z: Axial position
+.. currentmodule:: CADETProcess.solution
 
-NRAD/N_rho: Number of
-rho: Annulus cell (cylinder shell)
+Module to store and plot solution of simulation.
 
-NCOMP/N_C: Number of components
-i: component index
+.. autosummary::
+   :toctree: generated/
 
-NPARTYPE/N_P: Number of particle types
-j: Particle type index
+   SolutionBase
+   SolutionIO
+   SolutionBulk
+   SolutionParticle
+   SolutionSolid
+   SolutionVolume
 
-NPAR/N_R: Number of particle cells
-r: Radial position (particle)
 
-IO: NCOL * NRAD
-Bulk/Interstitial: NCOL * NRAD * NCOMP
-Particle_liquid: NCOL * NRAD * sum_{j}^{NPARTYPE}{NCOMP * NPAR,j}
-Particle_solid: NCOL * NRAD * sum_{j}^{NPARTYPE}{NBOUND,j * NPAR,j}
-Flux: NCOL * NRAD * NPARTYPE * NCOMP
+Method to slice a Solution:
+
+.. autosummary::
+   :toctree: generated/
+
+   slice_solution
+
 """
 
 import copy
@@ -44,7 +49,43 @@ from CADETProcess import smoothing
 from CADETProcess import transform
 
 
+__all__ = [
+    'SolutionIO',
+    'SolutionBulk',
+    'SolutionParticle',
+    'SolutionSolid',
+    'SolutionVolume',
+    'slice_solution',
+]
+
+
 class SolutionBase(metaclass=StructMeta):
+    """Base class for solutions of component systems.
+
+    This class represents a solution of a component system at different time points.
+    It provides several properties that allow access to information about the solution,
+    such as the number of components, the total concentration, and the local purity.
+
+    Attributes
+    ----------
+    name : str
+        Name of the solution.
+    time : np.ndarray
+        Array of time points.
+    solution : np.ndarray
+        Array of solution values.
+    c_min : float
+        Minimum concentration threshold, below which concentrations are considered zero.
+    dimensions : list of str
+        Names of the dimensions in the solution.
+
+    Notes
+    -----
+    This class is not meant to be used directly, but to be subclassed by specific
+    solution types.
+
+    """
+
     name = String()
     time = Vector()
     solution = DependentlySizedNdArray(dep='solution_shape')
@@ -61,18 +102,22 @@ class SolutionBase(metaclass=StructMeta):
         self.reset()
 
     def reset(self):
+        """Reset component system, time, and solution arrays to their original values."""
         self.component_system = self.component_system_original
         self.time = self.time_original
         self.solution = self.solution_original
 
     def update(self):
+        """Update the solution."""
         pass
 
     def update_transform(self):
+        """Update the transforms."""
         pass
 
     @property
     def component_system(self):
+        """ComponentSystem: ComponentSystem of the Solution object."""
         return self._component_system
 
     @component_system.setter
@@ -83,22 +128,27 @@ class SolutionBase(metaclass=StructMeta):
 
     @property
     def n_comp(self):
+        """int: Number of components."""
         return self.component_system.n_comp
 
     @property
     def cycle_time(self):
+        """float: Cycle time."""
         return self.time[-1]
 
     @property
     def nt(self):
+        """int: Number of time steps."""
         return len(self.time)
 
     @property
     def component_coordinates(self):
+        """np.ndarray: Indices of the components."""
         return np.arange(self.n_comp)
 
     @property
     def coordinates(self):
+        """np.ndarray: Coordinates of the Solution."""
         coordinates = {}
 
         for c in self.dimensions:
@@ -110,13 +160,12 @@ class SolutionBase(metaclass=StructMeta):
 
     @property
     def solution_shape(self):
-        """tuple: (Expected) shape of the solution
-        """
+        """tuple: (Expected) shape of the solution."""
         return tuple(len(c) for c in self.coordinates.values())
 
     @property
     def total_concentration_components(self):
-        """np.array: Total concentration of components (sum of species)."""
+        """np.ndarray: Total concentration of components (sum of species)."""
         component_concentration = np.zeros(
             self.solution.shape[0:-1] + (self.component_system.n_components,)
         )
@@ -132,11 +181,12 @@ class SolutionBase(metaclass=StructMeta):
 
     @property
     def total_concentration(self):
-        """np.array: Total concentration all of components."""
+        """np.ndarray: Total concentration (sum) of all components."""
         return np.sum(self.solution, axis=-1, keepdims=True)
 
     @property
     def local_purity_components(self):
+        """np.ndarray: Local purity of each component."""
         solution = self.total_concentration_components
         c_total = self.total_concentration
         c_total[c_total < self.c_min] = np.nan
@@ -151,7 +201,7 @@ class SolutionBase(metaclass=StructMeta):
 
     @property
     def local_purity_species(self):
-        """np.array: Local purity of components."""
+        """np.ndarray: Local purity of components."""
         solution = self.solution
         c_total = self.total_concentration
         c_total[c_total < self.c_min] = np.nan
@@ -166,16 +216,15 @@ class SolutionBase(metaclass=StructMeta):
 
 
 class SolutionIO(SolutionBase):
-    """Solution at unit inlet or outlet.
-
-    IO: NCOL * NRAD
+    """Solution representing streams at the inlet or outlet of a ``UnitOperation``.
 
     Notes
     -----
-    The flow_rate is implemented as TimeLine to improve interpolation of
+    The `flow_rate` attribute is implemented as TimeLine to improve interpolation of
     signals with discontinuous flow.
 
     """
+
     dimensions = SolutionBase.dimensions + ['component_coordinates']
 
     def __init__(self, name, component_system, time, solution, flow_rate):
@@ -254,6 +303,7 @@ class SolutionIO(SolutionBase):
         return self._dm_dt_interpolated
 
     def normalize(self):
+        """Normalize the solution using the transformation function."""
         if self.is_normalized:
             return
 
@@ -262,6 +312,7 @@ class SolutionIO(SolutionBase):
         self.is_normalized = True
 
     def denormalize(self):
+        """Denormalize the solution using the transformation function."""
         if not self.is_normalized:
             return
 
@@ -387,7 +438,7 @@ class SolutionIO(SolutionBase):
 
         Returns
         -------
-        Area : np.array
+        Area : np.ndarray
             Mass of all components in the fraction
 
         """
@@ -409,7 +460,7 @@ class SolutionIO(SolutionBase):
 
         Returns
         -------
-        fraction_mass : np.array
+        fraction_mass : np.ndarray
             Mass of all components in the fraction
 
         """
@@ -448,7 +499,7 @@ class SolutionIO(SolutionBase):
 
         Returns
         -------
-        fraction_volume : np.array
+        fraction_volume : np.ndarray
             Volume of the fraction
 
         """
@@ -556,13 +607,12 @@ class SolutionIO(SolutionBase):
         plot
 
         """
-
         time = self.time / 60
 
         if layout is None:
             layout = plotting.Layout()
-            layout.x_label = '$time~/~min$'
-            layout.y_label = '$Purity ~/~\%$'
+            layout.x_label = r'$time~/~min$'
+            layout.y_label = r'$Purity ~/~\%$'
             layout.x_lim = (start, end)
             layout.y_lim = (0, 100)
 
@@ -614,10 +664,12 @@ class SolutionIO(SolutionBase):
 
 
 class SolutionBulk(SolutionBase):
-    """Interstitial solution.
+    """Solution in the bulk phase of the ``UnitOperation``.
 
-    Bulk/Interstitial: NCOL * NRAD * NCOMP
+    Dimensions: NCOL * NRAD * NCOMP
+
     """
+
     dimensions = SolutionBase.dimensions + [
         'axial_coordinates',
         'radial_coordinates',
@@ -647,12 +699,14 @@ class SolutionBulk(SolutionBase):
 
     @property
     def ncol(self):
+        """int: Number of axial discretization points."""
         if self.axial_coordinates is None:
             return
         return len(self.axial_coordinates)
 
     @property
     def nrad(self):
+        """int: Number of radial discretization points."""
         if self.radial_coordinates is None:
             return
         return len(self.radial_coordinates)
@@ -852,9 +906,10 @@ class SolutionBulk(SolutionBase):
 
 
 class SolutionParticle(SolutionBase):
-    """Mobile phase solution inside the particles.
+    """Solution in the particle liquid phase of the ``UnitOperation``.
 
-    Particle_liquid: NCOL * NRAD * sum_{j}^{NPARTYPE}{NCOMP * NPAR,j}
+    Dimensions: NCOL * NRAD * sum_{j}^{NPARTYPE}{NCOMP * NPAR,j}
+
     """
 
     dimensions = SolutionBase.dimensions + [
@@ -888,12 +943,14 @@ class SolutionParticle(SolutionBase):
 
     @property
     def ncol(self):
+        """int: Number of axial discretization points."""
         if self.axial_coordinates is None:
             return
         return len(self.axial_coordinates)
 
     @property
     def nrad(self):
+        """int: Number of radial discretization points."""
         if self.radial_coordinates is None:
             return
         return len(self.radial_coordinates)
@@ -1016,9 +1073,10 @@ class SolutionParticle(SolutionBase):
 
 
 class SolutionSolid(SolutionBase):
-    """Solid phase solution inside the particles.
+    """Solution in the particle solid phase of the ``UnitOperation``.
 
-    Particle_solid: NCOL * NRAD * sum_{j}^{NPARTYPE}{NBOUND,j * NPAR,j}
+    Dimensions: NCOL * NRAD * sum_{j}^{NPARTYPE}{NBOUND,j * NPAR,j}
+
     """
 
     n_bound = UnsignedInteger()
@@ -1055,10 +1113,12 @@ class SolutionSolid(SolutionBase):
 
     @property
     def n_comp(self):
+        """int: Number of components."""
         return sum(self.bound_states)
 
     @property
     def ncol(self):
+        """int: Number of axial discretization points."""
         if self.axial_coordinates is None:
             return None
         else:
@@ -1066,6 +1126,7 @@ class SolutionSolid(SolutionBase):
 
     @property
     def nrad(self):
+        """int: Number of radial discretization points."""
         if self.radial_coordinates is None:
             return
         return len(self.radial_coordinates)
@@ -1478,7 +1539,7 @@ class InterpolatedSignal():
 
         Parameters
         ----------
-        time : np.array
+        time : np.ndarray
             The time points to evaluate the derivatives at.
 
         Returns
@@ -1500,7 +1561,7 @@ class InterpolatedSignal():
     def antiderivative(self, time):
         """ Return all antiderivative of the spline(s) at given time.
 
-        x : np.array
+        x : np.ndarray
             The time points to evaluate the antiderivatives at.
 
         Returns
@@ -1527,7 +1588,7 @@ class InterpolatedSignal():
 
         Returns
         -------
-        integral : np.array
+        integral : np.ndarray
             Definite integral of the solution spline(s) between limits.
 
         """
@@ -1548,6 +1609,41 @@ def slice_solution(
         use_total_concentration=False,
         use_total_concentration_components=False,
         coordinates=None):
+    """Slice a `Solution` object along specified dimensions, components or both.
+
+    Parameters
+    ----------
+    solution_original : Solution
+        The `Solution` object to slice.
+    components : str or list of str, optional
+        The names of the components to keep in the sliced `Solution`.
+        If `None`, all components are kept. Defaults to `None`.
+    use_total_concentration : bool, optional
+        If `True`, only the total concentration data is kept in the sliced `Solution`.
+        Defaults to `False`.
+    use_total_concentration_components : bool, optional
+        If `True`, the total concentration data is kept for each individual species
+        of each component in the sliced `Solution`. Defaults to `False`.
+    coordinates : dict, optional
+        A dictionary mapping dimensions to slice coordinates. Each dimension in the
+        `Solution` object is represented by a key in the dictionary, and the corresponding
+        value is a tuple of two or three elements specifying the start, stop and step
+        coordinates of the slice along that dimension. If a value is `None`, the corresponding
+        coordinate is not sliced. Defaults to `None`.
+
+    Returns
+    -------
+    Solution
+        A new `Solution` object representing the sliced data.
+
+    Raises
+    ------
+    ValueError
+        If any of the slice coordinates exceeds the bounds of its corresponding dimension.
+    CADETProcessError
+        If any of the specified components or dimensions does not exist in the original `Solution`.
+    """
+
     solution = copy.deepcopy(solution_original)
 
     slices = ()

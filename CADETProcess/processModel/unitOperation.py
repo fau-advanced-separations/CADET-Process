@@ -29,6 +29,20 @@ from .solutionRecorder import (
 )
 
 
+__all__ = [
+    'UnitBaseClass',
+    'SourceMixin',
+    'SinkMixin',
+    'Inlet',
+    'Outlet',
+    'TubularReactorBase',
+    'TubularReactor',
+    'LumpedRateModelWithoutPores',
+    'LumpedRateModelWithPores',
+    'GeneralRateModel',
+]
+
+
 @frozen_attributes
 class UnitBaseClass(metaclass=StructMeta):
     """Base class for all UnitOperation classes.
@@ -45,9 +59,11 @@ class UnitBaseClass(metaclass=StructMeta):
     parameters : list
         list of parameter names.
     name : String
-        name of the unit_operation.
+        name of the unit operation.
     binding_model : BindingBaseClass
         binding behavior of the unit. Defaults to NoBinding.
+    solution_recorder : IORecorder
+        Solution recorder for the unit operation.
 
     See Also
     --------
@@ -229,7 +245,7 @@ class UnitBaseClass(metaclass=StructMeta):
 
     @property
     def binding_model(self):
-        """binding_model: BindingModel of the unit_operation.
+        """binding_model: BindingModel of the unit operation.
 
         Raises
         ------
@@ -335,7 +351,7 @@ class SourceMixin(metaclass=StructMeta):
     See Also
     --------
     SinkMixin
-    Source
+    Inlet
     Cstr
 
     """
@@ -359,7 +375,19 @@ class SinkMixin():
 
 
 class Inlet(UnitBaseClass, SourceMixin):
-    """Pseudo unit operation model for streams entering the system."""
+    """Pseudo unit operation model for streams entering the system.
+
+    Attributes
+    ----------
+    c : NdPolynomial
+        Polynomial coefficients for component concentration.
+    flow_rate : NdPolynomial
+        Polynomial coefficients for volumetric flow rate.
+    solution_recorder : IORecorder
+        Solution recorder for the unit operation.
+
+    """
+
     c = NdPolynomial(dep=('n_comp', '_n_poly_coeffs'), default=0)
     flow_rate = Polynomial(dep=('_n_poly_coeffs'), default=0)
     _n_poly_coeffs = 4
@@ -382,7 +410,14 @@ Source = Inlet
 
 
 class Outlet(UnitBaseClass, SinkMixin):
-    """Pseudo unit operation model for streams leaving the system."""
+    """Pseudo unit operation model for streams leaving the system.
+
+    Attributes
+    ----------
+    solution_recorder : IORecorder
+        Solution recorder for the unit operation.
+    """
+
     pass
 
 
@@ -414,8 +449,14 @@ class TubularReactorBase(UnitBaseClass):
         Diameter of column.
     axial_dispersion : UnsignedFloat
         Dispersion rate of compnents in axial direction.
+    flow_direction : Switch
+        If 1: Forward flow.
+        If -1: Backwards flow.
+    discretization : DiscretizationParametersBase
+        Discretization scheme of the unit.
 
     """
+
     length = UnsignedFloat()
     diameter = UnsignedFloat()
     axial_dispersion = UnsignedFloat()
@@ -572,7 +613,7 @@ class TubularReactorBase(UnitBaseClass):
         return self.volume_interstitial / flow_rate
 
     def u0(self, flow_rate):
-        """Flow velocity of a (non adsorbint) volume element.
+        """Flow velocity of a (non adsorbing) volume element.
 
         Parameters
         ----------
@@ -593,7 +634,7 @@ class TubularReactorBase(UnitBaseClass):
         return self.length/self.t0(flow_rate)
 
     def NTP(self, flow_rate):
-        """Number of theoretical plates.
+        r"""Number of theoretical plates.
 
         Parameters
         ----------
@@ -601,7 +642,9 @@ class TubularReactorBase(UnitBaseClass):
             volumetric flow rate
 
         Calculated using the axial dispersion coefficient:
-        :math: NTP = \frac{u \cdot L_{Column}}{2 \cdot D_a}
+
+        .. math::
+            NTP = \frac{u \cdot L_{Column}}{2 \cdot D_a}
 
         Returns
         -------
@@ -612,7 +655,8 @@ class TubularReactorBase(UnitBaseClass):
         return self.u0(flow_rate) * self.length / (2 * self.axial_dispersion)
 
     def set_axial_dispersion_from_NTP(self, NTP, flow_rate):
-        """
+        r"""Set axial dispersion from number of theoretical plates (NTP).
+
         Parameters
         ----------
         NTP : float
@@ -621,7 +665,9 @@ class TubularReactorBase(UnitBaseClass):
             volumetric flow rate
 
         Calculated using the axial dispersion coefficient:
-        :math: NTP = \frac{u \cdot L_{Column}}{2 \cdot D_a}
+
+        .. math::
+            NTP = \frac{u \cdot L_{Column}}{2 \cdot D_a}
 
         Returns
         -------
@@ -644,8 +690,10 @@ class TubularReactor(TubularReactorBase):
 
     Attributes
     ----------
-    c : List of unsinged floats. Length depends on n_comp
+    c : List of unsigned floats. Length depends on n_comp
         Initial concentration of the reactor.
+    solution_recorder : TubularReactorRecorder
+        Solution recorder for the unit operation.
 
     """
     supports_bulk_reaction = True
@@ -675,10 +723,12 @@ class LumpedRateModelWithoutPores(TubularReactorBase):
     ----------
     total_porosity : UnsignedFloat between 0 and 1.
         Total porosity of the column.
-    c : List of unsinged floats. Length depends on n_comp
+    c : List of unsigned floats. Length depends on n_comp
             Initial concentration of the reactor.
-    q : List of unsinged floats. Length depends on n_comp
+    q : List of unsigned floats. Length depends on n_comp
         Initial concentration of the bound phase.
+    solution_recorder : LRMRecorder
+        Solution recorder for the unit operation.
 
     Notes
     -----
@@ -736,16 +786,18 @@ class LumpedRateModelWithPores(TubularReactorBase):
         Porosity of particles.
     particle_radius : UnsignedFloat
         Radius of the particles.
-    film_diffusion : List of unsinged floats. Length depends on n_comp.
+    film_diffusion : List of unsigned floats. Length depends on n_comp.
         Diffusion rate for components in pore volume.
-    pore_accessibility : List of unsinged floats. Length depends on n_comp.
+    pore_accessibility : List of unsigned floats. Length depends on n_comp.
         Accessibility of pores for components.
-    c : List of unsinged floats. Length depends on n_comp
+    c : List of unsigned floats. Length depends on n_comp
         Initial concentration of the reactor.
-    cp : List of unsinged floats. Length depends on n_comp
+    cp : List of unsigned floats. Length depends on n_comp
         Initial concentration of the pores
-    q : List of unsinged floats. Length depends on n_comp
+    q : List of unsigned floats. Length depends on n_comp
         Initial concntration of the bound phase.
+    solution_recorder : LRMPRecorder
+        Solution recorder for the unit operation.
 
     """
     supports_bulk_reaction = True
@@ -863,18 +915,20 @@ class GeneralRateModel(TubularReactorBase):
         Porosity of particles.
     particle_radius : UnsignedFloat
         Radius of the particles.
-    pore_diffusion : List of unsinged floats. Length depends on n_comp.
+    pore_diffusion : List of unsigned floats. Length depends on n_comp.
         Diffusion rate for components in pore volume.
-    surface_diffusion : List of unsinged floats. Length depends on n_comp.
+    surface_diffusion : List of unsigned floats. Length depends on n_comp.
         Diffusion rate for components in adsrobed state.
-    pore_accessibility : List of unsinged floats. Length depends on n_comp.
+    pore_accessibility : List of unsigned floats. Length depends on n_comp.
         Accessibility of pores for components.
-    c : List of unsinged floats. Length depends on n_comp
+    c : List of unsigned floats. Length depends on n_comp
         Initial concentration of the reactor.
-    cp : List of unsinged floats. Length depends on n_comp
+    cp : List of unsigned floats. Length depends on n_comp
         Initial concentration of the pores
-    q : List of unsinged floats. Length depends on n_comp
+    q : List of unsigned floats. Length depends on n_comp
         Initial concntration of the bound phase.
+    solution_recorder : GRMRecorder
+        Solution recorder for the unit operation.
 
     """
     supports_bulk_reaction = True
@@ -1006,16 +1060,18 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
 
     Parameters
     ----------
-    c : List of unsinged floats. Length depends on n_comp
+    c : List of unsigned floats. Length depends on n_comp
         Initial concentration of the reactor.
-    q : List of unsinged floats. Length depends on n_comp
+    q : List of unsigned floats. Length depends on n_comp
         Initial concentration of the bound phase.
-    V : Unsinged float
+    V : unsigned float
         Initial volume of the reactor.
     total_porosity : UnsignedFloat between 0 and 1.
         Total porosity of the column.
     flow_rate_filter: float:
         Flow rate of pure liquid without components to reduce volume.
+    solution_recorder : CSTRRecorder
+        Solution recorder for the unit operation.
 
     """
     supports_bulk_reaction = True

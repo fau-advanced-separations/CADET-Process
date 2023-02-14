@@ -33,7 +33,7 @@ def ptc(
         x, f, jacF, tau, tol,
         scale=None, maxIter=50, maxNonMonotone=5,
         quiet=True, variant=False):
-    """Solve a nonlinear equation system using pseudo-transient continuation.
+    r"""Solve a nonlinear equation system using pseudo-transient continuation.
 
     The nonlinear equation system f(x) = 0 is solved using pseudo-transient
     continuation (PTC), which introduce pseudo time and computes the steady
@@ -67,7 +67,8 @@ def ptc(
     scale : np.array, optional
         (positive) diagonal scaling coefficients.
         The scaled root mean square norm is given by
-        .. math:: || x || = \sqrt{ (1/n) * \sum (x_i / v_i)^2}
+        .. math::
+            || x || = \sqrt{ (1/n) * \sum (x_i / v_i)^2}
         If None, no scaling is applied. The default is None.
     maxIter : int, optional
         Maximum number of iterations. The default is 50.
@@ -97,7 +98,6 @@ def ptc(
         Number of iterations.
 
     """
-
     fxk = f(x)
     if scale is None:
         scale = np.ones(x.shape)

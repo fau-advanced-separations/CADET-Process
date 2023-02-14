@@ -8,6 +8,26 @@ from CADETProcess.dataStructure import (
 
 
 class Fraction(metaclass=StructMeta):
+    """A class representing a fraction of a mixture.
+
+    A fraction is defined by its mass and volume, and can be used to calculate
+    properties such as cumulative mass, purity, and concentration.
+
+    Parameters
+    ----------
+    mass : numpy.ndarray
+        The mass of each component in the fraction.
+    volume : float
+        The volume of the fraction.
+
+    Attributes
+    ----------
+    mass : np.ndarray
+        The mass of each component in the fraction.
+    volume : float
+        The volume of the fraction.
+    """
+
     mass = Vector()
     volume = UnsignedFloat()
 
@@ -17,24 +37,24 @@ class Fraction(metaclass=StructMeta):
 
     @property
     def n_comp(self):
+        """int: Number of components in the fraction."""
         return self.mass.size
 
     @property
     def fraction_mass(self):
-        """np.Array: Cumulative mass all species in the fraction.
+        """np.ndarray: Cumulative mass all species in the fraction.
 
         See Also
         --------
         mass
         purity
         concentration
-
         """
         return sum(self.mass)
 
     @property
     def purity(self):
-        """np.Array: Purity of the fraction.
+        """np.ndarray: Purity of the fraction.
 
         Invalid values are replaced by zero.
 
@@ -43,7 +63,6 @@ class Fraction(metaclass=StructMeta):
         mass
         fraction_mass
         concentration
-
         """
         with np.errstate(divide='ignore', invalid='ignore'):
             purity = self.mass / self.fraction_mass
@@ -52,7 +71,7 @@ class Fraction(metaclass=StructMeta):
 
     @property
     def concentration(self):
-        """np.Array: Component concentrations of the fraction.
+        """np.ndarray: Component concentrations of the fraction.
 
         Invalid values are replaced by zero.
 
@@ -60,7 +79,6 @@ class Fraction(metaclass=StructMeta):
         --------
         mass
         volume
-
         """
         with np.errstate(divide='ignore', invalid='ignore'):
             concentration = self.mass / self.volume
@@ -78,7 +96,7 @@ class FractionPool(metaclass=StructMeta):
 
     See Also
     --------
-    Fraction
+    CADETProcess.fractionation.Fraction
     CADETProcess.fractionation.Fractionator
 
     """
@@ -99,24 +117,19 @@ class FractionPool(metaclass=StructMeta):
 
     @property
     def fractions(self):
+        """list: List of fractions in the pool."""
         if len(self._fractions) == 0:
             return [Fraction(np.zeros((self.n_comp,)), 0)]
         return self._fractions
 
     @property
     def n_fractions(self):
+        """int: Number of fractions in the pool."""
         return len(self._fractions)
 
     @property
     def volume(self):
-        """Returns the sum of all fraction volumes in the fraction pool
-
-        Returns
-        -------
-        volume : float
-            Cumulative volume of all fractions in the pool.
-
-        """
+        """float: Sum of all fraction volumes in the fraction pool."""
         return sum(frac.volume for frac in self.fractions)
 
     @property
@@ -133,7 +146,7 @@ class FractionPool(metaclass=StructMeta):
 
     @property
     def pool_mass(self):
-        """float: Sum of all component masses of all fractions of the pool."""
+        """float: Sum of cumulative component mass in the fraction pool."""
         return sum(frac.fraction_mass for frac in self.fractions)
 
     @property
@@ -142,12 +155,16 @@ class FractionPool(metaclass=StructMeta):
 
         Invalid values are replaced by zero.
 
+        Returns
+        -------
+        purity : np.ndarray
+            Purity of each component in the fraction pool.
+
         See Also
         --------
         mass
         pool_mass
         concentration
-
         """
         with np.errstate(divide='ignore', invalid='ignore'):
             purity = self.mass / self.pool_mass
@@ -162,7 +179,7 @@ class FractionPool(metaclass=StructMeta):
 
         Returns
         -------
-        concentration : ndarray
+        concentration : np.ndarray
             Average concentration of the fraction pool.
 
         See Also

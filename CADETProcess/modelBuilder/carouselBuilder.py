@@ -15,6 +15,9 @@ from CADETProcess.processModel import TubularReactorBase, Cstr
 from CADETProcess.solution import SolutionBase
 
 
+__all__ = ['CarouselBuilder', 'SerialZone', 'ParallelZone']
+
+
 class CarouselBuilder(metaclass=StructMeta):
     switch_time = UnsignedFloat()
 

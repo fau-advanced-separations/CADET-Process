@@ -1,3 +1,80 @@
+"""
+=======================================
+Plotting (:mod:`CADETProcess.plotting`)
+=======================================
+
+.. currentmodule:: CADETProcess.plotting
+
+This module provides functionality for plotting in CADET-Process.
+
+General Style
+=============
+
+.. autosummary::
+    :toctree: generated/
+
+    set_style
+    SecondaryAxis
+    Layout
+    set_layout
+
+Setup Figure
+============
+
+.. autosummary::
+    :toctree: generated/
+
+    setup_figure
+    create_and_save_figure
+
+
+Annotations
+===========
+
+.. autosummary::
+    :toctree: generated/
+
+    Annotation
+    add_annotations
+
+Ticks
+=====
+
+.. autosummary::
+    :toctree: generated/
+
+    Tick
+    set_yticks
+    set_xticks
+
+Fill Regions
+============
+
+.. autosummary::
+    :toctree: generated/
+
+    FillRegion
+    add_fill_regions
+
+Text
+====
+
+.. autosummary::
+    :toctree: generated/
+
+    add_text
+
+Hlines
+======
+
+.. autosummary::
+    :toctree: generated/
+
+    HLines
+    add_hlines
+
+"""
+
 from functools import wraps
 import sys
 
@@ -12,6 +89,7 @@ from CADETProcess.dataStructure import StructMeta, Structure
 from CADETProcess.dataStructure import (
     Integer, List, String, Tuple, Callable, UnsignedFloat
 )
+
 
 this = sys.modules[__name__]
 

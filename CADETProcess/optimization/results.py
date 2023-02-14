@@ -42,7 +42,7 @@ class OptimizationResults(metaclass=StructMeta):
         Value of objective function at x.
     g : np.ndarray
         Values of constraint function at x
-    population : Population
+    population_last : Population
         Last population.
     pareto_front : ParetoFront
         Pareto optimal solutions.
@@ -273,7 +273,7 @@ class OptimizationResults(metaclass=StructMeta):
 
     @property
     def g_min_history(self):
-        """np.array: Minimum nonlinera constraint values per generation."""
+        """np.array: Minimum nonlinear constraint values per generation."""
         if self.optimization_problem.n_nonlinear_constraints == 0:
             return None
         else:
@@ -343,6 +343,16 @@ class OptimizationResults(metaclass=StructMeta):
             return np.array([pop.m_avg for pop in self.meta_fronts])
 
     def plot_figures(self, show=True):
+        """Plot result figures.
+
+        See Also
+        --------
+        plot_convergence
+        plot_objectives
+        plot_corner
+        plot_pareto
+
+        """
         if self.plot_directory is None:
             return
 
@@ -387,6 +397,33 @@ class OptimizationResults(metaclass=StructMeta):
             autoscale=True,
             show=True,
             plot_directory=None):
+        """Plot objective function values for all optimization generations.
+
+        Parameters
+        ----------
+        include_meta : bool, optional
+            If True, meta scores will be included in the plot. The default is True.
+        plot_pareto : bool, optional
+            If True, only plot Pareto front members of each generation are plotted.
+            Else, all evaluated individuals are plotted.
+            The default is False.
+        plot_individual : bool, optional
+            If True, create separate figures for each objective. Otherwise, all
+            objectives are plotted in one figure.
+            The default is False.
+        autoscale : bool, optional
+            If True, automatically adjust the scaling of the axes. The default is True.
+        show : bool, optional
+            If True, display the plot. The default is True.
+        plot_directory : str, optional
+            The directory where the plot should be saved.
+            The default is None.
+
+        See Also
+        --------
+        CADETProcess.optimization.Population.plot_objectives
+
+        """
         axs = None
         figs = None
         _show = False
@@ -423,6 +460,34 @@ class OptimizationResults(metaclass=StructMeta):
             show=True,
             plot_pareto=False,
             plot_directory=None):
+        """Plot Pareto fronts for each generation in the optimization.
+
+        The Pareto front represents the optimal solutions that cannot be improved in one
+        objective without sacrificing another.
+        The method shows a pairwise Pareto plot, where each objective is plotted against
+        every other objective in a scatter plot, allowing for a visualization of the
+        trade-offs between the objectives.
+        To highlight the progress, a colormap is used where later generations are
+        plotted with darker blueish colors.
+
+        Parameters
+        ----------
+        show : bool, optional
+            If True, display the plot.
+            The default is True.
+        plot_pareto : bool, optional
+            If True, only plot Pareto front members of each generation are plotted.
+            Else, all evaluated individuals are plotted.
+            The default is False.
+        plot_directory : str, optional
+            The directory where the plot should be saved.
+            The default is None.
+
+        See Also
+        --------
+        CADETProcess.optimization.Population.plot_pareto
+
+        """
         plot = None
         _show = False
         _plot_directory = None
@@ -449,6 +514,26 @@ class OptimizationResults(metaclass=StructMeta):
             )
 
     def plot_corner(self, *args, **kwargs):
+        """Create a corner plot of the independent variables.
+
+        Parameters
+        ----------
+        untransformed : bool, optional
+            If True, use the untransformed independent variables.
+            The default is True.
+        show : bool, optional
+            If True, display the plot.
+            The default is True.
+        plot_directory : str, optional
+            The directory where the plot should be saved.
+            The default is None.
+
+        See Also
+        --------
+        CADETProcess.results.plot_corner
+        corner.corner
+
+        """
         try:
             self.population_all.plot_corner(*args, **kwargs)
         except AssertionError:
@@ -500,7 +585,35 @@ class OptimizationResults(metaclass=StructMeta):
             autoscale=True,
             show=True,
             plot_directory=None):
+        """Plot the convergence of optimization metrics over evaluations.
 
+        Parameters
+        ----------
+        target : str, optional
+            The target metrics to plot: 'objectives', 'nonlinear_constraints',
+            or 'meta_scores'.
+            The default is 'objectives'.
+        figs : plt.Figure or list of plt.Figure, optional
+            Figure(s) to plot the objectives on.
+        axs : plt.Axes or list of plt.Axes, optional
+            Axes to plot the objectives on.
+            If None, new figures and axes will be created.
+        plot_individual : bool, optional
+            If True, create individual figure vor each metric.
+            The default is False.
+        autoscale : bool, optional
+            If True, autoscale the y-axis. The default is True.
+        show : bool, optional
+            If True, show the plot. The default is True.
+        plot_directory : str, optional
+            A directory to save the plot, by default None.
+
+        Returns
+        -------
+        tuple
+            Tuple with (lists of) figure and axes objects.
+
+        """
         if axs is None:
             figs, axs = self.setup_convergence_figure(target, plot_individual)
 
@@ -718,7 +831,7 @@ class OptimizationResults(metaclass=StructMeta):
             a: append to existing file.
             w: Create new csv.
 
-        See also
+        See Also
         --------
         setup_csv
         """

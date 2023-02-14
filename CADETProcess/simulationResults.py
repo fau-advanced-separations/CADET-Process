@@ -1,3 +1,20 @@
+"""
+==========================================================
+Simulation Results (:mod:`CADETProcess.simulationResults`)
+==========================================================
+
+.. currentmodule:: CADETProcess.simulationResults
+
+This module provides a class for storing simulation results.
+
+
+.. autosummary::
+    :toctree: generated/
+
+    SimulationResults
+
+"""
+
 import copy
 import os
 
@@ -10,6 +27,9 @@ from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import (
     Dict, String, List, UnsignedInteger, UnsignedFloat
 )
+
+
+__all__ = ['SimulationResults']
 
 
 class SimulationResults(metaclass=StructMeta):
@@ -50,6 +70,7 @@ class SimulationResults(metaclass=StructMeta):
         However, CADET does currently provide this functionality.
 
     """
+
     solver_name = String()
     solver_parameters = Dict()
     exit_flag = UnsignedInteger()

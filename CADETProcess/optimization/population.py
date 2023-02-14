@@ -347,7 +347,39 @@ class Population():
             color_infeas='red',
             show=True,
             plot_directory=None):
+        """Plot the objective function values for each design variable.
 
+        Parameters
+        ----------
+        figs : plt.Figure or list of plt.Figure, optional
+            Figure(s) to plot the objectives on.
+        axs : plt.Axes or list of plt.Axes, optional
+            Axes to plot the objectives on.
+            If None, new figures and axes will be created.
+        include_meta : bool, optional
+            If True, meta scores will be included in the plot. The default is True.
+        plot_individual : bool, optional
+            If True, create separate figures for each objective. Otherwise, all
+            objectives are plotted in one figure.
+            The default is False.
+        autoscale : bool, optional
+            If True, automatically adjust the scaling of the axes. The default is True.
+        color_feas : str, optional
+            The color for the feasible points. The default is 'blue'.
+        color_infeas : str, optional
+            The color for the infeasible points. The default is 'red'.
+        show : bool, optional
+            If True, display the plot. The default is True.
+        plot_directory : str, optional
+            The directory where the plot should be saved.
+            The default is None.
+
+        Returns
+        -------
+        tuple
+            Tuple with (lists of) figure and axes objects.
+
+        """
         if axs is None:
             figs, axs = self.setup_objectives_figure(include_meta, plot_individual)
 
@@ -456,6 +488,36 @@ class Population():
 
     def plot_pareto(
             self, plot=None, color=None, show=True, plot_directory=None):
+        """Plot pairwise Pareto fronts of for each generation in the optimization.
+
+        The Pareto front represents the optimal solutions that cannot be improved in one
+        objective without sacrificing another.
+        The method shows a pairwise Pareto plot, where each objective is plotted against
+        every other objective in a scatter plot, allowing for a visualization of the
+        trade-offs between the objectives.
+        To highlight the progress, a colormap is used where later generations are
+        plotted with darker blueish colors.
+
+        Parameters
+        ----------
+        plot : pymoo.visualization.scatter.Scatter, optional
+            Base figure. If None is provided, a new one will be setup.
+        color: str
+            Color for scatter points.
+        show : bool, optional
+            If True, display the plot.
+            The default is True.
+        plot_directory : str, optional
+            The directory where the plot should be saved.
+            The default is None.
+
+        See Also
+        --------
+        setup_pareto
+        CADETProcess.optimization.OptimizationResults.plot_pareto
+        pymoo.visualization.scatter.Scatter
+
+        """
         if plot is None:
             plot = self.setup_pareto()
         plot.add(self.f, s=10, color=color)
@@ -472,6 +534,25 @@ class Population():
         return plot
 
     def plot_corner(self, untransformed=True, show=True, plot_directory=None):
+        """Create a corner plot of the independent variables.
+
+        Parameters
+        ----------
+        untransformed : bool, optional
+            If True, use the untransformed independent variables.
+            The default is True.
+        show : bool, optional
+            If True, display the plot.
+            The default is True.
+        plot_directory : str, optional
+            The directory where the plot should be saved.
+            The default is None.
+
+        See Also
+        --------
+        CADETProcess.results.plot_corner
+        corner.corner
+        """
         if untransformed:
             x = self.x_untransformed
             labels = self.variable_names
