@@ -6,7 +6,8 @@ from addict import Dict
 import matplotlib.colors as colors
 import matplotlib.cm as cmx
 import matplotlib.pyplot as plt
-cmap = plt.get_cmap('winter')
+cmap_feas = plt.get_cmap('winter')
+cmap_infeas = plt.get_cmap('autumn')
 import numpy as np
 
 from cadet import H5
@@ -324,10 +325,10 @@ class OptimizationResults(metaclass=StructMeta):
         _plot_directory = None
 
         cNorm = colors.Normalize(vmin=0, vmax=len(self.populations))
-        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cmap)
+        scalarMap_feas = cmx.ScalarMappable(norm=cNorm, cmap=cmap_feas)
+        scalarMap_infeas = cmx.ScalarMappable(norm=cNorm, cmap=cmap_infeas)
 
         for i, gen in enumerate(self.populations):
-            color = scalarMap.to_rgba(i)
             if gen is self.population_last:
                 _plot_directory = plot_directory
                 _show = show
@@ -336,7 +337,8 @@ class OptimizationResults(metaclass=StructMeta):
                 include_meta=include_meta,
                 plot_individual=plot_individual,
                 autoscale=autoscale,
-                color=color,
+                color_feas=scalarMap_feas.to_rgba(i),
+                color_infeas=scalarMap_infeas.to_rgba(i),
                 show=_show,
                 plot_directory=_plot_directory
             )

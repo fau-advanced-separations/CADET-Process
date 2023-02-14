@@ -302,7 +302,9 @@ class Population():
             figs=None, axs=None,
             include_meta=True,
             plot_individual=False,
-            autoscale=True, color=None,
+            autoscale=True,
+            color_feas='blue',
+            color_infeas='red',
             show=True,
             plot_directory=None):
 
@@ -316,24 +318,34 @@ class Population():
         layout.y_label = '$f~/~-$'
 
         variables = self.variable_names
-        x = self.x_untransformed
+        feasible = self.feasible
+        infeasible = self.infeasible
+        x_feas = feasible.x
+        x_infeas = infeasible.x
 
         if include_meta and self.m is not None:
-            values = np.hstack((self.f, self.m))
+            values_feas = np.hstack((feasible.f, feasible.m))
+            values_infeas = np.hstack((infeasible.f, infeasible.m))
             labels = self.objective_labels + self.meta_score_labels
         else:
-            values = self.f
+            values_feas = feasible.f
+            values_infeas = infeasible.f
             labels = self.objective_labels
 
         for i_var, var in enumerate(variables):
-            x_var = x[:, i_var]
+            x_var_feas = x_feas[:, i_var]
+            if len(x_infeas) > 0:
+                x_var_infeas = x_infeas[:, i_var]
 
             for i_metric, label in enumerate(labels):
-                v_metric = values[:, i_metric]
-
                 ax = axs[i_metric][i_var]
 
-                ax.scatter(x_var, v_metric, color=color)
+                if len(x_infeas) > 0:
+                    v_metric_infeas = values_infeas[:, i_metric]
+                    ax.scatter(x_var_infeas, v_metric_infeas, alpha=0.5, color=color_infeas)
+
+                v_metric_feas = values_feas[:, i_metric]
+                ax.scatter(x_var_feas, v_metric_feas, alpha=0.5, color=color_feas)
 
                 points = np.vstack([col.get_offsets() for col in ax.collections])
 
