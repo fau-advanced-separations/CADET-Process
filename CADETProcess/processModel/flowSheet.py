@@ -652,6 +652,9 @@ class FlowSheet(metaclass=StructMeta):
             The problem could definitely be solved more elegantly (and efficiently) by
             using proper liner algebra.
         """
+        if len(inlet_flow_rates) == 0:
+            return None
+
         coeffs = np.array(list(inlet_flow_rates.values()), ndmin=2)[:, coeff]
         if coeff > 0 and not np.any(coeffs):
             return None
