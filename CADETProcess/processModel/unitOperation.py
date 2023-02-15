@@ -455,8 +455,6 @@ class TubularReactorBase(UnitBaseClass):
         --------
         volume
         cross_section_area_interstitial
-        cross_section_area_liquid
-        cross_section_area_solid
 
         """
         if self.diameter is not None:
@@ -499,38 +497,9 @@ class TubularReactorBase(UnitBaseClass):
         See Also
         --------
         cross_section_area
-        cross_section_area_liquid
-        cross_section_area_solid
 
         """
         return self.total_porosity * self.cross_section_area
-
-    @property
-    def cross_section_area_liquid(self):
-        """float: Liquid fraction of column cross section area.
-
-        See Also
-        --------
-        cross_section_area
-        cross_section_area_interstitial
-        cross_section_area_solid
-        volume
-
-        """
-        return self.total_porosity * self.cross_section_area
-
-    @property
-    def cross_section_area_solid(self):
-        """float: Liquid fraction of column cross section area.
-
-        See Also
-        --------
-        cross_section_area
-        cross_section_area_interstitial
-        cross_section_area_liquid
-
-        """
-        return (1 - self.total_porosity) * self.cross_section_area
 
     @property
     def volume(self):
@@ -557,53 +526,118 @@ class TubularReactorBase(UnitBaseClass):
     @property
     def volume_liquid(self):
         """float: Volume of the liquid phase."""
-        return self.cross_section_area_liquid * self.length
+        return self.total_porosity * self.cross_section_area * self.length
 
     @property
     def volume_solid(self):
         """float: Volume of the solid phase."""
-        return self.cross_section_area_solid * self.length
+        return (1 - self.total_porosity) * self.cross_section_area * self.length
 
-    def t0(self, flow_rate):
-        """Mean residence time of a (non adsorbing) volume element.
+    def calculate_interstitial_rt(self, flow_rate):
+        """Calculate mean residence time of a (non adsorbing) volume element.
 
         Parameters
         ----------
         flow_rate : float
-            volumetric flow rate
+            Volumetric flow rate.
 
         Returns
         -------
         t0 : float
-            Mean residence time
+            Mean residence time of packed bed.
 
         See Also
         --------
-        u0
+        calculate_interstitial_velocity
+        calculate_superficial_rt
 
         """
         return self.volume_interstitial / flow_rate
 
-    def u0(self, flow_rate):
-        """Flow velocity of a (non adsorbing) volume element.
+    def calculate_superficial_rt(self, flow_rate):
+        """Calculate mean residence time of a volume element in an empty column.
 
         Parameters
         ----------
         flow_rate : float
-            volumetric flow rate
+            Volumetric flow rate.
 
         Returns
         -------
-        u0 : float
-            interstitial flow velocity
+        t_s : float
+            Mean residence time of empty column.
 
         See Also
         --------
-        t0
+        calculate_superficial_velocity
+        calculate_interstitial_rt
+
+        """
+        return self.volume / flow_rate
+
+    def calculate_interstitial_velocity(self, flow_rate):
+        """Calculate flow velocity of a (non adsorbing) volume element.
+
+        Parameters
+        ----------
+        flow_rate : float
+            Volumetric flow rate.
+
+        Returns
+        -------
+        interstitial_velocity : float
+            Interstitial flow velocity.
+
+        See Also
+        --------
+        calculate_interstitial_rt
+        calculate_superficial_velocity
+
+        """
+        return self.length/self.calculate_interstitial_rt(flow_rate)
+
+    def calculate_superficial_velocity(self, flow_rate):
+        """Calculate superficial flow velocity of a volume element in an empty column.
+
+        Parameters
+        ----------
+        flow_rate : float
+            Volumetric flow rate.
+
+        Returns
+        -------
+        u_s : float
+            Superficial flow velocity.
+
+        See Also
+        --------
+        calculate_superficial_rt
+        calculate_interstitial_velocity
         NTP
 
         """
-        return self.length/self.t0(flow_rate)
+        return self.length / self.calculate_superficial_rt(flow_rate)
+
+    def calculate_flow_rate_from_velocity(self, u0):
+        """Calculate volumetric flow rate from interstitial velocity.
+
+        Parameters
+        ----------
+        u0 : float
+            Interstitial flow velocity.
+
+        Returns
+        -------
+        Q : float
+            Volumetric flow rate.
+
+        See Also
+        --------
+        calculate_interstitial_velocity
+        t0
+
+        """
+        return u0 * self.cross_section_area_interstitial
 
     def NTP(self, flow_rate):
         r"""Number of theoretical plates.
@@ -624,7 +658,8 @@ class TubularReactorBase(UnitBaseClass):
             Number of theretical plates
 
         """
-        return self.u0(flow_rate) * self.length / (2 * self.axial_dispersion)
+        u0 = self.calculate_interstitial_velocity(flow_rate)
+        return u0 * self.length / (2 * self.axial_dispersion)
 
     def set_axial_dispersion_from_NTP(self, NTP, flow_rate):
         r"""Set axial dispersion from number of theoretical plates (NTP).
@@ -652,7 +687,8 @@ class TubularReactorBase(UnitBaseClass):
         NTP
 
         """
-        self.axial_dispersion = self.u0(flow_rate) * self.length / (2 * NTP)
+        u0 = self.calculate_interstitial_velocity(flow_rate)
+        self.axial_dispersion = u0 * self.length / (2 * NTP)
 
 
 class TubularReactor(TubularReactorBase):
@@ -823,9 +859,6 @@ class LumpedRateModelWithPores(TubularReactorBase):
         See Also
         --------
         cross_section_area
-        cross_section_area_liquid
-        cross_section_area_solid
-
         """
         return self.bed_porosity * self.cross_section_area
 
@@ -958,8 +991,6 @@ class GeneralRateModel(TubularReactorBase):
         See Also
         --------
         cross_section_area
-        cross_section_area_liquid
-        cross_section_area_solid
 
         """
         return self.bed_porosity * self.cross_section_area
