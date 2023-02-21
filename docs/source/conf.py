@@ -31,38 +31,32 @@ release = CADETProcess.__version__.replace("_", "")
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 
-extensions = [
-    "jupyter_sphinx",
-    "myst_nb",
-    "numpydoc",
-    "sphinx.ext.autodoc",
-    "sphinx.ext.autosummary",
-    "sphinx.ext.intersphinx",
-    "sphinx.ext.todo",
-    "sphinx.ext.viewcode",
-    "sphinxcontrib.bibtex",
-]
+# Extensions
+extensions = []
 
-# Myst-NB
-nb_execution_mode = "auto"
+## MyST-NB
+extensions.append("myst_nb")
+nb_execution_mode = "cache"
 source_suffix = {
+    '.rst': 'restructuredtext',
     '.ipynb': 'myst-nb',
     '.myst': 'myst-nb',
     '.md': 'myst-nb',
-    '.rst': 'restructuredtext',
 }
 
-# Autosummary
+## Numpydoc
+extensions.append("numpydoc")
+numpydoc_class_members_toctree = False
+
+## Autodoc
+extensions.append("sphinx.ext.autodoc")
+
+## Autosummary
+extensions.append("sphinx.ext.autosummary")
 autosummary_generate = True
-autosummary_imported_members = True
 
-# To do
-todo_include_todos = True
-
-# Bibliography
-bibtex_bibfiles = ['references.bib']
-
-# Intersphinx mapping
+## Intersphinx mapping
+extensions.append("sphinx.ext.intersphinx")
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
@@ -70,6 +64,21 @@ intersphinx_mapping = {
     "scipy": ("https://docs.scipy.org/doc/scipy/reference", None),
     "cadet": ("https://cadet.github.io/master/", None),
 }
+
+## To do
+extensions.append("sphinx.ext.todo")
+todo_include_todos = True
+
+## Viewcode
+extensions.append("sphinx.ext.viewcode")
+
+## Copy Button
+extensions.append("sphinx_copybutton")
+
+## BibTeX
+extensions.append("sphinxcontrib.bibtex")
+bibtex_bibfiles = ['references.bib']
+
 # -- Internationalization ------------------------------------------------
 # specifying the natural language populates some key tags
 language = "en"
@@ -106,16 +115,18 @@ html_theme = "sphinx_book_theme"
 html_logo = "_static/logo.png"
 
 html_theme_options = {
+    "show_toc_level": 2,
+    "use_download_button": True,
     "repository_url": "https://github.com/fau-advanced-separations/CADET-Process",
 	"use_repository_button": True,
+    "use_issues_button": True,
 }
 
 html_sidebars = {
-    "**": ["sidebar-logo.html", "search-field.html", "sbt-sidebar-nav.html"],
-	"examples/index": [],
+    "**": ["navbar-logo.html", "search-field.html", "sbt-sidebar-nav.html"]
 }
+
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
-

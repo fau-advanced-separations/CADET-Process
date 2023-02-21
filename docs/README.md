@@ -3,10 +3,10 @@ Documentation
 ## CADET-Process Documentation
 
 
-To build the documentation locally, install sphinx and other dependencies by running
+To build the documentation locally, install sphinx and other dependencies by running (from the CADET-Process root directory)
 
 ```
-pip install -r requirements.txt
+pip install -e .[docs]
 ```
 
 Then, in the `docs` folder run:
@@ -20,4 +20,3 @@ The output is in the `build` directory and can be opened with any browser.
 To build the documentation for all releases and the master branch, run:
 
 This documentation is published under https://readthedocs.org/projects/cadet-process/
-
