@@ -1,6 +1,7 @@
 from abc import abstractmethod
 import copy
 from functools import wraps
+from warnings import warn
 
 import numpy as np
 from scipy.integrate import simps
@@ -14,9 +15,44 @@ from .shape import pearson, pearson_offset
 from .peaks import find_peaks, find_breakthroughs
 
 
-def squishify(measurement, target, normalization=1):
-    input = (measurement - target)/normalization
-    output = np.abs(2*expit(input)-1)
+def squishify(*args, **kwargs):
+    warn(
+        'This function is deprecated, use sigmoid_distance.',
+        DeprecationWarning, stacklevel=2
+    )
+    return sigmoid_distance(*args, **kwargs)
+
+
+def sigmoid_distance(measurement, target, normalization=1):
+    """Calculate the distance between two values using a sigmoid function.
+
+    The distance is defined as the sigmoid transformation of the difference between the
+    measurement and target values, normalized by a user-specified factor.
+
+    Parameters
+    ----------
+    measurement : float or numpy.ndarray
+        The measurement value(s).
+    target : float or numpy.ndarray
+        The target value(s).
+    normalization : float, optional
+        The factor to use for normalization. Default is 1.
+
+    Returns
+    -------
+    float or numpy.ndarray
+        The sigmoid distance between the measurement and target values.
+
+    Examples
+    --------
+    >>> sigmoid_distance(3, 5)
+    0.7310585786300049
+
+    >>> sigmoid_distance([1, 2, 3], [3, 2, 1])
+    array([0.73105858, 0.5       , 0.26894142])
+    """
+    input = (measurement - target) / normalization
+    output = np.abs(2 * expit(input) - 1)
     return output
 
 
@@ -366,7 +402,7 @@ class Shape(DifferenceBase):
         peak_height = self.peak_height(solution, slice=False)
 
         if self.normalize_metrics:
-            offset = squishify(
+            offset = sigmoid_distance(
                 offset_original, target=0, normalization=self.normalization_factor
             )
         else:
@@ -439,7 +475,7 @@ class PeakHeight(DifferenceBase):
 
         if self.normalize_metrics:
             score = [
-                squishify(sol[1], ref[1], factor)
+                sigmoid_distance(sol[1], ref[1], factor)
                 for i in range(self.reference.n_comp)
                 for ref, sol, factor in zip(
                      self.reference_peaks[i],
@@ -497,7 +533,7 @@ class PeakPosition(DifferenceBase):
 
         if self.normalize_metrics:
             score = [
-                squishify(sol[0], ref[0], factor)
+                sigmoid_distance(sol[0], ref[0], factor)
                 for i in range(self.reference.n_comp)
                 for ref, sol, factor in zip(
                     self.reference_peaks[i],
@@ -540,7 +576,7 @@ class BreakthroughHeight(DifferenceBase):
 
         if self.normalize_metrics:
             score = [
-                squishify(sol[1], ref[1])
+                sigmoid_distance(sol[1], ref[1])
                 for ref, sol in zip(self.reference_bt, solution_bt)
             ]
         else:
@@ -586,7 +622,7 @@ class BreakthroughPosition(DifferenceBase):
 
         if self.normalize_metrics:
             score = [
-                squishify(sol[0], ref[0], self.normalization_factor)
+                sigmoid_distance(sol[0], ref[0], self.normalization_factor)
                 for ref, sol in zip(self.reference_bt, solution_bt)
             ]
         else:
