@@ -17,7 +17,6 @@ from CADETProcess.optimization import OptimizationProblem
 from CADETProcess.optimization import U_NSGA3
 
 from operating_modes.batch_elution import process
-component_system = process.component_system
 
 # Setup Optimization Problem
 optimization_problem = OptimizationProblem(name='batch elution')
@@ -46,26 +45,26 @@ optimization_problem.add_evaluator(
 case = 'single'
 if case == 'single':
     ranking = [1, 1]
-    performance = PerformanceProduct(component_system, ranking=ranking)
+    performance = PerformanceProduct(ranking=ranking)
     optimization_problem.add_objective(
         performance, requires=[process_simulator, frac_opt]
     )
 elif case == 'multi':
-    productivity = Productivity(component_system)
+    productivity = Productivity()
     optimization_problem.add_objective(
         productivity,
         n_objectives=2,
         requires=[process_simulator, frac_opt]
     )
 
-    recovery = Recovery(component_system)
+    recovery = Recovery()
     optimization_problem.add_objective(
         recovery,
         n_objectives=2,
         requires=[process_simulator, frac_opt]
     )
 
-    eluent_consumption = EluentConsumption(component_system)
+    eluent_consumption = EluentConsumption()
     optimization_problem.add_objective(
         eluent_consumption,
         n_objectives=2,

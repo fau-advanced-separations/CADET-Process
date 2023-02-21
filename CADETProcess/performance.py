@@ -100,7 +100,7 @@ class RankedPerformance():
 
     @ranking.setter
     def ranking(self, ranking):
-        n_metrics = self.component_system.n_comp - self.n_exclude
+        n_metrics = self.component_system.n_comp
 
         if isinstance(ranking, (float, int)):
             ranking = n_metrics * [ranking]
@@ -138,20 +138,8 @@ class RankedPerformance():
 
 
 class PerformanceIndicator(MetricBase):
-    def __init__(self, exclude=None, ranking=None):
-        self.exclude = exclude
+    def __init__(self, ranking=None):
         self.ranking = ranking
-
-    @property
-    def exclude(self):
-        return self._exclude
-
-    @exclude.setter
-    def exclude(self, exclude=None):
-        if exclude is None:
-            exclude = []
-
-        self._exclude = exclude
 
     @property
     def ranking(self):
@@ -181,8 +169,6 @@ class PerformanceIndicator(MetricBase):
         else:
             metric = []
             for i, comp in enumerate(performance.component_system):
-                if comp.name in self.exclude:
-                    continue
                 metric.append(value[i])
 
         return metric
