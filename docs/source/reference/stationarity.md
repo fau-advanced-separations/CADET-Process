@@ -1,11 +1,6 @@
-(stationarity_reference)=
-# Stationarity
-
 ```{eval-rst}
-.. currentmodule:: CADETProcess
-
 .. automodule:: CADETProcess.stationarity
-   :members:
-
+   :no-members:
+   :no-inherited-members:
+   :no-special-members:
 ```
-

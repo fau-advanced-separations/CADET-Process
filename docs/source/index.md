@@ -42,14 +42,7 @@ examples/parameter_estimation
 :caption: API Reference
 :hidden:
 
-reference/dynamic_events
-reference/process_model/index
-reference/simulation
-reference/stationarity
-reference/fractionation
-reference/comparison
-reference/optimization
-reference/equilibria
+reference/index
 ```
 
 ```{toctree}

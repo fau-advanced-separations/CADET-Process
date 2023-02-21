@@ -1,23 +1,5 @@
-(comparator)=
-# Comparison
-
-## Comparator
 ```{eval-rst}
-.. currentmodule:: CADETProcess.comparison
-
-.. autoclass:: CADETProcess.comparison.Comparator
-   :members:
+.. automodule:: CADETProcess.comparison
+   :no-inherited-members:
+   :no-special-members:
 ```
-
-
-
-## Difference Metrics
-```{eval-rst}
-.. currentmodule:: CADETProcess.comparison
-
-.. automodule:: CADETProcess.comparison.difference
-   :members:
-```
-
-
-

@@ -1,5 +1,5 @@
 ```{eval-rst}
-.. automodule:: CADETProcess.optimization
+.. automodule:: CADETProcess.simulator
    :no-members:
    :no-inherited-members:
    :no-special-members:

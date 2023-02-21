@@ -2,6 +2,7 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .ipynb_checkpoints
+docs/source/reference/generated/*
 docs/build/*
 docs/jupyter_execute/*
 docs/source/reference/generated/*
