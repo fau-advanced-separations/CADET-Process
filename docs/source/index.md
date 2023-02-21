@@ -39,6 +39,6 @@ reference/index
 :hidden:
 
 license
+release_notes/index
 bibliography
 ```
-
