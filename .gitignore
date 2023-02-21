@@ -4,7 +4,10 @@ __pycache__/
 .ipynb_checkpoints
 docs/build/*
 docs/jupyter_execute/*
+docs/source/reference/generated/*
+docs/source/examples/
 debug*
 *.h5
 log/
 diskcache_*
+results_*
