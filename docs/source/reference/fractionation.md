@@ -1,19 +1,6 @@
-(fractionation_reference)=
-# Fractionation
-
 ```{eval-rst}
-.. currentmodule:: CADETProcess.fractionation
-
-.. autoclass:: Fraction
-   :members:
-
-.. autoclass:: FractionPool
-   :members:
-
-.. autoclass:: Fractionator
-   <!-- :members: -->
-
-.. autoclass:: FractionationOptimizer
-   :members:
+.. automodule:: CADETProcess.fractionation
+   :no-members:
+   :no-inherited-members:
+   :no-special-members:
 ```
-

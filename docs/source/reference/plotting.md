@@ -1,5 +1,5 @@
 ```{eval-rst}
-.. automodule:: CADETProcess.optimization
+.. automodule:: CADETProcess.plotting
    :no-members:
    :no-inherited-members:
    :no-special-members:

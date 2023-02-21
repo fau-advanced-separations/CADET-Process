@@ -1,6 +1,6 @@
 ```{eval-rst}
-.. automodule:: CADETProcess.optimization
-   :no-members:
+.. automodule:: CADETProcess.transform
+   :members:
    :no-inherited-members:
    :no-special-members:
 ```
