@@ -187,6 +187,10 @@ class UnitBaseClass(metaclass=StructMeta):
         return parameters
 
     @property
+    def required_parameters(self):
+        return self._required_parameters
+
+    @property
     def initial_state(self):
         """dict: Dictionary with initial states.
         """

@@ -114,9 +114,13 @@ class BindingBaseClass(metaclass=StructMeta):
             setattr(self, param, value)
 
     @property
+    def required_parameters(self):
+        return self._required_parameters
+
+    @property
     def missing_parameters(self):
         missing_parameters = []
-        for param in self._required_parameters:
+        for param in self.required_parameters:
             if getattr(self, param) is None:
                 missing_parameters.append(param)
 
