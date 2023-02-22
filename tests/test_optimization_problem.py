@@ -162,8 +162,9 @@ def dummy_meta_score(f):
     return np.sum(f)
 
 
-def setup_optimization_problem(n_vars=2, n_obj=1, n_nonlincon=0, n_meta=0):
-    optimization_problem = OptimizationProblem('simple')
+def setup_optimization_problem(
+        n_vars=2, n_obj=1, n_nonlincon=0, n_meta=0, use_diskcache=False):
+    optimization_problem = OptimizationProblem('simple', use_diskcache=use_diskcache)
 
     for i_var in range(n_vars):
         optimization_problem.add_variable(f'var_{i_var}', lb=0, ub=1)
@@ -186,7 +187,7 @@ class Test_OptimizationProblemSimple(unittest.TestCase):
         super().__init__(methodName)
 
     def setUp(self):
-        optimization_problem = OptimizationProblem('simple')
+        optimization_problem = OptimizationProblem('simple', use_diskcache=False)
 
         optimization_problem.add_variable('var_0', lb=0, ub=1)
         optimization_problem.add_variable('var_1', lb=0, ub=10)
@@ -221,7 +222,7 @@ class Test_OptimizationProblemLinCon(unittest.TestCase):
         super().__init__(methodName)
 
     def setUp(self):
-        optimization_problem = setup_optimization_problem()
+        optimization_problem = setup_optimization_problem(use_diskcache=False)
 
         optimization_problem.add_linear_constraint(
             ['var_0', 'var_1'], [1, -1]
@@ -314,7 +315,7 @@ class Test_OptimizationProblemDepVar(unittest.TestCase):
         super().__init__(methodName)
 
     def setUp(self):
-        optimization_problem = OptimizationProblem('simple')
+        optimization_problem = OptimizationProblem('simple', use_diskcache=False)
 
         optimization_problem.add_variable('foo', lb=0, ub=1)
         optimization_problem.add_variable('bar', lb=0, ub=1)
@@ -441,7 +442,7 @@ class Test_OptimizationProblemJacobian(unittest.TestCase):
             return x[0]**2
 
         name = 'single_obj_single_var'
-        optimization_problem = OptimizationProblem(name)
+        optimization_problem = OptimizationProblem(name, use_diskcache=False)
         optimization_problem.add_variable('x')
         optimization_problem.add_objective(single_obj_single_var)
         self.single_obj_single_var = optimization_problem
@@ -450,7 +451,7 @@ class Test_OptimizationProblemJacobian(unittest.TestCase):
             return x[1]**2 - x[0]**2
 
         name = 'single_obj_two_vars'
-        optimization_problem = OptimizationProblem(name)
+        optimization_problem = OptimizationProblem(name, use_diskcache=False)
         optimization_problem.add_variable('x_1')
         optimization_problem.add_variable('x_2')
         optimization_problem.add_objective(single_obj_two_vars)
@@ -460,7 +461,7 @@ class Test_OptimizationProblemJacobian(unittest.TestCase):
             return [x[0]**2, x[0]**2]
 
         name = 'two_obj_single_var'
-        optimization_problem = OptimizationProblem(name)
+        optimization_problem = OptimizationProblem(name, use_diskcache=False)
         optimization_problem.add_variable('x')
         optimization_problem.add_objective(two_obj_single_var, n_objectives=2)
         self.two_obj_single_var = optimization_problem
@@ -469,7 +470,7 @@ class Test_OptimizationProblemJacobian(unittest.TestCase):
             return [x[0]**2, x[1]**2]
 
         name = 'two_obj_two_var'
-        optimization_problem = OptimizationProblem(name)
+        optimization_problem = OptimizationProblem(name, use_diskcache=False)
         optimization_problem.add_variable('x_1')
         optimization_problem.add_variable('x_2')
         optimization_problem.add_objective(two_obj_two_var, n_objectives=2)
@@ -538,7 +539,9 @@ class Test_OptimizationProblemEvaluator(unittest.TestCase):
         eval_obj = EvaluationObject()
 
         # Simple case
-        optimization_problem = OptimizationProblem('with_evaluator')
+        optimization_problem = OptimizationProblem(
+            'with_evaluator', use_diskcache=False
+        )
 
         optimization_problem.add_evaluation_object(eval_obj)
 
