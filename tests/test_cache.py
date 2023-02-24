@@ -21,6 +21,9 @@ class TestCache(unittest.TestCase):
         self.cache_dict.set(key, result, 'temp')
         self.cache_disk.set(key, result, 'temp')
 
+    def tearDown(self):
+        self.cache_disk.delete_database()
+
     def test_set(self):
         new_result = 'new'
         key = (None, 'other', str([1, 2, 3]))
