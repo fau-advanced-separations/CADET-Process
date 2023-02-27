@@ -956,14 +956,26 @@ class Cadet(SimulatorBase):
         parameters = []
         components = []
 
-        for param, unit, associated_model, comp in zip(
-                sens.parameters, sens.units, sens.associated_models, sens.components):
+        for param, unit, associated_model, comp, coeff in zip(
+                sens.parameters, sens.units, sens.associated_models, sens.components,
+                sens.polynomial_coefficients):
             unit_index = process.flow_sheet.get_unit_index(unit)
             unit_indices.append(unit_index)
 
             if associated_model is None:
                 model = unit.model
-                parameter = inv_unit_parameters_map[model]['parameters'][param]
+                if model == 'Inlet' and param == 'c':
+                    if coeff == 0:
+                        coeff = 'CONST_COEFF'
+                    elif coeff == 1:
+                        coeff = 'CONST_COEFF'
+                    elif coeff == 2:
+                        coeff = 'QUAD_COEFF'
+                    elif coeff == 3:
+                        coeff = 'CUBE_COEFF'
+                    parameter = coeff
+                else:
+                    parameter = inv_unit_parameters_map[model]['parameters'][param]
             else:
                 model = associated_model.model
                 if isinstance(associated_model, BindingBaseClass):

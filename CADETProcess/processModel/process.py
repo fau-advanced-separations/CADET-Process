@@ -35,6 +35,7 @@ class Process(EventHandler):
     CADETProcess.processModel.FlowSheet
     CADETProcess.simulation.Solver
     """
+
     _initial_states = ['system_state', 'system_state_derivative']
 
     def __init__(self, flow_sheet, name, *args, **kwargs):
@@ -253,34 +254,46 @@ class Process(EventHandler):
 
     def add_parameter_sensitivity(
             self, parameter_paths, name=None,
-            components=None, reaction_indices=None, bound_state_indices=None,
+            components=None, polynomial_coefficients=None,
+            reaction_indices=None, bound_state_indices=None,
             section_indices=None, abstols=None, factors=None):
         """Add parameter sensitivty to Process.
 
         Parameters
         ----------
-        parameter_paths : str
-            Path to the parameter of the DESCRIPTION.
+        parameter_paths : str or list of str
+            The path to the parameter(s).
         name : str, optional
-            Name of the parameter sensitivity. The default is None.
-        components : TYPE, optional
-            DESCRIPTION. The default is None.
-        reaction_indices : TYPE, optional
-            DESCRIPTION. The default is None.
-        bound_state_indices : TYPE, optional
-            DESCRIPTION. The default is None.
-        section_indices : TYPE, optional
-            DESCRIPTION. The default is None.
-        abstols : TYPE, optional
-            DESCRIPTION. The default is None.
-        factors : TYPE, optional
-            DESCRIPTION. The default is None.
+            The name of the parameter sensitivity.
+            If not provided, the name of the first parameter will be used.
+        components : str or list of str, optional
+            The component(s) to which the parameter(s) belong.
+            Must only be provided if parameter is specific to a certain compoment.
+        polynomial_coefficients: str or list of str, optional
+            The polynomial coefficients(s) to which the parameter(s) belong.
+            Must only be provided if parameter is specific to a certain coefficient.
+        reaction_indices : int or list of int, optional
+            The index(es) of the reaction(s) in the associated model(s), if applicable.
+            Must only be provided if parameter is specific to a certain reaction.
+        bound_state_indices : int or list of int, optional
+            The index(es) of the bound state(s) in the associated model(s), if applicable.
+            Must only be provided if parameter is specific to a certain bound state.
+        section_indices : int or list of int, optional
+            The index(es) of the section(s) in the associated model(s), if applicable. If not provided,
+            Must only be provided if parameter is specific to a certain section.
+        abstols : float or list of float, optional
+            The absolute tolerances for each parameter.
+            If not provided, a default tolerance will be used.
+        factors : float or list of float, optional
+            The factors for each parameter.
+            If not provided, a default factor of 1 will be used.
 
         Raises
         ------
         CADETProcessError
             Number of indices do not match for:
                 - components
+                - polynomial_coefficients
                 - reaction
                 - bound_state
                 - sections
@@ -292,8 +305,16 @@ class Process(EventHandler):
             Name is not provided (if number of parameters larger than 1).
             If sensitivity name already exists.
 
-        """
+        Notes
+        -----
+        This functionality is still work in progress.
 
+        Todo
+        ----
+        - [ ] Check if compoment/reaction/polynomial index are required.
+        - [ ] Specify time instead of section index;
+
+        """
         if not isinstance(parameter_paths, list):
             parameter_paths = [parameter_paths]
         n_params = len(parameter_paths)
@@ -316,7 +337,14 @@ class Process(EventHandler):
         if not isinstance(components, list):
             components = [components]
         if len(components) != n_params:
-            raise CADETProcessError("Number of components indices does not match.")
+            raise CADETProcessError("Number of component indices does not match.")
+        if components is None:
+            components = n_params * [None]
+
+        if not isinstance(polynomial_coefficients, list):
+            polynomial_coefficients = [polynomial_coefficients]
+        if len(polynomial_coefficients) != n_params:
+            raise CADETProcessError("Number of coefficient indices does not match.")
 
         if reaction_indices is None:
             reaction_indices = n_params * [None]
@@ -356,12 +384,18 @@ class Process(EventHandler):
         units = []
         associated_models = []
         parameters = []
-        for param, comp, reac, state, section, tol, fac in zip(
-                parameter_paths, components, reaction_indices, bound_state_indices,
+        for param, comp, coeff, reac, state, section, tol, fac in zip(
+                parameter_paths, components, polynomial_coefficients,
+                reaction_indices, bound_state_indices,
                 section_indices, abstols, factors):
+
             param_parts = param.split('.')
             unit = param_parts[0]
             parameter = param_parts[-1]
+            if parameter == 'flow_rate':
+                raise CADETProcessError(
+                    'Flow rate is currently not supported for sensitivities.'
+                )
             parameters.append(parameter)
 
             associated_model = None
@@ -375,6 +409,11 @@ class Process(EventHandler):
             if unit not in self.flow_sheet.units:
                 raise CADETProcessError('Not a valid unit')
             units.append(unit)
+
+            if coeff is not None and parameter not in unit.polynomial_parameters:
+                raise CADETProcessError('Not a polynomial parameter.')
+            if parameter in unit.polynomial_parameters and coeff is None:
+                raise CADETProcessError('Polynomial coefficient must be provided.')
 
             if associated_model is None:
                 if parameter not in unit.parameters:
@@ -396,7 +435,7 @@ class Process(EventHandler):
         sens = ParameterSensitivity(
             name,
             units, parameters, associated_models,
-            components, reaction_indices, bound_state_indices,
+            components, polynomial_coefficients, reaction_indices, bound_state_indices,
             section_indices, abstols, factors
         )
         self._parameter_sensitivities.append(sens)
@@ -595,6 +634,7 @@ class ParameterSensitivity():
     parameters: list
     associated_models: list = None
     components: list = None
+    polynomial_coefficients: list = None
     reaction_indices: list = None
     bound_state_indices: list = None
     section_indices: list = None
