@@ -32,6 +32,8 @@ class Population():
         if id is None:
             self.id = uuid.uuid4()
         else:
+            if isinstance(id, bytes):
+                id = id.decode(encoding='utf=8')
             self.id = uuid.UUID(id)
 
     @property
@@ -184,7 +186,7 @@ class Population():
                 if ind is ind_other:
                     continue
 
-                if ind_other.is_similar(ind):
+                if ind_other.is_similar(ind, self.similarity_tol):
                     to_remove.append(ind_other)
 
             for i in reversed(to_remove):
@@ -579,7 +581,6 @@ class ParetoFront(Population):
 
         is_dominated = False
         dominates_one = False
-        has_twin = False
         to_remove = []
 
         try:
@@ -598,9 +599,6 @@ class ParetoFront(Population):
                 significant.append(
                     not individual.is_similar(ind_pareto, self.similarity_tol)
                 )
-            elif individual.is_similar(ind_pareto, self.similarity_tol):
-                has_twin = True
-                break
 
         for i in reversed(to_remove):
             self.remove_individual(i)
@@ -617,6 +615,9 @@ class ParetoFront(Population):
 
         if len(self) == 0:
             self.add_individual(individual)
+
+        if self.similarity_tol != 0:
+            self.remove_similar()
 
         return any(significant)
 
@@ -647,42 +648,48 @@ class ParetoFront(Population):
             to_remove = []
 
             try:
-                if np.any(np.array(ind_new.g) > self.cv_tol):
+                # Do not add if invalid
+                if np.any(np.array(ind_new.cv) > self.cv_tol):
                     break
             except TypeError:
                 pass
 
             for i, ind_pareto in enumerate(self):
+                # Do not add if is dominated
                 if not dominates_one and ind_pareto.dominates(ind_new):
                     is_dominated = True
                     break
                 elif ind_new.dominates(ind_pareto):
+                    # Remove existing if new dominates
                     dominates_one = True
                     to_remove.append(ind_pareto)
-                    significant.append(not ind_new.is_similar(ind_pareto))
-                elif ind_new.is_similar(ind_pareto):
+                    if not ind_new.is_similar(ind_pareto, self.similarity_tol):
+                        significant.append(True)
+                elif ind_new.is_similar(ind_pareto, self.similarity_tol):
                     has_twin = True
                     break
 
             for i in reversed(to_remove):
                 self.remove_individual(i)
 
-            if not is_dominated and not has_twin:
+            if not is_dominated:
                 if len(self) == 0:
                     significant.append(True)
-                elif sum(self.dimensions[1:]) > 1:
-                    if len(significant) == 0 \
-                            or (len(significant) and any(significant)):
-                        significant.append(True)
+                if not has_twin:
+                    significant.append(True)
 
                 self.add_individual(ind_new)
                 new_members.append(ind_new)
 
         if len(self) == 0:
-            indices = np.argmin(population.g, axis=0)
+            # Use least inveasible individuals.
+            indices = np.argmin(population.cv, axis=0)
             for index in indices:
                 ind_new = population.individuals[index]
                 self.add_individual(ind_new)
+
+        if self.similarity_tol is not None:
+            self.remove_similar()
 
         return new_members, any(significant)
 
@@ -690,7 +697,7 @@ class ParetoFront(Population):
         """Remove infeasible individuals from pareto front."""
         for ind in self.individuals.copy():
             try:
-                if np.any(np.array(ind.g) > self.cv_tol):
+                if np.any(np.array(ind.cv) > self.cv_tol):
                     self.remove_individual(ind)
             except TypeError:
                 pass
@@ -724,7 +731,8 @@ class ParetoFront(Population):
             ParetoFront as a dictionary with individuals stored as list of dictionaries.
         """
         front = super().to_dict()
-        front['similarity_tol'] = self.similarity_tol
+        if self.similarity_tol is not None:
+            front['similarity_tol'] = self.similarity_tol
         front['cv_tol'] = self.cv_tol
 
         return front
@@ -743,10 +751,7 @@ class ParetoFront(Population):
         ParetoFront
             ParetoFront created from data.
         """
-        id = data['id']
-        if isinstance(id, bytes):
-            id = id.decode(encoding='utf=8')
-        front = cls(data['similarity_tol'], data['cv_tol'], id)
+        front = cls(data['similarity_tol'], data['cv_tol'], data['id'])
         for individual_data in data['individuals'].values():
             individual = Individual.from_dict(individual_data)
             front.add_individual(individual)

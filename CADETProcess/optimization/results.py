@@ -63,7 +63,7 @@ class OptimizationResults(metaclass=StructMeta):
 
     def __init__(
             self, optimization_problem, optimizer,
-            remove_similar=True, cv_tol=1e-6):
+            similarity_tol=0, cv_tol=1e-6):
         self.optimization_problem = optimization_problem
         self.optimizer = optimizer
 
@@ -71,7 +71,7 @@ class OptimizationResults(metaclass=StructMeta):
 
         self._population_all = Population()
         self._populations = []
-        self._remove_similar = remove_similar
+        self._similarity_tol = similarity_tol
         self._cv_tol = cv_tol
         self._pareto_fronts = []
 
@@ -189,16 +189,18 @@ class OptimizationResults(metaclass=StructMeta):
         pareto_new : Population, optional
             New pareto front. If None, update existing front with latest population.
         """
-        pareto_front = ParetoFront(cv_tol=self._cv_tol)
+        pareto_front = ParetoFront(
+            similarity_tol=self._similarity_tol, cv_tol=self._cv_tol
+        )
 
         if pareto_new is not None:
             pareto_front.update_population(pareto_new)
         else:
-            if len(self._pareto_fronts) > 0:
+            if len(self.pareto_fronts) > 0:
                 pareto_front.update_population(self.pareto_front)
             pareto_front.update_population(self.population_last)
 
-        if self._remove_similar:
+        if self._similarity_tol is not None:
             pareto_front.remove_similar()
         self._pareto_fronts.append(pareto_front)
 
@@ -210,7 +212,7 @@ class OptimizationResults(metaclass=StructMeta):
         meta_front : Population
             New meta front.
         """
-        if self._remove_similar:
+        if self._similarity_tol is not None:
             meta_front.remove_similar()
         self._meta_fronts.append(meta_front)
 

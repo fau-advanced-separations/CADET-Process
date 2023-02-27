@@ -38,6 +38,7 @@ class OptimizerBase(metaclass=StructMeta):
     progress_frequency = RangedInteger(lb=1, default=1)
     n_cores = UnsignedInteger(default=1)
     cv_tol = UnsignedFloat(default=1e-6)
+    similarity_tol = UnsignedFloat()
 
     def optimize(
             self,
@@ -51,7 +52,6 @@ class OptimizerBase(metaclass=StructMeta):
             log_level="INFO",
             reinit_cache=True,
             delete_cache=True,
-            remove_similar=True,
             *args, **kwargs):
         """Solve OptimizationProblem.
 
@@ -78,8 +78,6 @@ class OptimizerBase(metaclass=StructMeta):
             log level. The default is "INFO".
         reinit_cache : bool, optional
             If True, delete ResultsCache after finishing. The default is True.
-        remove_similar : bool, optional
-            If True, similar entries are removed from pareto front. The default is True.
         *args : TYPE
             Additional arguments for Optimizer.
         **kwargs : TYPE
@@ -141,7 +139,7 @@ class OptimizerBase(metaclass=StructMeta):
         self.results = OptimizationResults(
             optimization_problem=optimization_problem,
             optimizer=self,
-            remove_similar=remove_similar,
+            similarity_tol=self.similarity_tol,
             cv_tol=self.cv_tol,
         )
 
