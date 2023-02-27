@@ -24,9 +24,8 @@ from .discretization import (
 )
 
 from .solutionRecorder import (
-    SolutionRecorderIO,
-    TubularReactorRecorder, LRMRecorder, LRMPRecorder, GRMRecorder,
-    CSTRRecorder
+    IORecorder,
+    TubularReactorRecorder, LRMRecorder, LRMPRecorder, GRMRecorder, CSTRRecorder
 )
 
 
@@ -80,7 +79,7 @@ class UnitBaseClass(metaclass=StructMeta):
 
         self.discretization = NoDiscretization()
 
-        self.solution_recorder = SolutionRecorderIO()
+        self.solution_recorder = IORecorder()
 
         self._parameters = {
             param: getattr(self, param)

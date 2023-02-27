@@ -2,15 +2,53 @@ from CADETProcess.dataStructure import Bool, ParametersGroup
 from CADETProcess.dataStructure import frozen_attributes
 
 
-@frozen_attributes
-class SolutionRecorderBase(ParametersGroup):
-    pass
+class BaseMixin(ParametersGroup):
+    """
+    Recorder for last state and coordinates.
 
+    Attributes
+    ----------
+    write_solution_last_unit : bool, optional
+        If True, write final state of the unit operation. The default is False.
+    write_coordinates : bool, optional
+        If True, write coordinates of the unit operation. The default is True.
+    """
 
-class SolutionRecorderIO(SolutionRecorderBase):
-    """Select which simulation solution to store."""
     write_solution_last_unit = Bool(default=False)
     write_coordinates = Bool(default=True)
+
+    _parameters = [
+        'write_coordinates',
+        'write_solution_last_unit',
+    ]
+
+
+class IOMixin(ParametersGroup):
+    """
+    Recorder for inlet and outlet streams.
+
+    Attributes
+    ----------
+    write_solution_inlet : bool, optional
+        If True, write solution of the unit operation inlet. The default is True.
+    write_soldot_inlet : bool, optional
+        If True, write derivative of the unit operation inlet. The default is False.
+    write_sens_inlet : bool, optional
+        If True, write sensitivities of the unit operation inlet. The default is True.
+    write_sensdot_inlet : bool, optional
+        If True, write sensitivities derivatives of the unit operation inlet.
+        The default is False.
+    write_solution_outlet : bool, optional
+        If True, write solution of the unit operation outlet. The default is True.
+    write_soldot_outlet : bool, optional
+        If True, write derivative of the unit operation outlet. The default is False.
+    write_sens_outlet : bool, optional
+        If True, write sensitivities of the unit operation outlet. The default is True.
+    write_sensdot_outlet : bool, optional
+        If True, write sensitivities derivatives of the unit operation outlet.
+        The default is False.
+
+    """
 
     write_solution_inlet = Bool(default=True)
     write_soldot_inlet = Bool(default=False)
@@ -23,9 +61,6 @@ class SolutionRecorderIO(SolutionRecorderBase):
     write_sensdot_outlet = Bool(default=False)
 
     _parameters = [
-        'write_coordinates',
-        'write_solution_last_unit',
-
         'write_solution_inlet',
         'write_soldot_inlet',
         'write_sens_inlet',
@@ -38,7 +73,22 @@ class SolutionRecorderIO(SolutionRecorderBase):
     ]
 
 
-class SolutionRecorderBulk(SolutionRecorderBase):
+class BulkMixin(ParametersGroup):
+    """
+    Recorder for bulk solution.
+
+    Attributes
+    ----------
+    write_solution_bulk : bool, optional
+        If True, write solution of the bulk. The default is False.
+    write_soldot_bulk : bool, optional
+        If True, write derivative of the bulk. The default is False.
+    write_sens_bulk : bool, optional
+        If True, write sensitivities of the bulk. The default is False.
+    write_sensdot_bulk : bool, optional
+        If True, write sensitivities derivatives of the bulk. The default is False.
+    """
+
     write_solution_bulk = Bool(default=False)
     write_soldot_bulk = Bool(default=False)
     write_sens_bulk = Bool(default=False)
@@ -52,7 +102,26 @@ class SolutionRecorderBulk(SolutionRecorderBase):
     ]
 
 
-class SolutionRecorderParticle(SolutionRecorderBase):
+class ParticleMixin(ParametersGroup):
+    """
+    Recorder for particle liquid phase solution.
+
+    Attributes
+    ----------
+    write_solution_particle : bool, optional
+        If True, write the solution of the particle liquid phase. The default is False.
+    write_soldot_particle : bool, optional
+        If True, write the derivative of the particle liquid phase.
+        The default is False.
+    write_sens_particle : bool, optional
+        If True, write the sensitivities of the particle liquid phase.
+        The default is False.
+    write_sensdot_particle : bool, optional
+        If True, write the sensitivities derivatives of the particle liquid phase.
+        The default is False.
+
+    """
+
     write_solution_particle = Bool(default=False)
     write_soldot_particle = Bool(default=False)
     write_sens_particle = Bool(default=False)
@@ -66,7 +135,25 @@ class SolutionRecorderParticle(SolutionRecorderBase):
     ]
 
 
-class SolutionRecorderSolid(SolutionRecorderBase):
+class SolidMixin(ParametersGroup):
+    """
+    Recorder for particle solid phase solution.
+
+    Attributes
+    ----------
+    write_solution_solid : bool, optional
+        If True, write the solution of the particle solid phase. The default is False.
+    write_soldot_solid : bool, optional
+        If True, write the derivative of the particle solid phase. The default is False.
+    write_sens_solid : bool, optional
+        If True, write the sensitivities of the particle solid phase.
+        The default is False.
+    write_sensdot_solid : bool, optional
+        If True, write the sensitivities derivatives of the particle solid phase.
+        The default is False.
+
+    """
+
     write_solution_solid = Bool(default=False)
     write_soldot_solid = Bool(default=False)
     write_sens_solid = Bool(default=False)
@@ -80,7 +167,23 @@ class SolutionRecorderSolid(SolutionRecorderBase):
     ]
 
 
-class SolutionRecorderFlux(SolutionRecorderBase):
+class FluxMixin(ParametersGroup):
+    """
+    Recorder for flux solution.
+
+    Attributes
+    ----------
+    write_solution_flux : bool, optional
+        If True, write the solution of the flux. The default is False.
+    write_soldot_flux : bool, optional
+        If True, write the derivative of the flux. The default is False.
+    write_sens_flux : bool, optional
+        If True, write the sensitivities of the flux. The default is False.
+    write_sensdot_flux : bool, optional
+        If True, write the sensitivities derivatives of the flux. The default is False.
+
+    """
+
     write_solution_flux = Bool(default=False)
     write_soldot_flux = Bool(default=False)
     write_sensdot_flux = Bool(default=False)
@@ -94,7 +197,24 @@ class SolutionRecorderFlux(SolutionRecorderBase):
     ]
 
 
-class SolutionRecorderVolume(SolutionRecorderBase):
+class VolumeMixin(ParametersGroup):
+    """
+    Recorder for unit volume solution.
+
+    Attributes
+    ----------
+    write_solution_volume : bool, optional
+        If True, write the solution of the unit volume. The default is True.
+    write_soldot_volume : bool, optional
+        If True, write the derivative of the unit volume. The default is False.
+    write_sens_volume : bool, optional
+        If True, write the sensitivities of the unit volume. The default is False.
+    write_sensdot_volume : bool, optional
+        If True, write the sensitivities derivatives of the unit volume.
+        The default is False.
+
+    """
+
     write_solution_volume = Bool(default=True)
     write_soldot_volume = Bool(default=False)
     write_sens_volume = Bool(default=False)
@@ -108,28 +228,126 @@ class SolutionRecorderVolume(SolutionRecorderBase):
     ]
 
 
-class TubularReactorRecorder(SolutionRecorderIO, SolutionRecorderBulk):
+class IORecorder(
+        BaseMixin,
+        IOMixin):
+    """Recorder for inlets and outlets.
+
+    See Also
+    --------
+    BaseMixin
+    IOMixin
+    CADETProcess.processModel.Inlet
+    CADETProcess.processModel.Outlet
+
+    """
+
+    pass
+
+
+class TubularReactorRecorder(
+        BaseMixin,
+        IOMixin,
+        BulkMixin):
+    """Recorder for TubularReactor.
+
+    See Also
+    --------
+    BaseMixin
+    IOMixin
+    SolutionRecorderBulk
+    CADETProcess.processModel.TubularReactor
+
+    """
+
     pass
 
 
 class LRMRecorder(
-        SolutionRecorderIO, SolutionRecorderBulk, SolutionRecorderSolid):
+        BaseMixin,
+        IOMixin,
+        BulkMixin,
+        SolidMixin):
+    """Recorder for TubularReactor.
+
+    See Also
+    --------
+    BaseMixin
+    IOMixin
+    BulkMixin
+    SolidMixin
+    CADETProcess.processModel.LumpedRateModelWithoutPores
+
+    """
+
     pass
 
 
 class LRMPRecorder(
-        SolutionRecorderIO, SolutionRecorderBulk, SolutionRecorderFlux,
-        SolutionRecorderParticle, SolutionRecorderSolid):
+        BaseMixin,
+        IOMixin,
+        BulkMixin,
+        FluxMixin,
+        ParticleMixin,
+        SolidMixin):
+    """Recorder for TubularReactor.
+
+    See Also
+    --------
+    BaseMixin
+    IOMixin
+    BulkMixin
+    FluxMixin
+    ParticleMixin
+    SolidMixin
+    CADETProcess.processModel.LumpedRateModelWithPores
+
+    """
+
     pass
 
 
 class GRMRecorder(
-        SolutionRecorderIO, SolutionRecorderBulk, SolutionRecorderFlux,
-        SolutionRecorderParticle, SolutionRecorderSolid):
+        BaseMixin,
+        IOMixin,
+        BulkMixin,
+        FluxMixin,
+        ParticleMixin,
+        SolidMixin):
+    """Recorder for TubularReactor.
+
+    See Also
+    --------
+    BaseMixin
+    IOMixin
+    BulkMixin
+    FluxMixin
+    ParticleMixin
+    SolidMixin
+    CADETProcess.processModel.GeneralRateModel
+
+    """
+
     pass
 
 
 class CSTRRecorder(
-        SolutionRecorderIO, SolutionRecorderBulk,
-        SolutionRecorderSolid, SolutionRecorderVolume):
+        BaseMixin,
+        IOMixin,
+        BulkMixin,
+        SolidMixin,
+        VolumeMixin):
+    """Recorder for TubularReactor.
+
+    See Also
+    --------
+    BaseMixin
+    IOMixin
+    BulkMixin
+    SolidMixin
+    VolumeMixin
+    CADETProcess.processModel.Cstr
+
+    """
+
     pass
