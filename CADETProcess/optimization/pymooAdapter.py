@@ -59,8 +59,6 @@ class PymooInterface(OptimizerBase):
         options
 
         """
-        self.remove_similar = False
-
         pop_size = self.get_population_size(optimization_problem)
 
         if x0 is not None:
@@ -161,16 +159,22 @@ class PymooInterface(OptimizerBase):
 
             F = pop.get("F").tolist()
             if optimization_problem.n_nonlinear_constraints > 0:
-                G = pop.get("G").tolist()
+                CV = pop.get("G").tolist()
+                G = opt.evaluate_nonlinear_constraints_population(
+                    X,
+                    untransform=True,
+                    n_cores=self.n_cores,
+                )
             else:
                 G = len(X)*[None]
+                CV = len(X)*[None]
 
             algorithm.tell(infills=pop)
 
             # Post generation processing
             X_opt = algorithm.opt.get("X").tolist()
             self.results.optimizer_state.ref_dirs = algorithm.ref_dirs
-            self.run_post_generation_processing(X, F, G, algorithm.n_gen-1, X_opt)
+            self.run_post_generation_processing(X, F, G, CV, algorithm.n_gen-1, X_opt)
 
         if algorithm.n_gen >= n_max_gen:
             exit_message = 'Max number of generations exceeded.'
@@ -227,7 +231,7 @@ class PymooProblem(Problem):
         super().__init__(
             n_var=optimization_problem.n_independent_variables,
             n_obj=optimization_problem.n_objectives,
-            n_constr=optimization_problem.n_nonlinear_constraints,
+            n_ieq_constr=optimization_problem.n_nonlinear_constraints,
             xl=optimization_problem.lower_bounds_independent_transformed,
             xu=optimization_problem.upper_bounds_independent_transformed,
             **kwargs
@@ -249,7 +253,15 @@ class PymooProblem(Problem):
                 untransform=True,
                 n_cores=self.n_cores,
             )
-            out["G"] = np.array(G)
+            CV = opt.evaluate_nonlinear_constraints_violation_population(
+                x,
+                untransform=True,
+                n_cores=self.n_cores,
+            )
+            out["G"] = np.array(CV)
+
+            out["_G"] = np.array(G)
+            out["_CV"] = np.array(CV)
 
 
 class RepairIndividuals(Repair):

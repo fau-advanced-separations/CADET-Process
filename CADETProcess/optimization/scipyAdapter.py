@@ -69,8 +69,9 @@ class SciPyInterface(OptimizerBase):
             x = x.tolist()
             f = optimization_problem.evaluate_objectives(x)
             g = optimization_problem.evaluate_nonlinear_constraints(x)
+            cv = optimization_problem.evaluate_nonlinear_constraints_violation(x)
 
-            self.run_post_evaluation_processing(x, f, g, self.n_evals)
+            self.run_post_evaluation_processing(x, f, g, cv, self.n_evals)
 
             return False
 

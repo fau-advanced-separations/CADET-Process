@@ -6,8 +6,8 @@ from addict import Dict
 import matplotlib.colors as colors
 import matplotlib.cm as cmx
 import matplotlib.pyplot as plt
-cmap_feas = plt.get_cmap('winter')
-cmap_infeas = plt.get_cmap('autumn')
+cmap_feas = plt.get_cmap('winter_r')
+cmap_infeas = plt.get_cmap('autumn_r')
 import numpy as np
 
 from cadet import H5
@@ -58,6 +58,7 @@ class OptimizationResults(metaclass=StructMeta):
     x = NdArray()
     f = NdArray()
     g = NdArray()
+    cv = NdArray()
     m = NdArray()
 
     def __init__(
@@ -244,6 +245,11 @@ class OptimizationResults(metaclass=StructMeta):
         return self.meta_front.g
 
     @property
+    def cv(self):
+        """np.array: Optimal nonlinear constraint violations."""
+        return self.meta_front.cv
+
+    @property
     def m(self):
         """np.array: Optimal meta score values."""
         return self.meta_front.m
@@ -352,7 +358,7 @@ class OptimizationResults(metaclass=StructMeta):
         _plot_directory = None
 
         cNorm = colors.Normalize(vmin=0, vmax=len(self.populations))
-        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cmap)
+        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cmap_feas)
 
         for i, gen in enumerate(self.populations):
             color = scalarMap.to_rgba(i)

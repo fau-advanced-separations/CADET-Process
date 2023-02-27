@@ -5,7 +5,7 @@ import numpy as np
 
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import StructMeta
-from CADETProcess.dataStructure import Vector
+from CADETProcess.dataStructure import Float, Vector
 
 
 def hash_array(array):
@@ -44,6 +44,10 @@ class Individual(metaclass=StructMeta):
         Nonlinear constraint values.
     m : list
         Meta score values.
+    cv : list
+        Nonlinear constraints violation.
+    cv_tol : float
+        Tolerance for constraints violation.
 
     See Also
     --------
@@ -54,6 +58,8 @@ class Individual(metaclass=StructMeta):
     f = Vector()
     g = Vector()
     m = Vector()
+    cv = Vector()
+    cv_tol = Float()
 
     def __init__(
             self,
@@ -61,6 +67,8 @@ class Individual(metaclass=StructMeta):
             f=None,
             g=None,
             m=None,
+            cv=None,
+            cv_tol=0,
             x_untransformed=None,
             independent_variable_names=None,
             objective_labels=None,
@@ -71,6 +79,14 @@ class Individual(metaclass=StructMeta):
         self.f = f
         self.g = g
         self.m = m
+
+        if cv is None:
+            cv = g
+        self.cv = cv
+
+        if cv_tol is None:
+            cv_tol = self.n_g*[0]
+        self.cv_tol = cv_tol
 
         if x_untransformed is None:
             x_untransformed = x
@@ -107,7 +123,7 @@ class Individual(metaclass=StructMeta):
     @property
     def is_feasible(self):
         """bool: Return False if any constraint is not met. True otherwise."""
-        if self.g is not None and np.any(np.array(self.g) > 0):
+        if self.cv is not None and np.any(np.array(self.cv) > self.cv_tol):
             return False
         else:
             return True
@@ -164,7 +180,7 @@ class Individual(metaclass=StructMeta):
             return True
 
         if not self.is_feasible and not other.is_feasible:
-            if np.any(self.g < other.g):
+            if np.any(self.cv < other.cv):
                 return True
 
         if self.m is not None:
@@ -189,7 +205,7 @@ class Individual(metaclass=StructMeta):
         ----------
         other : Individual
             Other individual
-        tol : float
+        tol : float, optional
             Relative tolerance parameter.
             To reduce number of entries, a rather high rtol is chosen.
 
@@ -198,6 +214,8 @@ class Individual(metaclass=StructMeta):
         is_similar : bool
             True if individuals are close to each other. False otherwise
         """
+        if tol is None:
+            return False
         similar_x = self.is_similar_x(other, tol)
         similar_f = self.is_similar_f(other, tol)
 
@@ -315,6 +333,8 @@ class Individual(metaclass=StructMeta):
         data.f = self.f
         if self.g is not None:
             data.g = self.g
+        if self.cv is not None:
+            data.cv = self.cv
         if self.m is not None:
             data.m = self.m
         data.x_untransformed = self.x_untransformed

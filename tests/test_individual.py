@@ -75,7 +75,7 @@ class TestIndividual(unittest.TestCase):
         f = [-1]
         g = [2]
         m = [1]
-        self.individual_constr_meta = Individual(x, f, g, m)
+        self.individual_constr_meta = Individual(x, f, g, cv=g, m=m)
 
     def test_dimensions(self):
         dimensions_expected = (2, 1, 0, 0)

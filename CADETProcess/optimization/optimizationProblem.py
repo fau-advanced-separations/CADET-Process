@@ -1164,9 +1164,6 @@ class OptimizationProblem(metaclass=StructMeta):
     def evaluate_nonlinear_constraints(self, x, force=False):
         """Evaluate nonlinear constraint functions at point x.
 
-        After evaluating the nonlinear constraint functions, the corresponding
-        bounds are subtracted from the results.
-
         Parameters
         ----------
         x : array_like
@@ -1176,13 +1173,13 @@ class OptimizationProblem(metaclass=StructMeta):
 
         Returns
         -------
-        c : list
-            Values of the nonlinear constraint functions at point x minus the
-            corresponding bounds.
+        g : list
+            Nonlinear constraint function values.
 
         See Also
         --------
         add_nonlinear_constraint
+        evaluate_nonlinear_constraints_violation
         evaluate_nonlinear_constraints_population
         _call_evaluate_fun
         _evaluate
@@ -1192,14 +1189,13 @@ class OptimizationProblem(metaclass=StructMeta):
 
         g = self._evaluate_individual(self.nonlinear_constraints, x, force=False)
 
-        c = np.array(g) - np.array(self.nonlinear_constraints_bounds)
-
-        return c.tolist()
+        return g
 
     @untransforms
     @ensures2d
     def evaluate_nonlinear_constraints_population(self, population, force=False, n_cores=-1):
-        """Evaluate nonlinear constraint functions for each point x in population.
+        """
+        Evaluate nonlinear constraint for each point x in population.
 
         Parameters
         ----------
@@ -1215,7 +1211,7 @@ class OptimizationProblem(metaclass=StructMeta):
         Returns
         -------
         results : list
-            Nonlinear constraint function values.
+            Nonlinear constraints.
 
         See Also
         --------
@@ -1231,8 +1227,87 @@ class OptimizationProblem(metaclass=StructMeta):
         return results
 
     @untransforms
+    def evaluate_nonlinear_constraints_violation(self, x, force=False):
+        """Evaluate nonlinear constraints violation at point x.
+
+        After evaluating the nonlinear constraint functions, the corresponding
+        bounds are subtracted from the results.
+
+        Parameters
+        ----------
+        x : array_like
+            Value of the optimization variables.
+        force : bool
+            If True, do not use cached results. The default is False.
+
+        Returns
+        -------
+        cv : list
+            Nonlinear constraints violation.
+
+        See Also
+        --------
+        add_nonlinear_constraint
+        evaluate_nonlinear_constraints
+        evaluate_nonlinear_constraints_population
+        evaluate_nonlinear_constraints_violation_population
+        _call_evaluate_fun
+        _evaluate
+
+        """
+        self.logger.debug(f'Evaluate nonlinear constraints violation at {x}.')
+
+        g = self._evaluate_individual(self.nonlinear_constraints, x, force=False)
+        cv = np.array(g) - np.array(self.nonlinear_constraints_bounds)
+
+        return cv.tolist()
+
+    @untransforms
+    @ensures2d
+    def evaluate_nonlinear_constraints_violation_population(
+            self, population, force=False, n_cores=-1):
+        """
+        Evaluate nonlinear constraints violation for each point x in population.
+
+        After evaluating the nonlinear constraint functions, the corresponding
+        bounds are subtracted from the results.
+
+        Parameters
+        ----------
+        population : list
+            Population.
+        force : bool, optional
+            If True, do not use cached values. The default is False.
+        n_cores : int, optional
+            Number of cores to parallelize evaluation.
+            If `-1`, all cores available will be used.
+            The default is -1.
+
+        Returns
+        -------
+        results : list
+            Nonlinear constraints violation.
+
+        See Also
+        --------
+        add_nonlinear_constraint
+        evaluate_nonlinear_constraints_violation
+        evaluate_nonlinear_constraints
+        evaluate_nonlinear_constraints_population
+        _evaluate_individual
+        _evaluate
+
+        """
+        results = self._evaluate_population(
+            self.evaluate_nonlinear_constraints_violation, population, force, n_cores
+        )
+
+        return results
+
+
+    @untransforms
     def check_nonlinear_constraints(self, x):
-        """Check if all nonlinear constraints are kept.
+        """Check if all nonlinear constraints are met.
 
         Parameters
         ----------
@@ -1242,13 +1317,13 @@ class OptimizationProblem(metaclass=StructMeta):
         Returns
         -------
         flag : bool
-            True if all nonlinear constraints are smaller or equal to zero,
+            True if all nonlinear constraints violation are smaller or equal to zero,
             False otherwise.
 
         """
-        c = np.array(self.evaluate_nonlinear_constraints(x))
+        cv = np.array(self.evaluate_nonlinear_constraints_violation(x))
 
-        if np.any(c > self.nonlinear_constraints_bounds):
+        if np.any(cv > 0):
             return False
         return True
 

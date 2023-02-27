@@ -236,15 +236,33 @@ class Population():
 
     @property
     def g_min(self):
-        """np.array: Minimum constraint values."""
+        """np.array: Minimum nonlinear constraint values."""
         if self.dimensions[2] > 0:
             return np.min(self.g, axis=0)
 
     @property
     def g_max(self):
-        """np.array: Maximum constraint values."""
+        """np.array: Maximum nonlinear constraint values."""
         if self.dimensions[2] > 0:
             return np.max(self.g, axis=0)
+
+    @property
+    def cv(self):
+        """np.array: All evaluated nonlinear constraint function values."""
+        if self.dimensions[2] > 0:
+            return np.array([ind.cv for ind in self.individuals])
+
+    @property
+    def cv_min(self):
+        """np.array: Minimum nonlinear constraint violation values."""
+        if self.dimensions[2] > 0:
+            return np.min(self.cv, axis=0)
+
+    @property
+    def cv_max(self):
+        """np.array: Maximum nonlinearconstraint violation values."""
+        if self.dimensions[2] > 0:
+            return np.max(self.cv, axis=0)
 
     @property
     def m(self):

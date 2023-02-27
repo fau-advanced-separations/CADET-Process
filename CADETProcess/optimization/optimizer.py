@@ -271,7 +271,7 @@ class OptimizerBase(metaclass=StructMeta):
 
         self.optimization_problem.prune_cache()
 
-    def run_post_evaluation_processing(self, x, f, g, current_evaluation, x_opt=None):
+    def run_post_evaluation_processing(self, x, f, g, cv, current_evaluation, x_opt=None):
         """Run post-processing of individual evaluation.
 
         Parameters
@@ -282,6 +282,8 @@ class OptimizerBase(metaclass=StructMeta):
             Objective function values of individual.
         g : list
             Nonlinear constraint function of individual.
+        cv : list
+            Nonlinear constraints violation of individual.
         current_evaluation : int
             Current evaluation.
         x_opt : list, optional
@@ -302,7 +304,7 @@ class OptimizerBase(metaclass=StructMeta):
                 x, untransform=True
             )
         ind = Individual(
-            x, f, g, m, x_untransformed,
+            x, f, g, m, cv, self.cv_tol, x_untransformed,
             self.optimization_problem.independent_variable_names,
             self.optimization_problem.objective_labels,
             self.optimization_problem.nonlinear_constraint_labels,
@@ -337,17 +339,19 @@ class OptimizerBase(metaclass=StructMeta):
             self.logger.info(message)
 
     def run_post_generation_processing(
-            self, X, F, G, current_generation, X_opt=None):
+            self, X, F, G, CV, current_generation, X_opt=None):
         """Run post-processing of generation.
 
         Parameters
         ----------
         X : list
             Optimization Variable values of generation.
-        F : TYPE
+        F : list
             Objective function values of generation.
-        G : TYPE
+        G : list
             Nonlinear constraint function values of generation.
+        CV : list
+            Nonlinear constraints violation of of generation.
         current_generation : int
             Current generation.
         X_opt : list, optional
@@ -365,13 +369,13 @@ class OptimizerBase(metaclass=StructMeta):
             M = len(X)*[None]
 
         population = Population()
-        for x, f, g, m in zip(X, F, G, M):
+        for x, f, g, cv, m in zip(X, F, G, CV, M):
             x_untransformed \
                 = self.optimization_problem.get_dependent_values(
                     x, untransform=True
                 )
             ind = Individual(
-                x, f, g, m, x_untransformed,
+                x, f, g, m, cv, self.cv_tol, x_untransformed,
                 self.optimization_problem.independent_variable_names,
                 self.optimization_problem.objective_labels,
                 self.optimization_problem.nonlinear_constraint_labels,
