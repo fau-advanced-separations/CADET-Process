@@ -73,7 +73,7 @@ class Cadet(SimulatorBase):
     use_c_api = Bool(default=False)
     _force_constant_flow_rate = False
 
-    def __init__(self, install_path=None, *args, **kwargs):
+    def __init__(self, install_path=None, temp_dir=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.install_path = install_path
@@ -85,7 +85,9 @@ class Cadet(SimulatorBase):
         self.return_parameters = ReturnParametersGroup()
         self.sensitivity_parameters = SensitivityParametersGroup()
 
-        self.temp_dir = settings.temp_dir / 'simulation_files'
+        if temp_dir is None:
+            temp_dir = settings.temp_dir / 'simulation_files'
+        self.temp_dir = temp_dir
 
     @property
     def temp_dir(self):
