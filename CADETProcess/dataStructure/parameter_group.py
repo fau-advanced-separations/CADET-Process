@@ -1,7 +1,9 @@
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import Structure
+from CADETProcess.dataStructure import frozen_attributes
 
 
+@frozen_attributes
 class ParametersGroup(Structure):
     """Base class for grouping parameters and exporting them to a dict.
 
