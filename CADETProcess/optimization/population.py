@@ -429,7 +429,8 @@ class Population():
         plot = Scatter(
             figsize=(6 * n, 5 * n),
             tight_layout=True,
-            plot_3d=False
+            plot_3d=False,
+            labels=self.objective_labels,
         )
         return plot
 

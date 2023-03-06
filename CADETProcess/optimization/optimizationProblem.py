@@ -2900,10 +2900,10 @@ class Objective(metaclass=StructMeta):
         try:
             labels = self.objective.labels
         except AttributeError:
-            labels = [f'{self.objective}']
+            labels = [f'{self.name}']
             if self.n_metrics > 1:
                 labels = [
-                    f'{self.objective}_{i}'
+                    f'{self.name}_{i}'
                     for i in range(self.n_metrics)
                 ]
         return labels
@@ -2992,10 +2992,10 @@ class NonlinearConstraint(metaclass=StructMeta):
         try:
             labels = self.nonlinear_constraint.labels
         except AttributeError:
-            labels = [f'{self.nonlinear_constraint}']
+            labels = [f'{self.name}']
             if self.n_metrics > 1:
                 labels = [
-                    f'{self.nonlinear_constraint}_{i}'
+                    f'{self.name}_{i}'
                     for i in range(self.n_metrics)
                 ]
         return labels
@@ -3181,10 +3181,10 @@ class MetaScore(metaclass=StructMeta):
         try:
             labels = self.meta_score.labels
         except AttributeError:
-            labels = [f'{self.meta_score}']
+            labels = [f'{self.name}']
             if self.n_metrics > 1:
                 labels = [
-                    f'{self.meta_score}_{i}'
+                    f'{self.name}_{i}'
                     for i in range(self.n_metrics)
                 ]
         return labels
