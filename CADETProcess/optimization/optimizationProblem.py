@@ -19,7 +19,7 @@ from CADETProcess import settings
 from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import (
     String, Switch, RangedInteger, Callable, Tuple,
-    DependentlySizedList
+    DependentlySizedNdArray
 )
 from CADETProcess.dataStructure import frozen_attributes
 from CADETProcess.dataStructure import (
@@ -115,6 +115,7 @@ class OptimizationProblem(metaclass=StructMeta):
         @wraps(func)
         def wrapper(self, x, *args, untransform=False, **kwargs):
             """Untransform population or individual before calling function."""
+            x = np.array(x, ndmin=1)
             if untransform:
                 x = self.untransform(x)
 
@@ -134,11 +135,10 @@ class OptimizationProblem(metaclass=StructMeta):
         return wrapper
 
     def ensures2d(func):
-        """Make sure population is 2d list."""
+        """Make sure population is ndarray with ndmin=2."""
         @wraps(func)
         def wrapper(self, population, *args, **kwargs):
             population = np.array(population, ndmin=2)
-            population = population.tolist()
 
             return func(self, population, *args, **kwargs)
 
@@ -571,19 +571,19 @@ class OptimizationProblem(metaclass=StructMeta):
         _evaluate
 
         """
-        x = list(x)
-        results = []
+        x = np.asarray(x)
+        results = np.empty((0,))
 
         for eval_fun in eval_funs:
             try:
                 value = self._evaluate(x, eval_fun, force)
-                results += value
+                results = np.hstack((results, value))
             except CADETProcessError as e:
                 self.logger.warn(
                     f'Evaluation of {eval_fun.name} failed at {x} with Error "{e}". '
                     f'Returning bad metrics.'
                 )
-                results += eval_fun.bad_metrics
+                results = np.hstack((results, eval_fun.bad_metrics))
 
         return results
 
@@ -639,7 +639,7 @@ class OptimizationProblem(metaclass=StructMeta):
             with pathos.pools.ProcessPool(ncpus=n_cores) as pool:
                 results = pool.map(eval_fun_wrapper, population)
 
-        return results
+        return np.array(results, ndmin=2)
 
     @untransforms
     def _evaluate(self, x, func, force=False):
@@ -662,7 +662,7 @@ class OptimizationProblem(metaclass=StructMeta):
         """
         self.logger.debug(f'evaluate {str(func)} at {x}')
 
-        results = []
+        results = np.empty((0,))
 
         if func.evaluators is not None:
             requires = [*func.evaluators, func]
@@ -710,6 +710,7 @@ class OptimizationProblem(metaclass=StructMeta):
             for step in remaining:
                 if isinstance(step, Callback):
                     step.evaluate(current_request, eval_obj)
+                    result = np.empty((0))
                 else:
                     result = step.evaluate(current_request)
                 if step not in self.cached_steps:
@@ -720,16 +721,13 @@ class OptimizationProblem(metaclass=StructMeta):
                 self.cache.set(key, result, tag=tag)
                 current_request = result
 
-            if not isinstance(result, list):
-                result = [result]
-
             if len(result) != func.n_metrics:
                 raise CADETProcessError(
                     f"Got results with length {len(result)}. "
                     f"Expected length {func.n_metrics} from {str(func)}"
                 )
 
-            results += result
+            results = np.hstack((results, result))
 
         return results
 
@@ -1242,7 +1240,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
         Returns
         -------
-        cv : list
+        cv : np.ndarray
             Nonlinear constraints violation.
 
         See Also
@@ -1260,7 +1258,7 @@ class OptimizationProblem(metaclass=StructMeta):
         g = self._evaluate_individual(self.nonlinear_constraints, x, force=False)
         cv = np.array(g) - np.array(self.nonlinear_constraints_bounds)
 
-        return cv.tolist()
+        return cv
 
     @untransforms
     @ensures2d
@@ -1920,7 +1918,7 @@ class OptimizationProblem(metaclass=StructMeta):
         """
         flag = True
 
-        values = np.array(x)
+        values = np.array(x, ndmin=1)
 
         if np.any(np.less(values, self.lower_bounds)):
             flag = False
@@ -2067,7 +2065,7 @@ class OptimizationProblem(metaclass=StructMeta):
         linear_constraints
 
         """
-        values = np.array(x)
+        values = np.array(x, ndmin=1)
 
         return self.A.dot(values) - self.b
 
@@ -2242,7 +2240,7 @@ class OptimizationProblem(metaclass=StructMeta):
         linear_equality_constraints
 
         """
-        values = np.array(x)
+        values = np.array(x, ndmin=1)
 
         return self.Aeq.dot(values) - self.beq
 
@@ -2269,9 +2267,9 @@ class OptimizationProblem(metaclass=StructMeta):
 
         return flag
 
-    def transform(self, x, enforce2d=False):
-        x = np.array(x, ndmin=2)
-        transform = np.zeros(x.shape)
+    def transform(self, x):
+        x_2d = np.array(x, ndmin=2)
+        transform = np.zeros(x_2d.shape)
 
         for i, ind in enumerate(x):
             transform[i, :] = [
@@ -2279,27 +2277,19 @@ class OptimizationProblem(metaclass=StructMeta):
                 for value, var in zip(ind, self.independent_variables)
             ]
 
-        transform = transform.tolist()
-        if len(transform) == 1 and not enforce2d:
-            return transform[0]
+        return transform.reshape(x.shape)
 
-        return transform
+    def untransform(self, x):
+        x_2d = np.array(x, ndmin=2)
+        untransform = np.zeros(x_2d.shape)
 
-    def untransform(self, x, enforce2d=False):
-        x = np.array(x, ndmin=2)
-        untransform = np.zeros(x.shape)
-
-        for i, ind in enumerate(x):
+        for i, ind in enumerate(x_2d):
             untransform[i, :] = [
                 var.untransform_fun(value)
                 for value, var in zip(ind, self.independent_variables)
             ]
 
-        untransform = untransform.tolist()
-        if len(untransform) == 1 and not enforce2d:
-            return untransform[0]
-
-        return untransform
+        return untransform.reshape(x.shape)
 
     @property
     def cached_steps(self):
@@ -2490,7 +2480,7 @@ class OptimizationProblem(metaclass=StructMeta):
                     continue
                 values.append(ind)
 
-        return values
+        return np.array(values)
 
     @property
     def parameters(self):
@@ -2856,7 +2846,7 @@ class Objective(metaclass=StructMeta):
     type = Switch(valid=['minimize', 'maximize'])
     n_objectives = RangedInteger(lb=1)
     n_metrics = n_objectives
-    bad_metrics = DependentlySizedList(dep='n_metrics', default=np.inf)
+    bad_metrics = DependentlySizedNdArray(dep='n_metrics', default=np.inf)
 
     def __init__(
             self,
@@ -2878,7 +2868,7 @@ class Objective(metaclass=StructMeta):
         self.n_objectives = n_objectives
 
         if np.isscalar(bad_metrics):
-            bad_metrics = n_objectives * [bad_metrics]
+            bad_metrics = np.tile(bad_metrics, n_objectives)
         self.bad_metrics = bad_metrics
 
         self.evaluation_objects = evaluation_objects
@@ -2932,10 +2922,7 @@ class Objective(metaclass=StructMeta):
 
         f = self.objective(request, *args, **kwargs)
 
-        if np.isscalar(f):
-            f = [f]
-
-        return f
+        return np.array(f, ndmin=1)
 
     evaluate = __call__
 
@@ -2948,7 +2935,7 @@ class NonlinearConstraint(metaclass=StructMeta):
     name = String()
     n_nonlinear_constraints = RangedInteger(lb=1)
     n_metrics = n_nonlinear_constraints
-    bad_metrics = DependentlySizedList(dep='n_metrics', default=np.inf)
+    bad_metrics = DependentlySizedNdArray(dep='n_metrics', default=np.inf)
 
     def __init__(
             self,
@@ -2970,7 +2957,7 @@ class NonlinearConstraint(metaclass=StructMeta):
         self.n_nonlinear_constraints = n_nonlinear_constraints
 
         if np.isscalar(bad_metrics):
-            bad_metrics = n_nonlinear_constraints * [bad_metrics]
+            bad_metrics = np.tile(bad_metrics, n_nonlinear_constraints)
         self.bad_metrics = bad_metrics
 
         self.evaluation_objects = evaluation_objects
@@ -3024,10 +3011,7 @@ class NonlinearConstraint(metaclass=StructMeta):
 
         g = self.nonlinear_constraint(request, *args, **kwargs)
 
-        if np.isscalar(g):
-            g = [g]
-
-        return g
+        return np.array(g, ndmin=1)
 
     evaluate = __call__
 
@@ -3051,7 +3035,7 @@ class Callback(metaclass=StructMeta):
 
     callback = Callable()
     name = String()
-    n_metrics = 1
+    n_metrics = 0
     frequency = RangedInteger(lb=1)
 
     def __init__(
@@ -3131,7 +3115,7 @@ class Callback(metaclass=StructMeta):
                 callbacks_dir = self._callbacks_dir
             kwargs['callbacks_dir'] = callbacks_dir
 
-        return self.callback(request, *args, **kwargs)
+        self.callback(request, *args, **kwargs)
 
     evaluate = __call__
 
@@ -3144,7 +3128,7 @@ class MetaScore(metaclass=StructMeta):
     name = String()
     n_meta_scores = RangedInteger(lb=1)
     n_metrics = n_meta_scores
-    bad_metrics = DependentlySizedList(dep='n_metrics', default=np.inf)
+    bad_metrics = DependentlySizedNdArray(dep='n_metrics', default=np.inf)
 
     def __init__(
             self,
@@ -3162,7 +3146,7 @@ class MetaScore(metaclass=StructMeta):
         self.n_meta_scores = n_meta_scores
 
         if np.isscalar(bad_metrics):
-            bad_metrics = n_meta_scores * [bad_metrics]
+            bad_metrics = np.tile(bad_metrics, n_meta_scores)
         self.bad_metrics = bad_metrics
 
         self.evaluation_objects = evaluation_objects
@@ -3203,10 +3187,7 @@ class MetaScore(metaclass=StructMeta):
     def __call__(self, *args, **kwargs):
         m = self.meta_score(*args, **kwargs)
 
-        if np.isscalar(m):
-            m = [m]
-
-        return m
+        return np.array(m, ndmin=1)
 
     evaluate = __call__
 
