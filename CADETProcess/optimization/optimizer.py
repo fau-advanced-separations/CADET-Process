@@ -109,30 +109,8 @@ class OptimizerBase(metaclass=StructMeta):
         if not isinstance(optimization_problem, OptimizationProblem):
             raise TypeError('Expected OptimizationProblem')
 
-        if not optimization_problem.check():
-            raise CADETProcessError(
-                "OptimizationProblem is not configured correctly."
-            )
-
-        if optimization_problem.n_objectives > 1 and not self.supports_multi_objective:
-            raise CADETProcessError(
-                "Optimizer does not support multi-objective problems"
-            )
-        if optimization_problem.n_linear_constraints > 0\
-                and not self.supports_nonlinear_constraints:
-            raise CADETProcessError(
-                "Optimizer does not support problems with linear constraints."
-            )
-        if optimization_problem.n_linear_equality_constraints > 0 \
-                and not self.supports_nonlinear_constraints:
-            raise CADETProcessError(
-                "Optimizer does not support problems with linear equality constraints."
-            )
-        if optimization_problem.n_nonlinear_constraints > 0 \
-                and not self.supports_nonlinear_constraints:
-            raise CADETProcessError(
-                "Optimizer does not support problems with nonlinear constraints."
-            )
+        if not self.check_optimization_problem(optimization_problem):
+            raise CADETProcessError('Cannot solve OptimizationProblem.')
 
         self.optimization_problem = optimization_problem
 
@@ -233,6 +211,56 @@ class OptimizerBase(metaclass=StructMeta):
 
         """
         return
+
+    def check_optimization_problem(self, optimization_problem):
+        """
+        Check if problem is configured correctly and supported by the optimizer.
+
+        Parameters
+        ----------
+        optimization_problem: OptimizationProblem
+            An optimization problem to check.
+
+        Returns
+        -------
+        flag : bool
+            True if the optimization problem is supported and configured correctly,
+            False otherwise.
+
+        """
+        flag = True
+        if not optimization_problem.check():
+            warnings.warn(
+                "OptimizationProblem is not configured correctly."
+            )
+            flag = False
+
+        if optimization_problem.n_objectives > 1 and not self.supports_multi_objective:
+            warnings.warn(
+                "Optimizer does not support multi-objective problems"
+            )
+        if optimization_problem.n_linear_constraints > 0\
+                and not self.supports_nonlinear_constraints:
+            warnings.warn(
+                "Optimizer does not support problems with linear constraints."
+            )
+            flag = False
+
+        if optimization_problem.n_linear_equality_constraints > 0 \
+                and not self.supports_nonlinear_constraints:
+            warnings.warn(
+                "Optimizer does not support problems with linear equality constraints."
+            )
+            flag = False
+
+        if optimization_problem.n_nonlinear_constraints > 0 \
+                and not self.supports_nonlinear_constraints:
+            warnings.warn(
+                "Optimizer does not support problems with nonlinear constraints."
+            )
+            flag = False
+
+        return flag
 
     def _run_post_processing(self, current_iteration):
         if self.optimization_problem.n_multi_criteria_decision_functions > 0:
