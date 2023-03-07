@@ -382,6 +382,7 @@ class OptimizationResults(metaclass=StructMeta):
     def plot_objectives(
             self,
             include_meta=True,
+            plot_pareto=False,
             plot_individual=False,
             autoscale=True,
             show=True,
@@ -395,8 +396,15 @@ class OptimizationResults(metaclass=StructMeta):
         scalarMap_feas = cmx.ScalarMappable(norm=cNorm, cmap=cmap_feas)
         scalarMap_infeas = cmx.ScalarMappable(norm=cNorm, cmap=cmap_infeas)
 
-        for i, gen in enumerate(self.populations):
-            if gen is self.population_last:
+        if plot_pareto:
+            populations = self.pareto_fronts
+            population_last = self.pareto_front
+        else:
+            populations = self.populations
+            population_last = self.population_last
+
+        for i, gen in enumerate(populations):
+            if gen is population_last:
                 _plot_directory = plot_directory
                 _show = show
             axs, figs = gen.plot_objectives(
@@ -413,6 +421,7 @@ class OptimizationResults(metaclass=StructMeta):
     def plot_pareto(
             self,
             show=True,
+            plot_pareto=False,
             plot_directory=None):
         plot = None
         _show = False
@@ -421,14 +430,20 @@ class OptimizationResults(metaclass=StructMeta):
         cNorm = colors.Normalize(vmin=0, vmax=len(self.populations))
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cmap_feas)
 
-        for i, gen in enumerate(self.populations):
-            color = scalarMap.to_rgba(i)
-            if gen is self.population_last:
+        if plot_pareto:
+            populations = self.pareto_fronts
+            population_last = self.pareto_front
+        else:
+            populations = self.populations
+            population_last = self.population_last
+
+        for i, gen in enumerate(populations):
+            if gen is population_last:
                 _plot_directory = plot_directory
                 _show = show
             plot = gen.plot_pareto(
                 plot,
-                color=color,
+                color=scalarMap.to_rgba(i),
                 show=_show,
                 plot_directory=_plot_directory
             )
