@@ -392,7 +392,7 @@ class OptimizationResults(metaclass=StructMeta):
         _show = False
         _plot_directory = None
 
-        cNorm = colors.Normalize(vmin=0, vmax=len(self.populations))
+        cNorm = colors.Normalize(vmin=0, vmax=self.n_gen)
         scalarMap_feas = cmx.ScalarMappable(norm=cNorm, cmap=cmap_feas)
         scalarMap_infeas = cmx.ScalarMappable(norm=cNorm, cmap=cmap_infeas)
 
@@ -427,7 +427,7 @@ class OptimizationResults(metaclass=StructMeta):
         _show = False
         _plot_directory = None
 
-        cNorm = colors.Normalize(vmin=0, vmax=len(self.populations))
+        cNorm = colors.Normalize(vmin=0, vmax=self.n_gen)
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cmap_feas)
 
         if plot_pareto:
