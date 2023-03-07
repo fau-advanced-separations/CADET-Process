@@ -231,6 +231,11 @@ class Population():
         return np.max(self.f, axis=0)
 
     @property
+    def f_avg(self):
+        """np.array: Average objective values."""
+        return np.mean(self.f, axis=0)
+
+    @property
     def g(self):
         """np.array: All evaluated nonlinear constraint function values."""
         if self.dimensions[2] > 0:
@@ -247,6 +252,11 @@ class Population():
         """np.array: Maximum nonlinear constraint values."""
         if self.dimensions[2] > 0:
             return np.max(self.g, axis=0)
+
+    @property
+    def g_avg(self):
+        """np.array: Average nonlinear constraint values."""
+        return np.mean(self.g, axis=0)
 
     @property
     def cv(self):
@@ -267,6 +277,11 @@ class Population():
             return np.max(self.cv, axis=0)
 
     @property
+    def cv_avg(self):
+        """np.array: Average nonlinear constraint violation values."""
+        return np.mean(self.cv, axis=0)
+
+    @property
     def m(self):
         """np.array: All evaluated metas core values."""
         if self.dimensions[3] > 0:
@@ -283,6 +298,11 @@ class Population():
         """np.array: Maximum meta score values."""
         if self.dimensions[3] > 0:
             return np.max(self.m, axis=0)
+
+    @property
+    def cv_avg(self):
+        """np.array: Average meta score values."""
+        return np.mean(self.m, axis=0)
 
     def setup_objectives_figure(self, include_meta=True, plot_individual=False):
         n = len(self.variable_names)

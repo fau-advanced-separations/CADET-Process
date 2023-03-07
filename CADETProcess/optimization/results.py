@@ -55,12 +55,6 @@ class OptimizationResults(metaclass=StructMeta):
     exit_message = String()
     time_elapsed = UnsignedFloat()
 
-    x = NdArray()
-    f = NdArray()
-    g = NdArray()
-    cv = NdArray()
-    m = NdArray()
-
     def __init__(
             self, optimization_problem, optimizer,
             similarity_tol=0, cv_tol=1e-6):
@@ -268,6 +262,16 @@ class OptimizationResults(metaclass=StructMeta):
         return np.array([pop.f_min for pop in self.meta_fronts])
 
     @property
+    def f_max_history(self):
+        """np.array: Maximum objective values per generation."""
+        return np.array([pop.f_max for pop in self.meta_fronts])
+
+    @property
+    def f_avg_history(self):
+        """np.array: Average objective values per generation."""
+        return np.array([pop.f_avg for pop in self.meta_fronts])
+
+    @property
     def g_min_history(self):
         """np.array: Minimum nonlinera constraint values per generation."""
         if self.optimization_problem.n_nonlinear_constraints == 0:
@@ -276,12 +280,67 @@ class OptimizationResults(metaclass=StructMeta):
             return np.array([pop.g_min for pop in self.meta_fronts])
 
     @property
+    def g_max_history(self):
+        """np.array: Maximum nonlinear constraint values per generation."""
+        if self.optimization_problem.n_nonlinear_constraints == 0:
+            return None
+        else:
+            return np.array([pop.g_max for pop in self.meta_fronts])
+
+    @property
+    def g_avg_history(self):
+        """np.array: Average nonlinear constraint values per generation."""
+        if self.optimization_problem.n_nonlinear_constraints == 0:
+            return None
+        else:
+            return np.array([pop.g_avg for pop in self.meta_fronts])
+
+    @property
+    def cv_min_history(self):
+        """np.array: Minimum nonlinear constraint violation values per generation."""
+        if self.optimization_problem.n_nonlinear_constraints == 0:
+            return None
+        else:
+            return np.array([pop.cv_min for pop in self.meta_fronts])
+
+    @property
+    def cv_max_history(self):
+        """np.array: Maximum nonlinear constraint violation values per generation."""
+        if self.optimization_problem.n_nonlinear_constraints == 0:
+            return None
+        else:
+            return np.array([pop.cv_max for pop in self.meta_fronts])
+    @property
+    def cv_avg_history(self):
+        """np.array: Average nonlinear constraint violation values per generation."""
+        if self.optimization_problem.n_nonlinear_constraints == 0:
+            return None
+        else:
+            return np.array([pop.cv_avg for pop in self.meta_fronts])
+
+    @property
     def m_min_history(self):
         """np.array: Minimum meta score values per generation."""
         if self.optimization_problem.n_meta_scores == 0:
             return None
         else:
             return np.array([pop.m_min for pop in self.meta_fronts])
+
+    @property
+    def m_max_history(self):
+        """np.array: Maximum meta score values per generation."""
+        if self.optimization_problem.n_meta_scores == 0:
+            return None
+        else:
+            return np.array([pop.m_max for pop in self.meta_fronts])
+
+    @property
+    def m_avg_history(self):
+        """np.array: Average meta score values per generation."""
+        if self.optimization_problem.n_meta_scores == 0:
+            return None
+        else:
+            return np.array([pop.m_avg for pop in self.meta_fronts])
 
     def plot_figures(self, show=True):
         if self.plot_directory is None:
@@ -422,6 +481,7 @@ class OptimizationResults(metaclass=StructMeta):
             target='objectives',
             figs=None, axs=None,
             plot_individual=False,
+            plot_avg=True,
             autoscale=True,
             show=True,
             plot_directory=None):
@@ -437,13 +497,16 @@ class OptimizationResults(metaclass=StructMeta):
 
         if target == 'objectives':
             funcs = self.optimization_problem.objectives
-            values = self.f_min_history
+            values_min = self.f_min_history
+            values_avg = self.f_avg_history
         elif target == 'nonlinear_constraints':
             funcs = self.optimization_problem.nonlinear_constraints
-            values = self.g_min_history
+            values_min = self.g_min_history
+            values_avg = self.g_avg_history
         elif target == 'meta_scores':
             funcs = self.optimization_problem.meta_scores
-            values = self.m_min_history
+            values_min = self.m_min_history
+            values_avg = self.m_avg_history
         else:
             raise CADETProcessError("Unknown target.")
 
@@ -454,19 +517,43 @@ class OptimizationResults(metaclass=StructMeta):
         for func in funcs:
             start = counter
             stop = counter+func.n_metrics
-            v_func = values[:, start:stop]
+            v_func_min = values_min[:, start:stop]
+            v_func_avg = values_avg[:, start:stop]
 
             for i_metric in range(func.n_metrics):
-                v_line = v_func[:, i_metric]
+                v_line_min = v_func_min[:, i_metric]
+                v_line_avg = v_func_avg[:, i_metric]
 
                 ax = axs[counter + i_metric]
                 lines = ax.get_lines()
 
                 if len(lines) > 0:
                     lines[0].set_xdata(self.n_evals_history)
-                    lines[0].set_ydata(v_line)
+                    lines[0].set_ydata(v_line_min)
+                    if plot_avg and self.population_last.n_individuals > 1:
+                        lines[1].set_ydata(v_line_avg)
                 else:
-                    ax.plot(self.n_evals_history, v_line)
+                    if plot_avg and self.population_last.n_individuals > 1:
+                        label = 'best'
+                    else:
+                        label=None
+
+                    ax.plot(
+                        self.n_evals_history,
+                        v_line_min,
+                        '--',
+                        color='k',
+                        label=label
+                    )
+                    if plot_avg and self.population_last.n_individuals > 1:
+                        ax.plot(
+                            self.n_evals_history,
+                            v_line_avg,
+                            '-',
+                            color='k',
+                            alpha=0.5,
+                            label='avg'
+                        )
 
                 layout.x_lim = (0, np.max(self.n_evals_history)+1)
 
@@ -475,11 +562,16 @@ class OptimizationResults(metaclass=StructMeta):
                 except AttributeError:
                     label = f'{func}_{i_metric}'
 
-                y_min = np.nanmin(v_line)
-                y_max = np.nanmax(v_line)
+                if plot_avg and self.population_last.n_individuals > 1:
+                    y_min = np.nanmin(v_line_min)
+                    y_max = np.nanmax(v_line_avg)
+                else:
+                    y_min = np.nanmin(v_line_min)
+                    y_max = np.nanmax(v_line_min)
+
                 layout.y_label = label
-                if autoscale and np.min(v_line) > 0:
-                    if np.max(v_line) / np.min(v_line[v_line > 0]) > 100.0:
+                if autoscale and y_min > 0:
+                    if y_max / y_min > 100.0:
                         ax.set_yscale('log')
                         layout.y_label = f"$log_{{10}}$({label})"
 
