@@ -34,11 +34,12 @@ class OptimizerBase(metaclass=StructMeta):
     supports_linear_equality_constraints = False
     supports_nonlinear_constraints = False
 
-    _options = []
     progress_frequency = RangedInteger(lb=1, default=1)
     n_cores = UnsignedInteger(default=1)
     cv_tol = UnsignedFloat(default=1e-6)
     similarity_tol = UnsignedFloat()
+
+    _options = ['progress_frequency', 'n_cores', 'cv_tol', 'similarity_tol']
 
     def optimize(
             self,

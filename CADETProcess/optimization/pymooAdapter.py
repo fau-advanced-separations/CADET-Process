@@ -33,7 +33,7 @@ class PymooInterface(OptimizerBase):
     ftol = UnsignedFloat(default=0.0025)
     n_max_gen = UnsignedInteger()
     n_max_evals = UnsignedInteger(default=100000)
-    _options = [
+    _options = OptimizerBase._options + [
         'seed', 'pop_size', 'xtol', 'cvtol', 'ftol', 'n_max_gen', 'n_max_evals',
     ]
 
