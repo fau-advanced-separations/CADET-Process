@@ -139,7 +139,7 @@ class Cadet(SimulatorBase):
                 raise FileNotFoundError(
                     "CADET could not be found. Please set an install path"
                 )
-        install_path = Path(install_path)
+        install_path = Path(install_path).expanduser()
 
         if install_path.exists():
             self._install_path = install_path
