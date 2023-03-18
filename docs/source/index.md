@@ -16,11 +16,13 @@ user_guide/tools/index
 
 ```{toctree}
 :maxdepth: 2
-:caption: Examples
+:caption: Case Studies
 :hidden:
 
-examples/operating_modes
-examples/parameter_estimation
+examples/batch_elution/process
+examples/load_wash_elute/index
+examples/recycling/index
+examples/characterize_chromatographic_system/column_transport_parameters
 ```
 
 ```{toctree}

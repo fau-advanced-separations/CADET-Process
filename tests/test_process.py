@@ -2,7 +2,7 @@ import copy
 import unittest
 
 from CADETProcess import CADETProcessError
-from examples.operating_modes.batch_elution import process
+from examples.batch_elution.process import process
 
 
 class Test_process(unittest.TestCase):

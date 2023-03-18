@@ -5,6 +5,8 @@ jupytext:
 kernelspec:
   display_name: Python 3
   name: python3
+execution:
+  timeout: 600
 ---
 
 ```{code-cell} ipython3
@@ -98,7 +100,7 @@ For this example, consider a simple {ref}`batch-elution example<batch_elution_ex
 
 ```{code-cell} ipython3
 :tags: [remove-cell]
-from examples.operating_modes.batch_elution import process
+from examples.batch_elution.process import process
 
 process.add_parameter_sensitivity('column.total_porosity')
 ```
@@ -185,11 +187,12 @@ Different criteria can be specified such as the maximum deviation of the concent
 The simulation terminates if the corresponding difference is smaller than a specified value.
 For the evaluation of the process (see {ref}`fractionation_guide`), only the last cycle is examined, as it yields a representative {class}`~CADETProcess.performance.Performance` of the process in all later cycles.
 
-To demonstrate this concept, consider a SSR process (see {ref}`here <ssr_example>` for the full process configuration).
+To demonstrate this concept, consider a SSR process (see {ref}`here <ssr_process>` for the full process configuration).
 
 ```{code-cell} ipython3
 :tags: [remove-cell]
-from examples.operating_modes.steady_state_recycling import process
+
+from examples.recycling.mrssr_process import process
 ```
 
 A first strategy is to simulate multiple cycles at once.
@@ -243,12 +246,16 @@ process_simulator.n_cycles_min = 10
 ```
 
 Now the simulator runs until stationarity is reached.
+
 ```{code-cell} ipython3
 simulation_results = process_simulator.simulate(process)
 _ = simulation_results.solution.column.outlet.plot()
 ```
 
-Here, it ran for 50 cycles.
+The number of cycles is stored in the simulation results.
+```{code-cell} ipython3
+print(simulation_results.n_cycles)
+```
 
 It is possible to access the solution of any of the cycles.
 For the last cycle, use the index `-1`.
