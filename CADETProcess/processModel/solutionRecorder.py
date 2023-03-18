@@ -228,7 +228,14 @@ class VolumeMixin(ParametersGroup):
     ]
 
 
+class SolutionRecorderBase():
+    """Base class for solution recorders."""
+
+    pass
+
+
 class IORecorder(
+        SolutionRecorderBase,
         BaseMixin,
         IOMixin):
     """Recorder for inlets and outlets.
@@ -246,6 +253,7 @@ class IORecorder(
 
 
 class TubularReactorRecorder(
+        SolutionRecorderBase,
         BaseMixin,
         IOMixin,
         BulkMixin):
@@ -264,6 +272,7 @@ class TubularReactorRecorder(
 
 
 class LRMRecorder(
+        SolutionRecorderBase,
         BaseMixin,
         IOMixin,
         BulkMixin,
@@ -284,6 +293,7 @@ class LRMRecorder(
 
 
 class LRMPRecorder(
+        SolutionRecorderBase,
         BaseMixin,
         IOMixin,
         BulkMixin,
@@ -308,6 +318,7 @@ class LRMPRecorder(
 
 
 class GRMRecorder(
+        SolutionRecorderBase,
         BaseMixin,
         IOMixin,
         BulkMixin,
@@ -332,6 +343,7 @@ class GRMRecorder(
 
 
 class CSTRRecorder(
+        SolutionRecorderBase,
         BaseMixin,
         IOMixin,
         BulkMixin,

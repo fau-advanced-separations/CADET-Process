@@ -20,8 +20,8 @@ Finally, these processes can be optimized by defining an objective function (wit
 This can be used to determine any of the physico-chemical model parameters and to improve process performance.
 
 For more information and tutorials, please refer to the [documentation](https://cadet-process.readthedocs.io/en/latest/).
-The source code is freely available on [Github](https://github.com/fau-advanced-separations/CADET-Process), and a scientific paper was published in [MDPI Proceses](https://doi.org/10.3390/pr8010065).
-If CADET-Process is useful to you, please cite the following publication:
+The source code is freely available on [*GitHub*](https://github.com/fau-advanced-separations/CADET-Process), and a scientific paper was published in [*MDPI Processes*](https://doi.org/10.3390/pr8010065).
+If **CADET-Process** is useful to you, please cite the following publication:
 
 ```
 @Article{Schmoelder2020,
