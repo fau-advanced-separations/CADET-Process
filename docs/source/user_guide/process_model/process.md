@@ -104,14 +104,14 @@ To add a dependency in **CADET-Process**, use the {meth}`~CADETProcess.processMo
 
 Consider the batch elution process (see {ref}`here <batch_elution_example>`).
 
-```{figure} ../../../examples/batch_elution/figures/event_dependencies.svg
+```{figure} ../../examples/batch_elution/figures/event_dependencies.svg
 Events of batch elution process.
 ```
 
 ```{code-cell} ipython3
 :tags: [remove-cell]
 
-from examples.operating_modes.batch_elution import flow_sheet
+from examples.batch_elution.process import flow_sheet
 
 from CADETProcess.processModel import Process
 process = Process(flow_sheet, 'batch elution')
@@ -136,7 +136,7 @@ Alternatively, the dependencies can also already be added in the {meth}`~CADETPr
 ```{code-cell} ipython3
 :tags: [remove-cell]
 
-from examples.operating_modes.batch_elution import flow_sheet
+from examples.batch_elution.process import flow_sheet
 
 from CADETProcess.processModel import Process
 process = Process(flow_sheet, 'batch elution')
@@ -159,7 +159,7 @@ print(f'feed_off: {process.feed_off.time}')
 print(f'eluent_on: {process.eluent_on.time}')
 ```
 
-For a more complex scenario refer to {ref}`SSR process <ssr_example>`.
+For a more complex scenario refer to {ref}`SSR process <ssr_process>`.
 
 
 ## Inlet Profile from Existing Data
@@ -171,7 +171,7 @@ E.g. consider this (arbitrary) sinusoidal profile:
 ```{code-cell} ipython3
 :tags: [remove-input]
 
-from examples.operating_modes.lwe_concentration import flow_sheet, inlet
+from examples.load_wash_elute.lwe_concentration import flow_sheet
 
 from CADETProcess.processModel import Process
 process = Process(flow_sheet, 'lwe')
@@ -210,7 +210,7 @@ Note that for obvious reasons, the component index is omitted.
 ```{code-cell} ipython3
 :tags: [remove-cell]
 
-from examples.operating_modes.lwe_concentration import flow_sheet, inlet
+from examples.load_wash_elute.lwe_concentration import flow_sheet
 
 from CADETProcess.processModel import Process
 process = Process(flow_sheet, 'lwe')
@@ -240,7 +240,7 @@ If none is provided, the parameter path is used.
 ```{code-cell} ipython3
 :tags: [remove-cell]
 
-from examples.operating_modes.batch_elution import process
+from examples.batch_elution.process import process
 ```
 
 ```{code-cell} ipython3

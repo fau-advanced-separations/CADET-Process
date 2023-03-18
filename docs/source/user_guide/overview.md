@@ -26,5 +26,5 @@ Moreover, the {class}`~CADETProcess.fractionation.Fractionator` module automatic
 
 These metrics can be used as objectives in an {class}`~CADETProcess.optimization.OptimizationProblem` class which serves to configure optimization studies.
 Here, any process parameter can be added as optimization variable and the evaluation methods can be used to construct objectives and constraint functions.
-This enables many different scenarios such as {ref}`process optimization <process_optimization_tutorial>` and {ref}`parameter estimation <parameter_estimation_tutorial>`.
+This enables many different scenarios such as {ref}`process optimization <batch_elution_optimization_single>` and {ref}`parameter estimation <fit_column_transport>`.
 Again, an abstract {class}`Optimizer <CADETProcess.optimization.OptimizerBase>` provides an interface to external optimization algorithms such as {class}`U-NSGA-3 <CADETProcess.optimization.U_NSGA3>` (see {ref}`optimization_guide`).

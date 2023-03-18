@@ -8,7 +8,7 @@ $$
 \min_x f(x)
 $$
 
-In the context of physico-chemical processes, examples for the application of optimization studies include scenarios such as {ref}`process optimization <process_optimization_tutorial>` and {ref}`parameter estimation <parameter_estimation_tutorial>`.
+In the context of physico-chemical processes, examples for the application of optimization studies include scenarios such as process optimization (see {ref}`batch_elution_optimization_single`) and parameter estimation (see {ref}`fit_column_transport`).
 Here, often many variables are subject to optimization, multiple criteria have to be balanced, and additional linear and nonlinear constraints need to be considered.
 
 $$

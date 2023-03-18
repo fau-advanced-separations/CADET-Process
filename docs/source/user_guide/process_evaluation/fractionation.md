@@ -258,7 +258,7 @@ Here, the `Salt` component should not be used for fractionation.
 ```{code-cell} ipython3
 :tags: [remove-cell]
 
-from examples.operating_modes.lwe import process
+from examples.load_wash_elute.lwe_flow_rate import process
 
 from CADETProcess.simulator import Cadet
 process_simulator = Cadet()
