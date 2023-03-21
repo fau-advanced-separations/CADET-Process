@@ -592,6 +592,8 @@ class NdPolynomial(DependentlySizedNdArray):
 
         if isinstance(value, (int, float)):
             value = n_entries * [value]
+        elif isinstance(value, np.ndarray):
+            value = value.tolist()
 
         if len(value) != n_entries:
             raise ValueError("Number of entries does not match")
