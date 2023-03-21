@@ -529,14 +529,14 @@ class Process(EventHandler):
             raise ValueError('Inlet profile exceeds cycle time')
 
         if component_index == -1:
-            # Assume same profile for all components
+            # Assume same profile for all components.
             if c.ndim > 1:
                 raise ValueError('Expected single concentration profile')
 
-            c = np.column_stack([c]*2)
+            c = np.column_stack([c]*self.n_comp)
 
         elif component_index is None and c.shape[1] != self.n_comp:
-            # Assume c is given for all components
+            # Else, c must be given for all components.
             raise CADETProcessError('Number of components does not match')
 
         for comp in range(self.n_comp):
@@ -554,7 +554,10 @@ class Process(EventHandler):
                 )
 
     def add_flow_rate_profile(self, unit, time, flow_rate, s=1e-6):
-        if not isinstance(unit, SourceMixin):
+        if isinstance(unit, str):
+            unit = self.flow_sheet[unit]
+
+        if unit not in self.flow_sheet.inlets + self.flow_sheet.cstrs:
             raise TypeError('Expected SourceMixin.')
 
         if max(time) > self.cycle_time:
