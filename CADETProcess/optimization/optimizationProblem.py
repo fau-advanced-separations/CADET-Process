@@ -245,11 +245,19 @@ class OptimizationProblem(metaclass=StructMeta):
         )
 
     @property
+    def dependent_variable_names(self):
+        """list: Dependent optimization variable names."""
+        return [var.name for var in self.dependent_variables]
+
+    @property
+    def n_dependent_variables(self):
+        """int: Number of dependent optimization variables."""
+        return len(self.dependent_variables)
+
+    @property
     def variables_dict(self):
         """dict: All optimization variables indexed by variable name."""
-        vars = {var.name: var for var in self.variables}
-        dep_vars = {var.name: var for var in self.dependent_variables}
-        return {**vars, **dep_vars}
+        return {var.name: var for var in self.variables}
 
     @property
     def variable_values(self):
