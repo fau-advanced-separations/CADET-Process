@@ -101,7 +101,7 @@ class OptimizationProblem(metaclass=StructMeta):
         self.name = name
         self.logger = log.get_logger(self.name, level=log_level)
 
-        self._evaluation_objects = []
+        self._evaluation_objects_dict = {}
         self._evaluators = []
 
         self.cached_evaluators = []
@@ -155,7 +155,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def evaluation_objects(self):
-        """list: Object to be evaluated during optimization.
+        """list: Objects to be evaluated during optimization.
 
         See Also
         --------
@@ -167,20 +167,22 @@ class OptimizationProblem(metaclass=StructMeta):
         nonlinear_constraints
 
         """
-        return self._evaluation_objects
+        return list(self._evaluation_objects_dict.values())
 
     @property
     def evaluation_objects_dict(self):
         """dict: Evaluation objects names and objects."""
-        return {obj.name: obj for obj in self.evaluation_objects}
+        return self._evaluation_objects_dict
 
-    def add_evaluation_object(self, evaluation_object):
+    def add_evaluation_object(self, evaluation_object, name=None):
         """Add evaluation object to the optimization problem.
 
         Parameters
         ----------
         evaluation_object : obj
             evaluation object to be added to the optimization problem.
+        name : str, optional
+            Name of the evaluation_object. If None, parameter_path is used.
 
         Raises
         ------
@@ -190,17 +192,20 @@ class OptimizationProblem(metaclass=StructMeta):
             problem.
 
         """
-        if evaluation_object in self._evaluation_objects:
+        if name is None:
+            name = str(evaluation_object)
+
+        if evaluation_object in self.evaluation_objects:
             raise CADETProcessError(
                 'Evaluation object already part of optimization problem.'
             )
 
-        if str(evaluation_object) in self.evaluation_objects_dict:
+        if name in self.evaluation_objects_dict:
             raise CADETProcessError(
                 'Evaluation object with same name already exists.'
             )
 
-        self._evaluation_objects.append(evaluation_object)
+        self._evaluation_objects_dict[name] = evaluation_object
 
     @property
     def variables(self):
