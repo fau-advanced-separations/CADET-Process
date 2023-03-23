@@ -365,6 +365,17 @@ class Test_OptimizationProblemDepVar(unittest.TestCase):
                 'spam', ['bar', 'spam'], transform=None
             )
 
+        independent_variables = self.optimization_problem.independent_variable_names
+        self.assertEqual(independent_variables_expected, independent_variables)
+
+        dependent_variables_expected = ['spam']
+        dependent_variables = self.optimization_problem.dependent_variable_names
+        self.assertEqual(dependent_variables_expected, dependent_variables)
+
+        variables_expected = ['foo', 'bar', 'spam', 'eggs']
+        variables = self.optimization_problem.variable_names
+        self.assertEqual(variables_expected, variables)
+
     def test_initial_values(self):
         x0_chebyshev_expected = [[0.79289322, 0.20710678, 0.5]]
         x0_chebyshev = self.optimization_problem.create_initial_values(
