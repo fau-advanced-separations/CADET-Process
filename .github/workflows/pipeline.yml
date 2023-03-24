@@ -33,7 +33,7 @@ jobs:
     - name: Install dependencies
       run: |
         mamba install cadet
-        pip install -r requirements.txt
+        pip install -e ./[testing]
     - name: Test
       run: |
         python -m unittest discover -s tests
