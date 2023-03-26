@@ -769,8 +769,7 @@ class SolutionBulk(SolutionBase):
             components=components,
             use_total_concentration=False,
             use_total_concentration_components=False,
-            start=start,
-            end=end,
+            coordinates={'time': [start, end]}
         )
 
         x = solution.time / 60
@@ -1193,8 +1192,7 @@ class SolutionSolid(SolutionBase):
             components=components,
             use_total_concentration=False,
             use_total_concentration_components=False,
-            start=start,
-            end=end,
+            coordinates={'time': [start, end]}
         )
 
         x = solution.time / 60
