@@ -25,6 +25,8 @@ __all__ = [
     'StericMassAction',
     'AntiLangmuir',
     'Spreading',
+    'MobilePhaseModulator',
+    'ExtendedMobilePhaseModulator',
     'SelfAssociation',
     'BiStericMassAction',
     'MultistateStericMassAction',
