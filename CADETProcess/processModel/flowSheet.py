@@ -729,9 +729,9 @@ class FlowSheet(metaclass=StructMeta):
             *unit_inflow_symbols,
             *unit_outflow_symbols
         )
+        symbols = set(symbols)
 
         solution = sym.solve(unit_total_flow_eq + unit_outflow_eq, symbols)
-
         solution = {str(key): value for key, value in solution.items()}
 
         return solution
