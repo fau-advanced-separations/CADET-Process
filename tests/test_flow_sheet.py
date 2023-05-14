@@ -10,63 +10,88 @@ from CADETProcess.processModel import (
 from CADETProcess.processModel import FlowSheet
 
 
+def setup_single_cstr_flow_sheet(component_system=None):
+    if component_system is None:
+        component_system = ComponentSystem(2)
+
+    cstr = Cstr(component_system, 'cstr')
+
+    flow_sheet = FlowSheet(component_system)
+    flow_sheet.add_unit(cstr)
+
+    return flow_sheet
+
+
+def setup_batch_elution_flow_sheet(component_system=None):
+    if component_system is None:
+        component_system = ComponentSystem(2)
+
+    flow_sheet = FlowSheet(component_system)
+
+    feed = Inlet(component_system, name='feed')
+    eluent = Inlet(component_system, name='eluent')
+    column = LumpedRateModelWithoutPores(component_system, name='column')
+    outlet = Outlet(component_system, name='outlet')
+
+    flow_sheet.add_unit(feed)
+    flow_sheet.add_unit(eluent)
+    flow_sheet.add_unit(column)
+    flow_sheet.add_unit(outlet)
+
+    flow_sheet.add_connection(feed, column)
+    flow_sheet.add_connection(eluent, column)
+    flow_sheet.add_connection(column, outlet)
+
+    return flow_sheet
+
+
+def setup_ssr_flow_sheet(component_system=None):
+    if component_system is None:
+        component_system = ComponentSystem(2)
+
+    flow_sheet = FlowSheet(component_system)
+
+    feed = Inlet(component_system, name='feed')
+    eluent = Inlet(component_system, name='eluent')
+    cstr = Cstr(component_system, name='cstr')
+    column = LumpedRateModelWithoutPores(component_system, name='column')
+    outlet = Outlet(component_system, name='outlet')
+
+    flow_sheet.add_unit(feed)
+    flow_sheet.add_unit(eluent)
+    flow_sheet.add_unit(cstr)
+    flow_sheet.add_unit(column)
+    flow_sheet.add_unit(outlet)
+
+    flow_sheet.add_connection(feed, cstr)
+    flow_sheet.add_connection(cstr, column)
+    flow_sheet.add_connection(eluent, column)
+    flow_sheet.add_connection(column, cstr)
+    flow_sheet.add_connection(column, outlet)
+
+    flow_sheet.add_eluent_inlet(eluent)
+    flow_sheet.add_feed_inlet(feed)
+    flow_sheet.add_product_outlet(outlet)
+
+    return flow_sheet
+
+
 class Test_flow_sheet(unittest.TestCase):
 
     def __init__(self, methodName='runTest'):
         super().__init__(methodName)
 
     def setUp(self):
-        # Batch
         self.component_system = ComponentSystem(2)
 
-        flow_sheet = FlowSheet(self.component_system)
+        # Single Cstr
+        self.single_cstr_flow_sheet = setup_single_cstr_flow_sheet(self.component_system)
 
-        feed = Inlet(self.component_system, name='feed')
-        eluent = Inlet(self.component_system, name='eluent')
-        column = LumpedRateModelWithoutPores(
-            self.component_system, name='column'
-        )
-        outlet = Outlet(self.component_system, name='outlet')
-
-        flow_sheet.add_unit(feed)
-        flow_sheet.add_unit(eluent)
-        flow_sheet.add_unit(column)
-        flow_sheet.add_unit(outlet)
-
-        flow_sheet.add_connection(feed, column)
-        flow_sheet.add_connection(eluent, column)
-        flow_sheet.add_connection(column, outlet)
-
-        self.batch_flow_sheet = flow_sheet
+        # Batch
+        self.batch_flow_sheet = setup_batch_elution_flow_sheet(self.component_system)
 
         # SSR
-        flow_sheet = FlowSheet(self.component_system)
-
-        feed = Inlet(self.component_system, name='feed')
-        eluent = Inlet(self.component_system, name='eluent')
-        cstr = Cstr(self.component_system, name='cstr')
-        column = LumpedRateModelWithoutPores(
-            self.component_system, name='column'
-        )
-        outlet = Outlet(self.component_system, name='outlet')
-
-        flow_sheet.add_unit(feed)
-        flow_sheet.add_unit(eluent)
-        flow_sheet.add_unit(cstr)
-        flow_sheet.add_unit(column)
-        flow_sheet.add_unit(outlet)
-
-        flow_sheet.add_connection(feed, cstr)
-        flow_sheet.add_connection(cstr, column)
-        flow_sheet.add_connection(eluent, column)
-        flow_sheet.add_connection(column, cstr)
-        flow_sheet.add_connection(column, outlet)
-
-        flow_sheet.add_eluent_inlet(eluent)
-        flow_sheet.add_feed_inlet(feed)
-        flow_sheet.add_product_outlet(outlet)
-
-        self.ssr_flow_sheet = flow_sheet
+        self.ssr_flow_sheet = setup_ssr_flow_sheet(self.component_system)
 
     def test_unit_names(self):
         unit_names_expected = ['feed', 'eluent', 'cstr', 'column', 'outlet']
@@ -407,12 +432,15 @@ class Test_flow_sheet(unittest.TestCase):
         )
 
     def test_check_connectivity(self):
+        self.assertTrue(self.single_cstr_flow_sheet.check_connections())
         self.assertTrue(self.batch_flow_sheet.check_connections())
+        self.assertTrue(self.ssr_flow_sheet.check_connections())
 
         self.batch_flow_sheet.remove_unit('outlet')
 
         with self.assertWarns(Warning):
             self.batch_flow_sheet.check_connections()
+
 
     def test_output_state(self):
         column = self.ssr_flow_sheet.column

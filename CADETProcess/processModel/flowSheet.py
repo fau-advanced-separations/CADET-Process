@@ -438,7 +438,7 @@ class FlowSheet(metaclass=StructMeta):
                     flag = False
                     warn(f"Unit '{unit.name}' does not have ingoing stream.")
             elif isinstance(unit, Cstr):
-                if unit.flow_rate is None and len(connections.destinations) == 0:
+                if unit.flow_rate is not None and len(connections.destinations) == 0:
                     flag = False
                     warn("Cstr cannot have flow rate without outgoing stream.")
             else:
