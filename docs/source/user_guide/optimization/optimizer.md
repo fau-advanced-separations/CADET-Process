@@ -23,7 +23,7 @@ It is responsible for converting the {class}`~CADETProcess.optimization.Optimiza
 Currently, adapters to {class}`Pymoo <CADETProcess.optimization.PymooInterface>` {cite}`pymoo2020` and {class}`Scipy's <CADETProcess.optimization.SciPyInterface>` optimization suite {cite}`SciPyContributors2020` are implemented, all of which are published under open source licenses that allow for academic as well as commercial use.
 
 Before the optimization can be run, the optimizer needs to be initialized and configured.
-All implementations share the following
+All implementations share the following options:
 
 - {attr}`~CADETProcess.optimization.OptimizerBase.progress_frequency`: Number of generations after which optimizer reports progress.
 - {attr}`~CADETProcess.optimization.OptimizerBase.n_cores`: The number of cores that the optimizer should use.
