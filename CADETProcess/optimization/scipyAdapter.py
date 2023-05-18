@@ -88,6 +88,7 @@ class SciPyInterface(OptimizerBase):
                 tol=self.tol,
                 jac=self.jac,
                 constraints=self.get_constraint_objects(optimization_problem),
+                bounds=self.get_bounds(optimization_problem),
                 options=self.specific_options,
                 callback=callback_function,
             )
