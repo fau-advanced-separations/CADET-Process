@@ -68,7 +68,7 @@ class OptimizerBase(metaclass=StructMeta):
     cv_tol = UnsignedFloat(default=1e-6)
     similarity_tol = UnsignedFloat()
 
-    _options = ['progress_frequency', 'n_cores', 'cv_tol', 'similarity_tol']
+    _general_options = ['progress_frequency', 'n_cores', 'cv_tol', 'similarity_tol']
 
     def optimize(
             self,
@@ -470,7 +470,18 @@ class OptimizerBase(metaclass=StructMeta):
     @property
     def options(self):
         """dict: Optimizer options."""
-        return {opt: getattr(self, opt) for opt in self._options}
+        return {
+            opt: getattr(self, opt)
+            for opt in (self._general_options + self._specific_options)
+        }
+
+    @property
+    def specific_options(self):
+        """dict: Optimizer spcific options."""
+        return {
+            opt: getattr(self, opt)
+            for opt in (self._specific_options)
+        }
 
     def __str__(self):
         return self.__class__.__name__

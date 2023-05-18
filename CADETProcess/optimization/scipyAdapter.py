@@ -88,7 +88,7 @@ class SciPyInterface(OptimizerBase):
                 tol=self.tol,
                 jac=self.jac,
                 constraints=self.get_constraint_objects(optimization_problem),
-                options=self.options,
+                options=self.specific_options,
                 callback=callback_function,
             )
 
@@ -280,7 +280,8 @@ class TrustConstr(SciPyInterface):
     maxiter = UnsignedInteger(default=1000)
     verbose = UnsignedInteger(default=0)
     disp = Bool(default=False)
-    _options = OptimizerBase._options + [
+
+    _specific_options = [
         'gtol', 'xtol', 'barrier_tol', 'finite_diff_rel_step',
         'initial_constr_penalty',
         'initial_tr_radius', 'initial_barrier_parameter',
@@ -313,7 +314,8 @@ class COBYLA(SciPyInterface):
     disp = Bool(default=False)
     catol = UnsignedFloat(default=0.0002)
     cv_tol = catol
-    _options = OptimizerBase._options + ['rhobeg', 'maxiter', 'disp', 'catol']
+
+    _specific_options = ['rhobeg', 'maxiter', 'disp', 'catol']
 
 
 class NelderMead(SciPyInterface):
@@ -326,7 +328,7 @@ class NelderMead(SciPyInterface):
     xatol = UnsignedFloat(default=0.01)
     fatol = UnsignedFloat(default=0.01)
     adaptive = Bool(default=True)
-    _options = OptimizerBase._options + [
+    _specific_options = [
         'maxiter', 'maxfev', 'initial_simplex', 'xatol', 'fatol', 'adaptive'
     ]
 
@@ -350,4 +352,4 @@ class SLSQP(SciPyInterface):
     ftol = UnsignedFloat(default=1e-2)
     eps = UnsignedFloat(default=1e-6)
     disp = Bool(default=False)
-    _options = OptimizerBase._options + ['ftol', 'eps', 'disp']
+    _specific_options = ['ftol', 'eps', 'disp']
