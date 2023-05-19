@@ -69,7 +69,7 @@ class OptimizationResults(metaclass=StructMeta):
         self._cv_tol = cv_tol
         self._pareto_fronts = []
 
-        if optimization_problem.n_meta_scores > 0:
+        if optimization_problem.n_multi_criteria_decision_functions > 0:
             self._meta_fronts = []
         else:
             self._meta_fronts = None
