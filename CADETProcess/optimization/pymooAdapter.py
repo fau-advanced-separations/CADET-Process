@@ -160,12 +160,8 @@ class PymooInterface(OptimizerBase):
 
             F = pop.get("F").tolist()
             if optimization_problem.n_nonlinear_constraints > 0:
-                CV = pop.get("G").tolist()
-                G = opt.evaluate_nonlinear_constraints_population(
-                    X,
-                    untransform=True,
-                    n_cores=self.n_cores,
-                )
+                G = pop.get("_G").tolist()
+                CV = pop.get("_CV").tolist()
             else:
                 G = len(X)*[None]
                 CV = len(X)*[None]
