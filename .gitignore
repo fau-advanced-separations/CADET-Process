@@ -12,3 +12,4 @@ debug*
 log/
 diskcache_*
 results_*
+*.egg-info
