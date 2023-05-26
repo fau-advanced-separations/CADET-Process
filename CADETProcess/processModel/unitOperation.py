@@ -80,6 +80,7 @@ class UnitBaseClass(metaclass=StructMeta):
     _initial_state = []
     _required_parameters = []
 
+    supports_binding = False
     supports_bulk_reaction = False
     supports_particle_reaction = False
     discretization_schemes = ()
@@ -262,9 +263,13 @@ class UnitBaseClass(metaclass=StructMeta):
         if not isinstance(binding_model, BindingBaseClass):
             raise TypeError('Expected BindingBaseClass')
 
-        if binding_model.component_system is not self.component_system \
-                and not isinstance(binding_model, NoBinding):
-            raise CADETProcessError('Component systems do not match.')
+        if not isinstance(binding_model, NoBinding):
+            if not self.supports_binding:
+                raise CADETProcessError('Unit does not support binding models.')
+
+            if binding_model.component_system is not self.component_system \
+                    and not isinstance(binding_model, NoBinding):
+                raise CADETProcessError('Component systems do not match.')
 
         self._binding_model = binding_model
 
@@ -737,6 +742,7 @@ class LumpedRateModelWithoutPores(TubularReactorBase):
         reactions in the solid phase and cross-phase reactions.
 
     """
+    supports_binding = True
     supports_bulk_reaction = False
     supports_particle_reaction = True
     discretization_schemes = (LRMDiscretizationFV, LRMDiscretizationDG)
@@ -800,6 +806,7 @@ class LumpedRateModelWithPores(TubularReactorBase):
         Solution recorder for the unit operation.
 
     """
+    supports_binding = True
     supports_bulk_reaction = True
     supports_particle_reaction = True
     discretization_schemes = (LRMPDiscretizationFV, LRMPDiscretizationDG)
@@ -931,6 +938,7 @@ class GeneralRateModel(TubularReactorBase):
         Solution recorder for the unit operation.
 
     """
+    supports_binding = True
     supports_bulk_reaction = True
     supports_particle_reaction = True
     discretization_schemes = (GRMDiscretizationFV, GRMDiscretizationDG)
@@ -1074,6 +1082,7 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         Solution recorder for the unit operation.
 
     """
+    supports_binding = True
     supports_bulk_reaction = True
     supports_particle_reaction = True
 
