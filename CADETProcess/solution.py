@@ -579,9 +579,13 @@ class SolutionIO(SolutionBase):
     @plotting.create_and_save_figure
     def plot_purity(
             self,
-            start=None, end=None, y_max=None,
+            start=None,
+            end=None,
+            components=None,
             layout=None,
-            only_plot_components=False,
+            y_max=None,
+            plot_components_purity=True,
+            plot_species_purity=False,
             alpha=1, hide_labels=False,
             show_legend=True,
             ax=None):
@@ -589,10 +593,29 @@ class SolutionIO(SolutionBase):
 
         Parameters
         ----------
-        start : float
-            start time for plotting
-        end : float
-            end time for plotting
+        start : float, optional
+            Start time for plotting. The default is 0.
+        end : float, optional
+            End time for plotting.
+        components : list, optional.
+            List of components to be plotted. If None, all components are plotted.
+            Note that if components are excluded, they will also not be considered in
+            the calculation of the purity.
+        layout : plotting.Layout
+            Plot layout options.
+        y_max : float, optional
+            Maximum value of y axis.
+            If None, value is automatically deferred from solution.
+        plot_components_purity : bool, optional
+            If True, plot purity of total component concentration. The default is True.
+        plot_species_purity : bool, optional
+            If True, plot purity of individual species. The default is False.
+        alpha : float, optional
+            Opacity of line.
+        hide_labels : bool, optional
+            If True, hide labels. The default is False.
+        show_legend : bool, optional
+            If True, show legend. The default is True.
         ax : Axes
             Axes to plot on.
 
@@ -601,42 +624,66 @@ class SolutionIO(SolutionBase):
         ax : Axes
             Axes with plot of purity over time.
 
+        Raises
+        ------
+        CADETProcessError
+            If solution has less than 2 components.
+
         See Also
         --------
+        slice_solution
         plotlib
         plot
-
         """
-        time = self.time / 60
+        solution = slice_solution(
+            self,
+            components=components,
+            use_total_concentration=False,
+            use_total_concentration_components=False,
+            coordinates={'time': [start, end]}
+        )
+
+        if solution.n_comp < 2:
+            raise CADETProcessError(
+                "Purity undefined for systems with less than 2 components."
+            )
+
+        x = solution.time / 60
 
         if layout is None:
             layout = plotting.Layout()
             layout.x_label = r'$time~/~min$'
             layout.y_label = r'$Purity ~/~\%$'
+            if start is not None:
+                start /= 60
+            if end is not None:
+                end /= 60
             layout.x_lim = (start, end)
-            layout.y_lim = (0, 100)
+        if y_max is not None:
+            layout.y_lim = (None, y_max)
 
-        local_purity_components = self.local_purity_components * 100
-        local_purity_species = self.local_purity_species * 100
+        local_purity_components = solution.local_purity_components * 100
+        local_purity_species = solution.local_purity_species * 100
 
         species_index = 0
-        for i, comp in enumerate(self.component_system.components):
+        for i, comp in enumerate(solution.component_system.components):
             color = next(ax._get_lines.prop_cycler)['color']
             if hide_labels:
                 label = None
             else:
                 label = comp.name
 
-            y = local_purity_components[..., i]
+            if plot_components_purity:
+                y = local_purity_components[..., i]
 
-            ax.plot(
-                time, y,
-                label=label,
-                color=color,
-                alpha=alpha
-            )
+                ax.plot(
+                    x, y,
+                    label=label,
+                    color=color,
+                    alpha=alpha
+                )
 
-            if not only_plot_components:
+            if plot_species_purity:
                 if comp.n_species == 1:
                     species_index += 1
                     continue
@@ -647,7 +694,7 @@ class SolutionIO(SolutionBase):
                     y = local_purity_species[..., species_index]
 
                     ax.plot(
-                        time, y, '--',
+                        x, y, '--',
                         label=label,
                         color=color,
                         alpha=alpha
