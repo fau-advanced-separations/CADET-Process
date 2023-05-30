@@ -15,8 +15,12 @@ class GradientExperiment():
     def __init__(
             self, time, c_salt, c_protein, gradient_volume,
             c_salt_start=None, c_salt_end=None):
-        self.time = time
-        self.c_salt = c_salt
+        self.time = np.array(time)
+        self.c_salt = np.array(c_salt)
+
+        c_protein = np.array(c_protein)
+        if len(c_protein.shape) == 1:
+            c_protein = np.expand_dims(c_protein, axis=1)
         self.c_protein = c_protein
         self.gradient_volume = gradient_volume
 
