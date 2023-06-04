@@ -151,9 +151,12 @@ class Test_OptimizationVariable(unittest.TestCase):
             )
 
 
-def setup_dummy_eval_fun(n_metrics):
+def setup_dummy_eval_fun(n_metrics, rng=None):
+    if rng is None:
+        rng = np.random.default_rng(12345)
+
     def dummy_eval_fun(x):
-        return np.random(n_metrics)
+        return rng.random(n_metrics)
 
     return dummy_eval_fun
 
