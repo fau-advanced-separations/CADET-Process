@@ -144,6 +144,9 @@ class PymooInterface(OptimizerBase):
                 G = len(X)*[None]
                 CV = len(X)*[None]
 
+            # Handle issue of pymoo not handling np.inf
+            pop.set("F", np.nan_to_num(F, posinf=1e300))
+
             algorithm.tell(infills=pop)
 
             # Post generation processing
