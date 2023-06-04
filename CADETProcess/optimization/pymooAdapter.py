@@ -114,41 +114,19 @@ class PymooInterface(OptimizerBase):
             output=MultiObjectiveOutput(),
         )
 
-        if self.results.n_gen > 0:
-            pop = Population.new("X", self.results.population_last.x)
-            pop = Evaluator().eval(
-                StaticProblem(
-                    problem,
-                    F=self.results.population_last.f,
-                    G=self.results.population_last.g
-                ),
-                pop
-            )
-            algorithm.pop = pop
-
-            opt = Population.new("X", self.results.pareto_front.x)
-            opt = Evaluator().eval(
-                StaticProblem(
-                    problem,
-                    F=self.results.pareto_front.f,
-                    G=self.results.pareto_front.g
-                ),
-                opt
-            )
-            algorithm.opt = opt
-
-            # Re-initialize Algorithm
-            algorithm.start_time = time.time()
-            algorithm.off = pop
-            algorithm.n_gen = self.results.n_gen + 1
-            algorithm.evaluator.n_evals = self.results.n_evals
-            algorithm._initialize_advance(infills=pop)
-            algorithm.is_initialized = True
-
-            algorithm.termination.update(algorithm)
-            algorithm.output.initialize(algorithm)
-
-            algorithm.ref_dirs = self.results.optimizer_state.ref_dirs
+        # Restore previous results from checkpoint
+        for pop in self.results.populations:
+            _ = algorithm.ask()
+            if optimization_problem.n_nonlinear_constraints > 0:
+                pop = Population.new("X", pop.x, "F", pop.f, "G", pop.cv)
+                pop.apply(lambda ind: ind.evaluated.update({"F", "G"}))
+                algorithm.evaluator.eval(problem, pop, evaluate_values_of=["F", "G"])
+            else:
+                pop = Population.new("X", pop.x, "F", pop.f)
+                pop.apply(lambda ind: ind.evaluated.update({"F"}))
+                algorithm.evaluator.eval(problem, pop, evaluate_values_of=["F"])
+            algorithm.evaluator.n_eval += len(pop)
+            algorithm.tell(infills=pop)
 
         while algorithm.has_next():
             # Get current generation
@@ -170,7 +148,6 @@ class PymooInterface(OptimizerBase):
 
             # Post generation processing
             X_opt = algorithm.opt.get("X").tolist()
-            self.results.optimizer_state.ref_dirs = algorithm.ref_dirs
             self.run_post_generation_processing(X, F, G, CV, algorithm.n_gen-1, X_opt)
 
         if algorithm.n_gen >= n_max_gen:
