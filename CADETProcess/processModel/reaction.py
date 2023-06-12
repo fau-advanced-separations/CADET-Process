@@ -437,7 +437,16 @@ class NoReaction(ReactionBaseClass):
         super().__init__(ComponentSystem(), name='NoReaction')
 
 
-class MassActionLaw(ReactionBaseClass):
+class BulkReactionBase(ReactionBaseClass):
+    """Base class for bulk reaction systems."""
+
+    @classmethod
+    def to_particle_model():
+        """Convert bulk reaction model to particle reaction model."""
+        raise NotImplementedError
+
+
+class MassActionLaw(BulkReactionBase):
     """Parameters for Reaction in Bulk Phase."""
 
     _parameter_names = ReactionBaseClass._parameter_names + [
@@ -510,8 +519,19 @@ class MassActionLaw(ReactionBaseClass):
         """list: Equilibrium constants."""
         return [r.k_eq for r in self.reactions]
 
+    def to_particle_model(self):
+        """Convert Bulk Reaction Model to Particle Reaction Model."""
+        particle_model = MassActionLawParticle(self.component_system, self.name)
+        particle_model._liquid_reactions = self.reactions
 
-class MassActionLawParticle(ReactionBaseClass):
+        return particle_model
+
+
+class ParticleReactionBase(ReactionBaseClass):
+    """Base class for bulk reaction systems."""
+
+
+class MassActionLawParticle(ParticleReactionBase):
     """Parameters for Reaction in Particle Phase."""
 
     _parameter_names = ReactionBaseClass._parameter_names + [

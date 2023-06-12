@@ -877,25 +877,27 @@ class Cadet(SimulatorBase):
         else:
             unit_config['discretization']['nbound'] = n_bound
 
+        # Bulk Reaction
         if not isinstance(unit.bulk_reaction_model, NoReaction):
             parameters = self.get_reaction_config(unit.bulk_reaction_model)
 
+            unit_config['reaction_model'] = parameters['REACTION_MODEL']
+            # Converting bulk reaction to particle reaction interface (used by LRM)
             if isinstance(unit, TubularReactor):
-                unit_config['reaction_model'] = parameters['REACTION_MODEL']
                 for key, value in parameters.items():
                     key = key.replace('bulk', 'liquid')
                     unit_config['reaction'][key] = value
             else:
-                unit_config['reaction_model'] = parameters['REACTION_MODEL']
                 unit_config['reaction_bulk'] = parameters
 
+        # Particle Reaction
         if not isinstance(unit.particle_reaction_model, NoReaction):
             parameters = self.get_reaction_config(unit.particle_reaction_model)
             if isinstance(unit, LumpedRateModelWithoutPores):
                 unit_config['reaction_model'] = parameters['REACTION_MODEL']
                 unit_config['reaction'] = parameters
             else:
-                unit_config['reaction_model_particle'] = parameters['REACTION_MODEL']
+                unit_config['reaction_model_particles'] = parameters['REACTION_MODEL']
                 unit_config['reaction_particle'].update(parameters)
 
         if isinstance(unit, Inlet):
