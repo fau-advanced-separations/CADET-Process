@@ -794,7 +794,7 @@ class Cadet(SimulatorBase):
                 unit_config['reaction_model'] = parameters['REACTION_MODEL']
                 unit_config['reaction'] = parameters
             else:
-                unit_config['reaction_model_particle'] = parameters['REACTION_MODEL']
+                unit_config['reaction_model_particles'] = parameters['REACTION_MODEL']
                 unit_config['reaction_particle'].update(parameters)
 
         if isinstance(unit, Inlet):
