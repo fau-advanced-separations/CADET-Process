@@ -1,6 +1,6 @@
 from abc import abstractproperty
 import math
-from warnings import warn
+import warnings
 
 from CADETProcess import CADETProcessError
 
@@ -15,7 +15,7 @@ from CADETProcess.dataStructure import (
 
 from .componentSystem import ComponentSystem
 from .binding import BindingBaseClass, NoBinding
-from .reaction import ReactionBaseClass, NoReaction
+from .reaction import BulkReactionBase, ParticleReactionBase, NoReaction
 from .discretization import (
     DiscretizationParametersBase, NoDiscretization,
     LRMDiscretizationFV, LRMDiscretizationDG,
@@ -241,7 +241,7 @@ class UnitBaseClass(metaclass=StructMeta):
             return True
         else:
             for param in self.missing_parameters:
-                warn(f'Unit {self.name}: Missing parameter "{param}".')
+                warnings.warn(f'Unit {self.name}: Missing parameter "{param}".')
             return False
 
     @property
@@ -294,10 +294,10 @@ class UnitBaseClass(metaclass=StructMeta):
 
     @bulk_reaction_model.setter
     def bulk_reaction_model(self, bulk_reaction_model):
-        if not isinstance(bulk_reaction_model, ReactionBaseClass):
-            raise TypeError('Expected ReactionBaseClass')
-
         if not isinstance(bulk_reaction_model, NoReaction):
+            if not isinstance(bulk_reaction_model, BulkReactionBase):
+                raise TypeError('Expected BulkReactionBase')
+
             if not self.supports_bulk_reaction:
                 raise CADETProcessError(
                     'Unit does not support bulk reactions.'
@@ -325,10 +325,20 @@ class UnitBaseClass(metaclass=StructMeta):
 
     @particle_reaction_model.setter
     def particle_reaction_model(self, particle_reaction_model):
-        if not isinstance(particle_reaction_model, ReactionBaseClass):
-            raise TypeError('Expected ReactionBaseClass')
+        if isinstance(particle_reaction_model, BulkReactionBase):
+            try:
+                warnings.warn(
+                    "Detected Bulk Reaction Model. "
+                    "Attempt casting to Particle Reaction Model."
+                )
+                particle_reaction_model = particle_reaction_model.to_particle_model()
+            except NotImplementedError:
+                pass
 
         if not isinstance(particle_reaction_model, NoReaction):
+            if not isinstance(particle_reaction_model, ParticleReactionBase):
+                raise TypeError('Expected ReactionBaseClass')
+
             if not self.supports_particle_reaction:
                 raise CADETProcessError(
                     'Unit does not support particle reactions.'
@@ -737,9 +747,9 @@ class LumpedRateModelWithoutPores(TubularReactorBase):
 
     Notes
     -----
-        Although technically the LumpedRateModelWithoutPores does not have
-        particles, the particle reactions interface is used to support
-        reactions in the solid phase and cross-phase reactions.
+    Although technically the LumpedRateModelWithoutPores does not have
+    particles, the particle reactions interface is used to support
+    reactions in the solid phase and cross-phase reactions.
 
     """
     supports_binding = True
@@ -1081,10 +1091,15 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     solution_recorder : CSTRRecorder
         Solution recorder for the unit operation.
 
+    Notes
+    -----
+    CADET generally supports particle reactions for the CSTR, however, this is currently
+    not exposed since there are some issues with the interface (.
+
     """
     supports_binding = True
     supports_bulk_reaction = True
-    supports_particle_reaction = True
+    supports_particle_reaction = False
 
     porosity = UnsignedFloat(ub=1, default=1)
     flow_rate_filter = UnsignedFloat(default=0)
