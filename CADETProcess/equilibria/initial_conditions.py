@@ -10,7 +10,7 @@ from CADETProcess.simulator import Cadet
 
 
 def simulate_solid_equilibria(
-        binding_model, buffer, unit_model='cstr', flush=None):
+        binding_model, buffer, unit_model='cstr', flush=None, cadet_install_path=None):
     """Simulate initial conditions for solid phase for given buffer.
 
     Parameters
@@ -24,6 +24,8 @@ def simulate_solid_equilibria(
     flush : list, optional
         Additional buffer for flushing column after loading.
         The default is None.
+    cadet_install_path : str, optional
+        Path to CADET installation. If None, the default CADET path is used.
 
     Raises
     ------
@@ -117,7 +119,7 @@ def simulate_solid_equilibria(
     )
 
     # Simulator
-    process_simulator = Cadet()
+    process_simulator = Cadet(cadet_install_path)
     proc_results = process_simulator.simulate(proc)
 
     if unit_model == 'cstr':
