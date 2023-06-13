@@ -392,7 +392,7 @@ class NormLogTransform(TransformBase):
         """
         if self.lb_input < 0:
             return \
-                np.exp(x * np.log(self._ub - self.lb_input + 1)) \
+                np.exp(x * np.log(self.ub_input - self.lb_input + 1)) \
                 + self.lb_input - 1
         else:
             return \
