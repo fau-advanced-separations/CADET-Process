@@ -38,7 +38,6 @@ class FlowSheet(metaclass=StructMeta):
     """
 
     name = String()
-    n_comp = UnsignedInteger()
 
     def __init__(self, component_system, name=None):
         self.component_system = component_system
