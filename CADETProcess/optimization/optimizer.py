@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from CADETProcess import settings
 from CADETProcess import log
 from CADETProcess import CADETProcessError
-from CADETProcess.dataStructure import StructMeta
+from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import (
     UnsignedInteger, RangedInteger, UnsignedFloat
 )
@@ -24,8 +24,8 @@ from CADETProcess.optimization import OptimizationResults
 __all__ = ['OptimizerBase']
 
 
-class OptimizerBase(metaclass=StructMeta):
-    """BaseClass for optimization solver APIs
+class OptimizerBase(Structure):
+    """BaseClass for optimization solver APIs.
 
     Holds the configuration of the individual solvers and gives an interface
     for calling the run method. The class has to convert the
