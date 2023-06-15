@@ -5,7 +5,7 @@ import numpy as np
 from CADETProcess import CADETProcessError
 
 from CADETProcess.dataStructure import frozen_attributes
-from CADETProcess.dataStructure import StructMeta
+from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import Bool, String, \
     RangedInteger, UnsignedInteger, UnsignedFloat, DependentlySizedList, \
     DependentlySizedRangedIntegerList, DependentlySizedUnsignedIntegerList, \
@@ -37,7 +37,7 @@ __all__ = [
 
 
 @frozen_attributes
-class BindingBaseClass(metaclass=StructMeta):
+class BindingBaseClass(Structure):
     """Abstract base class for parameters of binding models.
 
     Attributes
@@ -76,7 +76,7 @@ class BindingBaseClass(metaclass=StructMeta):
     _parameter_names = ['is_kinetic']
     _required_parameters = []
 
-    def __init__(self, component_system, name=None):
+    def __init__(self, component_system, name=None, *args, **kwargs):
         self.component_system = component_system
         self.name = name
 
@@ -84,6 +84,8 @@ class BindingBaseClass(metaclass=StructMeta):
             param: getattr(self, param)
             for param in self._parameter_names
         }
+
+        super().__init__(*args, **kwargs)
 
     @property
     def model(self):

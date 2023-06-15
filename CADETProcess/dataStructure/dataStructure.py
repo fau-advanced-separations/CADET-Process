@@ -23,27 +23,44 @@ class StructMeta(type):
         return OrderedDict()
 
     def __new__(cls, clsname, bases, clsdict):
-        fields = [
+        descriptors = [
             key for key, val in clsdict.items()
             if isinstance(val, Descriptor)
         ]
 
-        for name in fields:
+        for name in descriptors:
             clsdict[name].name = name
 
-        clsdict['descriptors'] = fields
+        clsdict['descriptors'] = descriptors
 
         clsobj = super().__new__(cls, clsname, bases, dict(clsdict))
 
-        if len(bases) > 1:
-            clsobj._parameters = []
-            for base in bases:
-                try:
-                    clsobj._parameters += base._parameters
-                except AttributeError:
-                    pass
+        parameters = []
 
-        sig = make_signature(fields)
+        try:
+            parameters += clsobj._parameters
+        except AttributeError:
+            pass
+
+        # Collect parameters and descriptors from parent classes
+        for base in bases:
+            try:
+                parameters += base._parameters
+            except AttributeError:
+                pass
+            try:
+                descriptors += base.descriptors
+            except AttributeError:
+                pass
+
+        # Register all parameters
+        if len(parameters) > 1:
+            clsobj._parameters = parameters
+
+        # Register descriptor fields as arguments in __init__.
+        # The order matters here, the list(dict.fromkeys(descriptors)) procecure.
+        args = list(dict.fromkeys(descriptors))
+        sig = make_signature(args)
         setattr(clsobj, '__signature__', sig)
 
         return clsobj

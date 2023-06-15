@@ -373,7 +373,7 @@ class ReactionBaseClass(metaclass=StructMeta):
 
     _parameter_names = []
 
-    def __init__(self, component_system, name=None):
+    def __init__(self, component_system, name=None, *args, **kwargs):
         self.component_system = component_system
         self.name = name
 
@@ -381,6 +381,8 @@ class ReactionBaseClass(metaclass=StructMeta):
             param: getattr(self, param)
             for param in self._parameter_names
         }
+
+        super().__init__(*args, **kwargs)
 
     @property
     def model(self):

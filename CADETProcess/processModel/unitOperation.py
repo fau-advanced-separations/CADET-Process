@@ -5,7 +5,7 @@ from warnings import warn
 from CADETProcess import CADETProcessError
 
 from CADETProcess.dataStructure import frozen_attributes
-from CADETProcess.dataStructure import StructMeta
+from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import (
     Constant, UnsignedFloat,
     String, Switch,
@@ -44,7 +44,7 @@ __all__ = [
 
 
 @frozen_attributes
-class UnitBaseClass(metaclass=StructMeta):
+class UnitBaseClass(Structure):
     """Base class for all UnitOperation classes.
 
     A UnitOperation object stores model parameters and states of a unit.
@@ -85,7 +85,7 @@ class UnitBaseClass(metaclass=StructMeta):
     supports_particle_reaction = False
     discretization_schemes = ()
 
-    def __init__(self, component_system, name):
+    def __init__(self, component_system, name, *args, **kwargs):
         self.name = name
         self.component_system = component_system
 
@@ -102,6 +102,8 @@ class UnitBaseClass(metaclass=StructMeta):
             param: getattr(self, param)
             for param in self._parameter_names
         }
+
+        super().__init__(*args, **kwargs)
 
     @property
     def model(self):
@@ -350,7 +352,7 @@ class UnitBaseClass(metaclass=StructMeta):
         return self.name
 
 
-class SourceMixin(metaclass=StructMeta):
+class SourceMixin(Structure):
     """Mixin class for Units that have Source-like behavior
 
     See Also
