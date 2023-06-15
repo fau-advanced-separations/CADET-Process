@@ -1,3 +1,4 @@
+.idea
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -12,3 +13,4 @@ debug*
 log/
 diskcache_*
 results_*
+tmp*
