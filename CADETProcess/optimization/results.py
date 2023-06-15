@@ -380,7 +380,7 @@ class OptimizationResults(metaclass=StructMeta):
             self.plot_objectives(
                 show=show, plot_directory=self.plot_directory
             )
-            if self.optimization_problem.n_variables > 1:
+            if self.optimization_problem.n_variables > 1 and len(self.x) > 1:
                 self.plot_corner(
                     show=show, plot_directory=self.plot_directory
                 )
