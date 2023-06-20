@@ -601,7 +601,7 @@ class OptimizationProblem(metaclass=StructMeta):
                 value = self._evaluate(x, eval_fun, force)
                 results = np.hstack((results, value))
             except CADETProcessError as e:
-                self.logger.warn(
+                self.logger.warning(
                     f'Evaluation of {eval_fun.name} failed at {x} with Error "{e}". '
                     f'Returning bad metrics.'
                 )
@@ -1525,7 +1525,7 @@ class OptimizationProblem(metaclass=StructMeta):
             try:
                 self._evaluate(x, callback, force)
             except CADETProcessError:
-                self.logger.warn(
+                self.logger.warning(
                     f'Evaluation of {callback} failed at {x}.'
                 )
 
