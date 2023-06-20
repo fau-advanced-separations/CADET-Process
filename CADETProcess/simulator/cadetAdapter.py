@@ -7,6 +7,7 @@ import subprocess
 from subprocess import TimeoutExpired
 import time
 import tempfile
+import warnings
 
 from addict import Dict
 import numpy as np
@@ -51,7 +52,7 @@ class Cadet(SimulatorBase):
     Attributes
     ----------
     install_path: str
-        Path to the installation of CADET
+        Path to the root of the CADET installation
     time_out : UnsignedFloat
         Maximum duration for simulations
     model_solver_parameters : ModelSolverParametersGroup
@@ -84,13 +85,21 @@ class Cadet(SimulatorBase):
     """
 
     timeout = UnsignedFloat()
-    use_c_api = Bool(default=False)
+    use_dll = Bool(default=False)
     _force_constant_flow_rate = False
 
     def __init__(self, install_path=None, temp_dir=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.install_path = install_path
+        self.cadet_root = None
+        self.cadet_cli_path = None
+        self.cadet_create_lwe_path = None
+        self.cadet_dll_path = None
+
+        if install_path is None:
+            self.autodetect_cadet()
+        else:
+            self.install_path = install_path
 
         self.model_solver_parameters = ModelSolverParametersGroup()
         self.solver_parameters = SolverParametersGroup()
@@ -113,66 +122,151 @@ class Cadet(SimulatorBase):
     def temp_dir(self, temp_dir):
         self._temp_dir = temp_dir
 
+    def autodetect_cadet(self):
+        """
+        Autodetect installation CADET based on operating system and API usage.
+
+        Returns
+        -------
+        cadet_root : Path
+            Installation path of the CADET program.
+        """
+        executable = 'cadet-cli'
+        if platform.system() == 'Windows':
+            executable += '.exe'
+
+        # Searching for the executable in system path
+        path = shutil.which(executable)
+
+        if path is None:
+            raise FileNotFoundError(
+                "Could not autodetect CADET installation. Please provide path."
+            )
+        else:
+            self.logger.info(f"Found CADET executable at {path}")
+
+        cli_path = Path(path)
+
+        cadet_root = None
+        if cli_path is not None:
+            cadet_root = cli_path.parent.parent
+            self.install_path = cadet_root
+
+        return cadet_root
+
+    @property
+    def cadet_path(self):
+        if self.use_dll and self.found_dll:
+            return self.cadet_cll_path
+        return self.cadet_cli_path
+
+    @property
+    def found_dll(self):
+        flag = False
+        if self.cadet_dll_path is not None:
+            flag = True
+        return flag
+
     @property
     def install_path(self):
         """str: Path to the installation of CADET.
 
-        Parameters
-        ----------
-        install_path : str or None
-            Path to the installation of CADET.
-            If None, the system installation will be used.
+        This can either be the root directory of the installation or the path to the
+        executable file 'cadet-cli'. If a file path is provided, the root directory will
+        be inferred.
 
         Raises
         ------
         FileNotFoundError
-            If CADET can not be found.
+            If CADET cannot be found at the specified path.
+
+        Warnings
+        --------
+        If the specified install_path is not the root of the CADET installation, it will
+        be inferred from the file path.
 
         See Also
         --------
         check_cadet
-
         """
         return self._install_path
 
     @install_path.setter
     def install_path(self, install_path):
-        if install_path is None:
-            executable = 'cadet-cli'
-            if platform.system() == 'Windows':
-                if self.use_c_api:
-                    executable += '.dll'
-                else:
-                    executable += '.exe'
-            else:
-                if self.use_c_api:
-                    executable += '.so'
-            try:
-                install_path = shutil.which(executable)
-            except TypeError:
-                raise FileNotFoundError(
-                    "CADET could not be found. Please set an install path"
-                )
-        install_path = Path(install_path).expanduser()
+        """
+        Set the installation path of CADET.
 
-        if install_path.exists():
-            self._install_path = install_path
-            CadetAPI.cadet_path = install_path
-            self.logger.info(f"CADET was found here: {install_path}")
+        Parameters
+        ----------
+        install_path : str or Path
+            Path to the root of the CADET installation.
+            It should either be the root directory of the installation or the path
+            to the executable file 'cadet-cli'.
+            If a file path is provided, the root directory will be inferred.
+        """
+        if install_path is None:
+            self._install_path = None
+            self.cadet_cli_path = None
+            self.cadet_dll_path = None
+            self.cadet_create_lwe_path = None
+
+            return
+
+        install_path = Path(install_path)
+
+        if install_path.is_file():
+            cadet_root = install_path.parent.parent
+            warnings.warn(
+                "The specified install_path is not the root of the CADET installation. "
+                "It has been inferred from the file path."
+            )
+        else:
+            cadet_root = install_path
+
+        self._install_path = cadet_root
+
+        cli_executable = 'cadet-cli'
+        lwe_executable = 'createLWE'
+
+        if platform.system() == 'Windows':
+            cli_executable += '.exe'
+            lwe_executable += '.exe'
+
+        cadet_cli_path = cadet_root / 'bin' / cli_executable
+        if cadet_cli_path.is_file():
+            self.cadet_cli_path = cadet_cli_path
         else:
             raise FileNotFoundError(
                 "CADET could not be found. Please check the path"
             )
 
-        cadet_lib_path = install_path.parent.parent / "lib"
-        try:
-            if cadet_lib_path.as_posix() not in os.environ['LD_LIBRARY_PATH']:
-                os.environ['LD_LIBRARY_PATH'] = \
-                    cadet_lib_path.as_posix() \
-                    + os.pathsep \
-                    + os.environ['LD_LIBRARY_PATH']
-        except KeyError:
-            os.environ['LD_LIBRARY_PATH'] = cadet_lib_path.as_posix()
+        cadet_create_lwe_path = cadet_root / 'bin' / lwe_executable
+        if cadet_create_lwe_path.is_file():
+            self.cadet_create_lwe_path = cadet_create_lwe_path
+
+        if platform.system() == 'Windows':
+            dll_path = cadet_root / 'bin' / 'cadet.dll'
+            dll_debug_path = cadet_root / 'bin' / 'cadet_d.dll'
+        else:
+            dll_path = cadet_root / 'lib' / 'lib_cadet.so'
+            dll_debug_path = cadet_root / 'lib' / 'lib_cadet_d.so'
+
+        # Look for debug dll if dll is not found.
+        if not dll_path.is_file() and dll_debug_path.is_file():
+            dll_path = dll_debug_path
+
+        # Look for debug dll if dll is not found.
+        if dll_path.is_file():
+            self.cadet_dll_path = dll_path
+
+        if platform.system() != 'Windows':
+            try:
+                cadet_lib_path = cadet_root / 'lib'
+                if cadet_lib_path.as_posix() not in os.environ['LD_LIBRARY_PATH']:
+                    os.environ['LD_LIBRARY_PATH'] += \
+                        os.pathsep + cadet_lib_path.as_posix()
+            except KeyError:
+                os.environ['LD_LIBRARY_PATH'] = cadet_lib_path.as_posix()
 
     def check_cadet(self):
         """Check CADET installation can run basic LWE example."""
@@ -180,10 +274,8 @@ class Cadet(SimulatorBase):
         if platform.system() == 'Windows':
             executable += '.exe'
 
-        lwe_path = self.install_path.parent / executable
-
         ret = subprocess.run(
-            [lwe_path.as_posix()],
+            [self.cadet_create_lwe_path.as_posix()],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             cwd=self.temp_dir
@@ -301,7 +393,7 @@ class Cadet(SimulatorBase):
         # Because the initialization in __init__ isn't guaranteed to be called in multiprocessing
         #  situations, ensure that the cadet_path has actually been set.
         if not hasattr(cadet, "cadet_path"):
-            cadet.cadet_path = self.install_path
+            cadet.cadet_path = self.cadet_path
         return cadet
 
     def save_to_h5(self, process, file_path):
