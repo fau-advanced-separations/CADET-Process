@@ -254,7 +254,7 @@ class Cadet(SimulatorBase):
             raise TypeError('Expected Process')
 
         if cadet is None:
-            cadet = CadetAPI()
+            cadet = self.get_new_cadet_instance()
 
         cadet.root = self.get_process_config(process)
 
@@ -295,14 +295,22 @@ class Cadet(SimulatorBase):
 
         return results
 
-    def save_to_h5(self, process, file_path):
+    def get_new_cadet_instance(self):
         cadet = CadetAPI()
+        # Because the initialization in __init__ isn't guaranteed to be called in multiprocessing
+        #  situations, ensure that the cadet_path has actually been set.
+        if not hasattr(cadet, "cadet_path"):
+            cadet.cadet_path = self.install_path
+        return cadet
+
+    def save_to_h5(self, process, file_path):
+        cadet = self.get_new_cadet_instance()
         cadet.root = self.get_process_config(process)
         cadet.filename = file_path
         cadet.save()
 
     def run_h5(self, file_path):
-        cadet = CadetAPI()
+        cadet = self.get_new_cadet_instance()
         cadet.filename = file_path
         cadet.load()
         cadet.run_load(timeout=self.timeout)
@@ -310,7 +318,7 @@ class Cadet(SimulatorBase):
         return cadet
 
     def load_from_h5(self, file_path):
-        cadet = CadetAPI()
+        cadet = self.get_new_cadet_instance()
         cadet.filename = file_path
         cadet.load()
 
