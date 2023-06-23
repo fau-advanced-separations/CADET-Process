@@ -225,7 +225,7 @@ class OptimizationProblem(metaclass=StructMeta):
     @property
     def independent_variables(self):
         """list: Independent OptimizationVaribles."""
-        return list(filter(lambda var: var.isIndependent, self.variables))
+        return list(filter(lambda var: var.is_independent, self.variables))
 
     @property
     def independent_variable_names(self):
@@ -241,7 +241,7 @@ class OptimizationProblem(metaclass=StructMeta):
     def dependent_variables(self):
         """list: OptimizationVaribles with dependencies."""
         return list(
-            filter(lambda var: var.isIndependent is False, self.variables)
+            filter(lambda var: var.is_independent is False, self.variables)
         )
 
     @property
@@ -471,7 +471,7 @@ class OptimizationProblem(metaclass=StructMeta):
         x_independent = []
 
         for variable, value in zip(self.variables, x):
-            if variable.isIndependent:
+            if variable.is_independent:
                 x_independent.append(value)
 
         return x_independent
@@ -2738,10 +2738,9 @@ class OptimizationVariable:
         CADETProcessError
             If the variable is already dependent.
             If transform signature does not match independent Variables.
-
         """
-        if not self.isIndependent:
-            raise CADETProcessError("Variable already is dependent.")
+        if not self.is_independent:
+            raise CADETProcessError("Variable is already dependent.")
 
         self._dependencies = dependencies
         self.dependency_transform = transform
@@ -2752,12 +2751,9 @@ class OptimizationVariable:
         return self._dependencies
 
     @property
-    def isIndependent(self):
-        """bool: True, if Variable is independent, False otherwise."""
-        if len(self.dependencies) == 0:
-            return True
-        else:
-            return False
+    def is_independent(self):
+        """bool: True if Variable is independent, False otherwise."""
+        return len(self.dependencies) == 0
 
     @property
     def value(self):
@@ -2770,9 +2766,8 @@ class OptimizationVariable:
         ------
         CADETProcessError
             If the Variable is not independent.
-
         """
-        if self.isIndependent:
+        if self.is_independent:
             if self._value is None:
                 raise CADETProcessError("Value not set.")
 
@@ -2791,7 +2786,7 @@ class OptimizationVariable:
         if value > self.ub:
             raise ValueError("Exceeds upper bound")
 
-        if self.isIndependent:
+        if self.is_independent:
             self._value = value
         else:
 
