@@ -194,13 +194,19 @@ def setup_optimization_problem(
     if obj_fun is None:
         obj_fun = setup_dummy_eval_fun(n_obj)
 
-    optimization_problem.add_objective(obj_fun, n_objectives=n_obj)
+    optimization_problem.add_objective(
+        obj_fun,
+        n_objectives=n_obj,
+        labels=[f'f_{i}' for i in range(n_obj)]
+    )
 
     if n_nonlincon > 0:
         if nonlincon_fun is None:
             nonlincon_fun = setup_dummy_eval_fun(n_nonlincon)
         optimization_problem.add_nonlinear_constraint(
-            nonlincon_fun, n_nonlinear_constraints=n_nonlincon
+            nonlincon_fun, n_nonlinear_constraints=n_nonlincon,
+            labels=[f'g_{i}' for i in range(n_nonlincon)],
+            bounds=0.5
         )
 
     if n_meta > 0:

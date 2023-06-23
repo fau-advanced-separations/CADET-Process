@@ -858,6 +858,7 @@ class OptimizationProblem(metaclass=StructMeta):
             n_objectives=1,
             bad_metrics=None,
             evaluation_objects=-1,
+            labels=None,
             requires=None,
             *args, **kwargs):
         """Add objective function to optimization problem.
@@ -877,6 +878,8 @@ class OptimizationProblem(metaclass=StructMeta):
             EvaluationObjects which are evaluated by objective.
             If None, no EvaluationObject is used.
             If -1, all EvaluationObjects are used.
+        labels : str, optional
+            Names of the individual metrics.
         requires : {None, Evaluator, list}
             Evaluators used for preprocessing.
             If None, no preprocessing is required.
@@ -942,7 +945,8 @@ class OptimizationProblem(metaclass=StructMeta):
             n_objectives=n_objectives,
             bad_metrics=bad_metrics,
             evaluation_objects=evaluation_objects,
-            evaluators=evaluators
+            evaluators=evaluators,
+            labels=labels,
         )
         self._objectives.append(objective)
 
@@ -1087,6 +1091,7 @@ class OptimizationProblem(metaclass=StructMeta):
             bad_metrics=None,
             evaluation_objects=-1,
             bounds=0,
+            labels=None,
             requires=None,
             *args, **kwargs):
         """Add nonliner constraint function to optimization problem.
@@ -1110,6 +1115,8 @@ class OptimizationProblem(metaclass=StructMeta):
             Upper limits of constraint function.
             If only one value is given, the same value is assumed for all
             constraints. The default is 0.
+        labels : str, optional
+            Names of the individual metrics.
         requires : {None, Evaluator, list}, optional
             Evaluators used for preprocessing.
             If None, no preprocessing is required.
@@ -1183,7 +1190,8 @@ class OptimizationProblem(metaclass=StructMeta):
             n_nonlinear_constraints=n_nonlinear_constraints,
             bad_metrics=bad_metrics,
             evaluation_objects=evaluation_objects,
-            evaluators=evaluators
+            evaluators=evaluators,
+            labels=labels,
         )
         self._nonlinear_constraints.append(nonlincon)
 
