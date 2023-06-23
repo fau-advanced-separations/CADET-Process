@@ -405,19 +405,21 @@ class Population():
             labels = self.objective_labels
 
         for i_var, var in enumerate(variables):
-            x_var_feas = x_feas[:, i_var]
-            if len(x_infeas) > 0:
+            if len(feasible) > 0:
+                x_var_feas = x_feas[:, i_var]
+            if len(infeasible) > 0:
                 x_var_infeas = x_infeas[:, i_var]
 
             for i_metric, label in enumerate(labels):
                 ax = axs[i_metric][i_var]
 
-                if len(x_infeas) > 0:
+                if len(feasible) > 0:
+                    v_metric_feas = values_feas[:, i_metric]
+                    ax.scatter(x_var_feas, v_metric_feas, alpha=0.5, color=color_feas)
+
+                if len(infeasible) > 0:
                     v_metric_infeas = values_infeas[:, i_metric]
                     ax.scatter(x_var_infeas, v_metric_infeas, alpha=0.5, color=color_infeas)
-
-                v_metric_feas = values_feas[:, i_metric]
-                ax.scatter(x_var_feas, v_metric_feas, alpha=0.5, color=color_feas)
 
                 points = np.vstack([col.get_offsets() for col in ax.collections])
 
