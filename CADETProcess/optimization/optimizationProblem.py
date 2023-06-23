@@ -799,7 +799,7 @@ class OptimizationProblem(metaclass=StructMeta):
             raise TypeError("Expected callable evaluator.")
 
         if name is None:
-            if inspect.isfunction(evaluator):
+            if inspect.isfunction(evaluator) or inspect.ismethod(evaluator):
                 name = evaluator.__name__
             else:
                 name = str(evaluator)
@@ -905,7 +905,7 @@ class OptimizationProblem(metaclass=StructMeta):
             raise TypeError("Expected callable objective.")
 
         if name is None:
-            if inspect.isfunction(objective):
+            if inspect.isfunction(objective) or inspect.ismethod(objective):
                 name = objective.__name__
             else:
                 name = str(objective)
@@ -1142,7 +1142,7 @@ class OptimizationProblem(metaclass=StructMeta):
             raise TypeError("Expected callable constraint function.")
 
         if name is None:
-            if inspect.isfunction(nonlincon):
+            if inspect.isfunction(nonlincon) or inspect.ismethod(nonlincon):
                 name = nonlincon.__name__
             else:
                 name = str(nonlincon)
@@ -1456,7 +1456,7 @@ class OptimizationProblem(metaclass=StructMeta):
             raise TypeError("Expected callable callback.")
 
         if name is None:
-            if inspect.isfunction(callback):
+            if inspect.isfunction(callback) or inspect.ismethod(callback):
                 name = callback.__name__
             else:
                 name = str(callback)
@@ -1664,7 +1664,7 @@ class OptimizationProblem(metaclass=StructMeta):
             raise TypeError("Expected callable meta score.")
 
         if name is None:
-            if inspect.isfunction(meta_score):
+            if inspect.isfunction(meta_score) or inspect.ismethod(meta_score):
                 name = meta_score.__name__
             else:
                 name = str(meta_score)
@@ -1809,7 +1809,7 @@ class OptimizationProblem(metaclass=StructMeta):
             raise TypeError("Expected callable decision function.")
 
         if name is None:
-            if inspect.isfunction(decision_function):
+            if inspect.isfunction(decision_function) or inspect.ismethod(decision_function):
                 name = decision_function.__name__
             else:
                 name = str(decision_function)
