@@ -1053,12 +1053,11 @@ class OptimizationProblem(metaclass=StructMeta):
     @property
     def nonlinear_constraint_labels(self):
         """list: Nonlinear constraint function metric labels."""
-        if self.n_nonlinear_constraints > 0:
-            labels = []
-            for nonlincon in self.nonlinear_constraints:
-                labels += nonlincon.labels
+        labels = []
+        for nonlincon in self.nonlinear_constraints:
+            labels += nonlincon.labels
 
-            return labels
+        return labels
 
     @property
     def nonlinear_constraints_bounds(self):
@@ -1602,12 +1601,11 @@ class OptimizationProblem(metaclass=StructMeta):
     @property
     def meta_score_labels(self):
         """int: Meta score function metric labels."""
-        if self.n_meta_scores > 0:
-            labels = []
-            for meta_score in self.meta_scores:
-                labels += meta_score.labels
+        labels = []
+        for meta_score in self.meta_scores:
+            labels += meta_score.labels
 
-            return labels
+        return labels
 
     @property
     def n_meta_scores(self):
