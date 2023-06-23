@@ -2591,8 +2591,6 @@ class OptimizationVariable:
     ValueError
         If the lower bound is larger than or equal to the upper bound.
     """
-    _parameters = ['lb', 'ub', 'component_index', 'precision']
-
 
     def __init__(
         self, name, evaluation_objects=None, parameter_path=None,
@@ -2789,15 +2787,7 @@ class OptimizationVariable:
         if self.is_independent:
             self._value = value
         else:
-
-    @property
-    def parameters(self):
-        """dict: parameter dictionary."""
-        return Dict({
-            param: getattr(self, param) for param in self._parameters
-        })
             raise CADETProcessError("Cannot set value for dependent variables")
-
 
     @property
     def transformed_bounds(self):
