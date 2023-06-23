@@ -76,7 +76,7 @@ class SciPyInterface(OptimizerBase):
             return False
 
         if x0 is None:
-            x0 = optimization_problem.create_initial_values(1, method='chebyshev')
+            x0 = optimization_problem.create_initial_values(1, method='chebyshev')[0]
 
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore', category=OptimizeWarning)
