@@ -111,7 +111,7 @@ class LinearConstrainedSooTestProblem(TestProblem):
 
 
 class LinearConstrainedMooTestProblem(TestProblem):
-    """Function curtesy of Florian Schnunk and Samuel Leweke."""
+    """Function curtesy of Florian Schunck and Samuel Leweke."""
 
     def __init__(self, *args, **kwargs):
         super().__init__('linear_constrained_multi_objective', *args, **kwargs)
