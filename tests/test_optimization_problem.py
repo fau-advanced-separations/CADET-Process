@@ -166,17 +166,42 @@ def dummy_meta_score(f):
 
 
 def setup_optimization_problem(
-        n_vars=2, n_obj=1, n_nonlincon=0, n_meta=0, use_diskcache=False):
+        n_vars=2, n_obj=1, n_lincon=0, n_nonlincon=0, n_meta=0,
+        bounds=None, obj_fun=None, nonlincon_fun=None, lincons=None,
+        use_diskcache=False,
+        ):
     optimization_problem = OptimizationProblem('simple', use_diskcache=use_diskcache)
 
     for i_var in range(n_vars):
-        optimization_problem.add_variable(f'var_{i_var}', lb=0, ub=1)
+        if bounds is None:
+            lb, ub = (0, 1)
+        else:
+            lb, ub = bounds[i_var]
 
-    optimization_problem.add_objective(setup_dummy_eval_fun(n_obj), n_objectives=n_obj)
+        optimization_problem.add_variable(
+            f'var_{i_var}',
+            lb=lb, ub=ub
+        )
+
+    if n_lincon > 0:
+        if lincons is None:
+            lincons = [
+                ([f'var_{i_var}', f'var_{i_var+1}'], [1, -1], 0)
+                for i_var in range(n_lincon)
+            ]
+        for opt_vars, lhs, b in lincons:
+            optimization_problem.add_linear_constraint(opt_vars, lhs, b)
+
+    if obj_fun is None:
+        obj_fun = setup_dummy_eval_fun(n_obj)
+
+    optimization_problem.add_objective(obj_fun, n_objectives=n_obj)
 
     if n_nonlincon > 0:
+        if nonlincon_fun is None:
+            nonlincon_fun = setup_dummy_eval_fun(n_nonlincon)
         optimization_problem.add_nonlinear_constraint(
-            setup_dummy_eval_fun(n_nonlincon), n_nonlinear_constraints=n_nonlincon
+            nonlincon_fun, n_nonlinear_constraints=n_nonlincon
         )
 
     if n_meta > 0:
@@ -225,10 +250,8 @@ class Test_OptimizationProblemLinCon(unittest.TestCase):
         super().__init__(methodName)
 
     def setUp(self):
-        optimization_problem = setup_optimization_problem(use_diskcache=False)
-
-        optimization_problem.add_linear_constraint(
-            ['var_0', 'var_1'], [1, -1]
+        optimization_problem = setup_optimization_problem(
+            n_lincon=1, use_diskcache=False
         )
 
         self.optimization_problem = optimization_problem
