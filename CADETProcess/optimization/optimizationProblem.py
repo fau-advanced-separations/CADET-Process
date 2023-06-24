@@ -2818,6 +2818,12 @@ class OptimizationVariable():
             param: getattr(self, param) for param in self._parameters
         })
 
+    @property
+    def transformed_bounds(self):
+        """list: Transformed bounds of the parameter."""
+        return [self.transform_fun(self.lb), self.transform_fun(self.ub)]
+
+
     def __repr__(self):
         if self.evaluation_objects is not None:
             string = \
@@ -2880,6 +2886,7 @@ class Objective(metaclass=StructMeta):
 
     objective = Callable()
     name = String()
+    # TODO: umbennennen
     type = Switch(valid=['minimize', 'maximize'])
     n_objectives = RangedInteger(lb=1)
     n_metrics = n_objectives
