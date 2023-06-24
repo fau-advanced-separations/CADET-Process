@@ -482,7 +482,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
         Parameters
         ----------
-         x : array_like
+        x : array_like
             Value of the optimization variables
         evaluation_objects : list or EvaluationObject or None or -1
             Evaluations objects to set variables in.
@@ -493,7 +493,7 @@ class OptimizationProblem(metaclass=StructMeta):
         Returns
         -------
         evaluation_object : list
-            Evaluation Objects with set paraemters.
+            Evaluation Objects with set parameters.
 
         Raises
         ------
@@ -931,7 +931,7 @@ class OptimizationProblem(metaclass=StructMeta):
             requires = [requires]
 
         try:
-            evaluators = [self.evaluators_dict_reference[req]for req in requires]
+            evaluators = [self.evaluators_dict_reference[req] for req in requires]
         except KeyError as e:
             raise CADETProcessError(f"Unknown Evaluator: {str(e)}")
 
@@ -2547,12 +2547,12 @@ class OptimizationProblem(metaclass=StructMeta):
         return self.name
 
 
-class OptimizationVariable():
+class OptimizationVariable:
     """Class for setting the values for the optimization variables.
 
     Defines the attributes for optimization variables for creating an
     OptimizationVariable. Tries to get the attr of the evaluation_object.
-    Raises a CADETProcessErrorif the attribute to be set is not valid.
+    Raises a CADETProcessError if the attribute to be set is not valid.
 
     Attributes
     ----------
@@ -2565,7 +2565,7 @@ class OptimizationVariable():
     lb : float
         Lower bound of the variable.
     ub : float
-        upper bound of the variable.
+        Upper bound of the variable.
     transform : TransformBase
         Transformation function for parameter normalization.
     component_index : int, optional
@@ -2582,16 +2582,17 @@ class OptimizationVariable():
     ------
     CADETProcessError
         If the attribute is not valid.
-
+    ValueError
+        If the lower bound is larger than or equal to the upper bound.
     """
     _parameters = ['lb', 'ub', 'component_index', 'precision']
 
-    def __init__(self, name,
-                 evaluation_objects=None, parameter_path=None,
-                 lb=-math.inf, ub=math.inf, transform=None,
-                 component_index=None, polynomial_index=None,
-                 precision=None):
 
+    def __init__(
+        self, name, evaluation_objects=None, parameter_path=None,
+        lb=-math.inf, ub=math.inf, transform=None,
+        component_index=None, polynomial_index=None, precision=None
+    ):
         self.name = name
         self._value = None
 
@@ -2607,9 +2608,7 @@ class OptimizationVariable():
             self.component_index = None
 
         if lb >= ub:
-            raise ValueError(
-                "Lower bound cannot be larger or equal than upper bound."
-            )
+            raise ValueError("Lower bound cannot be larger or equal to upper bound.")
         self.lb = lb
         self.ub = ub
 
@@ -2617,9 +2616,7 @@ class OptimizationVariable():
             transform = NoTransform(lb, ub)
         else:
             if np.isinf(lb) or np.isinf(ub):
-                raise CADETProcessError(
-                    "Transform requires bound constraints."
-                )
+                raise CADETProcessError("Transform requires bound constraints.")
             if transform == 'auto':
                 transform = AutoTransform(lb, ub)
             elif transform == 'linear':
@@ -2630,7 +2627,6 @@ class OptimizationVariable():
                 raise ValueError("Unknown transform")
 
         self._transform = transform
-
         self.precision = precision
 
         self._dependencies = []
@@ -2645,9 +2641,7 @@ class OptimizationVariable():
         if parameter_path is not None:
             for eval_obj in self.evaluation_objects:
                 if not check_nested(eval_obj.parameters, parameter_path):
-                    raise CADETProcessError(
-                        'Not a valid Optimization variable'
-                    )
+                    raise CADETProcessError('Not a valid Optimization variable')
         self._parameter_path = parameter_path
 
     @property
@@ -2677,14 +2671,10 @@ class OptimizationVariable():
                     eval_obj.parameters, self.parameter_sequence
                 )
                 if self.is_polynomial:
-                    if component_index > parameter.shape[0]-1:
-                        raise CADETProcessError(
-                            'Index exceeds components'
-                        )
+                    if component_index > parameter.shape[0] - 1:
+                        raise CADETProcessError('Index exceeds components')
                 else:
-                    if (
-                            np.isscalar(parameter) or
-                            component_index > len(parameter)-1):
+                    if np.isscalar(parameter) or component_index > len(parameter) - 1:
                         raise CADETProcessError('Index exceeds components')
         self._component_index = component_index
 
@@ -2710,24 +2700,15 @@ class OptimizationVariable():
 
             if not is_polynomial and polynomial_index is None:
                 break
-
             elif not is_polynomial and polynomial_index is not None:
-                raise CADETProcessError(
-                    'Variable is not a polynomial parameter.'
-                )
-
+                raise CADETProcessError('Variable is not a polynomial parameter.')
             elif is_polynomial and polynomial_index is None:
                 polynomial_index = 0
-
                 break
 
-            parameter = get_nested_value(
-                eval_obj.parameters, self.parameter_sequence
-            )
+            parameter = get_nested_value(eval_obj.parameters, self.parameter_sequence)
             if polynomial_index > parameter.shape[1] - 1:
-                raise CADETProcessError(
-                    'Index exceeds polynomial coefficients'
-                )
+                raise CADETProcessError('Index exceeds polynomial coefficients')
 
         self._is_polynomial = is_polynomial
         self._polynomial_index = polynomial_index
@@ -2744,7 +2725,7 @@ class OptimizationVariable():
         dependencies : list
             List of OptimizationVariables to be added as dependencies.
         transform: callable
-            Transform function describing dependency on /independent Variables.
+            Transform function describing dependency on independent variables.
 
         Raises
         ------
@@ -2789,12 +2770,10 @@ class OptimizationVariable():
             if self._value is None:
                 raise CADETProcessError("Value not set.")
 
-            value = self._value
+            return self._value
         else:
             dependencies = [dep.value for dep in self.dependencies]
-            value = self.dependency_transform(*dependencies)
-
-        return value
+            return self.dependency_transform(*dependencies)
 
     @value.setter
     def value(self, value):
@@ -2809,7 +2788,6 @@ class OptimizationVariable():
         if self.isIndependent:
             self._value = value
         else:
-            raise CADETProcessError("Cannot set time for dependent variables")
 
     @property
     def parameters(self):
@@ -2817,6 +2795,8 @@ class OptimizationVariable():
         return Dict({
             param: getattr(self, param) for param in self._parameters
         })
+            raise CADETProcessError("Cannot set value for dependent variables")
+
 
     @property
     def transformed_bounds(self):
