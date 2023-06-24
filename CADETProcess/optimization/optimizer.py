@@ -35,15 +35,15 @@ class OptimizerBase(metaclass=StructMeta):
     Attributes
     ----------
     supports_multi_objective : bool
-        True, if optimizer supports multi-objective optimization.
+        True, if the optimizer supports multi-objective optimization.
     supports_linear_constraints : bool
-        True, if optimizer supports linear constraints.
+        True, if the optimizer supports linear constraints.
     supports_linear_equality_constraints : bool
-        True, if optimizer supports linear equality constraints.
+        True, if the optimizer supports linear equality constraints.
     supports_nonlinear_constraints : bool
-        True, if optimizer supports nonlinear constraints.
+        True, if the optimizer supports nonlinear constraints.
     progress_frequency : int
-        Number of generations after which optimizer reports progress.
+        Number of generations after which the optimizer reports progress.
         The default is 1.
     n_cores : int, optional
         The number of cores that the optimizer should use.
@@ -51,7 +51,7 @@ class OptimizerBase(metaclass=StructMeta):
     cv_tol : float
         Tolerance for constraint violation.
         The default is 1e-6.
-    similarity_tol : UnsignedFloat
+    similarity_tol : UnsignedFloat, optional
         Tolerance for individuals to be considered similar.
         Similar items are removed from the Pareto front to limit its size.
         The default is None, indicating that all individuals should be kept.
