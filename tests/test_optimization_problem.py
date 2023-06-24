@@ -57,8 +57,7 @@ class ExpensiveEvaluator(Evaluator):
         print('Run expensive evaluator; this takes forever...')
 
         expensive_results = Dict()
-        expensive_results.result = \
-            np.array(2*[evaluation_object.dummy_parameter])
+        expensive_results.result = np.array(2*[evaluation_object.dummy_parameter])
 
         time.sleep(1)
 
