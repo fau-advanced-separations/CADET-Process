@@ -48,6 +48,13 @@ Pymoo
    NSGA2
    U_NSGA3
 
+Ax
+--
+
+.. autosummary::
+   :toctree: generated/
+
+   AxInterface
 
 Population
 ==========
