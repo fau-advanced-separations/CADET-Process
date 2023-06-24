@@ -94,3 +94,25 @@ from .parallelizationBackend import *
 from .optimizer import *
 from .scipyAdapter import COBYLA, TrustConstr, NelderMead, SLSQP
 from .pymooAdapter import NSGA2, U_NSGA3
+
+import importlib
+
+try:
+   from .axAdapater import BotorchModular, GPEI, NEHVI
+   ax_imported = True
+except ImportError:
+   ax_imported = False
+
+
+def __getattr__(name):
+    if name in ('BotorchModular', 'GPEI', 'NEHVI'):
+        if ax_imported:
+            module = importlib.import_module("axAdapter", package=__name__)
+            return getattr(module, name)
+        else:
+            raise ImportError(
+                "The AxInterface class could not be imported. "
+                "This may be because the 'ax' package, which is an optional dependency, is not installed. "
+                "To install it, run 'pip install CADET-Process[ax]'"
+            )
+    raise AttributeError(f"module {__name__} has no attribute {name}")
