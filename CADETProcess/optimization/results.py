@@ -310,6 +310,7 @@ class OptimizationResults(metaclass=StructMeta):
             return None
         else:
             return np.array([pop.cv_max for pop in self.meta_fronts])
+
     @property
     def cv_avg_history(self):
         """np.array: Average nonlinear constraint violation values per generation."""
