@@ -20,7 +20,7 @@ sys.path.append('../../../../')
 # Optimizer
 The {class}`~CADETProcess.optimization.OptimizerBase` provides a unified interface for using external optimization libraries.
 It is responsible for converting the {class}`~CADETProcess.optimization.OptimizationProblem` to the specific API of the external optimizer.
-Currently, adapters to {class}`Pymoo <CADETProcess.optimization.PymooInterface>` {cite}`pymoo2020` and {class}`Scipy's <CADETProcess.optimization.SciPyInterface>` optimization suite {cite}`SciPyContributors2020` are implemented, all of which are published under open source licenses that allow for academic as well as commercial use.
+Currently, adapters to {class}`Scipy's <CADETProcess.optimization.SciPyInterface>` optimization suite {cite}`SciPyContributors2020`, {class}`Pymoo <CADETProcess.optimization.PymooInterface>` {cite}`pymoo2020` and {class}`Ax <CADETProcess.optimization.AxInterface>` {cite}`ax` are implemented, all of which are published under open source licenses that allow for academic as well as commercial use.
 
 Before the optimization can be run, the optimizer needs to be initialized and configured.
 All implementations share the following options:

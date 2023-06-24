@@ -35,6 +35,22 @@ optimization_problem
 optimizer
 ```
 
+## Installation of different Optimizers
+To maintain the manageability and efficiency of CADET-Process, some optimizers that come with a substantial number of dependencies are made optional.
+This approach ensures that the core package remains lightweight, while providing users the flexibility to install additional optimizers if needed.
+By default, scipy and pymoo are installed.
+Below, we provide instructions on how to install these optional dependencies.
+
+### Ax/BoTorch
+Ax is an adaptable machine learning optimization library developed by Facebook.
+At its core, it uses BoTorch, a Bayesian optimization framework also developed by Facebook.
+Ax/BoTorch leverages Gaussian Processes to model the objective function and applies Bayesian optimization techniques to find the optimal parameters.
+
+To install Ax as an optional dependency of CADET-Process, use the following command:
+```bash
+pip install cadet-process[ax]
+```
+
 ## Advanced Configuration
 ```{toctree}
 :maxdepth: 2
