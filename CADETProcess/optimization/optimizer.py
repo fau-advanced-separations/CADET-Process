@@ -441,6 +441,10 @@ class OptimizerBase(Structure):
         else:
             M = len(X)*[None]
 
+        if self.optimization_problem.n_nonlinear_constraints == 0:
+            G = len(X)*[None]
+            CV = len(X)*[None]
+
         population = Population()
         for x, f, g, cv, m in zip(X, F, G, CV, M):
             x_untransformed \
