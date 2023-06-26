@@ -523,6 +523,8 @@ class OptimizationProblem(metaclass=StructMeta):
         }
 
         for variable, value in zip(self.variables, values):
+            # TODO: Should use variable.value = value.
+            # However, this currently would raise CADETProcessError for dependent vars.
             if value < variable.lb:
                 raise ValueError("Exceeds lower bound")
             if value > variable.ub:
