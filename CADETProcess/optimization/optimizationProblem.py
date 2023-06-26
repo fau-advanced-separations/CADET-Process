@@ -1536,6 +1536,7 @@ class OptimizationProblem(metaclass=StructMeta):
                 continue
 
             callback._ind = ind
+            callback._current_iteration = current_iteration
 
             try:
                 self._evaluate(x, callback, force)
@@ -3050,7 +3051,9 @@ class Callback(metaclass=StructMeta):
     Callable must implement function with the following signature:
         results : obj
             x or final result of evaluation toolchain.
-        individual : Individual, optional
+        _current_iteration: int
+            Current iteration.
+        _individual : Individual, optional
             Information about current step of optimzer.
         evaluation_object : obj, optional
             Current evaluation object.
@@ -3129,6 +3132,8 @@ class Callback(metaclass=StructMeta):
             kwargs = self.kwargs
 
         signature = inspect.signature(self.callback).parameters
+        if 'current_iteration' in signature:
+            kwargs['current_iteration'] = self._current_iteration
         if 'individual' in signature:
             kwargs['individual'] = self._ind
         if 'evaluation_object' in signature:
