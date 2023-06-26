@@ -707,7 +707,7 @@ class ParetoFront(Population):
         for i in reversed(to_remove):
             self.remove_individual(i)
 
-        if not is_dominated and not has_twin:
+        if not is_dominated:
             if len(self) == 0:
                 significant.append(True)
             elif sum(self.dimensions[1:]) > 1:
