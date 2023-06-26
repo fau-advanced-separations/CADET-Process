@@ -120,16 +120,17 @@ class CADETProcessRunner(Runner):
         trial_metadata.update({"arms": {}})
 
         # TODO: Maybe more elegant: check if G is None
-        G = np.array(G, ndmin=2)
         for i, arm in enumerate(trial.arms):
             f_dict = {
                 metric: f_metric[i]
                 for metric, f_metric in zip(objective_labels, F.T)
             }
-            g_dict = {
-                metric: g_metric[i]
-                for metric, g_metric in zip(nonlincon_labels, G.T)
-            }
+            g_dict = {}
+            if G is not None:
+                g_dict = {
+                    metric: g_metric[i]
+                    for metric, g_metric in zip(nonlincon_labels, G.T)
+                }
             trial_metadata["arms"].update({arm: {**f_dict, **g_dict}})
 
         return trial_metadata
@@ -298,13 +299,17 @@ class AxInterface(OptimizerBase):
         f = f_data["mean"].values
 
         # Get nonlinear constraint values
-        nonlincon_labels = self.optimization_problem.nonlinear_constraint_labels
-        g_data = data[data['metric_name'].isin(nonlincon_labels)]
-        assert g_data["metric_name"].values.tolist() == nonlincon_labels
-        g = g_data["mean"].values
+        if self.optimization_problem.n_nonlinear_constraints > 0:
+            nonlincon_labels = self.optimization_problem.nonlinear_constraint_labels
+            g_data = data[data['metric_name'].isin(nonlincon_labels)]
+            assert g_data["metric_name"].values.tolist() == nonlincon_labels
+            g = g_data["mean"].values
 
-        nonlincon_cv_fun = self.optimization_problem.evaluate_nonlinear_constraints_violation
-        cv = nonlincon_cv_fun(x, untransform=True)
+            nonlincon_cv_fun = self.optimization_problem.evaluate_nonlinear_constraints_violation
+            cv = nonlincon_cv_fun(x, untransform=True)
+        else:
+            g = None
+            cv = None
 
         # übergeben von besten werten (xopt) - die müsste von ax kommen
         # wenn das verfügbar ist,
@@ -409,14 +414,19 @@ class AxInterface(OptimizerBase):
             F_init = self.optimization_problem.evaluate_objectives_population(
                 X_init, n_cores=self.n_cores
             )
-            G_init = self.optimization_problem.evaluate_nonlinear_constraints_population(
-                X_init, n_cores=self.n_cores
-            )
-            CV_init = self.optimization_problem.evaluate_nonlinear_constraints_violation_population(
-                X_init, n_cores=self.n_cores
-            )
+            if self.optimization_problem.n_nonlinear_constraints > 0:
+                G_init = self.optimization_problem.evaluate_nonlinear_constraints_population(
+                    X_init, n_cores=self.n_cores
+                )
+                CV_init = self.optimization_problem.evaluate_nonlinear_constraints_violation_population(
+                    X_init, n_cores=self.n_cores
+                )
+            else:
+                G_init = None
+                CV_init = None
 
             self._create_manual_trial(X_init, F_init, G_init)
+
             self.run_post_generation_processing(
                 X_init, F_init, G_init, CV=CV_init, current_generation=1
             )
