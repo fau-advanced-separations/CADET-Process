@@ -80,12 +80,9 @@ class Individual(metaclass=StructMeta):
         self.g = g
         self.m = m
 
-        if cv is None:
+        if g is not None and cv is None:
             cv = g
         self.cv = cv
-
-        if cv_tol is None:
-            cv_tol = self.n_g*[0]
         self.cv_tol = cv_tol
 
         if x_untransformed is None:
