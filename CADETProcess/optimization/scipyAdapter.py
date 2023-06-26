@@ -105,9 +105,14 @@ class SciPyInterface(OptimizerBase):
         if x0 is None:
             x0 = optimization_problem.create_initial_values(1, method='chebyshev')[0]
 
+        options = self.specific_options
         if self.results.n_gen > 0:
             x0 = self.results.population_last.x[0, :]
             self.n_evals = self.results.n_evals
+            options['maxiter'] = self.maxiter - self.n_evals
+            if str(self) == 'COBYLA':
+                options['maxiter'] -= 1
+
 
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore', category=OptimizeWarning)
@@ -120,7 +125,7 @@ class SciPyInterface(OptimizerBase):
                 jac=self.jac,
                 constraints=self.get_constraint_objects(optimization_problem),
                 bounds=self.get_bounds(optimization_problem),
-                options=self.specific_options,
+                options=options,
                 callback=callback_function,
             )
 
