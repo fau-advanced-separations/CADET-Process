@@ -949,6 +949,8 @@ class OptimizationProblem(metaclass=StructMeta):
             evaluation_objects=evaluation_objects,
             evaluators=evaluators,
             labels=labels,
+            args=args,
+            kwargs=kwargs
         )
         self._objectives.append(objective)
 
@@ -1193,6 +1195,8 @@ class OptimizationProblem(metaclass=StructMeta):
             evaluation_objects=evaluation_objects,
             evaluators=evaluators,
             labels=labels,
+            args=args,
+            kwargs=kwargs
         )
         self._nonlinear_constraints.append(nonlincon)
 
@@ -1498,6 +1502,8 @@ class OptimizationProblem(metaclass=StructMeta):
             frequency=frequency,
             callbacks_dir=callbacks_dir,
             keep_progress=keep_progress,
+            args=args,
+            kwargs=kwargs
         )
         self._callbacks.append(callback)
 
