@@ -102,10 +102,15 @@ class CADETProcessRunner(Runner):
 
         # Calculate nonlinear constraints
         # TODO: add noise to the result
-        nonlincon_fun = self.optimization_problem.evaluate_nonlinear_constraints_population
-        nonlincon_labels = self.optimization_problem.nonlinear_constraint_labels
+        if self.optimization_problem.n_nonlinear_constraints > 0:
+            nonlincon_fun = self.optimization_problem.evaluate_nonlinear_constraints_population
+            nonlincon_labels = self.optimization_problem.nonlinear_constraint_labels
 
-        G = nonlincon_fun(X, untransform=True, n_cores=n_cores)
+            G = nonlincon_fun(X, untransform=True, n_cores=n_cores)
+
+        else:
+            G = None
+            nonlincon_labels = None
 
         # Update trial information with results.
         trial_metadata = self.get_metadata(
@@ -114,6 +119,7 @@ class CADETProcessRunner(Runner):
 
         return trial_metadata
 
+    # TODO: rename: write_metadata
     @staticmethod
     def get_metadata(trial, F, objective_labels, G, nonlincon_labels):
         trial_metadata = {"name": str(trial.index)}
@@ -233,49 +239,27 @@ class AxInterface(OptimizerBase):
 
         return outcome_constraints
 
-    def _create_manual_trial(self, X, F, G=None):
-        """Create trial from pre-evaluated data."""
-        variables = self.optimization_problem.independent_variable_names
+    def _create_manual_data(self, trial, F, G=None):
 
         objective_labels = self.optimization_problem.objective_labels
         nonlincon_labels = self.optimization_problem.nonlinear_constraint_labels
-        metric_names = objective_labels + nonlincon_labels
+        return CADETProcessRunner.get_metadata(trial, F, objective_labels, G, nonlincon_labels)
 
-        if G is None:
-            M = F
-        else:
-            M = np.hstack((F, G))
+    def _create_manual_trial(self, X):
+        """Create trial from pre-evaluated data."""
+        variables = self.optimization_problem.independent_variable_names
 
-        for i, (x, m) in enumerate(zip(X, M)):
+        trial = self.ax_experiment.new_batch_trial()
+
+        for i, x in enumerate(X):
             trial_data = {
                 "input": {var: x_i for var, x_i in zip(variables, x)},
-                "output": {
-                    metric: {"mean": m_i, "sem": 0.0}
-                    for metric, m_i in zip(metric_names, m)},
             }
 
-            arm_name = f"{i}_0"
-            trial = self.ax_experiment.new_trial()
+            arm_name = f"{trial.index}_{i}"
             trial.add_arm(ax.Arm(parameters=trial_data["input"], name=arm_name))
-            data = ax.Data(df=pd.DataFrame.from_records([
-                {
-                      "arm_name": arm_name,
-                      "metric_name": metric_name,
-                      "mean": output["mean"],
-                      "sem": output["sem"],
-                      "trial_index": i,
-                 }
-                 for metric_name, output in trial_data["output"].items()
-              ])
-            )
-            self.ax_experiment.attach_data(data)
 
-            trial.run_metadata.update(CADETProcessRunner.get_metadata(
-                trial, F, objective_labels, G, nonlincon_labels
-            ))
-            trial.mark_running(no_runner_required=True)
-            trial.mark_completed()
-
+        return trial
 
     def _post_processing(self, trial):
         """
@@ -289,27 +273,27 @@ class AxInterface(OptimizerBase):
         trial_data = self.ax_experiment.fetch_trials_data([trial.index])
         data = trial_data.df
 
-        # TODO: Update for multi-processing. If n_cores > 1: len(arms) > 1 (oder @Flo?)
-        x = list(trial.arms[0].parameters.values())
+        # DONE: Update for multi-processing. If n_cores > 1: len(arms) > 1 (oder @Flo?)
+        X = np.array([list(arm.parameters.values()) for arm in trial.arms])
 
         # Get objective values
         objective_labels = self.optimization_problem.objective_labels
-        f_data = data[data['metric_name'].isin(objective_labels)]
-        assert f_data["metric_name"].values.tolist() == objective_labels
-        f = f_data["mean"].values
+        F_data = data[data['metric_name'].isin(objective_labels)]
+        assert np.all(F_data["metric_name"].values.tolist() == objective_labels * len(X))
+        F = F_data["mean"].values
 
         # Get nonlinear constraint values
         if self.optimization_problem.n_nonlinear_constraints > 0:
             nonlincon_labels = self.optimization_problem.nonlinear_constraint_labels
-            g_data = data[data['metric_name'].isin(nonlincon_labels)]
-            assert g_data["metric_name"].values.tolist() == nonlincon_labels
-            g = g_data["mean"].values
+            G_data = data[data['metric_name'].isin(nonlincon_labels)]
+            assert np.all(G_data["metric_name"].values.tolist() == nonlincon_labels * len(X))
+            G = G_data["mean"].values
 
             nonlincon_cv_fun = self.optimization_problem.evaluate_nonlinear_constraints_violation
-            cv = nonlincon_cv_fun(x, untransform=True)
+            CV = nonlincon_cv_fun(X, untransform=True)
         else:
-            g = None
-            cv = None
+            G = None
+            CV = None
 
         # übergeben von besten werten (xopt) - die müsste von ax kommen
         # wenn das verfügbar ist,
@@ -327,13 +311,13 @@ class AxInterface(OptimizerBase):
         #     f"Best so far: {self._data.df['mean'].min():.3f}"
         # )
 
-        self.run_post_evaluation_processing(
-            x=x,
-            f=f,
-            g=g,
-            cv=cv,
-            current_evaluation=self.ax_experiment.num_trials,
-            x_opt=None,
+        self.run_post_generation_processing(
+            X=X,
+            F=F,
+            G=G,
+            CV=CV,
+            current_generation=self.ax_experiment.num_trials,
+            X_opt=None,
         )
 
     def setup_model(self):
@@ -402,7 +386,13 @@ class AxInterface(OptimizerBase):
         if len(self.results.populations) > 0:
             for pop in self.results.populations:
                 X, F, G = pop.x, pop.f, pop.g
-                self._create_manual_trial(X, F, G)
+                trial = self._create_manual_trial(X)
+                trial.mark_running(no_runner_required=True)
+
+                trial_data = self._create_manual_data(trial, F, G)
+                trial.run_metadata.update(trial_data)
+                trial.mark_completed()
+
         else:
             # Create initial samples
             X_init = self.optimization_problem.create_initial_values(
@@ -411,25 +401,12 @@ class AxInterface(OptimizerBase):
                 seed=self.seed + 5641,
             )
 
-            F_init = self.optimization_problem.evaluate_objectives_population(
-                X_init, n_cores=self.n_cores
-            )
-            if self.optimization_problem.n_nonlinear_constraints > 0:
-                G_init = self.optimization_problem.evaluate_nonlinear_constraints_population(
-                    X_init, n_cores=self.n_cores
-                )
-                CV_init = self.optimization_problem.evaluate_nonlinear_constraints_violation_population(
-                    X_init, n_cores=self.n_cores
-                )
-            else:
-                G_init = None
-                CV_init = None
-
-            self._create_manual_trial(X_init, F_init, G_init)
-
-            self.run_post_generation_processing(
-                X_init, F_init, G_init, CV=CV_init, current_generation=1
-            )
+            trial = self._create_manual_trial(X_init)
+            trial.run()
+            trial.mark_running()
+            trial.mark_completed()
+            self._post_processing(trial)
+            print(exp_to_df(self.ax_experiment))
 
         n_iter = self.results.n_gen
         n_evals = self.results.n_evals
@@ -485,16 +462,5 @@ class ModularBoTorch(AxInterface):
 
 if __name__ == "__main__":
 
-    from tests.test_optimizer_behavior import TestAxBehavior
-    test = TestAxBehavior()
-    test.test_constrained_moo()
-    test.test_constrained_soo()
-    test.test_single_objective()
-
-    from tests.test_optimizer_ax import TestAxInterface
-    test = TestAxInterface()
-    test.test_single_objective()
-    test.test_single_objective_linear_constraints()
-    test.test_multi_objective()
-
-    #x: [0.23783216 0.50267604 0.43198473], f: [4.81493504]
+    from tests.test_optimizer_behavior import test_resume_from_checkpoint, Rosenbrock
+    test_resume_from_checkpoint(optimizer=AxInterface(), optimization_problem=Rosenbrock())
