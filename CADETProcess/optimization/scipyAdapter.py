@@ -17,10 +17,38 @@ class SciPyInterface(OptimizerBase):
     Defines the bounds and all constraints, saved in a constraint_object. Also
     the jacobian matrix is defined for several solvers.
 
+    Parameters
+    ----------
+    finite_diff_rel_step : None or array_like, optional
+        Relative step size to use for the numerical approximation of the jacobian.
+        The absolute step size `h` is computed as `h = rel_step * sign(x) * max(1, abs(x))`,
+        possibly adjusted to fit into the bounds. For `method='3-point'`,
+        the sign of `h` is ignored.
+        If `None` (default), the step size is selected automatically.
+    tol : float, optional
+        Tolerance for termination. When tol is specified, the selected minimization
+        algorithm sets some relevant solver-specific tolerance(s) equal to tol.
+        For detailed control, use solver-specific options.
+    jac : {'2-point', '3-point', 'cs'}
+        Method for computing the gradient vector. Only applicable to specific
+        solvers (CG, BFGS, Newton-CG, L-BFGS-B, TNC, SLSQP, dogleg, trust-ncg,
+        trust-krylov, trust-exact, and trust-constr).
+        The default is 2-point.
+
+    See Also
+    --------
+    COBYLA
+    TrustConstr
+    NelderMead
+    SLSQP
+    CADETProcess.optimization.OptimizationProblem.evaluate_objectives
+    options
+    scipy.optimize.minimize
+
     """
-    finite_diff_rel_step = UnsignedFloat(default=1e-2)
+    finite_diff_rel_step = UnsignedFloat()
     tol = UnsignedFloat()
-    jac = '2-point'
+    jac = Switch(valid=['2-point', '3-point', 'cs'], default='2-point')
 
     def run(self, optimization_problem, x0=None):
         """Solve the optimization problem using any of the scipy methods.
@@ -259,54 +287,144 @@ class SciPyInterface(OptimizerBase):
 
 
 class TrustConstr(SciPyInterface):
-    """Class from scipy for optimization with trust-constr as method for the
-    solver.
+    """Wrapper for the trust-constr optimization method from the scipy optimization suite.
 
-    This class is a wrapper for the method trust-constr from the optimization
-    suite of the scipy interface. It defines the solver options in the local
-    variable options as a dictionary and implements the abstract method run for
-    running the optimization.
+    It defines the solver options in the 'options' variable as a dictionary.
+
+    Supports:
+        - Linear constraints.
+        - Linear equality constraints.
+        - Nonlinear constraints.
+
+    Parameters
+    ----------
+    gtol : UnsignedFloat, optional
+        Tolerance for termination by the norm of the Lagrangian gradient.
+        The algorithm will terminate when both the infinity norm (i.e., max abs value)
+        of the Lagrangian gradient and the constraint violation are smaller than gtol.
+        Default is 1e-8.
+    xtol : UnsignedFloat, optional
+        Tolerance for termination by the change of the independent variable.
+        The algorithm will terminate when tr_radius < xtol,
+        where tr_radius is the radius of the trust region used in the algorithm.
+        Default is 1e-8.
+    barrier_tol : UnsignedFloat, optional
+        Threshold on the barrier parameter for the algorithm termination.
+        When inequality constraints are present, the algorithm will terminate only
+        when the barrier parameter is less than barrier_tol.
+        Default is 1e-8.
+    initial_tr_radius : float, optional
+        Initial trust radius. The trust radius gives the maximum distance between solution points
+        in consecutive iterations. It reflects the trust the algorithm puts in the local approximation
+        of the optimization problem. For an accurate local approximation, the trust-region should be large,
+        and for an approximation valid only close to the current point, it should be a small one.
+        The trust radius is automatically updated throughout the optimization process,
+        with initial_tr_radius being its initial value. Default is 1.
+    initial_constr_penalty : float, optional
+        Initial constraints penalty parameter. The penalty parameter is used for balancing
+        the requirements of decreasing the objective function and satisfying the constraints.
+        It is used for defining the merit function: merit_function(x) = fun(x)
+        + constr_penalty * constr_norm_l2(x), where constr_norm_l2(x) is the l2 norm of a vector
+        containing all the constraints. The merit function is used for accepting or rejecting trial points,
+        and constr_penalty weights the two conflicting goals of reducing the objective function and constraints.
+        The penalty is automatically updated throughout the optimization process,
+        with initial_constr_penalty being its initial value. Default is 1.
+    initial_barrier_parameter : float, optional
+        Initial barrier parameter. Used only when inequality constraints are present.
+        For dealing with optimization problems min_x f(x) subject to inequality constraints c(x) <= 0,
+        the algorithm introduces slack variables, solving the problem
+        min_(x, s) f(x) + barrier_parameter * sum(ln(s)) subject to the equality constraints c(x) + s = 0
+        instead of the original problem. This subproblem is solved for decreasing values of barrier_parameter
+        and with decreasing tolerances for the termination, starting with initial_barrier_parameter for the barrier parameter.
+        Default is 0.1.
+    initial_barrier_tolerance : float, optional
+        Initial tolerance for the barrier subproblem. Used only when inequality constraints are present.
+        For dealing with optimization problems min_x f(x) subject to inequality constraints c(x) <= 0,
+        the algorithm introduces slack variables, solving the problem
+        min_(x, s) f(x) + barrier_parameter * sum(ln(s)) subject to the equality constraints c(x) + s = 0
+        instead of the original problem. This subproblem is solved for decreasing values of barrier_parameter
+        and with decreasing tolerances for the termination, starting with initial_barrier_tolerance for the barrier tolerance.
+        Default is 0.1.
+    factorization_method : str or None, optional
+        Method to factorize the Jacobian of the constraints.
+        Use None (default) for auto selection or one of:
+            - 'NormalEquation'
+            - 'AugmentedSystem'
+            - 'QRFactorization'
+            - 'SVDFactorization'.
+        The methods 'NormalEquation' and 'AugmentedSystem' can be used only with sparse
+        constraints. The methods 'QRFactorization' and 'SVDFactorization' can be used
+        only with dense constraints.
+        Default is None.
+    maxiter : UnsignedInteger, optional
+        Maximum number of algorithm iterations. Default is 1000.
+    verbose : UnsignedInteger, optional
+        Level of algorithm's verbosity:
+            - 0 (default) for silent
+            - 1 for a termination report
+            - 2 for progress during iterations
+            - 3 for more complete progress report.
+    disp : Bool, optional
+        If True, then verbose will be set to 1 if it was 0. Default is False.
 
     """
     supports_linear_constraints = True
     supports_linear_equality_constraints = True
     supports_nonlinear_constraints = True
 
-    gtol = UnsignedFloat(default=1e-6)
-    cv_tol = gtol
+    gtol = UnsignedFloat(default=1e-8)
     xtol = UnsignedFloat(default=1e-8)
     barrier_tol = UnsignedFloat(default=1e-8)
-    initial_constr_penalty = UnsignedFloat(default=1.0)
     initial_tr_radius = UnsignedFloat(default=1.0)
+    initial_constr_penalty = UnsignedFloat(default=1.0)
     initial_barrier_parameter = UnsignedFloat(default=0.1)
     initial_barrier_tolerance = UnsignedFloat(default=0.1)
-    factorization_method = None
+    factorization_method = Switch(valid=[
+        'NormalEquation', 'AugmentedSystem', 'QRFactorization', 'SVDFactorization'
+    ])
     maxiter = UnsignedInteger(default=1000)
     verbose = UnsignedInteger(default=0)
     disp = Bool(default=False)
 
+    x_tol = xtol            # Alias for uniform interface
+    cv_tol = gtol           # Alias for uniform interface
+    n_max_evals = maxiter   # Alias for uniform interface
+    n_max_iter = maxiter    # Alias for uniform interface
+
     _specific_options = [
         'gtol', 'xtol', 'barrier_tol', 'finite_diff_rel_step',
-        'initial_constr_penalty',
-        'initial_tr_radius', 'initial_barrier_parameter',
-        'initial_barrier_tolerance', 'factorization_method',
-        'maxiter', 'verbose', 'disp'
+        'initial_constr_penalty', 'initial_tr_radius', 'initial_barrier_parameter',
+        'initial_barrier_tolerance', 'factorization_method', 'maxiter', 'verbose', 'disp'
     ]
-
-    jac = Switch(default='3-point', valid=['2-point', '3-point', 'cs'])
 
     def __str__(self):
         return 'trust-constr'
 
 
 class COBYLA(SciPyInterface):
-    """Class from scipy for optimization with COBYLA as method for the
-    solver.
+    """Wrapper for the COBYLA optimization method from the scipy optimization suite.
 
-    This class is a wrapper for the method COBYLA from the optimization
-    suite of the scipy interface. It defines the solver options in the local
-    variable options as a dictionary and implements the abstract method run for
-    running the optimization.
+    It defines the solver options in the 'options' variable as a dictionary.
+
+    Supports:
+        - Linear constraints
+        - Linear equality constraints
+        - Nonlinear constraints
+
+    Parameters
+    ----------
+    rhobeg : float, default 1
+        Reasonable initial changes to the variables.
+    tol : float, default 0.0002
+        Final accuracy in the optimization (not precisely guaranteed).
+        This is a lower bound on the size of the trust region.
+    disp : bool, default False
+        Set to True to print convergence messages.
+        If False, verbosity is ignored and set to 0.
+    maxiter : int, default 10000
+        Maximum number of function evaluations.
+    catol : float, default 2e-4
+        Absolute tolerance for constraint violations.
 
     """
     supports_linear_constraints = True
@@ -314,26 +432,57 @@ class COBYLA(SciPyInterface):
     supports_nonlinear_constraints = True
 
     rhobeg = UnsignedFloat(default=1)
+    tol = UnsignedFloat(default=0.0002)
     maxiter = UnsignedInteger(default=10000)
     disp = Bool(default=False)
     catol = UnsignedFloat(default=0.0002)
-    cv_tol = catol
 
-    _specific_options = ['rhobeg', 'maxiter', 'disp', 'catol']
+    f_tol = tol             # Alias for uniform interface
+    cv_tol = catol          # Alias for uniform interface
+    n_max_evals = maxiter   # Alias for uniform interface
+    n_max_iter = maxiter    # Alias for uniform interface
+
+    _specific_options = ['rhobeg', 'tol', 'maxiter', 'disp', 'catol']
 
 
 class NelderMead(SciPyInterface):
-    """Class from scipy for optimization with NelderMead as method for the
-    solver.
+    """Wrapper for the Nelder-Mead optimization method from the scipy optimization suite.
+
+    It defines the solver options in the 'options' variable as a dictionary.
+
+    Parameters
+    ----------
+    maxiter : UnsignedInteger
+        Maximum allowed number of iterations. The default = 1000.
+    initial_simplex : None or array_like, optional
+        Initial simplex. If given, it overrides x0.
+        initial_simplex[j, :] should contain the coordinates of the jth vertex of the
+        N+1 vertices in the simplex, where N is the dimension.
+    xatol : UnsignedFloat, optional
+        Absolute error in xopt between iterations that is acceptable for convergence.
+    fatol : UnsignedFloat, optional
+        Absolute error in f(xopt) between iterations that is acceptable for convergence.
+    adaptive : Bool, optional
+        Adapt algorithm parameters to dimensionality of the problem.
+        Useful for high-dimensional minimization.
+    disp : Bool, optional
+        Set to True to print convergence messages.
     """
-    maxiter = UnsignedInteger()
-    maxfev = UnsignedInteger()
+
+    maxiter = UnsignedInteger(1000)
     initial_simplex = None
-    xatol = UnsignedFloat(default=0.01)
-    fatol = UnsignedFloat(default=0.01)
+    xatol = UnsignedFloat(default=1e-3)
+    fatol = UnsignedFloat(default=1e-3)
     adaptive = Bool(default=True)
+    disp = Bool(optional=False)
+
+    x_tol = xatol           # Alias for uniform interface
+    f_tol = fatol           # Alias for uniform interface
+    n_max_evals = maxiter   # Alias for uniform interface
+    n_max_iter = maxiter    # Alias for uniform interface
+
     _specific_options = [
-        'maxiter', 'maxfev', 'initial_simplex', 'xatol', 'fatol', 'adaptive'
+        'maxiter', 'initial_simplex', 'xatol', 'fatol', 'adaptive', 'disp'
     ]
 
     def __str__(self):
@@ -341,14 +490,34 @@ class NelderMead(SciPyInterface):
 
 
 class SLSQP(SciPyInterface):
-    """Class from scipy for optimization with SLSQP as method for the
-    solver.
+    """Wrapper for the SLSQP optimization method from the scipy optimization suite.
 
-    This class is a wrapper for the method SLSQP from the optimization
-    suite of the scipy interface. It defines the solver options in the local
-    variable options as a dictionary and implements the abstract method run for
-    running the optimization.
+    It defines the solver options in the 'options' variable as a dictionary.
+
+    Supports:
+        - Linear constraints
+        - Linear equality constraints
+        - Nonlinear constraints
+        - Bounds
+
+    Parameters
+    ----------
+    ftol : float, default 1e-2
+        Precision goal for the value of f in the stopping criterion.
+    eps : float, default 1e-6
+        Step size used for numerical approximation of the Jacobian.
+    disp : bool, default False
+        Set to True to print convergence messages.
+        If False, verbosity is ignored and set to 0.
+    maxiter : int, default 1000
+        Maximum number of iterations.
+    iprint: int, optional
+        The verbosity of fmin_slsqp :
+            iprint <= 0 : Silent operation
+            iprint == 1 : Print summary upon completion (default)
+            iprint >= 2 : Print status of each iterate and summary
     """
+
     supports_linear_constraints = True
     supports_linear_equality_constraints = True
     supports_nonlinear_constraints = True
@@ -356,4 +525,13 @@ class SLSQP(SciPyInterface):
     ftol = UnsignedFloat(default=1e-2)
     eps = UnsignedFloat(default=1e-6)
     disp = Bool(default=False)
-    _specific_options = ['ftol', 'eps', 'disp']
+    maxiter = UnsignedInteger(default=1000)
+    iprint = UnsignedInteger(ub=2, default=1)
+
+    f_tol = ftol           # Alias for uniform interface
+    n_max_evals = maxiter   # Alias for uniform interface
+    n_max_iter = maxiter    # Alias for uniform interface
+
+    _specific_options = [
+        'ftol', 'eps', 'disp', 'maxiter', 'finite_diff_rel_step', 'iprint'
+    ]
