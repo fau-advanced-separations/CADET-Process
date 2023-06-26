@@ -148,8 +148,8 @@ class PymooInterface(OptimizerBase):
                 G = pop.get("_G").tolist()
                 CV = pop.get("_CV").tolist()
             else:
-                G = len(X)*[None]
-                CV = len(X)*[None]
+                G = None
+                CV = None
 
             # Handle issue of pymoo not handling np.inf
             pop.set("F", np.nan_to_num(F, posinf=1e300))
