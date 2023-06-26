@@ -34,6 +34,8 @@ class OptimizerBase(Structure):
 
     Attributes
     ----------
+    is_population_based : bool
+        True, if the optimizer evaluates entire populations at every step.
     supports_multi_objective : bool
         True, if the optimizer supports multi-objective optimization.
     supports_linear_constraints : bool
@@ -55,8 +57,12 @@ class OptimizerBase(Structure):
         Tolerance for individuals to be considered similar.
         Similar items are removed from the Pareto front to limit its size.
         The default is None, indicating that all individuals should be kept.
-
+    n_max_evals : int, optional
+        Maximum number of function evaluations.
+    n_max_iter : int, optional
+        Maximum number of iterations (e.g. generations).
     """
+    is_population_based = False
 
     supports_multi_objective = False
     supports_linear_constraints = False
@@ -65,10 +71,21 @@ class OptimizerBase(Structure):
 
     progress_frequency = RangedInteger(lb=1, default=1)
     n_cores = UnsignedInteger(default=1)
-    cv_tol = UnsignedFloat(default=1e-6)
+
+    x_tol = UnsignedFloat()
+    f_tol = UnsignedFloat()
+    cv_tol = UnsignedFloat(default=0)
+
+    n_max_iter = UnsignedInteger(default=100000)
+    n_max_evals = UnsignedInteger(default=100000)
+
     similarity_tol = UnsignedFloat()
 
-    _general_options = ['progress_frequency', 'n_cores', 'cv_tol', 'similarity_tol']
+    _general_options = [
+        'progress_frequency', 'n_cores',
+        'x_tol', 'f_tol', 'cv_tol', 'similarity_tol',
+        'n_max_iter', 'n_max_evals',
+    ]
 
     def optimize(
             self,
