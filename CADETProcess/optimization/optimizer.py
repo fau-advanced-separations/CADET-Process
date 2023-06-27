@@ -8,6 +8,7 @@ import warnings
 from cadet import H5
 import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
 from CADETProcess import settings
 from CADETProcess import log
@@ -408,134 +409,13 @@ class OptimizerBase(Structure):
 
         return flag, x0
 
-    def _run_post_processing(self, current_iteration):
-        if self.optimization_problem.n_multi_criteria_decision_functions > 0:
-            pareto_front = self.results.pareto_front
+    def _create_population(self, X_transformed, F, G, CV):
+        """Create new population from current generation for post procesing."""
+        X_transformed = np.array(X_transformed, ndmin=2)
+        F = np.array(F, ndmin=2)
+        G = np.array(G, ndmin=2)
+        CV = np.array(CV, ndmin=2)
 
-            X_meta_front = \
-                self.optimization_problem.evaluate_multi_criteria_decision_functions(
-                    pareto_front
-                )
-
-            meta_front = Population()
-            for x in X_meta_front:
-                meta_front.add_individual(pareto_front[x])
-
-            self.results.update_meta(meta_front)
-
-        if current_iteration % self.progress_frequency == 0:
-            self.results.plot_figures(show=False)
-
-        for callback in self.optimization_problem.callbacks:
-            if self.optimization_problem.n_callbacks > 1:
-                _callbacks_dir = self.callbacks_dir / str(callback)
-            else:
-                _callbacks_dir = self.callbacks_dir
-            callback.cleanup(_callbacks_dir, current_iteration)
-            callback._callbacks_dir = _callbacks_dir
-
-        self.optimization_problem.evaluate_callbacks_population(
-            self.results.meta_front,
-            current_iteration,
-            parallelization_backend=self.parallelization_backend,
-        )
-
-        self.results.save_results()
-
-        self.optimization_problem.prune_cache()
-
-    def run_post_evaluation_processing(
-            self, x_transformed, f, g, cv, current_evaluation, x_opt_transformed=None):
-        """Run post-processing of individual evaluation.
-
-        Parameters
-        ----------
-        x_transformed : list
-            Optimization variable values of individual in independent transformed space.
-        f : list
-            Objective function values of individual.
-        g : list
-            Nonlinear constraint function of individual.
-        cv : list
-            Nonlinear constraints violation of individual.
-        current_evaluation : int
-            Current evaluation.
-        x_opt_transformed : list, optional
-            Best individual(s) at current iteration in independent transformed space.
-            If None, internal pareto front is used to determine best indiviudal.
-
-        """
-        if self.optimization_problem.n_meta_scores > 0:
-            m = self.optimization_problem.evaluate_meta_scores(
-                x_transformed,
-                untransform=True,
-            )
-        else:
-            m = None
-
-        x = self.optimization_problem.get_dependent_values(
-                x_transformed, untransform=True
-            )
-
-        ind = Individual(
-            x, f, g, m, cv, self.cv_tol, x_transformed,
-            self.optimization_problem.independent_variable_names,
-            self.optimization_problem.objective_labels,
-            self.optimization_problem.nonlinear_constraint_labels,
-            self.optimization_problem.meta_score_labels,
-            self.optimization_problem.variable_names,
-        )
-
-        self.results.update_individual(ind)
-
-        if x_opt_transformed is None:
-            self.results.update_pareto()
-        else:
-            x_opt = self.optimization_problem.get_dependent_values(
-                x_opt_transformed, untransform=True
-            )
-            pareto_front = Population()
-            ind = self.results.population_all[x_opt]
-            pareto_front.add_individual(ind)
-
-            self.results.update_pareto(pareto_front)
-
-        self._run_post_processing(current_evaluation)
-
-        self.logger.info(
-            f'Finished Evaluation {current_evaluation}.'
-        )
-        for ind in self.results.pareto_front:
-            message = f'x: {ind.x}, f: {ind.f}'
-
-            if self.optimization_problem.n_nonlinear_constraints > 0:
-                message += f', g: {ind.g}'
-
-            if self.optimization_problem.n_meta_scores > 0:
-                message += f', m: {ind.m}'
-            self.logger.info(message)
-
-    def run_post_generation_processing(
-            self, X_transformed, F, G, CV, current_generation, X_opt_transformed=None):
-        """Run post-processing of generation.
-
-        Parameters
-        ----------
-        X_transformed : list
-            Optimization variable values of generation in independent transformed space.
-        F : list
-            Objective function values of generation.
-        G : list
-            Nonlinear constraint function values of generation.
-        CV : list
-            Nonlinear constraints violation of of generation.
-        current_generation : int
-            Current generation.
-        X_opt_transformed : list, optional
-            (Currently) best variable values in independent transformed space.
-            If None, internal pareto front is used to determine best values.
-
-        """
         if self.optimization_problem.n_meta_scores > 0:
             M = self.optimization_problem.evaluate_meta_scores_population(
                 X_transformed,
@@ -564,10 +444,12 @@ class OptimizerBase(Structure):
             )
             population.add_individual(ind)
 
-        self.results.update_population(population)
+        return population
 
+    def _create_pareto_front(self, X_opt_transformed):
+        """Create new pareto front from current generation for post procesing."""
         if X_opt_transformed is None:
-            self.results.update_pareto()
+            pareto_front = None
         else:
             pareto_front = Population()
 
@@ -578,10 +460,42 @@ class OptimizerBase(Structure):
                 ind = self.results.population_all[x_opt]
                 pareto_front.add_individual(ind)
 
-            self.results.update_pareto(pareto_front)
+        return pareto_front
 
-        self._run_post_processing(current_generation)
+    def _create_meta_front(self):
+        """Create new meta front from current generation for post procesing."""
+        if self.optimization_problem.n_multi_criteria_decision_functions == 0:
+            meta_front = None
+        else:
+            pareto_front = self.results.pareto_front
 
+            X_meta_front = \
+                self.optimization_problem.evaluate_multi_criteria_decision_functions(
+                    pareto_front
+                )
+
+            meta_front = Population()
+            for x in X_meta_front:
+                meta_front.add_individual(pareto_front[x])
+
+        return meta_front
+
+    def _evaluate_callbacks(self, current_generation):
+        for callback in self.optimization_problem.callbacks:
+            if self.optimization_problem.n_callbacks > 1:
+                _callbacks_dir = self.callbacks_dir / str(callback)
+            else:
+                _callbacks_dir = self.callbacks_dir
+            callback.cleanup(_callbacks_dir, current_generation)
+            callback._callbacks_dir = _callbacks_dir
+
+        self.optimization_problem.evaluate_callbacks_population(
+            self.results.meta_front,
+            current_generation,
+            parallelization_backend=self.parallelization_backend,
+        )
+
+    def _log_results(self, current_generation):
         self.logger.info(
             f'Finished Generation {current_generation}.'
         )
@@ -594,6 +508,53 @@ class OptimizerBase(Structure):
             if self.optimization_problem.n_meta_scores > 0:
                 message += f', m: {ind.m}'
             self.logger.info(message)
+
+    def run_post_processing(
+            self, X_transformed, F, G, CV, current_generation, X_opt_transformed=None):
+        """Run post-processing of generation.
+
+        Notes
+        -----
+        This method also works for optimizers that only perform a single evaluation per
+        "generation".
+
+        Parameters
+        ----------
+        X_transformed : list
+            Optimization variable values of generation in independent transformed space.
+        F : list
+            Objective function values of generation.
+        G : list
+            Nonlinear constraint function values of generation.
+        CV : list
+            Nonlinear constraints violation of of generation.
+        current_generation : int
+            Current generation.
+        X_opt_transformed : list, optional
+            (Currently) best variable values in independent transformed space.
+            If None, internal pareto front is used to determine best values.
+
+        """
+        population = self._create_population(X_transformed, F, G, CV)
+        self.results.update_population(population)
+
+        pareto_front = self._create_pareto_front(X_opt_transformed)
+        self.results.update_pareto(pareto_front)
+
+        meta_front = self._create_meta_front()
+        if meta_front is not None:
+            self.results.update_meta(meta_front)
+
+        if current_generation % self.progress_frequency == 0:
+            self.results.plot_figures(show=False)
+
+        self._evaluate_callbacks(current_generation)
+
+        self.results.save_results()
+
+        self.optimization_problem.prune_cache()
+
+        self._log_results(current_generation)
 
     @property
     def options(self):
