@@ -136,42 +136,26 @@ class OptimizationResults(Structure):
         else:
             return self._meta_fronts[-1]
 
-    def update_individual(self, individual):
+    def update(self, new):
         """Update Results.
 
         Parameters
         ----------
-        individual : Individual
-            Latest individual.
+        new : Individual, Population
+            New results
 
         Raises
         ------
         CADETProcessError
-            If individual is not an instance of Individual
+            If new is not an instance of Individual or Population
         """
-        if not isinstance(individual, Individual):
-            raise CADETProcessError("Expected Individual")
-
-        population = Population()
-        population.add_individual(individual)
-        self._populations.append(population)
-        self.population_all.add_individual(individual, ignore_duplicate=True)
-
-    def update_population(self, population):
-        """Update Results.
-
-        Parameters
-        ----------
-        population : Population
-            Current population
-
-        Raises
-        ------
-        CADETProcessError
-            If population is not an instance of Population
-        """
-        if not isinstance(population, Population):
-            raise CADETProcessError("Expected Population")
+        if isinstance(new, Individual):
+            population = Population()
+            population.add_individual(new)
+        elif isinstance(new, Population):
+            population = new
+        else:
+            raise CADETProcessError("Expected Population or Individual")
         self._populations.append(population)
         self.population_all.update(population)
 
@@ -800,7 +784,7 @@ class OptimizationResults(Structure):
 
         for pop_dict in data['populations'].values():
             pop = Population.from_dict(pop_dict)
-            self.update_population(pop)
+            self.update(pop)
 
         self._pareto_fronts = [
             ParetoFront.from_dict(d) for d in data['pareto_fronts'].values()
