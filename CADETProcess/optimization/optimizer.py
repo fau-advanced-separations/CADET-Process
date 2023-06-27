@@ -536,7 +536,7 @@ class OptimizerBase(Structure):
 
         """
         population = self._create_population(X_transformed, F, G, CV)
-        self.results.update_population(population)
+        self.results.update(population)
 
         pareto_front = self._create_pareto_front(X_opt_transformed)
         self.results.update_pareto(pareto_front)
