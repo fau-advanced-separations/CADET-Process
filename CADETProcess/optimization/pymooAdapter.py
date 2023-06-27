@@ -166,7 +166,7 @@ class PymooInterface(OptimizerBase):
 
             # Post generation processing
             X_opt = algorithm.opt.get("X").tolist()
-            self.run_post_generation_processing(X, F, G, CV, algorithm.n_gen-1, X_opt)
+            self.run_post_processing(X, F, G, CV, algorithm.n_gen-1, X_opt)
 
         if algorithm.n_gen >= n_max_gen:
             exit_message = 'Max number of generations exceeded.'
