@@ -102,7 +102,7 @@ class SciPyInterface(OptimizerBase):
                 x, untransform=True
             )
 
-            self.run_post_evaluation_processing(x, f, g, cv, self.n_evals)
+            self.run_post_processing(x, f, g, cv, self.n_evals)
 
             return False
 

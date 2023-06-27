@@ -312,11 +312,11 @@ class AxInterface(OptimizerBase):
             CV = None
 
         # Ideally, the current optimum w.r.t. single and multi objective can be
-        # obtained at this point and passed to run_post_generation_processing.
+        # obtained at this point and passed to run_post_processing.
         # with X_opt_transformed. Implementation is pending.
         # See: https://github.com/fau-advanced-separations/CADET-Process/issues/53
 
-        self.run_post_generation_processing(
+        self.run_post_processing(
             X_transformed=X,
             F=F,
             G=G,
