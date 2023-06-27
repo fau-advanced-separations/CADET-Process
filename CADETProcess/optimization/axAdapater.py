@@ -19,7 +19,7 @@ from botorch.models.gp_regression import FixedNoiseGP
 from botorch.acquisition.monte_carlo import qExpectedImprovement, qNoisyExpectedImprovement
 from botorch.acquisition.analytic import UpperConfidenceBound, NoisyExpectedImprovement
 from ax.models.torch.botorch_modular.model import BoTorchModel
-from ax.modelbridge import TorchModelBridge
+from ax.modelbridge import TorchModelBridge, ModelBridge
 from ax.modelbridge.registry import Cont_X_trans, Y_trans
 
 from CADETProcess.dataStructure import UnsignedInteger, UnsignedFloat, Integer, Typed
@@ -153,12 +153,7 @@ class AxInterface(OptimizerBase):
     n_init_evals = UnsignedInteger(default=50)
     seed = UnsignedInteger(default=12345)
 
-    acquisition_fn = Typed(default=qNoisyExpectedImprovement)
-    surrogate_model = Typed(default=FixedNoiseGP)
-
-    _specific_options = [
-        'n_init_evals', 'seed', 'acquisition_fn', 'surrogate_model'
-    ]
+    _specific_options = ['n_init_evals', 'seed',]
 
     @staticmethod
     def _setup_parameters(optimizationProblem: OptimizationProblem):
@@ -275,19 +270,24 @@ class AxInterface(OptimizerBase):
 
         # DONE: Update for multi-processing. If n_cores > 1: len(arms) > 1 (oder @Flo?)
         X = np.array([list(arm.parameters.values()) for arm in trial.arms])
+        objective_labels = self.optimization_problem.objective_labels
+
+        n_ind = len(X)
+        n_obj = len(objective_labels)
 
         # Get objective values
-        objective_labels = self.optimization_problem.objective_labels
         F_data = data[data['metric_name'].isin(objective_labels)]
-        assert np.all(F_data["metric_name"].values.tolist() == objective_labels * len(X))
-        F = F_data["mean"].values
+        assert np.all(F_data["metric_name"].values.tolist() == np.repeat(objective_labels, len(X)))
+        F = F_data["mean"].values.reshape((n_obj, n_ind)).T
+
 
         # Get nonlinear constraint values
         if self.optimization_problem.n_nonlinear_constraints > 0:
             nonlincon_labels = self.optimization_problem.nonlinear_constraint_labels
+            n_nlc = len(nonlincon_labels)
             G_data = data[data['metric_name'].isin(nonlincon_labels)]
-            assert np.all(G_data["metric_name"].values.tolist() == nonlincon_labels * len(X))
-            G = G_data["mean"].values
+            assert np.all(G_data["metric_name"].values.tolist() == np.repeat(nonlincon_labels, len(X)))
+            G = G_data["mean"].values.reshape((n_nlc, n_ind)).T
 
             nonlincon_cv_fun = self.optimization_problem.evaluate_nonlinear_constraints_violation
             CV = nonlincon_cv_fun(X, untransform=True)
@@ -320,57 +320,31 @@ class AxInterface(OptimizerBase):
             X_opt=None,
         )
 
-    def setup_model(self):
-        pass
+    def _setup_model(self):
+        """constructs a pre-instantiated `Model` class that specifies the
+        surrogate model (e.g. Gaussian Process) and acquisition function,
+        which are used in the bayesian optimization algorithm.
+        """
+        raise NotImplementedError
+
+    def _setup_optimization_config(self, objectives, outcome_constraints):
+        """instantiates an optimization configuration for Ax for single objective
+        or multi objective optimization
+        """
+        raise NotImplementedError
 
     def run(self, optimization_problem, x0):
         search_space = self._setup_searchspace(self.optimization_problem)
         objectives = self._setup_objectives()
         outcome_constraints = self._setup_outcome_constraints()
+        optimization_config = self._setup_optimization_config(
+            objectives=objectives,
+            outcome_constraints=outcome_constraints
+        )
 
-        # TODO: Move to setup_model function.
-        # Subclass interface and parametrize using model registries.
-        if len(objectives) > 1:
-            is_moo = True
-        else:
-            is_moo = False
-
-        if is_moo:
-            optimization_config = ax.MultiObjectiveOptimizationConfig(
-                objective=ax.MultiObjective(objectives),
-                outcome_constraints=outcome_constraints
-            )
-            Model = Models.MOO
-
-        else:
-            optimization_config = ax.OptimizationConfig(
-                objective=objectives[0],
-                outcome_constraints=outcome_constraints
-            )
-            Model = partial(
-                Models.BOTORCH_MODULAR,
-                surrogate=Surrogate(self.surrogate_model),        # Optional, will use default if unspecified
-                botorch_acqf_class=self.acquisition_fn,  # Optional, will use default if unspecified
-            )
-
-        # Alternative: Use a model bridge directly with a botorch model.
-        # This allows for more control and does not introduce another "magic"
-        # middle layer in between. But currently I can't get this to work.
-        # The above is as suggested in the PR
-        # Model = BoTorchModel(
-        #   acquisition_class=UpperConfidenceBound,
-        #   surrogate=Surrogate(FixedNoiseGP)
-        # )
-
-        # model = TorchModelBridge(
-        #     experiment=self.ax_experiment,
-        #     search_space=search_space,
-        #     data=self.ax_experiment.fetch_data(),
-        #     model=Model,
-        #     transforms=Cont_X_trans + Y_trans
-        # )
-
-        runner = CADETProcessRunner(optimization_problem=self.optimization_problem)
+        runner = CADETProcessRunner(
+            optimization_problem=self.optimization_problem
+        )
 
         self.ax_experiment = ax.Experiment(
             search_space=search_space,
@@ -415,26 +389,13 @@ class AxInterface(OptimizerBase):
         with manual_seed(seed=self.seed):
             while not (n_evals >= self.n_max_evals or n_iter >= self.n_max_iter):
                 # Reinitialize GP+EI model at each step with updated data.
-                model = Model(
-                    experiment=self.ax_experiment,
-                    data=self.ax_experiment.fetch_data(),
-                )
-
-                if n_evals == self.n_init_evals:
-                    if is_moo:
-                        srgm = model.model.model._get_name()
-                        acqf = model.model.acqf_constructor.__name__.split("_")[1]
-                    else:
-                        srgm = model.model.surrogate.model._get_name()
-                        acqf = model.model.botorch_acqf_class.__name__
-                    print(f"Starting bayesian optimization loop...")
-                    print(f"Surrogate model: {srgm}")
-                    print(f"Acquisition function: {acqf}")
+                data = self.ax_experiment.fetch_data()
+                modelbridge = self._train_model(data=data)
 
                 print(f"Running optimization trial {n_evals+1}/{self.n_max_evals}...")
 
                 # samples can be accessed here by sample_generator.arms:
-                sample_generator = model.gen(n=1)
+                sample_generator = modelbridge.gen(n=1)
 
                 # so this can be a staging environment
                 # TODO: here optimization-problem could be used to reject
@@ -456,11 +417,82 @@ class AxInterface(OptimizerBase):
         print("finished")
 
 
-class ModularBoTorch(AxInterface):
-    pass
+class SingleObjectiveAxInterface(AxInterface):
+    def _setup_optimization_config(self, objectives, outcome_constraints):
+        return ax.OptimizationConfig(
+            objective=objectives[0],
+            outcome_constraints=outcome_constraints
+        )
+
+class MultiObjectiveAxInterface(AxInterface):
+    def _setup_optimization_config(self, objectives, outcome_constraints):
+        return ax.MultiObjectiveOptimizationConfig(
+            objective=ax.MultiObjective(objectives),
+            outcome_constraints=outcome_constraints
+        )
 
 
-if __name__ == "__main__":
+class GPEI(SingleObjectiveAxInterface):
+    """
+    Bayesian optimization algorithm with a Gaussian Process (GP) surrogate model
+    and a Expected Improvement (EI) acquisition function for single objective
+    """
 
-    from tests.test_optimizer_behavior import test_resume_from_checkpoint, Rosenbrock
-    test_resume_from_checkpoint(optimizer=AxInterface(), optimization_problem=Rosenbrock())
+    def __repr__(self):
+        return 'GPEI'
+
+    def _train_model(self, data):
+        return Models.GPEI(
+            experiment=self.ax_experiment,
+            data=data
+        )
+
+class BotorchModular(SingleObjectiveAxInterface):
+    """
+    implements a modular single objective bayesian optimization algorithm.
+    It takes 2 optional arguments and uses the BOTORCH_MODULAR API of Ax
+    to construct a Model, which connects both componenns with the respective
+    transforms necessary
+
+    acquisition_fn: AcquisitionFunction class
+    surrogate_model: Model class
+    """
+    acquisition_fn = Typed(default=qNoisyExpectedImprovement)
+    surrogate_model = Typed(default=FixedNoiseGP)
+
+    _specific_options = [
+        'acquisition_fn', 'surrogate_model'
+    ]
+
+    def __repr__(self):
+        afn = self.acquisition_fn.__name__
+        smn = self.surrogate_model.__name__
+
+        return f'BotorchModular({smn}+{afn})'
+
+    def _train_model(self, data):
+        return Models.BOTORCH_MODULAR(
+            experiment=self.ax_experiment,
+            surrogate=Surrogate(self.surrogate_model),
+            botorch_acqf_class=self.acquisition_fn,
+            data=data
+        )
+
+class NEHVI(MultiObjectiveAxInterface):
+    """
+    Multi objective Bayesian optimization algorithm, which acquires new points
+    with noisy expected hypervolume improvement (NEHVI) and approximates the
+    model with a Fixed Noise Gaussian Process
+    """
+
+    def __repr__(self):
+        smn = 'FixedNoiseGP'
+        afn = 'NEHVI'
+
+        return f'{smn}+{afn}'
+
+    def _train_model(self, data):
+        return Models.MOO(
+            experiment=self.ax_experiment,
+            data=data
+        )
