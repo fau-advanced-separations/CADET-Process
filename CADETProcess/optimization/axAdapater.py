@@ -26,7 +26,11 @@ from CADETProcess.dataStructure import UnsignedInteger, UnsignedFloat, Integer, 
 from CADETProcess.optimization.optimizationProblem import OptimizationProblem
 from CADETProcess.optimization import OptimizerBase
 
-__all__ = ['AxInterface']
+__all__ = [
+    'GPEI',
+    'BotorchModular',
+    'NEHVI',
+]
 
 
 class CADETProcessMetric(Metric):
