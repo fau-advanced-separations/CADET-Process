@@ -40,7 +40,6 @@ class CADETProcessMetric(Metric):
             properties: Union[Dict[str, Any], None] = None) -> None:
         super().__init__(name, lower_is_better, properties)
 
-
     def fetch_trial_data(
             self,
             trial: BaseTrial,
@@ -347,7 +346,8 @@ class AxInterface(OptimizerBase):
         )
 
         runner = CADETProcessRunner(
-            optimization_problem=self.optimization_problem
+            optimization_problem=self.optimization_problem,
+            n_cores=self.n_cores
         )
 
         self.ax_experiment = Experiment(
