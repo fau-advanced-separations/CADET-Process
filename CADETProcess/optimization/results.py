@@ -390,6 +390,8 @@ class OptimizationResults(Structure):
                     show=show, plot_directory=self.plot_directory
                 )
 
+            self.plot_partial_dependence()
+
     def plot_objectives(
             self,
             include_meta=True,
@@ -553,6 +555,14 @@ class OptimizationResults(Structure):
             self.population_all.plot_corner(*args, **kwargs)
         except AssertionError:
             pass
+
+
+
+
+    def plot_partial_dependence(
+        self,
+    ):
+        pass
 
     def setup_convergence_figure(self, target, plot_individual=False):
         if target == 'objectives':

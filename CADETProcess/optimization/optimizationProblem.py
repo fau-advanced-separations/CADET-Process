@@ -150,6 +150,10 @@ class OptimizationProblem(Structure):
 
         return wrapper
 
+    def get_variable_index(self, variable):
+        var_names = self.variable_names
+        return [i for i, v in enumerate(var_names) if variable == v][0]
+
     def ensures2d(func):
         """Make sure population is ndarray with ndmin=2."""
         @wraps(func)
