@@ -1,28 +1,27 @@
-from typing import Any, Dict
-from functools import partial
+from typing import Union, Dict, Any
 
 import pandas as pd
 import numpy as np
 
-import ax
-from ax import core
-from ax.core.metric import MetricFetchResult
-from ax.core.runner import Runner
-from ax.core.metric import Metric, MetricFetchE
-from ax.modelbridge.registry import Models
-from ax.service.utils.report_utils import exp_to_df
-from ax.utils.common.result import Err, Ok
+from ax import (
+    Runner, Data, Metric, Models,
+    OptimizationConfig, MultiObjectiveOptimizationConfig,
+    SearchSpace, MultiObjective, Experiment, Arm,
+    ComparisonOp, OutcomeConstraint,
+    RangeParameter, ParameterType, ParameterConstraint, Objective,
+
+)
+from ax.core.metric import MetricFetchResult, MetricFetchE
+from ax.core.base_trial import BaseTrial
 from ax.models.torch.botorch_modular.surrogate import Surrogate
-from ax.models.torch.botorch_modular.acquisition import Acquisition
+from ax.modelbridge.registry import Models
+from ax.utils.common.result import Err, Ok
+from ax.service.utils.report_utils import exp_to_df
 from botorch.utils.sampling import manual_seed
 from botorch.models.gp_regression import FixedNoiseGP
-from botorch.acquisition.monte_carlo import qExpectedImprovement, qNoisyExpectedImprovement
-from botorch.acquisition.analytic import UpperConfidenceBound, NoisyExpectedImprovement
-from ax.models.torch.botorch_modular.model import BoTorchModel
-from ax.modelbridge import TorchModelBridge, ModelBridge
-from ax.modelbridge.registry import Cont_X_trans, Y_trans
+from botorch.acquisition.monte_carlo import qNoisyExpectedImprovement
 
-from CADETProcess.dataStructure import UnsignedInteger, UnsignedFloat, Integer, Typed
+from CADETProcess.dataStructure import UnsignedInteger, Typed
 from CADETProcess.optimization.optimizationProblem import OptimizationProblem
 from CADETProcess.optimization import OptimizerBase
 
@@ -37,13 +36,14 @@ class CADETProcessMetric(Metric):
     def __init__(
             self,
             name: str,
-            lower_is_better: bool | None = None,
-            properties: Dict[str, Any] | None = None) -> None:
+            lower_is_better: Union[bool, None] = None,
+            properties: Union[Dict[str, Any], None] = None) -> None:
         super().__init__(name, lower_is_better, properties)
+
 
     def fetch_trial_data(
             self,
-            trial: core.base_trial.BaseTrial,
+            trial: BaseTrial,
             **kwargs: Any) -> MetricFetchResult:
         try:
             trial_results = trial.run_metadata
@@ -64,7 +64,7 @@ class CADETProcessMetric(Metric):
 
                 records.append(results_dict)
 
-            return Ok(ax.Data(df=pd.DataFrame.from_records(records)))
+            return Ok(Data(df=pd.DataFrame.from_records(records)))
         except Exception as e:
             return Err(
                 MetricFetchE(message=f"Failed to fetch {self.name}", exception=e)
@@ -83,7 +83,7 @@ class CADETProcessRunner(Runner):
         # TODO: change that to True
         return False
 
-    def run(self, trial: core.base_trial.BaseTrial) -> Dict[str, Any]:
+    def run(self, trial: BaseTrial) -> Dict[str, Any]:
         # Get X from arms.
         X = []
         for arm in trial.arms:
@@ -149,7 +149,7 @@ class CADETProcessRunner(Runner):
 class AxInterface(OptimizerBase):
     """Wrapper around Ax's bayesian optimization API."""
 
-    supports_multi_objective = True
+    supports_multi_objective = False
     supports_linear_constraints = True
     supports_linear_equality_constraints = True
     supports_nonlinear_constraints = True
@@ -166,9 +166,9 @@ class AxInterface(OptimizerBase):
         parameters = []
         for var in optimizationProblem.independent_variables:
             lb, ub = var.transformed_bounds
-            param = ax.RangeParameter(
+            param = RangeParameter(
                 name=var.name,
-                parameter_type=ax.ParameterType.FLOAT,
+                parameter_type=ParameterType.FLOAT,
                 lower=lb,
                 upper=ub,
                 log_scale=False,
@@ -185,7 +185,7 @@ class AxInterface(OptimizerBase):
         # TODO: Should be transformed space (e.g. linear_constraints_transformed)
         parameter_constraints = []
         for lincon in optimizationProblem.linear_constraints:
-            constr = ax.ParameterConstraint(
+            constr = ParameterConstraint(
                 constraint_dict={
                     var: lhs for var, lhs in zip(lincon['opt_vars'], lincon['lhs'])
                 },
@@ -197,7 +197,7 @@ class AxInterface(OptimizerBase):
 
     @classmethod
     def _setup_searchspace(cls, optimizationProblem):
-        return ax.SearchSpace(
+        return SearchSpace(
             parameters=cls._setup_parameters(optimizationProblem),
             parameter_constraints=cls._setup_linear_constraints(optimizationProblem)
 
@@ -214,7 +214,7 @@ class AxInterface(OptimizerBase):
                 lower_is_better=True,
             )
 
-            obj = ax.Objective(metric=ax_metric, minimize=True)
+            obj = Objective(metric=ax_metric, minimize=True)
             objectives.append(obj)
 
         return objectives
@@ -228,9 +228,9 @@ class AxInterface(OptimizerBase):
         for name, bound in zip(nonlincon_names, bounds):
             ax_metric = CADETProcessMetric(name=name)
 
-            nonlincon = ax.OutcomeConstraint(
+            nonlincon = OutcomeConstraint(
                 metric=ax_metric,
-                op=ax.ComparisonOp.LEQ,
+                op=ComparisonOp.LEQ,
                 bound=bound,
                 relative=False,
             )
@@ -256,7 +256,7 @@ class AxInterface(OptimizerBase):
             }
 
             arm_name = f"{trial.index}_{i}"
-            trial.add_arm(ax.Arm(parameters=trial_data["input"], name=arm_name))
+            trial.add_arm(Arm(parameters=trial_data["input"], name=arm_name))
 
         return trial
 
@@ -281,7 +281,7 @@ class AxInterface(OptimizerBase):
 
         # Get objective values
         F_data = data[data['metric_name'].isin(objective_labels)]
-        assert np.all(F_data["metric_name"].values.tolist() == np.repeat(objective_labels, len(X)))
+        assert np.all(F_data["metric_name"].values == np.repeat(objective_labels, len(X)).astype(object))
         F = F_data["mean"].values.reshape((n_obj, n_ind)).T
 
 
@@ -350,7 +350,7 @@ class AxInterface(OptimizerBase):
             optimization_problem=self.optimization_problem
         )
 
-        self.ax_experiment = ax.Experiment(
+        self.ax_experiment = Experiment(
             search_space=search_space,
             name=self.optimization_problem.name,
             optimization_config=optimization_config,
@@ -423,15 +423,17 @@ class AxInterface(OptimizerBase):
 
 class SingleObjectiveAxInterface(AxInterface):
     def _setup_optimization_config(self, objectives, outcome_constraints):
-        return ax.OptimizationConfig(
+        return OptimizationConfig(
             objective=objectives[0],
             outcome_constraints=outcome_constraints
         )
 
 class MultiObjectiveAxInterface(AxInterface):
+    supports_multi_objective = True
+
     def _setup_optimization_config(self, objectives, outcome_constraints):
-        return ax.MultiObjectiveOptimizationConfig(
-            objective=ax.MultiObjective(objectives),
+        return MultiObjectiveOptimizationConfig(
+            objective=MultiObjective(objectives),
             outcome_constraints=outcome_constraints
         )
 
@@ -467,6 +469,7 @@ class BotorchModular(SingleObjectiveAxInterface):
     _specific_options = [
         'acquisition_fn', 'surrogate_model'
     ]
+
 
     def __repr__(self):
         afn = self.acquisition_fn.__name__
