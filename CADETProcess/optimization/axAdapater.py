@@ -266,6 +266,7 @@ class AxInterface(OptimizerBase):
         in a sequential experiment, each trial only has one arm.
         Arms are evaluated. These hold the parameters.
         """
+        op = self.optimization_problem
 
         # get the trial level data as a dataframe
         trial_data = self.ax_experiment.fetch_trials_data([trial.index])
@@ -273,26 +274,23 @@ class AxInterface(OptimizerBase):
 
         # DONE: Update for multi-processing. If n_cores > 1: len(arms) > 1 (oder @Flo?)
         X = np.array([list(arm.parameters.values()) for arm in trial.arms])
-        objective_labels = self.optimization_problem.objective_labels
+        objective_labels = op.objective_labels
 
         n_ind = len(X)
-        n_obj = len(objective_labels)
 
         # Get objective values
         F_data = data[data['metric_name'].isin(objective_labels)]
         assert np.all(F_data["metric_name"].values == np.repeat(objective_labels, len(X)).astype(object))
-        F = F_data["mean"].values.reshape((n_obj, n_ind)).T
-
+        F = F_data["mean"].values.reshape((op.n_objectives, n_ind)).T
 
         # Get nonlinear constraint values
-        if self.optimization_problem.n_nonlinear_constraints > 0:
-            nonlincon_labels = self.optimization_problem.nonlinear_constraint_labels
-            n_nlc = len(nonlincon_labels)
+        if op.n_nonlinear_constraints > 0:
+            nonlincon_labels = op.nonlinear_constraint_labels
             G_data = data[data['metric_name'].isin(nonlincon_labels)]
             assert np.all(G_data["metric_name"].values.tolist() == np.repeat(nonlincon_labels, len(X)))
-            G = G_data["mean"].values.reshape((n_nlc, n_ind)).T
+            G = G_data["mean"].values.reshape((op.n_nonlinear_constraints, n_ind)).T
 
-            nonlincon_cv_fun = self.optimization_problem.evaluate_nonlinear_constraints_violation
+            nonlincon_cv_fun = op.evaluate_nonlinear_constraints_violation_population
             CV = nonlincon_cv_fun(X, untransform=True)
         else:
             G = None
