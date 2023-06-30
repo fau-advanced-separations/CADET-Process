@@ -112,7 +112,7 @@ class Surrogate:
             else:
                 free_vars.update({var.name: var_index})
 
-        X, F = self.approximate_objectives(n_samples=n_samples)
+        X, F = self.estimate_objectives(n_samples=n_samples)
 
         self._reset_bounds_on_variables()
 
