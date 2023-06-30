@@ -145,8 +145,8 @@ class PymooInterface(OptimizerBase):
 
             F = pop.get("F").tolist()
             if optimization_problem.n_nonlinear_constraints > 0:
-                G = pop.get("_G").tolist()
-                CV = pop.get("_CV").tolist()
+                G = pop.get("CADET_G").tolist()
+                CV = pop.get("CADET_CV").tolist()
             else:
                 G = None
                 CV = None
@@ -244,8 +244,8 @@ class PymooProblem(Problem):
             )
             out["G"] = np.array(CV)
 
-            out["_G"] = np.array(G)
-            out["_CV"] = np.array(CV)
+            out["CADET_G"] = G
+            out["CADET_CV"] = CV
 
 
 class RepairIndividuals(Repair):
