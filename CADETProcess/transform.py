@@ -96,6 +96,11 @@ class TransformBase(ABC):
         self.allow_extended_input = allow_extended_input
         self.allow_extended_output = allow_extended_output
 
+    @abstractproperty
+    def is_linear(self):
+        """bool: True if transformation is linear."""
+        pass
+
     @property
     def lb_input(self):
         """{float, array-like}: The lower bounds of the input parameter space."""
@@ -240,6 +245,10 @@ class NoTransform(TransformBase):
     """
 
     @property
+    def is_linear(self):
+        return True
+
+    @property
     def lb(self):
         """{float, array-like}: The lower bounds of the output parameter space."""
         return self.lb_input
@@ -293,6 +302,10 @@ class NormLinearTransform(TransformBase):
     """
 
     @property
+    def is_linear(self):
+        return True
+
+    @property
     def lb(self):
         """{float, array-like}: The lower bounds of the output parameter space."""
         return 0
@@ -344,6 +357,10 @@ class NormLogTransform(TransformBase):
     TransformBase : The base class for parameter transformation.
 
     """
+
+    @property
+    def is_linear(self):
+        return False
 
     @property
     def lb(self):
@@ -443,6 +460,10 @@ class AutoTransform(TransformBase):
         self.linear.allow_extended_output = self.allow_extended_input
         self.log.allow_extended_input = self.allow_extended_input
         self.log.allow_extended_output = self.allow_extended_input
+
+    @property
+    def is_linear(self):
+        return self.use_linear
 
     @property
     def use_linear(self):
