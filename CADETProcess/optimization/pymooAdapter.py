@@ -27,6 +27,8 @@ class PymooInterface(OptimizerBase):
     supports_linear_equality_constraints = True
     supports_nonlinear_constraints = True
 
+    ignore_linear_constraints_config = True
+
     seed = UnsignedInteger(default=12345)
     pop_size = UnsignedInteger()
 

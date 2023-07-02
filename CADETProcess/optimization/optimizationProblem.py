@@ -2680,13 +2680,78 @@ class OptimizationProblem(metaclass=StructMeta):
 
         return parameters
 
-    def check(self):
-        """Check if OptimizationProblem is configured correctly.
+    def check_linear_constraints_transforms(self):
+        """Check that variables used in linear constraints only use linear transforms.
 
         Returns
         -------
-        flag : bool
-            True if OptimizationProblem is configured correctly. False otherwise.
+        bool
+            True if all variables used in linear constraints have linear transforms,
+            False otherwise.
+
+        Warns
+        -----
+        UserWarning
+            If variables used in linear constraints have non-linear transforms.
+            The warning message provides details on the problematic variables.
+        """
+        flag = True
+        for constr in self.linear_constraints:
+            opt_vars = [self.variables_dict[key] for key in constr["opt_vars"]]
+            for var in opt_vars:
+                if not var.transform.is_linear:
+                    flag = False
+                    warnings.warn(
+                        f"'{var.name}' uses non-linear transform and is used in "
+                        f"the linear constraint: {constr}."
+                        "Consider using linear transforms for these variables "
+                        "or specify the constraints as non-linear constraints."
+                    )
+
+        return flag
+
+    def check_linear_constraints_dependency(self):
+        """Check that variables used in linear constraints are independent.
+
+        Returns
+        -------
+        bool
+            True if all variables used in linear constraints are independent,
+            False otherwise.
+
+        Warns
+        -----
+        UserWarning
+            If variables used in linear constraints are not independent.
+            The warning message provides details on the problematic variables.
+        """
+        flag = True
+
+        for constr in self.linear_constraints + self.linear_equality_constraints:
+            opt_vars = [self.variables_dict[key] for key in constr["opt_vars"]]
+            for var in opt_vars:
+                if not var.is_independent:
+                    flag = False
+                    warnings.warn(
+                        f"'{var.name}' is not an indendent variable and is used in "
+                        f"the linear constraint: {constr}."
+                        "This is currently not supported."
+                    )
+
+        return flag
+
+    def check_config(self, ignore_linear_constraints=False):
+        """Check if the OptimizationProblem is configured correctly.
+
+        Parameters
+        ----------
+        ignore_linear_constraints : bool, optional
+            If True, linear constraint checks will be skipped. The default is False.
+
+        Returns
+        -------
+        bool
+            True if the OptimizationProblem is configured correctly, False otherwise.
 
         """
         flag = True
@@ -2694,6 +2759,13 @@ class OptimizationProblem(metaclass=StructMeta):
             flag = False
         if self.n_objectives == 0:
             flag = False
+        if self.n_linear_constraints + self.n_linear_equality_constraints > 0 \
+                and not ignore_linear_constraints:
+            flag_ = self.check_linear_constraints_transforms()
+            flag = flag and flag_
+
+            flag_ = self.check_linear_constraints_dependency()
+            flag = flag and flag_
 
         return flag
 
