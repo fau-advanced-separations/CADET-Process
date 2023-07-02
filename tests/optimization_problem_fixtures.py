@@ -7,7 +7,7 @@ TODO:
 
 import numpy as np
 from CADETProcess.optimization import OptimizationProblem
-
+from CADETProcess.transform import NormLinearTransform, NormLogTransform
 
 __all__ = [
     'Rosenbrock',
@@ -108,6 +108,20 @@ class LinearConstrainedSooTestProblem(TestProblem):
 
         np.testing.assert_almost_equal(f-f_true, 0, decimal=decimal)
         np.testing.assert_almost_equal(x-x_true, 0, decimal=decimal)
+
+
+class TransformedLinearConstrainedSooTestProblem(LinearConstrainedSooTestProblem):
+    def __init__(self, *args, **kwargs):
+        super().__init__("transformed_linear_constrained_single_objective", *args, **kwargs)
+        self.name = "transformed_linear_constrained_single_objective"
+        self.remove_linear_constraint(0)
+        self.remove_variable("var_1")
+        self.remove_variable("var_0")
+
+        self.add_variable('var_0', lb=-2, ub=2, transform="linear")
+        self.add_variable('var_1', lb=-2, ub=2, transform="linear")
+        self.add_linear_constraint(['var_0', 'var_1'], [-1, -0.5], 0)
+
 
 
 class LinearConstrainedMooTestProblem(TestProblem):
