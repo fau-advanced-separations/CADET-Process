@@ -6,6 +6,7 @@ import time
 import warnings
 
 from cadet import H5
+import numpy as np
 import matplotlib.pyplot as plt
 
 from CADETProcess import settings
@@ -74,6 +75,8 @@ class OptimizerBase(Structure):
     supports_linear_equality_constraints = False
     supports_nonlinear_constraints = False
     supports_bounds = False
+
+    ignore_linear_constraints_config = False
 
     progress_frequency = RangedInteger(lb=1, default=1)
     n_cores = UnsignedInteger(default=1)
@@ -280,25 +283,35 @@ class OptimizerBase(Structure):
 
         """
         flag = True
-        if not optimization_problem.check():
-            warnings.warn(
-                "OptimizationProblem is not configured correctly."
-            )
+        if not optimization_problem.check_config(
+                ignore_linear_constraints=self.ignore_linear_constraints_config):
+            # Warnings are raised internally
             flag = False
 
         if optimization_problem.n_objectives > 1 and not self.supports_multi_objective:
             warnings.warn(
                 "Optimizer does not support multi-objective problems"
             )
-        if optimization_problem.n_linear_constraints > 0\
-                and not self.supports_nonlinear_constraints:
+
+        if (
+            not np.all(np.isinf(optimization_problem.lower_bounds_independent_transformed))
+                and
+            not np.all(np.isinf(optimization_problem.upper_bounds_independent_transformed))
+        ) and not self.supports_bounds:
+            warnings.warn(
+                "Optimizer does not support bounds"
+            )
+            flag = False
+
+        if optimization_problem.n_linear_constraints > 0 \
+                and not self.supports_linear_constraints:
             warnings.warn(
                 "Optimizer does not support problems with linear constraints."
             )
             flag = False
 
         if optimization_problem.n_linear_equality_constraints > 0 \
-                and not self.supports_nonlinear_constraints:
+                and not self.supports_linear_equality_constraints:
             warnings.warn(
                 "Optimizer does not support problems with linear equality constraints."
             )
