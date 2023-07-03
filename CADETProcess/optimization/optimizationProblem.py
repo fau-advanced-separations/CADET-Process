@@ -238,6 +238,14 @@ class OptimizationProblem(metaclass=StructMeta):
         return len(self.independent_variables)
 
     @property
+    def independent_variable_indices(self):
+        """list: Indices of indpeendent variables."""
+        return [
+            i for i, var in enumerate(self.variable_names)
+            if var in self.independent_variable_names
+        ]
+
+    @property
     def dependent_variables(self):
         """list: OptimizationVaribles with dependencies."""
         return list(
@@ -1344,7 +1352,6 @@ class OptimizationProblem(metaclass=StructMeta):
 
         return results
 
-
     @untransforms
     def check_nonlinear_constraints(self, x):
         """Check if all nonlinear constraints are met.
@@ -2061,6 +2068,9 @@ class OptimizationProblem(metaclass=StructMeta):
         b
         add_linear_constraint
         remove_linear_constraint
+        A_transformed
+        A_independent
+        A_independent_transformed
 
         """
         A = np.zeros((len(self.linear_constraints), len(self.variables)))
@@ -2073,6 +2083,64 @@ class OptimizationProblem(metaclass=StructMeta):
         return A
 
     @property
+    def A_transformed(self):
+        """np.ndarray: LHS Matrix of linear inequality constraints in transformed space.
+
+        See Also
+        --------
+        A
+        A_independent_transformed
+        A_independent
+
+        """
+        A_t = self.A.copy()
+        for a in A_t:
+            for j, v in enumerate(self.variables):
+                t = v.transform
+                if isinstance(t, NoTransform):
+                    continue
+
+                if not t.is_linear:
+                    raise CADETProcessError(
+                        "Non-linear transform was used in linear constraints."
+                    )
+
+                scale = (t.ub_input - t.lb_input) / (t.ub - t.lb)
+                # this is fine, because it will squish more when the bounds are
+                # larger prior to transformation
+                # FUTURE: move to transforms module
+                # *= (range old bounds) / (range new bounds)
+                a[j] *= scale
+
+        return A_t
+
+    @property
+    def A_independent(self):
+        """np.ndarray: LHS Matrix of linear inequality constraints for indep variables.
+
+        See Also
+        --------
+        A
+        A_transformed
+        A_independent_transformed
+
+        """
+        return self.A[:, self.independent_variable_indices]
+
+    @property
+    def A_independent_transformed(self):
+        """np.ndarray: LHS of lin ineqs for indep variables in transformed space.
+
+        See Also
+        --------
+        A
+        A_transformed
+        A_independent
+
+        """
+        return self.A_transformed[:, self.independent_variable_indices]
+
+    @property
     def b(self):
         """list: Vector form of linear constraints.
 
@@ -2081,11 +2149,56 @@ class OptimizationProblem(metaclass=StructMeta):
         A
         add_linear_constraint
         remove_linear_constraint
+        b_transformed
 
         """
         b = [lincon['b'] for lincon in self.linear_constraints]
 
         return np.array(b)
+
+    @property
+    def b_transformed(self):
+        """list: Vector form of linear constraints in transformed space.
+
+        Transforms b to multiple variables. When the bounds of an optimization
+        problem get shifted, the upper bound for a constrained variable gets
+        shifted too. This shift follows the slope of the constraint.
+        In addition the new upper bound needs to be scaled by the ratio between
+        new bounds to old bounds.
+
+        See Also
+        --------
+        b
+
+        """
+        # TODO: weird error when b_t is not float that b is not incremented
+        b_t = self.b.copy().astype(float)
+        A_t = self.A.copy()
+        for i, a in enumerate(A_t):
+            for j, v in enumerate(self.variables):
+                t = v.transform
+                if isinstance(t, NoTransform):
+                    continue
+
+                if not t.is_linear:
+                    raise CADETProcessError(
+                        "Non-linear transform was used in linear constraints."
+                    )
+                # I realize: This sounds an awful lot like transforms that sklear offers
+                # center and scale
+
+                # FUTURE: move to transforms module
+                scale_old = (t.ub_input - t.lb_input)
+                scale_new = (t.ub - t.lb)
+                scale = scale_old / scale_new
+
+                mid_old = 0.5 * (t.ub_input + t.lb_input)
+                mid_new = 0.5 * (t.ub + t.lb)
+                v_shift = mid_new - mid_old
+
+                b_t[i] += a[j] * v_shift * scale
+
+        return b_t
 
     @untransforms
     @gets_dependent_values
