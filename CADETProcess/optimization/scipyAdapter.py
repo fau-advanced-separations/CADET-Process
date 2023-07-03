@@ -203,10 +203,10 @@ class SciPyInterface(OptimizerBase):
             return None
 
         lb = [-np.inf]*len(optimization_problem.b)
-        ub = optimization_problem.b
+        ub = optimization_problem.b_transformed
 
         return optimize.LinearConstraint(
-            optimization_problem.A, lb, ub, keep_feasible=True
+            optimization_problem.A_independent_transformed, lb, ub, keep_feasible=True
         )
 
     def get_lineqcon_obj(self, optimization_problem):
