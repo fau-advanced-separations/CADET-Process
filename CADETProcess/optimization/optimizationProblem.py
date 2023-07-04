@@ -1996,7 +1996,7 @@ class OptimizationProblem(metaclass=StructMeta):
         """int: Number of linear inequality constraints."""
         return len(self.linear_constraints)
 
-    def add_linear_constraint(self, opt_vars, lhs=1, b=0):
+    def add_linear_constraint(self, opt_vars, lhs=1.0, b=0.0):
         """Add linear inequality constraints.
 
         Parameters
@@ -2029,7 +2029,7 @@ class OptimizationProblem(metaclass=StructMeta):
             raise CADETProcessError('Variable not in variables.')
 
         if np.isscalar(lhs):
-            lhs = len(opt_vars) * [1]
+            lhs = np.ones(len(opt_vars))
 
         if len(lhs) != len(opt_vars):
             raise CADETProcessError(
@@ -2039,7 +2039,7 @@ class OptimizationProblem(metaclass=StructMeta):
         lincon = dict()
         lincon['opt_vars'] = opt_vars
         lincon['lhs'] = lhs
-        lincon['b'] = b
+        lincon['b'] = float(b)
 
         self._linear_constraints.append(lincon)
 
@@ -2172,7 +2172,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
         """
         # TODO: weird error when b_t is not float that b is not incremented
-        b_t = self.b.copy().astype(float)
+        b_t = self.b.copy()
         A_t = self.A.copy()
         for i, a in enumerate(A_t):
             for j, v in enumerate(self.variables):
