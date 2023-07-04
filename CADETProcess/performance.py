@@ -176,12 +176,11 @@ class RankedPerformance():
 
         self._performance = performance
 
-        if isinstance(ranking, (float, int)):
-            ranking = performance.n_comp * [ranking]
-        elif len(ranking) != performance.n_comp:
-            raise CADETProcessError('Number of components does not match.')
+        self.ranking = ranking
 
-        self._ranking = ranking
+    @property
+    def performance(self):
+        return self._performance
 
     @property
     def ranking(self):
@@ -189,15 +188,10 @@ class RankedPerformance():
 
     @ranking.setter
     def ranking(self, ranking):
-        n_metrics = self.component_system.n_comp
-
         if isinstance(ranking, (float, int)):
-            ranking = n_metrics * [ranking]
-
-        if ranking is not None and len(ranking) != n_metrics:
-            raise CADETProcessError(
-                'Ranking does not match number of metrics'
-            )
+            ranking = self.performance.n_comp * [ranking]
+        elif len(ranking) != self.performance.n_comp:
+            raise CADETProcessError('Number of components does not match.')
 
         self._ranking = ranking
 
@@ -209,7 +203,7 @@ class RankedPerformance():
     def __getattr__(self, item):
         if item not in self._performance_keys:
             raise AttributeError
-        return sum(self._performance[item]*self._ranking)/sum(self._ranking)
+        return sum(self._performance[item]*self.ranking)/sum(self.ranking)
 
     def __getitem__(self, item):
         if item not in self._performance_keys:
