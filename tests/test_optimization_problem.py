@@ -6,6 +6,10 @@ from addict import Dict
 import numpy as np
 
 from CADETProcess.optimization import OptimizationProblem
+from tests.optimization_problem_fixtures import (
+    LinearConstraintsSooTestProblem2,
+    LinearEqualityConstraintsSooTestProblem
+)
 
 
 class EvaluationObject():
@@ -621,6 +625,114 @@ class Test_OptimizationProblemEvaluator(unittest.TestCase):
 
     def test_cache(self):
         pass
+
+
+class Test_OptimizationProblemConstraintTransforms(unittest.TestCase):
+    """
+    for linear transformation of constraints in an `OptimizationProblem`,
+    tests if `A_transformed` and `b_transformed` properties are correctly
+    computed.
+    """
+    @staticmethod
+    def check_inequality_constraints(X, problem, transformed_space=False):
+        """
+        evaluates constraints in transformed space. This behavior is using
+        the `A_transformed` and `b_transformed` properties of
+        `OptimizationProblem`
+        """
+
+        if transformed_space:
+            A = problem.A_transformed
+            b = problem.b_transformed
+        else:
+            A = problem.A
+            b = problem.b
+
+        evaluate_constraints = lambda x: A.dot(x) - b
+
+        lhs = np.array(list(map(evaluate_constraints, X)))
+        rhs = 0
+        CV = np.all(lhs <= rhs, axis=1)
+
+        return CV
+
+    @staticmethod
+    def check_equality_constraints(X, problem, transformed_space=False):
+        """
+        evaluates constraints in transformed space. This behavior is using
+        the `A_transformed` and `b_transformed` properties of
+        `OptimizationProblem`
+        """
+
+        if transformed_space:
+            Aeq = problem.Aeq_transformed
+            beq = problem.beq_transformed
+        else:
+            Aeq = problem.Aeq
+            beq = problem.beq
+
+        evaluate_constraints = lambda x: Aeq.dot(x) - beq
+
+        lhs = np.array(list(map(evaluate_constraints, X)))
+        rhs = problem.eps_eq
+        CV = np.all(np.abs(lhs) <= rhs, axis=1)
+
+        return CV
+
+    @staticmethod
+    def check_constraint_transform(problem, check_constraint_func):
+        nvars = problem.n_independent_variables
+
+        rng = np.random.default_rng(seed=72729)
+        X = rng.uniform(0, 1, size=(100000, nvars))
+
+        CV = check_constraint_func(
+            X=X,
+            problem=problem,
+            transformed_space=True
+        )
+
+        # extract valid X and untransform then check constraints in
+        # untransformed space
+        X_valid = X[CV, :]
+        X_valid_untransformed = problem.untransform(X_valid)
+
+        CV_test_valid = check_constraint_func(
+            X=X_valid_untransformed,
+            problem=problem,
+            transformed_space=False
+        )
+
+        # extract invalid X and untransform, then check constraints in
+        # untransformed space
+        X_invalid = X[~CV, :]
+        X_invalid_untransformed = problem.untransform(X_invalid)
+
+        CV_test_invalid = check_constraint_func(
+            X=X_invalid_untransformed,
+            problem=problem,
+            transformed_space=False
+        )
+
+        # tests if all valid X remain valid in untransformed space
+        assert np.all(CV_test_valid)
+
+        # tests if all invalid X remain invalid in untransformed space
+        assert np.all(~CV_test_invalid)
+
+    def test_linear_inequality_constrained_transform(self):
+        problem = LinearConstraintsSooTestProblem2(transform="linear")
+
+        self.check_constraint_transform(
+            problem, self.check_inequality_constraints
+        )
+
+    def test_linear_equality_constrained_transform(self):
+        problem = LinearEqualityConstraintsSooTestProblem(transform="linear")
+
+        self.check_constraint_transform(
+            problem, self.check_equality_constraints
+        )
 
 
 if __name__ == '__main__':
