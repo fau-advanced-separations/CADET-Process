@@ -18,6 +18,18 @@ class FractionationEvaluator():
     """Dummy Evaluator to enable caching."""
 
     def evaluate(self, fractionator):
+        """Evaluate the fractionator.
+
+        Parameters
+        ----------
+        fractionator: Fractionator
+            The Fractionator object to be evaluated.
+
+        Returns
+        -------
+        object
+            The evaluation result.
+        """
         return fractionator.performance
 
     __call__ = evaluate
@@ -30,7 +42,7 @@ class FractionationOptimizer():
     """Configuration for fractionating Chromatograms."""
 
     def __init__(self, optimizer=None, log_level='WARNING'):
-        """Initialize fractionation optimizer.
+        """Initialize the FractionationOptimizer.
 
         Parameters
         ----------
@@ -56,25 +68,37 @@ class FractionationOptimizer():
 
     @optimizer.setter
     def optimizer(self, optimizer):
+        """Set the optimizer.
+
+        Parameters
+        ----------
+        optimizer: OptimizerBase
+            The optimizer to be set.
+
+        Raises
+        ------
+        TypeError
+            If the optimizer is not an instance of OptimizerBase.
+        """
         if not isinstance(optimizer, OptimizerBase):
             raise TypeError('Expected OptimizerBase')
         self._optimizer = optimizer
 
-    def setup_fractionator(
+    def _setup_fractionator(
             self,
             simulation_results,
             purity_required,
             components=None,
             use_total_concentration_components=True,
             allow_empty_fractions=True):
-        """Set up Fractionator for optimizing the fractionation times of Chromatograms.
+        """Set up the Fractionator for optimizing the fractionation times of Chromatograms.
 
         Parameters
         ----------
         simulation_results: object
             Simulation results to be used for setting up the Fractionator object.
-        purity_required: float
-            Minimum purity required for the fractionation process.
+        purity_required : list of floats
+            Minimum purity required for the components in the fractionation.
         components: list, optional
             List of components to consider in the fractionation process.
         use_total_concentration_components: bool, optional
@@ -116,29 +140,28 @@ class FractionationOptimizer():
 
         return frac
 
-    def setup_optimization_problem(
+    def _setup_optimization_problem(
             self,
             frac,
             purity_required,
             ranking=1,
             obj_fun=None,
             n_objectives=1):
-        """Set up OptimizationProblem for optimizing the fractionation times.
+        """Set up the OptimizationProblem for optimizing the fractionation times.
 
         Parameters
         ----------
         frac : Fractionator
-            DESCRIPTION.
-        purity_required : {list, float}
-            Minimum purity required.
-            If float, same value will be used for all components.
+            The Fractionator object.
+        purity_required : list
+            Minimum purity required for the components in the fractionation.
         ranking : {float, list, None}
             Weighting factors for individual components.
-            If float, same value is usued for all components.
-            If None, no rankining is used and the problem is solved as multi-objective.
+            If float, the same value is used for all components.
+            If None, no ranking is used and the problem is solved as multi-objective.
         obj_fun : callable, optional
             Alternative objective function.
-            If no function is provided, the fractiton mass is maximized.
+            If no function is provided, the fraction mass is maximized.
             The default is None.
         n_objectives : int
             Number of objectives. The default is 1.
@@ -146,13 +169,14 @@ class FractionationOptimizer():
         Raises
         ------
         CADETProcessError
-            DESCRIPTION.
+            If the optimization problem setup fails.
 
         Returns
         -------
-        opt : TYPE
-            DESCRIPTION.
-
+        OptimizationProblem
+            The configured OptimizationProblem object.
+        list
+            The initial values for the optimization variables.
         """
         opt = OptimizationProblem(
             'FractionationOptimization',
@@ -174,7 +198,7 @@ class FractionationOptimizer():
 
         purity = Purity()
         purity.n_metrics = frac.component_system.n_comp
-        constraint_bounds = -np.array(purity_required)
+        constraint_bounds = -np.array(purity_required, ndmin=1)
         constraint_bounds = constraint_bounds.tolist()
         opt.add_nonlinear_constraint(
             purity, n_nonlinear_constraints=len(constraint_bounds),
@@ -216,7 +240,7 @@ class FractionationOptimizer():
             allow_empty_fractions=True,
             ignore_failed=False,
             return_optimization_results=False):
-        """Optimize the fractionation times w.r.t. purity constraints.
+        """Optimize the fractionation times with respect to purity constraints.
 
         Parameters
         ----------
@@ -245,8 +269,9 @@ class FractionationOptimizer():
 
         Returns
         -------
-        frac : Fractionation
-            Fractionation object with optimized cut times.
+        Fractionator or OptimizationResults
+            The Fractionator object with optimized cut times
+            or the OptimizationResults object.
 
         Raises
         ------
@@ -259,8 +284,8 @@ class FractionationOptimizer():
 
         See Also
         --------
-        setup_fractionator
-        setup_optimization_problem
+        _setup_fractionator
+        _setup_optimization_problem
         Fractionator
         CADETProcess.solution.SolutionIO
         CADETProcess.optimization.OptimizationProblem
@@ -275,7 +300,11 @@ class FractionationOptimizer():
                 'Simulation results do not contain chromatogram.'
             )
 
-        frac = self.setup_fractionator(
+        if isinstance(purity_required, float):
+            n_comp = simulation_results.component_system.n_comp
+            purity_required = n_comp * [purity_required]
+
+        frac = self._setup_fractionator(
             simulation_results,
             purity_required,
             components=components,
@@ -284,7 +313,7 @@ class FractionationOptimizer():
         )
 
         try:
-            opt, x0 = self.setup_optimization_problem(
+            opt, x0 = self._setup_optimization_problem(
                 frac, purity_required, ranking, obj_fun, n_objectives
             )
             results = self.optimizer.optimize(
