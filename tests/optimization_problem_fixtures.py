@@ -6,14 +6,14 @@ TODO:
 """
 
 import numpy as np
-from CADETProcess.optimization import OptimizationProblem
+from CADETProcess.optimization import OptimizationProblem, OptimizationResults
 from CADETProcess.transform import NormLinearTransform, NormLogTransform
 
 __all__ = [
     'Rosenbrock',
-    'LinearConstrainedSooTestProblem',
-    'LinearConstrainedMooTestProblem',
-    'NonlinearConstrainedMooTestProblem',
+    'LinearConstraintsSooTestProblem',
+    'LinearConstraintsMooTestProblem',
+    'NonlinearConstraintsMooTestProblem',
 ]
 
 
@@ -81,16 +81,19 @@ class Rosenbrock(TestProblem):
         return np.repeat(0.5, self.n_variables)
 
 
-class LinearConstrainedSooTestProblem(TestProblem):
-    def __init__(self, *args, **kwargs):
-        super().__init__('linear_constrained_single_objective', *args, **kwargs)
-
-        self.add_variable('var_0', lb=-2, ub=2)
-        self.add_variable('var_1', lb=-2, ub=2)
-
-        self.add_linear_constraint(['var_0', 'var_1'], [-1, -0.5], 0)
-
+class LinearConstraintsSooTestProblem(TestProblem):
+    def __init__(self, transform=None, *args, **kwargs):
+        super().__init__('linear_constraints_single_objective', *args, **kwargs)
+        self.setup_variables(transform=transform)
+        self.setup_linear_constraints()
         self.add_objective(self._objective_function)
+
+    def setup_variables(self, transform):
+        self.add_variable('var_0', lb=-2, ub=2, transform=transform)
+        self.add_variable('var_1', lb=-2, ub=2, transform=transform)
+
+    def setup_linear_constraints(self):
+        self.add_linear_constraint(['var_0', 'var_1'], [-1, -0.5], 0)
 
     def _objective_function(self, x):
         return x[0] - x[1]
@@ -101,34 +104,100 @@ class LinearConstrainedSooTestProblem(TestProblem):
 
         return x, f
 
-    def test_if_solved(self, optimizer, decimal=7):
-        f_true, x_true = self.solution()
-        x = optimizer.results.x
-        f = optimizer.results.f
+    def test_if_solved(self, optimization_results: OptimizationResults, decimal=7):
+        x_true, f_true = self.optimal_solution()
+        x = optimization_results.x_untransformed
+        f = optimization_results.f
 
         np.testing.assert_almost_equal(f-f_true, 0, decimal=decimal)
         np.testing.assert_almost_equal(x-x_true, 0, decimal=decimal)
 
 
-class TransformedLinearConstrainedSooTestProblem(LinearConstrainedSooTestProblem):
-    def __init__(self, *args, **kwargs):
-        super().__init__("transformed_linear_constrained_single_objective", *args, **kwargs)
-        self.name = "transformed_linear_constrained_single_objective"
-        self.remove_linear_constraint(0)
-        self.remove_variable("var_1")
-        self.remove_variable("var_0")
+class LinearConstraintsSooTestProblem2(TestProblem):
+    def __init__(
+            self,
+            transform=None,
+            *args, **kwargs
+        ):
+        super().__init__(
+            "linear_constraints_single_objective_2",
+            *args, **kwargs
+        )
 
-        self.add_variable('var_0', lb=-2, ub=2, transform="linear")
-        self.add_variable('var_1', lb=-2, ub=2, transform="linear")
-        self.add_linear_constraint(['var_0', 'var_1'], [-1, -0.5], 0)
+        self.setup_variables(transform=transform)
+        self.setup_linear_constraints()
+        self.add_objective(self._objective_function)
+
+    def setup_variables(self: OptimizationProblem, transform=None):
+        self.add_variable('var_0', lb=-5, ub=5, transform=transform)
+        self.add_variable('var_1', lb=-5, ub=5, transform=transform)
+        self.add_variable('var_2', lb=-5, ub=5, transform=transform)
+
+    def setup_linear_constraints(self):
+        # cuts off upper right corner of var 0 and var 1
+        self.add_linear_constraint(['var_0', 'var_1'], [1, 2], 8)
+        # halfs the cube along the diagonal plane and allows only values above
+        self.add_linear_constraint(['var_0', 'var_1', 'var_2'], [-1, -1, -0.5], 0)
+        # ???
+        self.add_linear_constraint(['var_1', 'var_2'], [0.5, -2], 4)
+
+    def _objective_function(self, x):
+        return 2 * x[0] - x[1] + 0.5 * x[2]
 
 
+class LinearEqualityConstraintsSooTestProblem(TestProblem):
+    def __init__(
+            self,
+            transform=None,
+            *args, **kwargs
+        ):
+        super().__init__(
+            "linear_equality_constraints_single_objective",
+            *args, **kwargs
+        )
 
-class LinearConstrainedMooTestProblem(TestProblem):
+        self.setup_variables(transform=transform)
+        self.setup_linear_constraints()
+        self.add_objective(self._objective_function)
+
+    def setup_variables(self: OptimizationProblem, transform=None):
+        self.add_variable('var_0', lb=-5, ub=5, transform=transform)
+        self.add_variable('var_1', lb=-5, ub=5, transform=transform)
+        self.add_variable('var_2', lb=-5, ub=5, transform=transform)
+
+    def setup_linear_constraints(self):
+        self.add_linear_equality_constraint(
+            ['var_0', 'var_1'], [1.0,  2.0], 8, eps=1e-3
+        )
+
+    @property
+    def x0(self):
+        return np.array([2.0, 3.0, 0.0])
+
+    def _objective_function(self, x):
+        return 2 * x[0] - x[1] + 0.5 * x[2]
+
+    @property
+    def optimal_solution(self):
+        x = np.array([-2, 5, -5])
+        f = self._objective_function(x)
+
+        return x, f
+
+    def test_if_solved(self, optimization_results: OptimizationResults, decimal=7):
+        x_true, f_true = self.optimal_solution
+        x = optimization_results.x_untransformed
+        f = optimization_results.f
+
+        np.testing.assert_almost_equal(f-f_true, 0, decimal=decimal)
+        np.testing.assert_almost_equal(x-x_true, 0, decimal=decimal)
+
+
+class LinearConstraintsMooTestProblem(TestProblem):
     """Function curtesy of Florian Schunck and Samuel Leweke."""
 
     def __init__(self, *args, **kwargs):
-        super().__init__('linear_constrained_multi_objective', *args, **kwargs)
+        super().__init__('linear_constraints_multi_objective', *args, **kwargs)
 
         self.add_variable('var_0', lb=1, ub=5)
         self.add_variable('var_1', lb=0, ub=3)
@@ -171,13 +240,13 @@ class LinearConstrainedMooTestProblem(TestProblem):
         np.testing.assert_almost_equal(x2, x2_test, decimal=decimal)
 
 
-class NonlinearConstrainedMooTestProblem(TestProblem):
+class NonlinearConstraintsMooTestProblem(TestProblem):
 
     def __init__(self, *args, **kwargs):
         from pymoo.problems.multi import SRN
         self._problem = SRN()
 
-        super().__init__('nonlinear_constrained_multi_objective', *args, **kwargs)
+        super().__init__('nonlinear_constraints_multi_objective', *args, **kwargs)
 
         self.add_variable('var_0', lb=-20, ub=20)
         self.add_variable('var_1', lb=-20, ub=20)
