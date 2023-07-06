@@ -1,30 +1,33 @@
+from pathlib import Path
 import numpy as np
 
 from sklearn.gaussian_process import (
     GaussianProcessRegressor, GaussianProcessClassifier)
 from sklearn.base import BaseEstimator
 
-from CADETProcess.optimization import (
-    Population, OptimizationProblem, OptimizationResults)
+from matplotlib import pyplot as plt
 
 class Surrogate:
     def __init__(
         self,
-        optimization_problem: OptimizationProblem,
-        population: Population
+        optimization_problem,
+        population
     ):
         self.optimization_problem = optimization_problem
         self.surrogate_model_F: BaseEstimator = None
         self.surrogate_model_G: BaseEstimator = None
         self.surrogate_model_M: BaseEstimator = None
         self.surrogate_model_CV: BaseEstimator = None
-        self.fit_gaussian_process(population)
+        # self.fit_gaussian_process(population)
 
         # save a backup of bounds
         self.lower_bounds_copy = optimization_problem.lower_bounds.copy()
         self.upper_bounds_copy = optimization_problem.upper_bounds.copy()
 
     def _reset_bounds_on_variables(self):
+        # see condition_objectives
+        raise NotImplementedError("This method is potentially unsafe.")
+
         for var, lb, ub in zip(
             self.optimization_problem.variables,
             self.lower_bounds_copy,
@@ -33,8 +36,8 @@ class Surrogate:
             var.lb = lb
             var.ub = ub
 
-    def fit_gaussian_process(self, population: Population):
-        X = population.x
+    def fit_gaussian_process(self, population):
+        X = population.x_untransformed
         F = population.f
         G = population.g
         M = population.m
@@ -62,24 +65,17 @@ class Surrogate:
 
 
     def estimate_objectives(self, X):
-        objectives = []
         F_est = self.surrogate_model_F.predict(X)
-        objectives.append(F_est)
+        return F_est
 
-        if self.surrogate_model_G is not None:
-            G_est = self.surrogate_model_G.predict(X)
-            objectives.append(G_est)
+    def estimate_non_linear_constraints(self, X):
+        G_est = self.surrogate_model_G.predict(X)
+        CV_est = self.surrogate_model_CV.predict(X)
+        return G_est, CV_est
 
-        if self.surrogate_model_M is not None:
-            M_est = self.surrogate_model_M.predict(X)
-            objectives.append(M_est)
-
-        if self.surrogate_model_CV is not None:
-            CV_est = self.surrogate_model_CV.predict(X)
-            objectives.append(CV_est)
-
-        return np.array(objectives).T
-
+    def estimate_meta_scores(self, X):
+        M_est = self.surrogate_model_M.predict(X)
+        return M_est
 
     def estimate_feasible_objectives_space(self, n_samples=1000):
         X = self.optimization_problem.create_initial_values(
@@ -100,6 +96,10 @@ class Surrogate:
 
         # TODO: should check if the condition is inside the constriants
         #       otherwise Hopsy throws an error
+        # This is somehwat dangerous maybe because it plays with the bounds
+        # of the optimization problem. Make sure this is safe before
+        # implementing
+        raise NotImplementedError("This method is potentially unsafe.")
 
         free_vars = {}
         for var in self.optimization_problem.variables:
@@ -112,8 +112,31 @@ class Surrogate:
             else:
                 free_vars.update({var.name: var_index})
 
-        X, F = self.estimate_objectives(n_samples=n_samples)
+        X, F = self.estimate_feasible_objectives_space(n_samples=n_samples)
 
         self._reset_bounds_on_variables()
 
         return X, F, free_vars
+
+    def plot_parameter_objective_space(self, show=True, plot_directory=None):
+        X, F = self.estimate_feasible_objectives_space()
+
+        variable_names = self.optimization_problem.variable_names
+        fig, axes = plt.subplots(3,3)
+        for i, (row, var_x) in enumerate(zip(axes, variable_names)):
+            for j, (ax, var_y) in enumerate(zip(row, variable_names)):
+                if i == j:
+                    ax.scatter(X[:, i], F, s=5, )
+                    ax.set_ylabel("f")
+                    ax.set_xlabel(var_x)
+                else:
+                    ax.scatter(X[:, i], X[:, j], s=5, c=F)
+                    ax.set_ylabel(var_y)
+                    ax.set_xlabel(var_x)
+
+        if plot_directory is not None:
+            plot_directory = Path(plot_directory)
+            fig.savefig(f'{plot_directory / "surrogate_spaces.png"}')
+
+        if not show:
+            plt.close(fig)
