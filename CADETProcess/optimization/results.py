@@ -18,8 +18,11 @@ from CADETProcess.dataStructure import (
 )
 
 from CADETProcess import CADETProcessError
-from CADETProcess.optimization import Individual, Population, ParetoFront
+from CADETProcess.optimization import (
+    Individual, Population, ParetoFront
+)
 
+from CADETProcess.optimization.surrogate import Surrogate
 
 class OptimizationResults(Structure):
     """Optimization results.
@@ -75,6 +78,10 @@ class OptimizationResults(Structure):
             self._meta_fronts = None
 
         self.results_directory = None
+        self._surrogate_model = Surrogate(
+            optimization_problem=optimization_problem,
+            population=self.population_all
+        )
 
     @property
     def results_directory(self):
@@ -209,6 +216,11 @@ class OptimizationResults(Structure):
         if self._similarity_tol is not None:
             meta_front.remove_similar()
         self._meta_fronts.append(meta_front)
+
+    def update_surrogate(self, population):
+        """Updates the surrogate model with all populations
+        """
+        self._surrogate_model.fit_gaussian_process(self.population_all)
 
     @property
     def n_evals(self):
@@ -390,7 +402,9 @@ class OptimizationResults(Structure):
                     show=show, plot_directory=self.plot_directory
                 )
 
-            self.plot_partial_dependence()
+            self.plot_partial_dependence(
+                show=show, plot_directory=self.plot_directory
+            )
 
     def plot_objectives(
             self,
@@ -559,10 +573,12 @@ class OptimizationResults(Structure):
 
 
 
-    def plot_partial_dependence(
-        self,
-    ):
-        pass
+    def plot_partial_dependence(self, *args, **kwargs):
+        self._surrogate_model.plot_parameter_objective_space(
+            *args, **kwargs
+        )
+
+        print("debug")
 
     def setup_convergence_figure(self, target, plot_individual=False):
         if target == 'objectives':
