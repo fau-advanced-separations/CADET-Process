@@ -220,7 +220,7 @@ class OptimizationResults(Structure):
     def update_surrogate(self, population):
         """Updates the surrogate model with all populations
         """
-        self._surrogate_model.fit_gaussian_process(self.population_all)
+        self._surrogate_model.fit_gaussian_process(population)
 
     @property
     def n_evals(self):

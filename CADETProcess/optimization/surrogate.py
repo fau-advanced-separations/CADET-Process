@@ -1,4 +1,5 @@
 from pathlib import Path
+from copy import deepcopy
 import numpy as np
 
 from sklearn.gaussian_process import (
@@ -11,22 +12,27 @@ class Surrogate:
     def __init__(
         self,
         optimization_problem,
-        population
+        population=None,
+        n_samples=10000,
+        # TODO: consider which attributes of optimization problem are necessary
     ):
-        self.optimization_problem = optimization_problem
+        self.optimization_problem = deepcopy(optimization_problem)
         self.surrogate_model_F: BaseEstimator = None
         self.surrogate_model_G: BaseEstimator = None
         self.surrogate_model_M: BaseEstimator = None
         self.surrogate_model_CV: BaseEstimator = None
-        # self.fit_gaussian_process(population)
+        if population is not None:
+            self.fit_gaussian_process(population)
 
+        self.n_samples = n_samples
+
+        # if opt
         # save a backup of bounds
         self.lower_bounds_copy = optimization_problem.lower_bounds.copy()
         self.upper_bounds_copy = optimization_problem.upper_bounds.copy()
 
     def _reset_bounds_on_variables(self):
         # see condition_objectives
-        raise NotImplementedError("This method is potentially unsafe.")
 
         for var, lb, ub in zip(
             self.optimization_problem.variables,
@@ -37,6 +43,8 @@ class Surrogate:
             var.ub = ub
 
     def fit_gaussian_process(self, population):
+        """TODO: rename to `update`?"""
+        self._population = population
         X = population.x_untransformed
         F = population.f
         G = population.g
@@ -77,20 +85,9 @@ class Surrogate:
         M_est = self.surrogate_model_M.predict(X)
         return M_est
 
-    def estimate_feasible_objectives_space(self, n_samples=1000):
-        X = self.optimization_problem.create_initial_values(
-            n_samples=n_samples,
-            method="random",
-        )
-        F = self.estimate_objectives(X)
-
-        return X, F
-
-
     def condition_objectives(
             self,
             conditional_vars: dict = {},
-            n_samples=1000,
             eps=1e-5
         ):
 
@@ -99,7 +96,8 @@ class Surrogate:
         # This is somehwat dangerous maybe because it plays with the bounds
         # of the optimization problem. Make sure this is safe before
         # implementing
-        raise NotImplementedError("This method is potentially unsafe.")
+        # TODO: Pragmatically: Deppcopy
+        # raise NotImplementedError("This method is potentially unsafe.")
 
         free_vars = {}
         for var in self.optimization_problem.variables:
@@ -112,14 +110,29 @@ class Surrogate:
             else:
                 free_vars.update({var.name: var_index})
 
-        X, F = self.estimate_feasible_objectives_space(n_samples=n_samples)
+        X = self.optimization_problem.create_initial_values(
+            n_samples=self.n_samples,
+        )
+        F = self.estimate_objectives(X)
 
         self._reset_bounds_on_variables()
 
         return X, F, free_vars
 
     def plot_parameter_objective_space(self, show=True, plot_directory=None):
-        X, F = self.estimate_feasible_objectives_space()
+        """
+        TODO: for different optimiztation tasks (multi-objective, non-linear
+        constraints. Create wrappers around the problem)
+        TODO: als mean value + standard deviation mit tatsächlich ausgewrteten
+        punkten (maybe integrieren in bestehende plots)
+        TODO: contours? Lösen über fill between mit verschiedenen quantilen
+        TODO: wie ist die marginalisierung in partial dependence plots gelöst
+        """
+
+        X = self.optimization_problem.create_initial_values(
+            n_samples=self.n_samples,
+        )
+        F = self.estimate_objectives(X)
 
         variable_names = self.optimization_problem.variable_names
         fig, axes = plt.subplots(3,3)
@@ -133,6 +146,8 @@ class Surrogate:
                     ax.scatter(X[:, i], X[:, j], s=5, c=F)
                     ax.set_ylabel(var_y)
                     ax.set_xlabel(var_x)
+
+        fig.tight_layout()
 
         if plot_directory is not None:
             plot_directory = Path(plot_directory)
