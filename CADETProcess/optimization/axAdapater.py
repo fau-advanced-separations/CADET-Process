@@ -150,7 +150,7 @@ class AxInterface(OptimizerBase):
 
     supports_multi_objective = False
     supports_linear_constraints = True
-    supports_linear_equality_constraints = True
+    supports_linear_equality_constraints = False
     supports_nonlinear_constraints = True
 
     n_init_evals = UnsignedInteger(default=50)
