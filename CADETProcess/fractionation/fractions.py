@@ -13,17 +13,10 @@ class Fraction(metaclass=StructMeta):
     A fraction is defined by its mass and volume, and can be used to calculate
     properties such as cumulative mass, purity, and concentration.
 
-    Parameters
-    ----------
-    mass : numpy.ndarray
-        The mass of each component in the fraction.
-    volume : float
-        The volume of the fraction.
-
     Attributes
     ----------
     mass : np.ndarray
-        The mass of each component in the fraction.
+        The mass of each component in the fraction. The array is 1-dimensional.
     volume : float
         The volume of the fraction.
     """
@@ -32,6 +25,16 @@ class Fraction(metaclass=StructMeta):
     volume = UnsignedFloat()
 
     def __init__(self, mass, volume):
+        """Initialize a Fraction instance.
+
+        Parameters
+        ----------
+        mass : numpy.ndarray
+            The mass of each component in the fraction.
+            The array should be 1-dimensional.
+        volume : float
+            The volume of the fraction.
+        """
         self.mass = mass
         self.volume = volume
 
@@ -94,19 +97,49 @@ class Fraction(metaclass=StructMeta):
 class FractionPool(metaclass=StructMeta):
     """Collection of pooled fractions.
 
+    This class manages multiple fractions of a mixture, facilitating the
+    calculation of cumulative properties of the pool, such as total volume,
+    total mass, average purity, and average concentration.
+
+    Attributes
+    ----------
+    n_comp : int
+        The number of components each fraction in the pool should have.
+
     See Also
     --------
     CADETProcess.fractionation.Fraction
     CADETProcess.fractionation.Fractionator
-
     """
+
     n_comp = UnsignedInteger()
 
     def __init__(self, n_comp):
+        """Initialize a FractionPool instance.
+
+        Parameters
+        ----------
+        n_comp : int
+            The number of components each fraction in the pool should have.
+        """
         self._fractions = []
         self.n_comp = n_comp
 
     def add_fraction(self, fraction):
+        """Add a fraction to the fraction pool.
+
+        Parameters
+        ----------
+        fraction : Fraction
+            The fraction to be added to the pool.
+
+        Raises
+        ------
+        CADETProcessError
+            If the fraction is not an instance of the Fraction class, or if
+            the number of components in the fraction does not match the number
+            of components in the pool.
+        """
         if not isinstance(fraction, Fraction):
             raise CADETProcessError('Expected Fraction')
 
