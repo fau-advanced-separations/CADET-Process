@@ -95,6 +95,8 @@ class Fractionator(EventHandler):
             for chrom in self.chromatograms
         })
 
+        self._cycle_time = self.process.cycle_time
+
         self.reset()
 
     @property
@@ -162,14 +164,20 @@ class Fractionator(EventHandler):
 
     @property
     def cycle_time(self):
-        """float: cycle time"""
-        if self._cycle_time is None:
-            return self.process.cycle_time
-        return self._cycle_time
+        """float: The cycle time of the Fractionator.
 
-    @cycle_time.setter
-    def cycle_time(self, cycle_time):
-        self._cycle_time = cycle_time
+        Note that in some situations, it might be desired to set a custom cycle time
+        for calculating the performance indicators. For this purpose, overwrite the
+        cycle time in the Process object after adding it to the Fractionator.
+
+        Warning: This is not a robust feature! Side effects can ocurr in the Process!
+
+        See Also
+        --------
+        productivity
+
+        """
+        return self._cycle_time
 
     @property
     def time(self):
@@ -438,7 +446,7 @@ class Fractionator(EventHandler):
     def productivity(self):
         """ndarray: Specific productivity in corresponding fraction pool."""
         return self.mass / (
-            self.cycle_time * self.process.V_solid
+            self.process.cycle_time * self.process.V_solid
         )
 
     @property
