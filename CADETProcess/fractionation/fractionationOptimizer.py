@@ -122,9 +122,7 @@ class FractionationOptimizer():
             use_total_concentration_components=use_total_concentration_components,
         )
 
-        frac.process.lock = False
         frac.initial_values(purity_required)
-        frac.process.lock = True
 
         if not allow_empty_fractions:
             empty_fractions = []
@@ -304,6 +302,10 @@ class FractionationOptimizer():
             n_comp = simulation_results.component_system.n_comp
             purity_required = n_comp * [purity_required]
 
+        # Store previous lock state, unlock to ensure consistent values
+        lock_state = simulation_results.process.lock
+        simulation_results.process.lock = False
+
         frac = self._setup_fractionator(
             simulation_results,
             purity_required,
@@ -311,6 +313,9 @@ class FractionationOptimizer():
             use_total_concentration_components=use_total_concentration_components,
             allow_empty_fractions=allow_empty_fractions
         )
+
+        # Lock to enable caching
+        simulation_results.process.lock = True
 
         try:
             opt, x0 = self._setup_optimization_problem(
@@ -330,6 +335,10 @@ class FractionationOptimizer():
                 raise CADETProcessError(str(e))
 
         frac = opt.set_variables(results.x[0])[0]
+        frac.reset()
+
+        # Restore previous lock state
+        simulation_results.process.lock = lock_state
 
         if return_optimization_results:
             return results
