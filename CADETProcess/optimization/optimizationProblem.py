@@ -1858,7 +1858,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def lower_bounds(self):
-        """list : Lower bounds of all OptimizationVariables.
+        """list: Lower bounds of all OptimizationVariables.
 
         See Also
         --------
@@ -1869,7 +1869,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def lower_bounds_transformed(self):
-        """list : Transformed lower bounds of all OptimizationVariables.
+        """list: Transformed lower bounds of all OptimizationVariables.
 
         See Also
         --------
@@ -1880,7 +1880,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def lower_bounds_independent(self):
-        """list : Lower bounds of independent OptimizationVariables.
+        """list: Lower bounds of independent OptimizationVariables.
 
         See Also
         --------
@@ -1891,7 +1891,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def lower_bounds_independent_transformed(self):
-        """list : Transformed lower bounds of independent OptimizationVariables.
+        """list: Transformed lower bounds of independent OptimizationVariables.
 
         See Also
         --------
@@ -1902,7 +1902,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def upper_bounds(self):
-        """list : Upper bounds of all OptimizationVariables.
+        """list: Upper bounds of all OptimizationVariables.
 
         See Also
         --------
@@ -1913,7 +1913,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def upper_bounds_transformed(self):
-        """list : Transformed upper bounds of all OptimizationVariables.
+        """list: Transformed upper bounds of all OptimizationVariables.
 
         See Also
         --------
@@ -1924,7 +1924,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def upper_bounds_independent(self):
-        """list : Upper bounds of independent OptimizationVariables.
+        """list: Upper bounds of independent OptimizationVariables.
 
         See Also
         --------
@@ -1935,7 +1935,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def upper_bounds_independent_transformed(self):
-        """list : Transformed upper bounds of independent OptimizationVariables.
+        """list: Transformed upper bounds of independent OptimizationVariables.
 
         See Also
         --------
@@ -1973,7 +1973,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def linear_constraints(self):
-        """list : Linear inequality constraints of OptimizationProblem
+        """list: Linear inequality constraints of OptimizationProblem.
 
         See Also
         --------
@@ -2145,7 +2145,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def linear_equality_constraints(self):
-        """list: Linear equality constraints of OptimizationProblem
+        """list: Linear equality constraints of OptimizationProblem.
 
         See Also
         --------
@@ -2158,7 +2158,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def n_linear_equality_constraints(self):
-        """int: Number of linear equality constraints"""
+        """int: Number of linear equality constraints."""
         return len(self.linear_equality_constraints)
 
     def add_linear_equality_constraint(self, opt_vars, lhs=1, beq=0):
@@ -2312,6 +2312,18 @@ class OptimizationProblem(metaclass=StructMeta):
         return flag
 
     def transform(self, x):
+        """Transform the optimization variables from untransformed parameter space.
+
+        Parameters
+        ----------
+        x : list
+            Optimization variables in untransformed parameter space.
+
+        Returns
+        -------
+        list
+            Optimization variables in transformed parameter space.
+        """
         x_2d = np.array(x, ndmin=2)
         transform = np.zeros(x_2d.shape)
 
@@ -2323,17 +2335,29 @@ class OptimizationProblem(metaclass=StructMeta):
 
         return transform.reshape(x.shape)
 
-    def untransform(self, x):
-        x_2d = np.array(x, ndmin=2)
-        untransform = np.zeros(x_2d.shape)
+    def untransform(self, x_transformed):
+        """Untransform the optimization variables from transformed parameter space.
 
-        for i, ind in enumerate(x_2d):
+        Parameters
+        ----------
+        x_transformed : list
+            Optimization variables in transformed parameter space.
+
+        Returns
+        -------
+        list
+            Optimization variables in untransformed parameter space.
+        """
+        x_transformed_2d = np.array(x_transformed, ndmin=2)
+        untransform = np.zeros(x_transformed_2d.shape)
+
+        for i, ind in enumerate(x_transformed_2d):
             untransform[i, :] = [
                 var.untransform_fun(value)
                 for value, var in zip(ind, self.independent_variables)
             ]
 
-        return untransform.reshape(x.shape)
+        return untransform.reshape(x_transformed.shape)
 
     @property
     def cached_steps(self):
