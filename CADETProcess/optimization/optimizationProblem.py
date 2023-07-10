@@ -2324,16 +2324,17 @@ class OptimizationProblem(metaclass=StructMeta):
         list
             Optimization variables in transformed parameter space.
         """
+        x = np.array(x)
         x_2d = np.array(x, ndmin=2)
         transform = np.zeros(x_2d.shape)
 
-        for i, ind in enumerate(x):
+        for i, ind in enumerate(x_2d):
             transform[i, :] = [
                 var.transform_fun(value)
                 for value, var in zip(ind, self.independent_variables)
             ]
 
-        return transform.reshape(x.shape)
+        return transform.reshape(x.shape).tolist()
 
     def untransform(self, x_transformed):
         """Untransform the optimization variables from transformed parameter space.
@@ -2348,6 +2349,7 @@ class OptimizationProblem(metaclass=StructMeta):
         list
             Optimization variables in untransformed parameter space.
         """
+        x_transformed = np.array(x_transformed)
         x_transformed_2d = np.array(x_transformed, ndmin=2)
         untransform = np.zeros(x_transformed_2d.shape)
 
@@ -2357,7 +2359,7 @@ class OptimizationProblem(metaclass=StructMeta):
                 for value, var in zip(ind, self.independent_variables)
             ]
 
-        return untransform.reshape(x_transformed.shape)
+        return untransform.reshape(x_transformed.shape).tolist()
 
     @property
     def cached_steps(self):
