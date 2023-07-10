@@ -196,8 +196,7 @@ class OptimizerBase(Structure):
 
                 self.results.update_from_dict(data)
             else:
-                self.results.setup_csv('results_meta')
-                self.results.setup_csv('results_all')
+                self.results.setup_csv()
 
         # Setup Callbacks
         if save_results and optimization_problem.n_callbacks > 0:
