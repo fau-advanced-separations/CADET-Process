@@ -253,12 +253,15 @@ class RepairIndividuals(Repair):
         self.optimization_problem = optimization_problem
         super().__init__(*args, **kwargs)
 
-    def _do(self, problem, Z, **kwargs):
+    def _do(self, problem, X, **kwargs):
         # Check if linear constraints are met
-        for i, ind in enumerate(Z):
+        for i, ind in enumerate(X):
+            X_new = None
             if not self.optimization_problem.check_linear_constraints(
                     ind, untransform=True, get_dependent_values=True):
-                x_new = self.optimization_problem.create_initial_values(method='random')
-                Z[i, :] = self.optimization_problem.transform(x_new)
+                if X_new is None:
+                    X_new = self.optimization_problem.create_initial_values(len(X))
+                x_new = X_new[i, :]
+                X[i, :] = self.optimization_problem.transform(x_new)
 
-        return Z
+        return X

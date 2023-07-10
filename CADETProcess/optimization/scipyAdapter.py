@@ -533,7 +533,7 @@ class SLSQP(SciPyInterface):
     maxiter = UnsignedInteger(default=1000)
     iprint = UnsignedInteger(ub=2, default=1)
 
-    f_tol = ftol           # Alias for uniform interface
+    f_tol = ftol            # Alias for uniform interface
     n_max_evals = maxiter   # Alias for uniform interface
     n_max_iter = maxiter    # Alias for uniform interface
 
