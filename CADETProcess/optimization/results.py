@@ -740,8 +740,11 @@ class OptimizationResults(metaclass=StructMeta):
 
     def save_results(self):
         if self.results_directory is not None:
-            self.update_csv(self.population_last, 'results_all', mode='a')
-            self.update_csv(self.meta_front, 'results_meta', mode='w')
+            self._update_csv(self.population_last, 'results_all', mode='a')
+            self._update_csv(self.population_last, 'results_last', mode='w')
+            self._update_csv(self.pareto_front, 'results_pareto', mode='w')
+            if self.optimization_problem.n_meta_scores > 0:
+                self._update_csv(self.meta_front, 'results_meta', mode='w')
 
             results = H5()
             results.root = Dict(self.to_dict())
@@ -793,7 +796,15 @@ class OptimizationResults(metaclass=StructMeta):
                 ParetoFront.from_dict(d) for d in data['meta_fronts'].values()
             ]
 
-    def setup_csv(self, file_name):
+    def setup_csv(self):
+        """Create csv files for optimization results."""
+        self._setup_csv('results_all')
+        self._setup_csv('results_last')
+        self._setup_csv('results_pareto')
+        if self.optimization_problem.n_meta_scores > 0:
+            self._setup_csv('results_meta')
+
+    def _setup_csv(self, file_name):
         """Create csv file for optimization results.
 
         Parameters
@@ -819,7 +830,7 @@ class OptimizationResults(metaclass=StructMeta):
             writer = csv.writer(csvfile, delimiter=",")
             writer.writerow(header)
 
-    def update_csv(self, population, file_name, mode='a'):
+    def _update_csv(self, population, file_name, mode='a'):
         """Update csv file with latest population.
 
         Parameters
@@ -837,7 +848,7 @@ class OptimizationResults(metaclass=StructMeta):
         setup_csv
         """
         if mode == 'w':
-            self.setup_csv(file_name)
+            self._setup_csv(file_name)
             mode = 'a'
 
         with open(
