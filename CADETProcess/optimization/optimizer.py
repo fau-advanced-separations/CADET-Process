@@ -6,6 +6,7 @@ import time
 import warnings
 
 from cadet import H5
+import numpy as np
 import matplotlib.pyplot as plt
 
 from CADETProcess import settings
@@ -44,6 +45,8 @@ class OptimizerBase(Structure):
         True, if the optimizer supports linear equality constraints.
     supports_nonlinear_constraints : bool
         True, if the optimizer supports nonlinear constraints.
+    supports_bounds : bool
+        True, if the optimizer supports bound constraints
     ignore_linear_constraints_config: bool
         True, if the optimizer can handle transforms and dependent variables in linear
         constraints.
@@ -71,6 +74,7 @@ class OptimizerBase(Structure):
     supports_linear_constraints = False
     supports_linear_equality_constraints = False
     supports_nonlinear_constraints = False
+    supports_bounds = False
 
     ignore_linear_constraints_config = False
 
@@ -295,6 +299,7 @@ class OptimizerBase(Structure):
 
         """
         flag = True
+
         if not optimization_problem.check_config(
                 ignore_linear_constraints=self.ignore_linear_constraints_config):
             # Warnings are raised internally
