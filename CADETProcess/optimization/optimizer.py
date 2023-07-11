@@ -219,6 +219,22 @@ class OptimizerBase(Structure):
         if reinit_cache:
             self.optimization_problem.setup_cache()
 
+        if x0 is None:
+            if optimization_problem.n_linear_equality_constraints > 0:
+                raise CADETProcessError(
+                    "x0 should be set by the user if linear equality "
+                    "constraints are specified."
+                )
+        else:
+            x0check = np.array(x0, ndmin=2)
+            for x in x0check:
+                if not optimization_problem.check_bounds(x):
+                    raise CADETProcessError(f"x0 = {x} does not satisfy bounds.")
+                if not optimization_problem.check_linear_constraints(x):
+                    raise CADETProcessError(f"x0 = {x} does not satisfy linear constraints.")
+                if not optimization_problem.check_linear_equality_constraints(x):
+                    raise CADETProcessError(f"x0 = {x} does not satisfy linear equality constraints.")
+
         log.log_time('Optimization', self.logger.level)(self.run)
         log.log_results('Optimization', self.logger.level)(self.run)
         log.log_exceptions('Optimization', self.logger.level)(self.run)
