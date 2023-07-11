@@ -44,6 +44,11 @@ class OptimizerBase(Structure):
         True, if the optimizer supports linear equality constraints.
     supports_nonlinear_constraints : bool
         True, if the optimizer supports nonlinear constraints.
+    supports_bounds : bool
+        True, if the optimizer supports bound constraints
+    ignore_linear_constraints_config: bool
+        True, if the optimizer can handle transforms and dependent variables in linear
+        constraints.
     progress_frequency : int
         Number of generations after which the optimizer reports progress.
         The default is 1.
@@ -68,6 +73,7 @@ class OptimizerBase(Structure):
     supports_linear_constraints = False
     supports_linear_equality_constraints = False
     supports_nonlinear_constraints = False
+    supports_bounds = False
 
     progress_frequency = RangedInteger(lb=1, default=1)
     n_cores = UnsignedInteger(default=1)
