@@ -26,6 +26,7 @@ class PymooInterface(OptimizerBase):
     supports_linear_constraints = True
     supports_linear_equality_constraints = True
     supports_nonlinear_constraints = True
+    supports_bounds = True
 
     ignore_linear_constraints_config = True
 

@@ -301,6 +301,7 @@ class TrustConstr(SciPyInterface):
         - Linear constraints.
         - Linear equality constraints.
         - Nonlinear constraints.
+        - Bounds.
 
     Parameters
     ----------
@@ -377,6 +378,7 @@ class TrustConstr(SciPyInterface):
     supports_linear_constraints = True
     supports_linear_equality_constraints = True
     supports_nonlinear_constraints = True
+    supports_bounds = True
 
     gtol = UnsignedFloat(default=1e-8)
     xtol = UnsignedFloat(default=1e-8)
@@ -436,6 +438,7 @@ class COBYLA(SciPyInterface):
     supports_linear_constraints = True
     supports_linear_equality_constraints = True
     supports_nonlinear_constraints = True
+    supports_bounds = True
 
     rhobeg = UnsignedFloat(default=1)
     tol = UnsignedFloat(default=0.0002)
@@ -527,6 +530,7 @@ class SLSQP(SciPyInterface):
     supports_linear_constraints = True
     supports_linear_equality_constraints = True
     supports_nonlinear_constraints = True
+    supports_bounds = True
 
     ftol = UnsignedFloat(default=1e-2)
     eps = UnsignedFloat(default=1e-6)
