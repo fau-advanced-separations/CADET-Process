@@ -236,11 +236,12 @@ class SciPyInterface(OptimizerBase):
         if optimization_problem.n_linear_equality_constraints == 0:
             return None
 
-        lb = optimization_problem.beq
-        ub = optimization_problem.beq
+        lb = optimization_problem.beq_transformed - optimization_problem.eps_eq
+        ub = optimization_problem.beq_transformed + optimization_problem.eps_eq
 
         return optimize.LinearConstraint(
-            optimization_problem.Aeq, lb, ub, keep_feasible=True
+            optimization_problem.Aeq_independent_transformed, lb, ub,
+            keep_feasible=True
         )
 
     def get_nonlincon_obj(self, optimization_problem):

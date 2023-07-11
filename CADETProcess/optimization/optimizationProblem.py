@@ -2274,7 +2274,7 @@ class OptimizationProblem(metaclass=StructMeta):
         """int: Number of linear equality constraints."""
         return len(self.linear_equality_constraints)
 
-    def add_linear_equality_constraint(self, opt_vars, lhs=1, beq=0):
+    def add_linear_equality_constraint(self, opt_vars, lhs=1, beq=0, eps=0.0):
         """Add linear equality constraints.
 
         Parameters
@@ -2318,6 +2318,7 @@ class OptimizationProblem(metaclass=StructMeta):
         lineqcon['opt_vars'] = opt_vars
         lineqcon['lhs'] = lhs
         lineqcon['beq'] = beq
+        lineqcon['eps_eq'] = float(eps)
 
         self._linear_equality_constraints.append(lineqcon)
 
@@ -2339,7 +2340,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @property
     def Aeq(self):
-        """np.ndarray: Matrix form of linear equality constraints.
+        """np.ndarray: LHS Matrix form of linear equality constraints.
 
         See Also
         --------
@@ -2360,6 +2361,50 @@ class OptimizationProblem(metaclass=StructMeta):
         return Aeq
 
     @property
+    def Aeq_transformed(self):
+        """np.ndarray: LHS Matrix of linear equality constraints in transformed space.
+
+        See Also
+        --------
+        Aeq
+        Aeq_independent_transformed
+        Aeq_independent
+        """
+        Aeq_t = self.Aeq.copy()
+        for aeq in Aeq_t:
+            for j, v in enumerate(self.variables):
+                t = v.transform
+                if isinstance(t, NoTransform):
+                    continue
+
+                if not t.is_linear:
+                    raise CADETProcessError(
+                        "Non-linear transform was used in linear constraints."
+                    )
+
+                scale = (t.ub_input - t.lb_input) / (t.ub - t.lb)
+                # this is fine, because it will squish more when the bounds are
+                # larger prior to transformation
+                # FUTURE: move to transforms module
+                # *= (range old bounds) / (range new bounds)
+                aeq[j] *= scale
+
+        return Aeq_t
+
+    @property
+    def Aeq_independent_transformed(self):
+        """np.ndarray: LHS of lin ineqs for indep variables in transformed space.
+
+        See Also
+        --------
+        Aeq
+        Aeq_transformed
+        Aeq_independent
+
+        """
+        return self.Aeq_transformed[:, self.independent_variable_indices]
+
+    @property
     def beq(self):
         """list: Vector form of linear equality constraints.
 
@@ -2374,6 +2419,62 @@ class OptimizationProblem(metaclass=StructMeta):
         beq = [lineqcon['beq'] for lineqcon in self.linear_equality_constraints]
 
         return beq
+
+    @property
+    def beq_transformed(self):
+        """list: Vector form of linear constraints in transformed space.
+
+        Transforms b to multiple variables. When the bounds of an optimization
+        problem get shifted, the upper bound for a constrained variable gets
+        shifted too. This shift follows the slope of the constraint.
+        In addition the new upper bound needs to be scaled by the ratio between
+        new bounds to old bounds.
+
+        See Also
+        --------
+        b
+
+        """
+        # TODO: weird error when b_t is not float that b is not incremented
+        beq_t = self.beq.copy()
+        Aeq_t = self.Aeq.copy()
+        for i, aeq in enumerate(Aeq_t):
+            for j, v in enumerate(self.variables):
+                t = v.transform
+                if isinstance(t, NoTransform):
+                    continue
+
+                if not t.is_linear:
+                    raise CADETProcessError(
+                        "Non-linear transform was used in linear constraints."
+                    )
+                # I realize: This sounds an awful lot like transforms that sklear offers
+                # center and scale
+
+                # FUTURE: move to transforms module
+                scale_old = (t.ub_input - t.lb_input)
+                scale_new = (t.ub - t.lb)
+                scale = scale_old / scale_new
+
+                mid_old = 0.5 * (t.ub_input + t.lb_input)
+                mid_new = 0.5 * (t.ub + t.lb)
+                v_shift = mid_new - mid_old
+
+                beq_t[i] += aeq[j] * v_shift * scale
+
+        return beq_t
+
+    @property
+    def eps_eq(self):
+        """np.array: Relaxation tolerance for linear equality constraints.
+
+        See Also
+        --------
+        add_linear_inequality_constraint
+        """
+        return np.array([
+            lineqcon['eps_eq'] for lineqcon in self.linear_equality_constraints
+        ])
 
     @untransforms
     @gets_dependent_values
@@ -2419,7 +2520,8 @@ class OptimizationProblem(metaclass=StructMeta):
         """
         flag = True
 
-        if np.any(self.evaluate_linear_equality_constraints(x) != 0):
+        lhs = self.evaluate_linear_equality_constraints(x)
+        if np.any(np.abs(lhs) >= self.eps_eq):
             flag = False
 
         return flag
@@ -2696,7 +2798,7 @@ class OptimizationProblem(metaclass=StructMeta):
             The warning message provides details on the problematic variables.
         """
         flag = True
-        for constr in self.linear_constraints:
+        for constr in self.linear_constraints + self.linear_equality_constraints:
             opt_vars = [self.variables_dict[key] for key in constr["opt_vars"]]
             for var in opt_vars:
                 if not var.transform.is_linear:
