@@ -2650,6 +2650,8 @@ class OptimizationProblem(metaclass=StructMeta):
             Initial values for starting the optimization.
 
         """
+        burn_in = int(burn_in)
+
         class CustomModel():
             def __init__(self, log_space_indices: list):
                 self.log_space_indices = log_space_indices
