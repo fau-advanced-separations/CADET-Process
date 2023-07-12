@@ -72,11 +72,17 @@ class PymooInterface(OptimizerBase):
         """
         pop_size = self.get_population_size(optimization_problem)
 
+        # equality constraints make it more difficult to find feasible samples
+        # in the parameter space. Therefore increase burnin
+        # this gets very expensive with lots of constraints
+        burn_in = 1e5 * 10 ** optimization_problem.n_linear_equality_constraints
+
         if x0 is not None:
             pop = x0
         else:
             pop = optimization_problem.create_initial_values(
-                pop_size, method='chebyshev', seed=self.seed
+                pop_size, method='chebyshev', seed=self.seed,
+                burn_in=burn_in
             )
 
         pop = np.array(pop, ndmin=2)
@@ -84,7 +90,8 @@ class PymooInterface(OptimizerBase):
         if len(pop) < pop_size:
             n_remaining = pop_size - len(pop)
             remaining = optimization_problem.create_initial_values(
-                n_remaining, method='chebyshev', seed=self.seed
+                n_remaining, method='chebyshev', seed=self.seed,
+                burn_in=burn_in
             )
             pop = np.vstack((pop, remaining))
         elif len(pop) > pop_size:
