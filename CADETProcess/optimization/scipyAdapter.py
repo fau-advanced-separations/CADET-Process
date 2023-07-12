@@ -109,6 +109,8 @@ class SciPyInterface(OptimizerBase):
         if x0 is None:
             x0 = optimization_problem.create_initial_values(1, method='chebyshev')[0]
 
+        x0_transformed = optimization_problem.transform(x0)
+
         options = self.specific_options
         if self.results.n_gen > 0:
             x0 = self.results.population_last.x[0, :]
@@ -123,7 +125,7 @@ class SciPyInterface(OptimizerBase):
             warnings.filterwarnings('ignore', category=RuntimeWarning)
             scipy_results = optimize.minimize(
                 objective_function,
-                x0=x0,
+                x0=x0_transformed,
                 method=str(self),
                 tol=self.tol,
                 jac=self.jac,
