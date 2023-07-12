@@ -16,7 +16,8 @@ class Surrogate:
         n_samples=10000,
         # TODO: consider which attributes of optimization problem are necessary
     ):
-        self.optimization_problem = deepcopy(optimization_problem)
+        from CADETProcess.optimization import OptimizationProblem
+        self.optimization_problem: OptimizationProblem = deepcopy(optimization_problem)
         self.surrogate_model_F: BaseEstimator = None
         self.surrogate_model_G: BaseEstimator = None
         self.surrogate_model_M: BaseEstimator = None
@@ -31,7 +32,7 @@ class Surrogate:
         self.lower_bounds_copy = optimization_problem.lower_bounds.copy()
         self.upper_bounds_copy = optimization_problem.upper_bounds.copy()
 
-    def _reset_bounds_on_variables(self):
+    def uncondition(self):
         # see condition_objectives
 
         for var, lb, ub in zip(
@@ -45,6 +46,7 @@ class Surrogate:
     def fit_gaussian_process(self, population):
         """TODO: rename to `update`?"""
         self._population = population
+
         X = population.x_untransformed
         F = population.f
         G = population.g
@@ -72,9 +74,9 @@ class Surrogate:
 
 
 
-    def estimate_objectives(self, X):
-        F_est = self.surrogate_model_F.predict(X)
-        return F_est
+    def estimate_objectives(self, X, return_std=False):
+        return self.surrogate_model_F.predict(X, return_std=return_std)
+
 
     def estimate_non_linear_constraints(self, X):
         G_est = self.surrogate_model_G.predict(X)
@@ -85,14 +87,14 @@ class Surrogate:
         M_est = self.surrogate_model_M.predict(X)
         return M_est
 
-    def condition_objectives(
+    def condition_on(
             self,
             conditional_vars: dict = {},
             eps=1e-5
         ):
 
         # TODO: should check if the condition is inside the constriants
-        #       otherwise Hopsy throws an error
+        #       otherwise HopsyF_est throws an error
         # This is somehwat dangerous maybe because it plays with the bounds
         # of the optimization problem. Make sure this is safe before
         # implementing
@@ -110,14 +112,184 @@ class Surrogate:
             else:
                 free_vars.update({var.name: var_index})
 
-        X = self.optimization_problem.create_initial_values(
-            n_samples=self.n_samples,
+        # X = self.optimization_problem.create_initial_values(
+        #     n_samples=self.n_samples,
+        # )
+        # F = self.estimate_objectives(X)
+
+
+        return free_vars
+
+
+    def get_conditional_and_free_indices(self, conditional_vars={}):
+        free_var_idx = []
+        cond_var_idx = []
+        for v in self.optimization_problem.variable_names:
+            idx = self.optimization_problem.get_variable_index(v)
+            if v in conditional_vars:
+                cond_var_idx.append(idx)
+            else:
+                free_var_idx.append(idx)
+
+        return cond_var_idx, free_var_idx
+
+    def condition_constraints(self, conditional_vars={}):
+        cond_var_idx, free_var_idx = self.get_conditional_and_free_indices(
+            conditional_vars
         )
-        F = self.estimate_objectives(X)
 
-        self._reset_bounds_on_variables()
+        cvar_values = list(conditional_vars.values())
 
-        return X, F, free_vars
+        A = self.optimization_problem.A.copy()
+        b = self.optimization_problem.b.copy().astype(float)
+
+        b_cond = b - A[:, cond_var_idx].dot(cvar_values)
+        A_cond = A[:, free_var_idx]
+
+        return A_cond, b_cond
+
+
+    def condition_optimization_problem(self, conditional_vars={}):
+        op = deepcopy(self.optimization_problem)
+
+        # calculate conditional constraints matrices
+        A_cond, b_cond = self.condition_constraints(conditional_vars)
+
+        n_lincons = op.n_linear_constraints
+        n_lineqcons = op.n_linear_equality_constraints
+        n_variables = op.n_independent_variables
+
+        cond_var_idx, free_var_idx = self.get_conditional_and_free_indices(
+            conditional_vars
+        )
+
+
+        # remove variables
+        [op.remove_variable(vn) for vn in conditional_vars.keys()]
+
+        # set up new inequality constraints
+        for i in range(n_lincons):
+            lincon = op.linear_constraints[i]
+            lincon_vars = lincon["opt_vars"]
+
+            op.remove_linear_constraint(i)
+            op.add_linear_constraint(
+                opt_vars=[v for v in lincon_vars if v not in conditional_vars],
+                lhs=A_cond[i],
+                b=b_cond[i]
+            )
+
+        # set up new equality constraints
+        for i in range(n_lineqcons):
+            lineqcon = op.linear_equality_constraints[i]
+            lineqcon_vars = lineqcon["opt_vars"]
+
+            op.remove_linear_equality_constraint(i)
+            # TODO: must use Aeq and Beq
+            op.add_linear_equality_constraint(
+                opt_vars=[v for v in lineqcon_vars if v not in conditional_vars],
+                lhs=A_cond[i],
+                beq=b_cond[i]
+            )
+
+        obj = op.objectives[0]
+        obj_fun = obj.objective
+
+        def complete_x(x):
+            x_complete = np.zeros(n_variables)
+            x_complete[cond_var_idx] = list(conditional_vars.values())
+            x_complete[free_var_idx] = x
+
+            return x_complete
+
+        def conditioned_objective(x):
+            x_complete = complete_x(x)
+
+            return obj_fun(x_complete)
+
+        def surrogate_obj_fun(x):
+            x_complete = complete_x(x)
+
+            return self.surrogate_model_F.predict(x_complete.reshape((1,-1)))
+
+        obj.objective = surrogate_obj_fun
+
+        return op, cond_var_idx, free_var_idx
+
+    def find_minimum(self, var_index, plot_directory):
+        """
+        DONE: 1. determine true minimum of optimization problem or use other
+        TODO: 2. implement finding of starting point
+        TODO: 3. find out why the optimizer does not converge on true solution
+                 despite having a clear and simple problem.
+                 - draw conditioned space and then compare surrogate with true
+                   problem.
+
+
+        FIXME: using a linear space for x-fix may violate constraints
+        FIXME: decoupling the optimizer from the valid parameter space has
+               conflicts with constraints. How to I skip parameter proposals
+               that are not feasible, because of the variable which should not
+               be optimized
+               I most likely need update linear constraints
+        """
+        # from CADETProcess.optimization import Objective
+        from CADETProcess.optimization import TrustConstr, SLSQP
+        from scipy.optimize import minimize
+
+        var = self.optimization_problem.variables[var_index]
+
+        n = 11
+        x_space = np.linspace(var.lb, var.ub, n)
+        f_minimum = np.full((n, ), np.nan)
+        x_optimal = np.full((n, self.optimization_problem.n_variables), fill_value=np.nan)
+
+        for i, x_cond in enumerate(x_space):
+            op, cond_var_idx, free_var_idx = self.condition_optimization_problem(
+                conditional_vars={var.name: x_cond}
+            )
+
+            try:
+                op.create_initial_values(method="random", n_samples=1)
+            except ValueError:
+                continue
+
+            # fig, ax = plt.subplots(1,1)
+            # ax.scatter(X, F)
+            # ax.set_xlim(-2, 2)
+            # fig.savefig(f'{plot_directory / f"feasible_space_cond_{var_index}.png"}')
+
+            optimizer = SLSQP()
+            optimizer.optimize(
+                op,
+                reinit_cache=True,
+                # x0=[0.0,0.0,0.0],
+                save_results=False,
+            )
+
+            x_free = optimizer.results.x_untransformed
+
+            # TODO: catches a bug where optimizer constructs a population
+            if len(x_free) > 1:
+                assert np.allclose(np.diff(x_free, axis=0), 0)
+                x_free = x_free[0]
+
+            x_optimal[i, cond_var_idx] = x_cond
+            x_optimal[i, free_var_idx] = x_free
+
+
+            f = op.evaluate_objectives(x_free)
+            f_minimum[i] = f
+
+            self.uncondition()
+
+
+        return f_minimum, x_optimal
+
+
+
+
+
 
     def plot_parameter_objective_space(self, show=True, plot_directory=None):
         """
@@ -130,22 +302,50 @@ class Surrogate:
         """
 
         X = self.optimization_problem.create_initial_values(
-            n_samples=self.n_samples,
+            n_samples=self.n_samples, seed=1238
         )
-        F = self.estimate_objectives(X)
+        F_mean, F_std = self.estimate_objectives(X, return_std=True)
+        # f_min, x_opt = self.find_minimum(0, plot_directory)
+
+        # XF = np.column_stack((X, F_mean))
+        # XF_sorted = XF[XF[:, 0].argsort()]
+        # from sklearn.inspection import partial_dependence
+
+
+        # len(XF)
+        # XF_slc = XF_sorted[0:10, :]
+        # X_min = XF_slc[XF_slc[:, -1].argmin()]
+        # self.surrogate_model_F
 
         variable_names = self.optimization_problem.variable_names
-        fig, axes = plt.subplots(3,3)
-        for i, (row, var_x) in enumerate(zip(axes, variable_names)):
-            for j, (ax, var_y) in enumerate(zip(row, variable_names)):
-                if i == j:
-                    ax.scatter(X[:, i], F, s=5, )
-                    ax.set_ylabel("f")
-                    ax.set_xlabel(var_x)
+        fig, axes = plt.subplots(2,2, sharex="col")
+        for row, var_y in zip(axes, variable_names):
+            for ax, var_x in zip(row, variable_names):
+                x_idx = self.optimization_problem.get_variable_index(var_x)
+                y_idx = self.optimization_problem.get_variable_index(var_y)
+
+                if var_y == var_x:
+                    ax.scatter(X[:, x_idx], F_mean, s=5, label="obj. fun",
+                               alpha=.01)
+                    f_min, x_opt = self.find_minimum(x_idx, plot_directory)
+
+                    ax.plot(x_opt[:, x_idx], f_min, color="red", lw=.5)
+
+                    print("debug")
+                    # part_dep = partial_dependence(
+                    #     self.surrogate_model_F, X=X, features=[i],
+                    #     percentiles=(0,1), method = "brute")
+
+                    # ax.plot(part_dep["values"][0], part_dep["average"][0],
+                    #         color="red", lw=.5)
+                    # ax.legend()
                 else:
-                    ax.scatter(X[:, i], X[:, j], s=5, c=F)
-                    ax.set_ylabel(var_y)
-                    ax.set_xlabel(var_x)
+                    ax.scatter(X[:, x_idx], X[:, y_idx], s=5, c=F_mean)
+
+
+
+        [ax.set_xlabel(var_x) for ax, var_x in zip(axes[-1, :], variable_names)]
+        [ax.set_ylabel(var_y) for ax, var_y in zip(axes[:,  0], variable_names)]
 
         fig.tight_layout()
 
