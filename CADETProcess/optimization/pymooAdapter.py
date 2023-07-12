@@ -78,7 +78,6 @@ class PymooInterface(OptimizerBase):
             pop = optimization_problem.create_initial_values(
                 pop_size, method='chebyshev', seed=self.seed
             )
-            pop = optimization_problem.transform(pop)
 
         pop = np.array(pop, ndmin=2)
 
@@ -91,6 +90,8 @@ class PymooInterface(OptimizerBase):
         elif len(pop) > pop_size:
             warnings.warn("Initial population larger than popsize. Omitting overhead.")
             pop = pop[0:pop_size]
+
+        pop = np.array(optimization_problem.transform(pop))
 
         problem = PymooProblem(optimization_problem, self.n_cores)
 
