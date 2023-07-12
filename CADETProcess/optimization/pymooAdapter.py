@@ -15,7 +15,7 @@ from pymoo.core.population import Population
 from pymoo.problems.static import StaticProblem
 
 from CADETProcess.dataStructure import UnsignedInteger, UnsignedFloat
-from CADETProcess.optimization import OptimizerBase
+from CADETProcess.optimization import OptimizerBase, OptimizationProblem
 
 
 class PymooInterface(OptimizerBase):
@@ -45,7 +45,7 @@ class PymooInterface(OptimizerBase):
         'seed', 'pop_size', 'xtol', 'ftol', 'cvtol', 'n_max_gen'
     ]
 
-    def run(self, optimization_problem, x0=None):
+    def run(self, optimization_problem: OptimizationProblem, x0=None):
         """Solve optimization problem using functional pymoo implementation.
 
         Parameters
