@@ -265,13 +265,21 @@ class RepairIndividuals(Repair):
         super().__init__(*args, **kwargs)
 
     def _do(self, problem, X, **kwargs):
-        # Check if linear constraints are met
+        # Check if linear (equality) constraints are met
+        X_new = None
         for i, ind in enumerate(X):
-            X_new = None
-            if not self.optimization_problem.check_linear_constraints(
-                    ind, untransform=True, get_dependent_values=True):
+            if (
+                    not self.optimization_problem.check_linear_constraints(
+                        ind, untransform=True, get_dependent_values=True
+                    )
+                    or
+                    not self.optimization_problem.check_linear_equality_constraints(
+                        ind, untransform=True, get_dependent_values=True
+                    )
+            ):
                 if X_new is None:
-                    X_new = self.optimization_problem.create_initial_values(len(X))
+                    burn_in = 1e5 * 10 ** self.optimization_problem.n_linear_equality_constraints
+                    X_new = self.optimization_problem.create_initial_values(len(X), burn_in)
                 x_new = X_new[i, :]
                 X[i, :] = self.optimization_problem.transform(x_new)
 
