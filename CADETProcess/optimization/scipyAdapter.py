@@ -8,7 +8,7 @@ from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import (
     Bool, Switch, UnsignedInteger, UnsignedFloat
 )
-from CADETProcess.optimization import OptimizerBase
+from CADETProcess.optimization import OptimizerBase, OptimizationProblem
 
 
 class SciPyInterface(OptimizerBase):
@@ -50,7 +50,7 @@ class SciPyInterface(OptimizerBase):
     tol = UnsignedFloat()
     jac = Switch(valid=['2-point', '3-point', 'cs'], default='2-point')
 
-    def run(self, optimization_problem, x0=None):
+    def run(self, optimization_problem: OptimizationProblem, x0=None):
         """Solve the optimization problem using any of the scipy methods.
 
         Returns
