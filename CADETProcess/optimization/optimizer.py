@@ -309,6 +309,7 @@ class OptimizerBase(Structure):
             warnings.warn(
                 "Optimizer does not support multi-objective problems"
             )
+            flag = False
 
         if (
             not np.all(np.isinf(optimization_problem.lower_bounds_independent_transformed))
