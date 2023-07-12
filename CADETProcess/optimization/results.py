@@ -80,7 +80,6 @@ class OptimizationResults(Structure):
         self.results_directory = None
         self._surrogate_model = Surrogate(
             optimization_problem=optimization_problem,
-            population=self.population_all
         )
 
     @property
