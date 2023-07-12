@@ -237,7 +237,8 @@ class FractionationOptimizer():
             n_objectives=1,
             allow_empty_fractions=True,
             ignore_failed=False,
-            return_optimization_results=False):
+            return_optimization_results=False,
+            save_results=False):
         """Optimize the fractionation times with respect to purity constraints.
 
         Parameters
@@ -264,6 +265,8 @@ class FractionationOptimizer():
             If True, return optimization results.
             Otherwise, return fractionation object.
             The default is False.
+        save_results : bool, optional
+            If True, save optimization results. The default is False.
 
         Returns
         -------
@@ -323,7 +326,7 @@ class FractionationOptimizer():
             )
             results = self.optimizer.optimize(
                 opt, x0,
-                save_results=False,
+                save_results=save_results,
                 log_level=self.log_level,
                 delete_cache=True,
             )
