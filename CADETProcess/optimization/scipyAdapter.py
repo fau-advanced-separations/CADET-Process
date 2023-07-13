@@ -280,6 +280,23 @@ class SciPyInterface(OptimizerBase):
         opt = optimization_problem
 
         def makeConstraint(i):
+            """Create optimize.NonlinearConstraint object.
+
+            Parameters
+            ----------
+            i : int
+                Variable index
+
+            Returns
+            -------
+            constr : optimize.NonlinearConstraint
+                Constraint object.
+
+            Note
+            ----
+            Note, this is necessary to avoid side effects when creating the function
+            in the main loop.
+            """
             constr = optimize.NonlinearConstraint(
                 lambda x: opt.evaluate_nonlinear_constraints(x, untransform=True)[i],
                 lb=-np.inf, ub=opt.nonlinear_constraints_bounds[i],

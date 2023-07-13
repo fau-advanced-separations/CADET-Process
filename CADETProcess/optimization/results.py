@@ -226,9 +226,9 @@ class OptimizationResults(metaclass=StructMeta):
         return self.meta_front.x
 
     @property
-    def x_untransformed(self):
+    def x_transformed(self):
         """np.array: Optimal points."""
-        return self.meta_front.x_untransformed
+        return self.meta_front.x_transformed
 
     @property
     def f(self):
@@ -860,7 +860,7 @@ class OptimizationResults(metaclass=StructMeta):
             for ind in population:
                 row = [
                     ind.id,
-                    *ind.x_untransformed.tolist(),
+                    *ind.x.tolist(),
                     *ind.f.tolist()
                 ]
                 if ind.g is not None:

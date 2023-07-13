@@ -380,13 +380,14 @@ class OptimizerBase(Structure):
 
         self.optimization_problem.prune_cache()
 
-    def run_post_evaluation_processing(self, x, f, g, cv, current_evaluation, x_opt=None):
+    def run_post_evaluation_processing(
+            self, x_transformed, f, g, cv, current_evaluation, x_opt_transformed=None):
         """Run post-processing of individual evaluation.
 
         Parameters
         ----------
-        x : list
-            Optimization variable values of individual.
+        x_transformed : list
+            Optimization variable values of individual in independent transformed space.
         f : list
             Objective function values of individual.
         g : list
@@ -395,25 +396,25 @@ class OptimizerBase(Structure):
             Nonlinear constraints violation of individual.
         current_evaluation : int
             Current evaluation.
-        x_opt : list, optional
-            Best individual at current iteration.
+        x_opt_transformed : list, optional
+            Best individual(s) at current iteration in independent transformed space.
             If None, internal pareto front is used to determine best indiviudal.
 
         """
         if self.optimization_problem.n_meta_scores > 0:
             m = self.optimization_problem.evaluate_meta_scores(
-                x,
+                x_transformed,
                 untransform=True,
             )
         else:
             m = None
 
-        x_untransformed \
-            = self.optimization_problem.get_dependent_values(
-                x, untransform=True
+        x = self.optimization_problem.get_dependent_values(
+                x_transformed, untransform=True
             )
+
         ind = Individual(
-            x, f, g, m, cv, self.cv_tol, x_untransformed,
+            x, f, g, m, cv, self.cv_tol, x_transformed,
             self.optimization_problem.independent_variable_names,
             self.optimization_problem.objective_labels,
             self.optimization_problem.nonlinear_constraint_labels,
@@ -423,11 +424,14 @@ class OptimizerBase(Structure):
 
         self.results.update_individual(ind)
 
-        if x_opt is None:
+        if x_opt_transformed is None:
             self.results.update_pareto()
         else:
+            x_opt = self.optimization_problem.get_dependent_values(
+                x_opt_transformed, untransform=True
+            )
             pareto_front = Population()
-            ind = self.results.population_all[x]
+            ind = self.results.population_all[x_opt]
             pareto_front.add_individual(ind)
 
             self.results.update_pareto(pareto_front)
@@ -448,13 +452,13 @@ class OptimizerBase(Structure):
             self.logger.info(message)
 
     def run_post_generation_processing(
-            self, X, F, G, CV, current_generation, X_opt=None):
+            self, X_transformed, F, G, CV, current_generation, X_opt_transformed=None):
         """Run post-processing of generation.
 
         Parameters
         ----------
-        X : list
-            Optimization Variable values of generation.
+        X_transformed : list
+            Optimization variable values of generation in independent transformed space.
         F : list
             Objective function values of generation.
         G : list
@@ -463,32 +467,31 @@ class OptimizerBase(Structure):
             Nonlinear constraints violation of of generation.
         current_generation : int
             Current generation.
-        X_opt : list, optional
-            (Currently) best variable values.
+        X_opt_transformed : list, optional
+            (Currently) best variable values in independent transformed space.
             If None, internal pareto front is used to determine best values.
 
         """
         if self.optimization_problem.n_meta_scores > 0:
             M = self.optimization_problem.evaluate_meta_scores_population(
-                X,
+                X_transformed,
                 untransform=True,
                 n_cores=self.n_cores,
             )
         else:
-            M = len(X)*[None]
+            M = len(X_transformed)*[None]
 
         if self.optimization_problem.n_nonlinear_constraints == 0:
-            G = len(X)*[None]
-            CV = len(X)*[None]
+            G = len(X_transformed)*[None]
+            CV = len(X_transformed)*[None]
 
         population = Population()
-        for x, f, g, cv, m in zip(X, F, G, CV, M):
-            x_untransformed \
-                = self.optimization_problem.get_dependent_values(
-                    x, untransform=True
-                )
+        for x_transformed, f, g, cv, m in zip(X_transformed, F, G, CV, M):
+            x = self.optimization_problem.get_dependent_values(
+                x_transformed, untransform=True
+            )
             ind = Individual(
-                x, f, g, m, cv, self.cv_tol, x_untransformed,
+                x, f, g, m, cv, self.cv_tol, x_transformed,
                 self.optimization_problem.independent_variable_names,
                 self.optimization_problem.objective_labels,
                 self.optimization_problem.nonlinear_constraint_labels,
@@ -499,12 +502,16 @@ class OptimizerBase(Structure):
 
         self.results.update_population(population)
 
-        if X_opt is None:
+        if X_opt_transformed is None:
             self.results.update_pareto()
         else:
             pareto_front = Population()
-            for x in X_opt:
-                ind = self.results.population_all[x]
+
+            for x_opt_transformed in X_opt_transformed:
+                x_opt = self.optimization_problem.get_dependent_values(
+                    x_opt_transformed, untransform=True
+                )
+                ind = self.results.population_all[x_opt]
                 pareto_front.add_individual(ind)
 
             self.results.update_pareto(pareto_front)

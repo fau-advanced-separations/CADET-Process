@@ -106,7 +106,7 @@ class LinearConstraintsSooTestProblem(TestProblem):
 
     def test_if_solved(self, optimization_results: OptimizationResults, decimal=7):
         x_true, f_true = self.optimal_solution()
-        x = optimization_results.x_untransformed
+        x = optimization_results.x
         f = optimization_results.f
 
         np.testing.assert_almost_equal(f-f_true, 0, decimal=decimal)
@@ -186,7 +186,7 @@ class LinearEqualityConstraintsSooTestProblem(TestProblem):
 
     def test_if_solved(self, optimization_results: OptimizationResults, decimal=7):
         x_true, f_true = self.optimal_solution
-        x = optimization_results.x_untransformed
+        x = optimization_results.x
         f = optimization_results.f
 
         np.testing.assert_almost_equal(f-f_true, 0, decimal=decimal)
@@ -232,7 +232,7 @@ class LinearConstraintsMooTestProblem(TestProblem):
     def test_if_solved(self, optimization_results, decimal=7):
         flag = False
 
-        X = optimization_results.x_untransformed
+        X = optimization_results.x
 
         x1, x2 = X.T
         x2_test = np.where(x1 <= 3, 3 - x1, 0)
@@ -268,7 +268,7 @@ class NonlinearConstraintsMooTestProblem(TestProblem):
         return X, F     # G ???
 
     def test_if_solved(self, optimization_results, decimal=7):
-        X = optimization_results.x_untransformed
+        X = optimization_results.x_transformed
         x1, x2 = X.T
 
         np.testing.assert_almost_equal(x1, -2.5, decimal=decimal)
