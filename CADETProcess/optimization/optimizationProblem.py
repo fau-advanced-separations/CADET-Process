@@ -2622,6 +2622,52 @@ class OptimizationProblem(metaclass=StructMeta):
         """Prune cache with (intermediate) results."""
         self.cache.prune()
 
+    def create_hopsy_problem(self, simplify=False, use_custom_model=False):
+        """creates a hopsy problem from an optimization problem"""
+
+        class CustomModel():
+            def __init__(self, log_space_indices: list):
+                self.log_space_indices = log_space_indices
+
+            def compute_negative_log_likelihood(self, x):
+                return np.sum(np.log(x[self.log_space_indices]))
+
+        log_space_indices = []
+        for i, var in enumerate(self.variables):
+            if (
+                    isinstance(var._transform, NormLogTransform)
+                    or
+                    (
+                        isinstance(var._transform, AutoTransform) and
+                        var._transform.use_log
+                    )
+            ):
+                log_space_indices.append(i)
+
+        lp = hopsy.LP()
+        lp.reset()
+        lp.settings.thresh = 1e-15
+
+        if len(log_space_indices) and use_custom_model > 0:
+            model = CustomModel(log_space_indices)
+        else:
+            model = None
+
+        problem = hopsy.Problem(
+            self.A,
+            self.b,
+            model,
+        )
+
+        problem = hopsy.add_box_constraints(
+            problem,
+            self.lower_bounds,
+            self.upper_bounds,
+            simplify=simplify,
+        )
+
+        return problem
+
     def create_initial_values(
             self, n_samples=1, method='random', seed=None, burn_in=100000):
         """Create initial value within parameter space.
@@ -2656,50 +2702,12 @@ class OptimizationProblem(metaclass=StructMeta):
         """
         burn_in = int(burn_in)
 
-        class CustomModel():
-            def __init__(self, log_space_indices: list):
-                self.log_space_indices = log_space_indices
-
-            def compute_negative_log_likelihood(self, x):
-                return np.sum(np.log(x[self.log_space_indices]))
-
-        log_space_indices = []
-        for i, var in enumerate(self.variables):
-            if (
-                    isinstance(var._transform, NormLogTransform)
-                    or
-                    (
-                        isinstance(var._transform, AutoTransform) and
-                        var._transform.use_log
-                    )
-            ):
-                log_space_indices.append(i)
-
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
 
-            lp = hopsy.LP()
-            lp.reset()
-            lp.settings.thresh = 1e-15
-
-            if len(log_space_indices) > 0:
-                model = CustomModel(log_space_indices)
-            else:
-                model = None
-
-            problem = hopsy.Problem(
-                self.A,
-                self.b,
-                model,
+            problem = self.create_hopsy_problem(
+                simplify=False, use_custom_model=True
             )
-
-            problem = hopsy.add_box_constraints(
-                problem,
-                self.lower_bounds,
-                self.upper_bounds,
-                simplify=False,
-            )
-
             # !!! Additional checks in place to handle PolyRound.round()
             # removing "small" dimensions.
             # Bug reported, Check for future release!
