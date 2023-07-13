@@ -211,9 +211,9 @@ class Population():
         return np.array([ind.x for ind in self.individuals])
 
     @property
-    def x_untransformed(self):
-        """np.array: All evaluated points."""
-        return np.array([ind.x_untransformed for ind in self.individuals])
+    def x_transformed(self):
+        """np.array: All evaluated points in independent transformed space."""
+        return np.array([ind.x_transformed for ind in self.individuals])
 
     @property
     def f(self):
@@ -535,14 +535,14 @@ class Population():
 
         return plot
 
-    def plot_corner(self, untransformed=True, show=True, plot_directory=None):
+    def plot_corner(self, use_transformed=False, show=True, plot_directory=None):
         """Create a corner plot of the independent variables.
 
         Parameters
         ----------
-        untransformed : bool, optional
-            If True, use the untransformed independent variables.
-            The default is True.
+        use_transformed : bool, optional
+            If True, use the transformed independent variables.
+            The default is False.
         show : bool, optional
             If True, display the plot.
             The default is True.
@@ -555,12 +555,12 @@ class Population():
         CADETProcess.results.plot_corner
         corner.corner
         """
-        if untransformed:
-            x = self.x_untransformed
-            labels = self.variable_names
+        if use_transformed:
+            x = self.x_transformed
+            labels = self.independent_variable_names
         else:
             x = self.x
-            labels = self.independent_variable_names
+            labels = self.variable_names
 
         # To avoid error, remove dimensions where all entries are the same value.
         singular_indices = []
