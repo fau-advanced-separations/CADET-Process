@@ -218,16 +218,18 @@ class Surrogate:
 
     def find_minimum(self, var_index, plot_directory):
         """
+        TODO: Docstrings (GPT add docstrings, include warnings and errors,
+              use numpy style, imperative style)
         DONE: 1. determine true minimum of optimization problem or use other
         TODO: 2. implement finding of starting point
-        TODO: 3. find out why the optimizer does not converge on true solution
+        DONE: 3. find out why the optimizer does not converge on true solution
                  despite having a clear and simple problem.
                  - draw conditioned space and then compare surrogate with true
                    problem.
+        TODO: test surrogate model
 
-
-        FIXME: using a linear space for x-fix may violate constraints
-        FIXME: decoupling the optimizer from the valid parameter space has
+        DONE: using a linear space for x-fix may violate constraints
+        DONE: decoupling the optimizer from the valid parameter space has
                conflicts with constraints. How to I skip parameter proposals
                that are not feasible, because of the variable which should not
                be optimized
