@@ -239,20 +239,28 @@ class Surrogate:
 
         var = self.optimization_problem.variables[var_index]
 
-        n = 11
+        n = 21
         x_space = np.linspace(var.lb, var.ub, n)
         f_minimum = np.full((n, ), np.nan)
         x_optimal = np.full((n, self.optimization_problem.n_variables), fill_value=np.nan)
 
         for i, x_cond in enumerate(x_space):
+            # x_cond_transformed = var.transform.transform(x_cond)
             op, cond_var_idx, free_var_idx = self.condition_optimization_problem(
                 conditional_vars={var.name: x_cond}
             )
 
             try:
-                op.create_initial_values(method="random", n_samples=1)
-            except ValueError:
-                continue
+                _ = op.create_hopsy_problem(simplify=True)
+
+                # chebyshev_orig = hopsy.compute_chebyshev_center(problem)[:, 0]
+
+            except ValueError as e:
+                if str(e) == "All inequality constraints are redundant, implying that the polytope is a single point.":
+                    # _ = op.create_hopsy_problem(simplify=False)
+                    pass
+                else:
+                    continue
 
             # fig, ax = plt.subplots(1,1)
             # ax.scatter(X, F)
@@ -263,7 +271,6 @@ class Surrogate:
             optimizer.optimize(
                 op,
                 reinit_cache=True,
-                # x0=[0.0,0.0,0.0],
                 save_results=False,
             )
 
