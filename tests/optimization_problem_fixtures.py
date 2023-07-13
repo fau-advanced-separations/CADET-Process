@@ -344,9 +344,9 @@ class LinearEqualityConstraintsSooTestProblem(TestProblem):
         self.add_objective(self._objective_function)
 
     def setup_variables(self: OptimizationProblem, transform=None):
-        self.add_variable('var_0', lb=-5, ub=5, transform=transform)
-        self.add_variable('var_1', lb=-5, ub=5, transform=transform)
-        self.add_variable('var_2', lb=-5, ub=5, transform=transform)
+        self.add_variable('var_0', lb=-5, ub=5, transform=transform, precision=3)
+        self.add_variable('var_1', lb=-5, ub=5, transform=transform, precision=3)
+        self.add_variable('var_2', lb=-5, ub=5, transform=transform, precision=3)
 
     def setup_linear_constraints(self):
         self.add_linear_equality_constraint(
