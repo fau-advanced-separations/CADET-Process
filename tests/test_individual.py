@@ -135,7 +135,7 @@ class TestIndividual(unittest.TestCase):
         np.testing.assert_equal(data['x'], self.individual_1.x)
         np.testing.assert_equal(data['f'], self.individual_1.f)
         np.testing.assert_equal(
-            data['x_untransformed'], self.individual_1.x_untransformed
+            data['x_transformed'], self.individual_1.x_transformed
         )
         self.assertEqual(data['variable_names'], self.individual_1.variable_names)
         self.assertEqual(
@@ -157,7 +157,7 @@ class TestIndividual(unittest.TestCase):
         np.testing.assert_equal(test_individual.g, self.individual_1.g)
         np.testing.assert_equal(test_individual.m, self.individual_1.m)
         np.testing.assert_equal(
-            test_individual.x_untransformed, self.individual_1.x_untransformed
+            test_individual.x_transformed, self.individual_1.x_transformed
         )
         self.assertEqual(
             test_individual.variable_names, self.individual_1.variable_names

@@ -695,10 +695,10 @@ class Test_OptimizationProblemConstraintTransforms(unittest.TestCase):
         # extract valid X and untransform then check constraints in
         # untransformed space
         X_valid = X[CV, :]
-        X_valid_untransformed = problem.untransform(X_valid)
+        X_valid = problem.untransform(X_valid)
 
         CV_test_valid = check_constraint_func(
-            X=X_valid_untransformed,
+            X=X_valid,
             problem=problem,
             transformed_space=False
         )
@@ -706,10 +706,10 @@ class Test_OptimizationProblemConstraintTransforms(unittest.TestCase):
         # extract invalid X and untransform, then check constraints in
         # untransformed space
         X_invalid = X[~CV, :]
-        X_invalid_untransformed = problem.untransform(X_invalid)
+        X_invalid = problem.untransform(X_invalid)
 
         CV_test_invalid = check_constraint_func(
-            X=X_invalid_untransformed,
+            X=X_invalid,
             problem=problem,
             transformed_space=False
         )
