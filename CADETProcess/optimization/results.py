@@ -465,7 +465,8 @@ class OptimizationResults(metaclass=StructMeta):
     def plot_pareto(
             self,
             show=True,
-            plot_pareto=False,
+            plot_pareto=True,
+            plot_evolution=False,
             plot_directory=None):
         """Plot Pareto fronts for each generation in the optimization.
 
@@ -483,8 +484,12 @@ class OptimizationResults(metaclass=StructMeta):
             If True, display the plot.
             The default is True.
         plot_pareto : bool, optional
-            If True, only plot Pareto front members of each generation are plotted.
+            If True, only Pareto front members of each generation are plotted.
             Else, all evaluated individuals are plotted.
+            The default is True.
+        plot_evolution : bool, optional
+            If True, the Pareto front is plotted for each generation.
+            Else, only final Pareto front is plotted.
             The default is False.
         plot_directory : str, optional
             The directory where the plot should be saved.
@@ -508,6 +513,9 @@ class OptimizationResults(metaclass=StructMeta):
         else:
             populations = self.populations
             population_last = self.population_last
+
+        if not plot_evolution:
+            populations = [population_last]
 
         for i, gen in enumerate(populations):
             if gen is population_last:
