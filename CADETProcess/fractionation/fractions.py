@@ -167,15 +167,8 @@ class FractionPool(metaclass=StructMeta):
 
     @property
     def mass(self):
-        """Returns the cumulative sum of the fraction masses of the pool.
-
-        Returns
-        -------
-        mass : float
-            Cumulative mass of all fractions in the pool.
-
-        """
-        return sum(frac.mass for frac in self.fractions)
+        """np.ndarray: Cumulative component mass in the fraction pool."""
+        return np.sum([frac.mass for frac in self.fractions], axis=0)
 
     @property
     def pool_mass(self):
