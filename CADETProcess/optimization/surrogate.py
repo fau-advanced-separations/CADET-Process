@@ -9,7 +9,7 @@ from sklearn.base import BaseEstimator
 import hopsy
 
 from CADETProcess.optimization import (
-    OptimizationProblem, TrustConstr, SLSQP, Population
+    OptimizationProblem, TrustConstr, SLSQP, OptimizationResults
 )
 
 class Surrogate:
@@ -20,7 +20,7 @@ class Surrogate:
     def __init__(
         self,
         optimization_problem: OptimizationProblem,
-        population: Population,
+        optimization_results: OptimizationResults,
         n_samples=10000,
     ):
         """
@@ -35,8 +35,9 @@ class Surrogate:
         """
 
         self.n_samples = n_samples
-        self.population = population
+        self.population = optimization_results.population_all
         self.optimization_problem = deepcopy(optimization_problem)
+        self.plot_directory = optimization_results.plot_directory
 
         self.lower_bounds_copy = optimization_problem.lower_bounds.copy()
         self.upper_bounds_copy = optimization_problem.upper_bounds.copy()
@@ -46,7 +47,7 @@ class Surrogate:
         self.surrogate_model_M: BaseEstimator = None
         self.surrogate_model_CV: BaseEstimator = None
 
-        self.fit_gaussian_process(population)
+        self.fit_gaussian_process()
 
 
     def uncondition(self):
@@ -61,19 +62,18 @@ class Surrogate:
             var.lb = lb
             var.ub = ub
 
-    def fit_gaussian_process(self, population):
+    def fit_gaussian_process(self):
         """
         Fit Gaussian process surrogate models to the population.
 
         Parameters:
         - population (np.ndarray): The population for fitting the surrogate models.
         """
-        self._population = population
-        X = population.x_untransformed
-        F = population.f
-        G = population.g
-        M = population.m
-        CV = population.cv
+        X = self.population.x_untransformed
+        F = self.population.f
+        G = self.population.g
+        M = self.population.m
+        CV = self.population.cv
 
         gp_f = GaussianProcessRegressor()
         gp_f.fit(X, F)
@@ -221,29 +221,23 @@ class Surrogate:
         [op.remove_variable(vn) for vn in conditional_vars.keys()]
         free_variables = op.independent_variables
 
-        # set up new inequality constraints
-        for i in range(n_lincons):
-            lincon = op.linear_constraints[i]
-            lincon_vars = lincon["opt_vars"]
 
-            op.remove_linear_constraint(0)
+        # remove old lincons and set up new inequality constraints
+        [op.remove_linear_constraint(0) for i in range(n_lincons)]
+        for i in range(n_lincons):
+
             op.add_linear_constraint(
-                # opt_vars=[v for v in lincon_vars if v not in conditional_vars],
                 opt_vars=[v.name for v in free_variables],
-                # lhs=A_cond[i][A_cond[i] != 0],
                 lhs=A_cond[i],
                 b=b_cond[i]
             )
 
         # set up new equality constraints
+        [op.remove_linear_equality_constraint(0) for i in range(n_lineqcons)]
         for i in range(n_lineqcons):
-            lineqcon = op.linear_equality_constraints[i]
-            lineqcon_vars = lineqcon["opt_vars"]
-
-            op.remove_linear_equality_constraint(i)
             # TODO: must use Aeq and Beq
             op.add_linear_equality_constraint(
-                opt_vars=[v for v in lineqcon_vars if v not in conditional_vars],
+                opt_vars=[v for v in free_variables],
                 lhs=A_cond[i],
                 beq=b_cond[i]
             )
@@ -272,7 +266,7 @@ class Surrogate:
 
         return op, cond_var_idx, free_var_idx
 
-    def find_minimum(self, var_index, plot_directory):
+    def find_minimum(self, var_index):
         """
         Find the minimum of the optimization problem with respect to the given
         variable.
@@ -284,27 +278,7 @@ class Surrogate:
         Returns:
         - Tuple[np.ndarray, np.ndarray]: The minimum objective values and the
         corresponding optimal points.
-
-        TODO: Docstrings (GPT add docstrings, include warnings and errors,
-              use numpy style, imperative style)
-        DONE: 1. determine true minimum of optimization problem or use other
-        TODO: 2. implement finding of starting point
-        DONE: 3. find out why the optimizer does not converge on true solution
-                 despite having a clear and simple problem.
-                 - draw conditioned space and then compare surrogate with true
-                   problem.
-        TODO: test surrogate model
-
-        DONE: using a linear space for x-fix may violate constraints
-        DONE: decoupling the optimizer from the valid parameter space has
-               conflicts with constraints. How to I skip parameter proposals
-               that are not feasible, because of the variable which should not
-               be optimized
-               I most likely need update linear constraints
         """
-        # from CADETProcess.optimization import Objective
-        from CADETProcess.optimization import TrustConstr, SLSQP
-        from scipy.optimize import minimize
 
         var = self.optimization_problem.variables[var_index]
 
@@ -314,7 +288,6 @@ class Surrogate:
         x_optimal = np.full((n, self.optimization_problem.n_variables), fill_value=np.nan)
 
         for i, x_cond in enumerate(x_space):
-            # x_cond_transformed = var.transform.transform(x_cond)
             op, cond_var_idx, free_var_idx = self.condition_optimization_problem(
                 conditional_vars={var.name: x_cond}
             )
@@ -323,18 +296,11 @@ class Surrogate:
                 problem = op.create_hopsy_problem(simplify=True)
                 chebyshev_orig = hopsy.compute_chebyshev_center(problem)[:, 0]
 
-
             except ValueError as e:
                 if str(e) == "All inequality constraints are redundant, implying that the polytope is a single point.":
-                    # _ = op.create_hopsy_problem(simplify=False)
                     chebyshev_orig = None
                 else:
                     continue
-
-            # fig, ax = plt.subplots(1,1)
-            # ax.scatter(X, F)
-            # ax.set_xlim(-2, 2)
-            # fig.savefig(f'{plot_directory / f"feasible_space_cond_{var_index}.png"}')
 
             optimizer = SLSQP()
             optimizer.optimize(
@@ -346,7 +312,6 @@ class Surrogate:
 
             x_free = optimizer.results.x_untransformed
 
-            # TODO: catches a bug where optimizer constructs a population
             if len(x_free) > 1:
                 assert np.allclose(np.diff(x_free, axis=0), 0)
 
@@ -364,12 +329,7 @@ class Surrogate:
 
         return f_minimum, x_optimal
 
-
-
-
-
-
-    def plot_parameter_objective_space(self, show=True, plot_directory=None):
+    def plot_parameter_objective_space(self):
         """
         Plot the parameter-objective space.
 
@@ -377,34 +337,12 @@ class Surrogate:
         - show (bool, optional): Whether to show the plot. Defaults to True.
         - plot_directory (str, optional): The directory to save the plot to.
         Defaults to None.
-
-        TODO: for different optimiztation tasks (multi-objective, non-linear
-        constraints. Create wrappers around the problem)
-        TODO: als mean value + standard deviation mit tatsächlich ausgewrteten
-        punkten (maybe integrieren in bestehende plots)
-        TODO: contours? Lösen über fill between mit verschiedenen quantilen
-        TODO: wie ist die marginalisierung in partial dependence plots gelöst
         """
-        from pyinstrument import Profiler
 
         X = self.optimization_problem.create_initial_values(
             n_samples=self.n_samples, seed=1238
         )
         F_mean, F_std = self.estimate_objectives(X, return_std=True)
-        # f_min, x_opt = self.find_minimum(0, plot_directory)
-
-        # XF = np.column_stack((X, F_mean))
-        # XF_sorted = XF[XF[:, 0].argsort()]
-        # from sklearn.inspection import partial_dependence
-
-
-        # len(XF)
-        # XF_slc = XF_sorted[0:10, :]
-        # X_min = XF_slc[XF_slc[:, -1].argmin()]
-        # self.surrogate_model_F
-
-        profile = Profiler()
-        profile.start()
 
         variable_names = self.optimization_problem.variable_names
         n_vars = self.optimization_problem.n_variables
@@ -417,11 +355,10 @@ class Surrogate:
                 if var_y == var_x:
                     ax.scatter(X[:, x_idx], F_mean, s=5, label="obj. fun",
                                alpha=.01)
-                    f_min, x_opt = self.find_minimum(x_idx, plot_directory)
+                    f_min, x_opt = self.find_minimum(x_idx)
 
                     ax.plot(x_opt[:, x_idx], f_min, color="red", lw=.5)
 
-                    print("debug")
                     # part_dep = partial_dependence(
                     #     self.surrogate_model_F, X=X, features=[i],
                     #     percentiles=(0,1), method = "brute")
@@ -439,12 +376,6 @@ class Surrogate:
 
         fig.tight_layout()
 
-        if plot_directory is not None:
-            plot_directory = Path(plot_directory)
+        if self.plot_directory is not None:
+            plot_directory = Path(self.plot_directory)
             fig.savefig(f'{plot_directory / "surrogate_spaces.png"}')
-
-
-        if not show:
-            profile.stop()
-            profile.print()
-            plt.close(fig)
