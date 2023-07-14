@@ -7,6 +7,7 @@ from sklearn.gaussian_process import (
 from sklearn.base import BaseEstimator
 
 from matplotlib import pyplot as plt
+import hopsy
 
 class Surrogate:
     def __init__(
@@ -166,16 +167,19 @@ class Surrogate:
 
         # remove variables
         [op.remove_variable(vn) for vn in conditional_vars.keys()]
+        free_variables = op.independent_variables
 
         # set up new inequality constraints
         for i in range(n_lincons):
             lincon = op.linear_constraints[i]
             lincon_vars = lincon["opt_vars"]
 
-            op.remove_linear_constraint(i)
+            op.remove_linear_constraint(0)
             op.add_linear_constraint(
-                opt_vars=[v for v in lincon_vars if v not in conditional_vars],
-                lhs=A_cond[i],
+                # opt_vars=[v for v in lincon_vars if v not in conditional_vars],
+                opt_vars=[v.name for v in free_variables],
+                # lhs=A_cond[i][A_cond[i] != 0],
+                lhs=A_cond[i].tolist(),
                 b=b_cond[i]
             )
 
@@ -253,14 +257,14 @@ class Surrogate:
             )
 
             try:
-                _ = op.create_hopsy_problem(simplify=True)
+                problem = op.create_hopsy_problem(simplify=True)
+                chebyshev_orig = hopsy.compute_chebyshev_center(problem)[:, 0]
 
-                # chebyshev_orig = hopsy.compute_chebyshev_center(problem)[:, 0]
 
             except ValueError as e:
                 if str(e) == "All inequality constraints are redundant, implying that the polytope is a single point.":
                     # _ = op.create_hopsy_problem(simplify=False)
-                    pass
+                    chebyshev_orig = None
                 else:
                     continue
 
@@ -272,6 +276,7 @@ class Surrogate:
             optimizer = SLSQP()
             optimizer.optimize(
                 op,
+                x0=chebyshev_orig,
                 reinit_cache=True,
                 save_results=False,
             )
@@ -281,7 +286,8 @@ class Surrogate:
             # TODO: catches a bug where optimizer constructs a population
             if len(x_free) > 1:
                 assert np.allclose(np.diff(x_free, axis=0), 0)
-                x_free = x_free[0]
+
+            x_free = x_free[0]
 
             x_optimal[i, cond_var_idx] = x_cond
             x_optimal[i, free_var_idx] = x_free
@@ -309,6 +315,7 @@ class Surrogate:
         TODO: contours? Lösen über fill between mit verschiedenen quantilen
         TODO: wie ist die marginalisierung in partial dependence plots gelöst
         """
+        from pyinstrument import Profiler
 
         X = self.optimization_problem.create_initial_values(
             n_samples=self.n_samples, seed=1238
@@ -326,8 +333,12 @@ class Surrogate:
         # X_min = XF_slc[XF_slc[:, -1].argmin()]
         # self.surrogate_model_F
 
+        profile = Profiler()
+        profile.start()
+
         variable_names = self.optimization_problem.variable_names
-        fig, axes = plt.subplots(2,2, sharex="col")
+        n_vars = self.optimization_problem.n_variables
+        fig, axes = plt.subplots(n_vars, n_vars, sharex="col")
         for row, var_y in zip(axes, variable_names):
             for ax, var_x in zip(row, variable_names):
                 x_idx = self.optimization_problem.get_variable_index(var_x)
@@ -362,5 +373,8 @@ class Surrogate:
             plot_directory = Path(plot_directory)
             fig.savefig(f'{plot_directory / "surrogate_spaces.png"}')
 
+
         if not show:
+            profile.stop()
+            profile.print()
             plt.close(fig)
