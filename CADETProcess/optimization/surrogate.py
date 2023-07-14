@@ -10,6 +10,10 @@ from matplotlib import pyplot as plt
 import hopsy
 
 class Surrogate:
+    """
+    Surrogate class for optimization problems.
+    """
+
     def __init__(
         self,
         optimization_problem,
@@ -17,6 +21,16 @@ class Surrogate:
         n_samples=10000,
         # TODO: consider which attributes of optimization problem are necessary
     ):
+        """
+        Initialize the Surrogate class.
+
+        Parameters:
+        - optimization_problem (OptimizationProblem): The optimization problem.
+        - population (np.ndarray, optional): Initial population for fitting the
+        surrogate models. Defaults to None.
+        - n_samples (int, optional): Number of samples for surrogate model
+        evaluation. Defaults to 10000.
+        """
         from CADETProcess.optimization import OptimizationProblem
         self.optimization_problem: OptimizationProblem = deepcopy(optimization_problem)
         self.surrogate_model_F: BaseEstimator = None
@@ -34,8 +48,9 @@ class Surrogate:
         self.upper_bounds_copy = optimization_problem.upper_bounds.copy()
 
     def uncondition(self):
-        # see condition_objectives
-
+        """
+        Reset the optimization problem bounds to their original values.
+        """
         for var, lb, ub in zip(
             self.optimization_problem.variables,
             self.lower_bounds_copy,
@@ -45,9 +60,13 @@ class Surrogate:
             var.ub = ub
 
     def fit_gaussian_process(self, population):
-        """TODO: rename to `update`?"""
-        self._population = population
+        """
+        Fit Gaussian process surrogate models to the population.
 
+        Parameters:
+        - population (np.ndarray): The population for fitting the surrogate models.
+        """
+        self._population = population
         X = population.x_untransformed
         F = population.f
         G = population.g
@@ -73,56 +92,62 @@ class Surrogate:
             gp_cv.fit(X, CV)
             self.surrogate_model_CV = gp_cv
 
-
-
     def estimate_objectives(self, X, return_std=False):
+        """
+        Estimate the objectives using the surrogate model.
+
+        Parameters:
+        - X (np.ndarray): The input samples.
+        - return_std (bool, optional): Whether to return the standard deviation
+        of the predictions. Defaults to False.
+
+        Returns:
+        - np.ndarray: The estimated objectives.
+        """
         return self.surrogate_model_F.predict(X, return_std=return_std)
 
 
     def estimate_non_linear_constraints(self, X):
+        """
+        Estimate the non-linear constraints using the surrogate model.
+
+        Parameters:
+        - X (np.ndarray): The input samples.
+
+        Returns:
+        - Tuple[np.ndarray, np.ndarray]: The estimated non-linear
+        constraints (G, CV).
+        """
         G_est = self.surrogate_model_G.predict(X)
         CV_est = self.surrogate_model_CV.predict(X)
         return G_est, CV_est
 
     def estimate_meta_scores(self, X):
+        """
+        Estimate the meta scores using the surrogate model.
+
+        Parameters:
+        - X (np.ndarray): The input samples.
+
+        Returns:
+        - np.ndarray: The estimated meta scores.
+        """
         M_est = self.surrogate_model_M.predict(X)
         return M_est
 
-    def condition_on(
-            self,
-            conditional_vars: dict = {},
-            eps=1e-5
-        ):
-
-        # TODO: should check if the condition is inside the constriants
-        #       otherwise HopsyF_est throws an error
-        # This is somehwat dangerous maybe because it plays with the bounds
-        # of the optimization problem. Make sure this is safe before
-        # implementing
-        # TODO: Pragmatically: Deppcopy
-        # raise NotImplementedError("This method is potentially unsafe.")
-
-        free_vars = {}
-        for var in self.optimization_problem.variables:
-            var_index = self.optimization_problem.get_variable_index(var.name)
-            if var.name in conditional_vars:
-                conditioning_value = conditional_vars[var.name]
-                var.lb = conditioning_value - eps
-                var.ub = conditioning_value + eps
-
-            else:
-                free_vars.update({var.name: var_index})
-
-        # X = self.optimization_problem.create_initial_values(
-        #     n_samples=self.n_samples,
-        # )
-        # F = self.estimate_objectives(X)
-
-
-        return free_vars
-
-
     def get_conditional_and_free_indices(self, conditional_vars={}):
+        """
+        Get the indices of the conditional and free variables.
+
+        Parameters:
+        - conditional_vars (dict, optional): Dictionary of variable names and
+        their corresponding values to condition on. Defaults to an empty
+        dictionary.
+
+        Returns:
+        - Tuple[List[int], List[int]]: The indices of the conditional variables
+        and the free variables.
+        """
         free_var_idx = []
         cond_var_idx = []
         for v in self.optimization_problem.variable_names:
@@ -135,6 +160,18 @@ class Surrogate:
         return cond_var_idx, free_var_idx
 
     def condition_constraints(self, conditional_vars={}):
+        """
+        Condition the constraints based on the given variables.
+
+        Parameters:
+        - conditional_vars (dict, optional): Dictionary of variable names and
+        their corresponding values to condition on. Defaults to an empty
+        dictionary.
+
+        Returns:
+        - Tuple[np.ndarray, np.ndarray]: The conditioned inequality constraints
+        (A_cond, b_cond).
+        """
         cond_var_idx, free_var_idx = self.get_conditional_and_free_indices(
             conditional_vars
         )
@@ -151,6 +188,19 @@ class Surrogate:
 
 
     def condition_optimization_problem(self, conditional_vars={}):
+        """
+        Condition the optimization problem based on the given variables.
+
+        Parameters:
+        - conditional_vars (dict, optional): Dictionary of variable names and
+        their corresponding values to condition on. Defaults to an empty
+        dictionary.
+
+        Returns:
+        - Tuple[OptimizationProblem, List[int], List[int]]: The conditioned
+        optimization problem, indices of the conditional variables, and indices
+        of the free variables.
+        """
         op = deepcopy(self.optimization_problem)
 
         # calculate conditional constraints matrices
@@ -222,6 +272,17 @@ class Surrogate:
 
     def find_minimum(self, var_index, plot_directory):
         """
+        Find the minimum of the optimization problem with respect to the given
+        variable.
+
+        Parameters:
+        - var_index (int): The index of the variable to optimize.
+        - plot_directory (str): The directory to save the plot to.
+
+        Returns:
+        - Tuple[np.ndarray, np.ndarray]: The minimum objective values and the
+        corresponding optimal points.
+
         TODO: Docstrings (GPT add docstrings, include warnings and errors,
               use numpy style, imperative style)
         DONE: 1. determine true minimum of optimization problem or use other
@@ -308,6 +369,13 @@ class Surrogate:
 
     def plot_parameter_objective_space(self, show=True, plot_directory=None):
         """
+        Plot the parameter-objective space.
+
+        Parameters:
+        - show (bool, optional): Whether to show the plot. Defaults to True.
+        - plot_directory (str, optional): The directory to save the plot to.
+        Defaults to None.
+
         TODO: for different optimiztation tasks (multi-objective, non-linear
         constraints. Create wrappers around the problem)
         TODO: als mean value + standard deviation mit tatsächlich ausgewrteten
