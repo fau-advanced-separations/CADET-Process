@@ -408,8 +408,6 @@ class OptimizerBase(Structure):
 
             self.results.update_meta(meta_front)
 
-        self.results.update_surrogate(population=self.results.population_all)
-
         if current_iteration % self.progress_frequency == 0:
             self.results.plot_figures(show=False)
 
