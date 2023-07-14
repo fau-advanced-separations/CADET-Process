@@ -394,6 +394,7 @@ class OptimizationResults(metaclass=StructMeta):
             self,
             include_meta=True,
             plot_pareto=False,
+            plot_infeasible=True,
             plot_individual=False,
             autoscale=True,
             show=True,
@@ -408,10 +409,14 @@ class OptimizationResults(metaclass=StructMeta):
             If True, only plot Pareto front members of each generation are plotted.
             Else, all evaluated individuals are plotted.
             The default is False.
+        plot_infeasible : bool, optional
+            If True, plot infeasible points. The default is True.
         plot_individual : bool, optional
             If True, create separate figures for each objective. Otherwise, all
             objectives are plotted in one figure.
             The default is False.
+        plot_infeasible : bool, optional
+            If True, plot infeasible points. The default is False.
         autoscale : bool, optional
             If True, automatically adjust the scaling of the axes. The default is True.
         show : bool, optional
@@ -448,6 +453,7 @@ class OptimizationResults(metaclass=StructMeta):
             axs, figs = gen.plot_objectives(
                 axs, figs,
                 include_meta=include_meta,
+                plot_infeasible=plot_infeasible,
                 plot_individual=plot_individual,
                 autoscale=autoscale,
                 color_feas=scalarMap_feas.to_rgba(i),

@@ -341,6 +341,7 @@ class Population():
             self,
             figs=None, axs=None,
             include_meta=True,
+            plot_infeasible=True,
             plot_individual=False,
             autoscale=True,
             color_feas='blue',
@@ -358,6 +359,8 @@ class Population():
             If None, new figures and axes will be created.
         include_meta : bool, optional
             If True, meta scores will be included in the plot. The default is True.
+        plot_infeasible : bool, optional
+            If True, plot infeasible points. The default is True.
         plot_individual : bool, optional
             If True, create separate figures for each objective. Otherwise, all
             objectives are plotted in one figure.
@@ -417,7 +420,7 @@ class Population():
                     v_metric_feas = values_feas[:, i_metric]
                     ax.scatter(x_var_feas, v_metric_feas, alpha=0.5, color=color_feas)
 
-                if len(infeasible) > 0:
+                if len(infeasible) > 0 and plot_infeasible:
                     v_metric_infeas = values_infeas[:, i_metric]
                     ax.scatter(x_var_infeas, v_metric_infeas, alpha=0.5, color=color_infeas)
 
