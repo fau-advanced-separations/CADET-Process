@@ -2089,6 +2089,12 @@ class OptimizationProblem(Structure):
         add_linear_equality_constraint
         linear_equality_constraint
 
+        BUG: consider implementing _linear_constraints as a dictionary.
+             when deleting and redefining constraints sequentially, this breaks
+             because the indices of constraints change. When using it as
+             a dictionary under the hood, this won't be possible and then
+             the self.linear_constraints property can return a list as always.
+             by accessing `list(self._linear_constraints.values())`
         """
         del self._linear_constraints[index]
 
