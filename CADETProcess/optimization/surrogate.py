@@ -1,13 +1,16 @@
 from pathlib import Path
 from copy import deepcopy
-import numpy as np
 
+import numpy as np
+from matplotlib import pyplot as plt
 from sklearn.gaussian_process import (
     GaussianProcessRegressor, GaussianProcessClassifier)
 from sklearn.base import BaseEstimator
-
-from matplotlib import pyplot as plt
 import hopsy
+
+from CADETProcess.optimization import (
+    OptimizationProblem, TrustConstr, SLSQP, Population
+)
 
 class Surrogate:
     """
@@ -16,10 +19,9 @@ class Surrogate:
 
     def __init__(
         self,
-        optimization_problem,
-        population=None,
+        optimization_problem: OptimizationProblem,
+        population: Population,
         n_samples=10000,
-        # TODO: consider which attributes of optimization problem are necessary
     ):
         """
         Initialize the Surrogate class.
@@ -31,21 +33,21 @@ class Surrogate:
         - n_samples (int, optional): Number of samples for surrogate model
         evaluation. Defaults to 10000.
         """
-        from CADETProcess.optimization import OptimizationProblem
-        self.optimization_problem: OptimizationProblem = deepcopy(optimization_problem)
+
+        self.n_samples = n_samples
+        self.population = population
+        self.optimization_problem = deepcopy(optimization_problem)
+
+        self.lower_bounds_copy = optimization_problem.lower_bounds.copy()
+        self.upper_bounds_copy = optimization_problem.upper_bounds.copy()
+
         self.surrogate_model_F: BaseEstimator = None
         self.surrogate_model_G: BaseEstimator = None
         self.surrogate_model_M: BaseEstimator = None
         self.surrogate_model_CV: BaseEstimator = None
-        if population is not None:
-            self.fit_gaussian_process(population)
 
-        self.n_samples = n_samples
+        self.fit_gaussian_process(population)
 
-        # if opt
-        # save a backup of bounds
-        self.lower_bounds_copy = optimization_problem.lower_bounds.copy()
-        self.upper_bounds_copy = optimization_problem.upper_bounds.copy()
 
     def uncondition(self):
         """
@@ -229,7 +231,7 @@ class Surrogate:
                 # opt_vars=[v for v in lincon_vars if v not in conditional_vars],
                 opt_vars=[v.name for v in free_variables],
                 # lhs=A_cond[i][A_cond[i] != 0],
-                lhs=A_cond[i].tolist(),
+                lhs=A_cond[i],
                 b=b_cond[i]
             )
 
