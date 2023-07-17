@@ -213,7 +213,9 @@ class Surrogate:
         return A_cond, b_cond
 
 
-    def condition_optimization_problem(self, conditional_vars: dict = None):
+    def condition_optimization_problem(
+        self, conditional_vars: dict = None, use_surrogate=True
+    ):
         """
         Condition the optimization problem based on the given variables.
 
@@ -222,6 +224,9 @@ class Surrogate:
         conditional_vars : dict, optional
             Dictionary of variable names and their corresponding values to
             condition on. Defaults to None.
+        use_surrogate : bool, optional
+            whether the minimizer should use the surrogate or the true
+            objective function. Defaults to using the surrogate (True)
 
         Returns
         -------
@@ -291,15 +296,90 @@ class Surrogate:
 
             return self.surrogate_model_F.predict(x_complete.reshape((1,-1)))
 
-        obj.objective = surrogate_obj_fun
+        if use_surrogate:
+            obj.objective = surrogate_obj_fun
+        else:
+            obj.objective = conditioned_objective
 
         return op, cond_var_idx, free_var_idx
 
 
-    def find_x0(self, x):
-        pass
+    def find_x0(
+        self, cond_var_index: int, cond_var_value: float,
+        x_tol=0.0, plot=False,
+    ):
+        """
+        find an x for completing a minimum boundary w.r.t. a conditioning
+        variable.
 
-    def find_minimum(self, var_index):
+        Parameters
+        ----------
+        cond_var_index : int
+            the index of the conditioning variable in the population
+        cond_var_value : float
+            the value at which the conditioning variable is fixed
+        x_tol : float
+            the minimum distance to neighboring x a new point needs to have
+        plot : bool
+            flag if the new candidate point is plotted
+
+        Returns
+        -------
+        out:
+        """
+        f = self.population.f.reshape((-1, ))
+        X = self.population.x_untransformed
+
+        x = X[:, cond_var_index]
+        x_search = cond_var_value
+
+        # compute distance between x_search and x and then look for lowest
+        # function values
+        delta_x = x - x_search
+        distance = np.sqrt(delta_x ** 2 )
+        closest = [
+            i for _, i in sorted(zip(distance, range(len(distance))))
+        ]
+
+        pois_left = []
+        pois_right = []
+        for i in closest[slice(6)]:
+            delta_xi = delta_x[i]
+            f_xi = f[i]
+            p = (f_xi, delta_xi, i)
+            if delta_xi < -x_tol:
+                pois_left.append(p)
+            elif delta_xi > x_tol:
+                pois_right.append(p)
+            else:
+                continue
+
+
+        if len(pois_left) == 0 or len(pois_right) == 0:
+            return
+
+        fl, dxl, il = sorted(pois_left)[0]
+        fr, dxr, ir = sorted(pois_right)[0]
+
+        # compute a new point according to the weighted distances of the
+        # acquired points above
+        x_new = X[[il, ir]]
+        weights = np.abs([dxl, dxr])
+        weights /= weights.sum()
+
+        x_new_weighted = np.einsum("ij,i -> j", x_new, np.flip(weights))
+
+        if plot:
+            f_search = f.min() * 1.2
+            ax = plt.gca()
+            ax.scatter(x, f, color="tab:blue", alpha=.7)
+            ax.scatter([x_search], [f_search], color="tab:red", marker="o", ls="")
+            ax.plot([x_search, x[il]], [f_search, f[il]], lw=.5, color="tab:red")
+            ax.plot([x_search, x[ir]], [f_search, f[ir]], lw=.5, color="tab:red")
+
+        return x_new_weighted
+
+    def find_minimum(self, var_index, use_surrogate=True):
         """
         Find the minimum of the optimization problem with respect to the given
         variable.
@@ -308,6 +388,9 @@ class Surrogate:
         ----------
         var_index : int
             The index of the variable to optimize.
+        use_surrogate : bool, optional
+            whether the minimizer should use the surrogate or the true
+            objective function. Defaults to using the surrogate (True)
 
         Returns
         -------
@@ -324,7 +407,8 @@ class Surrogate:
 
         for i, x_cond in enumerate(x_space):
             op, cond_var_idx, free_var_idx = self.condition_optimization_problem(
-                conditional_vars={var.name: x_cond}
+                conditional_vars={var.name: x_cond},
+                use_surrogate=use_surrogate
             )
 
             try:
@@ -337,10 +421,17 @@ class Surrogate:
                 else:
                     continue
 
+            x0_weighted = self.find_x0(cond_var_index=var_index, cond_var_value=x_cond)
+
+            if x0_weighted is None:
+                x0 = chebyshev_orig
+            else:
+                x0 = x0_weighted[free_var_idx]
+
             optimizer = SLSQP()
             optimizer.optimize(
                 op,
-                x0=chebyshev_orig,
+                x0=x0,
                 reinit_cache=True,
                 save_results=False,
             )
@@ -364,9 +455,93 @@ class Surrogate:
 
         return f_minimum, x_optimal
 
-    def plot_parameter_objective_space(self):
+    def plot_parameter_objective_space(
+        self, X, f, var_x, ax=None, use_surrogate=True,
+    ):
         """
-        Plot the parameter-objective space.
+        plots the objective value as a function of var_x of the optimization
+        problem.
+
+        Parameters
+        ----------
+        X : ndarray
+            the population of parameters
+        f : ndarray
+            the objective value w.r.t the parameters of X
+        var_x : str, optional
+            the variable to be conditioned upon
+        use_surrogate : bool, optional
+            whether the minimizer should use the surrogate or the true
+            objective function. Defaults to using the surrogate (True)
+
+        Returns
+        -------
+        out : tuple(ndarray, ndarray)
+            a tuple of x and f_min(x)
+
+        Examples
+        --------
+        Apply a surrogate model on 1 generation of U_NSGA3 on a constrained
+        optimization problem.
+        >>> from matplotlib import pyplot as plt
+        >>> from CADETProcess.optimization import U_NSGA3
+        >>> from tests.optimization_problem_fixtures import LinearConstraintsSooTestProblem2
+
+        calculate 1 generation
+        >>> optimizer = U_NSGA3(n_max_gen=1)
+        >>> problem = LinearConstraintsSooTestProblem2("linear")
+        >>> optimizer.optimize(
+        >>>     optimization_problem=problem,
+        >>>     results_directory="work/pymoo/",
+        >>>     use_checkpoint=False,
+        >>>     save_results=True,
+        >>> )
+
+        fit the surrogate model
+        >>> surrogate = Surrogate(
+        >>>     optimization_results=optimizer.results,
+        >>> )
+
+        plot the population and the mimimum F w.r.t. x
+        >>> fig, ax = plt.subplots(1,1)
+        >>> x_opt, f_min = surrogate.plot_parameter_objective_space(
+        >>>    X=surrogate.population.x_untransformed,
+        >>>    f=surrogate.population.f.reshape((-1,)),
+        >>>    var_x="var_0",
+        >>>    ax=ax,
+        >>>    use_surrogate=False
+        >>> )
+        >>> ax.set_xlabel("$var_0$")
+        >>> ax.set_ylabel("$F(var_0)$")
+        >>> fig.tight_layout()
+        >>> fig.savefig(f"{surrogate.plot_directory}/f_x.png")
+
+        """
+        x_idx = self.optimization_problem.get_variable_index(var_x)
+        x = X[:, x_idx]
+        f_min, x_opt = self.find_minimum(
+            x_idx, use_surrogate=use_surrogate
+        )
+
+        if ax is None:
+            ax = plt.subplot()
+        ax.scatter(x, f, s=5, label="obj. fun", alpha=.75)
+        ax.plot(x_opt[:, x_idx], f_min, color="red", lw=.5)
+
+        return x_opt, f_min
+
+    def pairplot_parameter_objective(self, use_surrogate=True):
+        """
+        Create a pairplot that iterates over variables and arranges them in
+        a n x n grid, where n is the number of variables. The diagonal contains
+        the objective value as a function of the variable x.
+
+        Parameters
+        ----------
+        use_surrogate : bool, optional
+            whether the minimizer should use the surrogate or the true
+            objective function. Defaults to using the surrogate (True)
+
         """
 
         X = self.optimization_problem.create_initial_values(
@@ -383,11 +558,10 @@ class Surrogate:
                 y_idx = self.optimization_problem.get_variable_index(var_y)
 
                 if var_y == var_x:
-                    ax.scatter(X[:, x_idx], F_mean, s=5, label="obj. fun",
-                               alpha=.01)
-                    f_min, x_opt = self.find_minimum(x_idx)
-
-                    ax.plot(x_opt[:, x_idx], f_min, color="red", lw=.5)
+                    self.plot_parameter_objective_space(
+                        x=X, f=F_mean, var_x=var_x, ax=ax,
+                        use_surrogate=use_surrogate
+                    )
 
                     # part_dep = partial_dependence(
                     #     self.surrogate_model_F, X=X, features=[i],
