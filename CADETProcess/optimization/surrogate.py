@@ -1,5 +1,6 @@
 from pathlib import Path
 from copy import deepcopy
+import warnings
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -8,6 +9,7 @@ from sklearn.gaussian_process import (
 from sklearn.base import BaseEstimator
 import hopsy
 
+from CADETProcess import CADETProcessError
 from CADETProcess.optimization import (
     OptimizationProblem, TrustConstr, SLSQP, OptimizationResults
 )
@@ -34,7 +36,6 @@ class Surrogate:
         """
 
         self.n_samples = n_samples
-        self.population = optimization_results.population_all
         self.optimization_problem = deepcopy(
             optimization_results.optimization_problem
         )
@@ -48,8 +49,38 @@ class Surrogate:
         self.surrogate_model_M: BaseEstimator = None
         self.surrogate_model_CV: BaseEstimator = None
 
+        self.read_population(population=optimization_results.population_all)
         self.fit_gaussian_process()
 
+    def read_population(self, population):
+        """
+        read attributes from the population
+
+        Parameters
+        ----------
+        population : Population
+            The population for fitting the surrogate models.
+        """
+        self.X = population.x_untransformed
+        self.F = population.f
+        self.G = population.g
+        self.M = population.m
+        self.CV = population.cv
+
+
+    def update(self):
+        """
+        updates the surrogate model with new individuals
+        """
+        self.X = np.row_stack(
+            [self.X, self.X_new]
+        )
+
+        self.F = np.row_stack(
+            [self.F, self.F_new]
+        )
+
+        self.fit_gaussian_process()
 
     def uncondition(self):
         """
@@ -66,35 +97,25 @@ class Surrogate:
     def fit_gaussian_process(self):
         """
         Fit Gaussian process surrogate models to the population.
-
-        Parameters
-        ----------
-        population : np.ndarray
-            The population for fitting the surrogate models.
         """
-        X = self.population.x_untransformed
-        F = self.population.f
-        G = self.population.g
-        M = self.population.m
-        CV = self.population.cv
 
         gp_f = GaussianProcessRegressor()
-        gp_f.fit(X, F)
+        gp_f.fit(self.X, self.F)
         self.surrogate_model_F = gp_f
 
-        if G is not None:
+        if self.G is not None:
             gp_g = GaussianProcessRegressor()
-            gp_g.fit(X, G)
+            gp_g.fit(self.X, self.G)
             self.surrogate_model_G = gp_g
 
-        if M is not None:
+        if self.M is not None:
             gp_m = GaussianProcessRegressor()
-            gp_m.fit(X, M)
+            gp_m.fit(self.X, self.M)
             self.surrogate_model_M = gp_m
 
-        if CV is not None:
+        if self.CV is not None:
             gp_cv = GaussianProcessClassifier()
-            gp_cv.fit(X, CV)
+            gp_cv.fit(self.X, self.CV)
             self.surrogate_model_CV = gp_cv
 
     def estimate_objectives(self, X, return_std=False):
@@ -306,7 +327,7 @@ class Surrogate:
 
     def find_x0(
         self, cond_var_index: int, cond_var_value: float,
-        x_tol=0.0, plot=False,
+        x_tol=0.0, n_neighbors=10, plot=False,
     ):
         """
         find an x for completing a minimum boundary w.r.t. a conditioning
@@ -327,10 +348,10 @@ class Surrogate:
         -------
         out:
         """
-        f = self.population.f.reshape((-1, ))
-        X = self.population.x_untransformed
+        f = self.F.reshape((-1, ))
+        X = self.X
 
-        x = X[:, cond_var_index]
+        x = X[:, cond_var_index].reshape((-1, ))
         x_search = cond_var_value
 
         # compute distance between x_search and x and then look for lowest
@@ -343,7 +364,7 @@ class Surrogate:
 
         pois_left = []
         pois_right = []
-        for i in closest[slice(6)]:
+        for i in closest[slice(n_neighbors)]:
             delta_xi = delta_x[i]
             f_xi = f[i]
             p = (f_xi, delta_xi, i)
@@ -378,6 +399,28 @@ class Surrogate:
             ax.plot([x_search, x[ir]], [f_search, f[ir]], lw=.5, color="tab:red")
 
         return x_new_weighted
+
+    def optimize_conditioned_problem(
+        self, optimization_problem, x0,
+    ):
+
+        optimizer = SLSQP()
+        optimizer.optimize(
+            optimization_problem,
+            x0=x0,
+            reinit_cache=True,
+            save_results=False,
+        )
+
+        x_free = optimizer.results.x_untransformed
+
+        if len(x_free) > 1:
+            assert np.allclose(np.diff(x_free, axis=0), 0)
+
+        x_free = x_free[0]
+        return x_free
+
+
 
     def find_minimum(self, var_index, use_surrogate=True):
         """
@@ -421,39 +464,82 @@ class Surrogate:
                 else:
                     continue
 
-            x0_weighted = self.find_x0(cond_var_index=var_index, cond_var_value=x_cond)
+            x0_weighted = self.find_x0(
+                cond_var_index=cond_var_idx,
+                cond_var_value=x_cond
+            )
 
             if x0_weighted is None:
                 x0 = chebyshev_orig
             else:
                 x0 = x0_weighted[free_var_idx]
 
-            optimizer = SLSQP()
-            optimizer.optimize(
-                op,
+
+            x_free = self.optimize_conditioned_problem(
+                optimization_problem=op,
                 x0=x0,
-                reinit_cache=True,
-                save_results=False,
             )
 
-            x_free = optimizer.results.x_untransformed
+            x_opt = np.full(self.optimization_problem.n_variables, fill_value=np.nan)
+            x_opt[cond_var_idx] = x_cond
+            x_opt[free_var_idx] = x_free
+            x_optimal[i] = x_opt
 
-            if len(x_free) > 1:
-                assert np.allclose(np.diff(x_free, axis=0), 0)
-
-            x_free = x_free[0]
-
-            x_optimal[i, cond_var_idx] = x_cond
-            x_optimal[i, free_var_idx] = x_free
-
-
-            f = op.evaluate_objectives(x_free)
+            f = op.evaluate_objectives(x_opt[free_var_idx])
             f_minimum[i] = f
 
+            # TODO: check if needed
             self.uncondition()
 
 
         return f_minimum, x_optimal
+
+    def fill_gaps(self, cond_var, step, n_neighbors, optimize=False):
+        idx = self.optimization_problem.get_variable_index(cond_var)
+        var = self.optimization_problem.variables[idx]
+
+        var_search = np.arange(var.lb, var.ub, step)
+
+        X = []
+        F = []
+        for x_cond in var_search:
+            x = self.find_x0(
+                cond_var_index=idx,
+                cond_var_value=x_cond,
+                x_tol=step/2,
+                n_neighbors=n_neighbors,
+                plot=False
+            )
+
+            if x is not None:
+                if optimize:
+                    op, cond_var_idx, free_var_idx = self.condition_optimization_problem(
+                        conditional_vars={cond_var: x_cond},
+                        use_surrogate=True
+                    )
+
+                    try:
+                        x_free = self.optimize_conditioned_problem(
+                            optimization_problem=op,
+                            x0=x[free_var_idx]
+                        )
+                    except CADETProcessError:
+                        warnings.warn(f"skipped {x}, because it violated constraints.")
+                        continue
+
+                    x_opt = np.full(self.optimization_problem.n_variables, np.nan)
+                    x_opt[cond_var_idx] = x_cond
+                    x_opt[free_var_idx] = x_free
+
+                    x = x_opt
+
+                f = self.optimization_problem.evaluate_objectives(x)
+                X.append(x)
+                F.append(f)
+
+        self.X_new = np.array(X)
+        self.F_new = np.array(F)
+
 
     def plot_parameter_objective_space(
         self, X, f, var_x, ax=None, use_surrogate=True,
@@ -505,8 +591,8 @@ class Surrogate:
         plot the population and the mimimum F w.r.t. x
         >>> fig, ax = plt.subplots(1,1)
         >>> x_opt, f_min = surrogate.plot_parameter_objective_space(
-        >>>    X=surrogate.population.x_untransformed,
-        >>>    f=surrogate.population.f.reshape((-1,)),
+        >>>    X=surrogate.X,
+        >>>    f=surrogate.F.reshape((-1,)),
         >>>    var_x="var_0",
         >>>    ax=ax,
         >>>    use_surrogate=False
@@ -527,6 +613,13 @@ class Surrogate:
             ax = plt.subplot()
         ax.scatter(x, f, s=5, label="obj. fun", alpha=.75)
         ax.plot(x_opt[:, x_idx], f_min, color="red", lw=.5)
+
+        if use_surrogate:
+            F_mean, F_std =  self.estimate_objectives(x_opt, return_std=True)
+            ax.fill_between(
+                x_opt[:, x_idx], F_mean-F_std, F_mean+F_std,
+                color="red", alpha=.5
+            )
 
         return x_opt, f_min
 
