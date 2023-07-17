@@ -19,28 +19,29 @@ class Surrogate:
 
     def __init__(
         self,
-        optimization_problem: OptimizationProblem,
         optimization_results: OptimizationResults,
         n_samples=10000,
     ):
         """
         Initialize the Surrogate class.
 
-        Parameters:
-        - optimization_problem (OptimizationProblem): The optimization problem.
-        - population (np.ndarray, optional): Initial population for fitting the
-        surrogate models. Defaults to None.
-        - n_samples (int, optional): Number of samples for surrogate model
-        evaluation. Defaults to 10000.
+        Parameters
+        ----------
+        optimization_results : OptimizationResults
+            The optimization results from a successful optimization process.
+        n_samples : int, optional
+            Number of samples for surrogate model evaluation. Defaults to 10000.
         """
 
         self.n_samples = n_samples
         self.population = optimization_results.population_all
-        self.optimization_problem = deepcopy(optimization_problem)
+        self.optimization_problem = deepcopy(
+            optimization_results.optimization_problem
+        )
         self.plot_directory = optimization_results.plot_directory
 
-        self.lower_bounds_copy = optimization_problem.lower_bounds.copy()
-        self.upper_bounds_copy = optimization_problem.upper_bounds.copy()
+        self.lower_bounds_copy = self.optimization_problem.lower_bounds.copy()
+        self.upper_bounds_copy = self.optimization_problem.upper_bounds.copy()
 
         self.surrogate_model_F: BaseEstimator = None
         self.surrogate_model_G: BaseEstimator = None
@@ -66,8 +67,10 @@ class Surrogate:
         """
         Fit Gaussian process surrogate models to the population.
 
-        Parameters:
-        - population (np.ndarray): The population for fitting the surrogate models.
+        Parameters
+        ----------
+        population : np.ndarray
+            The population for fitting the surrogate models.
         """
         X = self.population.x_untransformed
         F = self.population.f
@@ -98,13 +101,18 @@ class Surrogate:
         """
         Estimate the objectives using the surrogate model.
 
-        Parameters:
-        - X (np.ndarray): The input samples.
-        - return_std (bool, optional): Whether to return the standard deviation
-        of the predictions. Defaults to False.
+        Parameters
+        ----------
+        X : np.ndarray
+            The input samples.
+        return_std : bool, optional
+            Whether to return the standard deviation of the predictions.
+            Defaults to False.
 
-        Returns:
-        - np.ndarray: The estimated objectives.
+        Returns
+        -------
+        out : np.ndarray
+            The estimated objectives.
         """
         return self.surrogate_model_F.predict(X, return_std=return_std)
 
@@ -113,12 +121,15 @@ class Surrogate:
         """
         Estimate the non-linear constraints using the surrogate model.
 
-        Parameters:
-        - X (np.ndarray): The input samples.
+        Parameters
+        ----------
+        X : np.ndarray
+            The input samples.
 
-        Returns:
-        - Tuple[np.ndarray, np.ndarray]: The estimated non-linear
-        constraints (G, CV).
+        Returns
+        -------
+        out : Tuple[np.ndarray, np.ndarray]
+            The estimated non-linear constraints (G, CV).
         """
         G_est = self.surrogate_model_G.predict(X)
         CV_est = self.surrogate_model_CV.predict(X)
@@ -128,28 +139,36 @@ class Surrogate:
         """
         Estimate the meta scores using the surrogate model.
 
-        Parameters:
-        - X (np.ndarray): The input samples.
+        Parameters
+        ----------
+        X : np.ndarray
+            The input samples.
 
-        Returns:
-        - np.ndarray: The estimated meta scores.
+        Returns
+        -------
+        out : np.ndarray
+            The estimated meta scores.
         """
         M_est = self.surrogate_model_M.predict(X)
         return M_est
 
-    def get_conditional_and_free_indices(self, conditional_vars={}):
+    def get_conditional_and_free_indices(self, conditional_vars: dict = None):
         """
         Get the indices of the conditional and free variables.
 
-        Parameters:
-        - conditional_vars (dict, optional): Dictionary of variable names and
-        their corresponding values to condition on. Defaults to an empty
-        dictionary.
+        Parameters
+        ----------
+        conditional_vars : dict, optional
+        Dictionary of variable names and their corresponding values to condition
+        on. Defaults to None.
 
-        Returns:
-        - Tuple[List[int], List[int]]: The indices of the conditional variables
-        and the free variables.
+        Returns
+        -------
+        out : Tuple[List[int], List[int]]
+            The indices of the conditional variables and the free variables.
         """
+        if conditional_vars is None:
+            conditional_vars = {}
         free_var_idx = []
         cond_var_idx = []
         for v in self.optimization_problem.variable_names:
@@ -161,19 +180,24 @@ class Surrogate:
 
         return cond_var_idx, free_var_idx
 
-    def condition_constraints(self, conditional_vars={}):
+    def condition_constraints(self, conditional_vars: dict = None):
         """
         Condition the constraints based on the given variables.
 
-        Parameters:
-        - conditional_vars (dict, optional): Dictionary of variable names and
-        their corresponding values to condition on. Defaults to an empty
-        dictionary.
+        Parameters
+        ----------
+        conditional_vars : dict, optional
+            Dictionary of variable names and their corresponding values to
+            condition on. Defaults to None.
 
-        Returns:
-        - Tuple[np.ndarray, np.ndarray]: The conditioned inequality constraints
-        (A_cond, b_cond).
+        Returns
+        -------
+        Out : np.ndarray, np.ndarray
+            The conditioned inequality constraints (A_cond, b_cond).
         """
+        if conditional_vars is None:
+            conditional_vars = {}
+
         cond_var_idx, free_var_idx = self.get_conditional_and_free_indices(
             conditional_vars
         )
@@ -189,20 +213,25 @@ class Surrogate:
         return A_cond, b_cond
 
 
-    def condition_optimization_problem(self, conditional_vars={}):
+    def condition_optimization_problem(self, conditional_vars: dict = None):
         """
         Condition the optimization problem based on the given variables.
 
-        Parameters:
-        - conditional_vars (dict, optional): Dictionary of variable names and
-        their corresponding values to condition on. Defaults to an empty
-        dictionary.
+        Parameters
+        ----------
+        conditional_vars : dict, optional
+            Dictionary of variable names and their corresponding values to
+            condition on. Defaults to None.
 
-        Returns:
-        - Tuple[OptimizationProblem, List[int], List[int]]: The conditioned
-        optimization problem, indices of the conditional variables, and indices
-        of the free variables.
+        Returns
+        -------
+        out : Tuple[OptimizationProblem, List[int], List[int]]
+            The conditioned optimization problem, indices of the conditional
+            variables, and indices of the free variables.
         """
+        if conditional_vars is None:
+            conditional_vars = {}
+
         op = deepcopy(self.optimization_problem)
 
         # calculate conditional constraints matrices
@@ -266,18 +295,24 @@ class Surrogate:
 
         return op, cond_var_idx, free_var_idx
 
+
+    def find_x0(self, x):
+        pass
+
     def find_minimum(self, var_index):
         """
         Find the minimum of the optimization problem with respect to the given
         variable.
 
-        Parameters:
-        - var_index (int): The index of the variable to optimize.
-        - plot_directory (str): The directory to save the plot to.
+        Parameters
+        ----------
+        var_index : int
+            The index of the variable to optimize.
 
-        Returns:
-        - Tuple[np.ndarray, np.ndarray]: The minimum objective values and the
-        corresponding optimal points.
+        Returns
+        -------
+        out : Tuple[np.ndarray, np.ndarray]
+            The minimum objective values and the corresponding optimal points.
         """
 
         var = self.optimization_problem.variables[var_index]
@@ -332,11 +367,6 @@ class Surrogate:
     def plot_parameter_objective_space(self):
         """
         Plot the parameter-objective space.
-
-        Parameters:
-        - show (bool, optional): Whether to show the plot. Defaults to True.
-        - plot_directory (str, optional): The directory to save the plot to.
-        Defaults to None.
         """
 
         X = self.optimization_problem.create_initial_values(
