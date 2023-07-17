@@ -35,6 +35,9 @@ class SimulatorBase(metaclass=StructMeta):
     n_cycles_max : int
         Maximum number of cycles to be simulated if evaluate_stationarity is True.
         The default is 100.
+    raise_exception_on_max_cycles : bool
+        Raise an exception when the maximum number of cycles is exceeded.
+        The default is False
 
     See Also
     --------
@@ -49,6 +52,7 @@ class SimulatorBase(metaclass=StructMeta):
     evaluate_stationarity = Bool(default=False)
     n_cycles_min = UnsignedInteger(default=5)
     n_cycles_max = UnsignedInteger(default=100)
+    raise_exception_on_max_cycles = Bool(default=False)
 
     def __init__(self, stationarity_evaluator=None):
         self.logger = get_logger('Simulation')
@@ -329,6 +333,7 @@ class SimulatorBase(metaclass=StructMeta):
             If the process is not an instance of Process.
         CADETProcessError
             If the simulation doesn't terminate successfully and
+            `raise_exception_on_max_cycles` is True.
 
         See Also
         --------
@@ -372,7 +377,11 @@ class SimulatorBase(metaclass=StructMeta):
                 break
 
             if n_cyc >= self.n_cycles_max:
-                self.logger.warning("Exceeded maximum number of cycles")
+                msg = "Exceeded maximum number of cycles."
+                if self.raise_exception_on_max_cycles:
+                    raise CADETProcessError(msg)
+                else:
+                    self.logger.warning(msg)
                 break
 
         self.n_cycles = n_cyc_orig
