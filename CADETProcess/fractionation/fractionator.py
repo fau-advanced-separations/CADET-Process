@@ -451,6 +451,11 @@ class Fractionator(EventHandler):
         return self._mass
 
     @property
+    def total_mass(self):
+        """ndarray: Total mass of each component in all fraction pools."""
+        return np.sum([pool.mass for pool in self.fraction_pools], axis=0)
+
+    @property
     def concentration(self):
         """ndarray: Component concentration in corresponding fraction pool."""
         return np.array([
@@ -473,6 +478,29 @@ class Fractionator(EventHandler):
             recovery = self.mass / self.m_feed
 
         return np.nan_to_num(recovery)
+
+    @property
+    def mass_balance_difference(self):
+        """ndarray: Difference in mass balance between m_feed and fraction pools.
+
+        The mass balance is calculated as the difference between the feed mass (m_feed)
+        and the mass in the fraction pools. It represents the discrepancy or change in
+        mass during the fractionation process.
+
+        Returns
+        -------
+        ndarray
+            Difference in mass balance between m_feed and fraction pools for each
+            component.
+
+        Notes
+        -----
+        Positive values indicate a surplus of mass in the fraction pools compared to
+        the feed, while negative values indicate a deficit. A value of zero indicates
+        a mass balance where the mass in the fraction pools is equal to the feed mass.
+
+        """
+        return self.total_mass - self.m_feed
 
     @property
     def productivity(self):
@@ -500,6 +528,7 @@ class Fractionator(EventHandler):
         return Performance(
             self.mass, self.concentration, self.purity,
             self.recovery, self.productivity, self.eluent_consumption,
+            self.mass_balance_difference,
             self.component_system
         )
 
