@@ -327,7 +327,7 @@ class Surrogate:
 
     def find_x0(
         self, cond_var_index: int, cond_var_value: float,
-        x_tol=0.0, n_neighbors=10, plot=False,
+        x_tol=0.0, n_neighbors=10, plot=False
     ):
         """
         find an x for completing a minimum boundary w.r.t. a conditioning
@@ -354,27 +354,37 @@ class Surrogate:
         x = X[:, cond_var_index].reshape((-1, ))
         x_search = cond_var_value
 
-        # compute distance between x_search and x and then look for lowest
-        # function values
-        delta_x = x - x_search
-        distance = np.sqrt(delta_x ** 2 )
+        var = self.optimization_problem.variables[cond_var_index]
+
+        # transform vars
+        x_trans = (x - var.lb) / (var.ub - var.lb)
+        f_trans = (f-np.min(f))/(np.max(f)-np.min(f))
+        x_search_trans = (x_search - var.lb) / (var.ub - var.lb)
+
+        delta_x_trans = x_trans - x_search_trans
+        # no need to calculate delta_f because: f_trans = f - f_opt = f - 0 = f
+        distance = np.sqrt(delta_x_trans ** 2 + f_trans ** 2 )
         closest = [
             i for _, i in sorted(zip(distance, range(len(distance))))
         ]
 
         pois_left = []
         pois_right = []
-        for i in closest[slice(n_neighbors)]:
-            delta_xi = delta_x[i]
+        # for i in closest[slice(n_neighbors)]:
+        for i in closest:
+            # TODO: does it check for f distance?
+            delta_xi = delta_x_trans[i]
             f_xi = f[i]
             p = (f_xi, delta_xi, i)
-            if delta_xi < -x_tol:
+            if delta_xi < -x_tol and len(pois_left) < n_neighbors:
                 pois_left.append(p)
-            elif delta_xi > x_tol:
+            elif delta_xi > x_tol and len(pois_right) < n_neighbors:
                 pois_right.append(p)
             else:
                 continue
 
+            if len(pois_left) + len(pois_right) == n_neighbors * 2:
+                break
 
         if len(pois_left) == 0 or len(pois_right) == 0:
             return
@@ -465,20 +475,27 @@ class Surrogate:
                     continue
 
             x0_weighted = self.find_x0(
-                cond_var_index=cond_var_idx,
-                cond_var_value=x_cond
+                cond_var_index=cond_var_idx[0],
+                cond_var_value=x_cond,
+                x_tol=0.0,
+                n_neighbors=1
             )
 
-            if x0_weighted is None:
-                x0 = chebyshev_orig
-            else:
+            if x0_weighted is not None:
                 x0 = x0_weighted[free_var_idx]
+            else:
+                x0 = chebyshev_orig
 
-
-            x_free = self.optimize_conditioned_problem(
-                optimization_problem=op,
-                x0=x0,
-            )
+            try:
+                x_free = self.optimize_conditioned_problem(
+                    optimization_problem=op,
+                    x0=x0,
+                )
+            except CADETProcessError:
+                x_free = self.optimize_conditioned_problem(
+                    optimization_problem=op,
+                    x0=chebyshev_orig,
+                )
 
             x_opt = np.full(self.optimization_problem.n_variables, fill_value=np.nan)
             x_opt[cond_var_idx] = x_cond
@@ -506,7 +523,7 @@ class Surrogate:
             x = self.find_x0(
                 cond_var_index=idx,
                 cond_var_value=x_cond,
-                x_tol=step/2,
+                x_tol=0.0,
                 n_neighbors=n_neighbors,
                 plot=False
             )
