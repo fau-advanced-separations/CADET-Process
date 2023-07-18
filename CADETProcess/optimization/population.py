@@ -325,6 +325,11 @@ class Population():
         """np.array: Average meta score values."""
         return np.mean(self.m, axis=0)
 
+    @property
+    def is_feasilbe(self):
+        """np.array: Average meta score values."""
+        return np.array([ind.is_feasible for ind in self.individuals])
+
     def setup_objectives_figure(self, include_meta=True, plot_individual=False):
         """Set up figure and axes for plotting objectives.
 
