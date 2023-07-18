@@ -193,6 +193,46 @@ class LinearEqualityConstraintsSooTestProblem(TestProblem):
         np.testing.assert_almost_equal(x-x_true, 0, decimal=decimal)
 
 
+class NonlinearLinearConstraintsSooTestProblem(TestProblem):
+    def __init__(self, transform=None, *args, **kwargs):
+        super().__init__(
+            'nonlinear_linear_constraints_single_objective',
+            *args, **kwargs
+        )
+        self.setup_variables(transform=transform)
+        self.setup_linear_constraints()
+        self.setup_nonlinear_constraints()
+        self.add_objective(self._objective_function)
+
+    def setup_variables(self, transform):
+        self.add_variable('var_0', lb=-2, ub=2, transform=transform)
+        self.add_variable('var_1', lb=-2, ub=2, transform=transform)
+
+    def setup_linear_constraints(self):
+        self.add_linear_constraint(['var_0', 'var_1'], [-1, -0.5], 0)
+
+    def setup_nonlinear_constraints(self):
+        f_nonlinconc = lambda x: (x[0] + x[1]) ** 2
+        self.add_nonlinear_constraint(f_nonlinconc, "nonlincon_0", bounds=4)
+
+    def _objective_function(self, x):
+        return x[0] - x[1]
+
+    def optimal_solution(self):
+        x = [-1, 2]
+        f = -3
+
+        return x, f
+
+    def test_if_solved(self, optimization_results: OptimizationResults, decimal=7):
+        x_true, f_true = self.optimal_solution()
+        x = optimization_results.x_untransformed
+        f = optimization_results.f
+
+        np.testing.assert_almost_equal(f-f_true, 0, decimal=decimal)
+        np.testing.assert_almost_equal(x-x_true, 0, decimal=decimal)
+
+
 class LinearConstraintsMooTestProblem(TestProblem):
     """Function curtesy of Florian Schunck and Samuel Leweke."""
 

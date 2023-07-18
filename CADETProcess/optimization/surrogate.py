@@ -36,7 +36,7 @@ class Surrogate:
         """
 
         self.n_samples = n_samples
-        self.optimization_problem = deepcopy(
+        self.optimization_problem: OptimizationProblem = deepcopy(
             optimization_results.optimization_problem
         )
         self.plot_directory = optimization_results.plot_directory
@@ -47,7 +47,7 @@ class Surrogate:
         self.surrogate_model_F: BaseEstimator = None
         self.surrogate_model_G: BaseEstimator = None
         self.surrogate_model_M: BaseEstimator = None
-        self.surrogate_model_CV: BaseEstimator = None
+        self.surrogate_model_feasible: BaseEstimator = None
 
         self.read_population(population=optimization_results.population_all)
         self.fit_gaussian_process()
@@ -66,6 +66,7 @@ class Surrogate:
         self.G = population.g
         self.M = population.m
         self.CV = population.cv
+        self.feasible = self.CV.reshape((-1, )) < 0
 
 
     def update(self):
@@ -113,10 +114,11 @@ class Surrogate:
             gp_m.fit(self.X, self.M)
             self.surrogate_model_M = gp_m
 
-        if self.CV is not None:
-            gp_cv = GaussianProcessClassifier()
-            gp_cv.fit(self.X, self.CV)
-            self.surrogate_model_CV = gp_cv
+        if self.feasible is not None:
+            # TODO: catch error where points are only feasible or infeasible
+            gp_feasible = GaussianProcessClassifier()
+            gp_feasible.fit(self.X, self.feasible)
+            self.surrogate_model_feasible = gp_feasible
 
     def estimate_objectives(self, X, return_std=False):
         """
@@ -150,11 +152,11 @@ class Surrogate:
         Returns
         -------
         out : Tuple[np.ndarray, np.ndarray]
-            The estimated non-linear constraints (G, CV).
+            The estimated non-linear constraints (G, feasible points).
         """
         G_est = self.surrogate_model_G.predict(X)
-        CV_est = self.surrogate_model_CV.predict(X)
-        return G_est, CV_est
+        feasible_est = self.surrogate_model_feasible.predict(X)
+        return G_est, feasible_est
 
     def estimate_meta_scores(self, X):
         """
@@ -297,6 +299,10 @@ class Surrogate:
                 beq=b_cond[i]
             )
 
+        # extract objective and nonlinear_constraints
+        nlc = op.nonlinear_constraints[0]
+        nlc_fun = nlc.nonlinear_constraint
+
         obj = op.objectives[0]
         obj_fun = obj.objective
 
@@ -307,20 +313,34 @@ class Surrogate:
 
             return x_complete
 
+        # conditioned original function of otimization problem
         def conditioned_objective(x):
             x_complete = complete_x(x)
 
             return obj_fun(x_complete)
 
+        def conditioned_nonlinear_constraint(x):
+            x_complete = complete_x(x)
+            return nlc_fun(x_complete)
+
+        # conditioned surrogate functions
         def surrogate_obj_fun(x):
             x_complete = complete_x(x)
 
             return self.surrogate_model_F.predict(x_complete.reshape((1,-1)))
 
+        def surrogate_nlc_fun(x):
+            x_complete = complete_x(x)
+
+            return self.surrogate_model_G.predict(x_complete.reshape((1,-1)))
+
         if use_surrogate:
             obj.objective = surrogate_obj_fun
+            nlc.nonlinear_constraint = surrogate_nlc_fun
         else:
             obj.objective = conditioned_objective
+            nlc.nonlinear_constraint = conditioned_nonlinear_constraint
+
 
         return op, cond_var_idx, free_var_idx
 
@@ -347,9 +367,16 @@ class Surrogate:
         Returns
         -------
         out:
+
+        Todos
+        -----
+        TODO: find a method to find_x0 also if no points are available to the left
+              as an idea. Use points to the right and extrapolate
+              Also, consider that the point is optimized in any case, so the
+              point only needs to be feasible
         """
-        f = self.F.reshape((-1, ))
-        X = self.X
+        f = self.F.reshape((-1, ))[self.feasible]
+        X = self.X[self.feasible]
 
         x = X[:, cond_var_index].reshape((-1, ))
         x_search = cond_var_value
@@ -414,7 +441,7 @@ class Surrogate:
         self, optimization_problem, x0,
     ):
 
-        optimizer = SLSQP()
+        optimizer = TrustConstr()
         optimizer.optimize(
             optimization_problem,
             x0=x0,
@@ -470,7 +497,10 @@ class Surrogate:
 
             except ValueError as e:
                 if str(e) == "All inequality constraints are redundant, implying that the polytope is a single point.":
-                    chebyshev_orig = None
+                    problem = op.create_hopsy_problem(simplify=False)
+                    chebyshev_orig = hopsy.compute_chebyshev_center(problem)[:, 0]
+                    # TODO: stop here and record single optimal point
+                    # chebyshev_orig = None
                 else:
                     continue
 
@@ -489,13 +519,15 @@ class Surrogate:
             try:
                 x_free = self.optimize_conditioned_problem(
                     optimization_problem=op,
-                    x0=x0,
+                    x0=None,
                 )
             except CADETProcessError:
                 x_free = self.optimize_conditioned_problem(
                     optimization_problem=op,
                     x0=chebyshev_orig,
                 )
+            except ValueError:
+                continue
 
             x_opt = np.full(self.optimization_problem.n_variables, fill_value=np.nan)
             x_opt[cond_var_idx] = x_cond
@@ -626,12 +658,16 @@ class Surrogate:
             x_idx, use_surrogate=use_surrogate
         )
 
+        if self.feasible is not None:
+            alpha = (self.feasible.astype(float)+(1/3)) / (4/3)
+
         if ax is None:
             ax = plt.subplot()
-        ax.scatter(x, f, s=5, label="obj. fun", alpha=.75)
+        ax.scatter(x, f, s=10, label="obj. fun", alpha=alpha)
         ax.plot(x_opt[:, x_idx], f_min, color="red", lw=.5)
 
         if use_surrogate:
+            x_opt = x_opt[~np.all(np.isnan(x_opt), axis=1),:]
             F_mean, F_std =  self.estimate_objectives(x_opt, return_std=True)
             ax.fill_between(
                 x_opt[:, x_idx], F_mean-F_std, F_mean+F_std,
