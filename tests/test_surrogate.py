@@ -6,7 +6,7 @@ from CADETProcess.optimization import (
 )
 from tests.optimization_problem_fixtures import (
     LinearConstraintsSooTestProblem,
-    NonlinearLinearConstraintsSooTestProblobjective_indexem,
+    NonlinearLinearConstraintsSooTestProblem,
     NonlinearConstraintsMooTestProblem,
 
 )
@@ -96,7 +96,7 @@ class Test_Surrogate(unittest.TestCase):
 
 if __name__ == "__main__":
     settings.working_directory = "work"
+    Test_Surrogate().test_linear_constraints_soo()
+    Test_Surrogate().test_nonlinear_linear_constraints_soo()
     Test_Surrogate().test_nonlinear_constraints_moo()
-    # Test_Surrogate().test_nonlinear_linear_constraints_soo()
-    # Test_Surrogate().test_linear_constraints_soo()
     # unittest.main()
