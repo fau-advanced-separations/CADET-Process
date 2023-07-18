@@ -227,9 +227,9 @@ class OptimizationResults(metaclass=StructMeta):
         return self.meta_front.x
 
     @property
-    def x_untransformed(self):
+    def x_transformed(self):
         """np.array: Optimal points."""
-        return self.meta_front.x_untransformed
+        return self.meta_front.x_transformed
 
     @property
     def f(self):
@@ -395,6 +395,7 @@ class OptimizationResults(metaclass=StructMeta):
             self,
             include_meta=True,
             plot_pareto=False,
+            plot_infeasible=True,
             plot_individual=False,
             autoscale=True,
             show=True,
@@ -409,10 +410,14 @@ class OptimizationResults(metaclass=StructMeta):
             If True, only plot Pareto front members of each generation are plotted.
             Else, all evaluated individuals are plotted.
             The default is False.
+        plot_infeasible : bool, optional
+            If True, plot infeasible points. The default is True.
         plot_individual : bool, optional
             If True, create separate figures for each objective. Otherwise, all
             objectives are plotted in one figure.
             The default is False.
+        plot_infeasible : bool, optional
+            If True, plot infeasible points. The default is False.
         autoscale : bool, optional
             If True, automatically adjust the scaling of the axes. The default is True.
         show : bool, optional
@@ -449,6 +454,7 @@ class OptimizationResults(metaclass=StructMeta):
             axs, figs = gen.plot_objectives(
                 axs, figs,
                 include_meta=include_meta,
+                plot_infeasible=plot_infeasible,
                 plot_individual=plot_individual,
                 autoscale=autoscale,
                 color_feas=scalarMap_feas.to_rgba(i),
@@ -460,7 +466,8 @@ class OptimizationResults(metaclass=StructMeta):
     def plot_pareto(
             self,
             show=True,
-            plot_pareto=False,
+            plot_pareto=True,
+            plot_evolution=False,
             plot_directory=None):
         """Plot Pareto fronts for each generation in the optimization.
 
@@ -478,8 +485,12 @@ class OptimizationResults(metaclass=StructMeta):
             If True, display the plot.
             The default is True.
         plot_pareto : bool, optional
-            If True, only plot Pareto front members of each generation are plotted.
+            If True, only Pareto front members of each generation are plotted.
             Else, all evaluated individuals are plotted.
+            The default is True.
+        plot_evolution : bool, optional
+            If True, the Pareto front is plotted for each generation.
+            Else, only final Pareto front is plotted.
             The default is False.
         plot_directory : str, optional
             The directory where the plot should be saved.
@@ -503,6 +514,9 @@ class OptimizationResults(metaclass=StructMeta):
         else:
             populations = self.populations
             population_last = self.population_last
+
+        if not plot_evolution:
+            populations = [population_last]
 
         for i, gen in enumerate(populations):
             if gen is population_last:
@@ -743,7 +757,7 @@ class OptimizationResults(metaclass=StructMeta):
         if self.results_directory is not None:
             self._update_csv(self.population_last, 'results_all', mode='a')
             self._update_csv(self.population_last, 'results_last', mode='w')
-            self._update_csv(self.pareto_front, 'results_pareto', mode='a')
+            self._update_csv(self.pareto_front, 'results_pareto', mode='w')
             if self.optimization_problem.n_meta_scores > 0:
                 self._update_csv(self.meta_front, 'results_meta', mode='w')
 
@@ -861,7 +875,7 @@ class OptimizationResults(metaclass=StructMeta):
             for ind in population:
                 row = [
                     ind.id,
-                    *ind.x_untransformed.tolist(),
+                    *ind.x.tolist(),
                     *ind.f.tolist()
                 ]
                 if ind.g is not None:

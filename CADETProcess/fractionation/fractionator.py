@@ -39,20 +39,50 @@ class Fractionator(EventHandler):
             components=None,
             use_total_concentration_components=True,
             *args, **kwargs):
+        """Initialize the Fractionator.
 
+        Parameters
+        ----------
+        simulation_results : SimulationResults
+            Simulation results containing chromatograms.
+        components : list, optional
+            List of components to be fractionated. Default is None.
+        use_total_concentration_components : bool, optional
+            Use total concentration components. Default is True.
+        *args
+            Variable length argument list.
+        **kwargs
+            Arbitrary keyword arguments.
+
+        """
         self.components = components
         self.use_total_concentration_components = use_total_concentration_components
         self.simulation_results = simulation_results
-        self._cycle_time = None
 
         super().__init__(*args, **kwargs)
 
     @property
     def simulation_results(self):
+        """SimulationResults: The simulation results containing the chromatograms."""
         return self._simulation_results
 
     @simulation_results.setter
     def simulation_results(self, simulation_results):
+        """Set the simulation results.
+
+        Parameters
+        ----------
+        simulation_results : SimulationResults
+            Simulation results containing chromatograms.
+
+        Raises
+        ------
+        TypeError
+            If simulation_results is not of type SimulationResults.
+        CADETProcessError
+            If the simulation results do not contain any chromatograms.
+
+        """
         if not isinstance(simulation_results, SimulationResults):
             raise TypeError('Expected SimulationResults')
 
@@ -95,13 +125,17 @@ class Fractionator(EventHandler):
             for chrom in self.chromatograms
         })
 
+        self._cycle_time = self.process.cycle_time
+
         self.reset()
 
     @property
     def component_system(self):
+        """ComponentSystem: The component system of the chromatograms."""
         return self.chromatograms[0].component_system
 
     def call_by_chrom_name(func):
+        """Decorator to enable calling functions with chromatogram object or name."""
         @wraps(func)
         def wrapper(self, chrom, *args, **kwargs):
             """Enable calling functions with chromatogram object or name."""
@@ -120,8 +154,7 @@ class Fractionator(EventHandler):
 
         See Also
         --------
-        add_chromatogram
-        SoltionIO
+        SolutionIO
         reset
         cycle_time
         """
@@ -153,6 +186,7 @@ class Fractionator(EventHandler):
 
     @property
     def process(self):
+        """Process: The process from the simulation results."""
         return self.simulation_results.process
 
     @property
@@ -162,14 +196,20 @@ class Fractionator(EventHandler):
 
     @property
     def cycle_time(self):
-        """float: cycle time"""
-        if self._cycle_time is None:
-            return self.process.cycle_time
-        return self._cycle_time
+        """float: The cycle time of the Fractionator.
 
-    @cycle_time.setter
-    def cycle_time(self, cycle_time):
-        self._cycle_time = cycle_time
+        Note that in some situations, it might be desired to set a custom cycle time
+        for calculating the performance indicators. For this purpose, overwrite the
+        cycle time in the Process object after adding it to the Fractionator.
+
+        Warning: This is not a robust feature! Side effects can ocurr in the Process!
+
+        See Also
+        --------
+        productivity
+
+        """
+        return self._cycle_time
 
     @property
     def time(self):
@@ -261,7 +301,7 @@ class Fractionator(EventHandler):
 
         Notes
         -----
-            This is just a dummy variable to support interfacing with Events.
+        This is just a dummy variable to support interfacing with Events.
 
         """
         return self._fractionation_states
@@ -272,7 +312,7 @@ class Fractionator(EventHandler):
 
         Parameters
         ----------
-        chrom : SoltionIO
+        chrom : SolutionIO
             Chromatogram object which is to be fractionated.
         state : int or list of floats
             New fractionation state of the Chromatogram.
@@ -390,7 +430,7 @@ class Fractionator(EventHandler):
 
         Notes
         -----
-            Waste is always the last fraction
+        Waste is always the last fraction
 
         """
         if not isinstance(fraction, Fraction):
@@ -409,6 +449,11 @@ class Fractionator(EventHandler):
                 for comp, pool in enumerate(self.fraction_pools[:-1])
             ])
         return self._mass
+
+    @property
+    def total_mass(self):
+        """ndarray: Total mass of each component in all fraction pools."""
+        return np.sum([pool.mass for pool in self.fraction_pools], axis=0)
 
     @property
     def concentration(self):
@@ -435,10 +480,33 @@ class Fractionator(EventHandler):
         return np.nan_to_num(recovery)
 
     @property
+    def mass_balance_difference(self):
+        """ndarray: Difference in mass balance between m_feed and fraction pools.
+
+        The mass balance is calculated as the difference between the feed mass (m_feed)
+        and the mass in the fraction pools. It represents the discrepancy or change in
+        mass during the fractionation process.
+
+        Returns
+        -------
+        ndarray
+            Difference in mass balance between m_feed and fraction pools for each
+            component.
+
+        Notes
+        -----
+        Positive values indicate a surplus of mass in the fraction pools compared to
+        the feed, while negative values indicate a deficit. A value of zero indicates
+        a mass balance where the mass in the fraction pools is equal to the feed mass.
+
+        """
+        return self.total_mass - self.m_feed
+
+    @property
     def productivity(self):
         """ndarray: Specific productivity in corresponding fraction pool."""
         return self.mass / (
-            self.cycle_time * self.process.V_solid
+            self.process.cycle_time * self.process.V_solid
         )
 
     @property
@@ -447,18 +515,20 @@ class Fractionator(EventHandler):
 
         Notes
         -----
-            This is the inverse of the regularly used specific eluent
-            consumption. It is preferred here in order to avoid numeric issues
-            if the collected mass is 0.
+        This is the inverse of the regularly used specific eluent
+        consumption. It is preferred here in order to avoid numeric issues
+        if the collected mass is 0.
         """
         return self.mass / self.process.V_eluent
 
     @property
     def performance(self):
+        """Performance: The performance metrics of the fractionation."""
         self.reset()
         return Performance(
             self.mass, self.concentration, self.purity,
             self.recovery, self.productivity, self.eluent_consumption,
+            self.mass_balance_difference,
             self.component_system
         )
 
@@ -470,6 +540,26 @@ class Fractionator(EventHandler):
 
     def add_fractionation_event(
             self, event_name, target, time, chromatogram=None):
+        """Add a fractionation event.
+
+        Parameters
+        ----------
+        event_name : str
+            The name of the event.
+        target : int
+            The target component.
+        time : float
+            The time of the event.
+        chromatogram : SolutionIO, optional
+            The chromatogram associated with the event.
+            If None and there is only one chromatogram, it will be used.
+
+        Raises
+        ------
+        CADETProcessError
+            If the chromatogram is not found.
+
+        """
         if chromatogram is None and self.n_chromatograms == 1:
             chromatogram = self.chromatograms[0]
         elif isinstance(chromatogram, str):
@@ -502,7 +592,8 @@ class Fractionator(EventHandler):
         Raises
         ------
         ValueError
-            If size of purity parameter does not math number of components
+            If the size of the purity parameter does not match the number of components
+
         """
         if isinstance(purity_required, float):
             purity_required = [purity_required]*self.n_comp

@@ -74,6 +74,9 @@ class Performance(Structure):
     eluent_consumption : np.ndarray
         Eluent consumption of each component in the system after fractionation.
         Size depends on number of components.
+    mass_balance_difference : np.ndarray
+        Mass balance difference of each component.
+        Size depends on number of components.
     component_system : ComponentSystem
         The component system used for fractionation.
         If not provided, a default component system is used.
@@ -87,7 +90,7 @@ class Performance(Structure):
 
     _performance_keys = [
         'mass', 'concentration', 'purity', 'recovery',
-        'productivity', 'eluent_consumption'
+        'productivity', 'eluent_consumption', 'mass_balance_difference'
     ]
 
     mass = DependentlySizedNdArray(dep=('n_comp'))
@@ -96,10 +99,11 @@ class Performance(Structure):
     recovery = DependentlySizedNdArray(dep=('n_comp'))
     productivity = DependentlySizedNdArray(dep=('n_comp'))
     eluent_consumption = DependentlySizedNdArray(dep=('n_comp'))
+    mass_balance_difference = DependentlySizedNdArray(dep=('n_comp'))
 
     def __init__(
             self, mass, concentration, purity, recovery,
-            productivity, eluent_consumption, component_system=None):
+            productivity, eluent_consumption, mass_balance_difference, component_system=None):
         """Initialize Performance.
 
         Parameters
@@ -116,10 +120,11 @@ class Performance(Structure):
             The productivity of each component.
         eluent_consumption : ndarray
             The eluent consumption of each component.
+        mass_balance_difference : ndarray
+            The difference in mass balance of each component.
         component_system : ComponentSystem
             The ComponentSystem object that describes the system's components.
         """
-
         if component_system is None:
             component_system = ComponentSystem(mass.shape[0])
 
@@ -130,6 +135,7 @@ class Performance(Structure):
         self.recovery = recovery
         self.productivity = productivity
         self.eluent_consumption = eluent_consumption
+        self.mass_balance_difference = mass_balance_difference
 
     @property
     def n_comp(self):
@@ -156,7 +162,8 @@ class Performance(Structure):
             f'purity={np.array_repr(self.purity)}, '\
             f'recovery={np.array_repr(self.recovery)}, '\
             f'productivity={np.array_repr(self.productivity)}, '\
-            f'eluent_consumption={np.array_repr(self.eluent_consumption)})'
+            f'eluent_consumption={np.array_repr(self.eluent_consumption)} '\
+            f'mass_balance_difference={np.array_repr(self.mass_balance_difference)})'
 
 
 class RankedPerformance():
@@ -168,6 +175,7 @@ class RankedPerformance():
     ranked_objective_decorator
 
     """
+
     _performance_keys = Performance._performance_keys
 
     def __init__(self, performance, ranking=1.0):
@@ -176,12 +184,11 @@ class RankedPerformance():
 
         self._performance = performance
 
-        if isinstance(ranking, (float, int)):
-            ranking = performance.n_comp * [ranking]
-        elif len(ranking) != performance.n_comp:
-            raise CADETProcessError('Number of components does not match.')
+        self.ranking = ranking
 
-        self._ranking = ranking
+    @property
+    def performance(self):
+        return self._performance
 
     @property
     def ranking(self):
@@ -189,15 +196,10 @@ class RankedPerformance():
 
     @ranking.setter
     def ranking(self, ranking):
-        n_metrics = self.component_system.n_comp
-
         if isinstance(ranking, (float, int)):
-            ranking = n_metrics * [ranking]
-
-        if ranking is not None and len(ranking) != n_metrics:
-            raise CADETProcessError(
-                'Ranking does not match number of metrics'
-            )
+            ranking = self.performance.n_comp * [ranking]
+        elif len(ranking) != self.performance.n_comp:
+            raise CADETProcessError('Number of components does not match.')
 
         self._ranking = ranking
 
@@ -209,7 +211,7 @@ class RankedPerformance():
     def __getattr__(self, item):
         if item not in self._performance_keys:
             raise AttributeError
-        return sum(self._performance[item]*self._ranking)/sum(self._ranking)
+        return sum(self._performance[item]*self.ranking)/sum(self.ranking)
 
     def __getitem__(self, item):
         if item not in self._performance_keys:
@@ -223,7 +225,8 @@ class RankedPerformance():
             f'purity={np.array_repr(self.purity)}, '\
             f'recovery={np.array_repr(self.recovery)}, '\
             f'productivity={np.array_repr(self.productivity)}, '\
-            f'eluent_consumption={np.array_repr(self.eluent_consumption)})'
+            f'eluent_consumption={np.array_repr(self.eluent_consumption)} ' \
+            f'mass_balance_difference={np.array_repr(self.mass_balance_difference)})'
 
 
 class PerformanceIndicator(MetricBase):
@@ -371,6 +374,19 @@ class Concentration(PerformanceIndicator):
 
     def _evaluate(self, performance):
         return - performance.concentration
+
+
+class MassBalanceDifference(PerformanceIndicator):
+    """Performance indicator based on the mass balance of each component in the system.
+
+    See Also
+    --------
+    PerformanceIndicator
+
+    """
+
+    def _evaluate(self, performance):
+        return - np.abs(performance.mass_balance_difference)
 
 
 class PerformanceProduct(PerformanceIndicator):

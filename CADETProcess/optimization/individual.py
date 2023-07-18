@@ -37,7 +37,9 @@ class Individual(metaclass=StructMeta):
     Attributes
     ----------
     x : list
-        Variable values.
+        Variable values in untransformed space.
+    x_transformed : list
+        Independent variable values in transformed space.
     f : list
         Objective values.
     g : list
@@ -53,8 +55,9 @@ class Individual(metaclass=StructMeta):
     --------
     CADETProcess.optimization.Population
     """
+
     x = Vector()
-    x_untransformed = Vector()
+    x_transformed = Vector()
     f = Vector()
     g = Vector()
     m = Vector()
@@ -69,7 +72,7 @@ class Individual(metaclass=StructMeta):
             m=None,
             cv=None,
             cv_tol=0,
-            x_untransformed=None,
+            x_transformed=None,
             independent_variable_names=None,
             objective_labels=None,
             contraint_labels=None,
@@ -85,11 +88,11 @@ class Individual(metaclass=StructMeta):
         self.cv = cv
         self.cv_tol = cv_tol
 
-        if x_untransformed is None:
-            x_untransformed = x
-            variable_names = independent_variable_names
+        if x_transformed is None:
+            x_transformed = x
+            independent_variable_names = variable_names
 
-        self.x_untransformed = x_untransformed
+        self.x_transformed = x_transformed
 
         if isinstance(variable_names, np.ndarray):
             variable_names = [s.decode() for s in variable_names]
@@ -127,16 +130,19 @@ class Individual(metaclass=StructMeta):
 
     @property
     def n_x(self):
+        """int: Number of variables."""
         return len(self.x)
 
     @property
     def n_f(self):
+        """int: Number of objectives."""
         if self.f is None:
             return 0
         return len(self.f)
 
     @property
     def n_g(self):
+        """int: Number of nonlinear constraints."""
         if self.g is None:
             return 0
         else:
@@ -144,6 +150,7 @@ class Individual(metaclass=StructMeta):
 
     @property
     def n_m(self):
+        """int: Number of meta scores."""
         if self.m is None:
             return 0
         else:
@@ -228,7 +235,7 @@ class Individual(metaclass=StructMeta):
 
         return similar_x and similar_f and similar_g and similar_m
 
-    def is_similar_x(self, other, tol=1e-1):
+    def is_similar_x(self, other, tol=1e-1, use_transformed=False):
         """Determine if individual is similar to other based on parameter values.
 
         Parameters
@@ -238,6 +245,9 @@ class Individual(metaclass=StructMeta):
         tol : float
             Relative tolerance parameter.
             To reduce number of entries, a rather high rtol is chosen.
+        use_transformed : bool
+            If True, use independent transformed space.
+            The default is False.
 
         Returns
         -------
@@ -334,7 +344,7 @@ class Individual(metaclass=StructMeta):
             data.cv = self.cv
         if self.m is not None:
             data.m = self.m
-        data.x_untransformed = self.x_untransformed
+        data.x_transformed = self.x_transformed
         data.variable_names = self.variable_names
         data.independent_variable_names = self.independent_variable_names
         if self.objective_labels is not None:

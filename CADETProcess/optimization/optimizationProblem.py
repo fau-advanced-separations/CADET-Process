@@ -427,7 +427,7 @@ class OptimizationProblem(metaclass=StructMeta):
         Parameters
         ----------
         x : list
-            (Transformed) Optimization variables values.
+            Value of the optimization variables in untransformed space.
 
         Raises
         ------
@@ -437,7 +437,7 @@ class OptimizationProblem(metaclass=StructMeta):
         Returns
         -------
         x : list
-            Values of all optimization variables.
+            Value of all optimization variables in untransformed space.
 
         """
         if len(x) != self.n_independent_variables:
@@ -462,7 +462,8 @@ class OptimizationProblem(metaclass=StructMeta):
         Parameters
         ----------
         x : list
-            (Transformed) Optimization variables values.
+            Value of all optimization variables.
+            Works for transformed and untransformed space.
 
         Raises
         ------
@@ -495,7 +496,7 @@ class OptimizationProblem(metaclass=StructMeta):
         Parameters
         ----------
         x : array_like
-            Value of the optimization variables
+            Value of all optimization variables in untransformed space.
         evaluation_objects : list or EvaluationObject or None or -1
             Evaluations objects to set variables in.
             If None, do not set variables.
@@ -591,7 +592,7 @@ class OptimizationProblem(metaclass=StructMeta):
         eval_funs : list of callables
             Evaluation function.
         x : array_like
-            Value of the optimization variables.
+            Value of all optimization variables in untransformed space.
         force : bool
             If True, do not use cached results. The default is False.
 
@@ -684,7 +685,7 @@ class OptimizationProblem(metaclass=StructMeta):
         Parameters
         ----------
         x : array_like
-            Value of the optimization variables.
+            Value of the optimization variables in untransformed space.
         func : Evaluator or Objective, or Nonlinear Constraint, or Callback
             Evaluation function.
         force : bool
@@ -973,7 +974,7 @@ class OptimizationProblem(metaclass=StructMeta):
         Parameters
         ----------
         x : array_like
-            Value of the optimization variables.
+            Value of the optimization variables in untransformed space.
         force : bool
             If True, do not use cached results. The default is False.
 
@@ -1037,7 +1038,7 @@ class OptimizationProblem(metaclass=StructMeta):
         Parameters
         ----------
         x : array_like
-            Value of the optimization variables
+            Value of the optimization variables in untransformed space.
         dx : float
             Increment to x to use for determining the function gradient.
 
@@ -1219,7 +1220,7 @@ class OptimizationProblem(metaclass=StructMeta):
         Parameters
         ----------
         x : array_like
-            Value of the optimization variables.
+            Value of the optimization variables in untransformed space.
         force : bool
             If True, do not use cached results. The default is False.
 
@@ -1288,7 +1289,7 @@ class OptimizationProblem(metaclass=StructMeta):
         Parameters
         ----------
         x : array_like
-            Value of the optimization variables.
+            Value of the optimization variables in untransformed space.
         force : bool
             If True, do not use cached results. The default is False.
 
@@ -1363,7 +1364,7 @@ class OptimizationProblem(metaclass=StructMeta):
         Parameters
         ----------
         x : array_like
-            Value of the optimization variables.
+            Value of the optimization variables in untransformed space.
 
         Returns
         -------
@@ -1385,7 +1386,7 @@ class OptimizationProblem(metaclass=StructMeta):
         Parameters
         ----------
         x : array_like
-            Value of the optimization variables
+            Value of the optimization variables in untransformed space.
         dx : float
             Increment to x to use for determining the function gradient.
 
@@ -1537,7 +1538,6 @@ class OptimizationProblem(metaclass=StructMeta):
 
         """
         self.logger.debug(f'evaluate callbacks at {ind.x}')
-        x = self.untransform(ind.x)
 
         for callback in self.callbacks:
             if not (
@@ -1550,10 +1550,10 @@ class OptimizationProblem(metaclass=StructMeta):
             callback._current_iteration = current_iteration
 
             try:
-                self._evaluate(x, callback, force)
+                self._evaluate(ind.x, callback, force)
             except CADETProcessError:
                 self.logger.warning(
-                    f'Evaluation of {callback} failed at {x}.'
+                    f'Evaluation of {callback} failed at {ind.x}.'
                 )
 
     def evaluate_callbacks_population(
@@ -1730,7 +1730,7 @@ class OptimizationProblem(metaclass=StructMeta):
         Parameters
         ----------
         x : array_like
-            Value of the optimization variables.
+            Value of the optimization variables in untransformed space.
         force : bool
             If True, do not use cached results. The default is False.
 
@@ -1963,7 +1963,7 @@ class OptimizationProblem(metaclass=StructMeta):
         Parameters
         ----------
         x : array_like
-            Value of the optimization variables
+            Value of the optimization variables in untransformed space.
 
         Returns
         -------
@@ -2211,7 +2211,7 @@ class OptimizationProblem(metaclass=StructMeta):
         Parameters
         ----------
         x : array_like
-            Value of the optimization variables.
+            Value of the optimization variables in untransformed space.
 
         Returns
         -------
@@ -2237,7 +2237,7 @@ class OptimizationProblem(metaclass=StructMeta):
         Parameters
         ----------
         x : array_like
-            Value of the optimization variables.
+            Value of the optimization variables in untransformed space.
 
         Returns
         -------
@@ -2487,7 +2487,7 @@ class OptimizationProblem(metaclass=StructMeta):
         Parameters
         ----------
         x : array_like
-            Value of the optimization variables.
+            Value of the optimization variables in untransformed space.
 
         Returns
         -------
@@ -2513,7 +2513,7 @@ class OptimizationProblem(metaclass=StructMeta):
         Parameters
         ----------
         x : array_like
-            Value of the optimization variables.
+            Value of the optimization variables in untransformed space.
 
         Returns
         -------
@@ -2535,7 +2535,7 @@ class OptimizationProblem(metaclass=StructMeta):
         Parameters
         ----------
         x : list
-            Optimization variables in untransformed parameter space.
+            Value of the optimization variables in untransformed space.
 
         Returns
         -------
