@@ -61,7 +61,7 @@ class Surrogate:
         population : Population
             The population for fitting the surrogate models.
         """
-        self.X = population.x_untransformed
+        self.X = population.x
         self.F = population.f
         self.G = population.g
         self.M = population.m
@@ -373,12 +373,16 @@ class Surrogate:
 
             def conditioned_objective(x):
                 x_complete = complete_x(x)
-                return obj_fun(x_complete)[obj_return_idx]
+                f = obj_fun(x_complete)
+                f = np.array(f, ndmin=2)
+                return f[:, obj_return_idx]
 
             # conditioned surrogate functions
             def surrogate_obj_fun(x):
                 x_complete = complete_x(x).reshape((1,-1))
-                return self.surrogate_model_F.predict(x_complete)[:, obj_return_idx]
+                f_estimate = self.surrogate_model_F.predict(x_complete)
+                f_estimate = np.array(f_estimate, ndmin=2)
+                return f_estimate[:, obj_return_idx]
 
             if use_surrogate:
                 obj.objective = surrogate_obj_fun
@@ -503,7 +507,7 @@ class Surrogate:
             save_results=False,
         )
 
-        x_free = optimizer.results.x_untransformed
+        x_free = optimizer.results.x
 
         if len(x_free) > 1:
             assert np.allclose(np.diff(x_free, axis=0), 0)
@@ -587,8 +591,11 @@ class Surrogate:
                         optimization_problem=op,
                         x0=chebyshev_orig,
                     )
-                except ValueError:
-                    continue
+                except ValueError as e:
+                    if "`x0` is infeasible" in str(e):
+                        continue
+                    else:
+                        raise CADETProcessError(e)
 
                 x_opt = np.full(n_vars, fill_value=np.nan)
                 x_opt[cond_var_idx] = x_cond
@@ -744,6 +751,9 @@ class Surrogate:
             if use_surrogate:
                 x_opt_nonan = x_opt[~np.all(np.isnan(x_opt), axis=(1,2)),:]
                 F_mean, F_std =  self.estimate_objectives(x_opt_nonan[:, oi, :], return_std=True)
+                F_mean = F_mean.reshape((len(x_opt_nonan), -1))
+                F_std = F_std.reshape((len(x_opt_nonan), -1))
+
                 ax.fill_between(
                     x_opt_nonan[:, oi, x_idx],
                     F_mean[:, oi]-F_std[:, oi], F_mean[:, oi]+F_std[:, oi],
