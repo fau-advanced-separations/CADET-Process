@@ -28,6 +28,13 @@ class Population():
     """
 
     def __init__(self, id=None):
+        """Initialize the Population.
+
+        Parameters
+        ----------
+        id : str or None, optional
+            Identifier for the population. If None, a random UUID will be generated.
+        """
         self._individuals = {}
         if id is None:
             self.id = uuid.uuid4()
@@ -48,24 +55,30 @@ class Population():
     def infeasible(self):
         """Population: Population containing only infeasible individuals."""
         pop = Population()
-        pop._individuals = {ind.id: ind for ind in self.individuals if not ind.is_feasible}
+        pop._individuals = {
+            ind.id: ind for ind in self.individuals if not ind.is_feasible
+        }
 
         return pop
 
     @property
     def n_x(self):
+        """int: Number of optimization variables."""
         return self.individuals[0].n_x
 
     @property
     def n_f(self):
+        """int: Number of objective metrics."""
         return self.individuals[0].n_f
 
     @property
     def n_g(self):
+        """int: Number of nonlinear constraint metrics."""
         return self.individuals[0].n_g
 
     @property
     def n_m(self):
+        """int: Number of meta scores."""
         return self.individuals[0].n_m
 
     @property
@@ -78,6 +91,7 @@ class Population():
 
     @property
     def variable_names(self):
+        """list: Names of the optimization variables."""
         if self.individuals[0].variable_names is None:
             return [f'x_{i}' for i in range(self.n_x)]
         else:
@@ -85,18 +99,22 @@ class Population():
 
     @property
     def independent_variable_names(self):
+        """list: Names of the independent variables."""
         return self.individuals[0].independent_variable_names
 
     @property
     def objective_labels(self):
+        """list: Labels of the objective metrics."""
         return self.individuals[0].objective_labels
 
     @property
     def contraint_labels(self):
+        """list: Labels of the nonlinear constraint metrics."""
         return self.individuals[0].contraint_labels
 
     @property
     def meta_score_labels(self):
+        """list: Labels of the meta scores."""
         return self.individuals[0].meta_score_labels
 
     def add_individual(self, individual, ignore_duplicate=True):
@@ -104,18 +122,19 @@ class Population():
 
         Parameters
         ----------
-        individual: Individual
+        individual : Individual
             Individual to be added.
         ignore_duplicate : bool, optional
-            If False, an Exception is thrown if individual already exists.
+            If False, an Exception is thrown if the individual already exists.
 
         Raises
         ------
         TypeError
-            If Individual is not an instance of Individual.
+            If the individual is not an instance of Individual.
         CADETProcessError
-            If Individual does not match dimensions.
-            If Individual already exists.
+            If the individual does not match the dimensions.
+            If the individual already exists.
+
         """
         if not isinstance(individual, Individual):
             raise TypeError("Expected Individual")
@@ -133,19 +152,20 @@ class Population():
         self._individuals[individual.id] = individual
 
     def remove_individual(self, individual):
-        """Remove individual from population.
+        """Remove an individual from the population.
 
         Parameters
         ----------
-        individual: Individual
+        individual : Individual
             Individual to be removed.
 
         Raises
         ------
         TypeError
-            If individual is not an instance of Individual.
+            If the individual is not an instance of Individual.
         CADETProcessError
-            If individual is not in population.
+            If the individual is not in the population.
+
         """
         if not isinstance(individual, Individual):
             raise TypeError("Expected Individual")
@@ -155,19 +175,20 @@ class Population():
         self._individuals.pop(individual.id)
 
     def update(self, other):
-        """Update Population with individuals of other Population.
+        """Update the population with individuals from another population.
 
         Parameters
         ----------
         other : Population
-            Other population.
+            Another population.
 
         Raises
         ------
         TypeError
             If other is not an instance of Population.
         CADETProcessError
-            If dimensions do not match.
+            If the dimensions do not match.
+
         """
         if not isinstance(other, Population):
             raise TypeError("Expected Population")
@@ -178,7 +199,7 @@ class Population():
         self._individuals.update(other._individuals)
 
     def remove_similar(self):
-        """Remove similar individuals from population."""
+        """Remove similar individuals from the population."""
         for ind in self.individuals.copy():
             to_remove = []
 
@@ -305,6 +326,21 @@ class Population():
         return np.mean(self.m, axis=0)
 
     def setup_objectives_figure(self, include_meta=True, plot_individual=False):
+        """Set up figure and axes for plotting objectives.
+
+        Parameters
+        ----------
+        include_meta : bool, optional
+            If True, include meta scores in the plot. The default is True.
+        plot_individual : bool, optional
+            If True, create separate figures for each objective.
+            Otherwise, plot all objectives in one figure. The default is True.
+
+        Returns
+        -------
+        tuple
+            A tuple of the figure(s) and axes object(s).
+        """
         n = len(self.variable_names)
         if include_meta and self.m is not None:
             m = len(self.objective_labels) + len(self.meta_score_labels)
@@ -352,19 +388,17 @@ class Population():
 
         Parameters
         ----------
-        figs : plt.Figure or list of plt.Figure, optional
-            Figure(s) to plot the objectives on.
-        axs : plt.Axes or list of plt.Axes, optional
-            Axes to plot the objectives on.
-            If None, new figures and axes will be created.
+        figs : plt.Figure or list, optional
+            Figure(s) to plot the objectives on. The default is None.
+        axs : plt.Axes or list, optional
+            Axes to plot the objectives on. The default is None.
         include_meta : bool, optional
-            If True, meta scores will be included in the plot. The default is True.
+            If True, include meta scores in the plot. The default is True.
         plot_infeasible : bool, optional
             If True, plot infeasible points. The default is True.
         plot_individual : bool, optional
-            If True, create separate figures for each objective. Otherwise, all
-            objectives are plotted in one figure.
-            The default is False.
+            If True, create separate figures for each objective.
+            Otherwise, plot all objectives in one figure. The default is False.
         autoscale : bool, optional
             If True, automatically adjust the scaling of the axes. The default is True.
         color_feas : str, optional
@@ -374,14 +408,12 @@ class Population():
         show : bool, optional
             If True, display the plot. The default is True.
         plot_directory : str, optional
-            The directory where the plot should be saved.
-            The default is None.
+            The directory where the plot should be saved. The default is None.
 
         Returns
         -------
         tuple
-            Tuple with (lists of) figure and axes objects.
-
+            A tuple of the figure(s) and axes object(s).
         """
         if axs is None:
             figs, axs = self.setup_objectives_figure(include_meta, plot_individual)
@@ -482,6 +514,13 @@ class Population():
         return figs, axs
 
     def setup_pareto(self):
+        """Set up base figure for plotting the Pareto front.
+
+        Returns
+        -------
+        pymoo.visualization.scatter.Scatter
+            The base figure object.
+        """
         n = self.dimensions[1]
         plot = Scatter(
             figsize=(6 * n, 5 * n),
@@ -493,35 +532,28 @@ class Population():
 
     def plot_pareto(
             self, plot=None, color=None, show=True, plot_directory=None):
-        """Plot pairwise Pareto fronts of for each generation in the optimization.
+        """Plot pairwise Pareto fronts for each generation in the optimization.
 
         The Pareto front represents the optimal solutions that cannot be improved in one
-        objective without sacrificing another.
-        The method shows a pairwise Pareto plot, where each objective is plotted against
-        every other objective in a scatter plot, allowing for a visualization of the
-        trade-offs between the objectives.
-        To highlight the progress, a colormap is used where later generations are
-        plotted with darker blueish colors.
+        objective without sacrificing another. The method shows a pairwise Pareto plot,
+        where each objective is plotted against every other objective in a scatter plot,
+        allowing for a visualization of the trade-offs between the objectives.
 
         Parameters
         ----------
         plot : pymoo.visualization.scatter.Scatter, optional
-            Base figure. If None is provided, a new one will be setup.
-        color: str
+            Base figure. If None is provided, a new one will be set up.
+        color : str, optional
             Color for scatter points.
         show : bool, optional
-            If True, display the plot.
-            The default is True.
+            If True, display the plot. The default is True.
         plot_directory : str, optional
-            The directory where the plot should be saved.
-            The default is None.
+            The directory where the plot should be saved. The default is None.
 
-        See Also
-        --------
-        setup_pareto
-        CADETProcess.optimization.OptimizationResults.plot_pareto
+        Returns
+        -------
         pymoo.visualization.scatter.Scatter
-
+            The scatter plot object.
         """
         if plot is None:
             plot = self.setup_pareto()
@@ -544,19 +576,11 @@ class Population():
         Parameters
         ----------
         use_transformed : bool, optional
-            If True, use the transformed independent variables.
-            The default is False.
+            If True, use the transformed independent variables. The default is False.
         show : bool, optional
-            If True, display the plot.
-            The default is True.
+            If True, display the plot. The default is True.
         plot_directory : str, optional
-            The directory where the plot should be saved.
-            The default is None.
-
-        See Also
-        --------
-        CADETProcess.results.plot_corner
-        corner.corner
+            The directory where the plot should be saved. The default is None.
         """
         if use_transformed:
             x = self.x_transformed
@@ -600,6 +624,18 @@ class Population():
             plt.close(fig)
 
     def __contains__(self, other):
+        """Check if the population contains a specific individual.
+
+        Parameters
+        ----------
+        other : Individual, np.array, list
+            The individual or its hashable representation.
+
+        Returns
+        -------
+        bool
+            True if the individual is in the population, False otherwise.
+        """
         if isinstance(other, Individual):
             key = other.id
         elif isinstance(other, (np.array, list)):
@@ -613,14 +649,40 @@ class Population():
             return False
 
     def __getitem__(self, x):
+        """Get an individual from the population using its hashable representation.
+
+        Parameters
+        ----------
+        x : np.array, list
+            The hashable representation of the individual.
+
+        Returns
+        -------
+        Individual
+            The individual from the population.
+        """
         key = hash_array(x)
 
         return self._individuals[key]
 
     def __len__(self):
+        """Get the number of individuals in the population.
+
+        Returns
+        -------
+        int
+            The number of individuals in the population.
+        """
         return self.n_individuals
 
     def __iter__(self):
+        """Iterate over the individuals in the population.
+
+        Returns
+        -------
+        iter
+            An iterator over the individuals in the population.
+        """
         return iter(self.individuals)
 
     def to_dict(self):
@@ -641,17 +703,17 @@ class Population():
 
     @classmethod
     def from_dict(cls, data):
-        """Create Population from dictionary.
+        """Create a Population from a dictionary.
 
         Parameters
         ----------
         data : dict
-            Dictionary containing population data.
+            The dictionary containing population data.
 
         Returns
         -------
         Population
-            Population created from data.
+            The Population created from the data.
         """
         id = data['id']
         if isinstance(id, bytes):
