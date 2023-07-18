@@ -321,7 +321,7 @@ class Population():
             return np.max(self.m, axis=0)
 
     @property
-    def cv_avg(self):
+    def m_avg(self):
         """np.array: Average meta score values."""
         return np.mean(self.m, axis=0)
 
