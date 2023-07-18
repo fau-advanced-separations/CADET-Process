@@ -66,8 +66,17 @@ class Surrogate:
         self.G = population.g
         self.M = population.m
         self.CV = population.cv
-        self.feasible = self.CV.reshape((-1, )) < 0
 
+    @property
+    def feasible(self):
+        if self.CV is not None:
+            return np.all(self.CV < 0, axis=1)
+        else:
+            return self.all_feasible(self.X)
+
+    @staticmethod
+    def all_feasible(X):
+        return np.full(len(X), fill_value=True)
 
     def update(self):
         """
@@ -80,6 +89,18 @@ class Surrogate:
         self.F = np.row_stack(
             [self.F, self.F_new]
         )
+
+        if len(self.G_new) > 0 :
+            self.G = np.row_stack(
+                [self.G, self.G_new]
+            )
+
+        if len(self.CV_new) > 0 :
+            self.CV = np.row_stack(
+                [self.CV, self.CV_new]
+            )
+
+
 
         self.fit_gaussian_process()
 
@@ -116,8 +137,11 @@ class Surrogate:
 
         if self.feasible is not None:
             # TODO: catch error where points are only feasible or infeasible
-            gp_feasible = GaussianProcessClassifier()
-            gp_feasible.fit(self.X, self.feasible)
+            if np.all(self.feasible):
+                gp_feasible = self.all_feasible
+            else:
+                gp_feasible = GaussianProcessClassifier()
+                gp_feasible.fit(self.X, self.feasible)
             self.surrogate_model_feasible = gp_feasible
 
     def estimate_objectives(self, X, return_std=False):
@@ -237,7 +261,10 @@ class Surrogate:
 
 
     def condition_optimization_problem(
-        self, conditional_vars: dict = None, use_surrogate=True
+        self,
+        conditional_vars: dict = None,
+        objective_index: list = None,
+        use_surrogate=True
     ):
         """
         Condition the optimization problem based on the given variables.
@@ -257,10 +284,13 @@ class Surrogate:
             The conditioned optimization problem, indices of the conditional
             variables, and indices of the free variables.
         """
+        op = deepcopy(self.optimization_problem)
+
         if conditional_vars is None:
             conditional_vars = {}
 
-        op = deepcopy(self.optimization_problem)
+        if objective_index is None:
+            objective_index = np.arange(op.n_objectives)
 
         # calculate conditional constraints matrices
         A_cond, b_cond = self.condition_constraints(conditional_vars)
@@ -299,13 +329,6 @@ class Surrogate:
                 beq=b_cond[i]
             )
 
-        # extract objective and nonlinear_constraints
-        nlc = op.nonlinear_constraints[0]
-        nlc_fun = nlc.nonlinear_constraint
-
-        obj = op.objectives[0]
-        obj_fun = obj.objective
-
         def complete_x(x):
             x_complete = np.zeros(n_variables)
             x_complete[cond_var_idx] = list(conditional_vars.values())
@@ -313,40 +336,65 @@ class Surrogate:
 
             return x_complete
 
+        # generate conditioned nonlinear constraints
+        for nlc in op.nonlinear_constraints:
+            func = nlc.nonlinear_constraint
+
+            def conditioned_nonlinear_constraint(x):
+                x_complete = complete_x(x)
+                return func(x_complete)
+
+            def surrogate_nlc_fun(x):
+                x_complete = complete_x(x).reshape((1,-1))
+                return self.surrogate_model_G.predict(x_complete)[0]
+
+            if use_surrogate:
+                nlc.nonlinear_constraint = surrogate_nlc_fun
+            else:
+                nlc.nonlinear_constraint = conditioned_nonlinear_constraint
+
+
+        obj_index = {}
+        oi = 0
+        for i, obj in enumerate(op.objectives):
+            j = 0
+            while j < obj.n_objectives:
+                if oi in objective_index:
+                    obj_index.update({oi: (i, j)})
+                oi += 1
+                j += 1
+
         # conditioned original function of otimization problem
-        def conditioned_objective(x):
-            x_complete = complete_x(x)
+        objectives = []
+        for obj_id, (obj_func_idx, obj_return_idx) in obj_index.items():
+            obj = op.objectives[obj_func_idx]
+            obj_fun = obj.objective
+            obj.n_objectives = 1
 
-            return obj_fun(x_complete)
+            def conditioned_objective(x):
+                x_complete = complete_x(x)
+                return obj_fun(x_complete)[obj_return_idx]
 
-        def conditioned_nonlinear_constraint(x):
-            x_complete = complete_x(x)
-            return nlc_fun(x_complete)
+            # conditioned surrogate functions
+            def surrogate_obj_fun(x):
+                x_complete = complete_x(x).reshape((1,-1))
+                return self.surrogate_model_F.predict(x_complete)[:, obj_return_idx]
 
-        # conditioned surrogate functions
-        def surrogate_obj_fun(x):
-            x_complete = complete_x(x)
+            if use_surrogate:
+                obj.objective = surrogate_obj_fun
+            else:
+                obj.objective = conditioned_objective
 
-            return self.surrogate_model_F.predict(x_complete.reshape((1,-1)))
+            objectives.append(obj)
 
-        def surrogate_nlc_fun(x):
-            x_complete = complete_x(x)
-
-            return self.surrogate_model_G.predict(x_complete.reshape((1,-1)))
-
-        if use_surrogate:
-            obj.objective = surrogate_obj_fun
-            nlc.nonlinear_constraint = surrogate_nlc_fun
-        else:
-            obj.objective = conditioned_objective
-            nlc.nonlinear_constraint = conditioned_nonlinear_constraint
-
+        op._objectives = objectives
 
         return op, cond_var_idx, free_var_idx
 
 
     def find_x0(
         self, cond_var_index: int, cond_var_value: float,
+        objective_index: list,
         x_tol=0.0, n_neighbors=10, plot=False
     ):
         """
@@ -359,6 +407,8 @@ class Surrogate:
             the index of the conditioning variable in the population
         cond_var_value : float
             the value at which the conditioning variable is fixed
+        objective_index : int
+            the indices of the objectives for which an x_0 should be found
         x_tol : float
             the minimum distance to neighboring x a new point needs to have
         plot : bool
@@ -374,8 +424,12 @@ class Surrogate:
               as an idea. Use points to the right and extrapolate
               Also, consider that the point is optimized in any case, so the
               point only needs to be feasible
+        TODO:
         """
-        f = self.F.reshape((-1, ))[self.feasible]
+        if objective_index is None:
+            objective_index = np.arange(self.optimization_problem.n_objectives)
+
+        f = self.F[self.feasible, objective_index]
         X = self.X[self.feasible]
 
         x = X[:, cond_var_index].reshape((-1, ))
@@ -459,7 +513,7 @@ class Surrogate:
 
 
 
-    def find_minimum(self, var_index, use_surrogate=True):
+    def find_minimum(self, var_index, use_surrogate=True, n=21):
         """
         Find the minimum of the optimization problem with respect to the given
         variable.
@@ -478,67 +532,74 @@ class Surrogate:
             The minimum objective values and the corresponding optimal points.
         """
 
+        n_vars = self.optimization_problem.n_variables
+        n_objs = self.optimization_problem.n_objectives
+
         var = self.optimization_problem.variables[var_index]
 
-        n = 21
+        f_minimum = np.full((n, n_objs), fill_value=np.nan)
+        x_optimal = np.full((n, n_objs, n_vars), fill_value=np.nan)
+
         x_space = np.linspace(var.lb, var.ub, n)
-        f_minimum = np.full((n, ), np.nan)
-        x_optimal = np.full((n, self.optimization_problem.n_variables), fill_value=np.nan)
 
-        for i, x_cond in enumerate(x_space):
-            op, cond_var_idx, free_var_idx = self.condition_optimization_problem(
-                conditional_vars={var.name: x_cond},
-                use_surrogate=use_surrogate
-            )
+        for objective_index in range(n_objs):
 
-            try:
-                problem = op.create_hopsy_problem(simplify=True)
-                chebyshev_orig = hopsy.compute_chebyshev_center(problem)[:, 0]
+            for i, x_cond in enumerate(x_space):
+                op, cond_var_idx, free_var_idx = self.condition_optimization_problem(
+                    conditional_vars={var.name: x_cond},
+                    objective_index=[objective_index],
+                    use_surrogate=use_surrogate
+                )
 
-            except ValueError as e:
-                if str(e) == "All inequality constraints are redundant, implying that the polytope is a single point.":
-                    problem = op.create_hopsy_problem(simplify=False)
+                try:
+                    problem = op.create_hopsy_problem(simplify=True)
                     chebyshev_orig = hopsy.compute_chebyshev_center(problem)[:, 0]
-                    # TODO: stop here and record single optimal point
-                    # chebyshev_orig = None
+
+                except ValueError as e:
+                    if str(e) == "All inequality constraints are redundant, implying that the polytope is a single point.":
+                        problem = op.create_hopsy_problem(simplify=False)
+                        chebyshev_orig = hopsy.compute_chebyshev_center(problem)[:, 0]
+                        # TODO: stop here and record single optimal point
+                        # chebyshev_orig = None
+                    else:
+                        continue
+
+                x0_weighted = self.find_x0(
+                    cond_var_index=cond_var_idx[0],
+                    objective_index=objective_index,
+                    cond_var_value=x_cond,
+                    x_tol=0.0,
+                    n_neighbors=1
+                )
+
+                if x0_weighted is not None:
+                    x0 = x0_weighted[free_var_idx]
                 else:
+                    x0 = chebyshev_orig
+
+                try:
+                    x_free = self.optimize_conditioned_problem(
+                        optimization_problem=op,
+                        x0=x0,
+                    )
+                except CADETProcessError:
+                    x_free = self.optimize_conditioned_problem(
+                        optimization_problem=op,
+                        x0=chebyshev_orig,
+                    )
+                except ValueError:
                     continue
 
-            x0_weighted = self.find_x0(
-                cond_var_index=cond_var_idx[0],
-                cond_var_value=x_cond,
-                x_tol=0.0,
-                n_neighbors=1
-            )
+                x_opt = np.full(n_vars, fill_value=np.nan)
+                x_opt[cond_var_idx] = x_cond
+                x_opt[free_var_idx] = x_free
+                x_optimal[i, objective_index] = x_opt
 
-            if x0_weighted is not None:
-                x0 = x0_weighted[free_var_idx]
-            else:
-                x0 = chebyshev_orig
+                f = op.evaluate_objectives(x_opt[free_var_idx])
+                f_minimum[i, objective_index] = f
 
-            try:
-                x_free = self.optimize_conditioned_problem(
-                    optimization_problem=op,
-                    x0=None,
-                )
-            except CADETProcessError:
-                x_free = self.optimize_conditioned_problem(
-                    optimization_problem=op,
-                    x0=chebyshev_orig,
-                )
-            except ValueError:
-                continue
-
-            x_opt = np.full(self.optimization_problem.n_variables, fill_value=np.nan)
-            x_opt[cond_var_idx] = x_cond
-            x_opt[free_var_idx] = x_free
-            x_optimal[i] = x_opt
-
-            f = op.evaluate_objectives(x_opt[free_var_idx])
-            f_minimum[i] = f
-
-            # TODO: check if needed
-            self.uncondition()
+                # TODO: check if needed
+                self.uncondition()
 
 
         return f_minimum, x_optimal
@@ -551,6 +612,8 @@ class Surrogate:
 
         X = []
         F = []
+        G = []
+        CV = []
         for x_cond in var_search:
             x = self.find_x0(
                 cond_var_index=idx,
@@ -582,16 +645,24 @@ class Surrogate:
 
                     x = x_opt
 
+                # evaluate true function
                 f = self.optimization_problem.evaluate_objectives(x)
                 X.append(x)
                 F.append(f)
 
+                if self.optimization_problem.n_nonlinear_constraints > 0:
+                    g = self.optimization_problem.evaluate_nonlinear_constraints(x)
+                    cv = self.optimization_problem.evaluate_nonlinear_constraints_violations(x)
+                    G.append(g)
+                    CV.append(cv)
+
         self.X_new = np.array(X)
         self.F_new = np.array(F)
-
+        self.G_new = np.array(G)
+        self.CV_new = np.array(CV)
 
     def plot_parameter_objective_space(
-        self, X, f, var_x, ax=None, use_surrogate=True,
+        self, X, f, var_x, axes=None, use_surrogate=True,
     ):
         """
         plots the objective value as a function of var_x of the optimization
@@ -661,18 +732,23 @@ class Surrogate:
         if self.feasible is not None:
             alpha = (self.feasible.astype(float)+(1/3)) / (4/3)
 
-        if ax is None:
-            ax = plt.subplot()
-        ax.scatter(x, f, s=10, label="obj. fun", alpha=alpha)
-        ax.plot(x_opt[:, x_idx], f_min, color="red", lw=.5)
+        n_objectives = self.optimization_problem.n_objectives
 
-        if use_surrogate:
-            x_opt = x_opt[~np.all(np.isnan(x_opt), axis=1),:]
-            F_mean, F_std =  self.estimate_objectives(x_opt, return_std=True)
-            ax.fill_between(
-                x_opt[:, x_idx], F_mean-F_std, F_mean+F_std,
-                color="red", alpha=.5
-            )
+        if axes is None:
+            _, axes = plt.subplots(n_objectives)
+
+        for oi, ax in enumerate(axes):
+            ax.scatter(x, f[:, oi], s=10, label="obj. fun", alpha=alpha)
+            ax.plot(x_opt[:, oi, x_idx], f_min[:, oi], color="red", lw=.5)
+
+            if use_surrogate:
+                x_opt_nonan = x_opt[~np.all(np.isnan(x_opt), axis=(1,2)),:]
+                F_mean, F_std =  self.estimate_objectives(x_opt_nonan[:, oi, :], return_std=True)
+                ax.fill_between(
+                    x_opt_nonan[:, oi, x_idx],
+                    F_mean[:, oi]-F_std[:, oi], F_mean[:, oi]+F_std[:, oi],
+                    color="red", alpha=.5
+                )
 
         return x_opt, f_min
 
