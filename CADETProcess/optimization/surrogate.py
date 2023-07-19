@@ -158,17 +158,15 @@ class Surrogate:
 
         Returns
         -------
-        out : np.ndarray
+        out : np.ndarray with ndim=2
             The estimated objectives.
         """
 
-        # if multi objectives are present, then .predict returns a 2-D
-        # array. This means, I have to think, when I want to deal with this
-        # problem
         X_ = np.array(X, ndmin=2)
-        F_est = self.surrogate_model_F.predict(X_)
-
-        return F_est
+        F_mean_est = self.surrogate_model_F.predict(X_)
+        # always cast as multi objective problem
+        F_mean_est = F_mean_est.reshape((len(X_), -1))
+        return F_mean_est
 
     def estimate_objectives_standard_deviation(self, X):
         """
@@ -187,9 +185,10 @@ class Surrogate:
         """
 
         X_ = np.array(X, ndmin=2)
-        _, F_std = self.surrogate_model_F.predict(X_, return_std=True)
+        _, F_std_est = self.surrogate_model_F.predict(X_, return_std=True)
+        F_std_est = F_std_est.reshape((len(X_), -1))
 
-        return F_std
+        return F_std_est
 
     def estimate_non_linear_constraints(self, X):
         """
@@ -207,14 +206,8 @@ class Surrogate:
         """
         X_ = np.array(X, ndmin=2)
         G_est = self.surrogate_model_G.predict(X_)
-        # G_est_ = np.array(G_est, ndmin=2)
+        G_est = G_est.reshape((len(X_), -1))
 
-        # this makes no sense, because if e.g. x = np.array([[3., 2.]]) and
-        # G is single objective then G will return e.g. np.array([.2])
-        # if len(X_) == 1:
-        #     return G_est_[0]
-        # else:
-            # return G_est_
         return G_est
 
     def estimate_meta_scores(self, X):
@@ -447,22 +440,16 @@ class Surrogate:
         Then casts the output to the proper dimensionality according to the
         problem.
 
-        - if x is 1-D this means, the output should be only one value (given)
-          that the problem has only 1 objective
-          this means I have to make sure that whenever a 1-D X is given,
-          also a 1-D F is returned, regardless of whether the problem is single
-          objective or multi-objective. This means, I only have to act if
-          F is multi-objective
         """
         def conditioned_func(x):
             x_complete = complete_x(x)
 
             f = func(x_complete)
-            f = np.array(f, ndmin=1)
+            f = np.array(f, ndmin=2)
 
             # catch case where only a single individual (1-D X) is given and
             # the number of objectives is > 1
-            if x_complete.ndim == 1 and f.ndim == 2:
+            if x_complete.ndim == 1:
                 f_ = f[0]
             else:
                 f_ = f
@@ -472,17 +459,7 @@ class Surrogate:
                 f_return = np.array(f_[return_idx], ndmin=1)
             else:
                 f_return = f_
-            # if return_idx is not None:
-            #     if x_complete.ndim == 1:
-            #         f_return = f[return_idx]
-            #     elif x_complete.ndim == 2:
-            #         f_return = f[:, return_idx]
-            #     else:
-            #         raise NotImplementedError
-            # else:
-            #     f_return = f
 
-            # f_return_ = np.array(f_return, ndmin=x_complete.ndim)
             return f_return
 
         return conditioned_func
@@ -839,20 +816,21 @@ class Surrogate:
             ax.scatter(x, f[:, oi], s=10, label="obj. fun", alpha=alpha)
             ax.plot(x_opt[:, oi, x_idx], f_min[:, oi], color="red", lw=.5)
 
-            if use_surrogate:
-                x_opt_nonan = x_opt[~np.all(np.isnan(x_opt), axis=(1,2)),:]
-                F_mean = self.estimate_objectives(x_opt_nonan[:, oi, :])
-                F_std = self.estimate_objectives_standard_deviation(
-                    x_opt_nonan[:, oi, :]
-                )
-                F_mean = F_mean.reshape((len(x_opt_nonan), -1))
-                F_std = F_std.reshape((len(x_opt_nonan), -1))
+            # standard deviation currently seems not really a meaningful
+            # measure
+            # if use_surrogate:
+            #     x_opt_nonan = x_opt[~np.all(np.isnan(x_opt), axis=(1,2)),:]
+            #     F_mean = self.estimate_objectives(x_opt_nonan[:, oi, :])
+            #     F_std = self.estimate_objectives_standard_deviation(
+            #         x_opt_nonan[:, oi, :]
+            #     )
+            #     # F_std = F_std.reshape((len(x_opt_nonan), -1))
 
-                ax.fill_between(
-                    x_opt_nonan[:, oi, x_idx],
-                    F_mean[:, oi]-F_std[:, oi], F_mean[:, oi]+F_std[:, oi],
-                    color="red", alpha=.5
-                )
+            #     ax.fill_between(
+            #         x_opt_nonan[:, oi, x_idx],
+            #         F_mean[:, oi]-F_std[:, oi], F_mean[:, oi]+F_std[:, oi],
+            #         color="red", alpha=.5
+            #     )
 
         return x_opt, f_min
 
