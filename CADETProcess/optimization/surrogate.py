@@ -166,7 +166,10 @@ class Surrogate:
         F_mean_est = self.surrogate_model_F.predict(X_)
         # always cast as multi objective problem
         F_mean_est = F_mean_est.reshape((len(X_), -1))
-        return F_mean_est
+        if X.ndim == 1:
+            return F_mean_est[0]
+        else:
+            return F_mean_est
 
     def estimate_objectives_standard_deviation(self, X):
         """
@@ -188,7 +191,10 @@ class Surrogate:
         _, F_std_est = self.surrogate_model_F.predict(X_, return_std=True)
         F_std_est = F_std_est.reshape((len(X_), -1))
 
-        return F_std_est
+        if X.ndim == 1:
+            return F_std_est[0]
+        else:
+            return F_std_est
 
     def estimate_non_linear_constraints(self, X):
         """
@@ -208,7 +214,10 @@ class Surrogate:
         G_est = self.surrogate_model_G.predict(X_)
         G_est = G_est.reshape((len(X_), -1))
 
-        return G_est
+        if X.ndim == 1:
+            return G_est[0]
+        else:
+            return G_est
 
     def estimate_meta_scores(self, X):
         """
@@ -436,6 +445,8 @@ class Surrogate:
         """
         completes input x with the x-value of the conditioning
         variable.
+        If func requires an evaluator, x are the intermediate results and
+        stay as
 
         Then casts the output to the proper dimensionality according to the
         problem.
@@ -443,22 +454,26 @@ class Surrogate:
         """
         def conditioned_func(x):
             x_complete = complete_x(x)
+            assert x_complete.ndim == 1, "currently only supports evaluation of individuals"
 
             f = func(x_complete)
-            f = np.array(f, ndmin=2)
+
+
+            f = np.array(f, ndmin=1)
 
             # catch case where only a single individual (1-D X) is given and
             # the number of objectives is > 1
-            if x_complete.ndim == 1:
-                f_ = f[0]
-            else:
-                f_ = f
+            # TODO: currently I think this is always the case
+            # if x_complete.ndim == 1:
+            #     f_ = f[0]
+            # else:
+            #     f_ = f
 
             # index the objective of interest and cast to an array of 1-D
             if return_idx is not None:
-                f_return = np.array(f_[return_idx], ndmin=1)
+                f_return = np.array(f[return_idx], ndmin=1)
             else:
-                f_return = f_
+                f_return = f
 
             return f_return
 
