@@ -175,11 +175,4 @@ class Test_Surrogate(unittest.TestCase):
         self._find_minimum(surrogate)
 
 if __name__ == "__main__":
-    settings.working_directory = "work"
-    # Test_SurrogateDimensionality().test_moo()
-    # Test_Surrogate().test_nonlinear_constraints_moo()
-    Test_Surrogate().test_nonlinear_constraints_moo_evaluator()
-    # Test_Surrogate().test_linear_constraints_soo_evaluator()
-    # Test_Surrogate().test_nonlinear_constraints_linear_constraints_soo()
-    # Test_Surrogate().test_nonlinear_constraints_linear_constraints_moo()
     unittest.main()
