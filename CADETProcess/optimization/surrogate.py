@@ -384,12 +384,41 @@ class Surrogate:
         for nlc in op.nonlinear_constraints:
             nlc_func = nlc.nonlinear_constraint
 
-            nlc.nonlinear_constraint = self.condition_model_or_surrogate(
-                model_func=nlc_func,
-                surrogate_func=self.estimate_non_linear_constraints,
-                use_surrogate=use_surrogate,
-                complete_x=complete_x,
-            )
+            if len(nlc.evaluators) > 0:
+                first_evaluator = nlc.evaluators[0]
+                eval_func = first_evaluator.evaluator
+
+                # condition and return everything
+                # TODO: Does not work for nonlinear constraints on the
+                # true simulation function. Could it have to do with
+                # an extra untransform?
+                first_evaluator.evaluator = self.condition_model_or_surrogate(
+                    model_func=eval_func,
+                    surrogate_func=self.estimate_non_linear_constraints,
+                    use_surrogate=use_surrogate,
+                    complete_x=complete_x,
+                    is_evaluator=True,
+                )
+
+                # in case of the surrogate results are simply passed through
+                # and correspondingly indexed during post processing
+                # complete x is not necessary since x are intermediate
+                # results here
+                nlc.nonlinear_constraint = self.condition_model_or_surrogate(
+                    model_func=nlc_func,
+                    surrogate_func=lambda res: res,
+                    use_surrogate=use_surrogate,
+                    complete_x=lambda x: x,
+                    is_evaluator=False,
+                )
+
+            else:
+                nlc.nonlinear_constraint = self.condition_model_or_surrogate(
+                    model_func=nlc_func,
+                    surrogate_func=self.estimate_non_linear_constraints,
+                    use_surrogate=use_surrogate,
+                    complete_x=complete_x,
+                )
 
         obj_index = {}
         oi = 0
