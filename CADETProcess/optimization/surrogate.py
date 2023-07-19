@@ -428,12 +428,11 @@ class Surrogate:
                 # results here
                 obj.objective = self.condition_model_or_surrogate(
                     model_func=obj_func,
-                    # surrogate always returns 2-D array, so here we obtain the
-                    # first and only individual
                     surrogate_func=lambda res: res,
                     use_surrogate=use_surrogate,
                     complete_x=lambda x: x,
                     is_evaluator=False,
+                    return_idx=obj_return_idx,
                 )
 
             else:
@@ -499,14 +498,6 @@ class Surrogate:
                 return f
 
             f = np.array(f, ndmin=1)
-
-            # catch case where only a single individual (1-D X) is given and
-            # the number of objectives is > 1
-            # TODO: currently I think this is always the case
-            # if x_complete.ndim == 1:
-            #     f_ = f[0]
-            # else:
-            #     f_ = f
 
             # index the objective of interest and cast to an array of 1-D
             if return_idx is not None:
@@ -715,6 +706,12 @@ class Surrogate:
                     )
                 except ValueError as e:
                     if "`x0` is infeasible" in str(e):
+                        warnings.warn(
+                            f"Surrogate.find_minimum.optimize_conditioned_problem"
+                            f"(op=op(condition={x_cond}), x0={x0}): {e} "
+                            "This is likely due to a condition outside of a "
+                            "feasible region."
+                        )
                         continue
                     else:
                         raise e
