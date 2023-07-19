@@ -287,6 +287,87 @@ class LinearConstraintsMooTestProblem(TestProblem):
         np.testing.assert_almost_equal(x2, x2_test, decimal=decimal)
 
 
+
+class LinearNonlinearConstraintsMooTestProblem(TestProblem):
+    """Function curtesy of Florian Schunck and Samuel Leweke."""
+
+    def __init__(self, has_evaluator=False, *args, **kwargs):
+        super().__init__('linear_constraints_multi_objective', *args, **kwargs)
+        self.setup_variables()
+        self.setup_linear_constraints()
+        self.setup_nonlinear_constraints()
+        self.setup_objectives(has_evaluator=has_evaluator)
+
+    def setup_variables(self):
+        self.add_variable('var_0', lb=1, ub=5)
+        self.add_variable('var_1', lb=0, ub=3)
+
+    def setup_linear_constraints(self):
+        self.add_linear_constraint(['var_0', 'var_1'], [-1, -1], -3)
+        self.add_linear_constraint(['var_0', 'var_1'], [ 1, -1],  5)
+
+    def setup_nonlinear_constraints(self):
+        f_nonlinconc_0 = lambda x: np.array([x[0]**2, x[1]**2])
+        f_nonlinconc_1 = lambda x: np.array([x[0]**1.1, x[1]**1.1])
+
+        self.add_nonlinear_constraint(
+            nonlincon=f_nonlinconc_0,
+            name="nonlincon_0",
+            bounds=4,
+            n_nonlinear_constraints=2
+        )
+
+        self.add_nonlinear_constraint(
+            nonlincon=f_nonlinconc_1,
+            name="nonlincon_1",
+            bounds=3,
+            n_nonlinear_constraints=2
+        )
+
+    def setup_objectives(self, has_evaluator):
+        if has_evaluator:
+            self.add_evaluator(self._objective_function)
+            self.add_objective(
+                lambda res: res,
+                requires=self._objective_function,
+                n_objectives=2,
+            )
+        else:
+            self.add_objective(self._objective_function, n_objectives=2)
+
+    @staticmethod
+    def _objective_function(x):
+        f1 = x[0]
+        f2 = (1 + x[1]) / x[0]
+
+        return f1, f2
+
+    def find_corresponding_x2(self, x1):
+        """
+        in a point x in a pareto set
+        """
+        return np.where(x1 <= 3, 3 - x1, 0)
+
+    def optimal_solution(self):
+        x1 = np.linspace(1, 5, 101)
+        x2 = self.find_corresponding_x2(x1=x1)
+        X = np.column_stack([x1, x2])
+
+        F = np.array(list(map(self._objective_function, X)))
+
+        return X, F
+
+    def test_if_solved(self, optimization_results, decimal=7):
+        flag = False
+
+        X = optimization_results.x
+
+        x1, x2 = X.T
+        x2_test = np.where(x1 <= 3, 3 - x1, 0)
+
+        np.testing.assert_almost_equal(x2, x2_test, decimal=decimal)
+
+
 class NonlinearConstraintsMooTestProblem(TestProblem):
 
     def __init__(self, has_evaluator=False, *args, **kwargs):
@@ -297,9 +378,10 @@ class NonlinearConstraintsMooTestProblem(TestProblem):
 
         self.add_variable('var_0', lb=-20, ub=20)
         self.add_variable('var_1', lb=-20, ub=20)
-
         self.add_nonlinear_constraint(self._nonlincon_fun, n_nonlinear_constraints=2)
+        self.setup_objectives(has_evaluator=has_evaluator)
 
+    def setup_objectives(self, has_evaluator):
         if has_evaluator:
             self.add_evaluator(self._objective_function)
             self.add_objective(
