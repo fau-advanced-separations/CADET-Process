@@ -384,11 +384,17 @@ class NonlinearConstraintsMooTestProblem(TestProblem):
     def setup_nonlinear_constraints(self, has_evaluator):
         if has_evaluator:
             self.add_evaluator(self._nonlincon_fun)
-        self.add_nonlinear_constraint(
-            nonlincon=lambda res: res,
-            requires=[self._nonlincon_fun] if has_evaluator else None,
-            n_nonlinear_constraints=2
-        )
+
+            self.add_nonlinear_constraint(
+                nonlincon=lambda res: res,
+                requires=self._nonlincon_fun,
+                n_nonlinear_constraints=2
+            )
+        else:
+            self.add_nonlinear_constraint(
+                nonlincon=self._nonlincon_fun,
+                n_nonlinear_constraints=2
+            )
 
     def setup_objectives(self, has_evaluator):
         if has_evaluator:
