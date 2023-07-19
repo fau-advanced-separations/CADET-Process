@@ -82,11 +82,18 @@ class Rosenbrock(TestProblem):
 
 
 class LinearConstraintsSooTestProblem(TestProblem):
-    def __init__(self, transform=None, *args, **kwargs):
+    def __init__(self, transform=None, has_evaluator=False, *args, **kwargs):
         super().__init__('linear_constraints_single_objective', *args, **kwargs)
         self.setup_variables(transform=transform)
         self.setup_linear_constraints()
-        self.add_objective(self._objective_function)
+        if has_evaluator:
+            self.add_evaluator(self._objective_function)
+            self.add_objective(
+                lambda res: res,
+                requires=self._objective_function
+            )
+        else:
+            self.add_objective(self._objective_function)
 
     def setup_variables(self, transform):
         self.add_variable('var_0', lb=-2, ub=2, transform=transform)
@@ -212,7 +219,7 @@ class NonlinearLinearConstraintsSooTestProblem(TestProblem):
         self.add_linear_constraint(['var_0', 'var_1'], [-1, -0.5], 0)
 
     def setup_nonlinear_constraints(self):
-        f_nonlinconc = lambda x: (x[0] + x[1]) ** 2
+        f_nonlinconc = lambda x: np.array([(x[0] + x[1]) ** 2])
         self.add_nonlinear_constraint(f_nonlinconc, "nonlincon_0", bounds=4)
 
     def _objective_function(self, x):

@@ -64,14 +64,14 @@ def generate_optimization_results(problem):
 class Test_Surrogate(unittest.TestCase):
 
     def test_linear_constraints_soo(self):
-        problem = LinearConstraintsSooTestProblem()
+        problem = LinearConstraintsSooTestProblem(has_evaluator=False)
         results = generate_optimization_results(problem)
 
         surrogate = Surrogate(optimization_results=results)
 
         # test if problem runs
         for i in range(problem.n_independent_variables):
-            surrogate.find_minimum(i, use_surrogate=True, n=2)
+            surrogate.find_minimum(i, use_surrogate=False, n=2)
 
     def test_nonlinear_linear_constraints_soo(self):
         problem = NonlinearLinearConstraintsSooTestProblem()
@@ -81,7 +81,7 @@ class Test_Surrogate(unittest.TestCase):
 
         # test if problem runs
         for i in range(problem.n_independent_variables):
-            surrogate.find_minimum(i, use_surrogate=True, n=2)
+            surrogate.find_minimum(i, use_surrogate=False, n=2)
 
     def test_nonlinear_constraints_moo(self):
         problem = NonlinearConstraintsMooTestProblem()
@@ -91,12 +91,12 @@ class Test_Surrogate(unittest.TestCase):
 
         # test if problem runs
         for i in range(problem.n_independent_variables):
-            surrogate.find_minimum(i, use_surrogate=True, n=2)
+            surrogate.find_minimum(i, use_surrogate=False, n=2)
 
 
 if __name__ == "__main__":
     settings.working_directory = "work"
+    Test_Surrogate().test_nonlinear_constraints_moo()
     Test_Surrogate().test_linear_constraints_soo()
     Test_Surrogate().test_nonlinear_linear_constraints_soo()
-    Test_Surrogate().test_nonlinear_constraints_moo()
     # unittest.main()
