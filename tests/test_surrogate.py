@@ -1,4 +1,5 @@
 import unittest
+from copy import deepcopy
 
 from CADETProcess.optimization import (
     OptimizationResults, Population, Individual, Surrogate, settings,
@@ -8,6 +9,7 @@ from tests.optimization_problem_fixtures import (
     LinearConstraintsSooTestProblem,
     NonlinearLinearConstraintsSooTestProblem,
     NonlinearConstraintsMooTestProblem,
+    LinearConstraintsMooTestProblem,
 
 )
 
@@ -61,42 +63,98 @@ def generate_optimization_results(problem):
 
     return results
 
+def surrogate_lc_soo():
+    problem = LinearConstraintsSooTestProblem(has_evaluator=False)
+    results = generate_optimization_results(problem)
+    return Surrogate(optimization_results=results)
+
+def surrogate_nlc_lc_soo():
+    problem = NonlinearLinearConstraintsSooTestProblem()
+    results = generate_optimization_results(problem)
+    return Surrogate(optimization_results=results)
+
+def surrogate_nlc_moo():
+    problem = NonlinearConstraintsMooTestProblem()
+    results = generate_optimization_results(problem)
+    return Surrogate(optimization_results=results)
+
+def surrogate_lc_moo():
+    problem = LinearConstraintsMooTestProblem()
+    results = generate_optimization_results(problem)
+    return Surrogate(optimization_results=results)
+
+
+fixtures = {
+    "lc_soo": surrogate_lc_soo(),
+    "nlc_lc_soo": surrogate_nlc_lc_soo(),
+    "nlc_moo": surrogate_nlc_moo(),
+    "lc_moo": surrogate_lc_moo(),
+}
+
+
+class Test_SurrogateDimensionality(unittest.TestCase):
+    """
+    test if dimensionalities of objectives and constraints of surrogate and
+    simulator match
+    """
+    def test_moo(self):
+        surrogate = fixtures["nlc_lc_soo"]
+        var = surrogate.optimization_problem.variables[0]
+        n_objs = surrogate.optimization_problem.n_objectives
+
+        op_sur, cond_var_idx, free_var_idx = surrogate.condition_optimization_problem(
+            conditional_vars={var.name: var.lb},
+            objective_index=[range(n_objs)[0]],
+            use_surrogate=False
+        )
+
+        op_sim, cond_var_idx, free_var_idx = surrogate.condition_optimization_problem(
+            conditional_vars={var.name: var.lb},
+            objective_index=[range(n_objs)[0]],
+            use_surrogate=False
+        )
+        X = surrogate.X
+        # TODO: unexpected behavior, both evaluations return the same number
+        #       although op_xxx is a deepcopy of surrogate.optimization_problem
+        #       when running the same in two different processes, sequentially,
+        #       the results differ.
+        F_sim = op_sim.evaluate_objectives(X[80, free_var_idx])
+        F_sur = op_sur.evaluate_objectives(X[80, free_var_idx])
+
+
 class Test_Surrogate(unittest.TestCase):
+    @staticmethod
+    def _find_minimum(surrogate):
+        # test if problem runs on surrogate
+        for i in range(surrogate.optimization_problem.n_independent_variables):
+            surrogate.find_minimum(i, use_surrogate=True, n=2)
+
+        # test if problem runs on normal model
+        for i in range(surrogate.optimization_problem.n_independent_variables):
+            surrogate.find_minimum(i, use_surrogate=False, n=2)
 
     def test_linear_constraints_soo(self):
-        problem = LinearConstraintsSooTestProblem(has_evaluator=False)
-        results = generate_optimization_results(problem)
+        surrogate = fixtures["lc_soo"]
+        self._find_minimum(surrogate)
 
-        surrogate = Surrogate(optimization_results=results)
+    def test_nonlinear_constraints_linear_constraints_soo(self):
+        surrogate = fixtures["nlc_lc_soo"]
+        self._find_minimum(surrogate)
 
-        # test if problem runs
-        for i in range(problem.n_independent_variables):
-            surrogate.find_minimum(i, use_surrogate=False, n=2)
-
-    def test_nonlinear_linear_constraints_soo(self):
-        problem = NonlinearLinearConstraintsSooTestProblem()
-        results = generate_optimization_results(problem)
-
-        surrogate = Surrogate(optimization_results=results)
-
-        # test if problem runs
-        for i in range(problem.n_independent_variables):
-            surrogate.find_minimum(i, use_surrogate=False, n=2)
+    def test_linear_constraints_moo(self):
+        surrogate = fixtures["lc_moo"]
+        self._find_minimum(surrogate)
 
     def test_nonlinear_constraints_moo(self):
-        problem = NonlinearConstraintsMooTestProblem()
-        results = generate_optimization_results(problem)
+        surrogate = fixtures["nlc_moo"]
+        self._find_minimum(surrogate)
 
-        surrogate = Surrogate(optimization_results=results)
-
-        # test if problem runs
-        for i in range(problem.n_independent_variables):
-            surrogate.find_minimum(i, use_surrogate=False, n=2)
 
 
 if __name__ == "__main__":
     settings.working_directory = "work"
-    Test_Surrogate().test_nonlinear_constraints_moo()
-    Test_Surrogate().test_linear_constraints_soo()
-    Test_Surrogate().test_nonlinear_linear_constraints_soo()
-    # unittest.main()
+    # Test_SurrogateDimensionality().test_moo()
+    # Test_Surrogate().test_nonlinear_constraints_moo()
+    # Test_Surrogate().test_linear_constraints_soo()
+    # Test_Surrogate().test_nonlinear_constraints_linear_constraints_soo()
+    unittest.main()
