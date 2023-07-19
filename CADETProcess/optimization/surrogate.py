@@ -680,7 +680,7 @@ class Surrogate:
                     # complicated!!` For Jos Problem
                     # Better solution. improve `find_x0`` to also give values
                     # near the edges of the problem
-                    problem = op.create_hopsy_problem(simplify=False)
+                    problem = op.create_hopsy_problem(simplify=True)
                     chebyshev_orig = hopsy.compute_chebyshev_center(problem)[:, 0]
 
                 except ValueError as e:
