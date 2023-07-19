@@ -10,7 +10,7 @@ from tests.optimization_problem_fixtures import (
     NonlinearLinearConstraintsSooTestProblem,
     NonlinearConstraintsMooTestProblem,
     LinearConstraintsMooTestProblem,
-
+    LinearNonlinearConstraintsMooTestProblem,
 )
 
 def generate_samples(problem: OptimizationProblem):
@@ -83,6 +83,11 @@ def surrogate_lc_moo():
     results = generate_optimization_results(problem)
     return Surrogate(optimization_results=results)
 
+def surrogate_nlc_lc_moo(has_evaluator=False):
+    problem = LinearNonlinearConstraintsMooTestProblem(has_evaluator=has_evaluator)
+    results = generate_optimization_results(problem)
+    return Surrogate(optimization_results=results)
+
 
 fixtures = {
     "lc_soo": surrogate_lc_soo(has_evaluator=False),
@@ -91,6 +96,8 @@ fixtures = {
     "lc_moo": surrogate_lc_moo(),
     "nlc_moo": surrogate_nlc_moo(has_evaluator=False),
     "nlc_moo_eval": surrogate_nlc_moo(has_evaluator=True),
+    "nlc_lc_moo": surrogate_nlc_lc_moo(),
+    "nlc_lc_moo_eval": surrogate_nlc_lc_moo(has_evaluator=True)
 }
 
 
@@ -129,11 +136,11 @@ class Test_Surrogate(unittest.TestCase):
     def _find_minimum(surrogate):
         # test if problem runs on surrogate
         for i in range(surrogate.optimization_problem.n_independent_variables):
-            surrogate.find_minimum(i, use_surrogate=True, n=2)
+            surrogate.find_minimum(i, use_surrogate=True, n=3)
 
         # test if problem runs on normal model
         for i in range(surrogate.optimization_problem.n_independent_variables):
-            surrogate.find_minimum(i, use_surrogate=False, n=2)
+            surrogate.find_minimum(i, use_surrogate=False, n=3)
 
     def test_linear_constraints_soo(self):
         surrogate = fixtures["lc_soo"]
@@ -159,11 +166,20 @@ class Test_Surrogate(unittest.TestCase):
         surrogate = fixtures["lc_soo_eval"]
         self._find_minimum(surrogate)
 
+    def test_nonlinear_constraints_linear_constraints_moo(self):
+        surrogate = fixtures["nlc_lc_moo"]
+        self._find_minimum(surrogate)
+
+    def test_nonlinear_constraints_linear_constraints_moo_evaluator(self):
+        surrogate = fixtures["nlc_lc_moo_eval"]
+        self._find_minimum(surrogate)
+
 if __name__ == "__main__":
     settings.working_directory = "work"
     # Test_SurrogateDimensionality().test_moo()
     # Test_Surrogate().test_nonlinear_constraints_moo()
-    Test_Surrogate().test_nonlinear_constraints_moo_evaluator()
+    # Test_Surrogate().test_nonlinear_constraints_moo_evaluator()
     # Test_Surrogate().test_linear_constraints_soo_evaluator()
     # Test_Surrogate().test_nonlinear_constraints_linear_constraints_soo()
+    Test_Surrogate().test_nonlinear_constraints_linear_constraints_moo()
     unittest.main()
