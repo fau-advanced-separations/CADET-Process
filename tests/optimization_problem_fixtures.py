@@ -289,7 +289,7 @@ class LinearConstraintsMooTestProblem(TestProblem):
 
 class NonlinearConstraintsMooTestProblem(TestProblem):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, has_evaluator=False, *args, **kwargs):
         from pymoo.problems.multi import SRN
         self._problem = SRN()
 
@@ -298,8 +298,17 @@ class NonlinearConstraintsMooTestProblem(TestProblem):
         self.add_variable('var_0', lb=-20, ub=20)
         self.add_variable('var_1', lb=-20, ub=20)
 
-        self.add_objective(self._objective_function, n_objectives=2)
         self.add_nonlinear_constraint(self._nonlincon_fun, n_nonlinear_constraints=2)
+
+        if has_evaluator:
+            self.add_evaluator(self._objective_function)
+            self.add_objective(
+                lambda res: res,
+                requires=self._objective_function,
+                n_objectives=2,
+            )
+        else:
+            self.add_objective(self._objective_function, n_objectives=2)
 
     def _objective_function(self, x):
         return self._problem.evaluate(x)[0]
