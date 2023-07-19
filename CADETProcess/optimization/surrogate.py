@@ -359,6 +359,7 @@ class Surrogate:
         # set up new equality constraints
         [op.remove_linear_equality_constraint(0) for i in range(n_lineqcons)]
         for i in range(n_lineqcons):
+            raise NotImplementedError("Linear Constraints are not yet implemented")
             # TODO: must use Aeq and Beq
             op.add_linear_equality_constraint(
                 opt_vars=[v for v in free_variables],
@@ -368,6 +369,11 @@ class Surrogate:
 
         def complete_x(x):
             """completes X as a 1D array"""
+            if len(x) != len(free_var_idx):
+                raise CADETProcessError(
+                    f"x ({x}) must be of the same length as the number of free "
+                    f"variables ({len(free_variables)})."
+                )
             x_complete = np.zeros(n_variables)
             x_complete[cond_var_idx] = list(conditional_vars.values())
             x_complete[free_var_idx] = x
