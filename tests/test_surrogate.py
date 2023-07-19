@@ -63,8 +63,8 @@ def generate_optimization_results(problem):
 
     return results
 
-def surrogate_lc_soo():
-    problem = LinearConstraintsSooTestProblem(has_evaluator=False)
+def surrogate_lc_soo(has_evaluator=False):
+    problem = LinearConstraintsSooTestProblem(has_evaluator=has_evaluator)
     results = generate_optimization_results(problem)
     return Surrogate(optimization_results=results)
 
@@ -73,8 +73,8 @@ def surrogate_nlc_lc_soo():
     results = generate_optimization_results(problem)
     return Surrogate(optimization_results=results)
 
-def surrogate_nlc_moo():
-    problem = NonlinearConstraintsMooTestProblem()
+def surrogate_nlc_moo(has_evaluator=False):
+    problem = NonlinearConstraintsMooTestProblem(has_evaluator=has_evaluator)
     results = generate_optimization_results(problem)
     return Surrogate(optimization_results=results)
 
@@ -85,10 +85,12 @@ def surrogate_lc_moo():
 
 
 fixtures = {
-    "lc_soo": surrogate_lc_soo(),
+    "lc_soo": surrogate_lc_soo(has_evaluator=False),
+    "lc_soo_eval": surrogate_lc_soo(has_evaluator=True),
     "nlc_lc_soo": surrogate_nlc_lc_soo(),
-    "nlc_moo": surrogate_nlc_moo(),
     "lc_moo": surrogate_lc_moo(),
+    "nlc_moo": surrogate_nlc_moo(has_evaluator=False),
+    "nlc_moo_eval": surrogate_nlc_moo(has_evaluator=True),
 }
 
 
@@ -149,12 +151,19 @@ class Test_Surrogate(unittest.TestCase):
         surrogate = fixtures["nlc_moo"]
         self._find_minimum(surrogate)
 
+    def test_nonlinear_constraints_moo_evaluator(self):
+        surrogate = fixtures["nlc_moo_eval"]
+        self._find_minimum(surrogate)
 
+    def test_linear_constraints_soo_evaluator(self):
+        surrogate = fixtures["lc_soo_eval"]
+        self._find_minimum(surrogate)
 
 if __name__ == "__main__":
     settings.working_directory = "work"
     # Test_SurrogateDimensionality().test_moo()
     # Test_Surrogate().test_nonlinear_constraints_moo()
-    # Test_Surrogate().test_linear_constraints_soo()
+    Test_Surrogate().test_nonlinear_constraints_moo_evaluator()
+    # Test_Surrogate().test_linear_constraints_soo_evaluator()
     # Test_Surrogate().test_nonlinear_constraints_linear_constraints_soo()
     unittest.main()

@@ -367,6 +367,7 @@ class Surrogate:
             )
 
         def complete_x(x):
+            """completes X as a 1D array"""
             x_complete = np.zeros(n_variables)
             x_complete[cond_var_idx] = list(conditional_vars.values())
             x_complete[free_var_idx] = x
@@ -398,19 +399,51 @@ class Surrogate:
         objectives = []
         for obj_id, (obj_func_idx, obj_return_idx) in obj_index.items():
             obj = op.objectives[obj_func_idx]
-            obj_fun = obj.objective
+            obj_func = obj.objective
             obj.n_objectives = 1
 
+            # if the problem has an evaluator, the evaluator needs to be
+            # conditioned to take only free x and complete it with the
+            # condiitoning value and return all information.
+            # The objective function than needs to be conditioned to take
+            # the complete input of the evaluator and return only the objective
+            # of interest
+            # note: This only needs
             if len(obj.evaluators) > 0:
-                first_eval = obj.evaluators[0]
+                first_evaluator = obj.evaluators[0]
+                eval_func = first_evaluator.evaluator
 
-            obj.objective = self.condition_model_or_surrogate(
-                model_func=obj_fun,
-                surrogate_func=self.estimate_objectives,
-                use_surrogate=use_surrogate,
-                complete_x=complete_x,
-                return_idx=obj_return_idx
-            )
+                # condition and return everything
+                first_evaluator.evaluator = self.condition_model_or_surrogate(
+                    model_func=eval_func,
+                    surrogate_func=self.estimate_objectives,
+                    use_surrogate=use_surrogate,
+                    complete_x=complete_x,
+                    is_evaluator=True,
+                )
+
+                # in case of the surrogate results are simply passed through
+                # and correspondingly indexed during post processing
+                # complete x is not necessary since x are intermediate
+                # results here
+                obj.objective = self.condition_model_or_surrogate(
+                    model_func=obj_func,
+                    # surrogate always returns 2-D array, so here we obtain the
+                    # first and only individual
+                    surrogate_func=lambda res: res,
+                    use_surrogate=use_surrogate,
+                    complete_x=lambda x: x,
+                    is_evaluator=False,
+                )
+
+            else:
+                obj.objective = self.condition_model_or_surrogate(
+                    model_func=obj_func,
+                    surrogate_func=self.estimate_objectives,
+                    use_surrogate=use_surrogate,
+                    complete_x=complete_x,
+                    return_idx=obj_return_idx
+                )
 
             objectives.append(obj)
 
@@ -424,6 +457,7 @@ class Surrogate:
         surrogate_func,
         use_surrogate,
         complete_x,
+        is_evaluator=False,
         return_idx=None,
     ):
         """
@@ -436,12 +470,16 @@ class Surrogate:
 
         conditioned_func = self.condition_function(
             func=func, complete_x=complete_x, return_idx=return_idx,
+            is_evaluator=is_evaluator
         )
 
         return conditioned_func
 
     @staticmethod
-    def condition_function(func, complete_x, return_idx=None) -> callable:
+    def condition_function(
+        func, complete_x, return_idx=None,
+        is_evaluator=False,
+    ) -> callable:
         """
         completes input x with the x-value of the conditioning
         variable.
@@ -454,10 +492,11 @@ class Surrogate:
         """
         def conditioned_func(x):
             x_complete = complete_x(x)
-            assert x_complete.ndim == 1, "currently only supports evaluation of individuals"
 
             f = func(x_complete)
 
+            if is_evaluator:
+                return f
 
             f = np.array(f, ndmin=1)
 
