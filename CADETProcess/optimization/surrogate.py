@@ -378,7 +378,7 @@ class Surrogate:
         def complete_x(x):
             """completes X as a 1D array"""
             if len(x) != len(free_var_idx):
-                raise CADETProcessError(
+                raise ValueError(
                     f"x ({x}) must be of the same length as the number of free "
                     f"variables ({len(free_variables)})."
                 )
@@ -406,6 +406,12 @@ class Surrogate:
 
             if len(nlc.evaluators) > 0:
                 first_evaluator = nlc.evaluators[0]
+                # TODO: I think with Jos problem there is an issue that
+                # the evaluations of the evaluator are cached. WIth the surrogate
+                # model they should be different for objective and nonlinear_constraints
+                # After modifying the order of the evaluator things make
+                # more sense. Since there is only one evaluator. Modifying this,
+                # already changes the evaluator for the 2nd evaluator
                 eval_func = first_evaluator.evaluator
 
                 # condition and return everything
@@ -414,7 +420,7 @@ class Surrogate:
                 # an extra untransform?
                 first_evaluator.evaluator = self.condition_model_or_surrogate(
                     model_func=eval_func,
-                    surrogate_func=self.estimate_non_linear_constraints,
+                    surrogate_func=lambda res: res,
                     use_surrogate=use_surrogate,
                     complete_x=complete_x,
                     is_evaluator=True,
@@ -426,7 +432,7 @@ class Surrogate:
                 # results here
                 nlc.nonlinear_constraint = self.condition_model_or_surrogate(
                     model_func=nlc_func,
-                    surrogate_func=lambda res: res,
+                    surrogate_func=self.estimate_non_linear_constraints,
                     use_surrogate=use_surrogate,
                     complete_x=lambda x: x,
                     is_evaluator=False,
@@ -475,7 +481,7 @@ class Surrogate:
                 # condition and return everything
                 first_evaluator.evaluator = self.condition_model_or_surrogate(
                     model_func=eval_func,
-                    surrogate_func=self.estimate_objectives,
+                    surrogate_func=lambda res: res,
                     use_surrogate=use_surrogate,
                     complete_x=complete_x,
                     is_evaluator=True,
@@ -487,7 +493,7 @@ class Surrogate:
                 # results here
                 obj.objective = self.condition_model_or_surrogate(
                     model_func=obj_func,
-                    surrogate_func=lambda res: res,
+                    surrogate_func=self.estimate_objectives,
                     use_surrogate=use_surrogate,
                     complete_x=lambda x: x,
                     is_evaluator=False,
@@ -523,8 +529,14 @@ class Surrogate:
         """
         if use_surrogate:
             func = surrogate_func
+            # if the surrogate has an evaluator, simply forward x but make sure
+            # it's an array
+            # if is_evaluator:
+            #     complete_x = lambda x: np.array(x, ndmin=1)
         else:
             func = model_func
+            # if not is_evaluator:
+            #     complete_x = lambda res: res
 
         conditioned_func = self.condition_function(
             func=func, complete_x=complete_x, return_idx=return_idx,

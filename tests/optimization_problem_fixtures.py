@@ -87,10 +87,11 @@ class LinearConstraintsSooTestProblem(TestProblem):
         self.setup_variables(transform=transform)
         self.setup_linear_constraints()
         if has_evaluator:
-            self.add_evaluator(self._objective_function)
+            eval_fun = lambda x: x
+            self.add_evaluator(eval_fun)
             self.add_objective(
-                lambda res: res,
-                requires=self._objective_function
+                self._objective_function,
+                requires=eval_fun
             )
         else:
             self.add_objective(self._objective_function)
@@ -326,10 +327,11 @@ class LinearNonlinearConstraintsMooTestProblem(TestProblem):
 
     def setup_objectives(self, has_evaluator):
         if has_evaluator:
-            self.add_evaluator(self._objective_function)
+            eval_fun = lambda x: x
+            self.add_evaluator(eval_fun)
             self.add_objective(
-                lambda res: res,
-                requires=self._objective_function,
+                objective=self._objective_function,
+                requires=eval_fun,
                 n_objectives=2,
             )
         else:
@@ -373,39 +375,35 @@ class NonlinearConstraintsMooTestProblem(TestProblem):
     def __init__(self, has_evaluator=False, *args, **kwargs):
         from pymoo.problems.multi import SRN
         self._problem = SRN()
-
+        self.fixture_evaluator = None
         super().__init__('nonlinear_constraints_multi_objective', *args, **kwargs)
 
         self.add_variable('var_0', lb=-20, ub=20)
         self.add_variable('var_1', lb=-20, ub=20)
-        self.setup_nonlinear_constraints(has_evaluator=has_evaluator)
-        self.setup_objectives(has_evaluator=has_evaluator)
+        self.setup_evaluator(has_evaluator=has_evaluator)
+        self.setup_nonlinear_constraints()
+        self.setup_objectives()
 
-    def setup_nonlinear_constraints(self, has_evaluator):
+    def setup_evaluator(self, has_evaluator):
         if has_evaluator:
-            self.add_evaluator(self._nonlincon_fun)
-
-            self.add_nonlinear_constraint(
-                nonlincon=lambda res: res,
-                requires=self._nonlincon_fun,
-                n_nonlinear_constraints=2
-            )
+            self.fixture_evaluator = lambda x: x
+            self.add_evaluator(self.fixture_evaluator)
         else:
-            self.add_nonlinear_constraint(
-                nonlincon=self._nonlincon_fun,
-                n_nonlinear_constraints=2
-            )
+            self.fixture_evaluator = None
 
-    def setup_objectives(self, has_evaluator):
-        if has_evaluator:
-            self.add_evaluator(self._objective_function)
-            self.add_objective(
-                lambda res: res,
-                requires=self._objective_function,
-                n_objectives=2,
-            )
-        else:
-            self.add_objective(self._objective_function, n_objectives=2)
+    def setup_nonlinear_constraints(self):
+        self.add_nonlinear_constraint(
+            nonlincon=self._nonlincon_fun,
+            requires=self.fixture_evaluator,
+            n_nonlinear_constraints=2
+        )
+
+    def setup_objectives(self):
+        self.add_objective(
+            objective=self._objective_function,
+            requires=self.fixture_evaluator,
+            n_objectives=2,
+        )
 
     def _objective_function(self, x):
         return self._problem.evaluate(x)[0]
