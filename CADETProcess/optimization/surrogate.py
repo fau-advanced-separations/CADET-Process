@@ -144,7 +144,7 @@ class Surrogate:
                 gp_feasible.fit(self.X, self.feasible)
             self.surrogate_model_feasible = gp_feasible
 
-    def estimate_objectives(self, X, return_std=False):
+    def estimate_objectives(self, X):
         """
         Estimate the objectives using the surrogate model.
 
@@ -161,8 +161,35 @@ class Surrogate:
         out : np.ndarray
             The estimated objectives.
         """
-        return self.surrogate_model_F.predict(X, return_std=return_std)
 
+        # if multi objectives are present, then .predict returns a 2-D
+        # array. This means, I have to think, when I want to deal with this
+        # problem
+        X_ = np.array(X, ndmin=2)
+        F_est = self.surrogate_model_F.predict(X_)
+
+        return F_est
+
+    def estimate_objectives_standard_deviation(self, X):
+        """
+        Estimate the standard deviation of the objective function evaluated
+        at X using the surrogate model.
+
+        Parameters
+        ----------
+        X : np.ndarray
+            The input samples.
+
+        Returns
+        -------
+        out : np.ndarray
+            The estimated objectives.
+        """
+
+        X_ = np.array(X, ndmin=2)
+        _, F_std = self.surrogate_model_F.predict(X_, return_std=True)
+
+        return F_std
 
     def estimate_non_linear_constraints(self, X):
         """
@@ -178,9 +205,17 @@ class Surrogate:
         out : Tuple[np.ndarray, np.ndarray]
             The estimated non-linear constraints (G, feasible points).
         """
-        G_est = self.surrogate_model_G.predict(X)
-        feasible_est = self.surrogate_model_feasible.predict(X)
-        return G_est, feasible_est
+        X_ = np.array(X, ndmin=2)
+        G_est = self.surrogate_model_G.predict(X_)
+        # G_est_ = np.array(G_est, ndmin=2)
+
+        # this makes no sense, because if e.g. x = np.array([[3., 2.]]) and
+        # G is single objective then G will return e.g. np.array([.2])
+        # if len(X_) == 1:
+        #     return G_est_[0]
+        # else:
+            # return G_est_
+        return G_est
 
     def estimate_meta_scores(self, X):
         """
@@ -338,21 +373,14 @@ class Surrogate:
 
         # generate conditioned nonlinear constraints
         for nlc in op.nonlinear_constraints:
-            func = nlc.nonlinear_constraint
+            nlc_func = nlc.nonlinear_constraint
 
-            def conditioned_nonlinear_constraint(x):
-                x_complete = complete_x(x)
-                return func(x_complete)
-
-            def surrogate_nlc_fun(x):
-                x_complete = complete_x(x).reshape((1,-1))
-                return self.surrogate_model_G.predict(x_complete)[0]
-
-            if use_surrogate:
-                nlc.nonlinear_constraint = surrogate_nlc_fun
-            else:
-                nlc.nonlinear_constraint = conditioned_nonlinear_constraint
-
+            nlc.nonlinear_constraint = self.condition_model_or_surrogate(
+                model_func=nlc_func,
+                surrogate_func=self.estimate_non_linear_constraints,
+                use_surrogate=use_surrogate,
+                complete_x=complete_x,
+            )
 
         obj_index = {}
         oi = 0
@@ -371,23 +399,16 @@ class Surrogate:
             obj_fun = obj.objective
             obj.n_objectives = 1
 
-            def conditioned_objective(x):
-                x_complete = complete_x(x)
-                f = obj_fun(x_complete)
-                f = np.array(f, ndmin=2)
-                return f[:, obj_return_idx]
+            if len(obj.evaluators) > 0:
+                first_eval = obj.evaluators[0]
 
-            # conditioned surrogate functions
-            def surrogate_obj_fun(x):
-                x_complete = complete_x(x).reshape((1,-1))
-                f_estimate = self.surrogate_model_F.predict(x_complete)
-                f_estimate = np.array(f_estimate, ndmin=2)
-                return f_estimate[:, obj_return_idx]
-
-            if use_surrogate:
-                obj.objective = surrogate_obj_fun
-            else:
-                obj.objective = conditioned_objective
+            obj.objective = self.condition_model_or_surrogate(
+                model_func=obj_fun,
+                surrogate_func=self.estimate_objectives,
+                use_surrogate=use_surrogate,
+                complete_x=complete_x,
+                return_idx=obj_return_idx
+            )
 
             objectives.append(obj)
 
@@ -395,6 +416,76 @@ class Surrogate:
 
         return op, cond_var_idx, free_var_idx
 
+    def condition_model_or_surrogate(
+        self,
+        model_func,
+        surrogate_func,
+        use_surrogate,
+        complete_x,
+        return_idx=None,
+    ):
+        """
+        convenience wrapper around condition_function
+        """
+        if use_surrogate:
+            func = surrogate_func
+        else:
+            func = model_func
+
+        conditioned_func = self.condition_function(
+            func=func, complete_x=complete_x, return_idx=return_idx,
+        )
+
+        return conditioned_func
+
+    @staticmethod
+    def condition_function(func, complete_x, return_idx=None) -> callable:
+        """
+        completes input x with the x-value of the conditioning
+        variable.
+
+        Then casts the output to the proper dimensionality according to the
+        problem.
+
+        - if x is 1-D this means, the output should be only one value (given)
+          that the problem has only 1 objective
+          this means I have to make sure that whenever a 1-D X is given,
+          also a 1-D F is returned, regardless of whether the problem is single
+          objective or multi-objective. This means, I only have to act if
+          F is multi-objective
+        """
+        def conditioned_func(x):
+            x_complete = complete_x(x)
+
+            f = func(x_complete)
+            f = np.array(f, ndmin=1)
+
+            # catch case where only a single individual (1-D X) is given and
+            # the number of objectives is > 1
+            if x_complete.ndim == 1 and f.ndim == 2:
+                f_ = f[0]
+            else:
+                f_ = f
+
+            # index the objective of interest and cast to an array of 1-D
+            if return_idx is not None:
+                f_return = np.array(f_[return_idx], ndmin=1)
+            else:
+                f_return = f_
+            # if return_idx is not None:
+            #     if x_complete.ndim == 1:
+            #         f_return = f[return_idx]
+            #     elif x_complete.ndim == 2:
+            #         f_return = f[:, return_idx]
+            #     else:
+            #         raise NotImplementedError
+            # else:
+            #     f_return = f
+
+            # f_return_ = np.array(f_return, ndmin=x_complete.ndim)
+            return f_return
+
+        return conditioned_func
 
     def find_x0(
         self, cond_var_index: int, cond_var_value: float,
@@ -595,7 +686,7 @@ class Surrogate:
                     if "`x0` is infeasible" in str(e):
                         continue
                     else:
-                        raise CADETProcessError(e)
+                        raise e
 
                 x_opt = np.full(n_vars, fill_value=np.nan)
                 x_opt[cond_var_idx] = x_cond
@@ -750,7 +841,10 @@ class Surrogate:
 
             if use_surrogate:
                 x_opt_nonan = x_opt[~np.all(np.isnan(x_opt), axis=(1,2)),:]
-                F_mean, F_std =  self.estimate_objectives(x_opt_nonan[:, oi, :], return_std=True)
+                F_mean = self.estimate_objectives(x_opt_nonan[:, oi, :])
+                F_std = self.estimate_objectives_standard_deviation(
+                    x_opt_nonan[:, oi, :]
+                )
                 F_mean = F_mean.reshape((len(x_opt_nonan), -1))
                 F_std = F_std.reshape((len(x_opt_nonan), -1))
 
