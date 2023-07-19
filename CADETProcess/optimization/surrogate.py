@@ -1,6 +1,7 @@
 from pathlib import Path
 from copy import deepcopy
 import warnings
+from itertools import product
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -138,10 +139,17 @@ class Surrogate:
         if self.feasible is not None:
             # TODO: catch error where points are only feasible or infeasible
             if np.all(self.feasible):
-                gp_feasible = self.all_feasible
+                feasibility_func = self.all_feasible
+
+                class MockGPClassifier:
+                    def predict(self, X):
+                        return feasibility_func(X)
+
+                gp_feasible = MockGPClassifier()
             else:
                 gp_feasible = GaussianProcessClassifier()
                 gp_feasible.fit(self.X, self.feasible)
+
             self.surrogate_model_feasible = gp_feasible
 
     def estimate_objectives(self, X):
@@ -356,7 +364,7 @@ class Surrogate:
                 b=b_cond[i]
             )
 
-        # set up new equality constraints
+        # set up            start_index_nlc_surrogate new equality constraints
         [op.remove_linear_equality_constraint(0) for i in range(n_lineqcons)]
         for i in range(n_lineqcons):
             raise NotImplementedError("Linear Constraints are not yet implemented")
@@ -381,8 +389,20 @@ class Surrogate:
             return x_complete
 
         # generate conditioned nonlinear constraints
+        start_index_nlc_surrogate = 0
         for nlc in op.nonlinear_constraints:
             nlc_func = nlc.nonlinear_constraint
+            n_nlc = nlc.n_nonlinear_constraints
+
+            if use_surrogate:
+                return_idx = np.arange(
+                    start=start_index_nlc_surrogate,
+                    stop=start_index_nlc_surrogate + n_nlc
+                )
+            else:
+                return_idx = None
+
+            start_index_nlc_surrogate += n_nlc
 
             if len(nlc.evaluators) > 0:
                 first_evaluator = nlc.evaluators[0]
@@ -410,15 +430,19 @@ class Surrogate:
                     use_surrogate=use_surrogate,
                     complete_x=lambda x: x,
                     is_evaluator=False,
+                    return_idx=return_idx
                 )
 
             else:
+
                 nlc.nonlinear_constraint = self.condition_model_or_surrogate(
                     model_func=nlc_func,
                     surrogate_func=self.estimate_non_linear_constraints,
                     use_surrogate=use_surrogate,
                     complete_x=complete_x,
+                    return_idx=return_idx
                 )
+
 
         obj_index = {}
         oi = 0
@@ -643,6 +667,50 @@ class Surrogate:
 
         return x_new_weighted
 
+    def estimate_x0(
+        self,
+        op: OptimizationProblem,
+        x_cond, cond_var_idx, free_var_idx,
+        objective_index,
+        n=100
+    ):
+        """
+        compute some suggestions for possible x0 based on the surrogate
+        model
+        """
+        n_vars = self.optimization_problem.n_variables
+        suggestions = [None for _ in range(n_vars)]
+
+        suggestions[cond_var_idx[0]] = [x_cond]
+        for i, var in zip(free_var_idx, op.variables):
+            suggestions[i] = np.linspace(var.lb, var.ub, num=n).tolist()
+
+        X_suggest = np.array(list(product(*suggestions)))
+        X_is_feasible = self.surrogate_model_feasible.predict(X_suggest)
+
+        X_candidates = X_suggest[X_is_feasible]
+        if len(X_candidates) == 0:
+            return
+
+        F_est = self.estimate_objectives(X_candidates)[:, objective_index]
+
+        for f_cand, x_cand in sorted(zip(F_est, X_candidates)):
+            # print(op.evaluate_nonlinear_constraints(x_cand[free_var_idx]))
+            if (
+                op.check_nonlinear_constraints(x_cand[free_var_idx])
+                and
+                op.check_linear_constraints(x_cand[free_var_idx])
+            ):
+                break
+            else:
+                x_cand = None
+
+        return x_cand
+
+
+
+
+
     def optimize_conditioned_problem(
         self, optimization_problem, x0,
     ):
@@ -729,16 +797,34 @@ class Surrogate:
                     n_neighbors=1
                 )
 
-                if x0_weighted is not None:
+                x0_estimate = self.estimate_x0(
+                    op, x_cond, cond_var_idx, free_var_idx,
+                    objective_index
+                )
+
+
+                if x0_estimate is not None:
+                    x0 = x0_estimate[free_var_idx]
+                elif x0_weighted is not None:
                     x0 = x0_weighted[free_var_idx]
                 else:
                     x0 = chebyshev_orig
 
                 try:
+                    # if len(x0) == op.n_variables:
                     x_free = self.optimize_conditioned_problem(
                         optimization_problem=op,
                         x0=x0,
                     )
+                    # else:
+                    #     warnings.warn(f"hopsy generated wrong x0={x0}.")
+                    #     problem = op.create_hopsy_problem(simplify=False)
+                    #     x0 = hopsy.compute_chebyshev_center(problem)[:, 0]
+
+                    #     x_free = self.optimize_conditioned_problem(
+                    #         optimization_problem=op,
+                    #         x0=x0,
+                    #     )
                 except CADETProcessError:
                     x_free = self.optimize_conditioned_problem(
                         optimization_problem=op,
