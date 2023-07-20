@@ -388,6 +388,37 @@ class Surrogate:
 
             return x_complete
 
+        for i, evaluator in enumerate(op.evaluators):
+            if i == 0:
+                evaluator_func = evaluator.evaluator
+
+                # currently this will only condition the first of all evaluators
+
+                # I think with Jos problem there is an issue that
+                # the evaluations of the evaluator are cached. WIth the surrogate
+                # model they should be different for objective and nonlinear_constraints
+                # After modifying the order of the evaluator things make
+                # more sense. Since there is only one evaluator. Modifying this,
+                # already changes the evaluator for the 2nd evaluator
+
+                # condition and return everything
+                # Does not work for nonlinear constraints on the
+                # true simulation function. Could it have to do with
+                # an extra untransform?
+                evaluator.evaluator = self.condition_model_or_surrogate(
+                    model_func=evaluator_func,
+                    surrogate_func=lambda res: res,
+                    use_surrogate=use_surrogate,
+                    complete_x=complete_x,
+                    is_evaluator=True,
+                )
+
+                # set flag to show that the evaluator is conditioned
+                evaluator._is_conditioned = True
+            else:
+                evaluator._is_conditioned = False
+
+
         # generate conditioned nonlinear constraints
         start_index_nlc_surrogate = 0
         for nlc in op.nonlinear_constraints:
@@ -406,25 +437,21 @@ class Surrogate:
 
             if len(nlc.evaluators) > 0:
                 first_evaluator = nlc.evaluators[0]
-                # TODO: I think with Jos problem there is an issue that
-                # the evaluations of the evaluator are cached. WIth the surrogate
-                # model they should be different for objective and nonlinear_constraints
-                # After modifying the order of the evaluator things make
-                # more sense. Since there is only one evaluator. Modifying this,
-                # already changes the evaluator for the 2nd evaluator
+                if not first_evaluator._is_conditioned:
+                    raise AssertionError(
+                        f"{nlc} has unconditioned first evaluator"
+                    )
+
                 eval_func = first_evaluator.evaluator
 
-                # condition and return everything
-                # TODO: Does not work for nonlinear constraints on the
-                # true simulation function. Could it have to do with
-                # an extra untransform?
-                first_evaluator.evaluator = self.condition_model_or_surrogate(
-                    model_func=eval_func,
-                    surrogate_func=lambda res: res,
-                    use_surrogate=use_surrogate,
-                    complete_x=complete_x,
-                    is_evaluator=True,
-                )
+                # does not need use return index when
+                # first_evaluator.evaluator = self.condition_model_or_surrogate(
+                #     model_func=eval_func,
+                #     surrogate_func=lambda res: res,
+                #     use_surrogate=use_surrogate,
+                #     complete_x=complete_x,
+                #     is_evaluator=True,
+                # )
 
                 # in case of the surrogate results are simply passed through
                 # and correspondingly indexed during post processing
@@ -476,16 +503,21 @@ class Surrogate:
             # note: This only needs
             if len(obj.evaluators) > 0:
                 first_evaluator = obj.evaluators[0]
+                if not first_evaluator._is_conditioned:
+                    raise AssertionError(
+                        f"{obj} has unconditioned first evaluator"
+                    )
+
                 eval_func = first_evaluator.evaluator
 
                 # condition and return everything
-                first_evaluator.evaluator = self.condition_model_or_surrogate(
-                    model_func=eval_func,
-                    surrogate_func=lambda res: res,
-                    use_surrogate=use_surrogate,
-                    complete_x=complete_x,
-                    is_evaluator=True,
-                )
+                # first_evaluator.evaluator = self.condition_model_or_surrogate(
+                #     model_func=eval_func,
+                #     surrogate_func=lambda res: res,
+                #     use_surrogate=use_surrogate,
+                #     complete_x=complete_x,
+                #     is_evaluator=True,
+                # )
 
                 # in case of the surrogate results are simply passed through
                 # and correspondingly indexed during post processing
