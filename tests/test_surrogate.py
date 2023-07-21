@@ -1,20 +1,23 @@
 import unittest
 from copy import deepcopy
 
+import numpy as np
+
 from CADETProcess.optimization import (
     OptimizationResults, Population, Individual, Surrogate, settings,
     OptimizationProblem
 )
 from tests.optimization_problem_fixtures import (
     LinearConstraintsSooTestProblem,
+    NonlinearConstraintsSooTestProblem,
     NonlinearLinearConstraintsSooTestProblem,
     NonlinearConstraintsMooTestProblem,
     LinearConstraintsMooTestProblem,
     LinearNonlinearConstraintsMooTestProblem,
 )
 
-def generate_samples(problem: OptimizationProblem):
-    X = problem.create_initial_values(n_samples=100)
+def generate_samples(problem: OptimizationProblem, n_samples):
+    X = problem.create_initial_values(n_samples=n_samples)
     F = problem.evaluate_objectives_population(X)
     G = problem.evaluate_nonlinear_constraints_population(X)
     CV = problem.evaluate_nonlinear_constraints_violation_population(X)
@@ -36,11 +39,11 @@ def generate_samples(problem: OptimizationProblem):
     return X, F, M, G, CV
 
 
-def generate_optimization_results(problem):
+def generate_optimization_results(problem, n_samples=100):
     results = OptimizationResults(optimization_problem=problem, optimizer=None)
     cv_tol = 1e-5
 
-    X, F, M, G, CV = generate_samples(problem)
+    X, F, M, G, CV = generate_samples(problem, n_samples=n_samples)
 
     population = Population()
     for x, f, g, cv, m in zip(X, F, G, CV, M):
@@ -68,6 +71,11 @@ def surrogate_lc_soo(has_evaluator=False):
     results = generate_optimization_results(problem)
     return Surrogate(optimization_results=results)
 
+def surrogate_nlc_soo(has_evaluator=False):
+    problem = NonlinearConstraintsSooTestProblem(has_evaluator=has_evaluator)
+    results = generate_optimization_results(problem, n_samples=1000)
+    return Surrogate(optimization_results=results)
+
 def surrogate_nlc_lc_soo():
     problem = NonlinearLinearConstraintsSooTestProblem()
     results = generate_optimization_results(problem)
@@ -88,9 +96,10 @@ def surrogate_nlc_lc_moo(has_evaluator=False):
     results = generate_optimization_results(problem)
     return Surrogate(optimization_results=results)
 
-
 fixtures = {
     "lc_soo": surrogate_lc_soo(has_evaluator=False),
+    "nlc_soo": surrogate_nlc_soo(has_evaluator=False),
+    "nlc_soo_eval": surrogate_lc_soo(has_evaluator=True),
     "lc_soo_eval": surrogate_lc_soo(has_evaluator=True),
     "nlc_lc_soo": surrogate_nlc_lc_soo(),
     "lc_moo": surrogate_lc_moo(),
@@ -101,11 +110,71 @@ fixtures = {
 }
 
 
-class Test_SurrogateDimensionality(unittest.TestCase):
+class Test_SurrogateBehavior(unittest.TestCase):
     """
     test if dimensionalities of objectives and constraints of surrogate and
     simulator match
     """
+
+    def calculate_nonlinear_constraints_violations(
+        self, surrogate: Surrogate, X
+    ):
+        nlc_bounds = surrogate.optimization_problem.nonlinear_constraints_bounds
+        g_est = surrogate.estimate_non_linear_constraints(X)
+        g_est = np.array(g_est, ndmin=2)
+        cv_est_calc = g_est - np.array(nlc_bounds)
+        return cv_est_calc
+
+
+    def test_model_divergence(self):
+        """
+        the issue that usage of g and cv diverge cannot be reproduced.
+        Ideally the `nlc_soo` problem is better formulated to match,
+        but for now I'm happy that it actually works so well.
+        After all I am trying to delibreately break the surrogate model.
+
+
+        """
+        surrogate = fixtures["nlc_soo"]
+        x_cand = surrogate.X[surrogate.feasible][0:2]
+        g_cand = surrogate.G[surrogate.feasible][0:2]
+        cv_cand = surrogate.CV[surrogate.feasible][0:2]
+
+        g_est = surrogate.estimate_non_linear_constraints(x_cand)
+        cv_est = surrogate.estimate_nonlinear_constraints_violation(x_cand)
+
+        # test if CV and G match but are not the same
+        assert np.allclose(g_cand, g_est, atol=1e-2) and not np.any(g_est == g_cand)
+        assert np.allclose(cv_cand, cv_est, atol=1e-2) and not np.any(cv_est == cv_cand)
+
+        ok_est_1 = surrogate.estimate_check_nonlinear_constraints(x_cand)
+        ok_est_2 = np.all(self.calculate_nonlinear_constraints_violations(
+            surrogate=surrogate, X=x_cand) <= 0, axis=1
+        )
+
+        # test if all methods arrive at the same solution depending on
+        # this works as long as candidate from the training set is used
+        assert all(ok_est_1) and all(ok_est_2)
+
+        # vary x_0
+        deviations = [0.001, 0.01, 0.05, 0.1, 1.0]
+        stability = []
+        for dev in deviations:
+            x_cand = surrogate.X[surrogate.feasible][0].copy()
+            x_cand[0] +=  dev
+
+            cv_est_1 = surrogate.estimate_nonlinear_constraints_violation(x_cand)
+            cv_est_2 = self.calculate_nonlinear_constraints_violations(
+                surrogate=surrogate, X=x_cand
+            )
+            stability.append(cv_est_1 - cv_est_2)
+
+        stability = np.array(stability)
+
+        assert np.all(stability.std(axis=0) < 0.01)
+
+
+
     def test_moo(self):
         surrogate = fixtures["nlc_lc_soo"]
         var = surrogate.optimization_problem.variables[0]
@@ -144,6 +213,14 @@ class Test_Surrogate(unittest.TestCase):
 
     def test_linear_constraints_soo(self):
         surrogate = fixtures["lc_soo"]
+        self._find_minimum(surrogate)
+
+    def test_nonlinear_constraints_soo(self):
+        surrogate = fixtures["nlc_soo"]
+        self._find_minimum(surrogate)
+
+    def test_nonlinear_constraints_soo_evaluator(self):
+        surrogate = fixtures["nlc_soo_eval"]
         self._find_minimum(surrogate)
 
     def test_nonlinear_constraints_linear_constraints_soo(self):

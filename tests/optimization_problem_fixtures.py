@@ -121,6 +121,74 @@ class LinearConstraintsSooTestProblem(TestProblem):
         np.testing.assert_almost_equal(x-x_true, 0, decimal=decimal)
 
 
+
+class NonlinearConstraintsSooTestProblem(TestProblem):
+    def __init__(self, transform=None, has_evaluator=False, *args, **kwargs):
+        self.fixture_evaluator = None
+        super().__init__('linear_constraints_single_objective', *args, **kwargs)
+        self.setup_variables(transform=transform)
+        self.setup_evaluator(has_evaluator=has_evaluator)
+        self.setup_nonlinear_constraints()
+        self.setup_objectives()
+
+    def setup_evaluator(self, has_evaluator):
+        if has_evaluator:
+            self.fixture_evaluator = lambda x: x
+            self.add_evaluator(self.fixture_evaluator)
+        else:
+            self.fixture_evaluator = None
+
+    def setup_objectives(self):
+        self.add_objective(
+            self._objective_function,
+            requires=self.fixture_evaluator
+        )
+
+    def setup_variables(self, transform):
+        self.add_variable('var_0', lb=-2, ub=0, transform=transform)
+        self.add_variable('var_1', lb=-2, ub=2, transform=transform)
+
+    def setup_nonlinear_constraints(self):
+        """
+        these should reproduce the same results as above only with nonlinear
+        constraints.
+        TODO: Bounds are probably redundant
+        """
+        nlc_fun_0 = lambda x: -1 * x[0] - 0.5 * x[1]
+        self.add_nonlinear_constraint(
+            nlc_fun_0, bounds=0, n_nonlinear_constraints=1,
+            requires=self.fixture_evaluator
+        )
+
+        def nlc_fun_1(x):
+            return -0.01/(1+np.exp(x[0])) + 0.005, x[1]
+
+        self.add_nonlinear_constraint(
+            nlc_fun_1, bounds=[0.001, 2],
+            n_nonlinear_constraints=2,
+            requires=self.fixture_evaluator
+        )
+
+
+    def _objective_function(self, x):
+        return x[0] - x[1]
+
+    def optimal_solution(self):
+        x = [-1, 2]
+        f = -3
+
+        return x, f
+
+    def test_if_solved(self, optimization_results: OptimizationResults, decimal=7):
+        x_true, f_true = self.optimal_solution()
+        x = optimization_results.x_untransformed
+        f = optimization_results.f
+
+        np.testing.assert_almost_equal(f-f_true, 0, decimal=decimal)
+        np.testing.assert_almost_equal(x-x_true, 0, decimal=decimal)
+
+
+
 class LinearConstraintsSooTestProblem2(TestProblem):
     def __init__(
             self,
