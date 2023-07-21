@@ -772,7 +772,7 @@ class Surrogate:
         op: OptimizationProblem,
         x_cond, cond_var_idx, free_var_idx,
         objective_index,
-        n=200
+        n=50
     ):
         """
         compute some suggestions for possible x0 based on the surrogate
@@ -787,21 +787,36 @@ class Surrogate:
 
         X_suggest = np.array(list(product(*suggestions)))
 
+        lincon_ok = np.array(list(map(
+            op.check_linear_constraints, X_suggest[:, free_var_idx]
+        )))
+        X_lincon_ok = X_suggest[lincon_ok]
 
-        CV_est = self.estimate_nonlinear_constraints_violation(X_suggest)
+        CV_est = self.estimate_nonlinear_constraints_violation(X_lincon_ok)
 
-        X_nonlinear_constraints_ok = np.all(CV_est <= 0, axis=1)
+        nonlincon_ok = np.all(CV_est <= 0, axis=1)
         # sum(nonlinear_constraints_ok)
 
         # X_nonlinear_constraints_ok = self.surrogate_model_feasible.predict(X_suggest)
-        X_candidates = X_suggest[X_nonlinear_constraints_ok]
+        X_nonlincon_ok = X_lincon_ok[nonlincon_ok]
 
-        if len(X_candidates) == 0:
+        if len(X_nonlincon_ok) == 0:
             return
 
-        F_est = self.estimate_objectives(X_candidates)[:, objective_index]
+        F_est = self.estimate_objectives(X_nonlincon_ok)[:, objective_index]
 
-        for f_cand, x_cand in sorted(zip(F_est, X_candidates)):
+        try:
+            X_candidates_sorted = sorted(zip(F_est, X_nonlincon_ok))
+        except ValueError as e:
+            # catches exception when all evaluations of a point are the same
+            # his happens probably when the GP has never been tested for
+            # that range
+            if "The truth value of an array with more than one element is ambiguous." in str(e):
+                return
+            else:
+                raise e
+
+        for f_cand, x_cand in X_candidates_sorted:
             # print(op.evaluate_nonlinear_constraints(x_cand[free_var_idx]))
             if (
                 op.check_nonlinear_constraints(x_cand[free_var_idx])
@@ -818,7 +833,7 @@ class Surrogate:
         self, optimization_problem, x0,
     ):
 
-        optimizer = TrustConstr(gtol=1e-5)
+        optimizer = TrustConstr(gtol=1e-3, xtol=1e-5, n_max_evals=100)
         # optimizer = TrustConstr()
         optimizer.optimize(
             optimization_problem,
@@ -872,6 +887,8 @@ class Surrogate:
                     objective_index=[objective_index],
                     use_surrogate=use_surrogate
                 )
+
+                op._callbacks = []
 
                 try:
                     # TODO: previously `simplify=True` however, sometimes
@@ -1091,6 +1108,7 @@ class Surrogate:
 
         if self.feasible is not None:
             alpha = (self.feasible.astype(float)+(1/3)) / (4/3)
+            color = ["tab:green" if f else "tab:blue" for f in self.feasible ]
 
         n_objectives = self.optimization_problem.n_objectives
 
@@ -1098,8 +1116,8 @@ class Surrogate:
             _, axes = plt.subplots(n_objectives)
 
         for oi, ax in enumerate(axes):
-            ax.scatter(x, f[:, oi], s=10, label="obj. fun", alpha=alpha)
-            ax.plot(x_opt[:, oi, x_idx], f_min[:, oi], color="red", lw=.5)
+            ax.scatter(x, f[:, oi], s=10, label="obj. fun", alpha=alpha, color=color)
+            ax.plot(x_opt[:, oi, x_idx], f_min[:, oi], color="tab:red", lw=.5)
 
             # standard deviation currently seems not really a meaningful
             # measure
