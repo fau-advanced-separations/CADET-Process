@@ -357,8 +357,7 @@ class Surrogate:
         n_lineqcons = op.n_linear_equality_constraints
         n_variables = op.n_independent_variables
 
-        # nonlincons = deepcopy(op.nonlinear_constraints)
-        nonlincons = op.nonlinear_constraints
+        # nonlincons = op.nonlinear_constraints
 
         cond_var_idx, free_var_idx = self.get_conditional_and_free_indices(
             conditional_vars
@@ -435,12 +434,11 @@ class Surrogate:
                 evaluator._is_conditioned = False
 
 
-        # remove existing nonlinear constraints
-        # op._nonlinear_constraints = []
+        conditioned_nonlincons_kwargs = []
 
         # generate conditioned nonlinear constraints
         start_index_nlc_surrogate = 0
-        for nlc in nonlincons:
+        for nlc in op.nonlinear_constraints:
 
             nlc_func = nlc.nonlinear_constraint
             n_nlc = nlc.n_nonlinear_constraints
@@ -452,6 +450,10 @@ class Surrogate:
                 )
             else:
                 return_idx = None
+                # return_idx = np.arange(
+                #     start=0,
+                #     stop=n_nlc
+                # )
 
             start_index_nlc_surrogate += n_nlc
 
@@ -496,12 +498,39 @@ class Surrogate:
                     return_idx=return_idx
                 )
 
-            nlc.nonlinear_constraint = conditioned_nlc_func
-            # op.add_nonlinear_constraint(
-            #     nonlincon=conditioned_nlc_func,
-            #     name=nlc.name
-            # )
+            max_cv = self.CV.max(axis=0)[return_idx]
+            not_so_bad_metrics = max_cv + 2 * np.abs(max_cv)
+            # TODO: do we have to condition evaluation objects?
+            # TODO: consider implementing the improved
+            # TODO: do the nlc funcs of the conditioned NLC also have to take
+            #       args and kwargs?
+            # nlc.nonlinear_constraint = conditioned_nlc_func
+            conditioned_nlc_kwargs = dict(
+                nonlincon=conditioned_nlc_func,
+                name=nlc.name,
+                n_nonlinear_constraints=n_nlc,
+                # bad_metrics=not_so_bad_metrics,
+                bad_metrics=nlc.bad_metrics,
+                evaluation_objects=nlc.evaluation_objects,
+                bounds=[0.0] * n_nlc,
+                # this is set later to avoid a lookup error in evaluators_dict_reference
+                # TODO: refactor later
+                requires=None,
+                labels=nlc.labels,
+                # TODO: at some points possibly args and kwargs will be needed
+                # args=nlc.args,
+                # kwargs=nlc.kwargs,
+            )
 
+            conditioned_nonlincons_kwargs.append((conditioned_nlc_kwargs, nlc.evaluators))
+
+        op._nonlinear_constraints = []
+        for i, (cnlc_kwargs, requires) in enumerate(conditioned_nonlincons_kwargs):
+            op.add_nonlinear_constraint(**cnlc_kwargs)
+            # Duct tape programming TODO: refactor later
+            op.nonlinear_constraints[i].evaluators = requires
+
+        assert op.n_nonlinear_constraints == self.optimization_problem.n_nonlinear_constraints
 
         obj_index = {}
         oi = 0
