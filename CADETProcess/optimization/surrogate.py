@@ -47,8 +47,8 @@ class Surrogate:
 
         self.surrogate_model_F: BaseEstimator = None
         self.surrogate_model_G: BaseEstimator = None
+        self.surrogate_model_CV: BaseEstimator = None
         self.surrogate_model_M: BaseEstimator = None
-        self.surrogate_model_feasible: BaseEstimator = None
 
         self.read_population(population=optimization_results.population_all)
         self.fit_gaussian_process()
@@ -131,26 +131,18 @@ class Surrogate:
             gp_g.fit(self.X, self.G)
             self.surrogate_model_G = gp_g
 
+        if self.CV is not None:
+            gp_cv = GaussianProcessRegressor()
+            gp_cv.fit(self.X, self.CV)
+            self.surrogate_model_CV = gp_cv
+
         if self.M is not None:
             gp_m = GaussianProcessRegressor()
             gp_m.fit(self.X, self.M)
             self.surrogate_model_M = gp_m
 
-        if self.feasible is not None:
-            # TODO: catch error where points are only feasible or infeasible
-            if np.all(self.feasible):
-                feasibility_func = self.all_feasible
-
-                class MockGPClassifier:
-                    def predict(self, X):
-                        return feasibility_func(X)
-
-                gp_feasible = MockGPClassifier()
-            else:
-                gp_feasible = GaussianProcessClassifier()
-                gp_feasible.fit(self.X, self.feasible)
-
-            self.surrogate_model_feasible = gp_feasible
+    # TODO: write a wrapper for casting of X and result. This is the same
+    #       for all `estimate_...`` functions
 
     def estimate_objectives(self, X):
         """
@@ -226,6 +218,27 @@ class Surrogate:
             return G_est[0]
         else:
             return G_est
+
+    def estimate_nonlinear_constraints_violation(self, X):
+        X_ = np.array(X, ndmin=2)
+        CV_est = self.surrogate_model_CV.predict(X_)
+        CV_est = CV_est.reshape((len(X_), -1))
+
+        if X.ndim == 1:
+            return CV_est[0]
+        else:
+            return CV_est
+
+    def estimate_check_nonlinear_constraints(self, X):
+        cv_est = self.estimate_nonlinear_constraints_violation(X)
+        cv_est_ = np.array(cv_est, ndmin=2)
+        ok_est = np.all(cv_est_ < 0, axis=1)
+        ok_est = np.array(ok_est, ndmin=1)
+
+        if X.ndim == 1:
+            return ok_est[0]
+        else:
+            return ok_est
 
     def estimate_meta_scores(self, X):
         """
@@ -344,6 +357,9 @@ class Surrogate:
         n_lineqcons = op.n_linear_equality_constraints
         n_variables = op.n_independent_variables
 
+        # nonlincons = deepcopy(op.nonlinear_constraints)
+        nonlincons = op.nonlinear_constraints
+
         cond_var_idx, free_var_idx = self.get_conditional_and_free_indices(
             conditional_vars
         )
@@ -419,9 +435,13 @@ class Surrogate:
                 evaluator._is_conditioned = False
 
 
+        # remove existing nonlinear constraints
+        # op._nonlinear_constraints = []
+
         # generate conditioned nonlinear constraints
         start_index_nlc_surrogate = 0
-        for nlc in op.nonlinear_constraints:
+        for nlc in nonlincons:
+
             nlc_func = nlc.nonlinear_constraint
             n_nlc = nlc.n_nonlinear_constraints
 
@@ -457,7 +477,7 @@ class Surrogate:
                 # and correspondingly indexed during post processing
                 # complete x is not necessary since x are intermediate
                 # results here
-                nlc.nonlinear_constraint = self.condition_model_or_surrogate(
+                conditioned_nlc_func = self.condition_model_or_surrogate(
                     model_func=nlc_func,
                     surrogate_func=self.estimate_non_linear_constraints,
                     use_surrogate=use_surrogate,
@@ -468,13 +488,19 @@ class Surrogate:
 
             else:
 
-                nlc.nonlinear_constraint = self.condition_model_or_surrogate(
+                conditioned_nlc_func = self.condition_model_or_surrogate(
                     model_func=nlc_func,
                     surrogate_func=self.estimate_non_linear_constraints,
                     use_surrogate=use_surrogate,
                     complete_x=complete_x,
                     return_idx=return_idx
                 )
+
+            nlc.nonlinear_constraint = conditioned_nlc_func
+            # op.add_nonlinear_constraint(
+            #     nonlincon=conditioned_nlc_func,
+            #     name=nlc.name
+            # )
 
 
         obj_index = {}
@@ -523,6 +549,7 @@ class Surrogate:
                 # and correspondingly indexed during post processing
                 # complete x is not necessary since x are intermediate
                 # results here
+
                 obj.objective = self.condition_model_or_surrogate(
                     model_func=obj_func,
                     surrogate_func=self.estimate_objectives,
@@ -716,7 +743,7 @@ class Surrogate:
         op: OptimizationProblem,
         x_cond, cond_var_idx, free_var_idx,
         objective_index,
-        n=100
+        n=200
     ):
         """
         compute some suggestions for possible x0 based on the surrogate
@@ -730,9 +757,16 @@ class Surrogate:
             suggestions[i] = np.linspace(var.lb, var.ub, num=n).tolist()
 
         X_suggest = np.array(list(product(*suggestions)))
-        X_is_feasible = self.surrogate_model_feasible.predict(X_suggest)
 
-        X_candidates = X_suggest[X_is_feasible]
+
+        CV_est = self.estimate_nonlinear_constraints_violation(X_suggest)
+
+        X_nonlinear_constraints_ok = np.all(CV_est <= 0, axis=1)
+        # sum(nonlinear_constraints_ok)
+
+        # X_nonlinear_constraints_ok = self.surrogate_model_feasible.predict(X_suggest)
+        X_candidates = X_suggest[X_nonlinear_constraints_ok]
+
         if len(X_candidates) == 0:
             return
 
@@ -751,15 +785,12 @@ class Surrogate:
 
         return x_cand
 
-
-
-
-
     def optimize_conditioned_problem(
         self, optimization_problem, x0,
     ):
 
-        optimizer = TrustConstr()
+        optimizer = TrustConstr(gtol=1e-5)
+        # optimizer = TrustConstr()
         optimizer.optimize(
             optimization_problem,
             x0=x0,
@@ -774,8 +805,6 @@ class Surrogate:
 
         x_free = x_free[0]
         return x_free
-
-
 
     def find_minimum(self, var_index, use_surrogate=True, n=21):
         """
@@ -841,10 +870,16 @@ class Surrogate:
                     n_neighbors=1
                 )
 
-                x0_estimate = self.estimate_x0(
-                    op, x_cond, cond_var_idx, free_var_idx,
-                    objective_index
-                )
+                # TODO: run only when number of variables is small enough
+                #       or lower n for better scaling
+                if op.n_nonlinear_constraints > 0:
+                    x0_estimate = self.estimate_x0(
+                        op, x_cond, cond_var_idx, free_var_idx,
+                        objective_index
+                    )
+                else:
+                    # TODO: use only f for combinations to estimate a good X0
+                    x0_estimate = None
 
 
                 if x0_estimate is not None:
