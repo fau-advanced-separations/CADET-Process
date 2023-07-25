@@ -4,8 +4,12 @@ from copy import deepcopy
 import numpy as np
 
 from CADETProcess.optimization import (
-    OptimizationResults, Population, Individual, Surrogate, settings,
-    OptimizationProblem
+    OptimizationResults,
+    Population,
+    Individual,
+    Surrogate,
+    settings,
+    OptimizationProblem,
 )
 from tests.optimization_problem_fixtures import (
     LinearConstraintsSooTestProblem,
@@ -15,6 +19,7 @@ from tests.optimization_problem_fixtures import (
     LinearConstraintsMooTestProblem,
     LinearNonlinearConstraintsMooTestProblem,
 )
+
 
 def generate_samples(problem: OptimizationProblem, n_samples):
     X = problem.create_initial_values(n_samples=n_samples)
@@ -29,12 +34,11 @@ def generate_samples(problem: OptimizationProblem, n_samples):
             n_cores=1,
         )
     else:
-        M = len(X)*[None]
+        M = len(X) * [None]
 
     if problem.n_nonlinear_constraints == 0:
-        G = len(X)*[None]
-        CV = len(X)*[None]
-
+        G = len(X) * [None]
+        CV = len(X) * [None]
 
     return X, F, M, G, CV
 
@@ -47,17 +51,20 @@ def generate_optimization_results(problem, n_samples=100):
 
     population = Population()
     for x, f, g, cv, m in zip(X, F, G, CV, M):
-        x_untransformed \
-            = problem.get_dependent_values(
-                x, untransform=True
-            )
+        x_untransformed = problem.get_dependent_values(x, untransform=True)
         ind = Individual(
-            x, f, g, m, cv, cv_tol, x_untransformed,
-            problem.independent_variable_names,
-            problem.objective_labels,
-            problem.nonlinear_constraint_labels,
-            problem.meta_score_labels,
-            problem.variable_names,
+            x=x,
+            f=f,
+            g=g,
+            m=m,
+            cv=cv,
+            cv_tol=cv_tol,
+            x_transformed=x_untransformed,
+            independent_variable_names=problem.independent_variable_names,
+            objective_labels=problem.objective_labels,
+            contraint_labels=problem.nonlinear_constraint_labels,
+            meta_score_labels=problem.meta_score_labels,
+            variable_names=problem.variable_names,
         )
         population.add_individual(ind)
 
@@ -66,35 +73,42 @@ def generate_optimization_results(problem, n_samples=100):
 
     return results
 
+
 def surrogate_lc_soo(has_evaluator=False):
     problem = LinearConstraintsSooTestProblem(has_evaluator=has_evaluator)
     results = generate_optimization_results(problem)
     return Surrogate(optimization_results=results)
+
 
 def surrogate_nlc_soo(has_evaluator=False):
     problem = NonlinearConstraintsSooTestProblem(has_evaluator=has_evaluator)
     results = generate_optimization_results(problem, n_samples=1000)
     return Surrogate(optimization_results=results)
 
+
 def surrogate_nlc_lc_soo():
     problem = NonlinearLinearConstraintsSooTestProblem()
     results = generate_optimization_results(problem)
     return Surrogate(optimization_results=results)
+
 
 def surrogate_nlc_moo(has_evaluator=False):
     problem = NonlinearConstraintsMooTestProblem(has_evaluator=has_evaluator)
     results = generate_optimization_results(problem)
     return Surrogate(optimization_results=results)
 
+
 def surrogate_lc_moo():
     problem = LinearConstraintsMooTestProblem()
     results = generate_optimization_results(problem)
     return Surrogate(optimization_results=results)
 
+
 def surrogate_nlc_lc_moo(has_evaluator=False):
     problem = LinearNonlinearConstraintsMooTestProblem(has_evaluator=has_evaluator)
     results = generate_optimization_results(problem)
     return Surrogate(optimization_results=results)
+
 
 fixtures = {
     "lc_soo": surrogate_lc_soo(has_evaluator=False),
@@ -106,7 +120,7 @@ fixtures = {
     "nlc_moo": surrogate_nlc_moo(has_evaluator=False),
     "nlc_moo_eval": surrogate_nlc_moo(has_evaluator=True),
     "nlc_lc_moo": surrogate_nlc_lc_moo(),
-    "nlc_lc_moo_eval": surrogate_nlc_lc_moo(has_evaluator=True)
+    "nlc_lc_moo_eval": surrogate_nlc_lc_moo(has_evaluator=True),
 }
 
 
@@ -116,15 +130,12 @@ class Test_SurrogateBehavior(unittest.TestCase):
     simulator match
     """
 
-    def calculate_nonlinear_constraints_violations(
-        self, surrogate: Surrogate, X
-    ):
+    def calculate_nonlinear_constraints_violations(self, surrogate: Surrogate, X):
         nlc_bounds = surrogate.optimization_problem.nonlinear_constraints_bounds
         g_est = surrogate.estimate_non_linear_constraints(X)
         g_est = np.array(g_est, ndmin=2)
         cv_est_calc = g_est - np.array(nlc_bounds)
         return cv_est_calc
-
 
     def test_model_divergence(self):
         """
@@ -148,8 +159,12 @@ class Test_SurrogateBehavior(unittest.TestCase):
         assert np.allclose(cv_cand, cv_est, atol=1e-2) and not np.any(cv_est == cv_cand)
 
         ok_est_1 = surrogate.estimate_check_nonlinear_constraints(x_cand)
-        ok_est_2 = np.all(self.calculate_nonlinear_constraints_violations(
-            surrogate=surrogate, X=x_cand) <= 0, axis=1
+        ok_est_2 = np.all(
+            self.calculate_nonlinear_constraints_violations(
+                surrogate=surrogate, X=x_cand
+            )
+            <= 0,
+            axis=1,
         )
 
         # test if all methods arrive at the same solution depending on
@@ -161,7 +176,7 @@ class Test_SurrogateBehavior(unittest.TestCase):
         stability = []
         for dev in deviations:
             x_cand = surrogate.X[surrogate.feasible][0].copy()
-            x_cand[0] +=  dev
+            x_cand[0] += dev
 
             cv_est_1 = surrogate.estimate_nonlinear_constraints_violation(x_cand)
             cv_est_2 = self.calculate_nonlinear_constraints_violations(
@@ -173,8 +188,6 @@ class Test_SurrogateBehavior(unittest.TestCase):
 
         assert np.all(stability.std(axis=0) < 0.01)
 
-
-
     def test_moo(self):
         surrogate = fixtures["nlc_lc_soo"]
         var = surrogate.optimization_problem.variables[0]
@@ -183,13 +196,13 @@ class Test_SurrogateBehavior(unittest.TestCase):
         op_sur, cond_var_idx, free_var_idx = surrogate.condition_optimization_problem(
             conditional_vars={var.name: var.lb},
             objective_index=[range(n_objs)[0]],
-            use_surrogate=False
+            use_surrogate=False,
         )
 
         op_sim, cond_var_idx, free_var_idx = surrogate.condition_optimization_problem(
             conditional_vars={var.name: var.lb},
             objective_index=[range(n_objs)[0]],
-            use_surrogate=False
+            use_surrogate=False,
         )
         X = surrogate.X
         # TODO: unexpected behavior, both evaluations return the same number
@@ -250,6 +263,7 @@ class Test_Surrogate(unittest.TestCase):
     def test_nonlinear_constraints_linear_constraints_moo_evaluator(self):
         surrogate = fixtures["nlc_lc_moo_eval"]
         self._find_minimum(surrogate)
+
 
 if __name__ == "__main__":
     unittest.main()
