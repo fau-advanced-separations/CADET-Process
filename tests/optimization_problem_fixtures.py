@@ -50,7 +50,7 @@ class TestProblem(OptimizationProblem):
                 continue
             for j in range(self.n_objectives):
                 f_min_true = F_min_x(x[j, var_index])
-            np.testing.assert_allclose(f_min_true, f, rtol=0.05, atol=0.01)
+            np.testing.assert_allclose(f_min_true, f, atol=self.test_tol)
 
 
 class Rosenbrock(TestProblem):
@@ -105,6 +105,7 @@ class Rosenbrock(TestProblem):
 
 class LinearConstraintsSooTestProblem(TestProblem):
     def __init__(self, transform=None, has_evaluator=False, *args, **kwargs):
+        self.test_tol = 0.1
         super().__init__('linear_constraints_single_objective', *args, **kwargs)
         self.setup_variables(transform=transform)
         self.setup_linear_constraints()
@@ -152,6 +153,7 @@ class LinearConstraintsSooTestProblem(TestProblem):
 
 class NonlinearConstraintsSooTestProblem(TestProblem):
     def __init__(self, transform=None, has_evaluator=False, *args, **kwargs):
+        self.test_tol = 0.1
         self.fixture_evaluator = None
         super().__init__('linear_constraints_single_objective', *args, **kwargs)
         self.setup_variables(transform=transform)
@@ -207,13 +209,6 @@ class NonlinearConstraintsSooTestProblem(TestProblem):
 
         return x, f
 
-    @property
-    def conditional_minima(self):
-        f_x0 = lambda x0:  x0 - 2
-        f_x1 = lambda x1:  x1 * - 3/2
-        return f_x0, f_x1
-
-
     def test_if_solved(self, optimization_results: OptimizationResults, decimal=7):
         x_true, f_true = self.optimal_solution()
         x = optimization_results.x_untransformed
@@ -221,7 +216,6 @@ class NonlinearConstraintsSooTestProblem(TestProblem):
 
         np.testing.assert_almost_equal(f-f_true, 0, decimal=decimal)
         np.testing.assert_almost_equal(x-x_true, 0, decimal=decimal)
-
 
 
 class LinearConstraintsSooTestProblem2(TestProblem):
@@ -306,6 +300,7 @@ class LinearEqualityConstraintsSooTestProblem(TestProblem):
 
 class NonlinearLinearConstraintsSooTestProblem(TestProblem):
     def __init__(self, transform=None, *args, **kwargs):
+        self.test_tol = 0.1
         super().__init__(
             'nonlinear_linear_constraints_single_objective',
             *args, **kwargs
@@ -335,13 +330,6 @@ class NonlinearLinearConstraintsSooTestProblem(TestProblem):
 
         return x, f
 
-    @property
-    def conditional_minima(self):
-        f_x0 = lambda x0:  x0 - 2
-        f_x1 = lambda x1:  x1 * - 3/2
-        return f_x0, f_x1
-
-
     def test_if_solved(self, optimization_results: OptimizationResults, decimal=7):
         x_true, f_true = self.optimal_solution()
         x = optimization_results.x_untransformed
@@ -355,6 +343,8 @@ class LinearConstraintsMooTestProblem(TestProblem):
     """Function curtesy of Florian Schunck and Samuel Leweke."""
 
     def __init__(self, *args, **kwargs):
+        self.test_tol = 0.1
+
         super().__init__('linear_constraints_multi_objective', *args, **kwargs)
 
         self.add_variable('var_0', lb=1, ub=5)

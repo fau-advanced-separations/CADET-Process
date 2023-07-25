@@ -553,7 +553,10 @@ class Surrogate:
             j = 0
             while j < obj.n_objectives:
                 if oi in objective_index:
-                    obj_index.update({oi: (i, j)})
+                    if use_surrogate:
+                        obj_index.update({oi: (i, oi)})
+                    else:
+                        obj_index.update({oi: (i, j)})
                 oi += 1
                 j += 1
 
@@ -893,6 +896,9 @@ class Surrogate:
         out : Tuple[np.ndarray, np.ndarray]
             The minimum objective values and the corresponding optimal points.
         """
+        lp = hopsy.LP()
+        lp.reset()
+        lp.settings.simplify_only = True
 
         n_vars = self.optimization_problem.n_variables
         n_objs = self.optimization_problem.n_objectives
