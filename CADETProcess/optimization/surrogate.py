@@ -173,6 +173,7 @@ class Surrogate:
         X_ = np.array(X, ndmin=2)
         X_scaled = self.X_scaler.transform(X_)
         F_mean_est_scaled = self.surrogate_model_F.predict(X_scaled)
+        F_mean_est_scaled = np.array(F_mean_est_scaled, ndmin=2)
         F_mean_est = self.F_scaler.inverse_transform(F_mean_est_scaled)
         # always cast as multi objective problem
         F_mean_est = F_mean_est.reshape((len(X_), -1))
@@ -225,6 +226,7 @@ class Surrogate:
         X_scaled = self.X_scaler.transform(X_)
 
         G_est_scaled = self.surrogate_model_G.predict(X_scaled)
+        G_est_scaled = np.array(G_est_scaled, ndmin=2)
         G_est = self.G_scaler.inverse_transform(G_est_scaled)
         G_est = G_est.reshape((len(X_), -1))
 
@@ -238,6 +240,7 @@ class Surrogate:
         X_scaled = self.X_scaler.transform(X_)
 
         CV_est_scaled = self.surrogate_model_CV.predict(X_scaled)
+        CV_est_scaled = np.array(CV_est_scaled, ndmin=2)
         CV_est = self.CV_scaler.inverse_transform(CV_est_scaled)
 
         CV_est = CV_est.reshape((len(X_), -1))
@@ -958,20 +961,20 @@ class Surrogate:
                     x0 = chebyshev_orig
 
                 try:
-                    # if len(x0) == op.n_variables:
-                    x_free = self.optimize_conditioned_problem(
-                        optimization_problem=op,
-                        x0=x0,
-                    )
-                    # else:
-                    #     warnings.warn(f"hopsy generated wrong x0={x0}.")
-                    #     problem = op.create_hopsy_problem(simplify=False)
-                    #     x0 = hopsy.compute_chebyshev_center(problem)[:, 0]
+                    if len(x0) == op.n_variables:
+                        x_free = self.optimize_conditioned_problem(
+                            optimization_problem=op,
+                            x0=x0,
+                        )
+                    else:
+                        warnings.warn(f"hopsy generated wrong x0={x0}.")
+                        problem = op.create_hopsy_problem(simplify=False)
+                        x0 = hopsy.compute_chebyshev_center(problem)[:, 0]
 
-                    #     x_free = self.optimize_conditioned_problem(
-                    #         optimization_problem=op,
-                    #         x0=x0,
-                    #     )
+                        x_free = self.optimize_conditioned_problem(
+                            optimization_problem=op,
+                            x0=x0,
+                        )
                 except CADETProcessError:
                     x_free = self.optimize_conditioned_problem(
                         optimization_problem=op,
@@ -1141,7 +1144,12 @@ class Surrogate:
         n_objectives = self.optimization_problem.n_objectives
 
         if axes is None:
-            _, axes = plt.subplots(n_objectives)
+            fig, axes = plt.subplots(n_objectives)
+            if isinstance(axes, plt.Axes):
+                axes = [axes]
+            self_contained_figure = True
+        else:
+            self_contained_figure = False
 
         for oi, ax in enumerate(axes):
             ax.scatter(x, f[:, oi], s=10, label="obj. fun", alpha=alpha, color=color)
@@ -1162,6 +1170,9 @@ class Surrogate:
             #         F_mean[:, oi]-F_std[:, oi], F_mean[:, oi]+F_std[:, oi],
             #         color="red", alpha=.5
             #     )
+
+        if self_contained_figure == True:
+            fig.show()
 
         return x_opt, f_min
 

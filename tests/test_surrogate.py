@@ -12,6 +12,7 @@ from CADETProcess.optimization import (
     OptimizationProblem,
 )
 from tests.optimization_problem_fixtures import (
+    TestProblem,
     LinearConstraintsSooTestProblem,
     NonlinearConstraintsSooTestProblem,
     NonlinearLinearConstraintsSooTestProblem,
@@ -214,15 +215,20 @@ class Test_SurrogateBehavior(unittest.TestCase):
 
 
 class Test_Surrogate(unittest.TestCase):
-    @staticmethod
-    def _find_minimum(surrogate):
+    @classmethod
+    def _find_minimum(cls, surrogate):
+        problem = surrogate.optimization_problem
         # test if problem runs on surrogate
-        for i in range(surrogate.optimization_problem.n_independent_variables):
-            surrogate.find_minimum(i, use_surrogate=True, n=3)
+        for i in range(problem.n_independent_variables):
+            fmin, xopt = surrogate.find_minimum(i, use_surrogate=True, n=3)
+            problem.test_points_on_conditional_minimum(xopt, fmin, i)
+
 
         # test if problem runs on normal model
-        for i in range(surrogate.optimization_problem.n_independent_variables):
-            surrogate.find_minimum(i, use_surrogate=False, n=3)
+        for i in range(problem.n_independent_variables):
+            fmin, xopt = surrogate.find_minimum(i, use_surrogate=False, n=3)
+            problem.test_points_on_conditional_minimum(xopt, fmin, i)
+
 
     def test_linear_constraints_soo(self):
         surrogate = fixtures["lc_soo"]
@@ -266,4 +272,5 @@ class Test_Surrogate(unittest.TestCase):
 
 
 if __name__ == "__main__":
+    Test_Surrogate().test_linear_constraints_soo()
     unittest.main()

@@ -4,8 +4,10 @@ TODO:
 - [ ] Add documentation / scope of tests (e.g. link to scipy/pymoo)
 
 """
+import warnings
 
 import numpy as np
+
 from CADETProcess.optimization import OptimizationProblem, OptimizationResults
 from CADETProcess.transform import NormLinearTransform, NormLogTransform
 
@@ -29,6 +31,26 @@ class TestProblem(OptimizationProblem):
     @property
     def x0(self):
         raise NotImplementedError
+
+
+    @property
+    def conditional_minima(self):
+        warnings.warn("No known conditional minima implemented.")
+        return None
+
+    def test_points_on_conditional_minimum(self, X, F, var_index):
+        F_min_x = self.conditional_minima
+        if F_min_x is None:
+            return
+        else:
+            F_min_x = F_min_x[var_index]
+
+        for x, f in zip(X, F):
+            if np.all(np.isnan(x)):
+                continue
+            for j in range(self.n_objectives):
+                f_min_true = F_min_x(x[j, var_index])
+            np.testing.assert_allclose(f_min_true, f, rtol=0.05, atol=0.01)
 
 
 class Rosenbrock(TestProblem):
@@ -111,6 +133,26 @@ class LinearConstraintsSooTestProblem(TestProblem):
         f = -3
 
         return x, f
+
+    @property
+    def conditional_minima(self):
+        f_x0 = lambda x0:  x0 - 2
+        f_x1 = lambda x1:  x1 * - 3/2
+        return f_x0, f_x1
+
+    def test_points_on_conditional_minimum(self, X, F, var_index):
+        F_min_x = self.conditional_minima[var_index]
+        for x, f in zip(X, F):
+            if np.all(np.isnan(x)):
+                continue
+            for j in range(self.n_objectives):
+                # calculates the minimum with respect to a (fixed)
+                # conditioning value
+                f_min_true = F_min_x(x[j, var_index])
+                # test if this is equal to the value determined by the
+                # local optimizer executed in the surrogate.find_minimum
+                # method
+                np.testing.assert_allclose(f, f_min_true, rtol=0.1, atol=0.1)
 
     def test_if_solved(self, optimization_results: OptimizationResults, decimal=7):
         x_true, f_true = self.optimal_solution()
@@ -320,8 +362,7 @@ class LinearConstraintsMooTestProblem(TestProblem):
 
         self.add_linear_constraint(['var_0', 'var_1'], [-1, -1], -3)
         self.add_linear_constraint(['var_0', 'var_1'], [ 1, -1],  5)
-
-        self.add_objective(self._objective_function, n_objectives=2)
+        self.setup_objectives()
 
     @staticmethod
     def _objective_function(x):
@@ -329,6 +370,16 @@ class LinearConstraintsMooTestProblem(TestProblem):
         f2 = (1 + x[1]) / x[0]
 
         return f1, f2
+
+    def setup_objectives(self):
+        def f1(x):
+            return self._objective_function(x)[0]
+
+        def f2(x):
+            return self._objective_function(x)[1]
+
+        self.add_objective(f1, n_objectives=1)
+        self.add_objective(f2, n_objectives=1)
 
     def find_corresponding_x2(self, x1):
         """
@@ -354,7 +405,6 @@ class LinearConstraintsMooTestProblem(TestProblem):
         x2_test = np.where(x1 <= 3, 3 - x1, 0)
 
         np.testing.assert_almost_equal(x2, x2_test, decimal=decimal)
-
 
 
 class LinearNonlinearConstraintsMooTestProblem(TestProblem):
