@@ -5,16 +5,19 @@ from itertools import product
 
 import numpy as np
 from matplotlib import pyplot as plt
-from sklearn.gaussian_process import (
-    GaussianProcessRegressor, GaussianProcessClassifier)
+from sklearn.gaussian_process import GaussianProcessRegressor, GaussianProcessClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.base import BaseEstimator
 import hopsy
 
 from CADETProcess import CADETProcessError
 from CADETProcess.optimization import (
-    OptimizationProblem, TrustConstr, SLSQP, OptimizationResults
+    OptimizationProblem,
+    TrustConstr,
+    SLSQP,
+    OptimizationResults,
 )
+
 
 class Surrogate:
     """
@@ -84,25 +87,15 @@ class Surrogate:
         """
         updates the surrogate model with new individuals
         """
-        self.X = np.row_stack(
-            [self.X, self.X_new]
-        )
+        self.X = np.row_stack([self.X, self.X_new])
 
-        self.F = np.row_stack(
-            [self.F, self.F_new]
-        )
+        self.F = np.row_stack([self.F, self.F_new])
 
-        if len(self.G_new) > 0 :
-            self.G = np.row_stack(
-                [self.G, self.G_new]
-            )
+        if len(self.G_new) > 0:
+            self.G = np.row_stack([self.G, self.G_new])
 
-        if len(self.CV_new) > 0 :
-            self.CV = np.row_stack(
-                [self.CV, self.CV_new]
-            )
-
-
+        if len(self.CV_new) > 0:
+            self.CV = np.row_stack([self.CV, self.CV_new])
 
         self.fit_gaussian_process()
 
@@ -113,7 +106,7 @@ class Surrogate:
         for var, lb, ub in zip(
             self.optimization_problem.variables,
             self.lower_bounds_copy,
-            self.upper_bounds_copy
+            self.upper_bounds_copy,
         ):
             var.lb = lb
             var.ub = ub
@@ -343,12 +336,11 @@ class Surrogate:
 
         return A_cond, b_cond
 
-
     def condition_optimization_problem(
         self,
         conditional_vars: dict = None,
         objective_index: list = None,
-        use_surrogate=True
+        use_surrogate=True,
     ):
         """
         Condition the optimization problem based on the given variables.
@@ -389,20 +381,15 @@ class Surrogate:
             conditional_vars
         )
 
-
         # remove variables
         [op.remove_variable(vn) for vn in conditional_vars.keys()]
         free_variables = op.independent_variables
 
-
         # remove old lincons and set up new inequality constraints
         [op.remove_linear_constraint(0) for i in range(n_lincons)]
         for i in range(n_lincons):
-
             op.add_linear_constraint(
-                opt_vars=[v.name for v in free_variables],
-                lhs=A_cond[i],
-                b=b_cond[i]
+                opt_vars=[v.name for v in free_variables], lhs=A_cond[i], b=b_cond[i]
             )
 
         # set up            start_index_nlc_surrogate new equality constraints
@@ -411,9 +398,7 @@ class Surrogate:
             raise NotImplementedError("Linear Constraints are not yet implemented")
             # TODO: must use Aeq and Beq
             op.add_linear_equality_constraint(
-                opt_vars=[v for v in free_variables],
-                lhs=A_cond[i],
-                beq=b_cond[i]
+                opt_vars=[v for v in free_variables], lhs=A_cond[i], beq=b_cond[i]
             )
 
         def complete_x(x):
@@ -460,20 +445,18 @@ class Surrogate:
             else:
                 evaluator._is_conditioned = False
 
-
         conditioned_nonlincons_kwargs = []
 
         # generate conditioned nonlinear constraints
         start_index_nlc_surrogate = 0
         for nlc in op.nonlinear_constraints:
-
             nlc_func = nlc.nonlinear_constraint
             n_nlc = nlc.n_nonlinear_constraints
 
             if use_surrogate:
                 return_idx = np.arange(
                     start=start_index_nlc_surrogate,
-                    stop=start_index_nlc_surrogate + n_nlc
+                    stop=start_index_nlc_surrogate + n_nlc,
                 )
             else:
                 return_idx = None
@@ -487,9 +470,7 @@ class Surrogate:
             if len(nlc.evaluators) > 0:
                 first_evaluator = nlc.evaluators[0]
                 if not first_evaluator._is_conditioned:
-                    raise AssertionError(
-                        f"{nlc} has unconditioned first evaluator"
-                    )
+                    raise AssertionError(f"{nlc} has unconditioned first evaluator")
 
                 eval_func = first_evaluator.evaluator
 
@@ -512,17 +493,16 @@ class Surrogate:
                     use_surrogate=use_surrogate,
                     complete_x=lambda x: x,
                     is_evaluator=False,
-                    return_idx=return_idx
+                    return_idx=return_idx,
                 )
 
             else:
-
                 conditioned_nlc_func = self.condition_model_or_surrogate(
                     model_func=nlc_func,
                     surrogate_func=self.estimate_non_linear_constraints,
                     use_surrogate=use_surrogate,
                     complete_x=complete_x,
-                    return_idx=return_idx
+                    return_idx=return_idx,
                 )
 
             max_cv = self.CV.max(axis=0)[return_idx]
@@ -549,7 +529,9 @@ class Surrogate:
                 # kwargs=nlc.kwargs,
             )
 
-            conditioned_nonlincons_kwargs.append((conditioned_nlc_kwargs, nlc.evaluators))
+            conditioned_nonlincons_kwargs.append(
+                (conditioned_nlc_kwargs, nlc.evaluators)
+            )
 
         op._nonlinear_constraints = []
         for i, (cnlc_kwargs, requires) in enumerate(conditioned_nonlincons_kwargs):
@@ -557,7 +539,10 @@ class Surrogate:
             # Duct tape programming TODO: refactor later
             op.nonlinear_constraints[i].evaluators = requires
 
-        assert op.n_nonlinear_constraints == self.optimization_problem.n_nonlinear_constraints
+        assert (
+            op.n_nonlinear_constraints
+            == self.optimization_problem.n_nonlinear_constraints
+        )
 
         obj_index = {}
         oi = 0
@@ -586,9 +571,7 @@ class Surrogate:
             if len(obj.evaluators) > 0:
                 first_evaluator = obj.evaluators[0]
                 if not first_evaluator._is_conditioned:
-                    raise AssertionError(
-                        f"{obj} has unconditioned first evaluator"
-                    )
+                    raise AssertionError(f"{obj} has unconditioned first evaluator")
 
                 eval_func = first_evaluator.evaluator
 
@@ -621,7 +604,7 @@ class Surrogate:
                     surrogate_func=self.estimate_objectives,
                     use_surrogate=use_surrogate,
                     complete_x=complete_x,
-                    return_idx=obj_return_idx
+                    return_idx=obj_return_idx,
                 )
 
             objectives.append(obj)
@@ -654,15 +637,19 @@ class Surrogate:
             #     complete_x = lambda res: res
 
         conditioned_func = self.condition_function(
-            func=func, complete_x=complete_x, return_idx=return_idx,
-            is_evaluator=is_evaluator
+            func=func,
+            complete_x=complete_x,
+            return_idx=return_idx,
+            is_evaluator=is_evaluator,
         )
 
         return conditioned_func
 
     @staticmethod
     def condition_function(
-        func, complete_x, return_idx=None,
+        func,
+        complete_x,
+        return_idx=None,
         is_evaluator=False,
     ) -> callable:
         """
@@ -675,6 +662,7 @@ class Surrogate:
         problem.
 
         """
+
         def conditioned_func(x):
             x_complete = complete_x(x)
 
@@ -696,9 +684,13 @@ class Surrogate:
         return conditioned_func
 
     def find_x0(
-        self, cond_var_index: int, cond_var_value: float,
+        self,
+        cond_var_index: int,
+        cond_var_value: float,
         objective_index: list,
-        x_tol=0.0, n_neighbors=10, plot=False
+        x_tol=0.0,
+        n_neighbors=10,
+        plot=False,
     ):
         """
         find an x for completing a minimum boundary w.r.t. a conditioning
@@ -735,22 +727,20 @@ class Surrogate:
         f = self.F[self.feasible, objective_index]
         X = self.X[self.feasible]
 
-        x = X[:, cond_var_index].reshape((-1, ))
+        x = X[:, cond_var_index].reshape((-1,))
         x_search = cond_var_value
 
         var = self.optimization_problem.variables[cond_var_index]
 
         # transform vars
         x_trans = (x - var.lb) / (var.ub - var.lb)
-        f_trans = (f-np.min(f))/(np.max(f)-np.min(f))
+        f_trans = (f - np.min(f)) / (np.max(f) - np.min(f))
         x_search_trans = (x_search - var.lb) / (var.ub - var.lb)
 
         delta_x_trans = x_trans - x_search_trans
         # no need to calculate delta_f because: f_trans = f - f_opt = f - 0 = f
-        distance = np.sqrt(delta_x_trans ** 2 + f_trans ** 2 )
-        closest = [
-            i for _, i in sorted(zip(distance, range(len(distance))))
-        ]
+        distance = np.sqrt(delta_x_trans**2 + f_trans**2)
+        closest = [i for _, i in sorted(zip(distance, range(len(distance))))]
 
         pois_left = []
         pois_right = []
@@ -787,19 +777,21 @@ class Surrogate:
         if plot:
             f_search = f.min() * 1.2
             ax = plt.gca()
-            ax.scatter(x, f, color="tab:blue", alpha=.7)
+            ax.scatter(x, f, color="tab:blue", alpha=0.7)
             ax.scatter([x_search], [f_search], color="tab:red", marker="o", ls="")
-            ax.plot([x_search, x[il]], [f_search, f[il]], lw=.5, color="tab:red")
-            ax.plot([x_search, x[ir]], [f_search, f[ir]], lw=.5, color="tab:red")
+            ax.plot([x_search, x[il]], [f_search, f[il]], lw=0.5, color="tab:red")
+            ax.plot([x_search, x[ir]], [f_search, f[ir]], lw=0.5, color="tab:red")
 
         return x_new_weighted
 
     def estimate_x0(
         self,
         op: OptimizationProblem,
-        x_cond, cond_var_idx, free_var_idx,
+        x_cond,
+        cond_var_idx,
+        free_var_idx,
         objective_index,
-        n=50
+        n=50,
     ):
         """
         compute some suggestions for possible x0 based on the surrogate
@@ -815,9 +807,9 @@ class Surrogate:
 
         X_suggest = np.array(list(product(*suggestions)))
 
-        lincon_ok = np.array(list(map(
-            op.check_linear_constraints, X_suggest[:, free_var_idx]
-        )))
+        lincon_ok = np.array(
+            list(map(op.check_linear_constraints, X_suggest[:, free_var_idx]))
+        )
         X_lincon_ok = X_suggest[lincon_ok]
 
         CV_est = self.estimate_nonlinear_constraints_violation(X_lincon_ok)
@@ -839,18 +831,19 @@ class Surrogate:
             # catches exception when all evaluations of a point are the same
             # his happens probably when the GP has never been tested for
             # that range
-            if "The truth value of an array with more than one element is ambiguous." in str(e):
+            if (
+                "The truth value of an array with more than one element is ambiguous."
+                in str(e)
+            ):
                 return
             else:
                 raise e
 
         for f_cand, x_cand in X_candidates_sorted:
             # print(op.evaluate_nonlinear_constraints(x_cand[free_var_idx]))
-            if (
-                op.check_nonlinear_constraints(x_cand[free_var_idx])
-                and
-                op.check_linear_constraints(x_cand[free_var_idx])
-            ):
+            if op.check_nonlinear_constraints(
+                x_cand[free_var_idx]
+            ) and op.check_linear_constraints(x_cand[free_var_idx]):
                 break
             else:
                 x_cand = None
@@ -858,9 +851,10 @@ class Surrogate:
         return x_cand
 
     def optimize_conditioned_problem(
-        self, optimization_problem, x0,
+        self,
+        optimization_problem,
+        x0,
     ):
-
         optimizer = TrustConstr(gtol=1e-3, xtol=1e-5, n_max_evals=100)
         # optimizer = TrustConstr()
         optimizer.optimize(
@@ -908,12 +902,11 @@ class Surrogate:
         x_space = np.linspace(var.lb, var.ub, n)
 
         for objective_index in range(n_objs):
-
             for i, x_cond in enumerate(x_space):
                 op, cond_var_idx, free_var_idx = self.condition_optimization_problem(
                     conditional_vars={var.name: x_cond},
                     objective_index=[objective_index],
-                    use_surrogate=use_surrogate
+                    use_surrogate=use_surrogate,
                 )
 
                 op._callbacks = []
@@ -928,7 +921,10 @@ class Surrogate:
                     chebyshev_orig = hopsy.compute_chebyshev_center(problem)[:, 0]
 
                 except ValueError as e:
-                    if str(e) == "All inequality constraints are redundant, implying that the polytope is a single point.":
+                    if (
+                        str(e)
+                        == "All inequality constraints are redundant, implying that the polytope is a single point."
+                    ):
                         problem = op.create_hopsy_problem(simplify=False)
                         chebyshev_orig = hopsy.compute_chebyshev_center(problem)[:, 0]
                         # TODO: stop here and record single optimal point
@@ -941,20 +937,18 @@ class Surrogate:
                     objective_index=objective_index,
                     cond_var_value=x_cond,
                     x_tol=0.0,
-                    n_neighbors=1
+                    n_neighbors=1,
                 )
 
                 # TODO: run only when number of variables is small enough
                 #       or lower n for better scaling
                 if op.n_nonlinear_constraints > 0:
                     x0_estimate = self.estimate_x0(
-                        op, x_cond, cond_var_idx, free_var_idx,
-                        objective_index
+                        op, x_cond, cond_var_idx, free_var_idx, objective_index
                     )
                 else:
                     # TODO: use only f for combinations to estimate a good X0
                     x0_estimate = None
-
 
                 if x0_weighted is not None:
                     x0 = x0_weighted[free_var_idx]
@@ -1006,7 +1000,6 @@ class Surrogate:
                 # TODO: check if needed
                 self.uncondition()
 
-
         return f_minimum, x_optimal
 
     def fill_gaps(self, cond_var, step, n_neighbors, optimize=False):
@@ -1025,20 +1018,22 @@ class Surrogate:
                 cond_var_value=x_cond,
                 x_tol=0.0,
                 n_neighbors=n_neighbors,
-                plot=False
+                plot=False,
             )
 
             if x is not None:
                 if optimize:
-                    op, cond_var_idx, free_var_idx = self.condition_optimization_problem(
-                        conditional_vars={cond_var: x_cond},
-                        use_surrogate=True
+                    (
+                        op,
+                        cond_var_idx,
+                        free_var_idx,
+                    ) = self.condition_optimization_problem(
+                        conditional_vars={cond_var: x_cond}, use_surrogate=True
                     )
 
                     try:
                         x_free = self.optimize_conditioned_problem(
-                            optimization_problem=op,
-                            x0=x[free_var_idx]
+                            optimization_problem=op, x0=x[free_var_idx]
                         )
                     except CADETProcessError:
                         warnings.warn(f"skipped {x}, because it violated constraints.")
@@ -1057,7 +1052,9 @@ class Surrogate:
 
                 if self.optimization_problem.n_nonlinear_constraints > 0:
                     g = self.optimization_problem.evaluate_nonlinear_constraints(x)
-                    cv = self.optimization_problem.evaluate_nonlinear_constraints_violations(x)
+                    cv = self.optimization_problem.evaluate_nonlinear_constraints_violations(
+                        x
+                    )
                     G.append(g)
                     CV.append(cv)
 
@@ -1067,7 +1064,12 @@ class Surrogate:
         self.CV_new = np.array(CV)
 
     def plot_parameter_objective_space(
-        self, X, f, var_x, axes=None, use_surrogate=True,
+        self,
+        X,
+        f,
+        var_x,
+        axes=None,
+        use_surrogate=True,
     ):
         """
         plots the objective value as a function of var_x of the optimization
@@ -1130,13 +1132,11 @@ class Surrogate:
         """
         x_idx = self.optimization_problem.get_variable_index(var_x)
         x = X[:, x_idx]
-        f_min, x_opt = self.find_minimum(
-            x_idx, use_surrogate=use_surrogate
-        )
+        f_min, x_opt = self.find_minimum(x_idx, use_surrogate=use_surrogate)
 
         if self.feasible is not None:
-            alpha = (self.feasible.astype(float)+(1/3)) / (4/3)
-            color = ["tab:green" if f else "tab:blue" for f in self.feasible ]
+            alpha = (self.feasible.astype(float) + (1 / 3)) / (4 / 3)
+            color = ["tab:green" if f else "tab:blue" for f in self.feasible]
 
         n_objectives = self.optimization_problem.n_objectives
 
@@ -1145,7 +1145,7 @@ class Surrogate:
 
         for oi, ax in enumerate(axes):
             ax.scatter(x, f[:, oi], s=10, label="obj. fun", alpha=alpha, color=color)
-            ax.plot(x_opt[:, oi, x_idx], f_min[:, oi], color="tab:red", lw=.5)
+            ax.plot(x_opt[:, oi, x_idx], f_min[:, oi], color="tab:red", lw=0.5)
 
             # standard deviation currently seems not really a meaningful
             # measure
@@ -1194,8 +1194,7 @@ class Surrogate:
 
                 if var_y == var_x:
                     self.plot_parameter_objective_space(
-                        x=X, f=F_mean, var_x=var_x, ax=ax,
-                        use_surrogate=use_surrogate
+                        x=X, f=F_mean, var_x=var_x, ax=ax, use_surrogate=use_surrogate
                     )
 
                     # part_dep = partial_dependence(
@@ -1208,17 +1207,14 @@ class Surrogate:
                 else:
                     ax.scatter(X[:, x_idx], X[:, y_idx], s=5, c=F_mean)
 
-
-
         [ax.set_xlabel(var_x) for ax, var_x in zip(axes[-1, :], variable_names)]
-        [ax.set_ylabel(var_y) for ax, var_y in zip(axes[:,  0], variable_names)]
+        [ax.set_ylabel(var_y) for ax, var_y in zip(axes[:, 0], variable_names)]
 
         fig.tight_layout()
 
         if self.plot_directory is not None:
             plot_directory = Path(self.plot_directory)
             fig.savefig(f'{plot_directory / "surrogate_spaces.png"}')
-
 
     def plot_population_vs_surrogate(self):
         """
@@ -1228,8 +1224,7 @@ class Surrogate:
         variables = self.optimization_problem.variables
         objectives = self.optimization_problem.objectives
         fig, axes = plt.subplots(
-            nrows=len(objectives), ncols=len(variables),
-            sharey="row", sharex="col"
+            nrows=len(objectives), ncols=len(variables), sharey="row", sharex="col"
         )
 
         new_X = self.optimization_problem.create_initial_values(n_samples=1000)
@@ -1249,15 +1244,17 @@ class Surrogate:
                 f_lab = obj.name
                 ax: plt.Axes = axes[fi, xi]
                 ax.scatter(
-                    x, f,
+                    x,
+                    f,
                     alpha=np.where(self.feasible, 0.5, 0.05),
                     c=np.where(self.feasible, "tab:green", "black"),
                 )
                 ax.scatter(
-                    x_est, f_est,
+                    x_est,
+                    f_est,
                     alpha=np.where(feasible_est, 0.5, 0.05),
                     c=np.where(feasible_est, "tab:blue", "tab:red"),
-                    marker="x"
+                    marker="x",
                 )
                 ax.set_xlabel(x_lab)
                 ax.set_ylabel(f_lab)
