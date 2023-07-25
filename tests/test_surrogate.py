@@ -23,7 +23,7 @@ from tests.optimization_problem_fixtures import (
 
 
 def generate_samples(problem: OptimizationProblem, n_samples):
-    X = problem.create_initial_values(n_samples=n_samples)
+    X = problem.create_initial_values(n_samples=n_samples, seed=651)
     F = problem.evaluate_objectives_population(X)
     G = problem.evaluate_nonlinear_constraints_population(X)
     CV = problem.evaluate_nonlinear_constraints_violation_population(X)
@@ -44,7 +44,7 @@ def generate_samples(problem: OptimizationProblem, n_samples):
     return X, F, M, G, CV
 
 
-def generate_optimization_results(problem, n_samples=100):
+def generate_optimization_results(problem, n_samples=200):
     results = OptimizationResults(optimization_problem=problem, optimizer=None)
     cv_tol = 1e-5
 
