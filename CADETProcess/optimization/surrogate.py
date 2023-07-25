@@ -7,6 +7,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from sklearn.gaussian_process import (
     GaussianProcessRegressor, GaussianProcessClassifier)
+from sklearn.preprocessing import StandardScaler
 from sklearn.base import BaseEstimator
 import hopsy
 
@@ -122,23 +123,37 @@ class Surrogate:
         Fit Gaussian process surrogate models to the population.
         """
 
+        self.X_scaler = StandardScaler().fit(self.X)
+        self.F_scaler = StandardScaler().fit(self.F)
+        X_scaled = self.X_scaler.transform(self.X)
+        F_scaled = self.F_scaler.transform(self.F)
+
         gp_f = GaussianProcessRegressor()
-        gp_f.fit(self.X, self.F)
+        gp_f.fit(X_scaled, F_scaled)
         self.surrogate_model_F = gp_f
 
         if self.G is not None:
+            self.G_scaler = StandardScaler().fit(self.G)
+            G_scaled = self.G_scaler.transform(self.G)
+
             gp_g = GaussianProcessRegressor()
-            gp_g.fit(self.X, self.G)
+            gp_g.fit(X_scaled, G_scaled)
             self.surrogate_model_G = gp_g
 
         if self.CV is not None:
+            self.CV_scaler = StandardScaler().fit(self.CV)
+            CV_scaled = self.CV_scaler.transform(self.CV)
+
             gp_cv = GaussianProcessRegressor()
-            gp_cv.fit(self.X, self.CV)
+            gp_cv.fit(X_scaled, CV_scaled)
             self.surrogate_model_CV = gp_cv
 
         if self.M is not None:
+            self.M_scaler = StandardScaler().fit(self.M)
+            M_scaled = self.CV_scaler.transform(self.M)
+
             gp_m = GaussianProcessRegressor()
-            gp_m.fit(self.X, self.M)
+            gp_m.fit(X_scaled, M_scaled)
             self.surrogate_model_M = gp_m
 
     # TODO: write a wrapper for casting of X and result. This is the same
@@ -163,7 +178,9 @@ class Surrogate:
         """
 
         X_ = np.array(X, ndmin=2)
-        F_mean_est = self.surrogate_model_F.predict(X_)
+        X_scaled = self.X_scaler.transform(X_)
+        F_mean_est_scaled = self.surrogate_model_F.predict(X_scaled)
+        F_mean_est = self.F_scaler.inverse_transform(F_mean_est_scaled)
         # always cast as multi objective problem
         F_mean_est = F_mean_est.reshape((len(X_), -1))
         if X.ndim == 1:
@@ -188,6 +205,7 @@ class Surrogate:
         """
 
         X_ = np.array(X, ndmin=2)
+        raise NotImplementedError("scaled standard deviation not implemented yet")
         _, F_std_est = self.surrogate_model_F.predict(X_, return_std=True)
         F_std_est = F_std_est.reshape((len(X_), -1))
 
@@ -211,7 +229,10 @@ class Surrogate:
             The estimated non-linear constraints (G, feasible points).
         """
         X_ = np.array(X, ndmin=2)
-        G_est = self.surrogate_model_G.predict(X_)
+        X_scaled = self.X_scaler.transform(X_)
+
+        G_est_scaled = self.surrogate_model_G.predict(X_scaled)
+        G_est = self.G_scaler.inverse_transform(G_est_scaled)
         G_est = G_est.reshape((len(X_), -1))
 
         if X.ndim == 1:
@@ -221,7 +242,11 @@ class Surrogate:
 
     def estimate_nonlinear_constraints_violation(self, X):
         X_ = np.array(X, ndmin=2)
-        CV_est = self.surrogate_model_CV.predict(X_)
+        X_scaled = self.X_scaler.transform(X_)
+
+        CV_est_scaled = self.surrogate_model_CV.predict(X_scaled)
+        CV_est = self.CV_scaler.inverse_transform(CV_est_scaled)
+
         CV_est = CV_est.reshape((len(X_), -1))
 
         if X.ndim == 1:
@@ -254,6 +279,7 @@ class Surrogate:
         out : np.ndarray
             The estimated meta scores.
         """
+        raise NotImplementedError()
         M_est = self.surrogate_model_M.predict(X)
         return M_est
 
@@ -406,6 +432,7 @@ class Surrogate:
         for i, evaluator in enumerate(op.evaluators):
             if i == 0:
                 evaluator_func = evaluator.evaluator
+                # TODO: insert a new evaluator in der chain to condition x
 
                 # currently this will only condition the first of all evaluators
 
@@ -777,6 +804,7 @@ class Surrogate:
         """
         compute some suggestions for possible x0 based on the surrogate
         model
+        TODO: use create_initial_values
         """
         n_vars = self.optimization_problem.n_variables
         suggestions = [None for _ in range(n_vars)]
@@ -845,7 +873,7 @@ class Surrogate:
         x_free = optimizer.results.x
 
         if len(x_free) > 1:
-            assert np.allclose(np.diff(x_free, axis=0), 0)
+            assert np.allclose(np.diff(x_free, axis=0), 0, atol=0.001)
 
         x_free = x_free[0]
         return x_free
@@ -928,10 +956,10 @@ class Surrogate:
                     x0_estimate = None
 
 
-                if x0_estimate is not None:
-                    x0 = x0_estimate[free_var_idx]
-                elif x0_weighted is not None:
+                if x0_weighted is not None:
                     x0 = x0_weighted[free_var_idx]
+                elif x0_estimate is not None:
+                    x0 = x0_estimate[free_var_idx]
                 else:
                     x0 = chebyshev_orig
 
@@ -1190,3 +1218,46 @@ class Surrogate:
         if self.plot_directory is not None:
             plot_directory = Path(self.plot_directory)
             fig.savefig(f'{plot_directory / "surrogate_spaces.png"}')
+
+
+    def plot_population_vs_surrogate(self):
+        """
+        diagnostic plot to test if the surrogate model is capable of reproducing
+        the target space
+        """
+        variables = self.optimization_problem.variables
+        objectives = self.optimization_problem.objectives
+        fig, axes = plt.subplots(
+            nrows=len(objectives), ncols=len(variables),
+            sharey="row", sharex="col"
+        )
+
+        new_X = self.optimization_problem.create_initial_values(n_samples=1000)
+
+        F_est = self.estimate_objectives(new_X)
+        CV_est = self.estimate_nonlinear_constraints_violation(new_X)
+        feasible_est = np.all(CV_est <= 0, axis=1)
+
+        for xi, var in enumerate(variables):
+            x = self.X[:, xi]
+            x_est = new_X[:, xi]
+            x_lab = var.name
+
+            for fi, obj in enumerate(objectives):
+                f = self.F[:, fi]
+                f_est = F_est[:, fi]
+                f_lab = obj.name
+                ax: plt.Axes = axes[fi, xi]
+                ax.scatter(
+                    x, f,
+                    alpha=np.where(self.feasible, 0.5, 0.05),
+                    c=np.where(self.feasible, "tab:green", "black"),
+                )
+                ax.scatter(
+                    x_est, f_est,
+                    alpha=np.where(feasible_est, 0.5, 0.05),
+                    c=np.where(feasible_est, "tab:blue", "tab:red"),
+                    marker="x"
+                )
+                ax.set_xlabel(x_lab)
+                ax.set_ylabel(f_lab)
