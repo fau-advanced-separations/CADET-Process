@@ -223,12 +223,10 @@ class Test_Surrogate(unittest.TestCase):
             fmin, xopt = surrogate.find_minimum(i, use_surrogate=True, n=3)
             problem.test_points_on_conditional_minimum(xopt, fmin, i)
 
-
         # test if problem runs on normal model
         for i in range(problem.n_independent_variables):
             fmin, xopt = surrogate.find_minimum(i, use_surrogate=False, n=3)
             problem.test_points_on_conditional_minimum(xopt, fmin, i)
-
 
     def test_linear_constraints_soo(self):
         surrogate = fixtures["lc_soo"]
@@ -272,5 +270,5 @@ class Test_Surrogate(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    Test_Surrogate().test_linear_constraints_soo()
+    Test_Surrogate().test_linear_constraints_moo()
     unittest.main()
