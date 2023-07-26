@@ -99,55 +99,38 @@ class Surrogate:
 
         self.fit_gaussian_process()
 
-    def uncondition(self):
-        """
-        Reset the optimization problem bounds to their original values.
-        """
-        for var, lb, ub in zip(
-            self.optimization_problem.variables,
-            self.lower_bounds_copy,
-            self.upper_bounds_copy,
-        ):
-            var.lb = lb
-            var.ub = ub
+    def train_gp(self, X, Y):
+        """fits a GP on scaled input and output"""
+
+        X_scaler = StandardScaler().fit(X)
+        Y_scaler = StandardScaler().fit(Y)
+
+        gpr = GaussianProcessRegressor()
+        gpr.fit(
+            X=X_scaler.transform(X),
+            y=Y_scaler.transform(Y)
+        )
+
+        return gpr, X_scaler, Y_scaler
 
     def fit_gaussian_process(self):
         """
         Fit Gaussian process surrogate models to the population.
         """
 
-        self.X_scaler = StandardScaler().fit(self.X)
-        self.F_scaler = StandardScaler().fit(self.F)
-        X_scaled = self.X_scaler.transform(self.X)
-        F_scaled = self.F_scaler.transform(self.F)
-
-        gp_f = GaussianProcessRegressor()
-        gp_f.fit(X_scaled, F_scaled)
+        gp_f, self.X_scaler, self.F_scaler = self.train_gp(self.X, self.F)
         self.surrogate_model_F = gp_f
 
         if self.G is not None:
-            self.G_scaler = StandardScaler().fit(self.G)
-            G_scaled = self.G_scaler.transform(self.G)
-
-            gp_g = GaussianProcessRegressor()
-            gp_g.fit(X_scaled, G_scaled)
+            gp_g, _, self.G_scaler = self.train_gp(self.X, self.G)
             self.surrogate_model_G = gp_g
 
         if self.CV is not None:
-            self.CV_scaler = StandardScaler().fit(self.CV)
-            CV_scaled = self.CV_scaler.transform(self.CV)
-
-            gp_cv = GaussianProcessRegressor()
-            gp_cv.fit(X_scaled, CV_scaled)
+            gp_cv, _, self.CV_scaler = self.train_gp(self.X, self.CV)
             self.surrogate_model_CV = gp_cv
 
         if self.M is not None:
-            self.M_scaler = StandardScaler().fit(self.M)
-            M_scaled = self.CV_scaler.transform(self.M)
-
-            gp_m = GaussianProcessRegressor()
-            gp_m.fit(X_scaled, M_scaled)
-            self.surrogate_model_M = gp_m
+            raise NotImplementedError("Meta scores are currently not implemented.")
 
     # TODO: write a wrapper for casting of X and result. This is the same
     #       for all `estimate_...`` functions
@@ -1006,8 +989,6 @@ class Surrogate:
                 f = op.evaluate_objectives(x_opt[free_var_idx])
                 f_minimum[i, objective_index] = f
 
-                # TODO: check if needed
-                self.uncondition()
 
         return f_minimum, x_optimal
 
