@@ -70,7 +70,6 @@ def generate_optimization_results(problem, n_samples=200):
         population.add_individual(ind)
 
     results.update_population(population)
-    results._results_directory = f"work/tests/{problem.name}"
 
     return results
 
@@ -132,6 +131,7 @@ class Test_SurrogateBehavior(unittest.TestCase):
     """
 
     def calculate_nonlinear_constraints_violations(self, surrogate: Surrogate, X):
+        """helper function for testing model divergence"""
         nlc_bounds = surrogate.optimization_problem.nonlinear_constraints_bounds
         g_est = surrogate.estimate_non_linear_constraints(X)
         g_est = np.array(g_est, ndmin=2)
@@ -189,31 +189,6 @@ class Test_SurrogateBehavior(unittest.TestCase):
 
         assert np.all(stability.std(axis=0) < 0.01)
 
-    def test_moo(self):
-        surrogate = fixtures["nlc_lc_soo"]
-        var = surrogate.optimization_problem.variables[0]
-        n_objs = surrogate.optimization_problem.n_objectives
-
-        op_sur, cond_var_idx, free_var_idx = surrogate.condition_optimization_problem(
-            conditional_vars={var.name: var.lb},
-            objective_index=[range(n_objs)[0]],
-            use_surrogate=False,
-        )
-
-        op_sim, cond_var_idx, free_var_idx = surrogate.condition_optimization_problem(
-            conditional_vars={var.name: var.lb},
-            objective_index=[range(n_objs)[0]],
-            use_surrogate=False,
-        )
-        X = surrogate.X
-        # TODO: unexpected behavior, both evaluations return the same number
-        #       although op_xxx is a deepcopy of surrogate.optimization_problem
-        #       when running the same in two different processes, sequentially,
-        #       the results differ.
-        F_sim = op_sim.evaluate_objectives(X[80, free_var_idx])
-        F_sur = op_sur.evaluate_objectives(X[80, free_var_idx])
-
-
 class Test_Surrogate(unittest.TestCase):
     @classmethod
     def _find_minimum(cls, surrogate):
@@ -230,6 +205,10 @@ class Test_Surrogate(unittest.TestCase):
 
     def test_linear_constraints_soo(self):
         surrogate = fixtures["lc_soo"]
+        self._find_minimum(surrogate)
+
+    def test_linear_constraints_soo_evaluator(self):
+        surrogate = fixtures["lc_soo_eval"]
         self._find_minimum(surrogate)
 
     def test_nonlinear_constraints_soo(self):
@@ -256,10 +235,6 @@ class Test_Surrogate(unittest.TestCase):
         surrogate = fixtures["nlc_moo_eval"]
         self._find_minimum(surrogate)
 
-    def test_linear_constraints_soo_evaluator(self):
-        surrogate = fixtures["lc_soo_eval"]
-        self._find_minimum(surrogate)
-
     def test_nonlinear_constraints_linear_constraints_moo(self):
         surrogate = fixtures["nlc_lc_moo"]
         self._find_minimum(surrogate)
@@ -270,5 +245,4 @@ class Test_Surrogate(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    Test_Surrogate().test_linear_constraints_moo()
     unittest.main()
