@@ -50,7 +50,7 @@ class TestProblem(OptimizationProblem):
                 continue
             for j in range(self.n_objectives):
                 f_min_true = F_min_x(x[j, var_index])
-            np.testing.assert_allclose(f_min_true, f, atol=self.test_tol)
+            np.testing.assert_allclose(f_min_true, f, atol=self.test_abs_tol)
 
 
 class Rosenbrock(TestProblem):
@@ -105,7 +105,7 @@ class Rosenbrock(TestProblem):
 
 class LinearConstraintsSooTestProblem(TestProblem):
     def __init__(self, transform=None, has_evaluator=False, *args, **kwargs):
-        self.test_tol = 0.1
+        self.test_abs_tol = 0.1
         super().__init__('linear_constraints_single_objective', *args, **kwargs)
         self.setup_variables(transform=transform)
         self.setup_linear_constraints()
@@ -153,7 +153,6 @@ class LinearConstraintsSooTestProblem(TestProblem):
 
 class NonlinearConstraintsSooTestProblem(TestProblem):
     def __init__(self, transform=None, has_evaluator=False, *args, **kwargs):
-        self.test_tol = 0.1
         self.fixture_evaluator = None
         super().__init__('linear_constraints_single_objective', *args, **kwargs)
         self.setup_variables(transform=transform)
@@ -343,7 +342,7 @@ class LinearConstraintsMooTestProblem(TestProblem):
     """Function curtesy of Florian Schunck and Samuel Leweke."""
 
     def __init__(self, *args, **kwargs):
-        self.test_tol = 0.1
+        self.test_abs_tol = 0.1
 
         super().__init__('linear_constraints_multi_objective', *args, **kwargs)
 
