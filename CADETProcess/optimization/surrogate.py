@@ -234,7 +234,7 @@ class Surrogate:
         """
         X_scaled = self.X_scaler.transform(X)
         CV_scaled = self.surrogate_model_CV.predict(X_scaled)
-        CV = self.G_scaler.inverse_transform(np.array(CV_scaled, ndmin=2))
+        CV = self.CV_scaler.inverse_transform(np.array(CV_scaled, ndmin=2))
         return CV
 
     def estimate_check_nonlinear_constraints(self, X):
