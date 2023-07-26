@@ -144,8 +144,6 @@ class Test_SurrogateBehavior(unittest.TestCase):
         Ideally the `nlc_soo` problem is better formulated to match,
         but for now I'm happy that it actually works so well.
         After all I am trying to delibreately break the surrogate model.
-
-
         """
         surrogate = fixtures["nlc_soo"]
         x_cand = surrogate.X[surrogate.feasible][0:2]
@@ -156,8 +154,8 @@ class Test_SurrogateBehavior(unittest.TestCase):
         cv_est = surrogate.estimate_nonlinear_constraints_violation(x_cand)
 
         # test if CV and G match but are not the same
-        assert np.allclose(g_cand, g_est, atol=1e-2) and not np.any(g_est == g_cand)
-        assert np.allclose(cv_cand, cv_est, atol=1e-2) and not np.any(cv_est == cv_cand)
+        np.testing.assert_allclose(g_cand, g_est, atol=1e-2) and not np.any(g_est == g_cand)
+        np.testing.assert_allclose(cv_cand, cv_est, atol=1e-2) and not np.any(cv_est == cv_cand)
 
         ok_est_1 = surrogate.estimate_check_nonlinear_constraints(x_cand)
         ok_est_2 = np.all(
