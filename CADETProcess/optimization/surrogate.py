@@ -1065,22 +1065,6 @@ class Surrogate:
             ax.scatter(x, f[:, oi], s=10, label="obj. fun", alpha=alpha, color=color)
             ax.plot(x_opt[:, oi, x_idx], f_min[:, oi], color="tab:red", lw=0.5)
 
-            # standard deviation currently seems not really a meaningful
-            # measure
-            # if use_surrogate:
-            #     x_opt_nonan = x_opt[~np.all(np.isnan(x_opt), axis=(1,2)),:]
-            #     F_mean = self.estimate_objectives(x_opt_nonan[:, oi, :])
-            #     F_std = self.estimate_objectives_standard_deviation(
-            #         x_opt_nonan[:, oi, :]
-            #     )
-            #     # F_std = F_std.reshape((len(x_opt_nonan), -1))
-
-            #     ax.fill_between(
-            #         x_opt_nonan[:, oi, x_idx],
-            #         F_mean[:, oi]-F_std[:, oi], F_mean[:, oi]+F_std[:, oi],
-            #         color="red", alpha=.5
-            #     )
-
         if self_contained_figure == True:
             fig.show()
 
@@ -1118,13 +1102,6 @@ class Surrogate:
                         x=X, f=F_mean, var_x=var_x, ax=ax, use_surrogate=use_surrogate
                     )
 
-                    # part_dep = partial_dependence(
-                    #     self.surrogate_model_F, X=X, features=[i],
-                    #     percentiles=(0,1), method = "brute")
-
-                    # ax.plot(part_dep["values"][0], part_dep["average"][0],
-                    #         color="red", lw=.5)
-                    # ax.legend()
                 else:
                     ax.scatter(X[:, x_idx], X[:, y_idx], s=5, c=F_mean)
 
