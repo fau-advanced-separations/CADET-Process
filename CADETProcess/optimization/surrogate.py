@@ -276,9 +276,7 @@ class Surrogate:
         out : np.ndarray
             The estimated meta scores.
         """
-        raise NotImplementedError()
-        M_est = self.surrogate_model_M.predict(X)
-        return M_est
+        raise NotImplementedError("Meta scores are not implemented yet.")
 
     def get_conditional_and_free_indices(self, conditional_vars: dict = None):
         """
@@ -308,9 +306,9 @@ class Surrogate:
 
         return cond_var_idx, free_var_idx
 
-    def condition_constraints(self, conditional_vars: dict = None):
+    def condition_linear_constraints(self, conditional_vars: dict = None):
         """
-        Condition the constraints based on the given variables.
+        Condition the linear constraints based on the given variables.
 
         Parameters
         ----------
@@ -373,7 +371,7 @@ class Surrogate:
             objective_index = np.arange(op.n_objectives)
 
         # calculate conditional constraints matrices
-        A_cond, b_cond = self.condition_constraints(conditional_vars)
+        A_cond, b_cond = self.condition_linear_constraints(conditional_vars)
 
         n_lincons = op.n_linear_constraints
         n_lineqcons = op.n_linear_equality_constraints
