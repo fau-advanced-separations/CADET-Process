@@ -106,10 +106,7 @@ class Surrogate:
         Y_scaler = StandardScaler().fit(Y)
 
         gpr = GaussianProcessRegressor()
-        gpr.fit(
-            X=X_scaler.transform(X),
-            y=Y_scaler.transform(Y)
-        )
+        gpr.fit(X=X_scaler.transform(X), y=Y_scaler.transform(Y))
 
         return gpr, X_scaler, Y_scaler
 
@@ -134,7 +131,34 @@ class Surrogate:
 
     # TODO: write a wrapper for casting of X and result. This is the same
     #       for all `estimate_...`` functions
+    @staticmethod
+    def fix_dimensions(func):
+        """
+        this wrapper makes sure that X dimensions are 2D for usage with sklearn
+        models and processes the output of the resulting Y depending on the
+        dimensionality of X-input so that it matches the output of
+        `OptimizationProblem`
+        """
 
+        def estimator(self, X):
+            # cast X to 2D for transforming it
+            X_ = np.array(X, ndmin=2)
+
+            Y_ = func(self, X_)
+
+            # cast Y_ to N-D depending on the input Y dimensionality
+            # (i.e. the number of Y features)
+            Y = Y_.reshape((len(X_), -1))
+
+            # return an individual or a population depending on the length of X
+            if X.ndim == 1:
+                return Y[0]
+            else:
+                return Y
+
+        return estimator
+
+    @fix_dimensions
     def estimate_objectives(self, X):
         """
         Estimate the objectives using the surrogate model.
@@ -143,28 +167,18 @@ class Surrogate:
         ----------
         X : np.ndarray
             The input samples.
-        return_std : bool, optional
-            Whether to return the standard deviation of the predictions.
-            Defaults to False.
 
         Returns
         -------
-        out : np.ndarray with ndim=2
+        out : np.ndarray
             The estimated objectives.
         """
+        X_scaled = self.X_scaler.transform(X)
+        F_scaled = self.surrogate_model_F.predict(X_scaled)
+        F = self.F_scaler.inverse_transform(np.array(F_scaled, ndmin=2))
+        return F
 
-        X_ = np.array(X, ndmin=2)
-        X_scaled = self.X_scaler.transform(X_)
-        F_mean_est_scaled = self.surrogate_model_F.predict(X_scaled)
-        F_mean_est_scaled = np.array(F_mean_est_scaled, ndmin=2)
-        F_mean_est = self.F_scaler.inverse_transform(F_mean_est_scaled)
-        # always cast as multi objective problem
-        F_mean_est = F_mean_est.reshape((len(X_), -1))
-        if X.ndim == 1:
-            return F_mean_est[0]
-        else:
-            return F_mean_est
-
+    @fix_dimensions
     def estimate_objectives_standard_deviation(self, X):
         """
         Estimate the standard deviation of the objective function evaluated
@@ -181,16 +195,9 @@ class Surrogate:
             The estimated objectives.
         """
 
-        X_ = np.array(X, ndmin=2)
         raise NotImplementedError("scaled standard deviation not implemented yet")
-        _, F_std_est = self.surrogate_model_F.predict(X_, return_std=True)
-        F_std_est = F_std_est.reshape((len(X_), -1))
 
-        if X.ndim == 1:
-            return F_std_est[0]
-        else:
-            return F_std_est
-
+    @fix_dimensions
     def estimate_non_linear_constraints(self, X):
         """
         Estimate the non-linear constraints using the surrogate model.
@@ -202,38 +209,49 @@ class Surrogate:
 
         Returns
         -------
-        out : Tuple[np.ndarray, np.ndarray]
-            The estimated non-linear constraints (G, feasible points).
+        out : np.ndarray
+            The estimated non-linear constraints G.
         """
-        X_ = np.array(X, ndmin=2)
-        X_scaled = self.X_scaler.transform(X_)
+        X_scaled = self.X_scaler.transform(X)
+        G_scaled = self.surrogate_model_G.predict(X_scaled)
+        G = self.G_scaler.inverse_transform(np.array(G_scaled, ndmin=2))
+        return G
 
-        G_est_scaled = self.surrogate_model_G.predict(X_scaled)
-        G_est_scaled = np.array(G_est_scaled, ndmin=2)
-        G_est = self.G_scaler.inverse_transform(G_est_scaled)
-        G_est = G_est.reshape((len(X_), -1))
-
-        if X.ndim == 1:
-            return G_est[0]
-        else:
-            return G_est
-
+    @fix_dimensions
     def estimate_nonlinear_constraints_violation(self, X):
-        X_ = np.array(X, ndmin=2)
-        X_scaled = self.X_scaler.transform(X_)
+        """
+        Estimate the non-linear constraints violations using the surrogate model.
 
-        CV_est_scaled = self.surrogate_model_CV.predict(X_scaled)
-        CV_est_scaled = np.array(CV_est_scaled, ndmin=2)
-        CV_est = self.CV_scaler.inverse_transform(CV_est_scaled)
+        Parameters
+        ----------
+        X : np.ndarray
+            The input samples.
 
-        CV_est = CV_est.reshape((len(X_), -1))
-
-        if X.ndim == 1:
-            return CV_est[0]
-        else:
-            return CV_est
+        Returns
+        -------
+        out : np.ndarray
+            The estimated non-linear constraints violations CV.
+        """
+        X_scaled = self.X_scaler.transform(X)
+        CV_scaled = self.surrogate_model_CV.predict(X_scaled)
+        CV = self.G_scaler.inverse_transform(np.array(CV_scaled, ndmin=2))
+        return CV
 
     def estimate_check_nonlinear_constraints(self, X):
+        """
+        checks if estimated nonlinear constraints were violated.
+
+        Parameters
+        ----------
+        X : np.ndarray
+            The input samples.
+
+        Returns
+        -------
+        out : np.array(bool)
+            Boolean array indicating if X were valid (basen on nonlinear
+            constraints)
+        """
         cv_est = self.estimate_nonlinear_constraints_violation(X)
         cv_est_ = np.array(cv_est, ndmin=2)
         ok_est = np.all(cv_est_ < 0, axis=1)
@@ -988,7 +1006,6 @@ class Surrogate:
 
                 f = op.evaluate_objectives(x_opt[free_var_idx])
                 f_minimum[i, objective_index] = f
-
 
         return f_minimum, x_optimal
 
