@@ -2725,6 +2725,8 @@ class OptimizationProblem(metaclass=StructMeta):
                     chebyshev = chebyshev_rounded
                 else:
                     chebyshev = chebyshev_orig
+            else:
+                chebyshev = chebyshev_orig
 
             if n_samples == 1 and method == 'chebyshev':
                 values = np.array(chebyshev_orig, ndmin=2)
