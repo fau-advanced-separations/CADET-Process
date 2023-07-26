@@ -724,7 +724,6 @@ class Surrogate:
               as an idea. Use points to the right and extrapolate
               Also, consider that the point is optimized in any case, so the
               point only needs to be feasible
-        TODO:
         """
         if objective_index is None:
             objective_index = np.arange(self.optimization_problem.n_objectives)
@@ -788,72 +787,6 @@ class Surrogate:
             ax.plot([x_search, x[ir]], [f_search, f[ir]], lw=0.5, color="tab:red")
 
         return x_new_weighted
-
-    def estimate_x0(
-        self,
-        op: OptimizationProblem,
-        x_cond,
-        cond_var_idx,
-        free_var_idx,
-        objective_index,
-        n=50,
-    ):
-        """
-        compute some suggestions for possible x0 based on the surrogate
-        model
-        TODO: use create_initial_values
-        """
-        n_vars = self.optimization_problem.n_variables
-        suggestions = [None for _ in range(n_vars)]
-
-        suggestions[cond_var_idx[0]] = [x_cond]
-        for i, var in zip(free_var_idx, op.variables):
-            suggestions[i] = np.linspace(var.lb, var.ub, num=n).tolist()
-
-        X_suggest = np.array(list(product(*suggestions)))
-
-        lincon_ok = np.array(
-            list(map(op.check_linear_constraints, X_suggest[:, free_var_idx]))
-        )
-        X_lincon_ok = X_suggest[lincon_ok]
-
-        CV_est = self.estimate_nonlinear_constraints_violation(X_lincon_ok)
-
-        nonlincon_ok = np.all(CV_est <= 0, axis=1)
-        # sum(nonlinear_constraints_ok)
-
-        # X_nonlinear_constraints_ok = self.surrogate_model_feasible.predict(X_suggest)
-        X_nonlincon_ok = X_lincon_ok[nonlincon_ok]
-
-        if len(X_nonlincon_ok) == 0:
-            return
-
-        F_est = self.estimate_objectives(X_nonlincon_ok)[:, objective_index]
-
-        try:
-            X_candidates_sorted = sorted(zip(F_est, X_nonlincon_ok))
-        except ValueError as e:
-            # catches exception when all evaluations of a point are the same
-            # his happens probably when the GP has never been tested for
-            # that range
-            if (
-                "The truth value of an array with more than one element is ambiguous."
-                in str(e)
-            ):
-                return
-            else:
-                raise e
-
-        for f_cand, x_cand in X_candidates_sorted:
-            # print(op.evaluate_nonlinear_constraints(x_cand[free_var_idx]))
-            if op.check_nonlinear_constraints(
-                x_cand[free_var_idx]
-            ) and op.check_linear_constraints(x_cand[free_var_idx]):
-                break
-            else:
-                x_cand = None
-
-        return x_cand
 
     def optimize_conditioned_problem(
         self,
@@ -934,9 +867,10 @@ class Surrogate:
                         == "All inequality constraints are redundant, implying that the polytope is a single point."
                     ):
                         problem = op.create_hopsy_problem(simplify=False)
-                        chebyshev_orig = hopsy.compute_chebyshev_center(problem)[:, 0]
+                        chebyshev_orig = hopsy.computee_chebyshev_center(problem)[:, 0]
                         # TODO: stop here and record single optimal point
                         # chebyshev_orig = None
+                        # this case is currently never encountered
                     else:
                         continue
 
@@ -948,43 +882,17 @@ class Surrogate:
                     n_neighbors=1,
                 )
 
-                # TODO: run only when number of variables is small enough
-                #       or lower n for better scaling
-                if op.n_nonlinear_constraints > 0:
-                    x0_estimate = self.estimate_x0(
-                        op, x_cond, cond_var_idx, free_var_idx, objective_index
-                    )
-                else:
-                    # TODO: use only f for combinations to estimate a good X0
-                    x0_estimate = None
-
                 if x0_weighted is not None:
                     x0 = x0_weighted[free_var_idx]
-                elif x0_estimate is not None:
-                    x0 = x0_estimate[free_var_idx]
                 else:
                     x0 = chebyshev_orig
 
                 try:
-                    if len(x0) == op.n_variables:
-                        x_free = self.optimize_conditioned_problem(
-                            optimization_problem=op,
-                            x0=x0,
-                        )
-                    else:
-                        warnings.warn(f"hopsy generated wrong x0={x0}.")
-                        problem = op.create_hopsy_problem(simplify=False)
-                        x0 = hopsy.compute_chebyshev_center(problem)[:, 0]
-
-                        x_free = self.optimize_conditioned_problem(
-                            optimization_problem=op,
-                            x0=x0,
-                        )
-                except CADETProcessError:
                     x_free = self.optimize_conditioned_problem(
                         optimization_problem=op,
-                        x0=chebyshev_orig,
+                        x0=x0,
                     )
+
                 except ValueError as e:
                     if "`x0` is infeasible" in str(e):
                         warnings.warn(
