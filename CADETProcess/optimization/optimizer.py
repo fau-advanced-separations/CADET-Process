@@ -14,13 +14,13 @@ from CADETProcess import log
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import (
-    UnsignedInteger, RangedInteger, UnsignedFloat
+    Typed, UnsignedInteger, RangedInteger, UnsignedFloat
 )
 
 from CADETProcess.optimization import OptimizationProblem
 from CADETProcess.optimization import Individual, Population, ParetoFront
+from CADETProcess.optimization import ParallelizationBackendBase, Joblib
 from CADETProcess.optimization import OptimizationResults
-
 
 __all__ = ['OptimizerBase']
 
@@ -53,9 +53,6 @@ class OptimizerBase(Structure):
     progress_frequency : int
         Number of generations after which the optimizer reports progress.
         The default is 1.
-    n_cores : int, optional
-        The number of cores that the optimizer should use.
-        The default is 1.
     cv_tol : float
         Tolerance for constraint violation.
         The default is 1e-6.
@@ -67,7 +64,14 @@ class OptimizerBase(Structure):
         Maximum number of function evaluations.
     n_max_iter : int, optional
         Maximum number of iterations (e.g. generations).
+    parallelization_backend : ParallelizationBackendBase, optional
+        Class used to handle parallelized (and also sequential) evaluation of eval_fun
+        functions for each individual in a given population.
+        The default parallelization backend is 'Joblib', which provides parallel
+        execution using multiple cores.
+    n_cores
     """
+
     is_population_based = False
 
     supports_multi_objective = False
@@ -79,7 +83,6 @@ class OptimizerBase(Structure):
     ignore_linear_constraints_config = False
 
     progress_frequency = RangedInteger(lb=1, default=1)
-    n_cores = UnsignedInteger(default=1)
 
     x_tol = UnsignedFloat()
     f_tol = UnsignedFloat()
@@ -89,12 +92,18 @@ class OptimizerBase(Structure):
     n_max_evals = UnsignedInteger(default=100000)
 
     similarity_tol = UnsignedFloat()
+    parallelization_backend = Typed(ty=ParallelizationBackendBase)
 
     _general_options = [
-        'progress_frequency', 'n_cores',
+        'progress_frequency',
         'x_tol', 'f_tol', 'cv_tol', 'similarity_tol',
         'n_max_iter', 'n_max_evals',
     ]
+
+    def __init__(self, *args, **kwargs):
+        self.parallelization_backend = Joblib()
+
+        super().__init__(*args, **kwargs)
 
     def optimize(
             self,
@@ -373,7 +382,7 @@ class OptimizerBase(Structure):
         self.optimization_problem.evaluate_callbacks_population(
             self.results.meta_front,
             current_iteration,
-            n_cores=self.n_cores,
+            parallelization_backend=self.parallelization_backend,
         )
 
         self.results.save_results()
@@ -476,7 +485,7 @@ class OptimizerBase(Structure):
             M = self.optimization_problem.evaluate_meta_scores_population(
                 X_transformed,
                 untransform=True,
-                n_cores=self.n_cores,
+                parallelization_backend=self.parallelization_backend,
             )
         else:
             M = len(X_transformed)*[None]
@@ -546,6 +555,21 @@ class OptimizerBase(Structure):
             opt: getattr(self, opt)
             for opt in (self._specific_options)
         }
+
+    @property
+    def n_cores(self):
+        """int: Proxy to the number of cores used by the parallelization backend.
+
+        See Also
+        --------
+        parallelization_backend
+
+        """
+        return self.parallelization_backend.n_cores
+
+    @n_cores.setter
+    def n_cores(self, n_cores):
+        self.parallelization_backend.n_cores = n_cores
 
     def __str__(self):
         return self.__class__.__name__

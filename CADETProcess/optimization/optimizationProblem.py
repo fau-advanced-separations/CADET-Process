@@ -10,7 +10,6 @@ import warnings
 from addict import Dict
 import numpy as np
 import hopsy
-import pathos
 
 from CADETProcess import CADETProcessError
 from CADETProcess import log
@@ -25,6 +24,7 @@ from CADETProcess.dataStructure import frozen_attributes
 from CADETProcess.dataStructure import (
     check_nested, generate_nested_dict, get_nested_value
 )
+from CADETProcess.optimization.parallelizationBackend import SequentialBackend
 from CADETProcess.transform import (
     NoTransform, AutoTransform, NormLinearTransform, NormLogTransform
 )
@@ -620,7 +620,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
         return results
 
-    def _evaluate_population(self, eval_fun, population, force=False, n_cores=-1):
+    def _evaluate_population(self, eval_fun, population, force=False, parallelization_backend=None):
         """Evaluate eval_fun functions for each point x in population.
 
         Parameters
@@ -631,10 +631,8 @@ class OptimizationProblem(metaclass=StructMeta):
             Population.
         force : bool, optional
             If True, do not use cached values. The default is False.
-        n_cores : int, optional
-            Number of cores to parallelize evaluation.
-            If `-1`, all cores available will be used.
-            The default is -1.
+        parallelization_backend : ParallelizationBackendBase, optional
+            Adapter to parallelization backend library for parallel evaluation of population.
 
         Raises
         ------
@@ -647,7 +645,10 @@ class OptimizationProblem(metaclass=StructMeta):
             DESCRIPTION.
 
         """
-        if not self.cache.use_diskcache and n_cores != 1:
+        if parallelization_backend is None:
+            parallelization_backend = SequentialBackend()
+
+        if not self.cache.use_diskcache and parallelization_backend.n_cores != 1:
             raise CADETProcessError(
                 "Cannot use dict cache for multiprocessing."
             )
@@ -658,19 +659,10 @@ class OptimizationProblem(metaclass=StructMeta):
 
             return results
 
-        if n_cores == 1:
-            results = []
-            for ind in population:
-                res = eval_fun_wrapper(ind)
-                results.append(res)
-        else:
-            if n_cores == 0 or n_cores == -1:
-                n_cores = None
-
+        if parallelization_backend.n_cores != 1:
             self.cache.close()
 
-            with pathos.pools.ProcessPool(ncpus=n_cores) as pool:
-                results = pool.map(eval_fun_wrapper, population)
+        results = parallelization_backend.evaluate(eval_fun_wrapper, population)
 
         return np.array(results, ndmin=2)
 
@@ -995,7 +987,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @untransforms
     @ensures2d
-    def evaluate_objectives_population(self, population, force=False, n_cores=-1):
+    def evaluate_objectives_population(self, population, force=False, parallelization_backend=None):
         """Evaluate objective functions for each point x in population.
 
         Parameters
@@ -1004,10 +996,9 @@ class OptimizationProblem(metaclass=StructMeta):
             Population.
         force : bool, optional
             If True, do not use cached values. The default is False.
-        n_cores : int, optional
-            Number of cores to parallelize evaluation.
-            If `-1`, all cores available will be used.
-            The default is -1.
+        parallelization_backend : RunnerBase, optional
+            Runner to use for the evaluation of the population in
+            sequential or parallel mode.
 
         Returns
         -------
@@ -1022,7 +1013,7 @@ class OptimizationProblem(metaclass=StructMeta):
         _evaluate
         """
         results = self._evaluate_population(
-            self.evaluate_objectives, population, force, n_cores
+            self.evaluate_objectives, population, force, parallelization_backend
         )
 
         return results
@@ -1242,7 +1233,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @untransforms
     @ensures2d
-    def evaluate_nonlinear_constraints_population(self, population, force=False, n_cores=-1):
+    def evaluate_nonlinear_constraints_population(self, population, force=False, parallelization_backend=None):
         """
         Evaluate nonlinear constraint for each point x in population.
 
@@ -1252,10 +1243,9 @@ class OptimizationProblem(metaclass=StructMeta):
             Population.
         force : bool, optional
             If True, do not use cached values. The default is False.
-        n_cores : int, optional
-            Number of cores to parallelize evaluation.
-            If `-1`, all cores available will be used.
-            The default is -1.
+        parallelization_backend : RunnerBase, optional
+            Runner to use for the evaluation of the population in
+            sequential or parallel mode.
 
         Returns
         -------
@@ -1270,7 +1260,7 @@ class OptimizationProblem(metaclass=StructMeta):
         _evaluate
         """
         results = self._evaluate_population(
-            self.evaluate_nonlinear_constraints, population, force, n_cores
+            self.evaluate_nonlinear_constraints, population, force, parallelization_backend
         )
 
         return results
@@ -1314,7 +1304,7 @@ class OptimizationProblem(metaclass=StructMeta):
     @untransforms
     @ensures2d
     def evaluate_nonlinear_constraints_violation_population(
-            self, population, force=False, n_cores=-1):
+            self, population, force=False, parallelization_backend=None):
         """
         Evaluate nonlinear constraints violation for each point x in population.
 
@@ -1327,10 +1317,9 @@ class OptimizationProblem(metaclass=StructMeta):
             Population.
         force : bool, optional
             If True, do not use cached values. The default is False.
-        n_cores : int, optional
-            Number of cores to parallelize evaluation.
-            If `-1`, all cores available will be used.
-            The default is -1.
+        parallelization_backend : RunnerBase, optional
+            Runner to use for the evaluation of the population in
+            sequential or parallel mode.
 
         Returns
         -------
@@ -1348,7 +1337,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
         """
         results = self._evaluate_population(
-            self.evaluate_nonlinear_constraints_violation, population, force, n_cores
+            self.evaluate_nonlinear_constraints_violation, population, force, parallelization_backend
         )
 
         return results
@@ -1553,7 +1542,7 @@ class OptimizationProblem(metaclass=StructMeta):
                 )
 
     def evaluate_callbacks_population(
-            self, population, current_iteration, force=False, n_cores=-1):
+            self, population, current_iteration, force=False, parallelization_backend=None):
         """Evaluate callbacks for each individual ind in population.
 
         Parameters
@@ -1564,10 +1553,9 @@ class OptimizationProblem(metaclass=StructMeta):
             Current iteration step.
         force : bool, optional
             If True, do not use cached values. The default is False.
-        n_cores : int, optional
-            Number of cores to parallelize evaluation.
-            If `-1`, all cores available will be used.
-            The default is -1.
+        parallelization_backend : RunnerBase, optional
+            Runner to use for the evaluation of the population in
+            sequential or parallel mode.
 
         Returns
         -------
@@ -1579,7 +1567,10 @@ class OptimizationProblem(metaclass=StructMeta):
         add_callback
         evaluate_callbacks
         """
-        if not self.cache.use_diskcache and n_cores != 1:
+        if parallelization_backend is None:
+            parallelization_backend = SequentialBackend()
+
+        if not self.cache.use_diskcache and parallelization_backend.n_cores != 1:
             raise CADETProcessError(
                 "Cannot use dict cache for multiprocessing."
             )
@@ -1592,17 +1583,7 @@ class OptimizationProblem(metaclass=StructMeta):
             )
             self.cache.close()
 
-        if n_cores == 1:
-            for ind in population:
-                eval_fun(ind)
-        else:
-            if n_cores == 0 or n_cores == -1:
-                n_cores = None
-
-            self.cache.close()
-
-            with pathos.pools.ProcessPool(ncpus=n_cores) as pool:
-                pool.map(eval_fun, population)
+        parallelization_backend.evaluate(eval_fun, population)
 
     @property
     def meta_scores(self):
@@ -1750,7 +1731,7 @@ class OptimizationProblem(metaclass=StructMeta):
 
     @untransforms
     @ensures2d
-    def evaluate_meta_scores_population(self, population, force=False, n_cores=-1):
+    def evaluate_meta_scores_population(self, population, force=False, parallelization_backend=None):
         """Evaluate meta score functions for each point x in population.
 
         Parameters
@@ -1759,11 +1740,9 @@ class OptimizationProblem(metaclass=StructMeta):
             Population.
         force : bool, optional
             If True, do not use cached values. The default is False.
-        n_cores : int, optional
-            Number of cores to parallelize evaluation.
-            If `-1`, all cores available will be used.
-            The default is -1.
-
+        parallelization_backend : RunnerBase, optional
+            Runner to use for the evaluation of the population in
+            sequential or parallel mode.
         Returns
         -------
         results : list
@@ -1777,7 +1756,7 @@ class OptimizationProblem(metaclass=StructMeta):
         _evaluate
         """
         results = self._evaluate_population(
-            self.evaluate_meta_scores, population, force, n_cores
+            self.evaluate_meta_scores, population, force, parallelization_backend
         )
 
         return results

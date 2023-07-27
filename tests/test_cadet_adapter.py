@@ -5,10 +5,6 @@ import unittest
 
 from CADETProcess.simulator import Cadet
 
-executable = 'cadet-cli'
-if platform.system() == 'Windows':
-    executable += '.exe'
-cli_path = Path(shutil.which(executable))
 
 def detect_cadet():
     """TODO: Consider moving to Cadet module."""
