@@ -54,7 +54,7 @@ class TestBatchElutionOptimizationSingleObjective(unittest.TestCase):
         if not test_batch_elution_single_objective_multi_core:
             self.skipTest("Skipping test_batch_elution_single_objective_multi_core")
 
-        self.optimizer.n_cores = 4
+        self.optimizer.n_cores = -2
         self.optimizer.pop_size = 16
         self.optimizer.n_max_gen = 4
 
@@ -91,7 +91,7 @@ class TestBatchElutionOptimizationMultiObjective(unittest.TestCase):
         if not test_batch_elution_multi_objective:
             self.skipTest("Skipping test_batch_elution_multi_objective")
 
-        self.optimizer.n_cores = 4
+        self.optimizer.n_cores = -2
         self.optimizer.pop_size = 16
         self.optimizer.n_max_gen = 4
 
@@ -136,7 +136,7 @@ class TestFitColumnParameters(unittest.TestCase):
         if not test_fit_column_parameters:
             self.skipTest("Skipping test_fit_column_parameters")
 
-        self.optimizer.n_cores = 4
+        self.optimizer.n_cores = -2
         self.optimizer.pop_size = 16
         self.optimizer.n_max_gen = 4
 
