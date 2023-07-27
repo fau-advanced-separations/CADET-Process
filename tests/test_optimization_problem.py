@@ -1,10 +1,12 @@
 from abc import ABC, abstractmethod
+import shutil
 import time
 import unittest
 
 from addict import Dict
 import numpy as np
 
+from CADETProcess import settings
 from CADETProcess.optimization import OptimizationProblem
 from tests.optimization_problem_fixtures import (
     LinearConstraintsSooTestProblem2,
@@ -633,6 +635,16 @@ class Test_OptimizationProblemConstraintTransforms(unittest.TestCase):
     tests if `A_transformed` and `b_transformed` properties are correctly
     computed.
     """
+    def __init__(self, methodName='runTest'):
+        super().__init__(methodName)
+
+    def setup(self):
+        settings.working_directory = './test_problem'
+
+    def tearDown(self):
+        shutil.rmtree('./test_problem', ignore_errors=True)
+        settings.working_directory = None
+
     @staticmethod
     def check_inequality_constraints(X, problem, transformed_space=False):
         """
