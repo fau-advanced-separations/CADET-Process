@@ -242,7 +242,7 @@ class Cadet(SimulatorBase):
 
         cadet_create_lwe_path = cadet_root / 'bin' / lwe_executable
         if cadet_create_lwe_path.is_file():
-            self.cadet_create_lwe_path = cadet_create_lwe_path
+            self.cadet_create_lwe_path = cadet_create_lwe_path.as_posix()
 
         if platform.system() == 'Windows':
             dll_path = cadet_root / 'bin' / 'cadet.dll'
@@ -257,7 +257,7 @@ class Cadet(SimulatorBase):
 
         # Look for debug dll if dll is not found.
         if dll_path.is_file():
-            self.cadet_dll_path = dll_path
+            self.cadet_dll_path = dll_path.as_posix()
 
         if platform.system() != 'Windows':
             try:
@@ -269,16 +269,72 @@ class Cadet(SimulatorBase):
                 os.environ['LD_LIBRARY_PATH'] = cadet_lib_path.as_posix()
 
     def check_cadet(self):
-        """Check CADET installation can run basic LWE example."""
-        executable = 'createLWE'
-        if platform.system() == 'Windows':
-            executable += '.exe'
+        """
+        Check if CADET installation can run a basic LWE example.
+
+        Returns
+        -------
+        bool
+            True if the test simulation completed successfully, False otherwise.
+
+        Raises
+        ------
+        CADETProcessError
+            If the simulation fails, an exception is raised with the error message.
+
+        Notes
+        -----
+        This method tests the CADET installation by executing a basic LWE (Load, Wash,
+        Elute) example. It creates a CADET model using the LWE data stored in an HDF5
+        file and runs the simulation. After the simulation, it checks the return code to
+        determine if the test was successful.
+        """
+        lwe_hdf5_path = Path(self.temp_dir) / 'LWE.h5'
+
+        cadet_model = self.create_lwe(lwe_hdf5_path)
+
+        data = cadet_model.run()
+        os.remove(lwe_hdf5_path)
+
+        if data.returncode == 0:
+            flag = True
+            print("Test simulation completed successfully")
+        else:
+            flag = False
+            raise CADETProcessError(f"Simulation failed with {data}")
+
+        return flag
+
+    def get_tempfile_name(self):
+        f = next(tempfile._get_candidate_names())
+        return self.temp_dir / f'{f}.h5'
+
+    def create_lwe(self, file_path=None):
+        """Create basic LWE example.
+
+        Parameters
+        ----------
+        file_path : Path, optional
+            Path to store HDF5 file. If None, temporary file will be created and
+            deleted after simulation.
+
+        Returns
+        -------
+
+        """
+        if file_path is None:
+            file_name = self.get_tempfile_name().as_posix()
+            cwd = self.temp_dir.as_posix()
+        else:
+            file_path = Path(file_path).absolute()
+            file_name = file_path.name
+            cwd = file_path.parent.as_posix()
 
         ret = subprocess.run(
-            [self.cadet_create_lwe_path.as_posix()],
+            [self.cadet_create_lwe_path, '-o', file_name],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            cwd=self.temp_dir
+            cwd=cwd
         )
         if ret.returncode != 0:
             if ret.stdout:
@@ -289,25 +345,16 @@ class Cadet(SimulatorBase):
                 "Failure: Creation of test simulation ran into problems"
             )
 
-        lwe_hdf5_path = Path(self.temp_dir) / 'LWE.h5'
+        cadet_model = self.get_new_cadet_instance()
 
-        sim = self.get_new_cadet_instance()
+        cadet_model.filename = file_path.as_posix()
 
-        sim.filename = lwe_hdf5_path.as_posix()
-        data = sim.run()
-        os.remove(sim.filename)
+        cadet_model.load()
 
-        if data.returncode == 0:
-            print("Test simulation completed successfully")
-        else:
-            print(data)
-            raise CADETProcessError(
-                "Simulation failed"
-            )
+        if file_path is None:
+            os.remove(file_path)
 
-    def get_tempfile_name(self):
-        f = next(tempfile._get_candidate_names())
-        return self.temp_dir / f'{f}.h5'
+        return cadet_model
 
     def run(self, process, cadet=None, file_path=None):
         """Interface to the solver run function.
