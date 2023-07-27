@@ -85,12 +85,15 @@ class Callable(Parameter):
 
 
 class Typed(Parameter):
-    ty = object
+    def __init__(self, *args, ty=None, **kwargs):
+        if ty is not None:
+            self.ty = ty
+        super().__init__(*args, **kwargs)
 
     def __set__(self, instance, value):
         if value is None:
             try:
-                del(instance.__dict__[self.name])
+                del instance.__dict__[self.name]
             except KeyError:
                 pass
             return
