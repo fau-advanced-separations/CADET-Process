@@ -100,7 +100,7 @@ class PymooInterface(OptimizerBase):
 
         pop = np.array(optimization_problem.transform(pop))
 
-        problem = PymooProblem(optimization_problem, self.n_cores)
+        problem = PymooProblem(optimization_problem, self.parallelization_backend)
 
         ref_dirs = get_reference_directions(
             "energy",
@@ -219,9 +219,9 @@ class U_NSGA3(PymooInterface):
 
 
 class PymooProblem(Problem):
-    def __init__(self, optimization_problem, n_cores, **kwargs):
+    def __init__(self, optimization_problem, parallelization_backend, **kwargs):
         self.optimization_problem = optimization_problem
-        self.n_cores = n_cores
+        self.parallelization_backend = parallelization_backend
 
         super().__init__(
             n_var=optimization_problem.n_independent_variables,
@@ -238,7 +238,7 @@ class PymooProblem(Problem):
             F = opt.evaluate_objectives_population(
                 X,
                 untransform=True,
-                n_cores=self.n_cores,
+                parallelization_backend=self.parallelization_backend,
             )
             out["F"] = np.array(F)
 
@@ -246,12 +246,12 @@ class PymooProblem(Problem):
             G = opt.evaluate_nonlinear_constraints_population(
                 X,
                 untransform=True,
-                n_cores=self.n_cores,
+                parallelization_backend=self.parallelization_backend,
             )
             CV = opt.evaluate_nonlinear_constraints_violation_population(
                 X,
                 untransform=True,
-                n_cores=self.n_cores,
+                parallelization_backend=self.parallelization_backend,
             )
             out["G"] = np.array(CV)
 

@@ -39,6 +39,7 @@ optimizer
 ```{toctree}
 :maxdepth: 2
 
+parallel_evaluation
 evaluator
 multi_objective_optimization
 variable_dependencies
