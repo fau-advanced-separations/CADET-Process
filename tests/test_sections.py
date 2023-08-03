@@ -2,67 +2,71 @@ import unittest
 
 import numpy as np
 
-from CADETProcess.dynamicEvents import Section, TimeLine
+from CADETProcess.dynamicEvents import Section, TimeLine, MultiTimeLine
 
 
 class TestSection(unittest.TestCase):
     def __init__(self, methodName='runTest'):
         super().__init__(methodName)
 
-    def create_constant_section_single(self):
-        return Section(0, 1, 1)
+    def setUp(self):
+        self.constant_section_single = Section(0, 1, 1)
+        self.constant_section_multi = Section(1, 2, [1, 2])
+        self.poly_section_single = Section(0, 1, [0, 1, 0, 0], is_polynomial=True)
+        self.poly_section_multi = Section(0, 1, [[0, 1], [1, -1]], is_polynomial=True)
 
-    def create_constant_section_multi(self):
-        return Section(1, 2, [1, 2])
-
-    def create_poly_section_single(self):
-        return Section(0, 1, [0, 1, 0, 0], n_entries=1, degree=3)
-
-    def create_poly_section_multi(self):
-        return Section(0, 1, [[0, 1], [1, -1]], n_entries=2, degree=3)
+    def test_coeffs(self):
+        np.testing.assert_equal(self.constant_section_single.coeffs, [[1]])
+        np.testing.assert_equal(self.constant_section_multi.coeffs, [[1], [2]])
+        np.testing.assert_equal(self.poly_section_single.coeffs, [[0, 1, 0, 0]])
+        np.testing.assert_equal(self.poly_section_multi.coeffs, [[0,  1], [1, -1]])
 
     def test_section_value(self):
-        const_single = self.create_constant_section_single()
+        const_single = self.constant_section_single
         self.assertEqual(const_single.value(0), 1)
+
+        # Exceed section times
         with self.assertRaises(ValueError):
-            # Exceed section times
             val = const_single.value(2)
 
-        const_multi = self.create_constant_section_multi()
+        const_multi = self.constant_section_multi
         np.testing.assert_equal(const_multi.value(1), [1, 2])
+
+        # Exceed section times
         with self.assertRaises(ValueError):
-            # Exceed section times
             val = const_multi.value(0)
 
-        poly_single = self.create_poly_section_single()
+        poly_single = self.poly_section_single
         np.testing.assert_equal(poly_single.value(0), 0)
         np.testing.assert_equal(poly_single.value(0.5), 0.5)
         np.testing.assert_equal(poly_single.value(1), 1)
 
-        poly_multi = self.create_poly_section_multi()
+        poly_multi = self.poly_section_multi
         np.testing.assert_equal(poly_multi.value(0), [0, 1])
         np.testing.assert_equal(poly_multi.value(0.5), [0.5, 0.5])
         np.testing.assert_equal(poly_multi.value(1), [1, 0])
 
     def test_section_integral(self):
-        const_single = self.create_constant_section_single()
+        const_single = self.constant_section_single
         self.assertEqual(const_single.integral(0, 0), 0)
         self.assertEqual(const_single.integral(0, 1), 1)
+
+        # Exceed section times
         with self.assertRaises(ValueError):
-            # Exceed section times
             val = const_single.value(2)
 
-        const_multi = self.create_constant_section_multi()
+        const_multi = self.constant_section_multi
         np.testing.assert_equal(const_multi.integral(1, 2), [1, 2])
+
+        # Exceed section times
         with self.assertRaises(ValueError):
-            # Exceed section times
             val = const_multi.value(0)
 
-        poly_single = self.create_poly_section_single()
+        poly_single = self.poly_section_single
         np.testing.assert_equal(poly_single.integral(0, 0.5), 0.125)
         np.testing.assert_equal(poly_single.integral(0, 1), 0.5)
 
-        poly_multi = self.create_poly_section_multi()
+        poly_multi = self.poly_section_multi
         np.testing.assert_equal(poly_multi.integral(0, 0.5), [0.125, 0.375])
         np.testing.assert_equal(poly_multi.integral(0.5, 1), [0.375, 0.125])
         np.testing.assert_equal(poly_multi.integral(0, 1), [0.5, 0.5])
@@ -72,7 +76,8 @@ class TestTimeLine(unittest.TestCase):
     def __init__(self, methodName='runTest'):
         super().__init__(methodName)
 
-    def create_time_line_constant_single(self):
+    def create_timeline_constant_single(self):
+        """Piecewise constant sections with single entry."""
         section_0 = Section(0, 1, 1.5)
         section_1 = Section(1, 2, 0)
         section_2 = Section(2, 3, 0)
@@ -90,7 +95,8 @@ class TestTimeLine(unittest.TestCase):
 
         return tl
 
-    def create_time_line_constant_multi(self):
+    def create_timeline_constant_multi(self):
+        """Piecewise constant sections with multiple entries (differing in value)."""
         section_0 = Section(0, 1, (1.5, 0))
         section_1 = Section(1, 2, (0, 0))
         section_2 = Section(2, 3, (0, 1))
@@ -108,13 +114,14 @@ class TestTimeLine(unittest.TestCase):
 
         return tl
 
-    def create_time_line_poly_single(self):
-        section_0 = Section(0, 1, (1.5, 0), n_entries=1, degree=2)
-        section_1 = Section(1, 2, (0, 0), n_entries=1, degree=2)
-        section_2 = Section(2, 3, (0, 1), n_entries=1, degree=2)
-        section_3 = Section(3, 4, (1, 0), n_entries=1, degree=2)
-        section_4 = Section(4, 5, (2, 0), n_entries=1, degree=2)
-        section_5 = Section(5, 6, (2, -2), n_entries=1, degree=2)
+    def create_timeline_poly_single(self):
+        """Polynomial sections with single entry."""
+        section_0 = Section(0, 1, (1.5, 0), is_polynomial=True)
+        section_1 = Section(1, 2, (0, 0), is_polynomial=True)
+        section_2 = Section(2, 3, (0, 1), is_polynomial=True)
+        section_3 = Section(3, 4, (1, 0), is_polynomial=True)
+        section_4 = Section(4, 5, (2, 0), is_polynomial=True)
+        section_5 = Section(5, 6, (2, -2), is_polynomial=True)
 
         tl = TimeLine()
         tl.add_section(section_0)
@@ -126,13 +133,14 @@ class TestTimeLine(unittest.TestCase):
 
         return tl
 
-    def create_time_line_poly_multi(self):
-        section_0 = Section(0, 1, [[1.5, 0], [0, 1]], n_entries=2, degree=3)
-        section_1 = Section(1, 2, [[0, 0], [1, 1]], n_entries=2, degree=3)
-        section_2 = Section(2, 3, [[0, 1], [1, 1]], n_entries=2, degree=3)
-        section_3 = Section(3, 4, [[1, 0], [0, 0]], n_entries=2, degree=3)
-        section_4 = Section(4, 5, [[2, 0], [0, 0]], n_entries=2, degree=3)
-        section_5 = Section(5, 6, [[2, -2], [0, 0, 1]], n_entries=2, degree=3)
+    def create_timeline_poly_multi(self):
+        """Polynomial sections with multiple entries (differing in value)."""
+        section_0 = Section(0, 1, [[1.5, 0, 0], [0, 1, 0]], is_polynomial=True)
+        section_1 = Section(1, 2, [[0, 0, 0], [1, 1, 0]], is_polynomial=True)
+        section_2 = Section(2, 3, [[0, 1, 0], [1, 1, 0]], is_polynomial=True)
+        section_3 = Section(3, 4, [[1, 0, 0], [0, 0, 0]], is_polynomial=True)
+        section_4 = Section(4, 5, [[2, 0, 0], [0, 0, 0]], is_polynomial=True)
+        section_5 = Section(5, 6, [[2, -2, 0], [0, 0, 1]], is_polynomial=True)
 
         tl = TimeLine()
         tl.add_section(section_0)
@@ -145,7 +153,8 @@ class TestTimeLine(unittest.TestCase):
         return tl
 
     def test_timeline_value(self):
-        tl = self.create_time_line_constant_single()
+        """Test values at specific times."""
+        tl = self.create_timeline_constant_single()
 
         np.testing.assert_equal(tl.value(0), 1.5)
         np.testing.assert_equal(tl.value(1), 0.0)
@@ -156,7 +165,7 @@ class TestTimeLine(unittest.TestCase):
         np.testing.assert_equal(tl.value(5.5), 2.0)
         np.testing.assert_equal(tl.value(6), 2.0)
 
-        tl = self.create_time_line_constant_multi()
+        tl = self.create_timeline_constant_multi()
 
         np.testing.assert_equal(tl.value(0), [1.5, 0])
         np.testing.assert_equal(tl.value(1), [0.0, 0])
@@ -167,7 +176,7 @@ class TestTimeLine(unittest.TestCase):
         np.testing.assert_equal(tl.value(5.5), [2.0, -2])
         np.testing.assert_equal(tl.value(6), [2.0, -2])
 
-        tl = self.create_time_line_poly_single()
+        tl = self.create_timeline_poly_single()
 
         np.testing.assert_equal(tl.value(2), 0.0)
         np.testing.assert_equal(tl.value(2.5), 0.5)
@@ -175,7 +184,7 @@ class TestTimeLine(unittest.TestCase):
         np.testing.assert_equal(tl.value(5.5), 1.0)
         np.testing.assert_equal(tl.value(6), 0.0)
 
-        tl = self.create_time_line_poly_multi()
+        tl = self.create_timeline_poly_multi()
         np.testing.assert_equal(tl.value(0), [1.5, 0])
         np.testing.assert_equal(tl.value(2.5), [0.5, 1.5])
         np.testing.assert_equal(tl.value(5), [2.0, 0])
@@ -183,7 +192,8 @@ class TestTimeLine(unittest.TestCase):
         np.testing.assert_equal(tl.value(6), [0.0, 1])
 
     def test_timeline_integral(self):
-        tl = self.create_time_line_poly_single()
+        """Test definite integral values for specific time intervals."""
+        tl = self.create_timeline_poly_single()
 
         np.testing.assert_equal(tl.integral(0, 0), 0.0)
         np.testing.assert_equal(tl.integral(0, 0.5), 1.5/2)
@@ -192,7 +202,7 @@ class TestTimeLine(unittest.TestCase):
         np.testing.assert_equal(tl.integral(2, 2.5), 0.5/2/2)
         np.testing.assert_equal(tl.integral(2, 3), 0.5)
 
-        tl = self.create_time_line_poly_multi()
+        tl = self.create_timeline_poly_multi()
 
         np.testing.assert_equal(tl.integral(0, 0), [0.0, 0.0])
         np.testing.assert_equal(tl.integral(0, 0.5), [1.5/2, 0.125])
@@ -201,28 +211,191 @@ class TestTimeLine(unittest.TestCase):
         np.testing.assert_equal(tl.integral(5, 6), [1, 1/3])
 
     def test_timeline_coeff(self):
-        tl = self.create_time_line_poly_multi()
+        """Test coefficient values at given times."""
+        tl = self.create_timeline_poly_single()
+        np.testing.assert_equal(tl.coefficients(0.0), [1.5, 0])
+        np.testing.assert_equal(tl.coefficients(5.5), [1, -2])
+
+        tl = self.create_timeline_poly_multi()
 
         np.testing.assert_equal(
-            tl.coefficients(0.0), [[1.5, 0, 0, 0], [0, 1, 0, 0]]
+            tl.coefficients(0.0), [[1.5, 0, 0], [0, 1, 0]]
         )
 
         np.testing.assert_equal(
-            tl.coefficients(5.5), [[1, -2, 0, 0], [0.25, 1, 1, 0]]
+            tl.coefficients(5.5), [[1, -2, 0], [0.25, 1, 1]]
         )
 
     def test_section_times(self):
-        tl = self.create_time_line_constant_single()
+        """Test section times."""
+        tl = self.create_timeline_constant_single()
 
         self.assertEqual(tl.section_times, [0, 1, 2, 3, 4, 5, 6])
 
     def test_tl_from_profile(self):
+        """Test creation of time line from time series profile."""
         time = np.linspace(0, 100, 1001)
         y = np.sin(time/10)
 
         tl = TimeLine.from_profile(time, y)
         np.testing.assert_almost_equal(tl.value(time)[:, 0], y, decimal=3)
 
+
+class TestMultiTimeLine(unittest.TestCase):
+    def __init__(self, methodName='runTest'):
+        super().__init__(methodName)
+
+    def create_timeline_constant_multi(self):
+        """Piecewise constant sections with multiple entries managed by MultiTimeline."""
+        section_0_0 = Section(0, 1, 1.5)
+        section_0_1 = Section(1, 3, 0)
+        section_0_2 = Section(3, 4, 1)
+        section_0_3 = Section(4, 6, 2)
+
+        section_1_0 = Section(0, 2, 0)
+        section_1_1 = Section(2, 3, 1)
+        section_1_2 = Section(3, 5, 0)
+        section_1_3 = Section(5, 6, -2)
+
+        tl = MultiTimeLine([0, 0])
+        tl.add_section(section_0_0, 0)
+        tl.add_section(section_0_1, 0)
+        tl.add_section(section_0_2, 0)
+        tl.add_section(section_0_3, 0)
+
+        tl.add_section(section_1_0, 1)
+        tl.add_section(section_1_1, 1)
+        tl.add_section(section_1_2, 1)
+        tl.add_section(section_1_3, 1)
+
+        return tl
+
+    def create_timeline_poly_multi(self):
+        """Polynomial sections with multiple entries managed by MultiTimeline."""
+        # Entry 0
+        ## Const. Coeff.
+        section_0_0_0 = Section(0, 1, 1.5)
+        section_0_0_1 = Section(1, 3, 0)
+        section_0_0_2 = Section(3, 4, 1)
+        section_0_0_3 = Section(4, 6, 2)
+
+        ## Lin. Coeff.
+        section_0_1_0 = Section(0, 2, 0)
+        section_0_1_1 = Section(2, 3, 1)
+        section_0_1_2 = Section(3, 5, 0)
+        section_0_1_3 = Section(5, 6, -2)
+
+        # Entry 1
+        ## Const. Coeff.
+        section_1_0_0 = Section(0, 1, 0)
+        section_1_0_1 = Section(1, 3, 1)
+        section_1_0_2 = Section(3, 6, 0)
+
+        ## Lin. Coeff.
+        section_1_1_0 = Section(0, 3, 1)
+        section_1_1_1 = Section(3, 6, 0)
+
+        ## Cubic Coeff
+        section_1_2_0 = Section(0, 5, 0)
+        section_1_2_1 = Section(5, 6, 1)
+
+        tl = MultiTimeLine(base_state=[[0, 0, 0, 0], [0, 0, 0, 0]], is_polynomial=True)
+        tl.add_section(section_0_0_0, entry_index=(0, 0))
+        tl.add_section(section_0_0_1, entry_index=(0, 0))
+        tl.add_section(section_0_0_2, entry_index=(0, 0))
+        tl.add_section(section_0_0_3, entry_index=(0, 0))
+
+        tl.add_section(section_0_1_0, entry_index=(0, 1))
+        tl.add_section(section_0_1_1, entry_index=(0, 1))
+        tl.add_section(section_0_1_2, entry_index=(0, 1))
+        tl.add_section(section_0_1_3, entry_index=(0, 1))
+
+        tl.add_section(section_1_0_0, entry_index=(1, 0))
+        tl.add_section(section_1_0_1, entry_index=(1, 0))
+        tl.add_section(section_1_0_2, entry_index=(1, 0))
+
+        tl.add_section(section_1_1_0, entry_index=(1, 1))
+        tl.add_section(section_1_1_1, entry_index=(1, 1))
+
+        tl.add_section(section_1_2_0, entry_index=(1, 2))
+        tl.add_section(section_1_2_1, entry_index=(1, 2))
+
+        return tl
+
+    # TODO: Test when one base state is not modified
+    # TODO: Test exceeding index
+    # TODO: Test missing sections
+
+    def test_multi_timeline_value(self):
+        multi_tl = self.create_timeline_constant_multi()
+        tl = multi_tl.combined_time_line
+
+        np.testing.assert_equal(tl.value(0), [1.5, 0])
+        np.testing.assert_equal(tl.value(1), [0.0, 0])
+        np.testing.assert_equal(tl.value(2), [0.0, 1])
+        np.testing.assert_equal(tl.value(3), [1.0, 0])
+        np.testing.assert_equal(tl.value(4), [2.0, 0])
+        np.testing.assert_equal(tl.value(5), [2.0, -2])
+        np.testing.assert_equal(tl.value(5.5), [2.0, -2])
+        np.testing.assert_equal(tl.value(6), [2.0, -2])
+
+        multi_tl = self.create_timeline_poly_multi()
+        tl = multi_tl.combined_time_line
+
+        np.testing.assert_equal(tl.value(0), [1.5, 0])
+        np.testing.assert_equal(tl.value(2.5), [0.5, 2.5])
+        np.testing.assert_equal(tl.value(5), [2.0, 0])
+        np.testing.assert_equal(tl.value(5.5), [1.0, 0.25])
+        np.testing.assert_equal(tl.value(6), [0.0, 1])
+
+    def test_timeline_integral(self):
+        """Test definite integral values for specific time intervals."""
+        multi_tl = self.create_timeline_poly_multi()
+        tl = multi_tl.combined_time_line
+
+        np.testing.assert_equal(tl.integral(0, 0), [0.0, 0.0])
+        np.testing.assert_equal(tl.integral(0, 0.5), [1.5/2, 0.125])
+        np.testing.assert_equal(tl.integral(0, 1), [1.5, 0.5])
+        np.testing.assert_equal(tl.integral(0, 2), [1.5, 2.0])
+        np.testing.assert_equal(tl.integral(5, 6), [1, 1/3])
+
+    def test_timeline_coeff(self):
+        """Test coefficient values at given times."""
+        multi_tl = self.create_timeline_poly_multi()
+        tl = multi_tl.combined_time_line
+
+        np.testing.assert_equal(
+            tl.coefficients(0.0), [[1.5, 0, 0, 0], [0, 1, 0, 0]]
+        )
+        np.testing.assert_equal(
+            tl.coefficients(5.5), [[1, -2, 0, 0], [0.25, 1, 1, 0]]
+        )
+
+    def test_section_times(self):
+        """Test section times."""
+        tl = self.create_timeline_constant_multi()
+
+        self.assertEqual(tl.section_times, [0, 1, 2, 3, 4, 5, 6])
+
+    def test_multi_timeline(self):
+        base_state = [1, 2, 3]
+        multi_tl_list = MultiTimeLine(base_state)
+        # multi_tl_list.combined_time_line
+
+        base_state = [[1, 2, 3], [4, 5, 6]]
+        multi_tl_array = MultiTimeLine(base_state)
+        # multi_tl_array.combined_time_line
+
+        base_state = [1, 2, 3]
+        multi_tl_list_poly = MultiTimeLine(base_state, is_polynomial=True)
+        # multi_tl_list_poly.combined_time_line
+
+        base_state = [[1, 2, 3], [4, 5, 6]]
+        multi_tl_poly = MultiTimeLine(base_state, is_polynomial=True)
+        # multi_tl_poly.combined_time_line
+
+    def test_combined_timeline(self):
+        pass
 
 if __name__ == '__main__':
     unittest.main()

@@ -8,7 +8,7 @@ import numpy as np
 
 from CADETProcess import settings
 from CADETProcess.dataStructure import (
-    Structure, Float, SizedList, Polynomial, NdPolynomial
+    Structure, Float, List, SizedList, SizedNdArray, Polynomial, NdPolynomial
 )
 from CADETProcess.optimization import OptimizationProblem
 from tests.optimization_problem_fixtures import (
@@ -18,15 +18,31 @@ from tests.optimization_problem_fixtures import (
 
 
 class EvaluationObject(Structure):
+    uninitialized = None
     scalar_param = Float(default=1)
-    list_param = SizedList(size=2, default=[1, 2])
+    list_param = List()
+    sized_list_param = SizedList(size=2, default=[1, 2])
+    sized_list_param_no_default = SizedList(size=2)
+    nd_array = SizedNdArray(size=(2,2))
     polynomial_param = Polynomial(n_coeff=2, default=0)
-    polynomial_param = Polynomial(n_coeff=2)
+    polynomial_param_no_default = Polynomial(n_coeff=2)
+    nd_polynomial_param = NdPolynomial(size=(2, 4), default=0)
 
-    _parameters = ['scalar_param', 'list_param', 'polynomial_param']
+    _parameters = [
+        'uninitialized',
+        'scalar_param',
+        'list_param',
+        'sized_list_param',
+        'sized_list_param_no_default',
+        'nd_array',
+        'polynomial_param',
+        'polynomial_param_no_default',
+        'nd_polynomial_param',
+    ]
 
     def __init__(self, name='Dummy'):
         self.name = name
+        super().__init__()
 
     def __str__(self):
         return self.name
@@ -51,7 +67,7 @@ class ExpensiveEvaluator(Evaluator):
         print('Run expensive evaluator; this takes forever...')
 
         expensive_results = Dict()
-        expensive_results.result = np.array(2*[evaluation_object.dummy_parameter])
+        expensive_results.result = np.array(2*[evaluation_object.scalar_param])
 
         time.sleep(1)
 
@@ -99,50 +115,441 @@ class Test_OptimizationVariable(unittest.TestCase):
     def setUp(self):
         self.evaluation_object = EvaluationObject()
 
-    def test_component_index(self):
+    def test_index(self):
         var = OptimizationVariable(
-            'component_parameter',
+            'no_index_required',
             evaluation_objects=[self.evaluation_object],
-            parameter_path='dummy_parameter',
+            parameter_path='scalar_param',
         )
-        with self.assertRaises(CADETProcessError):
+        var.value = 1
+        np.testing.assert_equal(var.value, 1)
+        np.testing.assert_equal(self.evaluation_object.scalar_param, 1)
+
+        with self.assertRaises(IndexError):
             var = OptimizationVariable(
-                'dummy_parameter',
+                'parameter_not_sized',
                 evaluation_objects=[self.evaluation_object],
-                parameter_path='dummy_parameter',
-                component_index=1
+                parameter_path='scalar_param',
+                indices=1
             )
 
-    def test_polynomial_index(self):
         var = OptimizationVariable(
-            'dummy_parameter',
+            'list_index',
             evaluation_objects=[self.evaluation_object],
-            parameter_path='polynomial_parameter',
+            parameter_path='sized_list_param',
+            indices=1
         )
+        var.value = 2
+        np.testing.assert_equal(var.value, 2)
+        np.testing.assert_equal(var.indices, [[(1,)]])
+        np.testing.assert_equal(var.full_indices, [[(1,)]])
+        np.testing.assert_equal(self.evaluation_object.sized_list_param, [1, 2])
+
+        with self.assertRaises(IndexError):
+            var = OptimizationVariable(
+                'index_exceeds_list_size',
+                evaluation_objects=[self.evaluation_object],
+                parameter_path='sized_list_param',
+                indices=2
+            )
+
+        # Test uninitialized value
         with self.assertRaises(CADETProcessError):
             var = OptimizationVariable(
-                'dummy_parameter',
+                'uninitialized_attribute',
                 evaluation_objects=[self.evaluation_object],
-                parameter_path='dummy_parameter',
-                polynomial_index=1
+                parameter_path='uninitialized',
+                indices=2
             )
+
+    def test_nd_array(self):
+        var = OptimizationVariable(
+            'nd_array_index',
+            evaluation_objects=[self.evaluation_object],
+            parameter_path='nd_array',
+            indices=(0, 0)
+        )
+        var.value = 1
+        np.testing.assert_equal(var.value, 1)
+        np.testing.assert_equal(var.indices, [[(0, 0)]])
+        np.testing.assert_equal(var.full_indices, [[(0, 0)]])
+        np.testing.assert_equal(
+            self.evaluation_object.nd_array, [[1, np.nan], [np.nan, np.nan]]
+        )
+
+        var = OptimizationVariable(
+            'nd_array_slice',
+            evaluation_objects=[self.evaluation_object],
+            parameter_path='nd_array',
+            indices=np.s_[:, 0]
+        )
+        var.value = 2
+        np.testing.assert_equal(var.value, 2)
+        np.testing.assert_equal(var.indices, [[(slice(None, None, None), 0)]])
+        np.testing.assert_equal(var.full_indices, [[(0, 0), (1, 0)]])
+        np.testing.assert_equal(
+            self.evaluation_object.nd_array, [[2, np.nan], [2, np.nan]]
+        )
+
+        var = OptimizationVariable(
+            'nd_array_all',
+            evaluation_objects=[self.evaluation_object],
+            parameter_path='nd_array',
+        )
+        var.value = 3
+        np.testing.assert_equal(var.value, 3)
+        np.testing.assert_equal(var.indices, [[(slice(None, None, None),)]])
+        np.testing.assert_equal(var.full_indices, [[(0, 0), (0, 1), (1, 0), (1, 1)]])
+        np.testing.assert_equal(self.evaluation_object.nd_array, [[3, 3], [3, 3]])
+
+    def test_polynomial(self):
+        var = OptimizationVariable(
+            'polynomial',
+            evaluation_objects=self.evaluation_object,
+            parameter_path='polynomial_param',
+            indices=0
+        )
+
+        var.value = 1
+        np.testing.assert_equal(var.value, 1)
+        np.testing.assert_equal(var.indices, [[(0,)]])
+        np.testing.assert_equal(var.full_indices, [[(0,)]])
+        np.testing.assert_equal(self.evaluation_object.scalar_param, 1)
+
+        # Check convenience function; No index should modify constant coefficient and
+        # and set rest to 0
+        var = OptimizationVariable(
+            'polynomial_convenience_1D',
+            evaluation_objects=self.evaluation_object,
+            parameter_path='polynomial_param',
+        )
+        var.value = 1
+        np.testing.assert_equal(var.value, 1)
+        np.testing.assert_equal(self.evaluation_object.polynomial_param, [1, 0])
+
+        var = OptimizationVariable(
+            'polynomial_convenience_ND_all',
+            evaluation_objects=self.evaluation_object,
+            parameter_path='nd_polynomial_param',
+        )
+        var.value = 1
+        np.testing.assert_equal(var.value, 1)
+        np.testing.assert_equal(var.indices, [[(slice(None, None, None),)]])
+        np.testing.assert_equal(
+            var.full_indices,
+            [[(0, 0), (0, 1), (0, 2), (0, 3), (1, 0), (1, 1), (1, 2), (1, 3)]]
+        )
+        np.testing.assert_equal(
+            self.evaluation_object.nd_polynomial_param, [[1, 0, 0, 0], [1, 0, 0, 0]]
+        )
+
+        var = OptimizationVariable(
+            'polynomial_convenience_ND_single',
+            evaluation_objects=self.evaluation_object,
+            parameter_path='nd_polynomial_param',
+            indices=0
+        )
+        var.value = 2
+        np.testing.assert_equal(var.value, 2)
+        np.testing.assert_equal(var.indices, [[(0,)]])
+        np.testing.assert_equal(var.full_indices, [[(0, 0), (0, 1), (0, 2), (0, 3)]])
+        np.testing.assert_equal(
+            self.evaluation_object.nd_polynomial_param, [[2, 0, 0, 0], [1, 0, 0, 0]]
+        )
+
+        var = OptimizationVariable(
+            'polynomial_convenience_ND_single',
+            evaluation_objects=self.evaluation_object,
+            parameter_path='nd_polynomial_param',
+            indices=np.s_[0, :]
+        )
+        var.value = 3
+        np.testing.assert_equal(var.value, 3)
+        np.testing.assert_equal(var.indices, [[(0, slice(None, None, None))]])
+        np.testing.assert_equal(var.full_indices, [[(0, 0), (0, 1), (0, 2), (0, 3)]])
+        np.testing.assert_equal(
+            self.evaluation_object.nd_polynomial_param, [[3, 3, 3, 3], [1, 0, 0, 0]]
+        )
 
     def test_transform(self):
         var = OptimizationVariable(
-            'dummy_parameter',
+            'scalar_param',
             evaluation_objects=[self.evaluation_object],
-            parameter_path='dummy_parameter',
+            parameter_path='scalar_param',
         )
 
         # Missing bounds
         with self.assertRaises(CADETProcessError):
             var = OptimizationVariable(
-                'dummy_parameter',
+                'scalar_param',
                 evaluation_objects=[self.evaluation_object],
-                parameter_path='dummy_parameter',
+                parameter_path='scalar_param',
                 transform='auto'
             )
 
+
+from test_events import TestHandler
+class Test_OptimizationVariableEvents(unittest.TestCase):
+
+    def __init__(self, methodName='runTest'):
+        super().__init__(methodName)
+
+    def setUp(self):
+        evaluation_object = TestHandler()
+
+        evt = evaluation_object.add_event(
+            'single_index_1D', 'performer.array_1d', 1, indices=0, time=1
+        )
+        evt = evaluation_object.add_event(
+            'single_index_ND', 'performer.ndarray', 1, indices=(0, 0), time=2
+        )
+
+        evt = evaluation_object.add_event(
+            'multi_index_1D', 'performer.array_1d', [0, 1], indices=[0, 1], time=3
+        )
+        evt = evaluation_object.add_event(
+            'multi_index_ND', 'performer.ndarray',
+            [0, 1], indices=[(0, 0), (0, 1)], time=4
+        )
+
+        evt = evaluation_object.add_event(
+            'nd_evt_state', 'performer.ndarray', [[8, 7, 6, 5], [4, 3, 2, 1]], time=5
+        )
+
+        evt = evaluation_object.add_event(
+            'array_1d_poly_full', 'performer.array_1d_poly', 1, time=6
+        )
+        evt = evaluation_object.add_event(
+            'array_1d_poly_indices', 'performer.array_1d_poly',
+            [1, 1], indices=[1, 2], time=7
+        )
+
+        evt = evaluation_object.add_event(
+            'ndarray_poly_full', 'performer.ndarray_poly', 1, time=8
+        )
+        evt = evaluation_object.add_event(
+            'ndarray_poly_indices', 'performer.ndarray_poly',
+            [1, 1], indices=[(0, 1), (1, -1)], time=9
+        )
+
+        self.evaluation_object = evaluation_object
+
+    def test_index(self):
+        # Single Event.state entry
+        var = OptimizationVariable(
+            'single_index_1D',
+            evaluation_objects=[self.evaluation_object],
+            parameter_path='single_index_1D.state',
+        )
+        var.value = 2
+        np.testing.assert_equal(var.value, 2)
+        np.testing.assert_equal(self.evaluation_object.single_index_1D.state, 2)
+        np.testing.assert_equal(self.evaluation_object.performer.array_1d, [2, 1, 0, 0])
+
+        with self.assertRaises(IndexError):
+            var = OptimizationVariable(
+                'event_state_not_sized',
+                evaluation_objects=[self.evaluation_object],
+                parameter_path='single_index_1D.state',
+                indices=1
+            )
+
+        var = OptimizationVariable(
+            'single_index_ND',
+            evaluation_objects=[self.evaluation_object],
+            parameter_path='single_index_ND.state',
+        )
+        var.value = 2
+        np.testing.assert_equal(var.value, 2)
+        np.testing.assert_equal(self.evaluation_object.single_index_ND.state, 2)
+        np.testing.assert_equal(
+            self.evaluation_object.performer.ndarray, [[2, 7, 6, 5], [4, 3, 2, 1]])
+
+        with self.assertRaises(IndexError):
+            var = OptimizationVariable(
+                'event_state_not_sized',
+                evaluation_objects=[self.evaluation_object],
+                parameter_path='single_index_ND.state',
+                indices=1
+            )
+
+        # 1D Event.state with multiple entries
+        var = OptimizationVariable(
+            'multi_index_1D',
+            evaluation_objects=[self.evaluation_object],
+            parameter_path='multi_index_1D.state',
+            indices=0
+        )
+        var.value = 3
+        np.testing.assert_equal(var.value, 3)
+        np.testing.assert_equal(self.evaluation_object.multi_index_1D.state, [3, 1])
+        np.testing.assert_equal(self.evaluation_object.performer.array_1d, [3, 1, 0, 0])
+
+        with self.assertRaises(IndexError):
+            var = OptimizationVariable(
+                'index_exceeds_parameter',
+                evaluation_objects=[self.evaluation_object],
+                parameter_path='multi_index_1D.state',
+                indices=2
+            )
+        # ND Event.state with multiple entries (in 1D)
+        var = OptimizationVariable(
+            'multi_index_ND',
+            evaluation_objects=[self.evaluation_object],
+            parameter_path='multi_index_ND.state',
+            indices=0
+        )
+        var.value = 4
+        np.testing.assert_equal(var.value, 4)
+        np.testing.assert_equal(self.evaluation_object.multi_index_ND.state, [4, 1])
+        np.testing.assert_equal(
+            self.evaluation_object.performer.ndarray, [[4, 1, 6, 5], [4, 3, 2, 1]]
+        )
+
+        with self.assertRaises(IndexError):
+            var = OptimizationVariable(
+                'index_exceeds_parameter',
+                evaluation_objects=[self.evaluation_object],
+                parameter_path='multi_index_ND.state',
+                indices=2
+            )
+
+        with self.assertRaises(IndexError):
+            var = OptimizationVariable(
+                'index_exceeds_parameter_dimension',
+                evaluation_objects=[self.evaluation_object],
+                parameter_path='multi_index_ND.state',
+                indices=(1, 1)
+            )
+
+        # ND Event.state with multiple entries in ND
+        var = OptimizationVariable(
+            'nd_evt_state',
+            evaluation_objects=[self.evaluation_object],
+            parameter_path='nd_evt_state.state',
+            indices=(0, 0)
+        )
+        var.value = 5
+        np.testing.assert_equal(var.value, 5)
+        np.testing.assert_equal(
+            self.evaluation_object.nd_evt_state.state, [[5, 7, 6, 5], [4, 3, 2, 1]]
+        )
+        np.testing.assert_equal(
+            self.evaluation_object.performer.ndarray, [[5, 7, 6, 5], [4, 3, 2, 1]]
+        )
+
+        with self.assertRaises(IndexError):
+            var = OptimizationVariable(
+                'index_exceeds_parameter',
+                evaluation_objects=[self.evaluation_object],
+                parameter_path='nd_evt_state.state',
+                indices=(2, 2)
+            )
+
+    def test_polynomial(self):
+        # Event state modifies entire 1D polyomial coefficients using `fill_values`
+        var = OptimizationVariable(
+            'array_1d_poly_full',
+            evaluation_objects=self.evaluation_object,
+            parameter_path='array_1d_poly_full.state',
+        )
+
+        var.value = 2
+        np.testing.assert_equal(var.value, 2)
+        np.testing.assert_equal(
+            self.evaluation_object.array_1d_poly_full.state, 2
+        )
+        np.testing.assert_equal(
+            self.evaluation_object.performer.array_1d_poly, [2, 0, 0, 0]
+        )
+
+        # Event state modifies individual 1D polyomial coefficients
+        var = OptimizationVariable(
+            'array_1d_poly_indices',
+            evaluation_objects=self.evaluation_object,
+            parameter_path='array_1d_poly_indices.state',
+            indices=0
+        )
+
+        var.value = 2
+        np.testing.assert_equal(var.value, 2)
+        np.testing.assert_equal(
+            self.evaluation_object.array_1d_poly_indices.state, [2, 1]
+        )
+        np.testing.assert_equal(
+            self.evaluation_object.performer.array_1d_poly, [2, 2, 1, 0]
+        )
+
+        # with self.assertRaises(ValueError):
+        #     var = OptimizationVariable(
+        #         'missing_index',
+        #         evaluation_objects=self.evaluation_object,
+        #         parameter_path='array_1d_poly_indices.state',
+        #     )
+
+        # Event state modifies entire ND polyomial coefficients using `fill_values`
+        var = OptimizationVariable(
+            'ndarray_poly_full',
+            evaluation_objects=self.evaluation_object,
+            parameter_path='ndarray_poly_full.state',
+        )
+
+        var.value = 2
+        np.testing.assert_equal(var.value, 2)
+        np.testing.assert_equal(
+            self.evaluation_object.ndarray_poly_full.state, 2
+        )
+        np.testing.assert_equal(
+            self.evaluation_object.performer.ndarray_poly, [[2, 0, 0, 0], [2, 0, 0, 0]]
+        )
+
+        # Event state modifies individual 1D polyomial coefficients
+        var = OptimizationVariable(
+            'ndarray_poly_indices',
+            evaluation_objects=self.evaluation_object,
+            parameter_path='ndarray_poly_indices.state',
+            indices=0
+        )
+
+        var.value = 2
+        np.testing.assert_equal(var.value, 2)
+        np.testing.assert_equal(
+            self.evaluation_object.ndarray_poly_indices.state, [2, 1]
+        )
+        np.testing.assert_equal(
+            self.evaluation_object.performer.ndarray_poly, [[2, 2, 0, 0], [2, 0, 0, 1]]
+        )
+
+        # with self.assertRaises(ValueError):
+        #     var = OptimizationVariable(
+        #         'missing_index',
+        #         evaluation_objects=self.evaluation_object,
+        #         parameter_path='ndarray_poly_indices.state',
+        #     )
+
+    def test_multi_eval_obj(self):
+        """Test setting indexed variables for multiple evaluation objects."""
+        evaluation_object_2 = TestHandler()
+
+        evt = evaluation_object_2.add_event(
+            'multi_index_ND', 'performer.ndarray',
+            [0, 1, 2], indices=[(0, 0), (0, 1), (1, 1)], time=0
+        )
+
+        var = OptimizationVariable(
+            'multi_index_ND',
+            evaluation_objects=[self.evaluation_object, evaluation_object_2],
+            parameter_path='multi_index_ND.state',
+            indices=0
+        )
+
+        with self.assertRaises(IndexError):
+            var = OptimizationVariable(
+                'index_exceeds_one_eval_obj_state',
+                evaluation_objects=[self.evaluation_object, evaluation_object_2],
+                parameter_path='multi_index_ND.state',
+                indices=2
+            )
 
 def setup_dummy_eval_fun(n_metrics, rng=None):
     if rng is None:
@@ -552,71 +959,6 @@ class Test_OptimizationProblemJacobian(unittest.TestCase):
         np.testing.assert_almost_equal(jac, jac_expected)
 
 
-class Test_OptimizationProblemEvaluator(unittest.TestCase):
-    """
-    Szenarien für Variablen:
-        - Bound Constraints
-        - Linear Constraints
-        - Dependencies
-        - Dependencies with Constraints
-
-    Szenarien für EvaluationObjects:
-        - Verschiedene Variablen für verschiedene EvalObjects.
-        - Verschiedene Objectives/Constraints für verschiedene EvalObjects.
-        - Verschiedene Evaluatoren für verschiedene Objectives/Constraints.
-        - Caching nur für ausgewählte Evaluatoren.
-
-    """
-
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
-
-    def setUp(self):
-        eval_obj = EvaluationObject()
-
-        # Simple case
-        optimization_problem = OptimizationProblem(
-            'with_evaluator', use_diskcache=False
-        )
-
-        optimization_problem.add_evaluation_object(eval_obj)
-
-        optimization_problem.add_variable('dummy_parameter')
-        optimization_problem.add_variable('component_parameter', lb=0, ub=10)
-
-        self.optimization_problem = optimization_problem
-
-        def copy_var(var):
-            return var
-
-        optimization_problem.add_variable_dependency(
-            'component_parameter', 'dummy_parameter', copy_var
-        )
-
-    def test_variable_names(self):
-        names_expected = ['dummy_parameter', 'component_parameter']
-        names = self.optimization_problem.variable_names
-        self.assertEqual(names_expected, names)
-
-        # Variable does not exist in Evaluator
-        with self.assertRaises(CADETProcessError):
-            self.optimization_problem.add_variable('bar', lb=0, ub=1)
-
-        # Check that adding dummy variables still works
-        self.optimization_problem.add_variable(
-            'bar', evaluation_objects=None, lb=0, ub=1
-        )
-        names_expected = ['dummy_parameter', 'component_parameter', 'bar']
-        names = self.optimization_problem.variable_names
-        self.assertEqual(names_expected, names)
-
-    def test_set_variables(self):
-        pass
-
-    def test_cache(self):
-        pass
-
-
 class Test_OptimizationProblemConstraintTransforms(unittest.TestCase):
     """
     for linear transformation of constraints in an `OptimizationProblem`,
@@ -733,6 +1075,101 @@ class Test_OptimizationProblemConstraintTransforms(unittest.TestCase):
         self.check_constraint_transform(
             problem, self.check_equality_constraints
         )
+
+
+class Test_OptimizationProblemEvaluator(unittest.TestCase):
+    """
+    Szenarien für Variablen:
+        - Bound Constraints
+        - Linear Constraints
+        - Dependencies
+        - Dependencies with Constraints
+
+    Szenarien für EvaluationObjects:
+        - Verschiedene Variablen für verschiedene EvalObjects.
+        - Verschiedene Objectives/Constraints für verschiedene EvalObjects.
+        - Verschiedene Evaluatoren für verschiedene Objectives/Constraints.
+        - Caching nur für ausgewählte Evaluatoren.
+
+    """
+
+    def __init__(self, methodName='runTest'):
+        super().__init__(methodName)
+
+    def setUp(self):
+        eval_obj = EvaluationObject()
+
+        # Simple case
+        optimization_problem = OptimizationProblem(
+            'with_evaluator', use_diskcache=False
+        )
+
+        optimization_problem.add_evaluation_object(eval_obj)
+
+        optimization_problem.add_variable('scalar_param')
+        optimization_problem.add_variable('sized_list_param', lb=0, ub=10, indices=0)
+
+        self.optimization_problem = optimization_problem
+
+        def copy_var(var):
+            return var
+
+        optimization_problem.add_variable_dependency(
+            'sized_list_param', 'scalar_param', copy_var
+        )
+
+    def test_variable_names(self):
+        names_expected = ['scalar_param', 'sized_list_param']
+        names = self.optimization_problem.variable_names
+        self.assertEqual(names_expected, names)
+
+        # Variable does not exist in Evaluator
+        with self.assertRaises(CADETProcessError):
+            self.optimization_problem.add_variable('bar', lb=0, ub=1)
+
+        # Check that adding dummy variables still works
+        self.optimization_problem.add_variable(
+            'bar', evaluation_objects=None, lb=0, ub=1
+        )
+        names_expected = ['scalar_param', 'sized_list_param', 'bar']
+        names = self.optimization_problem.variable_names
+        self.assertEqual(names_expected, names)
+
+    def test_set_variables(self):
+        pass
+
+    def test_indices(self):
+        pass
+
+    def test_duplicate_variables(self):
+        self.optimization_problem.check_duplicate_variables()
+
+        # Duplicate name
+        self.optimization_problem.add_variable('foo', evaluation_objects=None)
+
+        with self.assertRaises(CADETProcessError):
+            self.optimization_problem.add_variable('foo', evaluation_objects=None)
+
+        # Duplicate scalar parameter variable
+        with self.assertRaises(CADETProcessError):
+            self.optimization_problem.add_variable(
+                name='another_scalar_parameter', parameter_path='scalar_param',
+            )
+
+        # Duplicate index parameter variable
+        self.optimization_problem.add_variable(
+            name='another_sized_list_param_var', parameter_path='sized_list_param',
+            lb=0, ub=10, indices=1
+        )
+
+        with self.assertRaises(CADETProcessError):
+            self.optimization_problem.add_variable(
+                name='yet_another_sized_list_param_var', parameter_path='sized_list_param',
+                lb=0, ub=10, indices=1
+            )
+
+    def test_cache(self):
+        pass
 
 
 if __name__ == '__main__':
