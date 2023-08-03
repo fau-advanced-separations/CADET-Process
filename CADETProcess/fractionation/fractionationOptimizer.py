@@ -341,7 +341,7 @@ class FractionationOptimizer():
             else:
                 raise CADETProcessError(str(e))
 
-        frac = opt.set_variables(results.x[0])[0]
+        opt.set_variables(results.x[0])
         frac.reset()
 
         # Restore previous lock state

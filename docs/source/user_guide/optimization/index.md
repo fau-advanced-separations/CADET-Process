@@ -42,5 +42,6 @@ optimizer
 parallel_evaluation
 evaluator
 multi_objective_optimization
+variable_indices
 variable_dependencies
 ```
