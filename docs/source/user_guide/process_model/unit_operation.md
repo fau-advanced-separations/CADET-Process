@@ -52,9 +52,13 @@ To only show required parameters, inspect `required_parameters`.
 print(unit.required_parameters)
 ```
 
-## Polynomial Coeffients
-Some parameters represent polynomial coefficients.
-For example, the concentration of an {class}`~CADETProcess.processModel.Inlet` represents the coefficients of a cubic polynomial (in time).
+(polynomial_guide)=
+## Polynomial Coefficients
+
+Some parameters in **CADET-Process** are represented by polynomial coefficients.
+For example, the {attr}`~CADETProcess.processModel.Inlet.flow_rate` of an {class}`~CADETProcess.processModel.Inlet` can be described by a cubic polynomial (in time).
+
+By default, all coefficients are $0$.
 
 ```{code-cell} ipython3
 :tags: [hide-cell]
@@ -63,42 +67,72 @@ from CADETProcess.processModel import Inlet
 inlet = Inlet(component_system, 'inlet')
 ```
 
-To specify a constant value for each component, use a list with length `n_comp`.
-
 ```{code-cell} ipython3
-inlet.c = [1, 2]
+print(inlet.flow_rate)
 ```
 
-To specify the polynomial coefficients, a list of lists needs to be set.
-For each component, the coefficients are added in ascending order where the first entry is the constant term, the second is the linear term etc.
-E.g. consider a gradient where the first component concentration has a constant term of $0~mM$ and increases linearly with slope $1 mM \cdot s^{-1}$, and the second component starts at $2~mM$ and decreases with a quadratic term of $-1~mM \cdot s^{-2}$.
-Note, missing coefficients are always added internally.
-
-```{code-cell} ipython3
-inlet.c = [[0, 1], [2, 0, -1]]
-print(inlet.c)
-```
-
-Similarly, the polynomial coefficients for the unit flow rate can be set for {class}`Inlets <CADETProcess.processModel.Inlet>` and {class}`Cstrs <CADETProcess.processModel.Cstr>`.
-For example, a constant flow rate can be set with:
+When assigning a scalar value to the parameter, the new state is assumed to be constant.
+All other coefficients are set to $0$.
+Note that polynomial coefficients are specified in order of increasing degree.
+I.e. the first coefficient corresponds to the constant term, the second to the linear term, etc.
 
 ```{code-cell} ipython3
 inlet.flow_rate = 1
 print(inlet.flow_rate)
 ```
 
-And a linearly increasing flow rate with:
+It is also possible to specify only any subset of polynomial coefficients.
+E.g. consider a linear gradient where the flow rate starts at $1 m^3 \cdot s^{-1}$ and increases with a slope of $2 m^3 \cdot s^{-2}$:
 
 ```{code-cell} ipython3
-inlet.flow_rate = [1,2]
+inlet.flow_rate = [1, 2]
 print(inlet.flow_rate)
+```
+
+Or, specify all polynomial coefficients:
+
+
+```{code-cell} ipython3
+inlet.flow_rate = [0, 1, 2, 3]
+print(inlet.flow_rate)
+```
+
+This also works for parameters with multiple entries, e.g. the {attr}`concentration <CADETProcess.processModel.Inlet.c>` of an {class}`~CADETProcess.processModel.Inlet`.
+
+Set all components to same (constant) concentration:
+
+```{code-cell} ipython3
+inlet.c = 1
+print(inlet.c)
+```
+
+Specify constant term for each component:
+
+
+```{code-cell} ipython3
+inlet.c = [1, 2]
+print(inlet.c)
+```
+
+Specify polynomial coefficients for each component:
+
+```{code-cell} ipython3
+inlet.c = [[1, 2], 1]
+print(inlet.c)
+```
+
+Specify all polynomial coefficients:
+
+```{code-cell} ipython3
+inlet.c = [[0, 1, 2, 3], [4, 5, 6, 7]]
+print(inlet.c)
 ```
 
 Since these parameters are mostly used in dynamic process models, they are usually modified using {class}`Events <CADETProcess.dynamicEvents.Event>`.
 
-
 For an example, refer to {ref}`SSR process <lwe_example>`.
 
+(discretization_guide)=
 ### Discretization
 Some of the unit operations need to be spatially discretized.
 The discretization parameters are stored in a {class}`DiscretizationParametersBase` class.

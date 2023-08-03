@@ -379,7 +379,7 @@ class Fractionator(EventHandler):
             for chrom_index, chrom in enumerate(self.chromatograms):
                 chrom_events = self.chromatogram_events[chrom]
                 for evt_index, evt in enumerate(chrom_events):
-                    target = int(np.nonzero(evt.state)[0])
+                    target = int(np.nonzero(evt.full_state)[0])
 
                     frac_start = evt.time
 

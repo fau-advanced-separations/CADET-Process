@@ -2,6 +2,7 @@ import itertools
 import warnings
 
 import numpy as np
+from numpy import VisibleDeprecationWarning
 import scipy
 
 from CADETProcess import CADETProcessError
@@ -37,27 +38,29 @@ class Section(Structure):
 
     """
 
-    coeffs = NdPolynomial(size=('n_entries', 'n_poly_coeffs'), default=0)
+    coeffs = NdPolynomial(size=('n_entries', 'n_poly_coeffs'))
 
-    def __init__(self, start, end, coeffs, n_entries=None, degree=0):
-        if n_entries is None:
-            if isinstance(coeffs, (int, bool, float)):
-                n_entries = 1
-            elif isinstance(coeffs, (list, tuple, np.ndarray)) and degree == 0:
-                n_entries = len(coeffs)
-            else:
-                raise ValueError("Ambiguous entries for n_entries and degree")
-        self.n_entries = n_entries
-
-        if n_entries == 1:
-            coeffs = [coeffs]
-
-        self.degree = degree
-        self.coeffs = coeffs
+    def __init__(self, start, end, coeffs, is_polynomial=False):
+        if start > end:
+            raise ValueError("End time must be greater than start time")
 
         self.start = start
         self.end = end
         diff = end-start
+
+        coeffs = np.array(coeffs, ndmin=1, dtype=np.float64)
+        self.parameter_shape = coeffs.shape
+
+        if is_polynomial:
+            coeffs = np.array(coeffs, ndmin=2, dtype=np.float64)
+            self.degree = coeffs.shape[-1] - 1
+            self.n_entries = coeffs.shape[0]
+
+            self.coeffs = coeffs
+        else:
+            self.degree = 0
+            self.n_entries = coeffs.size
+            self.coeffs = coeffs.reshape((coeffs.size, 1))
 
         self._poly = []
         for i in range(self.n_entries):
@@ -75,9 +78,27 @@ class Section(Structure):
                 self._poly_der.append(poly_der)
 
     @property
+    def is_polynomial(self):
+        """bool: True if Section represents polynomial parameter. False otherwise."""
+        if self.degree > 0:
+            return True
+        return False
+
+    @property
     def n_poly_coeffs(self):
         """int: Number of polynomial coefficients."""
         return self.degree + 1
+
+    @property
+    def is_single_entry(self):
+        """bool: True if Section contains single entry. False otherwise."""
+        if self.n_entries > 1:
+            return True
+
+        if self.is_polynomial and self.parameter_shape.ndim == 1:
+            return True
+
+        return False
 
     def value(self, t):
         """Return value of parameter section at time t.
@@ -126,7 +147,7 @@ class Section(Structure):
                 c[1] = self._poly_der[i](offset)
             coeffs.append(c)
 
-        return np.array(coeffs)
+        return np.array(coeffs).reshape(self.parameter_shape)
 
     def derivative(self, t, order=1):
         """Return derivative of parameter section at time t.
@@ -188,6 +209,13 @@ class Section(Structure):
         integ_methods = [p.integ(lbnd=start) for p in self._poly]
         return np.array([i(end) for i in integ_methods])
 
+    def __repr__(self):
+        args = f"start={self.start}, end={self.end}, coeffs={self.coeffs}"
+        if self.degree > 0:
+            args += f", degree={self.degree}"
+
+        return f"Section({args})"
+
 
 class TimeLine():
     """Class representing a timeline of time-varying data.
@@ -202,13 +230,12 @@ class TimeLine():
         List of Sections that make up the timeline.
     """
 
-    def __init__(self, n_entries=None):
-        if n_entries:
-            pass
+    def __init__(self):
         self._sections = []
 
     @property
     def sections(self):
+        """list: Sections of the TimeLine."""
         return self._sections
 
     @property
@@ -223,16 +250,13 @@ class TimeLine():
         if len(self.sections) > 0:
             return self.sections[0].n_entries
 
-    def add_section(self, section, entry_index=None):
+    def add_section(self, section):
         """Add a Section to the timeline.
 
         Parameters
         ----------
         section : Section
             The Section to be added to the timeline.
-        entry_index : int or None, optional
-            The index of the entry to be modified by the Section. If None,
-            all entries are modified. The default is None.
 
         Raises
         ------
@@ -466,7 +490,7 @@ class TimeLine():
                 continue
             end = ppoly.x[i+1]
             tl.add_section(
-                Section(start, end, np.flip(sec), n_entries=1, degree=3)
+                Section(start, end, np.flip(sec), is_polynomial=True)
             )
 
         return tl
@@ -477,7 +501,7 @@ class MultiTimeLine():
 
     Attributes
     ----------
-    base_state : list
+    base_state : np.array
         The base state that each TimeLine represents.
     n_entries : int
         The number of entries in each TimeLine.
@@ -487,7 +511,7 @@ class MultiTimeLine():
         The degree of the polynomials in each section.
     """
 
-    def __init__(self, base_state):
+    def __init__(self, base_state, is_polynomial=False):
         """Initialize a MultiTimeLine instance.
 
         Parameters
@@ -496,10 +520,21 @@ class MultiTimeLine():
             The base state that each TimeLine represents.
 
         """
-        self.base_state = base_state
-        self.n_entries = len(base_state)
-        self._degree = None
-        self.time_lines = [TimeLine() for _ in range(self.n_entries)]
+        base_state = np.array(base_state, ndmin=1, dtype=np.float64)
+        self.is_polynomial = is_polynomial
+
+        if self.is_polynomial:
+            if base_state.ndim == 1:
+                self.is_single_entry = True
+            else:
+                self.is_single_entry = False
+            self.base_state = np.array(base_state, ndmin=2, dtype=np.float64)
+            self.degree = self.base_state.shape[-1] - 1
+        else:
+            self.degree = 0
+            self.base_state = base_state
+
+        self.time_lines = [TimeLine() for _ in range(self.size)]
 
     @property
     def degree(self):
@@ -511,65 +546,278 @@ class MultiTimeLine():
         self._degree = degree
 
     @property
+    def n_entries(self):
+        """int: Number of entries handled by MultiTimeline."""
+        if self.degree > 0:
+            return len(self.base_state)
+        return self.base_state.size
+
+    @property
+    def size(self):
+        """int: Total number of internal TimeLines handled Number by MultiTimeline."""
+        return self.base_state.size
+
+    @property
     def section_times(self):
-        """list of float: A list of all the section times of all the TimeLines."""
+        """list: Combined section times of all TimeLines."""
         time_line_sections = [tl.section_times for tl in self.time_lines]
 
         section_times = set(itertools.chain.from_iterable(time_line_sections))
 
         return sorted(list(section_times))
 
-    def add_section(self, section, entry_index=None):
-        """Add section to each timeline in MultiTimeLine, or to a specific entry.
+    def add_section(self, section, entry_index):
+        """Add section to TimeLine with specific entry index.
 
         Parameters
         ----------
         section : Section
             Section to be added.
-        entry_index : int, optional
-            Index of the entry where the section will be added.
-            If not provided, the section will be added to each timeline.
+        entry_index : tuple
+            Index of the entry in the base_state for which the section will be added.
 
         Raises
         ------
-        CADETProcessError
-            If polynomial degree does not match the degree of the MultiTimeLine.
         ValueError
-            If the provided entry_index is greater than the number of entries.
+            If entry index is out of bounds for base_state.
 
         """
-        if self.degree is None:
-            self.degree = section.degree
+        index = flatten_index(self.base_state.shape, entry_index)[0]
+        if index > self.size:
+            raise CADETProcessError("Entry index is out of bounds.")
+        self.time_lines[index].add_section(section)
 
-        if section.degree != self.degree:
-            raise CADETProcessError('Polynomial degree does not match')
-
-        if entry_index is None:
-            for tl in self.time_lines:
-                tl.add_section(section)
-        else:
-            if entry_index > self.n_entries:
-                raise ValueError("Index exceeds entries.")
-
-            self.time_lines[entry_index].add_section(section)
-
+    @property
     def combined_time_line(self):
         """TimeLine: Object representing combination of all timelines in the MultiTimeLine."""
         tl = TimeLine()
+
+        n_poly_coeffs = self.degree + 1
+
+        coeffs = self.base_state
 
         section_times = self.section_times
         for iSec in range(len(section_times) - 1):
             start = self.section_times[iSec]
             end = self.section_times[iSec+1]
 
-            coeffs = []
-            for i, entry in enumerate(self.time_lines):
-                if len(entry.sections) == 0:
-                    coeffs.append(self.base_state[i])
-                else:
-                    coeffs.append(entry.coefficients(start)[0])
+            if not self.is_polynomial:
+                for i, entry in enumerate(self.time_lines):
+                    if len(entry.sections) > 0:
+                        index = unflatten_index(self.base_state.shape, i)[0]
+                        coeff = entry.coefficients(start)[0]
+                        coeffs[index] = coeff
+            else:
+                for i_entry in range(self.n_entries):
+                    tl_indices = slice(i_entry*n_poly_coeffs, (i_entry+1)*n_poly_coeffs)
+                    i_entry_tl = self.time_lines[tl_indices]
+                    for i_poly, i_poly_tl in enumerate(i_entry_tl):
+                        if self.is_single_entry:
+                            index = (0, i_poly)
+                        else:
+                            index = (i_entry, i_poly)
 
-            section = Section(start, end, coeffs, self.n_entries, self.degree)
+                        if len(i_poly_tl.sections) > 0 and start in i_poly_tl.section_times:
+                            coeffs[index] = i_poly_tl.coefficients(start)[0]
+
+            section = Section(start, end, coeffs, self.is_polynomial)
             tl.add_section(section)
 
+            coeffs = tl.coefficients(end)
+
         return tl
+
+
+def generate_indices(shape, indices=None):
+    """
+    Generate indices for indexing a parameter array from a list of indices.
+
+    Parameters
+    ----------
+    parameter : array_like
+        An array which is to be indexed. Scalar parameters are not supported.
+    indices : array_like
+        A 2D array or list of lists, where each inner list is a set of indices
+        into the 'parameter' array. None can be used in place of a full slice (:).
+
+    Raises
+    ------
+    ValueError
+        If 'parameter' is a scalar or if an index in 'indices' is out of bounds.
+
+    Returns
+    -------
+    list
+        A list of tuples, where each tuple represents indices into the 'parameter'
+        array. If the 'parameter' array was 1D, this will be a list of integers instead.
+
+    Examples
+    --------
+    >>> parameter = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+    >>> indices = [[0, 1], [1, 2]]
+    >>> generate_indices(parameter, indices)
+    [(0, 1), (1, 2)]
+    """
+    size = np.prod(shape)
+    if size == 1:
+        raise ValueError("Scalar parameters cannot have index slices.")
+
+    if indices is None:
+        indices = np.s_[:]
+
+    if not isinstance(indices, list):
+        indices = [indices, ]
+
+    indices_array = np.array(indices, ndmin=1)
+
+    indices = []
+    for ind in indices_array:
+        ind = tuple(np.array(ind, ndmin=1))
+        indices.append(ind)
+
+    _validate_indices(shape, indices)
+
+    return indices
+
+
+def _validate_indices(shape, indices):
+    """Validate that all indices can be set in an array with shape `shape`."""
+    param_ref = np.arange(np.prod(shape)).reshape(shape)
+
+    for ind in indices:
+        param_ref[ind]
+
+
+def unravel(shape, indices):
+    """
+    Unravel indices of a multi-dimensional array.
+
+    Parameters
+    ----------
+    shape : tuple of int
+        The shape of the original array.
+    indices : list of int or tuple
+        The indices in the flattened array to be unraveled.
+
+    Returns
+    -------
+    list of tuple
+        The unraveled indices in the multi-dimensional array.
+    """
+    if len(shape) == 0:
+        return []
+
+    indices_flat_ref = np.arange(np.prod(shape)).reshape(shape)
+
+    indices_unraveled = []
+    for ind in indices:
+        indices_flat = indices_flat_ref[ind].flatten()
+        indices_unravel = np.unravel_index(indices_flat, shape)
+        if not isinstance(indices_flat, (int, np.int64)):
+            indices_unravel = list(zip(*indices_unravel))
+        else:
+            indices_unravel = [indices_unravel]
+        indices_unraveled += indices_unravel
+
+    return indices_unraveled
+
+
+def flatten_index(shape, indices):
+    """Flatten indices to access array.
+
+    Parameters
+    ----------
+    shape: tuple
+        Shape of the array to be indexed
+    indices : tuple or list of tuples
+        Indices in tuple notation
+
+    Returns
+    -------
+    indices_flat : list
+        List of indices in flat notation.
+    """
+    if not isinstance(indices, list):
+        indices = [indices]
+
+    indices_flat_ref = np.arange(np.prod(shape)).reshape(shape)
+
+    return [indices_flat_ref[i] for i in indices]
+
+
+def unflatten_index(shape, indices_flat):
+    """Unflatten indices to access array.
+
+    Parameters
+    ----------
+    shape : tuple
+        Shape of the array to be indexed
+    indices_flat : int or list of ints
+        Flat indices
+
+    Returns
+    -------
+    indices : list
+        List of unflattened indices.
+    """
+    if not isinstance(indices_flat, list):
+        indices_flat = [indices_flat]
+
+    indices_unravel = np.unravel_index(indices_flat, shape)
+    indices = list(zip(*indices_unravel))
+
+    return indices
+
+
+def get_inhomogeneous_shape(value):
+    """If array is inhomogeneous, return list with shape of every element."""
+    with warnings.catch_warnings():  # Catch warnings for compatibility with numpy<1.24
+        warnings.simplefilter("error")
+        try:
+            return np.array(value).shape
+        except (ValueError, VisibleDeprecationWarning):
+            pass
+
+    shape = []
+
+    for i in value:
+        i_shape = get_inhomogeneous_shape(i)
+        # if len(i_shape) == 0:
+        #     i_shape = (1, )
+
+        # i_shape = (1, ) + i_shape
+
+        shape.append(i_shape)
+
+    return shape
+
+
+def get_full_shape(inhomogeneous_shape):
+    """Create full shape from inhomogeneous shape to be used with numpy arrays."""
+    first_dimension = (len(inhomogeneous_shape))
+
+    sub_dims = ()
+    for sub_dim in inhomogeneous_shape:
+        if not isinstance(sub_dim, tuple):
+            sub_dim = get_full_shape(sub_dim)
+
+        sub_dims += (sub_dim, )
+
+    max_dims = {}
+    for el in sub_dims:
+        for i, dim in enumerate(el):
+            try:
+                max_dims[i] = max(max_dims[i], dim)
+            except KeyError:
+                max_dims[i] = dim
+
+    dims = (first_dimension, ) + tuple(max_dims.values())
+
+    return dims
+
+
+def extract_inhomogeneous_array(full_array, inhomogeneous_shape):
+    """Get inhomogeneous array from full_array."""
+    array = []
+    for i in inhomogeneous_shape:
+        array.append(full_array[i, :])
