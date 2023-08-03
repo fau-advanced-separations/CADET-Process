@@ -98,7 +98,7 @@ class Process(EventHandler):
             else:
                 feed_signal_time_line = TimeLine()
                 feed_section = Section(
-                    0, self.cycle_time, feed.c, n_entries=self.n_comp, degree=3
+                    0, self.cycle_time, feed.c, is_polynomial=True
                 )
                 feed_signal_time_line.add_section(feed_section)
 
@@ -166,32 +166,32 @@ class Process(EventHandler):
                 # If inlet, also use outlet for total_in
                 if isinstance(self.flow_sheet[unit], Inlet):
                     section = Section(
-                        start, end, flow_rate.total_out, n_entries=1, degree=3
+                        start, end, flow_rate.total_out, is_polynomial=True
                     )
                 else:
                     section = Section(
-                        start, end, flow_rate.total_in, n_entries=1, degree=3
+                        start, end, flow_rate.total_in, is_polynomial=True
                     )
                 unit_flow_rates['total_in'].add_section(section)
                 for orig, flow_rate_orig in flow_rate.origins.items():
                     section = Section(
-                        start, end, flow_rate_orig, n_entries=1, degree=3
+                        start, end, flow_rate_orig, is_polynomial=True
                     )
                     unit_flow_rates['origins'][orig].add_section(section)
 
                 # If outlet, also use inlet for total_out
                 if isinstance(self.flow_sheet[unit], Outlet):
                     section = Section(
-                        start, end, flow_rate.total_in, n_entries=1, degree=3
+                        start, end, flow_rate.total_in, is_polynomial=True
                     )
                 else:
                     section = Section(
-                        start, end, flow_rate.total_out, n_entries=1, degree=3
+                        start, end, flow_rate.total_out, is_polynomial=True
                     )
                 unit_flow_rates['total_out'].add_section(section)
                 for dest, flow_rate_dest in flow_rate.destinations.items():
                     section = Section(
-                        start, end, flow_rate_dest, n_entries=1, degree=3
+                        start, end, flow_rate_dest, is_polynomial=True
                     )
                     unit_flow_rates['destinations'][dest].add_section(section)
 
@@ -215,25 +215,25 @@ class Process(EventHandler):
             for unit, unit_flow_rates in self.flow_rate_timelines.items():
                 if isinstance(self.flow_sheet[unit], Inlet):
                     section_states[sec_time][unit]['total_in'] \
-                        = unit_flow_rates['total_out'].coefficients(sec_time)[0]
+                        = unit_flow_rates['total_out'].coefficients(sec_time)
                 else:
                     section_states[sec_time][unit]['total_in'] \
-                        = unit_flow_rates['total_in'].coefficients(sec_time)[0]
+                        = unit_flow_rates['total_in'].coefficients(sec_time)
 
                     for orig, tl in unit_flow_rates.origins.items():
                         section_states[sec_time][unit]['origins'][orig] \
-                            = tl.coefficients(sec_time)[0]
+                            = tl.coefficients(sec_time)
 
                 if isinstance(self.flow_sheet[unit], Outlet):
                     section_states[sec_time][unit]['total_out'] \
-                        = unit_flow_rates['total_in'].coefficients(sec_time)[0]
+                        = unit_flow_rates['total_in'].coefficients(sec_time)
                 else:
                     section_states[sec_time][unit]['total_out'] \
-                        = unit_flow_rates['total_out'].coefficients(sec_time)[0]
+                        = unit_flow_rates['total_out'].coefficients(sec_time)
 
                     for dest, tl in unit_flow_rates.destinations.items():
                         section_states[sec_time][unit]['destinations'][dest] \
-                            = tl.coefficients(sec_time)[0]
+                            = tl.coefficients(sec_time)
 
         return Dict(section_states)
 
@@ -477,7 +477,6 @@ class Process(EventHandler):
     def section_dependent_parameters(self):
         parameters = Dict()
         parameters.flow_sheet = self.flow_sheet.section_dependent_parameters
-
         return parameters
 
     @property
@@ -647,7 +646,7 @@ class Process(EventHandler):
             True if process is setup correctly. False otherwise.
 
         """
-        flag = True
+        flag = super().check_config()
 
         missing_parameters = self.flow_sheet.missing_parameters
         if len(missing_parameters) > 0:

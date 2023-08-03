@@ -1,3 +1,4 @@
+from collections import defaultdict
 from functools import wraps
 import inspect
 import math
@@ -17,12 +18,18 @@ from CADETProcess import settings
 
 from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import (
-    String, Switch, RangedInteger, Callable, Tuple, SizedNdArray
+    ParameterBase, Sized, Typed, Bool, Integer, Float, String, Switch,
+    RangedInteger, Callable, Tuple, SizedNdArray
 )
 from CADETProcess.dataStructure import frozen_attributes
 from CADETProcess.dataStructure import (
-    check_nested, generate_nested_dict, get_nested_value
+    check_nested, generate_nested_dict, get_nested_value, get_nested_attribute,
+    set_nested_list_value
 )
+from CADETProcess.dynamicEvents.section import (
+    generate_indices, unravel, get_inhomogeneous_shape, get_full_shape
+)
+
 from CADETProcess.optimization.parallelizationBackend import SequentialBackend
 from CADETProcess.transform import (
     NoTransform, AutoTransform, NormLinearTransform, NormLogTransform
@@ -273,8 +280,7 @@ class OptimizationProblem(Structure):
 
     def add_variable(
             self, name, evaluation_objects=-1, parameter_path=None,
-            lb=-math.inf, ub=math.inf, transform=None,
-            component_index=None, polynomial_index=None):
+            lb=-math.inf, ub=math.inf, transform=None, indices=None):
         """Add optimization variable to the OptimizationProblem.
 
         The function encapsulates the creation of OptimizationVariable objects
@@ -282,8 +288,8 @@ class OptimizationProblem(Structure):
 
         Parameters
         ----------
-        name : str, optional
-            Name of the variable. If None, parameter_path is used.
+        name : str
+            Name of the variable.
         evaluation_objects : EvaluationObject or list of EvaluationObjects
             Evaluation object to set parameters.
             If -1, all evaluation objects are used.
@@ -291,17 +297,16 @@ class OptimizationProblem(Structure):
             The default is -1.
         parameter_path : str, optional
             Path of the parameter including the evaluation object.
-            If None, name must be provided.
+            If None, name is used.
         lb : float
             Lower bound of the variable value.
         ub : float
             Upper bound of the variable value.
         transform : {'auto', 'log', 'linear', None}:
             Variable transform. The default is auto.
-        component_index : int
-            Index for component specific variables.
-        polynomial_index : int
-            Index for specific polynomial coefficient.
+        indices : int  or tuple, optional
+            Indices for variables that modify entries of a parameter array.
+            If None, variable is assumed to be index independent.
 
         Raises
         ------
@@ -333,17 +338,31 @@ class OptimizationProblem(Structure):
 
         if parameter_path is None and len(evaluation_objects) > 0:
             parameter_path = name
+        if parameter_path is not None and len(evaluation_objects) == 0:
+            raise ValueError(
+                "Cannot set parameter_path for variable without evaluation object "
+            )
 
         var = OptimizationVariable(
             name, evaluation_objects, parameter_path,
             lb=lb, ub=ub, transform=transform,
-            component_index=component_index,
-            polynomial_index=polynomial_index
+            indices=indices,
         )
 
         self._variables.append(var)
 
+        with warnings.catch_warnings():
+            warnings.simplefilter('error')  # Treat warnings as errors
+
+            try:
+                self.check_duplicate_variables()
+            except UserWarning as e:
+                self._variables.remove(var)
+                raise CADETProcessError(e)
+
         super().__setattr__(name, var)
+
+        return var
 
     def remove_variable(self, var_name):
         """Remove optimization variable from the OptimizationProblem.
@@ -370,6 +389,90 @@ class OptimizationProblem(Structure):
 
         self._variables.remove(var)
         self.__dict__.pop(var_name)
+
+    @property
+    def parameter_variables(self):
+        """dict: List of variables for every evaluation object parameter.
+
+        Notes
+        -----
+        For evaluation objects and index dependent variables, individual keys are added.
+
+        """
+        parameter_variables = Dict()
+
+        # Create dict with variables
+        for var in self.variables:
+            parameter_path = var.parameter_path
+            if parameter_path is None:
+                parameter_path = var.name
+
+            if var.indices is not None:
+                for i, eval_obj in enumerate(var.evaluation_objects):
+                    if var.indices[i] is not None:
+                        for ind in var.full_indices[0]:
+                            parameter_variables[var.parameter_path][eval_obj][ind] = []
+                    else:
+                        parameter_variables[var.parameter_path][eval_obj] = []
+            else:
+                parameter_variables[parameter_path] = []
+
+        # Populate dict with variables, add nested structure for indices, if required
+        for var in self.variables:
+            parameter_path = var.parameter_path
+            if parameter_path is None:
+                parameter_path = var.name
+
+            if var.indices is not None:
+                for i, eval_obj in enumerate(var.evaluation_objects):
+                    if var.indices[i] is not None:
+                        for ind in var.full_indices[0]:
+                            parameter_variables[var.parameter_path][eval_obj][ind].append(var)
+                    else:
+                        parameter_variables[var.parameter_path][eval_obj].append(var)
+            else:
+                parameter_variables[parameter_path].append(var)
+
+        return parameter_variables
+
+    def check_duplicate_variables(self):
+        """Raise warning if duplicate variables exist."""
+        flag = True
+
+        for param, variables in self.parameter_variables.items():
+            if isinstance(variables, list):
+                if len(variables) > 1:
+                    warnings.warn(
+                        f"Found multiple entries for variable {param}: {variables}"
+                    )
+                    flag = False
+                else:
+                    continue
+
+            # Parameter variables dict also contains evaluation objects
+            for eval_obj, eval_obj_variables in variables.items():
+                if isinstance(eval_obj_variables, list):
+                    if len(eval_obj_variables) > 1:
+                        warnings.warn(
+                            f"Found multiple entries for variable {param} in {eval_obj}"
+                            f" : {eval_obj_variables}"
+                        )
+                        flag = False
+                    else:
+                        continue
+
+                # Parameter variables dict also contains index variables
+                for ind, index_variables in eval_obj_variables.items():
+                    if len(index_variables) > 1:
+                        warnings.warn(
+                            f"Found multiple entries for variable `{param}` "
+                            f"and index {ind} in {eval_obj}; "
+                            f"caused by: {[var.name for var in index_variables]}"
+                        )
+                        flag = False
+
+        return flag
+
 
     def add_variable_dependency(
             self, dependent_variable, independent_variables, transform):
@@ -518,63 +621,8 @@ class OptimizationProblem(Structure):
         """
         values = self.get_dependent_values(x)
 
-        if evaluation_objects is None:
-            evaluation_objects = []
-        elif evaluation_objects == -1:
-            evaluation_objects = self.evaluation_objects
-        elif not isinstance(evaluation_objects, list):
-            evaluation_objects = [evaluation_objects]
-
-        eval_obj_dict = {
-            eval_obj.name: eval_obj
-            for eval_obj in evaluation_objects
-        }
-
         for variable, value in zip(self.variables, values):
-            # TODO: Should use variable.value = value.
-            # However, this currently would raise CADETProcessError for dependent vars.
-            if value < variable.lb:
-                raise ValueError("Exceeds lower bound")
-            if value > variable.ub:
-                raise ValueError("Exceeds upper bound")
-            for eval_obj in variable.evaluation_objects:
-                try:
-                    eval_obj = eval_obj_dict[eval_obj.name]
-                except KeyError:
-                    continue
-
-                if variable.polynomial_index is not None:
-                    value_array = get_nested_value(
-                        eval_obj.parameters, variable.parameter_path
-                    ).copy()
-                    if variable.component_index is not None:
-                        value_array[
-                            variable.component_index, variable.polynomial_index
-                        ] = value
-                    else:
-                        value_array[:, variable.polynomial_index] = value
-
-                    parameters = generate_nested_dict(
-                        variable.parameter_path, value_array
-                    )
-                elif variable.component_index is not None:
-                    value_array = get_nested_value(
-                        eval_obj.parameters, variable.parameter_path
-                    )
-
-                    value_array[variable.component_index] = value
-
-                    parameters = generate_nested_dict(
-                        variable.parameter_path, value_array
-                    )
-                else:
-                    parameters = generate_nested_dict(
-                        variable.parameter_path, value
-                    )
-
-                eval_obj.parameters = parameters
-
-        return list(eval_obj_dict.values())
+            variable.set_value(value)
 
     def _evaluate_individual(self, eval_funs, x, force=False):
         """Call evaluation function function at point x.
@@ -693,7 +741,9 @@ class OptimizationProblem(Structure):
         else:
             requires = [func]
 
-        evaluation_objects = self.set_variables(x, func.evaluation_objects)
+        self.set_variables(x)
+        evaluation_objects = self.evaluation_objects
+
         if len(evaluation_objects) == 0:
             evaluation_objects = [None]
 
@@ -2759,6 +2809,7 @@ class OptimizationProblem(Structure):
             opt.name: opt.parameters for opt in self.variables
         }
         parameters.linear_constraints = self.linear_constraints
+        parameters.linear_equality_constraints = self.linear_equality_constraints
 
         return parameters
 
@@ -2839,15 +2890,19 @@ class OptimizationProblem(Structure):
         flag = True
         if self.n_variables == 0:
             flag = False
+
+        if not self.check_duplicate_variables():
+            flag = False
+
         if self.n_objectives == 0:
             flag = False
         if self.n_linear_constraints + self.n_linear_equality_constraints > 0 \
                 and not ignore_linear_constraints:
-            flag_ = self.check_linear_constraints_transforms()
-            flag = flag and flag_
+            if not self.check_linear_constraints_transforms():
+                flag = False
 
-            flag_ = self.check_linear_constraints_dependency()
-            flag = flag and flag_
+            if not self.check_linear_constraints_dependency():
+                flag = False
 
         return flag
 
@@ -2876,12 +2931,9 @@ class OptimizationVariable:
         Upper bound of the variable.
     transform : TransformBase
         Transformation function for parameter normalization.
-    component_index : int, optional
-        Index for component specific variables.
-        If None, variable is assumed to be component independent.
-    polynomial_index : int, optional
-        Index for specific polynomial coefficient.
-        If None, variable is assumed to be component independent.
+    indices : int, or slice
+        Indices for variables that modify an entry of a parameter array.
+        If None, variable is assumed to be index independent.
     precision : int, optional
         Number of significant figures to which variable can be rounded.
         If None, variable is not rounded. The default is None.
@@ -2896,22 +2948,21 @@ class OptimizationVariable:
 
     def __init__(
         self, name, evaluation_objects=None, parameter_path=None,
-        lb=-math.inf, ub=math.inf, transform=None,
-        component_index=None, polynomial_index=None, precision=None
+        lb=-math.inf, ub=math.inf, transform=None, indices=None, precision=None,
     ):
         self.name = name
         self._value = None
 
         if evaluation_objects is not None:
+            if not isinstance(evaluation_objects, list):
+                evaluation_objects = [evaluation_objects]
             self.evaluation_objects = evaluation_objects
             self.parameter_path = parameter_path
-            self.polynomial_index = polynomial_index
-            self.component_index = component_index
+            self.indices = indices
         else:
             self.evaluation_objects = None
             self.parameter_path = None
-            self.polynomial_index = None
-            self.component_index = None
+            self.indices = None
 
         if lb >= ub:
             raise ValueError("Lower bound cannot be larger or equal to upper bound.")
@@ -2940,6 +2991,7 @@ class OptimizationVariable:
 
     @property
     def parameter_path(self):
+        """str: Path of the evaluation_object parameter in dot notation."""
         return self._parameter_path
 
     @parameter_path.setter
@@ -2956,6 +3008,201 @@ class OptimizationVariable:
         return tuple(self.parameter_path.split('.'))
 
     @property
+    def performer(self):
+        """str: The name of the performer of the variable."""
+        if len(self.parameter_sequence) == 1:
+            return self.parameter_sequence[0]
+        else:
+            return ".".join(self.parameter_sequence[:-1])
+
+    def _performer_obj(self, evaluation_object):
+        if len(self.parameter_sequence) == 1:
+            return evaluation_object
+
+        return get_nested_attribute(evaluation_object, self.performer)
+
+    def _parameter_descriptor(self, evaluation_object):
+        performer_obj = self._performer_obj(evaluation_object)
+        performer_class = type(performer_obj)
+        try:
+            descriptor = getattr(performer_class, self.parameter_sequence[-1])
+        except AttributeError:
+            return None
+
+        if not isinstance(descriptor, ParameterBase):
+            return None
+
+        return descriptor
+
+    def _parameter_type(self, evaluation_object):
+        """type: Type of the parameter."""
+        parameter_descriptor = self._parameter_descriptor(evaluation_object)
+        if isinstance(parameter_descriptor, Typed):
+            return parameter_descriptor.ty
+
+        current_value = self._current_value(evaluation_object)
+        if current_value is None:
+            raise CADETProcessError(
+                "Parameter is not initialized. "
+                "Cannot determine parameter type."
+            )
+
+        return type(current_value)
+
+    def _get_parameter_shape(self, evaluation_object):
+        parameter_descriptor = self._parameter_descriptor(evaluation_object)
+
+        if isinstance(parameter_descriptor, (Float, Integer, Bool)):
+            return ()
+
+        if isinstance(parameter_descriptor, Sized):
+            performer_obj = self._performer_obj(evaluation_object)
+            shape = parameter_descriptor.get_expected_size(performer_obj)
+
+            if not isinstance(shape, tuple):
+                shape = (shape, )
+
+            return shape
+
+        current_value = self._current_value(evaluation_object)
+        if current_value is None:
+            raise CADETProcessError(
+                "Parameter is not initialized. "
+                "Cannot determine parameter shape."
+            )
+
+        shape = get_inhomogeneous_shape(current_value)
+
+        return shape
+
+    def _current_value(self, evaluation_object):
+        parameter_descriptor = self._parameter_descriptor(evaluation_object)
+
+        if parameter_descriptor is not None:
+            performer_obj = self._performer_obj(evaluation_object)
+            return getattr(performer_obj, self.parameter_sequence[-1])
+        else:
+            return get_nested_value(
+                evaluation_object.parameters, self.parameter_path
+            )
+
+    def _is_sized(self, evaluation_object):
+        """bool: True if descriptor is instance of Sized. False otherwise."""
+        parameter_descriptor = self._parameter_descriptor(evaluation_object)
+
+        if isinstance(parameter_descriptor, (Float, Integer, Bool)):
+            return False
+
+        if isinstance(parameter_descriptor, Sized):
+            return True
+
+        current_value = self._current_value(evaluation_object)
+        if current_value is None:
+            raise CADETProcessError(
+                "Parameter is not initialized. "
+                "Cannot determine dimensions required for setting index."
+            )
+        return np.array(current_value, dtype=object).size > 1
+
+    def _is_polynomial(self, evaluation_object):
+        """bool: True if descriptor is instance of NdPolynomial. False otherwise."""
+        return check_nested(
+            evaluation_object.polynomial_parameters, self.parameter_path
+        )
+
+    @property
+    def indices(self):
+        if self._indices is None:
+            return
+
+        indices = []
+        for eval_ind, eval_obj in zip(self._indices, self.evaluation_objects):
+            if self._is_sized(eval_obj):
+                parameter_shape = self._get_parameter_shape(eval_obj)
+                if isinstance(parameter_shape, tuple):
+                    eval_ind = generate_indices(parameter_shape, eval_ind)
+                else:
+                    if not isinstance(eval_ind, list):
+                        eval_ind = [eval_ind]
+
+                    eval_ind = [ind for ind in eval_ind]
+
+            indices.append(eval_ind)
+
+        return indices
+
+    @indices.setter
+    def indices(self, indices):
+        if self.evaluation_objects is None and indices is not None:
+            raise ValueError("Cannot specify indices without evaluation object.")
+
+        if self.evaluation_objects is None and indices is None:
+            self._indices = indices
+            return
+
+        # Make sure indices are list of len self.evaluation_objects
+        if not isinstance(indices, list):
+            indices = [indices]
+
+        # Make sure indices are 2D; 1D for number of indices to set; 1D for eval objs.
+        if len(indices) == 1:
+            indices = len(self.evaluation_objects) * indices
+        elif len(indices) != len(self.evaluation_objects):
+            raise ValueError(
+                f"Expected {len(self.evaluation_objects)}, got {len(indices)}"
+            )
+
+        for eval_ind, eval_obj in zip(indices, self.evaluation_objects):
+            is_sized = self._is_sized(eval_obj)
+            if eval_ind is not None and not is_sized:
+                raise IndexError("Variables for scalar parameters cannot have indices.")
+
+        self._indices = indices
+
+        # Since indices are constructed on `get`, call the property here:
+        try:
+            _ = self.indices
+        except (ValueError, TypeError) as e:
+            raise e
+
+    @property
+    def is_index_specific(self):
+        """bool: True if variable modifies entry of a parameter array, False otherwise."""
+        if self.indices is not None:
+            return True
+        else:
+            return False
+
+    @property
+    def full_indices(self):
+        """list: Full indices."""
+        full_indices = []
+        for eval_ind, eval_obj in zip(self.indices, self.evaluation_objects):
+            parameter_shape = self._get_parameter_shape(eval_obj)
+
+            if isinstance(parameter_shape, tuple):
+                indices = generate_indices(parameter_shape, eval_ind)
+                indices = unravel(parameter_shape, indices)
+                full_indices.append(indices)
+            else:
+                for ind in eval_ind:
+                    subshape = parameter_shape[ind[0]]
+                    indices = generate_indices(subshape, ind[1:])
+                    indices = unravel(subshape, indices)
+                    indices = [(ind[0], ) + i for i in indices]
+                    full_indices.append(indices)
+
+        return full_indices
+
+    @property
+    def n_indices(self):
+        """int: Number of (full) indices."""
+        if self.indices is not None:
+            return len(self.full_indices)
+        else:
+            return 0
+
+    @property
     def transform(self):
         return self._transform
 
@@ -2964,64 +3211,6 @@ class OptimizationVariable:
 
     def untransform_fun(self, x):
         return self._transform.untransform(x)
-
-    @property
-    def component_index(self):
-        return self._component_index
-
-    @component_index.setter
-    def component_index(self, component_index):
-        if component_index is not None:
-            for eval_obj in self.evaluation_objects:
-                parameter = get_nested_value(
-                    eval_obj.parameters, self.parameter_sequence
-                )
-                if self.is_polynomial:
-                    if component_index > parameter.shape[0] - 1:
-                        raise CADETProcessError('Index exceeds components')
-                else:
-                    if np.isscalar(parameter) or component_index > len(parameter) - 1:
-                        raise CADETProcessError('Index exceeds components')
-        self._component_index = component_index
-
-    @property
-    def polynomial_index(self):
-        return self._polynomial_index
-
-    @polynomial_index.setter
-    def polynomial_index(self, polynomial_index):
-        is_polynomial = False
-
-        for eval_obj in self.evaluation_objects:
-            try:
-                is_polynomial = check_nested(
-                    eval_obj.polynomial_parameters, self.parameter_sequence
-                )
-            except AttributeError as e:
-                if str(e) != "'EvaluationObject' object has no attribute 'polynomial_parameters'":
-                    raise
-                else:
-                    is_polynomial = False
-                    break
-
-            if not is_polynomial and polynomial_index is None:
-                break
-            elif not is_polynomial and polynomial_index is not None:
-                raise CADETProcessError('Variable is not a polynomial parameter.')
-            elif is_polynomial and polynomial_index is None:
-                polynomial_index = 0
-                break
-
-            parameter = get_nested_value(eval_obj.parameters, self.parameter_sequence)
-            if polynomial_index > parameter.shape[1] - 1:
-                raise CADETProcessError('Index exceeds polynomial coefficients')
-
-        self._is_polynomial = is_polynomial
-        self._polynomial_index = polynomial_index
-
-    @property
-    def is_polynomial(self):
-        return self._is_polynomial
 
     def add_dependency(self, dependencies, transform):
         """Add dependency of Variable on other Variables.
@@ -3078,6 +3267,15 @@ class OptimizationVariable:
 
     @value.setter
     def value(self, value):
+        if not self.is_independent:
+            raise CADETProcessError("Cannot set value for dependent variables")
+
+        self.set_value(value)
+
+        self._value = value
+
+    def set_value(self, value):
+        """Set value to evaluation_objects."""
         if not np.isscalar(value):
             raise TypeError("Expected scalar value")
 
@@ -3086,16 +3284,80 @@ class OptimizationVariable:
         if value > self.ub:
             raise ValueError("Exceeds upper bound")
 
-        if self.is_independent:
-            self._value = value
+        if self.evaluation_objects is None:
+            return
+
+        for i_eval, eval_obj in enumerate(self.evaluation_objects):
+            is_polynomial = self._is_polynomial(eval_obj)
+
+            if (
+                    self.indices[i_eval] is None
+                    or
+                    self._indices[i_eval] is None and is_polynomial):
+                new_value = value
+            else:
+                eval_ind = self.indices[i_eval]
+                parameter_shape = self._get_parameter_shape(eval_obj)
+                current_value = self._current_value(eval_obj)
+
+                if current_value is None:
+                    new_value = np.full(parameter_shape, np.nan)
+                else:
+                    if isinstance(parameter_shape, tuple):
+                        new_value = np.array(current_value, ndmin=1, dtype=np.number)
+                    else:
+                        new_value = np.full(get_full_shape(parameter_shape), np.nan)
+
+                if isinstance(eval_ind, int):
+                    eval_ind = [(eval_ind, )]
+
+                for ind in eval_ind:
+                    expected_shape = new_value[ind].shape
+                    is_polynomial = self._is_polynomial(eval_obj)
+                    if is_polynomial and len(parameter_shape) > 1 and len(ind) == 1:
+                        parameter_descriptor = self._parameter_descriptor(eval_obj)
+                        new_slice = parameter_descriptor.fill_values(
+                            expected_shape, value
+                        )
+                    else:
+                        new_slice = np.array(value, ndmin=1, dtype=np.number)
+
+                    if any(isinstance(i, slice) for i in ind):
+                        if new_slice.size != np.prod(expected_shape):
+                            new_slice = np.broadcast_to(new_slice, expected_shape)
+                        else:
+                            new_slice = np.reshape(new_slice, expected_shape)
+
+                    if isinstance(parameter_shape, tuple):
+                        new_value[ind] = new_slice
+
+                    else:
+                        # Inhomogeneous arrays
+                        new_value = current_value
+                        for i, val in zip(self._indices, new_slice):
+                            set_nested_list_value(new_value, i, val)
+
+                parameter_type = self._parameter_type(eval_obj)
+                if not isinstance(new_value, parameter_type):
+                    new_value = parameter_type(new_value.tolist())
+
+            # Set the value:
+            self._set_value(eval_obj, new_value)
+
+    def _set_value(self, evaluation_object, value):
+        """Set the value to the evaluation object."""
+        parameter_descriptor = self._parameter_descriptor(evaluation_object)
+        if parameter_descriptor is not None:
+            performer_obj = self._performer_obj(evaluation_object)
+            setattr(performer_obj, self.parameter_sequence[-1], value)
         else:
-            raise CADETProcessError("Cannot set value for dependent variables")
+            parameters = generate_nested_dict(self.parameter_sequence, value)
+            evaluation_object.parameters = parameters
 
     @property
     def transformed_bounds(self):
         """list: Transformed bounds of the parameter."""
         return [self.transform_fun(self.lb), self.transform_fun(self.ub)]
-
 
     def __repr__(self):
         if self.evaluation_objects is not None:
@@ -3103,7 +3365,7 @@ class OptimizationVariable:
                 f'{self.__class__.__name__}' + \
                 f'(name={self.name}, ' + \
                 f'evaluation_objects=' \
-                f'{[obj.name for obj in self.evaluation_objects]}, ' + \
+                f'{[str(obj) for obj in self.evaluation_objects]}, ' + \
                 f'parameter_path=' \
                 f'{self.parameter_path}, lb={self.lb}, ub={self.ub})'
         else:
