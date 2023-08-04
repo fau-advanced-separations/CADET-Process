@@ -36,7 +36,7 @@ from scipy import integrate
 
 from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import (
-    String, UnsignedInteger, UnsignedFloat, Vector, DependentlySizedNdArray
+    String, UnsignedInteger, UnsignedFloat, Vector, SizedNdArray
 )
 
 from CADETProcess.processModel import ComponentSystem
@@ -88,7 +88,7 @@ class SolutionBase(metaclass=StructMeta):
 
     name = String()
     time = Vector()
-    solution = DependentlySizedNdArray(dep='solution_shape')
+    solution = SizedNdArray(size='solution_shape')
     c_min = UnsignedFloat(default=1e-6)
 
     dimensions = ['time']

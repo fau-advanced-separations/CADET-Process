@@ -17,8 +17,7 @@ from CADETProcess import settings
 
 from CADETProcess.dataStructure import StructMeta
 from CADETProcess.dataStructure import (
-    String, Switch, RangedInteger, Callable, Tuple,
-    DependentlySizedNdArray
+    String, Switch, RangedInteger, Callable, Tuple, SizedNdArray
 )
 from CADETProcess.dataStructure import frozen_attributes
 from CADETProcess.dataStructure import (
@@ -3164,7 +3163,7 @@ class Objective(metaclass=StructMeta):
     type = Switch(valid=['minimize', 'maximize'])
     n_objectives = RangedInteger(lb=1)
     n_metrics = n_objectives
-    bad_metrics = DependentlySizedNdArray(dep='n_metrics', default=np.inf)
+    bad_metrics = SizedNdArray(size='n_metrics', default=np.inf)
 
     def __init__(
             self,
@@ -3255,7 +3254,7 @@ class NonlinearConstraint(metaclass=StructMeta):
     name = String()
     n_nonlinear_constraints = RangedInteger(lb=1)
     n_metrics = n_nonlinear_constraints
-    bad_metrics = DependentlySizedNdArray(dep='n_metrics', default=np.inf)
+    bad_metrics = SizedNdArray(size='n_metrics', default=np.inf)
 
     def __init__(
             self,
@@ -3454,7 +3453,7 @@ class MetaScore(metaclass=StructMeta):
     name = String()
     n_meta_scores = RangedInteger(lb=1)
     n_metrics = n_meta_scores
-    bad_metrics = DependentlySizedNdArray(dep='n_metrics', default=np.inf)
+    bad_metrics = SizedNdArray(size='n_metrics', default=np.inf)
 
     def __init__(
             self,

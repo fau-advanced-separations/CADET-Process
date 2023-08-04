@@ -9,8 +9,8 @@ from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import (
     Constant, UnsignedFloat,
     String, Switch,
-    DependentlySizedUnsignedList,
-    Polynomial, NdPolynomial, DependentlySizedList
+    SizedUnsignedList,
+    Polynomial, NdPolynomial, SizedList
 )
 
 from .componentSystem import ComponentSystem
@@ -373,8 +373,8 @@ class SourceMixin(Structure):
 
     """
     _n_poly_coeffs = 4
-    flow_rate = Polynomial(dep=('_n_poly_coeffs'))
     _parameter_names = ['flow_rate']
+    flow_rate = Polynomial(size=('_n_poly_coeffs'))
     _section_dependent_parameters = ['flow_rate']
     _polynomial_parameters = ['flow_rate']
 
@@ -405,8 +405,8 @@ class Inlet(UnitBaseClass, SourceMixin):
 
     """
 
-    c = NdPolynomial(dep=('n_comp', '_n_poly_coeffs'), default=0)
-    flow_rate = Polynomial(dep=('_n_poly_coeffs'), default=0)
+    c = NdPolynomial(size=('n_comp', '_n_poly_coeffs'), default=0)
+    flow_rate = Polynomial(size=('_n_poly_coeffs'), default=0)
     _n_poly_coeffs = 4
     _parameter_names = \
         UnitBaseClass._parameter_names + \
@@ -713,7 +713,7 @@ class TubularReactor(TubularReactorBase):
 
     total_porosity = Constant(1)
 
-    c = DependentlySizedList(dep='n_comp', default=0)
+    c = SizedList(size='n_comp', default=0)
     _initial_state = UnitBaseClass._initial_state + ['c']
     _parameter_names = TubularReactorBase._parameter_names + _initial_state
 
@@ -760,8 +760,8 @@ class LumpedRateModelWithoutPores(TubularReactorBase):
     ]
     _required_parameters = TubularReactorBase._required_parameters + ['total_porosity']
 
-    c = DependentlySizedList(dep='n_comp', default=0)
-    _q = DependentlySizedUnsignedList(dep='n_bound_states', default=0)
+    c = SizedList(size='n_comp', default=0)
+    _q = SizedUnsignedList(size='n_bound_states', default=0)
     _initial_state = TubularReactorBase._initial_state + ['q']
     _parameter_names = _parameter_names + _initial_state
 
@@ -821,8 +821,8 @@ class LumpedRateModelWithPores(TubularReactorBase):
     bed_porosity = UnsignedFloat(ub=1)
     particle_porosity = UnsignedFloat(ub=1)
     particle_radius = UnsignedFloat()
-    film_diffusion = DependentlySizedUnsignedList(dep='n_comp')
-    pore_accessibility = DependentlySizedUnsignedList(dep='n_comp')
+    film_diffusion = SizedUnsignedList(size='n_comp')
+    pore_accessibility = SizedUnsignedList(size='n_comp')
     _parameter_names = TubularReactorBase._parameter_names + [
             'bed_porosity', 'particle_porosity', 'particle_radius',
             'film_diffusion'
@@ -833,9 +833,9 @@ class LumpedRateModelWithPores(TubularReactorBase):
         'bed_porosity', 'particle_porosity', 'particle_radius', 'film_diffusion'
     ]
 
-    c = DependentlySizedList(dep='n_comp', default=0)
-    _cp = DependentlySizedUnsignedList(dep='n_comp')
-    _q = DependentlySizedUnsignedList(dep='n_bound_states', default=0)
+    c = SizedList(size='n_comp', default=0)
+    _cp = SizedUnsignedList(size='n_comp')
+    _q = SizedUnsignedList(size='n_bound_states', default=0)
 
     _initial_state = TubularReactorBase._initial_state + ['cp', 'q']
     _parameter_names = _parameter_names + _initial_state
@@ -953,10 +953,10 @@ class GeneralRateModel(TubularReactorBase):
     bed_porosity = UnsignedFloat(ub=1)
     particle_porosity = UnsignedFloat(ub=1)
     particle_radius = UnsignedFloat()
-    film_diffusion = DependentlySizedUnsignedList(dep='n_comp')
-    pore_diffusion = DependentlySizedUnsignedList(dep='n_comp')
-    _surface_diffusion = DependentlySizedUnsignedList(dep='n_bound_states')
-    pore_accessibility = DependentlySizedUnsignedList(dep='n_comp')
+    film_diffusion = SizedUnsignedList(size='n_comp')
+    pore_diffusion = SizedUnsignedList(size='n_comp')
+    _surface_diffusion = SizedUnsignedList(size='n_bound_states')
+    pore_accessibility = SizedUnsignedList(size='n_comp')
     _parameter_names = \
         TubularReactorBase._parameter_names + \
         [
@@ -971,9 +971,9 @@ class GeneralRateModel(TubularReactorBase):
         'pore_diffusion'
     ]
 
-    c = DependentlySizedList(dep='n_comp', default=0)
-    _cp = DependentlySizedUnsignedList(dep='n_comp')
-    _q = DependentlySizedUnsignedList(dep='n_bound_states', default=0)
+    c = SizedList(size='n_comp', default=0)
+    _cp = SizedUnsignedList(size='n_comp')
+    _q = SizedUnsignedList(size='n_bound_states', default=0)
 
     _initial_state = TubularReactorBase._initial_state + ['cp', 'q']
     _parameter_names = _parameter_names + _initial_state
@@ -1114,8 +1114,8 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         ['flow_rate_filter']
     _required_parameters = UnitBaseClass._required_parameters + ['V']
 
-    c = DependentlySizedList(dep='n_comp', default=0)
-    _q = DependentlySizedUnsignedList(dep='n_bound_states', default=0)
+    c = SizedList(size='n_comp', default=0)
+    _q = SizedUnsignedList(size='n_bound_states', default=0)
     V = UnsignedFloat()
     _initial_state = \
         UnitBaseClass._initial_state + \

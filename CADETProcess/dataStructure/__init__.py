@@ -9,8 +9,8 @@ This module provides datastructures to simplify defining setters and getters for
 (model) parameters.
 It is mostly based on the data model introduced in [1]_
 
-Note
-----
+Notes
+-----
 
 At some point it might be considered to switch to attrs
 (see `#15 <https://github.com/fau-advanced-separations/CADET-Process/issues/15>`_).

@@ -48,7 +48,7 @@ import numpy as np
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import Structure
 from CADETProcess.metric import MetricBase
-from CADETProcess.dataStructure import DependentlySizedNdArray
+from CADETProcess.dataStructure import SizedNdArray
 from CADETProcess.processModel import ComponentSystem
 
 
@@ -94,13 +94,13 @@ class Performance(Structure):
         'productivity', 'eluent_consumption', 'mass_balance_difference'
     ]
 
-    mass = DependentlySizedNdArray(dep=('n_comp'))
-    concentration = DependentlySizedNdArray(dep=('n_comp'))
-    purity = DependentlySizedNdArray(dep=('n_comp'))
-    recovery = DependentlySizedNdArray(dep=('n_comp'))
-    productivity = DependentlySizedNdArray(dep=('n_comp'))
-    eluent_consumption = DependentlySizedNdArray(dep=('n_comp'))
-    mass_balance_difference = DependentlySizedNdArray(dep=('n_comp'))
+    mass = SizedNdArray(size=('n_comp'))
+    concentration = SizedNdArray(size=('n_comp'))
+    purity = SizedNdArray(size=('n_comp'))
+    recovery = SizedNdArray(size=('n_comp'))
+    productivity = SizedNdArray(size=('n_comp'))
+    eluent_consumption = SizedNdArray(size=('n_comp'))
+    mass_balance_difference = SizedNdArray(size=('n_comp'))
 
     def __init__(
             self, mass, concentration, purity, recovery,
