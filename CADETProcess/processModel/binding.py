@@ -6,10 +6,13 @@ from CADETProcess import CADETProcessError
 
 from CADETProcess.dataStructure import frozen_attributes
 from CADETProcess.dataStructure import Structure
-from CADETProcess.dataStructure import Bool, String, \
-    RangedInteger, UnsignedInteger, UnsignedFloat, DependentlySizedList, \
-    DependentlySizedRangedIntegerList, DependentlySizedUnsignedIntegerList, \
-    DependentlySizedUnsignedList, DependentlyModulatedUnsignedList
+from CADETProcess.dataStructure import (
+    Bool, String,
+    RangedInteger, UnsignedInteger, UnsignedFloat, SizedList,
+    SizedRangedIntegerList, SizedUnsignedIntegerList,
+    SizedUnsignedList,
+    DependentlyModulatedUnsignedList
+)
 
 from .componentSystem import ComponentSystem
 
@@ -68,8 +71,8 @@ class BindingBaseClass(Structure):
     is_kinetic = Bool(default=True)
 
     n_binding_sites = RangedInteger(lb=1, ub=1, default=1)
-    _bound_states = DependentlySizedRangedIntegerList(
-        dep=('n_binding_sites', 'n_comp'), lb=0, ub=1, default=1
+    _bound_states = SizedRangedIntegerList(
+        size=('n_binding_sites', 'n_comp'), lb=0, ub=1, default=1
     )
     non_binding_component_indices = []
 
@@ -206,8 +209,8 @@ class Linear(BindingBaseClass):
 
     """
 
-    adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
-    desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
+    adsorption_rate = SizedUnsignedList(size='n_comp')
+    desorption_rate = SizedUnsignedList(size='n_comp')
 
     _parameter_names = BindingBaseClass._parameter_names + [
         'adsorption_rate', 'desorption_rate'
@@ -228,9 +231,9 @@ class Langmuir(BindingBaseClass):
 
     """
 
-    adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
-    desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
-    capacity = DependentlySizedUnsignedList(dep='n_comp')
+    adsorption_rate = SizedUnsignedList(size='n_comp')
+    desorption_rate = SizedUnsignedList(size='n_comp')
+    capacity = SizedUnsignedList(size='n_comp')
 
     _parameter_names = BindingBaseClass._parameter_names + [
         'adsorption_rate', 'desorption_rate', 'capacity'
@@ -254,13 +257,9 @@ class LangmuirLDF(BindingBaseClass):
 
     """
 
-    equilibrium_constant = DependentlySizedUnsignedList(
-        dep=('n_comp', 'n_states')
-    )
-    driving_force_coefficient = DependentlySizedUnsignedList(
-        dep=('n_comp', 'n_states')
-    )
-    capacity = DependentlySizedUnsignedList(dep=('n_comp', 'n_states'))
+    equilibrium_constant = SizedUnsignedList(size='n_comp')
+    driving_force_coefficient = SizedUnsignedList(size='n_comp')
+    capacity = SizedUnsignedList(size='n_comp')
 
     _parameter_names = BindingBaseClass._parameter_names + [
         'equilibrium_constant',
@@ -290,9 +289,9 @@ class BiLangmuir(BindingBaseClass):
 
     n_binding_sites = UnsignedInteger(default=2)
 
-    adsorption_rate = DependentlySizedUnsignedList(dep='n_bound_states')
-    desorption_rate = DependentlySizedUnsignedList(dep='n_bound_states')
-    capacity = DependentlySizedUnsignedList(dep='n_bound_states')
+    adsorption_rate = SizedUnsignedList(size='n_bound_states')
+    desorption_rate = SizedUnsignedList(size='n_bound_states')
+    capacity = SizedUnsignedList(size='n_bound_states')
 
     _parameter_names = BindingBaseClass._parameter_names + [
         'adsorption_rate',
@@ -327,9 +326,9 @@ class BiLangmuirLDF(BindingBaseClass):
 
     n_binding_sites = UnsignedInteger(default=2)
 
-    equilibrium_constant = DependentlySizedUnsignedList(dep='n_bound_states')
-    driving_force_coefficient = DependentlySizedUnsignedList(dep='n_bound_states')
-    capacity = DependentlySizedUnsignedList(dep='n_bound_states')
+    equilibrium_constant = SizedUnsignedList(size='n_bound_states')
+    driving_force_coefficient = SizedUnsignedList(size='n_bound_states')
+    capacity = SizedUnsignedList(size='n_bound_states')
 
     _parameter_names = BindingBaseClass._parameter_names + [
         'equilibrium_constant',
@@ -362,9 +361,9 @@ class FreundlichLDF(BindingBaseClass):
 
     """
 
-    driving_force_coefficient = DependentlySizedUnsignedList(dep='n_comp')
-    freundlich_coefficient = DependentlySizedUnsignedList(dep='n_comp')
-    exponent = DependentlySizedUnsignedList(dep='n_comp')
+    driving_force_coefficient = SizedUnsignedList(size='n_comp')
+    freundlich_coefficient = SizedUnsignedList(size='n_comp')
+    exponent = SizedUnsignedList(size='n_comp')
 
     _parameter_names = BindingBaseClass._parameter_names + [
         'driving_force_coefficient',
@@ -406,10 +405,10 @@ class StericMassAction(BindingBaseClass):
 
     """
 
-    adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
-    desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
-    characteristic_charge = DependentlySizedUnsignedList(dep='n_comp')
-    steric_factor = DependentlySizedUnsignedList(dep='n_comp')
+    adsorption_rate = SizedUnsignedList(size='n_comp')
+    desorption_rate = SizedUnsignedList(size='n_comp')
+    characteristic_charge = SizedUnsignedList(size='n_comp')
+    steric_factor = SizedUnsignedList(size='n_comp')
     capacity = UnsignedFloat()
     reference_liquid_phase_conc = UnsignedFloat(default=1.0)
     reference_solid_phase_conc = UnsignedFloat(default=1.0)
@@ -476,10 +475,10 @@ class AntiLangmuir(BindingBaseClass):
 
     """
 
-    adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
-    desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
-    capacity = DependentlySizedUnsignedList(dep='n_comp')
-    antilangmuir = DependentlySizedUnsignedList(dep='n_comp')
+    adsorption_rate = SizedUnsignedList(size='n_comp')
+    desorption_rate = SizedUnsignedList(size='n_comp')
+    capacity = SizedUnsignedList(size='n_comp')
+    antilangmuir = SizedUnsignedList(size='n_comp')
 
     _parameter_names = BindingBaseClass._parameter_names + [
         'adsorption_rate',
@@ -515,11 +514,11 @@ class Spreading(BindingBaseClass):
 
     n_binding_sites = RangedInteger(lb=2, ub=2, default=2)
 
-    adsorption_rate = DependentlySizedUnsignedList(dep='n_total_bound')
-    desorption_rate = DependentlySizedUnsignedList(dep='n_total_bound')
-    capacity = DependentlySizedUnsignedList(dep='n_total_bound')
-    exchange_from_1_2 = DependentlySizedUnsignedList(dep='n_comp')
-    exchange_from_2_1 = DependentlySizedUnsignedList(dep='n_comp')
+    adsorption_rate = SizedUnsignedList(size='n_total_bound')
+    desorption_rate = SizedUnsignedList(size='n_total_bound')
+    capacity = SizedUnsignedList(size='n_total_bound')
+    exchange_from_1_2 = SizedUnsignedList(size='n_comp')
+    exchange_from_2_1 = SizedUnsignedList(size='n_comp')
 
     _parameter_names = BindingBaseClass._parameter_names + [
         'adsorption_rate',
@@ -557,12 +556,12 @@ class MobilePhaseModulator(BindingBaseClass):
 
     """
 
-    adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
-    desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
-    capacity = DependentlySizedUnsignedList(dep='n_comp')
-    ion_exchange_characteristic = DependentlySizedUnsignedList(dep='n_comp')
+    adsorption_rate = SizedUnsignedList(size='n_comp')
+    desorption_rate = SizedUnsignedList(size='n_comp')
+    capacity = SizedUnsignedList(size='n_comp')
+    ion_exchange_characteristic = SizedUnsignedList(size='n_comp')
     beta = ion_exchange_characteristic
-    hydrophobicity = DependentlySizedUnsignedList(dep='n_comp')
+    hydrophobicity = SizedUnsignedList(size='n_comp')
     gamma = hydrophobicity
 
     _parameter_names = BindingBaseClass._parameter_names + [
@@ -604,14 +603,14 @@ class ExtendedMobilePhaseModulator(BindingBaseClass):
 
     """
 
-    adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
-    desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
-    capacity = DependentlySizedUnsignedList(dep='n_comp')
-    ion_exchange_characteristic = DependentlySizedUnsignedList(dep='n_comp')
+    adsorption_rate = SizedUnsignedList(size='n_comp')
+    desorption_rate = SizedUnsignedList(size='n_comp')
+    capacity = SizedUnsignedList(size='n_comp')
+    ion_exchange_characteristic = SizedUnsignedList(size='n_comp')
     beta = ion_exchange_characteristic
-    hydrophobicity = DependentlySizedUnsignedList(dep='n_comp')
+    hydrophobicity = SizedUnsignedList(size='n_comp')
     gamma = hydrophobicity
-    component_mode = DependentlySizedUnsignedList(dep='n_comp')
+    component_mode = SizedUnsignedList(size='n_comp')
 
     _parameter_names = BindingBaseClass._parameter_names + [
         'adsorption_rate',
@@ -658,11 +657,11 @@ class SelfAssociation(BindingBaseClass):
 
     """
 
-    adsorption_rate = DependentlySizedUnsignedList(dep='n_comp')
-    adsorption_rate_dimerization = DependentlySizedUnsignedList(dep='n_comp')
-    desorption_rate = DependentlySizedUnsignedList(dep='n_comp')
-    characteristic_charge = DependentlySizedUnsignedList(dep='n_comp')
-    steric_factor = DependentlySizedUnsignedList(dep='n_comp')
+    adsorption_rate = SizedUnsignedList(size='n_comp')
+    adsorption_rate_dimerization = SizedUnsignedList(size='n_comp')
+    desorption_rate = SizedUnsignedList(size='n_comp')
+    characteristic_charge = SizedUnsignedList(size='n_comp')
+    steric_factor = SizedUnsignedList(size='n_comp')
     capacity = UnsignedFloat()
     reference_liquid_phase_conc = UnsignedFloat(default=1.0)
     reference_solid_phase_conc = UnsignedFloat(default=1.0)
@@ -718,20 +717,14 @@ class BiStericMassAction(BindingBaseClass):
 
     n_binding_sites = UnsignedInteger(default=2)
 
-    adsorption_rate = DependentlySizedUnsignedList(dep='n_bound_states')
-    adsorption_rate_dimerization = DependentlySizedUnsignedList(
-        dep='n_bound_states'
-    )
-    desorption_rate = DependentlySizedUnsignedList(dep='n_bound_states')
-    characteristic_charge = DependentlySizedUnsignedList(dep='n_bound_states')
-    steric_factor = DependentlySizedUnsignedList(dep='n_bound_states')
-    capacity = DependentlySizedUnsignedList(dep='n_binding_sites')
-    reference_liquid_phase_conc = DependentlySizedUnsignedList(
-        dep='n_binding_sites', default=1
-    )
-    reference_solid_phase_conc = DependentlySizedUnsignedList(
-        dep='n_binding_sites', default=1
-    )
+    adsorption_rate = SizedUnsignedList(size='n_bound_states')
+    adsorption_rate_dimerization = SizedUnsignedList(size='n_bound_states')
+    desorption_rate = SizedUnsignedList(size='n_bound_states')
+    characteristic_charge = SizedUnsignedList(size='n_bound_states')
+    steric_factor = SizedUnsignedList(size='n_bound_states')
+    capacity = SizedUnsignedList(size='n_binding_sites')
+    reference_liquid_phase_conc = SizedUnsignedList(size='n_binding_sites', default=1)
+    reference_solid_phase_conc = SizedUnsignedList(size='n_binding_sites', default=1)
 
     _parameter_names = BindingBaseClass._parameter_names + [
         'adsorption_rate',
@@ -788,15 +781,15 @@ class MultistateStericMassAction(BindingBaseClass):
 
     """
 
-    bound_states = DependentlySizedUnsignedIntegerList(
-        dep=('n_binding_sites', 'n_comp'), default=1
+    bound_states = SizedUnsignedIntegerList(
+        size=('n_binding_sites', 'n_comp'), default=1
     )
 
-    adsorption_rate = DependentlySizedUnsignedList(dep='n_bound_states')
-    desorption_rate = DependentlySizedUnsignedList(dep='n_bound_states')
-    characteristic_charge = DependentlySizedUnsignedList(dep='n_bound_states')
-    steric_factor = DependentlySizedUnsignedList(dep='n_bound_states')
-    conversion_rate = DependentlySizedUnsignedList(dep='_conversion_entries')
+    adsorption_rate = SizedUnsignedList(size='n_bound_states')
+    desorption_rate = SizedUnsignedList(size='n_bound_states')
+    characteristic_charge = SizedUnsignedList(size='n_bound_states')
+    steric_factor = SizedUnsignedList(size='n_bound_states')
+    conversion_rate = SizedUnsignedList(size='_conversion_entries')
     capacity = UnsignedFloat()
     reference_liquid_phase_conc = UnsignedFloat(default=1)
     reference_solid_phase_conc = UnsignedFloat(default=1)
@@ -884,25 +877,25 @@ class SimplifiedMultistateStericMassAction(BindingBaseClass):
 
     """
 
-    bound_states = DependentlySizedUnsignedIntegerList(
-        dep=('n_binding_sites', 'n_comp'), default=1
+    bound_states = SizedUnsignedIntegerList(
+        size=('n_binding_sites', 'n_comp'), default=1
     )
 
-    adsorption_rate = DependentlySizedUnsignedList(dep='n_bound_states')
-    desorption_rate = DependentlySizedUnsignedList(dep='n_bound_states')
-    characteristic_charge_first = DependentlySizedUnsignedList(dep='n_comp')
-    characteristic_charge_last = DependentlySizedUnsignedList(dep='n_comp')
-    quadratic_modifiers_charge = DependentlySizedUnsignedList(dep='n_comp')
-    steric_factor_first = DependentlySizedUnsignedList(dep='n_comp')
-    steric_factor_last = DependentlySizedUnsignedList(dep='n_comp')
-    quadratic_modifiers_steric = DependentlySizedUnsignedList(dep='n_comp')
+    adsorption_rate = SizedUnsignedList(size='n_bound_states')
+    desorption_rate = SizedUnsignedList(size='n_bound_states')
+    characteristic_charge_first = SizedUnsignedList(size='n_comp')
+    characteristic_charge_last = SizedUnsignedList(size='n_comp')
+    quadratic_modifiers_charge = SizedUnsignedList(size='n_comp')
+    steric_factor_first = SizedUnsignedList(size='n_comp')
+    steric_factor_last = SizedUnsignedList(size='n_comp')
+    quadratic_modifiers_steric = SizedUnsignedList(size='n_comp')
     capacity = UnsignedFloat()
-    exchange_from_weak_stronger = DependentlySizedUnsignedList(dep='n_comp')
-    linear_exchange_ws = DependentlySizedUnsignedList(dep='n_comp')
-    quadratic_exchange_ws = DependentlySizedUnsignedList(dep='n_comp')
-    exchange_from_stronger_weak = DependentlySizedUnsignedList(dep='n_comp')
-    linear_exchange_sw = DependentlySizedUnsignedList(dep='n_comp')
-    quadratic_exchange_sw = DependentlySizedUnsignedList(dep='n_comp')
+    exchange_from_weak_stronger = SizedUnsignedList(size='n_comp')
+    linear_exchange_ws = SizedUnsignedList(size='n_comp')
+    quadratic_exchange_ws = SizedUnsignedList(size='n_comp')
+    exchange_from_stronger_weak = SizedUnsignedList(size='n_comp')
+    linear_exchange_sw = SizedUnsignedList(size='n_comp')
+    quadratic_exchange_sw = SizedUnsignedList(size='n_comp')
     reference_liquid_phase_conc = UnsignedFloat(default=1)
     reference_solid_phase_conc = UnsignedFloat(default=1)
 
@@ -956,8 +949,8 @@ class Saska(BindingBaseClass):
 
     """
 
-    henry_const = DependentlySizedUnsignedList(dep='n_comp')
-    quadratic_factor = DependentlySizedUnsignedList(dep=('n_comp', 'n_comp'))
+    henry_const = SizedUnsignedList(size='n_comp')
+    quadratic_factor = SizedUnsignedList(size=('n_comp', 'n_comp'))
 
     _parameter_names = BindingBaseClass._parameter_names + [
         'henry_const', 'quadratic_factor'
@@ -1027,52 +1020,24 @@ class GeneralizedIonExchange(BindingBaseClass):
 
     non_binding_component_indices = [1]
 
-    adsorption_rate = DependentlySizedList(dep='n_comp')
-    adsorption_rate_linear = DependentlySizedList(dep='n_comp')
-    adsorption_rate_quadratic = DependentlySizedList(
-        dep='n_comp', default=0
-    )
-    adsorption_rate_cubic = DependentlySizedList(
-        dep='n_comp', default=0
-    )
-    adsorption_rate_salt = DependentlySizedList(
-        dep='n_comp', default=0
-    )
-    adsorption_rate_protein = DependentlySizedList(
-        dep='n_comp', default=0
-    )
-    desorption_rate = DependentlySizedList(dep='n_comp')
-    desorption_rate_linear = DependentlySizedList(
-        dep='n_comp', default=0
-    )
-    desorption_rate_quadratic = DependentlySizedList(
-        dep='n_comp', default=0
-    )
-    desorption_rate_cubic = DependentlySizedList(
-        dep='n_comp', default=0
-    )
-    desorption_rate_salt = DependentlySizedList(
-        dep='n_comp', default=0
-    )
-    desorption_rate_protein = DependentlySizedList(
-        dep='n_comp', default=0
-    )
-    characteristic_charge_breaks = DependentlyModulatedUnsignedList(
-        dep='n_comp'
-    )
-    characteristic_charge = DependentlySizedList(
-        dep=('n_pieces', 'n_comp'),
-    )
-    characteristic_charge_linear = DependentlySizedList(
-        dep=('n_pieces', 'n_comp'), default=0
-    )
-    characteristic_charge_quadratic = DependentlySizedList(
-        dep=('n_pieces', 'n_comp'), default=0
-    )
-    characteristic_charge_cubic = DependentlySizedList(
-        dep=('n_pieces', 'n_comp'), default=0
-    )
-    steric_factor = DependentlySizedUnsignedList(dep='n_comp')
+    adsorption_rate = SizedList(size='n_comp')
+    adsorption_rate_linear = SizedList(size='n_comp')
+    adsorption_rate_quadratic = SizedList(size='n_comp', default=0)
+    adsorption_rate_cubic = SizedList(size='n_comp', default=0)
+    adsorption_rate_salt = SizedList(size='n_comp', default=0)
+    adsorption_rate_protein = SizedList(size='n_comp', default=0)
+    desorption_rate = SizedList(size='n_comp')
+    desorption_rate_linear = SizedList(size='n_comp', default=0)
+    desorption_rate_quadratic = SizedList(size='n_comp', default=0)
+    desorption_rate_cubic = SizedList(size='n_comp', default=0)
+    desorption_rate_salt = SizedList(size='n_comp', default=0)
+    desorption_rate_protein = SizedList(size='n_comp', default=0)
+    characteristic_charge_breaks = DependentlyModulatedUnsignedList(size='n_comp')
+    characteristic_charge = SizedList(size=('n_pieces', 'n_comp'),)
+    characteristic_charge_linear = SizedList(size=('n_pieces', 'n_comp'), default=0)
+    characteristic_charge_quadratic = SizedList(size=('n_pieces', 'n_comp'), default=0)
+    characteristic_charge_cubic = SizedList(size=('n_pieces', 'n_comp'), default=0)
+    steric_factor = SizedUnsignedList(size='n_comp')
     capacity = UnsignedFloat()
     reference_liquid_phase_conc = UnsignedFloat(default=1)
     reference_solid_phase_conc = UnsignedFloat(default=1)

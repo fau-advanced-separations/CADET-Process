@@ -37,7 +37,7 @@ class Section(metaclass=StructMeta):
 
     """
 
-    coeffs = NdPolynomial(dep=('n_entries', 'n_poly_coeffs'), default=0)
+    coeffs = NdPolynomial(size=('n_entries', 'n_poly_coeffs'), default=0)
 
     def __init__(self, start, end, coeffs, n_entries=None, degree=0):
         if n_entries is None:
