@@ -16,7 +16,7 @@ from CADETProcess.dataStructure import ParametersGroup
 from CADETProcess.dataStructure import (
     Bool, Switch,
     RangedInteger, UnsignedInteger, UnsignedFloat,
-    DependentlySizedRangedList
+    SizedRangedList
 )
 
 
@@ -334,7 +334,7 @@ class GRMDiscretizationFV(DiscretizationParametersBase):
         Discretization scheme inside the particles for all or each particle type.
         Valid values are 'EQUIDISTANT_PAR', 'EQUIVOLUME_PAR', and 'USER_DEFINED_PAR'.
         Default is 'EQUIDISTANT_PAR'.
-    par_disc_vector : DependentlySizedRangedList, optional
+    par_disc_vector : SizedRangedList, optional
         Node coordinates for the cell boundaries
         (ignored if `par_disc_type` != `USER_DEFINED_PAR).
         The coordinates are relative and have to include the endpoints `0` and `1`.
@@ -389,8 +389,8 @@ class GRMDiscretizationFV(DiscretizationParametersBase):
         default='EQUIDISTANT_PAR',
         valid=['EQUIDISTANT_PAR', 'EQUIVOLUME_PAR', 'USER_DEFINED_PAR']
     )
-    par_disc_vector = DependentlySizedRangedList(
-        lb=0, ub=1, dep='par_disc_vector_length'
+    par_disc_vector = SizedRangedList(
+        lb=0, ub=1, size='par_disc_vector_length'
     )
 
     par_boundary_order = RangedInteger(lb=1, ub=2, default=2)
@@ -494,8 +494,8 @@ class GRMDiscretizationDG(DGMixin):
         default='EQUIDISTANT_PAR',
         valid=['EQUIDISTANT_PAR', 'EQUIVOLUME_PAR', 'USER_DEFINED_PAR']
     )
-    par_disc_vector = DependentlySizedRangedList(
-        lb=0, ub=1, dep='par_disc_vector_length'
+    par_disc_vector = SizedRangedList(
+        lb=0, ub=1, size='par_disc_vector_length'
     )
 
     par_boundary_order = RangedInteger(lb=1, ub=2, default=2)
