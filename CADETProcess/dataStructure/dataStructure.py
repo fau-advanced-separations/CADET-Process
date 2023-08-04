@@ -1,3 +1,4 @@
+from abc import ABC
 from collections import OrderedDict
 from inspect import Parameter, Signature
 from functools import wraps
@@ -66,7 +67,7 @@ class StructMeta(type):
         return clsobj
 
 
-class Descriptor():
+class Descriptor(ABC):
     """Base class for descriptors.
 
     Descriptors are used to efficiently implement class attributes that
@@ -88,11 +89,17 @@ class Descriptor():
         pass
 
     def __get__(self, instance, cls):
-        if instance is None:
-            return self
         return instance.__dict__[self.name]
 
     def __set__(self, instance, value):
+        if value is None:
+            try:
+                del instance.__dict__[self.name]
+            except KeyError:
+                pass
+
+            return
+
         instance.__dict__[self.name] = value
 
     def __delete__(self, instance):
