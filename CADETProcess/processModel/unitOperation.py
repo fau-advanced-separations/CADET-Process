@@ -2,6 +2,8 @@ from abc import abstractmethod
 import math
 import warnings
 
+from prettytable import PrettyTable, MARKDOWN
+
 from CADETProcess import CADETProcessError
 
 from CADETProcess.dataStructure import frozen_attributes
@@ -370,8 +372,21 @@ class UnitBaseClass(Structure):
 
     def __str__(self):
         """str: String-representation of the object."""
+
         return self.name
 
+    def display_parameters(self):
+        table = PrettyTable()
+        table.set_style(MARKDOWN)
+
+        table.field_names = ["Parameter", "Value", "Unit", "Description"]
+
+        for param, value in self.parameters.items():
+            param_descriptor = getattr(type(self), param)
+            table.add_row(
+                [param, value, param_descriptor.unit, param_descriptor.description])
+
+        print(table)
 
 class SourceMixin(Structure):
     """Mixin class for Units that have Source-like behavior
