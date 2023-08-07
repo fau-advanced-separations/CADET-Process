@@ -1,4 +1,4 @@
-from abc import abstractproperty
+from abc import abstractmethod
 import math
 import warnings
 
@@ -488,7 +488,8 @@ class TubularReactorBase(UnitBaseClass):
         ['axial_dispersion', 'flow_direction']
     _required_parameters = ['length', 'axial_dispersion', 'diameter']
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def total_porosity(self):
         pass
 
