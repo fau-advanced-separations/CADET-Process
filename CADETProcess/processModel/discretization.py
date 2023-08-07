@@ -12,7 +12,7 @@ class for all other classes in this module and defines some common parameters.
 Specific parameters for each scheme are defined as attributes of each class.
 
 """
-from CADETProcess.dataStructure import ParametersGroup
+from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import (
     Bool, Switch,
     RangedInteger, UnsignedInteger, UnsignedFloat,
@@ -25,12 +25,12 @@ __all__ = [
     'LRMDiscretizationFV', 'LRMDiscretizationDG',
     'LRMPDiscretizationFV', 'LRMPDiscretizationDG',
     'GRMDiscretizationFV', 'GRMDiscretizationDG',
-    'WenoParameters', 'ConsistencySolverParametersGroup',
+    'WenoParameters', 'ConsistencySolverParameters',
     'DGMixin'
 ]
 
 
-class DiscretizationParametersBase(ParametersGroup):
+class DiscretizationParametersBase(Structure):
     """Base class for storing discretization parameters.
 
     Attributes
@@ -39,7 +39,7 @@ class DiscretizationParametersBase(ParametersGroup):
         Dimensionality of the parameters
     weno_parameters : WenoParameters
         Parameters for the WENO scheme.
-    consistency_solver: ConsistencySolverParametersGroup
+    consistency_solver: ConsistencySolverParameters
         Consistency solver parameters for Cadet.
 
     """
@@ -49,7 +49,9 @@ class DiscretizationParametersBase(ParametersGroup):
     def __init__(self):
         """Initialize a new DiscretizationParametersBase instance."""
         self.weno_parameters = WenoParameters()
-        self.consistency_solver = ConsistencySolverParametersGroup()
+        self.consistency_solver = ConsistencySolverParameters()
+
+        super().__init__()
 
     @property
     def dimensionality(self):
@@ -390,7 +392,7 @@ class GRMDiscretizationFV(DiscretizationParametersBase):
         valid=['EQUIDISTANT_PAR', 'EQUIVOLUME_PAR', 'USER_DEFINED_PAR']
     )
     par_disc_vector = SizedRangedList(
-        lb=0, ub=1, size='par_disc_vector_length'
+        lb=0, ub=1, size='par_disc_vector_length', is_optional=True
     )
 
     par_boundary_order = RangedInteger(lb=1, ub=2, default=2)
@@ -408,6 +410,13 @@ class GRMDiscretizationFV(DiscretizationParametersBase):
     _parameters = DiscretizationParametersBase._parameters + [
         'ncol', 'npar',
         'par_geom', 'par_disc_type', 'par_disc_vector', 'par_boundary_order',
+        'use_analytic_jacobian', 'reconstruction',
+        'gs_type', 'max_krylov', 'max_restarts', 'schur_safety',
+        'fix_zero_surface_diffusion',
+    ]
+    _required_parameters = [
+        'ncol', 'npar',
+        'par_geom', 'par_disc_type', 'par_boundary_order',
         'use_analytic_jacobian', 'reconstruction',
         'gs_type', 'max_krylov', 'max_restarts', 'schur_safety',
         'fix_zero_surface_diffusion',
@@ -544,7 +553,7 @@ class GRMDiscretizationDG(DGMixin):
         return self.npar + 1
 
 
-class WenoParameters(ParametersGroup):
+class WenoParameters(Structure):
     """Discretization parameters for the WENO scheme.
 
     Attributes
@@ -569,7 +578,7 @@ class WenoParameters(ParametersGroup):
 
     See Also
     --------
-    ParametersGroup
+    Structure
 
     """
 
@@ -579,7 +588,7 @@ class WenoParameters(ParametersGroup):
     _parameters = ['boundary_model', 'weno_eps', 'weno_order']
 
 
-class ConsistencySolverParametersGroup(ParametersGroup):
+class ConsistencySolverParameters(Structure):
     """A class for defining the consistency solver parameters for Cadet.
 
     Parameters
@@ -602,7 +611,7 @@ class ConsistencySolverParametersGroup(ParametersGroup):
 
     See Also
     --------
-    ParametersGroup
+    Structure
 
     """
 

@@ -20,7 +20,7 @@ from addict import Dict
 import numpy as np
 
 from CADETProcess import log
-from CADETProcess.dataStructure import StructMeta, UnsignedFloat
+from CADETProcess.dataStructure import Structure, UnsignedFloat
 from CADETProcess import SimulationResults
 from CADETProcess.comparison import Comparator
 from CADETProcess.processModel import Inlet
@@ -29,7 +29,7 @@ from CADETProcess.processModel import Inlet
 __all__ = ['RelativeArea', 'NRMSE', 'StationarityEvaluator']
 
 
-class CriterionBase(metaclass=StructMeta):
+class CriterionBase(Structure):
     threshold = UnsignedFloat(default=1e-3)
 
     def __str__(self):

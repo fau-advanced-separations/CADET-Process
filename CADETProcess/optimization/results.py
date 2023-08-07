@@ -12,7 +12,7 @@ import numpy as np
 
 from cadet import H5
 from CADETProcess import plotting
-from CADETProcess.dataStructure import StructMeta
+from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import (
     NdArray, String, UnsignedInteger, UnsignedFloat
 )
@@ -21,7 +21,7 @@ from CADETProcess import CADETProcessError
 from CADETProcess.optimization import Individual, Population, ParetoFront
 
 
-class OptimizationResults(metaclass=StructMeta):
+class OptimizationResults(Structure):
     """Optimization results.
 
     Attributes

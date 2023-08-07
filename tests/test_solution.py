@@ -80,14 +80,14 @@ solution_3_linear[500:701, 2] = np.linspace(1, 0, 201)
 q_const = np.ones(time.shape)
 
 q_interrupted = TimeLine()
-q_interrupted.add_section(Section(0, 30, [1, 0, 0, 0], is_polynomial=True))
-q_interrupted.add_section(Section(30, 40, [0, 0, 0, 0], is_polynomial=True))
-q_interrupted.add_section(Section(40, 100, [1, 0, 0, 0], is_polynomial=True))
+q_interrupted.add_section(Section(0, 30, [1, 0, 0, 0], n_entries=1, degree=3))
+q_interrupted.add_section(Section(30, 40, [0, 0, 0, 0], n_entries=1, degree=3))
+q_interrupted.add_section(Section(40, 100, [1, 0, 0, 0], n_entries=1, degree=3))
 
 q_linear = TimeLine()
-q_linear.add_section(Section(0, 35, [0, 0, 0, 0], is_polynomial=True))
-q_linear.add_section(Section(35, 45, [0, 1/10, 0, 0], is_polynomial=True))
-q_linear.add_section(Section(45, 100, [0, 0, 0, 0], is_polynomial=True))
+q_linear.add_section(Section(0, 35, [0, 0, 0, 0], n_entries=1, degree=3))
+q_linear.add_section(Section(35, 45, [0, 1/10, 0, 0], n_entries=1, degree=3))
+q_linear.add_section(Section(45, 100, [0, 0, 0, 0], n_entries=1, degree=3))
 
 
 class TestSolution(unittest.TestCase):

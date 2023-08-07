@@ -3,53 +3,7 @@ from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import frozen_attributes
 
 
-@frozen_attributes
-class ParametersGroup(Structure):
-    """Base class for grouping parameters and exporting them to a dict.
-
-    Attributes
-    ----------
-    _parameters : List of strings
-        List of parameters to be exported.
-
-    See Also
-    --------
-    Parameter
-    Descriptor
-    ParameterWrapper
-
-    """
-
-    _parameters = []
-
-    def to_dict(self):
-        """dict: Dictionary with names and values of the parameters."""
-        return {
-            param: getattr(self, param) for param in self._parameters
-            if getattr(self, param) is not None
-        }
-
-    @property
-    def parameters(self):
-        """dict: Dictionary with names and values of the parameters."""
-        return {
-            param: getattr(self, param) for param in self._parameters
-            if getattr(self, param) is not None
-        }
-
-    @parameters.setter
-    def parameters(self, parameters):
-        for param, value in parameters.items():
-            if param not in self._parameters:
-                raise CADETProcessError('Not a valid parameter')
-            if value is not None:
-                setattr(self, param, value)
-
-    def __repr__(self):
-        return str(self.to_dict())
-
-
-class ParameterWrapper(ParametersGroup):
+class ParameterWrapper():
     """Base class for converting the config from objects such as units.
 
     Attributes
@@ -63,12 +17,6 @@ class ParameterWrapper(ParametersGroup):
     ------
     CADETProcessError
         If the wrapped_object is no instance of the base_class.
-
-    See Also
-    --------
-    Parameter
-    Descriptor
-    ParametersGroup
 
     """
 
@@ -86,29 +34,8 @@ class ParameterWrapper(ParametersGroup):
 
         self._wrapped_object = wrapped_object
 
-    def to_dict(self):
-        """Return the parameters for the model and solver in a dictionary.
-
-        Defines the parameters for the model and solver and saves them into the
-        respective dictionary. The cadet_parameters are get by the
-        parameters_dict of the inherited functionality of the ParametersGroup.
-        The keys for the model_solver_parameters are get by the attributes of
-        the value of the wrapped_object, if they are not None. Both, the
-        solver_parameters and the model_solver_parameters are saved into the
-        parameters_dict.
-
-        Returns
-        -------
-        parameters_dict : dict
-            Dictionary, containing the attributes of each parameter from the
-            model_parameters and the cadet_parameters.
-
-        See Also
-        --------
-        ParametersGroup
-
-        """
-        solver_parameters = super().to_dict()
+    @property
+    def parameters(self):
         model_parameters = {}
 
         model_parameters[self._model_type] = self.model_parameters['name']
@@ -123,4 +50,4 @@ class ParameterWrapper(ParametersGroup):
                 value = self._wrapped_object.n_comp * value
             model_parameters[key] = value
 
-        return {**solver_parameters, **model_parameters}
+        return model_parameters

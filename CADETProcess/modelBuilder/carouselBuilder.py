@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from CADETProcess import CADETProcessError
 from CADETProcess import plotting
 
-from CADETProcess.dataStructure import StructMeta
+from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import Integer, UnsignedInteger, UnsignedFloat
 
 from CADETProcess.processModel import UnitBaseClass, FlowSheet, Process
@@ -18,7 +18,7 @@ from CADETProcess.solution import SolutionBase
 __all__ = ['CarouselBuilder', 'SerialZone', 'ParallelZone']
 
 
-class CarouselBuilder(metaclass=StructMeta):
+class CarouselBuilder(Structure):
     switch_time = UnsignedFloat()
 
     def __init__(self, component_system, name):

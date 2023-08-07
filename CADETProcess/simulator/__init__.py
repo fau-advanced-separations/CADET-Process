@@ -28,14 +28,14 @@ Futher settings:
 .. autosummary::
    :toctree: generated/
 
-   ModelSolverParametersGroup
-   UnitParametersGroup
-   AdsorptionParametersGroup
-   ReactionParametersGroup
-   SolverParametersGroup
-   SolverTimeIntegratorParametersGroup
-   ReturnParametersGroup
-   SensitivityParametersGroup
+   ModelSolverParameters
+   UnitParameters
+   AdsorptionParameters
+   ReactionParameters
+   SolverParameters
+   SolverTimeIntegratorParameters
+   ReturnParameters
+   SensitivityParameters
 
 
 SimulationResults

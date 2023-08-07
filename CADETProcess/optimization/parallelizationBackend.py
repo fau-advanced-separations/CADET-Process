@@ -25,8 +25,7 @@ class ParallelizationBackendBase(Structure):
 
     n_cores = RangedInteger(lb=-cpu_count, ub=cpu_count, default=1)
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    _parameters = ['n_cores']
 
     @property
     def _n_cores(self):
@@ -127,6 +126,7 @@ class Joblib(ParallelizationBackendBase):
     """
 
     verbose = UnsignedInteger(default=0)
+    _parameters = ['verbose']
 
     def evaluate(self, function: callable, population: Iterable) -> list:
         """Evaluate the function in parallalel for all individuals of the population.
