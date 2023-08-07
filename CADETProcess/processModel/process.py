@@ -482,9 +482,14 @@ class Process(EventHandler):
 
     @property
     def polynomial_parameters(self):
-        parameters = Dict()
+        parameters = super().polynomial_parameters
         parameters.flow_sheet = self.flow_sheet.polynomial_parameters
+        return parameters
 
+    @property
+    def sized_parameters(self):
+        parameters = super().sized_parameters
+        parameters.flow_sheet = self.flow_sheet.sized_parameters
         return parameters
 
     @property

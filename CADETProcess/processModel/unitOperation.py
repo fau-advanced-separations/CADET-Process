@@ -74,11 +74,9 @@ class UnitBaseClass(Structure):
     """
     name = String()
 
-    _parameter_names = []
+    _parameters = []
     _section_dependent_parameters = []
-    _polynomial_parameters = []
     _initial_state = []
-    _required_parameters = []
 
     supports_binding = False
     supports_bulk_reaction = False
@@ -97,11 +95,6 @@ class UnitBaseClass(Structure):
         self.discretization = NoDiscretization()
 
         self.solution_recorder = IORecorder()
-
-        self._parameters = {
-            param: getattr(self, param)
-            for param in self._parameter_names
-        }
 
         super().__init__(*args, **kwargs)
 
@@ -142,8 +135,7 @@ class UnitBaseClass(Structure):
 
     @property
     def parameters(self):
-        """dict: Dictionary with parameter values.
-        """
+        """dict: Dictionary with parameter values."""
         parameters = self._parameters
 
         if not isinstance(self.binding_model, NoBinding):
@@ -182,11 +174,7 @@ class UnitBaseClass(Structure):
         except KeyError:
             pass
 
-        for param, value in parameters.items():
-            if param not in self._parameters:
-                raise CADETProcessError('Not a valid parameter')
-            if value is not None:
-                setattr(self, param, value)
+        super(UnitBaseClass, self.__class__).parameters.fset(self, parameters)
 
     @property
     def section_dependent_parameters(self):
@@ -194,20 +182,7 @@ class UnitBaseClass(Structure):
             key: value for key, value in self.parameters.items()
             if key in self._section_dependent_parameters
         }
-
         return parameters
-
-    @property
-    def polynomial_parameters(self):
-        parameters = {
-            key: value for key, value in self.parameters.items()
-            if key in self._polynomial_parameters
-        }
-        return parameters
-
-    @property
-    def required_parameters(self):
-        return self._required_parameters
 
     @property
     def initial_state(self):
@@ -227,10 +202,7 @@ class UnitBaseClass(Structure):
 
     @property
     def missing_parameters(self):
-        missing_parameters = []
-        for param in self._required_parameters:
-            if getattr(self, param) is None:
-                missing_parameters.append(param)
+        missing_parameters = super().missing_parameters
 
         missing_parameters += [
             f'binding_model.{param}' for param in self.binding_model.missing_parameters
@@ -363,10 +335,9 @@ class SourceMixin(Structure):
 
     """
     _n_poly_coeffs = 4
-    _parameter_names = ['flow_rate']
     flow_rate = Polynomial(size=('_n_poly_coeffs'))
+    _parameters = ['flow_rate']
     _section_dependent_parameters = ['flow_rate']
-    _polynomial_parameters = ['flow_rate']
 
 
 class SinkMixin():
@@ -398,19 +369,11 @@ class Inlet(UnitBaseClass, SourceMixin):
     c = NdPolynomial(size=('n_comp', '_n_poly_coeffs'), default=0)
     flow_rate = Polynomial(size=('_n_poly_coeffs'), default=0)
     _n_poly_coeffs = 4
-    _parameter_names = \
-        UnitBaseClass._parameter_names + \
-        SourceMixin._parameter_names + \
-        ['c']
+    _parameters = ['c']
     _section_dependent_parameters = \
         UnitBaseClass._section_dependent_parameters + \
         SourceMixin._section_dependent_parameters + \
         ['c']
-    _polynomial_parameters = \
-        UnitBaseClass._polynomial_parameters + \
-        SourceMixin._polynomial_parameters + \
-        ['c']
-    _required_parameters = ['flow_rate']
 
 
 class Outlet(UnitBaseClass, SinkMixin):
@@ -463,14 +426,10 @@ class TubularReactorBase(UnitBaseClass):
     axial_dispersion = UnsignedFloat()
     flow_direction = Switch(valid=[-1, 1], default=1)
     _initial_state = UnitBaseClass._initial_state + ['c']
-    _parameter_names = UnitBaseClass._parameter_names + [
-        'length', 'diameter',
-        'axial_dispersion', 'flow_direction'
-    ]
+    _parameters = ['length', 'diameter', 'axial_dispersion', 'flow_direction']
     _section_dependent_parameters = \
         UnitBaseClass._section_dependent_parameters + \
         ['axial_dispersion', 'flow_direction']
-    _required_parameters = ['length', 'axial_dispersion', 'diameter']
 
     @property
     @abstractmethod
@@ -704,8 +663,8 @@ class TubularReactor(TubularReactorBase):
     total_porosity = Constant(1)
 
     c = SizedList(size='n_comp', default=0)
-    _initial_state = UnitBaseClass._initial_state + ['c']
-    _parameter_names = TubularReactorBase._parameter_names + _initial_state
+    _initial_state = ['c']
+    _parameters = ['c']
 
     def __init__(self, *args, discretization_scheme='FV', **kwargs):
         super().__init__(*args, **kwargs)
@@ -745,15 +704,13 @@ class LumpedRateModelWithoutPores(TubularReactorBase):
     discretization_schemes = (LRMDiscretizationFV, LRMDiscretizationDG)
 
     total_porosity = UnsignedFloat(ub=1)
-    _parameter_names = TubularReactorBase._parameter_names + [
-        'total_porosity'
-    ]
-    _required_parameters = TubularReactorBase._required_parameters + ['total_porosity']
+    _parameters = ['total_porosity']
 
     c = SizedList(size='n_comp', default=0)
     _q = SizedUnsignedList(size='n_bound_states', default=0)
     _initial_state = TubularReactorBase._initial_state + ['q']
-    _parameter_names = _parameter_names + _initial_state
+
+    _parameters = _parameters + _initial_state
 
     def __init__(self, *args, discretization_scheme='FV', **kwargs):
         super().__init__(*args, **kwargs)
@@ -811,24 +768,26 @@ class LumpedRateModelWithPores(TubularReactorBase):
     bed_porosity = UnsignedFloat(ub=1)
     particle_porosity = UnsignedFloat(ub=1)
     particle_radius = UnsignedFloat()
-    _parameter_names = TubularReactorBase._parameter_names + [
     film_diffusion = SizedUnsignedList(size='n_comp')
     pore_accessibility = SizedUnsignedList(size='n_comp')
-            'bed_porosity', 'particle_porosity', 'particle_radius',
-            'film_diffusion'
-            ]
-    _section_dependent_parameters = \
-        TubularReactorBase._section_dependent_parameters + ['film_diffusion']
-    _required_parameters = TubularReactorBase._required_parameters + [
-        'bed_porosity', 'particle_porosity', 'particle_radius', 'film_diffusion'
+    _parameters = [
+        'bed_porosity',
+        'particle_porosity',
+        'particle_radius',
+        'film_diffusion',
     ]
+
+    _section_dependent_parameters = \
+        UnitBaseClass._section_dependent_parameters + \
+        TubularReactorBase._section_dependent_parameters + \
+        ['film_diffusion']
 
     c = SizedList(size='n_comp', default=0)
     _cp = SizedUnsignedList(size='n_comp')
     _q = SizedUnsignedList(size='n_bound_states', default=0)
 
-    _initial_state = TubularReactorBase._initial_state + ['cp', 'q']
-    _parameter_names = _parameter_names + _initial_state
+    _initial_state = ['cp', 'q']
+    _parameters = _parameters + _initial_state
 
     def __init__(self, *args, discretization_scheme='FV', **kwargs):
         super().__init__(*args, **kwargs)
@@ -842,8 +801,7 @@ class LumpedRateModelWithPores(TubularReactorBase):
 
     @property
     def total_porosity(self):
-        """float: Total porosity of the column
-        """
+        """float: Total porosity of the column."""
         return self.bed_porosity + \
             (1 - self.bed_porosity) * self.particle_porosity
 
@@ -943,30 +901,25 @@ class GeneralRateModel(TubularReactorBase):
     bed_porosity = UnsignedFloat(ub=1)
     particle_porosity = UnsignedFloat(ub=1)
     particle_radius = UnsignedFloat()
-    _parameter_names = \
-        TubularReactorBase._parameter_names + \
     film_diffusion = SizedUnsignedList(size='n_comp')
     pore_diffusion = SizedUnsignedList(size='n_comp')
     _surface_diffusion = SizedUnsignedList(size='n_bound_states')
     pore_accessibility = SizedUnsignedList(size='n_comp')
-        [
-            'bed_porosity', 'particle_porosity', 'particle_radius',
-            'film_diffusion', 'pore_diffusion', 'surface_diffusion'
-        ]
-    _section_dependent_parameters = \
-        TubularReactorBase._section_dependent_parameters + \
-        ['film_diffusion', 'pore_diffusion', 'surface_diffusion']
-    _required_parameters = TubularReactorBase._required_parameters + [
-        'bed_porosity', 'particle_porosity', 'particle_radius', 'film_diffusion',
-        'pore_diffusion'
+    _parameters = [
+        'bed_porosity', 'particle_porosity', 'particle_radius',
+        'film_diffusion', 'pore_diffusion', 'surface_diffusion'
     ]
+    _section_dependent_parameters = \
+        UnitBaseClass._section_dependent_parameters + \
+        TubularReactorBase._section_dependent_parameters + \
+        ['film_diffusion']
 
     c = SizedList(size='n_comp', default=0)
     _cp = SizedUnsignedList(size='n_comp')
     _q = SizedUnsignedList(size='n_bound_states', default=0)
+    _initial_state = ['cp', 'q']
 
-    _initial_state = TubularReactorBase._initial_state + ['cp', 'q']
-    _parameter_names = _parameter_names + _initial_state
+    _parameters = _parameters + _initial_state
 
     def __init__(self, *args, discretization_scheme='FV', **kwargs):
         super().__init__(*args, **kwargs)
@@ -1073,7 +1026,7 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         Initial volume of the reactor.
     total_porosity : UnsignedFloat between 0 and 1.
         Total porosity of the column.
-    flow_rate_filter: float:
+    flow_rate_filter: float
         Flow rate of pure liquid without components to reduce volume.
     solution_recorder : CSTRRecorder
         Solution recorder for the unit operation.
@@ -1085,31 +1038,33 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
 
     porosity = UnsignedFloat(ub=1, default=1)
     flow_rate_filter = UnsignedFloat(default=0)
-    _parameter_names = \
-        UnitBaseClass._parameter_names + \
-        SourceMixin._parameter_names + \
-        ['porosity', 'flow_rate_filter']
+    _parameters = ['porosity', 'flow_rate_filter']
+
     _section_dependent_parameters = \
         UnitBaseClass._section_dependent_parameters + \
         SourceMixin._section_dependent_parameters + \
         ['flow_rate_filter']
-    _polynomial_parameters = \
-        UnitBaseClass._polynomial_parameters + \
-        SourceMixin._polynomial_parameters + \
-        ['flow_rate_filter']
-    _required_parameters = UnitBaseClass._required_parameters + ['V']
 
     c = SizedList(size='n_comp', default=0)
     _q = SizedUnsignedList(size='n_bound_states', default=0)
     V = UnsignedFloat()
-    _initial_state = \
-        UnitBaseClass._initial_state + \
-        ['c', 'q', 'V']
-    _parameter_names = _parameter_names + _initial_state
+    _initial_state = ['c', 'q', 'V']
+    _parameters = _parameters + _initial_state
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.solution_recorder = CSTRRecorder()
+
+    @property
+    def required_parameters(self):
+        """
+        Remove 'flow_rate' from required parameters.
+
+        If flow rate is None, Q_in == Q_out'.
+        """
+        required_parameters = super().required_parameters.copy()
+        required_parameters.remove('flow_rate')
+        return required_parameters
 
     @property
     def volume(self):

@@ -34,7 +34,7 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import PchipInterpolator
 from scipy import integrate
 
-from CADETProcess.dataStructure import StructMeta
+from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import (
     String, UnsignedInteger, UnsignedFloat, Vector, SizedNdArray
 )
@@ -59,7 +59,7 @@ __all__ = [
 ]
 
 
-class SolutionBase(metaclass=StructMeta):
+class SolutionBase(Structure):
     """Base class for solutions of component systems.
 
     This class represents a solution of a component system at different time points.

@@ -215,6 +215,8 @@ class Test_Unit_Operation(unittest.TestCase):
             poly_parameters, cstr.polynomial_parameters
         )
 
+        self.assertEqual(cstr.required_parameters, ['V'])
+
 
 if __name__ == '__main__':
     unittest.main()

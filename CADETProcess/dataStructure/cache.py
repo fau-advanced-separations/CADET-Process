@@ -1,4 +1,4 @@
-from .dataStructure import StructMeta
+from .dataStructure import Structure
 from .parameter import Bool
 
 
@@ -22,7 +22,7 @@ class cached_property_if_locked(property):
         return self.fget.__name__
 
 
-class CachedPropertiesMixin(metaclass=StructMeta):
+class CachedPropertiesMixin(Structure):
     lock = Bool(default=False)
 
     def __init__(self, *args, **kwargs):

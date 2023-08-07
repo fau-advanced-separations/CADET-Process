@@ -4,7 +4,7 @@ from addict import Dict
 import numpy as np
 
 from CADETProcess import CADETProcessError
-from CADETProcess.dataStructure import StructMeta
+from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import Float, Vector
 
 
@@ -31,7 +31,7 @@ def hash_array(array):
     return hashlib.sha256(array.tobytes()).hexdigest()
 
 
-class Individual(metaclass=StructMeta):
+class Individual(Structure):
     """Set of variables evaluated during Optimization.
 
     Attributes

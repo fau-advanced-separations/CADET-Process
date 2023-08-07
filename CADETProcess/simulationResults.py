@@ -23,7 +23,7 @@ import addict
 
 from CADETProcess import CADETProcessError
 from CADETProcess import settings
-from CADETProcess.dataStructure import StructMeta
+from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import (
     Dict, String, List, UnsignedInteger, UnsignedFloat
 )
@@ -32,7 +32,7 @@ from CADETProcess.dataStructure import (
 __all__ = ['SimulationResults']
 
 
-class SimulationResults(metaclass=StructMeta):
+class SimulationResults(Structure):
     """Class for storing simulation results including the solver configuration
 
     Attributes

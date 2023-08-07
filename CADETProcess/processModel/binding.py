@@ -76,17 +76,11 @@ class BindingBaseClass(Structure):
     )
     non_binding_component_indices = []
 
-    _parameter_names = ['is_kinetic']
-    _required_parameters = []
+    _parameters = ['is_kinetic']
 
     def __init__(self, component_system, name=None, *args, **kwargs):
         self.component_system = component_system
         self.name = name
-
-        self._parameters = {
-            param: getattr(self, param)
-            for param in self._parameter_names
-        }
 
         super().__init__(*args, **kwargs)
 
@@ -129,53 +123,6 @@ class BindingBaseClass(Structure):
     def n_bound_states(self):
         return sum(self.bound_states)
 
-    @property
-    def parameters(self):
-        """dict: Dictionary with parameter values."""
-        return self._parameters
-
-    @parameters.setter
-    def parameters(self, parameters):
-        for param, value in parameters.items():
-            if param not in self._parameters:
-                raise CADETProcessError('Not a valid parameter')
-            setattr(self, param, value)
-
-    @property
-    def required_parameters(self):
-        return self._required_parameters
-
-    @property
-    def missing_parameters(self):
-        """list: List of missing parameters."""
-        missing_parameters = []
-        for param in self.required_parameters:
-            if getattr(self, param) is None:
-                missing_parameters.append(param)
-
-        return missing_parameters
-
-    def check_required_parameters(self):
-        """Check if al required parameters are set.
-
-        Returns
-        -------
-        bool
-            True if all parameters are set. False otherwise.
-
-        Raises
-        ------
-        Warning
-            If any required parameters are missing.
-
-        """
-        if len(self.missing_parameters) == 0:
-            return True
-        else:
-            for param in self.missing_parameters:
-                warn(f'Binding Model {self.name}: Missing parameter "{param}".')
-            return False
-
     def __repr__(self):
         return f"{self.__class__.__name__}(\
             component_system={self.component_system}, name={self.name})')"
@@ -212,8 +159,9 @@ class Linear(BindingBaseClass):
     adsorption_rate = SizedUnsignedList(size='n_comp')
     desorption_rate = SizedUnsignedList(size='n_comp')
 
-    _parameter_names = BindingBaseClass._parameter_names + [
-        'adsorption_rate', 'desorption_rate'
+    _parameters = [
+        'adsorption_rate',
+        'desorption_rate',
     ]
 
 
@@ -235,11 +183,10 @@ class Langmuir(BindingBaseClass):
     desorption_rate = SizedUnsignedList(size='n_comp')
     capacity = SizedUnsignedList(size='n_comp')
 
-    _parameter_names = BindingBaseClass._parameter_names + [
-        'adsorption_rate', 'desorption_rate', 'capacity'
-    ]
-    _required_parameters = BindingBaseClass._required_parameters + [
-        'adsorption_rate', 'desorption_rate', 'capacity'
+    _parameters = [
+        'adsorption_rate',
+        'desorption_rate',
+        'capacity',
     ]
 
 
@@ -261,12 +208,7 @@ class LangmuirLDF(BindingBaseClass):
     driving_force_coefficient = SizedUnsignedList(size='n_comp')
     capacity = SizedUnsignedList(size='n_comp')
 
-    _parameter_names = BindingBaseClass._parameter_names + [
-        'equilibrium_constant',
-        'driving_force_coefficient',
-        'capacity',
-    ]
-    _required_parameters = BindingBaseClass._required_parameters + [
+    _parameters = [
         'equilibrium_constant',
         'driving_force_coefficient',
         'capacity',
@@ -293,12 +235,7 @@ class BiLangmuir(BindingBaseClass):
     desorption_rate = SizedUnsignedList(size='n_bound_states')
     capacity = SizedUnsignedList(size='n_bound_states')
 
-    _parameter_names = BindingBaseClass._parameter_names + [
-        'adsorption_rate',
-        'desorption_rate',
-        'capacity',
-    ]
-    _required_parameters = BindingBaseClass._required_parameters + [
+    _parameters = [
         'adsorption_rate',
         'desorption_rate',
         'capacity',
@@ -330,12 +267,7 @@ class BiLangmuirLDF(BindingBaseClass):
     driving_force_coefficient = SizedUnsignedList(size='n_bound_states')
     capacity = SizedUnsignedList(size='n_bound_states')
 
-    _parameter_names = BindingBaseClass._parameter_names + [
-        'equilibrium_constant',
-        'driving_force_coefficient',
-        'capacity',
-    ]
-    _required_parameters = BindingBaseClass._required_parameters + [
+    _parameters = [
         'equilibrium_constant',
         'driving_force_coefficient',
         'capacity',
@@ -365,12 +297,7 @@ class FreundlichLDF(BindingBaseClass):
     freundlich_coefficient = SizedUnsignedList(size='n_comp')
     exponent = SizedUnsignedList(size='n_comp')
 
-    _parameter_names = BindingBaseClass._parameter_names + [
-        'driving_force_coefficient',
-        'freundlich_coefficient',
-        'exponent',
-    ]
-    _required_parameters = BindingBaseClass._required_parameters + [
+    _parameters = [
         'driving_force_coefficient',
         'freundlich_coefficient',
         'exponent',
@@ -413,7 +340,7 @@ class StericMassAction(BindingBaseClass):
     reference_liquid_phase_conc = UnsignedFloat(default=1.0)
     reference_solid_phase_conc = UnsignedFloat(default=1.0)
 
-    _parameter_names = BindingBaseClass._parameter_names + [
+    _parameters = [
         'adsorption_rate',
         'desorption_rate',
         'characteristic_charge',
@@ -421,13 +348,6 @@ class StericMassAction(BindingBaseClass):
         'capacity',
         'reference_liquid_phase_conc',
         'reference_solid_phase_conc'
-    ]
-    _required_parameters = BindingBaseClass._required_parameters + [
-        'adsorption_rate',
-        'desorption_rate',
-        'characteristic_charge',
-        'steric_factor',
-        'capacity',
     ]
 
     @property
@@ -480,13 +400,7 @@ class AntiLangmuir(BindingBaseClass):
     capacity = SizedUnsignedList(size='n_comp')
     antilangmuir = SizedUnsignedList(size='n_comp')
 
-    _parameter_names = BindingBaseClass._parameter_names + [
-        'adsorption_rate',
-        'desorption_rate',
-        'capacity',
-        'antilangmuir'
-    ]
-    _required_parameters = BindingBaseClass._required_parameters + [
+    _parameters = [
         'adsorption_rate',
         'desorption_rate',
         'capacity',
@@ -520,18 +434,9 @@ class Spreading(BindingBaseClass):
     exchange_from_1_2 = SizedUnsignedList(size='n_comp')
     exchange_from_2_1 = SizedUnsignedList(size='n_comp')
 
-    _parameter_names = BindingBaseClass._parameter_names + [
+    _parameters = [
         'adsorption_rate',
         'desorption_rate',
-        'activation_temp',
-        'capacity',
-        'exchange_from_1_2',
-        'exchange_from_2_1'
-    ]
-    _required_parameters = BindingBaseClass._required_parameters + [
-        'adsorption_rate',
-        'desorption_rate',
-        'activation_temp',
         'capacity',
         'exchange_from_1_2',
         'exchange_from_2_1'
@@ -564,14 +469,7 @@ class MobilePhaseModulator(BindingBaseClass):
     hydrophobicity = SizedUnsignedList(size='n_comp')
     gamma = hydrophobicity
 
-    _parameter_names = BindingBaseClass._parameter_names + [
-        'adsorption_rate',
-        'desorption_rate',
-        'capacity',
-        'ion_exchange_characteristic',
-        'hydrophobicity',
-    ]
-    _required_parameters = BindingBaseClass._required_parameters + [
+    _parameters = [
         'adsorption_rate',
         'desorption_rate',
         'capacity',
@@ -612,15 +510,7 @@ class ExtendedMobilePhaseModulator(BindingBaseClass):
     gamma = hydrophobicity
     component_mode = SizedUnsignedList(size='n_comp')
 
-    _parameter_names = BindingBaseClass._parameter_names + [
-        'adsorption_rate',
-        'desorption_rate',
-        'capacity',
-        'ion_exchange_characteristic',
-        'hydrophobicity',
-        'component_mode',
-    ]
-    _required_parameters = BindingBaseClass._required_parameters + [
+    _parameters = [
         'adsorption_rate',
         'desorption_rate',
         'capacity',
@@ -666,7 +556,7 @@ class SelfAssociation(BindingBaseClass):
     reference_liquid_phase_conc = UnsignedFloat(default=1.0)
     reference_solid_phase_conc = UnsignedFloat(default=1.0)
 
-    _parameter_names = BindingBaseClass._parameter_names + [
+    _parameters = [
         'adsorption_rate',
         'adsorption_rate_dimerization',
         'desorption_rate',
@@ -675,14 +565,6 @@ class SelfAssociation(BindingBaseClass):
         'capacity',
         'reference_liquid_phase_conc',
         'reference_solid_phase_conc'
-    ]
-    _required_parameters = BindingBaseClass._required_parameters + [
-        'adsorption_rate',
-        'adsorption_rate_dimerization',
-        'desorption_rate',
-        'characteristic_charge',
-        'steric_factor',
-        'capacity',
     ]
 
 
@@ -726,7 +608,7 @@ class BiStericMassAction(BindingBaseClass):
     reference_liquid_phase_conc = SizedUnsignedList(size='n_binding_sites', default=1)
     reference_solid_phase_conc = SizedUnsignedList(size='n_binding_sites', default=1)
 
-    _parameter_names = BindingBaseClass._parameter_names + [
+    _parameters = [
         'adsorption_rate',
         'desorption_rate',
         'characteristic_charge',
@@ -734,13 +616,6 @@ class BiStericMassAction(BindingBaseClass):
         'capacity',
         'reference_liquid_phase_conc',
         'reference_solid_phase_conc'
-    ]
-    _required_parameters = BindingBaseClass._required_parameters + [
-        'adsorption_rate',
-        'desorption_rate',
-        'characteristic_charge',
-        'steric_factor',
-        'capacity',
     ]
 
     def __init__(self, *args, n_states=2, **kwargs):
@@ -794,7 +669,7 @@ class MultistateStericMassAction(BindingBaseClass):
     reference_liquid_phase_conc = UnsignedFloat(default=1)
     reference_solid_phase_conc = UnsignedFloat(default=1)
 
-    _parameter_names = BindingBaseClass._parameter_names + [
+    _parameters = [
         'adsorption_rate',
         'desorption_rate',
         'characteristic_charge',
@@ -803,14 +678,6 @@ class MultistateStericMassAction(BindingBaseClass):
         'capacity',
         'reference_liquid_phase_conc',
         'reference_solid_phase_conc'
-    ]
-    _required_parameters = BindingBaseClass._required_parameters + [
-        'adsorption_rate',
-        'desorption_rate',
-        'characteristic_charge',
-        'steric_factor',
-        'conversion_rate',
-        'capacity',
     ]
 
     @property
@@ -899,7 +766,7 @@ class SimplifiedMultistateStericMassAction(BindingBaseClass):
     reference_liquid_phase_conc = UnsignedFloat(default=1)
     reference_solid_phase_conc = UnsignedFloat(default=1)
 
-    _parameter_names = BindingBaseClass._parameter_names + [
+    _parameters = [
         'adsorption_rate',
         'desorption_rate',
         'characteristic_charge_first',
@@ -918,23 +785,6 @@ class SimplifiedMultistateStericMassAction(BindingBaseClass):
         'reference_liquid_phase_conc',
         'reference_solid_phase_conc'
     ]
-    _required_parameters = BindingBaseClass._required_parameters + [
-        'adsorption_rate',
-        'desorption_rate',
-        'characteristic_charge_first',
-        'characteristic_charge_last',
-        'quadratic_modifiers_charge',
-        'steric_factor_first',
-        'steric_factor_last',
-        'quadratic_modifiers_steric',
-        'capacity',
-        'exchange_from_weak_stronger',
-        'linear_exchange_ws',
-        'quadratic_exchange_ws',
-        'exchange_from_stronger_weak',
-        'linear_exchange_sw',
-        'quadratic_exchange_sw',
-    ]
 
 
 class Saska(BindingBaseClass):
@@ -952,11 +802,9 @@ class Saska(BindingBaseClass):
     henry_const = SizedUnsignedList(size='n_comp')
     quadratic_factor = SizedUnsignedList(size=('n_comp', 'n_comp'))
 
-    _parameter_names = BindingBaseClass._parameter_names + [
-        'henry_const', 'quadratic_factor'
-    ]
-    _required_parameters = BindingBaseClass._required_parameters + [
-        'henry_const', 'quadratic_factor'
+    _parameters = [
+        'henry_const',
+        'quadratic_factor',
     ]
 
 
@@ -1042,7 +890,7 @@ class GeneralizedIonExchange(BindingBaseClass):
     reference_liquid_phase_conc = UnsignedFloat(default=1)
     reference_solid_phase_conc = UnsignedFloat(default=1)
 
-    _parameter_names = BindingBaseClass._parameter_names + [
+    _parameters = [
         'adsorption_rate',
         'adsorption_rate_linear',
         'adsorption_rate_quadratic',
@@ -1064,13 +912,6 @@ class GeneralizedIonExchange(BindingBaseClass):
         'capacity',
         'reference_liquid_phase_conc',
         'reference_solid_phase_conc',
-    ]
-    _required_parameters = BindingBaseClass._required_parameters + [
-        'adsorption_rate',
-        'desorption_rate',
-        'characteristic_charge',
-        'steric_factor',
-        'capacity',
     ]
 
     @property

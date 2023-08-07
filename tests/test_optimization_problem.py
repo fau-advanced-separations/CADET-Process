@@ -7,6 +7,9 @@ from addict import Dict
 import numpy as np
 
 from CADETProcess import settings
+from CADETProcess.dataStructure import (
+    Structure, Float, SizedList, Polynomial, NdPolynomial
+)
 from CADETProcess.optimization import OptimizationProblem
 from tests.optimization_problem_fixtures import (
     LinearConstraintsSooTestProblem2,
@@ -14,34 +17,19 @@ from tests.optimization_problem_fixtures import (
 )
 
 
-class EvaluationObject():
+class EvaluationObject(Structure):
+    scalar_param = Float(default=1)
+    list_param = SizedList(size=2, default=[1, 2])
+    polynomial_param = Polynomial(n_coeff=2, default=0)
+    polynomial_param = Polynomial(n_coeff=2)
+
+    _parameters = ['scalar_param', 'list_param', 'polynomial_param']
+
     def __init__(self, name='Dummy'):
         self.name = name
-        self.dummy_parameter = 1
-        self.component_parameter = [1, 2]
-        self.polynomial_parameter = [1, 1]
 
     def __str__(self):
         return self.name
-
-    @property
-    def parameters(self):
-        return {
-            'dummy_parameter': self.dummy_parameter,
-            'component_parameter': self.component_parameter,
-            'polynomial_parameter': self.polynomial_parameter,
-        }
-
-    @property
-    def polynomial_parameters(self):
-        return {
-            'polynomial_parameter': self.polynomial_parameter,
-        }
-
-    @parameters.setter
-    def parameters(self, parameters):
-        for key, value in parameters.items():
-            setattr(self, key, value)
 
 
 class Evaluator(ABC):
