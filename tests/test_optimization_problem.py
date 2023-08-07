@@ -7,6 +7,9 @@ from addict import Dict
 import numpy as np
 
 from CADETProcess import settings
+from CADETProcess.dataStructure import (
+    Structure, Float, SizedList, Polynomial, NdPolynomial
+)
 from CADETProcess.optimization import OptimizationProblem
 from tests.optimization_problem_fixtures import (
     LinearConstraintsSooTestProblem2,
@@ -14,34 +17,20 @@ from tests.optimization_problem_fixtures import (
 )
 
 
-class EvaluationObject():
+class EvaluationObject(Structure):
+    scalar_param = Float(default=1)
+    list_param = SizedList(size=2, default=[1, 2])
+    polynomial_param = Polynomial(n_coeff=2, default=0)
+    polynomial_param = Polynomial(n_coeff=2)
+
+    _parameters = ['scalar_param', 'list_param', 'polynomial_param']
+
     def __init__(self, name='Dummy'):
         self.name = name
-        self.dummy_parameter = 1
-        self.component_parameter = [1, 2]
-        self.polynomial_parameter = [1, 1]
+        super().__init__()
 
     def __str__(self):
         return self.name
-
-    @property
-    def parameters(self):
-        return {
-            'dummy_parameter': self.dummy_parameter,
-            'component_parameter': self.component_parameter,
-            'polynomial_parameter': self.polynomial_parameter,
-        }
-
-    @property
-    def polynomial_parameters(self):
-        return {
-            'polynomial_parameter': self.polynomial_parameter,
-        }
-
-    @parameters.setter
-    def parameters(self, parameters):
-        for key, value in parameters.items():
-            setattr(self, key, value)
 
 
 class Evaluator(ABC):
@@ -63,7 +52,7 @@ class ExpensiveEvaluator(Evaluator):
         print('Run expensive evaluator; this takes forever...')
 
         expensive_results = Dict()
-        expensive_results.result = np.array(2*[evaluation_object.dummy_parameter])
+        expensive_results.result = np.array(2*[evaluation_object.scalar_param])
 
         time.sleep(1)
 
@@ -113,45 +102,45 @@ class Test_OptimizationVariable(unittest.TestCase):
 
     def test_component_index(self):
         var = OptimizationVariable(
-            'component_parameter',
+            'list_param',
             evaluation_objects=[self.evaluation_object],
-            parameter_path='dummy_parameter',
+            parameter_path='list_param',
         )
         with self.assertRaises(CADETProcessError):
             var = OptimizationVariable(
-                'dummy_parameter',
+                'scalar_param',
                 evaluation_objects=[self.evaluation_object],
-                parameter_path='dummy_parameter',
+                parameter_path='scalar_param',
                 component_index=1
             )
 
     def test_polynomial_index(self):
         var = OptimizationVariable(
-            'dummy_parameter',
+            'scalar_param',
             evaluation_objects=[self.evaluation_object],
-            parameter_path='polynomial_parameter',
+            parameter_path='polynomial_param',
         )
         with self.assertRaises(CADETProcessError):
             var = OptimizationVariable(
-                'dummy_parameter',
+                'scalar_param',
                 evaluation_objects=[self.evaluation_object],
-                parameter_path='dummy_parameter',
+                parameter_path='scalar_param',
                 polynomial_index=1
             )
 
     def test_transform(self):
         var = OptimizationVariable(
-            'dummy_parameter',
+            'scalar_param',
             evaluation_objects=[self.evaluation_object],
-            parameter_path='dummy_parameter',
+            parameter_path='scalar_param',
         )
 
         # Missing bounds
         with self.assertRaises(CADETProcessError):
             var = OptimizationVariable(
-                'dummy_parameter',
+                'scalar_param',
                 evaluation_objects=[self.evaluation_object],
-                parameter_path='dummy_parameter',
+                parameter_path='scalar_param',
                 transform='auto'
             )
 
@@ -593,8 +582,8 @@ class Test_OptimizationProblemEvaluator(unittest.TestCase):
 
         optimization_problem.add_evaluation_object(eval_obj)
 
-        optimization_problem.add_variable('dummy_parameter')
-        optimization_problem.add_variable('component_parameter', lb=0, ub=10)
+        optimization_problem.add_variable('scalar_param')
+        optimization_problem.add_variable('list_param', lb=0, ub=10)
 
         self.optimization_problem = optimization_problem
 
@@ -602,11 +591,11 @@ class Test_OptimizationProblemEvaluator(unittest.TestCase):
             return var
 
         optimization_problem.add_variable_dependency(
-            'component_parameter', 'dummy_parameter', copy_var
+            'list_param', 'scalar_param', copy_var
         )
 
     def test_variable_names(self):
-        names_expected = ['dummy_parameter', 'component_parameter']
+        names_expected = ['scalar_param', 'list_param']
         names = self.optimization_problem.variable_names
         self.assertEqual(names_expected, names)
 
@@ -618,7 +607,7 @@ class Test_OptimizationProblemEvaluator(unittest.TestCase):
         self.optimization_problem.add_variable(
             'bar', evaluation_objects=None, lb=0, ub=1
         )
-        names_expected = ['dummy_parameter', 'component_parameter', 'bar']
+        names_expected = ['scalar_param', 'list_param', 'bar']
         names = self.optimization_problem.variable_names
         self.assertEqual(names_expected, names)
 

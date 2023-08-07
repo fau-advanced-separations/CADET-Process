@@ -35,14 +35,14 @@ from CADETProcess.processModel import Process
 
 __all__ = [
     'Cadet',
-    'ModelSolverParametersGroup',
-    'UnitParametersGroup',
-    'AdsorptionParametersGroup',
-    'ReactionParametersGroup',
-    'SolverParametersGroup',
-    'SolverTimeIntegratorParametersGroup',
-    'ReturnParametersGroup',
-    'SensitivityParametersGroup',
+    'ModelSolverParameters',
+    'UnitParameters',
+    'AdsorptionParameters',
+    'ReactionParameters',
+    'SolverParameters',
+    'SolverTimeIntegratorParameters',
+    'ReturnParameters',
+    'SensitivityParameters',
 ]
 
 
@@ -55,19 +55,19 @@ class Cadet(SimulatorBase):
         Path to the root of the CADET installation
     time_out : UnsignedFloat
         Maximum duration for simulations
-    model_solver_parameters : ModelSolverParametersGroup
+    model_solver_parameters : ModelSolverParameters
         Container for solver parameters
-    unit_discretization_parameters : UnitDiscretizationParametersGroup
+    unit_discretization_parameters : UnitDiscretizationParameters
         Container for unit discretization parameters
-    discretization_weno_parameters : DiscretizationWenoParametersGroup
+    discretization_weno_parameters : DiscretizationWenoParameters
         Container for weno discretization parameters in units
-    adsorption_consistency_solver_parameters : ConsistencySolverParametersGroup
+    adsorption_consistency_solver_parameters : ConsistencySolverParameters
         Container for consistency solver parameters
-    solver_parameters : SolverParametersGroup
+    solver_parameters : SolverParameters
         Container for general solver settings
-    time_integrator_parameters : SolverTimeIntegratorParametersGroup
+    time_integrator_parameters : SolverTimeIntegratorParameters
         Container for time integrator parameters
-    return_parameters : ReturnParametersGroup
+    return_parameters : ReturnParameters
         Container for return information of the system
 
     ..todo::
@@ -76,10 +76,10 @@ class Cadet(SimulatorBase):
 
     See Also
     --------
-    ReturnParametersGroup
-    ModelSolverParametersGroup
-    SolverParametersGroup
-    SolverTimeIntegratorParametersGroup
+    ReturnParameters
+    ModelSolverParameters
+    SolverParameters
+    SolverTimeIntegratorParameters
     CadetAPI
 
     """
@@ -101,12 +101,12 @@ class Cadet(SimulatorBase):
         else:
             self.install_path = install_path
 
-        self.model_solver_parameters = ModelSolverParametersGroup()
-        self.solver_parameters = SolverParametersGroup()
-        self.time_integrator_parameters = SolverTimeIntegratorParametersGroup()
+        self.model_solver_parameters = ModelSolverParameters()
+        self.solver_parameters = SolverParameters()
+        self.time_integrator_parameters = SolverTimeIntegratorParameters()
 
-        self.return_parameters = ReturnParametersGroup()
-        self.sensitivity_parameters = SensitivityParametersGroup()
+        self.return_parameters = ReturnParameters()
+        self.sensitivity_parameters = SensitivityParameters()
 
         if temp_dir is None:
             temp_dir = settings.temp_dir / 'simulation_files'
@@ -758,7 +758,7 @@ class Cadet(SimulatorBase):
 
         input_model.connections = self.get_model_connections(process)
         # input_model.external = self.model_external # !!! not working yet
-        input_model.solver = self.model_solver_parameters.to_dict()
+        input_model.solver = self.model_solver_parameters.parameters
         input_model.update(self.get_model_units(process))
 
         if process.system_state is not None:
@@ -895,9 +895,9 @@ class Cadet(SimulatorBase):
         get_adsorption_config
 
         """
-        unit_parameters = UnitParametersGroup(unit)
+        unit_parameters = UnitParameters(unit)
 
-        unit_config = Dict(unit_parameters.to_dict())
+        unit_config = Dict(unit_parameters.parameters)
 
         if not isinstance(unit.binding_model, NoBinding):
             if unit.binding_model.n_binding_sites > 1:
@@ -1026,7 +1026,7 @@ class Cadet(SimulatorBase):
         --------
         get_unit_config
         """
-        adsorption_config = AdsorptionParametersGroup(binding).to_dict()
+        adsorption_config = AdsorptionParameters(binding).parameters
 
         return adsorption_config
 
@@ -1045,7 +1045,7 @@ class Cadet(SimulatorBase):
         get_unit_config
 
         """
-        reaction_config = ReactionParametersGroup(reaction).to_dict()
+        reaction_config = ReactionParameters(reaction).parameters
 
         return reaction_config
 
@@ -1060,12 +1060,11 @@ class Cadet(SimulatorBase):
         """
         input_solver = Dict()
 
-        input_solver.update(self.solver_parameters.to_dict())
+        input_solver.update(self.solver_parameters.parameters)
         input_solver.user_solution_times = \
             self.get_solution_time_complete(process)
         input_solver.sections = self.get_solver_sections(process)
-        input_solver.time_integrator = \
-            self.time_integrator_parameters.to_dict()
+        input_solver.time_integrator = self.time_integrator_parameters.parameters
 
         return input_solver
 
@@ -1084,7 +1083,7 @@ class Cadet(SimulatorBase):
 
     def get_input_return(self, process):
         """Config branch /input/return"""
-        return_parameters = self.return_parameters.to_dict()
+        return_parameters = self.return_parameters.parameters
         unit_return_parameters = self.get_unit_return_parameters(process)
         return {**return_parameters, **unit_return_parameters}
 
@@ -1100,7 +1099,7 @@ class Cadet(SimulatorBase):
 
     def get_input_sensitivity(self, process):
         """Config branch /input/sensitivity"""
-        sensitivity_parameters = self.sensitivity_parameters.to_dict()
+        sensitivity_parameters = self.sensitivity_parameters.parameters
         parameter_sensitivities = self.get_parameter_sensitivities(process)
         return {**sensitivity_parameters, **parameter_sensitivities}
 
@@ -1191,8 +1190,8 @@ class Cadet(SimulatorBase):
         return 'CADET'
 
 
-from CADETProcess.dataStructure import ParametersGroup, ParameterWrapper
-class ModelSolverParametersGroup(ParametersGroup):
+from CADETProcess.dataStructure import Structure, ParameterWrapper
+class ModelSolverParameters(Structure):
     """Converter for model solver parameters from CADETProcess to CADET.
 
     Attributes
@@ -1222,14 +1221,16 @@ class ModelSolverParametersGroup(ParametersGroup):
 
     See Also
     --------
-    ParametersGroup
+    Structure
 
     """
+
     gs_type = Switch(default=1, valid=[0, 1])
     max_krylov = UnsignedInteger(default=0)
     max_restarts = UnsignedInteger(default=10)
     schur_safety = UnsignedFloat(default=1e-8)
     linear_solution_mode = UnsignedInteger(default=0, ub=2)
+
     _parameters = [
         'gs_type',
         'max_krylov',
@@ -1356,16 +1357,17 @@ inv_unit_parameters_map = {
 }
 
 
-class UnitParametersGroup(ParameterWrapper):
+class UnitParameters(ParameterWrapper):
     """Converter for UnitOperation parameters from CADETProcess to CADET.
 
     See Also
     --------
     ParameterWrapper
-    AdsorptionParametersGroup
-    ReactionParametersGroup
+    AdsorptionParameters
+    ReactionParameters
 
     """
+
     _baseClass = UnitBaseClass
 
     _unit_parameters = unit_parameters_map
@@ -1517,15 +1519,16 @@ inv_adsorption_parameters_map = {
 }
 
 
-class AdsorptionParametersGroup(ParameterWrapper):
+class AdsorptionParameters(ParameterWrapper):
     """Converter for Binding model parameters from CADETProcess to CADET.
 
     See Also
     --------
     ParameterWrapper
-    ReactionParametersGroup
-    UnitParametersGroup
+    ReactionParameters
+    UnitParameters
     """
+
     _baseClass = BindingBaseClass
 
     _adsorption_parameters = adsorption_parameters_map
@@ -1587,15 +1590,16 @@ inv_reaction_parameters_map = {
 }
 
 
-class ReactionParametersGroup(ParameterWrapper):
+class ReactionParameters(ParameterWrapper):
     """Converter for Reaction model parameters from CADETProcess to CADET.
 
     See Also
     --------
     ParameterWrapper
-    AdsorptionParametersGroup
-    UnitParametersGroup
+    AdsorptionParameters
+    UnitParameters
     """
+
     _baseClass = ReactionBaseClass
 
     _reaction_parameters = reaction_parameters_map
@@ -1604,7 +1608,7 @@ class ReactionParametersGroup(ParameterWrapper):
     _model_type = 'REACTION_MODEL'
 
 
-class SolverParametersGroup(ParametersGroup):
+class SolverParameters(Structure):
     """Class for defining the solver parameters for CADET.
 
     Attributes
@@ -1636,12 +1640,12 @@ class SolverParametersGroup(ParametersGroup):
         - 7: None once, then lean
         The default is 1.
 
-
     See Also
     --------
-    ParametersGroup
+    Parameters
 
     """
+
     nthreads = UnsignedInteger(default=1)
     consistent_init_mode = UnsignedInteger(default=1, ub=7)
     consistent_init_mode_sens = UnsignedInteger(default=1, ub=7)
@@ -1651,7 +1655,7 @@ class SolverParametersGroup(ParametersGroup):
     ]
 
 
-class SolverTimeIntegratorParametersGroup(ParametersGroup):
+class SolverTimeIntegratorParameters(Structure):
     """Converter for time integartor parameters from CADETProcess to CADET.
 
     Attributes
@@ -1695,9 +1699,10 @@ class SolverTimeIntegratorParametersGroup(ParametersGroup):
 
     See Also
     --------
-    ParametersGroup
+    Structure
 
     """
+
     abstol = UnsignedFloat(default=1e-8)
     algtol = UnsignedFloat(default=1e-12)
     reltol = UnsignedFloat(default=1e-6)
@@ -1718,14 +1723,9 @@ class SolverTimeIntegratorParametersGroup(ParametersGroup):
     ]
 
 
-class ReturnParametersGroup(ParametersGroup):
-    """Converter for system solution writer config from CADETProcess to CADET.
+class ReturnParameters(Structure):
+    """Solution writer for system."""
 
-    See Also
-    --------
-    ParametersGroup
-
-    """
     write_solution_times = Bool(default=True)
     write_solution_last = Bool(default=True)
     write_sens_last = Bool(default=True)
@@ -1738,14 +1738,9 @@ class ReturnParametersGroup(ParametersGroup):
     ]
 
 
-class SensitivityParametersGroup(ParametersGroup):
-    """Class for defining the sensitivity parameters.
+class SensitivityParameters(Structure):
+    """Sensitivity parameters."""
 
-    See Also
-    --------
-    ParametersGroup
-
-    """
     sens_method = Switch(default='ad1', valid=['ad1'])
 
     _parameters = ['sens_method']

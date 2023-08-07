@@ -25,13 +25,13 @@ from addict import Dict
 
 import CADETProcess
 from CADETProcess import CADETProcessError
-from CADETProcess.dataStructure import StructMeta
+from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import Float, Switch, SizedTuple
 
 
-class TestPerformer(metaclass=StructMeta):
+class TestPerformer(Structure):
     param_1 = Float(default=0)
-    param_2 = SizedTuple(minlen=2, maxlen=2, default=(1, 1))
+    param_2 = SizedTuple(size=2, default=(1, 1))
     param_3 = Switch(valid=[-1, 1], default=1)
 
     _parameters = ['param_1', 'param_2', 'param_3']
@@ -44,22 +44,6 @@ class TestPerformer(metaclass=StructMeta):
             for param in self._section_dependent_parameters
         }
         return parameters
-
-    @property
-    def parameters(self):
-        parameters = {
-            param: getattr(self, param)
-            for param in self._parameters
-        }
-        return parameters
-
-    @parameters.setter
-    def parameters(self, parameters):
-        for param, value in parameters.items():
-            if param not in self._parameters:
-                raise CADETProcessError('Not a valid parameter')
-            if value is not None:
-                setattr(self, param, value)
 
 
 class TestHandler(CADETProcess.dynamicEvents.EventHandler):

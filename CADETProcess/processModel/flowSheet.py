@@ -8,7 +8,7 @@ from addict import Dict
 
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import frozen_attributes
-from CADETProcess.dataStructure import StructMeta, UnsignedInteger, String
+from CADETProcess.dataStructure import Structure, UnsignedInteger, String
 from .componentSystem import ComponentSystem
 from .unitOperation import UnitBaseClass
 from .unitOperation import Inlet, Outlet, Cstr
@@ -16,7 +16,7 @@ from .binding import NoBinding
 
 
 @frozen_attributes
-class FlowSheet(metaclass=StructMeta):
+class FlowSheet(Structure):
     """Class to design process flow sheet.
 
     In this class, UnitOperation models are added and connected in a flow
@@ -50,8 +50,9 @@ class FlowSheet(metaclass=StructMeta):
         self._output_states = Dict()
         self._flow_rates = Dict()
         self._parameters = Dict()
-        self._section_dependent_parameters = Dict()
+        self._sized_parameters = Dict()
         self._polynomial_parameters = Dict()
+        self._section_dependent_parameters = Dict()
 
     @property
     def component_system(self):
@@ -106,9 +107,15 @@ class FlowSheet(metaclass=StructMeta):
             self._section_dependent_parameters[unit.name] = \
                 unit.section_dependent_parameters
             self._polynomial_parameters[unit.name] = unit.polynomial_parameters
+            self._sized_parameters[unit.name] = unit.sized_parameters
 
         self._parameters['output_states'] = {
             unit.name: self.output_states[unit] for unit in self.units
+        }
+
+        self._sized_parameters['output_states'] = {
+            unit.name: self.output_states[unit]
+            for unit in self.units
         }
 
         self._section_dependent_parameters['output_states'] = {
@@ -143,8 +150,7 @@ class FlowSheet(metaclass=StructMeta):
 
     @property
     def number_of_units(self):
-        """int: Number of unit operations in the FlowSheet.
-        """
+        """int: Number of unit operations in the FlowSheet."""
         return len(self._units)
 
     @unit_name_decorator
@@ -495,7 +501,7 @@ class FlowSheet(metaclass=StructMeta):
         Raises
         ------
         CADETProcessError
-            If unit not in flowSheet
+            If unit not in FlowSheet
             If state is integer and the state >= the state_length.
             If the length of the states is unequal the state_length.
             If the sum of the states is not equal to 1.
@@ -915,12 +921,16 @@ class FlowSheet(metaclass=StructMeta):
         self.update_parameters()
 
     @property
-    def section_dependent_parameters(self):
-        return self._section_dependent_parameters
+    def sized_parameters(self):
+        return self._sized_parameters
 
     @property
     def polynomial_parameters(self):
         return self._polynomial_parameters
+
+    @property
+    def section_dependent_parameters(self):
+        return self._section_dependent_parameters
 
     @property
     def initial_state(self):

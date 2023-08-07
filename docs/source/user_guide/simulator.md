@@ -66,27 +66,27 @@ print(process_simulator.time_resolution)
 ```
 
 Note that changing this value does not have an effect on the accuracy of the solution.
-To change error tolerances, modify the attributes of the {class}`~CADETProcess.simulator.SolverTimeIntegratorParametersGroup`
+To change error tolerances, modify the attributes of the {class}`~CADETProcess.simulator.SolverTimeIntegratorParameters`
 
 ```{code-cell} ipython3
 print(process_simulator.time_integrator_parameters)
 ```
 
-Most notably, {attr}`~CADETProcess.simulator.SolverTimeIntegratorParametersGroup.abstol` and {attr}`~CADETProcess.simulator.SolverTimeIntegratorParametersGroup.abstol` might need to be adapted in cases where high accuracy is required.
-For more information, see {class}`~CADETProcess.simulator.SolverTimeIntegratorParametersGroup` and refer to the {ref}`CADET Documentation<cadet:FFSolverTime>`.
+Most notably, {attr}`~CADETProcess.simulator.SolverTimeIntegratorParameters.abstol` and {attr}`~CADETProcess.simulator.SolverTimeIntegratorParameters.abstol` might need to be adapted in cases where high accuracy is required.
+For more information, see {class}`~CADETProcess.simulator.SolverTimeIntegratorParameters` and refer to the {ref}`CADET Documentation<cadet:FFSolverTime>`.
 
 ### Solver Parameters
-The {class}`~CADETProcess.simulator.SolverParametersGroup` stores general parameters of the solver.
+The {class}`~CADETProcess.simulator.SolverParameters` stores general parameters of the solver.
 
 ```{code-cell} ipython3
 print(process_simulator.solver_parameters)
 ```
 
-Most notably, {attr}`~CADETProcess.simulator.SolverParametersGroup.nthreads` defines the number of threads with which the simulation is parallelized.
+Most notably, {attr}`~CADETProcess.simulator.SolverParameters.nthreads` defines the number of threads with which the simulation is parallelized.
 For more information, see also {ref}`CADET Documentation<cadet:solver>`.
 
 ### Model Solver Parameters
-The {class}`~CADETProcess.simulator.ModelSolverParametersGroup` stores general parameters of the model solver.
+The {class}`~CADETProcess.simulator.ModelSolverParameters` stores general parameters of the model solver.
 
 ```{code-cell} ipython3
 print(process_simulator.solver_parameters)

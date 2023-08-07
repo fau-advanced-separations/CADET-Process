@@ -45,7 +45,14 @@ class ParameterBase(Descriptor):
     Dict
     """
 
-    def __init__(self, *args, default=None, unit=None, description=None, **kwargs):
+    def __init__(
+            self,
+            *args,
+            default=None,
+            is_optional=False,
+            unit=None,
+            description=None,
+            **kwargs):
         """
         Initialize a Parameter instance.
 
@@ -55,6 +62,9 @@ class ParameterBase(Descriptor):
             Variable length argument list.
         default : Any, optional
             Default value for the parameter. Defaults to None.
+        is_optional : bool, optional
+            If True, parameter is not added to list of required parameters.
+            Defaults to False
         unit : str, optional
             Unit of the parameter. Defaults to None.
         description : str, optional
@@ -63,6 +73,7 @@ class ParameterBase(Descriptor):
             Arbitrary keyword arguments.
         """
         self.default = default
+        self.is_optional = is_optional
         self.unit = unit
         self.description = description
         super().__init__(*args, **kwargs)
@@ -161,7 +172,7 @@ class ParameterBase(Descriptor):
 
         try:
             if self.name in instance._parameters:
-                instance._parameters[self.name] = value
+                instance._parameters_dict[self.name] = value
         except AttributeError:
             pass
 

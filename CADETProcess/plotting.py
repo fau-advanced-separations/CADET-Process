@@ -85,7 +85,7 @@ from matplotlib import cycler
 
 from CADETProcess import CADETProcessError
 
-from CADETProcess.dataStructure import StructMeta, Structure
+from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import (
     Integer, List, String, Tuple, Callable, UnsignedFloat
 )
@@ -310,7 +310,7 @@ def add_fill_regions(ax, fill_regions, x_lim=None):
             )
 
 
-class HLines(metaclass=StructMeta):
+class HLines(Structure):
     y = UnsignedFloat()
     x_min = UnsignedFloat()
     x_max = UnsignedFloat()

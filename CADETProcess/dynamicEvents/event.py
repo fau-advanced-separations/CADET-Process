@@ -7,7 +7,7 @@ from collections import defaultdict
 
 from CADETProcess import CADETProcessError
 
-from CADETProcess.dataStructure import StructMeta, frozen_attributes
+from CADETProcess.dataStructure import Structure, frozen_attributes
 from CADETProcess.dataStructure import UnsignedFloat
 from CADETProcess.dataStructure import (
     CachedPropertiesMixin, cached_property_if_locked
@@ -25,7 +25,7 @@ __all__ = ['EventHandler', 'Event', 'Duration']
 
 
 @frozen_attributes
-class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
+class EventHandler(CachedPropertiesMixin, Structure):
     """Baseclass for handling Events that dynamically change parameters.
 
     Attributes
@@ -58,7 +58,6 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
         self._events = []
         self._durations = []
         self._lock = False
-        self._parameters = None
 
     @property
     def events(self):
@@ -432,12 +431,14 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
         """dict: TimeLine for every event parameter."""
         parameter_timelines = {
             param: TimeLine() for param in self.event_parameters
-            if param not in self.entry_dependent_parameters
-            }
+            if param not in self.sized_parameters
+        }
 
         parameters = self.parameters
         multi_timelines = {}
-        for param in self.entry_dependent_parameters:
+        for param in self.event_parameters:
+            if param not in self.sized_parameters:
+                continue
             base_state = get_nested_value(parameters, param)
             multi_timelines[param] = MultiTimeLine(base_state)
 
@@ -480,7 +481,7 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
 
     def _add_section(self, evt, section, parameter_timelines, multi_timelines):
         """Helper function to add sections to timelines."""
-        if evt.parameter_path in self.entry_dependent_parameters:
+        if evt.parameter_path in self.sized_parameters:
             multi_timelines[evt.parameter_path].add_section(
                 section, evt.entry_index
             )
@@ -513,7 +514,7 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
 
     @property
     def parameters(self):
-        parameters = Dict()
+        parameters = super().parameters
 
         events = {evt.name: evt.parameters for evt in self.independent_events}
         parameters.update(events)
@@ -544,22 +545,23 @@ class EventHandler(CachedPropertiesMixin, metaclass=StructMeta):
 
             evt.parameters = evt_parameters
 
-    @abstractmethod
-    def section_dependent_parameters(self):
-        return
-
     @property
-    def entry_dependent_parameters(self):
-        parameters = {
-            evt.parameter_path for evt in self.events
+    def sized_parameters(self):
+        parameters = super().sized_parameters
+
+        events = {
+            evt.parameter_path: evt.parameters
+            for evt in self.events
             if evt.entry_index is not None
         }
+        parameters.update(events)
 
         return parameters
 
-    @abstractmethod
-    def polynomial_parameters(self):
-        return
+    def check_config(self):
+        flag = True
+
+        return flag
 
     def plot_events(self):
         """Plot parameter state as function of time.

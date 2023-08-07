@@ -51,38 +51,38 @@ class TestParameterDictionaries(unittest.TestCase):
 
     def test_parameters_dict_getter(self):
         np.testing.assert_equal(
-            self.model._parameters, {'param': None, 'param_default': 1}
+            self.model._parameters_dict, {'param': None, 'param_default': 1}
         )
 
         self.model.param = 1
         np.testing.assert_equal(
-            self.model._parameters, {'param': 1, 'param_default': 1}
+            self.model._parameters_dict, {'param': 1, 'param_default': 1}
         )
 
         self.model.param = None
         np.testing.assert_equal(
-            self.model._parameters, {'param': None, 'param_default': 1}
+            self.model._parameters_dict, {'param': None, 'param_default': 1}
         )
 
         self.model.param_default = 2
         np.testing.assert_equal(
-            self.model._parameters, {'param': None, 'param_default': 2}
+            self.model._parameters_dict, {'param': None, 'param_default': 2}
         )
 
         self.model.param_default = None
         np.testing.assert_equal(
-            self.model._parameters, {'param': None, 'param_default': 1}
+            self.model._parameters_dict, {'param': None, 'param_default': 1}
         )
 
     def test_parameters_dict_setter(self):
         self.model.parameters = {'param': 1, 'param_default': 2}
         np.testing.assert_equal(
-            self.model._parameters, {'param': 1, 'param_default': 2}
+            self.model._parameters_dict, {'param': 1, 'param_default': 2}
         )
 
         self.model.parameters = {'param': 2}
         np.testing.assert_equal(
-            self.model._parameters, {'param': 2, 'param_default': 2}
+            self.model._parameters_dict, {'param': 2, 'param_default': 2}
         )
 
         with self.assertRaises(ValueError):

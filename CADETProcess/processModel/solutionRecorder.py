@@ -1,8 +1,8 @@
-from CADETProcess.dataStructure import Bool, ParametersGroup
+from CADETProcess.dataStructure import Structure, Bool
 from CADETProcess.dataStructure import frozen_attributes
 
 
-class BaseMixin(ParametersGroup):
+class BaseMixin(Structure):
     """
     Recorder for last state and coordinates.
 
@@ -23,7 +23,7 @@ class BaseMixin(ParametersGroup):
     ]
 
 
-class IOMixin(ParametersGroup):
+class IOMixin(Structure):
     """
     Recorder for inlet and outlet streams.
 
@@ -73,7 +73,7 @@ class IOMixin(ParametersGroup):
     ]
 
 
-class BulkMixin(ParametersGroup):
+class BulkMixin(Structure):
     """
     Recorder for bulk solution.
 
@@ -102,7 +102,7 @@ class BulkMixin(ParametersGroup):
     ]
 
 
-class ParticleMixin(ParametersGroup):
+class ParticleMixin(Structure):
     """
     Recorder for particle liquid phase solution.
 
@@ -135,7 +135,7 @@ class ParticleMixin(ParametersGroup):
     ]
 
 
-class SolidMixin(ParametersGroup):
+class SolidMixin(Structure):
     """
     Recorder for particle solid phase solution.
 
@@ -167,7 +167,7 @@ class SolidMixin(ParametersGroup):
     ]
 
 
-class FluxMixin(ParametersGroup):
+class FluxMixin(Structure):
     """
     Recorder for flux solution.
 
@@ -197,7 +197,7 @@ class FluxMixin(ParametersGroup):
     ]
 
 
-class VolumeMixin(ParametersGroup):
+class VolumeMixin(Structure):
     """
     Recorder for unit volume solution.
 

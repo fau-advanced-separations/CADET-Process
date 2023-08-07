@@ -3,13 +3,13 @@ import numpy as np
 
 from CADETProcess import CADETProcessError
 from CADETProcess.log import get_logger, log_time, log_results, log_exceptions
-from CADETProcess.dataStructure import StructMeta
+from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import Bool, UnsignedFloat, UnsignedInteger
 from CADETProcess.processModel import Process
 from CADETProcess.stationarity import StationarityEvaluator, RelativeArea, NRMSE
 
 
-class SimulatorBase(metaclass=StructMeta):
+class SimulatorBase(Structure):
     """Base class for Solver APIs.
 
     Holds the configuration of the individual solvers and provides an interface
@@ -45,6 +45,7 @@ class SimulatorBase(metaclass=StructMeta):
     CADETProcess.stationarity.StationarityEvaluator
 
     """
+
     time_resolution = UnsignedFloat(default=1)
     resolution_cutoff = UnsignedFloat(default=1e-3)
 
