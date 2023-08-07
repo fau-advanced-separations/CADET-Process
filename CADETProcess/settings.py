@@ -19,14 +19,14 @@ import shutil
 import tempfile
 from warnings import warn
 
-from CADETProcess.dataStructure import StructMeta
+from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import Bool, Switch
 
 
 __all__ = ['Settings']
 
 
-class Settings(metaclass=StructMeta):
+class Settings(Structure):
     """A class for managing general settings.
 
     Attributes

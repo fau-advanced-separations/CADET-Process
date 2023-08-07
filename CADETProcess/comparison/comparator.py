@@ -7,13 +7,13 @@ import matplotlib.pyplot as plt
 
 from CADETProcess import CADETProcessError
 from CADETProcess import plotting
-from CADETProcess.dataStructure import StructMeta, String
+from CADETProcess.dataStructure import Structure, String
 from CADETProcess.dataStructure import get_nested_value
 from CADETProcess.solution import SolutionBase
 from CADETProcess.comparison import DifferenceBase
 
 
-class Comparator(metaclass=StructMeta):
+class Comparator(Structure):
     """
     Class for comparing simulation results against reference data.
 

@@ -4,7 +4,7 @@ from functools import wraps
 from addict import Dict
 
 from CADETProcess import CADETProcessError
-from CADETProcess.dataStructure import Structure, StructMeta
+from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import String, Integer, UnsignedFloat
 
 
@@ -31,7 +31,7 @@ class Species(Structure):
     molecular_weight = UnsignedFloat()
 
 
-class Component(metaclass=StructMeta):
+class Component(Structure):
     """Information about single component.
 
     A component can contain subspecies (e.g. differently charged variants).
@@ -145,7 +145,7 @@ class Component(metaclass=StructMeta):
         yield from self.species
 
 
-class ComponentSystem(metaclass=StructMeta):
+class ComponentSystem(Structure):
     """Information about components in system.
 
     A component can contain subspecies (e.g. differently charged variants).

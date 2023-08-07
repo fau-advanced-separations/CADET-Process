@@ -3,7 +3,7 @@ from functools import wraps
 import numpy as np
 
 from CADETProcess import CADETProcessError
-from CADETProcess.dataStructure import StructMeta
+from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import String, UnsignedInteger
 
 from .componentSystem import ComponentSystem
@@ -355,7 +355,7 @@ class CrossPhaseReaction():
         return " + ".join(educts) + reaction_operator + " + ".join(products)
 
 
-class ReactionBaseClass(metaclass=StructMeta):
+class ReactionBaseClass(Structure):
     """Abstract base class for parameters of reaction models.
 
     Attributes
@@ -371,7 +371,7 @@ class ReactionBaseClass(metaclass=StructMeta):
     name = String()
     n_comp = UnsignedInteger()
 
-    _parameter_names = []
+    _parameters = []
 
     def __init__(self, component_system, name=None, *args, **kwargs):
         self.component_system = component_system
@@ -379,7 +379,7 @@ class ReactionBaseClass(metaclass=StructMeta):
 
         self._parameters = {
             param: getattr(self, param)
-            for param in self._parameter_names
+            for param in self._parameters
         }
 
         super().__init__(*args, **kwargs)
@@ -403,18 +403,6 @@ class ReactionBaseClass(metaclass=StructMeta):
     def n_comp(self):
         """int: Number of components."""
         return self.component_system.n_comp
-
-    @property
-    def parameters(self):
-        """dict: Dictionary with parameter values."""
-        return {param: getattr(self, param) for param in self._parameter_names}
-
-    @parameters.setter
-    def parameters(self, parameters):
-        for param, value in parameters.items():
-            if param not in self._parameter_names:
-                raise CADETProcessError('Not a valid parameter')
-            setattr(self, param, value)
 
     def __repr__(self):
         return \
@@ -442,9 +430,7 @@ class NoReaction(ReactionBaseClass):
 class MassActionLaw(ReactionBaseClass):
     """Parameters for Reaction in Bulk Phase."""
 
-    _parameter_names = ReactionBaseClass._parameter_names + [
-        'stoich', 'exponents_fwd', 'exponents_bwd', 'k_fwd', 'k_bwd'
-    ]
+    _parameters = ['stoich', 'exponents_fwd', 'exponents_bwd', 'k_fwd', 'k_bwd']
 
     def __init__(self, *args, **kwargs):
         self._reactions = []
@@ -516,7 +502,7 @@ class MassActionLaw(ReactionBaseClass):
 class MassActionLawParticle(ReactionBaseClass):
     """Parameters for Reaction in Particle Phase."""
 
-    _parameter_names = ReactionBaseClass._parameter_names + [
+    _parameters = [
         'stoich_liquid', 'exponents_fwd_liquid', 'exponents_bwd_liquid',
         'k_fwd_liquid', 'k_bwd_liquid',
         'exponents_fwd_liquid_modsolid', 'exponents_bwd_liquid_modsolid',

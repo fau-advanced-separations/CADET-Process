@@ -15,7 +15,7 @@ from CADETProcess import CADETProcessError
 from CADETProcess import log
 from CADETProcess import settings
 
-from CADETProcess.dataStructure import StructMeta
+from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import (
     String, Switch, RangedInteger, Callable, Tuple, SizedNdArray
 )
@@ -34,7 +34,7 @@ from CADETProcess.optimization import ResultsCache
 
 
 @frozen_attributes
-class OptimizationProblem(metaclass=StructMeta):
+class OptimizationProblem(Structure):
     """Class for configuring optimization problems.
 
     Stores information about
@@ -3113,7 +3113,7 @@ class OptimizationVariable:
         return string
 
 
-class Evaluator(metaclass=StructMeta):
+class Evaluator(Structure):
     """Wrapper class to call evaluator."""
 
     evaluator = Callable()
@@ -3154,7 +3154,7 @@ class Evaluator(metaclass=StructMeta):
         return self.name
 
 
-class Objective(metaclass=StructMeta):
+class Objective(Structure):
     """Wrapper class to evaluate objective functions."""
 
     objective = Callable()
@@ -3247,7 +3247,7 @@ class Objective(metaclass=StructMeta):
         return self.name
 
 
-class NonlinearConstraint(metaclass=StructMeta):
+class NonlinearConstraint(Structure):
     """Wrapper class to evaluate nonlinear constraint functions."""
 
     nonlinear_constraint = Callable()
@@ -3338,7 +3338,7 @@ class NonlinearConstraint(metaclass=StructMeta):
         return self.name
 
 
-class Callback(metaclass=StructMeta):
+class Callback(Structure):
     """Wrapper class to evaluate callbacks.
 
     Callable must implement function with the following signature:
@@ -3446,7 +3446,7 @@ class Callback(metaclass=StructMeta):
         return self.name
 
 
-class MetaScore(metaclass=StructMeta):
+class MetaScore(Structure):
     """Wrapper class to evaluate meta scores."""
 
     meta_score = Callable()
@@ -3520,7 +3520,7 @@ class MetaScore(metaclass=StructMeta):
         return self.name
 
 
-class MultiCriteriaDecisionFunction(metaclass=StructMeta):
+class MultiCriteriaDecisionFunction(Structure):
     """Wrapper class to evaluate multi-criteria decision functions."""
 
     decision_function = Callable()

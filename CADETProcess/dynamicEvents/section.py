@@ -5,7 +5,7 @@ import numpy as np
 import scipy
 
 from CADETProcess import CADETProcessError
-from CADETProcess.dataStructure import StructMeta
+from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import NdPolynomial
 from CADETProcess import plotting
 
@@ -13,7 +13,7 @@ from CADETProcess import plotting
 __all__ = ['Section', 'TimeLine', 'MultiTimeLine']
 
 
-class Section(metaclass=StructMeta):
+class Section(Structure):
     """Helper class to store parameter states between events.
 
     Attributes

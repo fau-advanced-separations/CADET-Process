@@ -1,13 +1,13 @@
 import numpy as np
 
 from CADETProcess import CADETProcessError
-from CADETProcess.dataStructure import StructMeta
+from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import (
     UnsignedInteger, UnsignedFloat, Vector
 )
 
 
-class Fraction(metaclass=StructMeta):
+class Fraction(Structure):
     """A class representing a fraction of a mixture.
 
     A fraction is defined by its mass and volume, and can be used to calculate
@@ -94,7 +94,7 @@ class Fraction(metaclass=StructMeta):
             f"(mass={self.mass},volume={self.volume})"
 
 
-class FractionPool(metaclass=StructMeta):
+class FractionPool(Structure):
     """Collection of pooled fractions.
 
     This class manages multiple fractions of a mixture, facilitating the
