@@ -453,8 +453,8 @@ class TestPolynomial(unittest.TestCase):
 
     def setUp(self):
         class Model(Structure):
-            poly_param = Polynomial(n_coeff=2, default=1)
-            ndpoly_param = NdPolynomial(n_entries=2, n_coeff=4, default=1)
+            poly_param = Polynomial(n_coeff=2, default=0)
+            ndpoly_param = NdPolynomial(n_entries=2, n_coeff=4)
 
             n_coeff = 4
             poly_param_dep = Polynomial(size=('n_coeff'))
@@ -565,7 +565,15 @@ class TestPolynomial(unittest.TestCase):
             self.model.ndpoly_param_dep = [[1], [1], [1], [1]]
 
     def test_default(self):
-        np.testing.assert_equal(self.model.poly_param, [1, 0])
+        """
+        Currently, only `0` is allowed as default value.
+
+        Notes
+        -----
+        Technically, default values would be possible from point of the NdPolynomial
+        class. However, due to its use as an Event Parameter, this is currently diabled.
+        """
+        np.testing.assert_equal(self.model.poly_param, [0, 0])
 
         np.testing.assert_equal(self.model.ndpoly_param, None)
 
