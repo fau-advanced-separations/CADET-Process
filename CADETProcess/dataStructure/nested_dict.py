@@ -15,7 +15,7 @@ def check_nested(nested_dict, path):
 
     Returns
     -------
-    True, if item exists, False otherwise.
+    True if item exists and isn't a dictionary, False otherwise.
 
     """
     if isinstance(path, str):
@@ -26,7 +26,7 @@ def check_nested(nested_dict, path):
         if isinstance(value, dict):
             return False
         return True
-    except:
+    except (KeyError, TypeError):
         return False
 
 
@@ -53,20 +53,13 @@ def insert_path(nested_dict, path, value):
 
 
 def get_leaves(nested_dict):
-    """Generator for returing leaves of nested dictionary in dot notation."""
+    """Return leaves of nested dictionary in dot notation."""
     for key, value in nested_dict.items():
         if not isinstance(value, dict):
             yield key
         else:
             for subpath in get_leaves(value):
                 yield ".".join((key, subpath))
-
-
-def get_nested_value(nested_dict, path):
-    if isinstance(path, str):
-        path = path.split('.')
-    """Access a value in a nested dict using path in dot notation."""
-    return reduce(getitem, path, nested_dict)
 
 
 def set_nested_value(nested_dict, path, value):
@@ -76,11 +69,34 @@ def set_nested_value(nested_dict, path, value):
     get_nested_value(nested_dict, path[:-1])[path[-1]] = value
 
 
+def get_nested_value(nested_dict, path):
+    """Access a value in a nested dict using path in dot notation."""
+    if isinstance(path, str):
+        path = path.split('.')
+    return reduce(getitem, path, nested_dict)
+
+
 def update(d, u):
-    """Recursively update dictionary d with u"""
+    """Recursively update dictionary d with u."""
     for k, v in u.items():
         if isinstance(v, collections.abc.Mapping):
             d[k] = update(d.get(k, {}), v)
         else:
             d[k] = v
     return d
+
+
+def get_nested_attribute(obj, path):
+    """Access a nested attribute using path in dot notation."""
+    attributes = path.split('.')
+    for attr in attributes:
+        obj = getattr(obj, attr)
+    return obj
+
+
+def set_nested_attribute(obj, attr_string, value):
+    """Set a nested attribute using path in dot notation."""
+    attributes = attr_string.split('.')
+    for attr in attributes[:-1]:
+        obj = getattr(obj, attr)
+    setattr(obj, attributes[-1], value)
