@@ -1719,16 +1719,16 @@ def slice_solution(
         if len(coordinates) > 0:
             raise CADETProcessError(f"Unknown dimensions: {coordinates.keys()}")
 
-        solution.solution = solution.solution[slices]
+        solution.solution = solution_original.solution[slices]
 
     # First calculate total_concentration of components, if required.
     if use_total_concentration_components:
-        sol = solution.total_concentration_components
+        sol_total_concentration_comp = solution.total_concentration_components
         for comp in solution.component_system:
             if comp.n_species > 1:
                 comp._species = []
                 comp.add_species(comp.name)
-        solution.solution = sol
+        solution.solution = sol_total_concentration_comp
 
     # Then, slice components. Note that component index can only be used if total
     # concentration of components has already been calculated and set as solution array.
@@ -1754,14 +1754,15 @@ def slice_solution(
         if len(components) != 0:
             raise CADETProcessError(f"Unknown components: {components}")
 
+        solution_components = solution.solution[..., component_indices]
         solution.component_system = component_system
-        solution.solution = solution.solution[..., component_indices]
+        solution.solution = solution_components
 
     # Only calculate total concentration after removing unwanted components.
     if use_total_concentration:
-        sol = solution.total_concentration
+        solution_total_concentration = solution.total_concentration
         solution.component_system = ComponentSystem(['total_concentration'])
-        solution.solution = sol
+        solution.solution = solution_total_concentration
 
     solution.update()
     solution.update_transform()
