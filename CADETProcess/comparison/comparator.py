@@ -4,9 +4,11 @@ import functools
 
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
+from matplotlib.axes import Axes
 
 from CADETProcess import CADETProcessError
-from CADETProcess import plotting
+from CADETProcess import plotting, SimulationResults
 from CADETProcess.dataStructure import Structure, String
 from CADETProcess.dataStructure import get_nested_value
 from CADETProcess.solution import SolutionBase
@@ -223,7 +225,9 @@ class Comparator(Structure):
 
     __call__ = evaluate
 
-    def setup_comparison_figure(self, plot_individual=False):
+    def setup_comparison_figure(
+        self, plot_individual: bool = False
+    ) -> tuple[list[Figure], list[Axes]]:
         """Set up a figure for comparing simulation results.
 
         Parameters
@@ -249,8 +253,8 @@ class Comparator(Structure):
         plt.close(comparison_fig_all)
         comparison_axs_all = comparison_axs_all.reshape(-1)
 
-        comparison_fig_ind = []
-        comparison_axs_ind = []
+        comparison_fig_ind: list[Figure] = []
+        comparison_axs_ind: list[Axes] = []
         for i in range(self.n_diffference_metrics):
             fig, axs = plt.subplots()
             comparison_fig_ind.append(fig)
@@ -266,9 +270,17 @@ class Comparator(Structure):
             return comparison_fig_all, comparison_axs_all
 
     def plot_comparison(
-            self, simulation_results, axs=None, figs=None,
-            file_name=None, show=True, plot_individual=False):
-        """Plot the comparison of the simulation results with the reference data.
+            self,
+            simulation_results: list[SimulationResults],
+            axs: Axes | list[Axes] | None = None,
+            figs: Figure | list[Figure] | None = None,
+            file_name: str | None = None,
+            show: bool = True,
+            plot_individual: bool = False,
+            use_minutes: bool = True,
+            ) -> tuple[list[Figure], list[Axes]]:
+        """
+        Plot the comparison of the simulation results with the reference data.
 
         Parameters
         ----------
@@ -284,6 +296,8 @@ class Comparator(Structure):
             If True, displays the figure(s) on the screen.
         plot_individual : bool, optional
             If True, generates a separate figure for each metric.
+        use_minutes : bool, optional
+            Option to use x-aches (time) in minutes, default is set to True.
 
         Returns
         -------
@@ -316,10 +330,11 @@ class Comparator(Structure):
                 'color': 'k',
                 'label': 'reference',
             }
-            plotting.add_overlay(
-                ax, metric.reference.solution, metric.reference.time/60,
-                **plot_args
-            )
+            ref_time = metric.reference.time
+            if use_minutes:
+                ref_time = ref_time / 60
+
+            plotting.add_overlay(ax, metric.reference.solution, ref_time, **plot_args)
             ax.legend(loc=1)
 
             m = metric.evaluate(solution_sliced, slice=False)

@@ -4,6 +4,7 @@ import os
 
 from addict import Dict
 import numpy as np
+from matplotlib.axes import Axes
 
 from CADETProcess import CADETProcessError
 from CADETProcess import settings
@@ -11,7 +12,7 @@ from CADETProcess.dataStructure import String
 from CADETProcess.dynamicEvents import EventHandler
 from CADETProcess import plotting
 from CADETProcess.performance import Performance
-from CADETProcess.solution import slice_solution
+from CADETProcess.solution import slice_solution, SolutionIO
 from CADETProcess import SimulationResults
 
 from CADETProcess.fractionation.fractions import Fraction, FractionPool
@@ -219,7 +220,13 @@ class Fractionator(EventHandler):
 
     @plotting.create_and_save_figure
     def plot_fraction_signal(
-            self, chromatogram=None, ax=None, *args, **kwargs):
+            self,
+            chromatogram: SolutionIO | None = None,
+            use_minutes: bool = True,
+            ax: Axes = None,
+            *args,
+            **kwargs,
+            ) -> Axes:
         """Plot the signal without the waste fractions.
 
         Parameters
@@ -228,6 +235,8 @@ class Fractionator(EventHandler):
             Chromatogram to be plotted. If None, the first one is plotted.
         ax : Axes
             Axes to plot on.
+        use_minutes: bool, optional
+            Option to use x-aches (time) in minutes, default is set to True.
 
         Returns
         -------
@@ -251,10 +260,14 @@ class Fractionator(EventHandler):
 
         try:
             start = kwargs['start']
+            if use_minutes:
+                start = start / 60
         except KeyError:
             start = 0
         try:
             end = kwargs['end']
+            if use_minutes:
+                end = end / 60
         except KeyError:
             end = np.max(chromatogram.time)
 
@@ -272,23 +285,32 @@ class Fractionator(EventHandler):
                 color_index = comp_index
                 text = str(comp_index + 1)
 
-            if sec.start != sec.end:
-                fill_regions.append(plotting.FillRegion(
-                    start=sec.start/60,
-                    end=sec.end/60,
-                    y_max=y_max,
-                    color_index=color_index,
-                    text=text
+            sec_start = sec.start
+            sec_end = sec.end
+
+            if use_minutes:
+                sec_start = sec_start / 60
+                sec_end = sec_end / 60
+
+            if sec_start != sec_end:
+                fill_regions.append(
+                    plotting.FillRegion(
+                        start=sec_start,
+                        end=sec_end,
+                        y_max=y_max,
+                        color_index=color_index,
+                        text=text,
                     )
                 )
 
         if len(time_line.sections) == 0:
-            fill_regions.append(plotting.FillRegion(
-                start=sec.start/60,
-                end=sec.end/60,
-                y_max=y_max,
-                color_index=-1,
-                text='W'
+            fill_regions.append(
+                plotting.FillRegion(
+                    start=sec_start,
+                    end=sec_end,
+                    y_max=y_max,
+                    color_index=-1,
+                    text="W"
                 )
             )
 

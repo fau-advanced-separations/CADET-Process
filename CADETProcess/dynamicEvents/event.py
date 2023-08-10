@@ -4,6 +4,7 @@ import warnings
 
 from addict import Dict
 import numpy as np
+from matplotlib.axes import Axes
 
 from CADETProcess import CADETProcessError
 
@@ -771,7 +772,7 @@ class EventHandler(CachedPropertiesMixin, Structure):
 
         return flag
 
-    def plot_events(self):
+    def plot_events(self, use_minutes: bool = True) -> list[Axes]:
         """
         Plot parameter state as a function of time.
 
@@ -781,8 +782,8 @@ class EventHandler(CachedPropertiesMixin, Structure):
 
         Parameters
         ----------
-        ax : matplotlib.Axes, optional
-            Axes to plot on. If not provided, new axes will be created.
+        use_minutes: bool, optional
+            Option to use x-aches (time) in minutes, default is set to True.
 
         Returns
         -------
@@ -796,7 +797,9 @@ class EventHandler(CachedPropertiesMixin, Structure):
         """
         time = np.linspace(0, self.cycle_time, 1001)
 
-        axs = []
+        if use_minutes:
+            time = time / 60
+        axs: list[Axes] = []
 
         for parameter, tl in self.parameter_timelines.items():
             fig, ax = plotting.setup_figure()
@@ -805,10 +808,12 @@ class EventHandler(CachedPropertiesMixin, Structure):
 
             layout = plotting.Layout()
             layout.title = str(parameter)
-            layout.x_label = '$time~/~min$'
+            layout.x_label = "$time~/~s$"
+            if use_minutes:
+                layout.x_label = "$time~/~min$"
             layout.y_label = '$state$'
 
-            ax.plot(time/60, y)
+            ax.plot(time, y)
 
             plotting.set_layout(ax, layout)
 
