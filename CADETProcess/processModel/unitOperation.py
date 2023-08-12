@@ -413,9 +413,6 @@ class Inlet(UnitBaseClass, SourceMixin):
     _required_parameters = ['flow_rate']
 
 
-Source = Inlet
-
-
 class Outlet(UnitBaseClass, SinkMixin):
     """Pseudo unit operation model for streams leaving the system.
 
@@ -426,9 +423,6 @@ class Outlet(UnitBaseClass, SinkMixin):
     """
 
     pass
-
-
-Sink = Outlet
 
 
 class MixerSplitter(UnitBaseClass):
