@@ -192,7 +192,7 @@ class Test_Unit_Operation(unittest.TestCase):
         parameters_expected = {
                 'flow_rate': np.array([1, 0, 0, 0]),
                 'porosity': total_porosity,
-                'flow_rate_filter': np.array([0, 0, 0, 0]),
+                'flow_rate_filter': 0,
                 'c': [0, 0],
                 'q': [],
                 'V': volume,
@@ -201,7 +201,7 @@ class Test_Unit_Operation(unittest.TestCase):
 
         sec_dep_parameters_expected = {
                 'flow_rate': np.array([1, 0, 0, 0]),
-                'flow_rate_filter': np.array([0, 0, 0, 0]),
+                'flow_rate_filter': 0,
         }
         np.testing.assert_equal(
             sec_dep_parameters_expected, cstr.section_dependent_parameters
@@ -209,7 +209,6 @@ class Test_Unit_Operation(unittest.TestCase):
 
         poly_parameters = {
                 'flow_rate': np.array([1, 0, 0, 0]),
-                'flow_rate_filter': np.array([0, 0, 0, 0]),
         }
         np.testing.assert_equal(
             poly_parameters, cstr.polynomial_parameters
