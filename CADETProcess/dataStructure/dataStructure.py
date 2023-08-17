@@ -5,6 +5,7 @@ from functools import wraps
 from warnings import warn
 
 from addict import Dict
+import numpy as np
 
 
 # %% Descriptors
@@ -47,6 +48,152 @@ class Descriptor(ABC):
         del instance.__dict__[self.name]
 
 
+class Aggregator():
+    """Descriptor aggregating parameters from instance container with other instances."""
+
+    def __init__(self, parameter_name, container, *args, **kwargs):
+        """
+        Initialize the Aggregator descriptor.
+
+        Parameters
+        ----------
+        parameter_name : str
+            Name of the parameter to be aggregated.
+        container : str
+            Name of the attribute in the instance that contains the other instances
+            from which parameters will be aggregated.
+        *args : tuple, optional
+            Additional positional arguments.
+        **kwargs : dict, optional
+            Additional keyword arguments.
+
+        """
+        self.parameter_name = parameter_name
+        self.container = container
+
+    def _container_obj(self, instance):
+        """
+        Retrieve the iterable container of the instance.
+
+        Parameters
+        ----------
+        instance : Any
+            Instance to retrieve the container from.
+
+        Returns
+        -------
+        obj : iterable
+            Iterable container of the instance.
+
+        Raises
+        ------
+        TypeError
+            If the container is not iterable.
+        """
+        container = getattr(instance, self.container)
+
+        if not hasattr(container, "__iter__"):
+            raise TypeError(f"{self.container} attribute is not iterable")
+
+        return container
+
+    def _n_instances(self, instance):
+        return len(self._get_parameter_values_from_container(instance))
+
+    def _get_parameter_values_from_container(self, instance):
+        container = self._container_obj(instance)
+        value = [getattr(el, self.parameter_name) for el in container]
+
+        if len(value) == 0:
+            return
+
+        return value
+
+    def __get__(self, instance, cls):
+        """
+        Retrieve the descriptor value for the given instance.
+
+        Parameters
+        ----------
+        instance : Any
+            Instance to retrieve the descriptor value for.
+        cls : Type[Any], optional
+            Class to which the descriptor belongs. By default None.
+
+        Returns
+        -------
+        np.array
+            Descriptor values aggregated in a numpy array.
+        """
+        if instance is None:
+            return self
+
+        value = self._get_parameter_values_from_container(instance)
+
+        if value is not None:
+            self._check(instance, value, recursive=True)
+
+        return value
+
+    def __set__(self, instance, value):
+        """
+        Set the descriptor value for the given instance.
+
+        Parameters
+        ----------
+        instance : Any
+            Instance to set the descriptor value for.
+        value : Any
+            Value to set.
+        """
+        if value is not None:
+            value = self._prepare(instance, value, recursive=True)
+            self._check(instance, value, recursive=True)
+
+        container = self._container_obj(instance)
+
+        for i, el in enumerate(container):
+            setattr(el, self.parameter_name, value[i])
+
+    def _prepare(self, instance, value, recursive=False):
+        """
+        Prepare value for setting if necessary.
+
+        Override this method if type-casting or other operations are necessary.
+
+        Parameters
+        ----------
+        instance : Any
+            Instance to retrieve the descriptor value for.
+        value : Any
+            Value to cast.
+
+        Returns
+        -------
+        Any
+            Prepared value.
+        """
+        return value
+
+    def _check(self, instance, value, recursive=False):
+        """
+        Check the given value.
+
+        Override this method for specific checks.
+
+        Parameters
+        ----------
+        instance : Any
+            Instance to retrieve the descriptor value for.
+        value : Any
+            Value to check.
+        recursive : bool, optional
+            If True, perform the check recursively. Defaults to False.
+
+        """
+        return
+
+
 def make_signature(names):
     return Signature(
             Parameter(name, Parameter.POSITIONAL_OR_KEYWORD)
@@ -74,6 +221,8 @@ class StructMeta(type):
         List of parameters that have a `size` attribute.
     _polynomial_parameters : list
         List of parameters with `fill_values` attribute.
+    _aggregated_parameters : list
+        List of parameters that aggregate other instances parameters.
     _required_parameters : list
         List of parameters that have a default value of None.
 
@@ -106,6 +255,18 @@ class StructMeta(type):
             clsdict[name].name = name
 
         clsdict['_descriptors'] = descriptors
+
+        # Extract aggregator keys
+        aggregators = [
+            key for key, val in clsdict.items()
+            if isinstance(val, Aggregator)
+        ]
+
+        # Assign name attribute for each descriptor
+        for name in aggregators:
+            clsdict[name].name = name
+
+        clsdict['_aggregators'] = aggregators
 
         # Create the new class object
         clsobj = super().__new__(cls, clsname, bases, dict(clsdict))
@@ -206,7 +367,11 @@ class Structure(metaclass=StructMeta):
     @property
     def parameters(self):
         """dict: Parameters of the instance."""
-        return self._parameters
+        parameters = self._parameters
+
+        parameters.update(self.aggregated_parameters)
+
+        return parameters
 
     @parameters.setter
     def parameters(self, parameters):
@@ -234,6 +399,14 @@ class Structure(metaclass=StructMeta):
         parameters = {
             key: value for key, value in self.parameters.items()
             if key in self._sized_parameters
+        }
+        return Dict(parameters)
+
+    @property
+    def aggregated_parameters(self):
+        """dict: Aggregated parameters of the instance."""
+        parameters = {
+            key: getattr(self, key) for key in self._aggregators
         }
         return Dict(parameters)
 
