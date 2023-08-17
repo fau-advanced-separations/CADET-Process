@@ -25,6 +25,7 @@ References
     :toctree: generated/
 
     dataStructure
+    aggregator
     parameter
     parameter_group
     cache
@@ -34,6 +35,7 @@ References
 """
 
 from .dataStructure import *
+from .aggregator import *
 from .parameter import *
 from .parameter_group import *
 from .cache import *
