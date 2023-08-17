@@ -769,18 +769,18 @@ class LumpedRateModelWithPores(TubularReactorBase):
     particle_porosity = UnsignedFloat(ub=1)
     particle_radius = UnsignedFloat()
     film_diffusion = SizedUnsignedList(size='n_comp')
-    pore_accessibility = SizedUnsignedList(size='n_comp')
+    pore_accessibility = SizedUnsignedList(ub=1, size='n_comp', default=1)
     _parameters = [
         'bed_porosity',
         'particle_porosity',
         'particle_radius',
         'film_diffusion',
+        'pore_accessibility',
     ]
 
     _section_dependent_parameters = \
-        UnitBaseClass._section_dependent_parameters + \
         TubularReactorBase._section_dependent_parameters + \
-        ['film_diffusion']
+        ['film_diffusion', 'pore_accessibility']
 
     c = SizedList(size='n_comp', default=0)
     _cp = SizedUnsignedList(size='n_comp')
@@ -877,12 +877,14 @@ class GeneralRateModel(TubularReactorBase):
         Porosity of particles.
     particle_radius : UnsignedFloat
         Radius of the particles.
+    film_diffusion : List of unsigned floats. Length depends on n_comp.
+        Diffusion rate for components in pore volume.
+    pore_accessibility : List of unsigned floats. Length depends on n_comp.
+        Accessibility of pores for components.
     pore_diffusion : List of unsigned floats. Length depends on n_comp.
         Diffusion rate for components in pore volume.
     surface_diffusion : List of unsigned floats. Length depends on n_comp.
         Diffusion rate for components in adsrobed state.
-    pore_accessibility : List of unsigned floats. Length depends on n_comp.
-        Accessibility of pores for components.
     c : List of unsigned floats. Length depends on n_comp
         Initial concentration of the reactor.
     cp : List of unsigned floats. Length depends on n_comp
@@ -902,17 +904,17 @@ class GeneralRateModel(TubularReactorBase):
     particle_porosity = UnsignedFloat(ub=1)
     particle_radius = UnsignedFloat()
     film_diffusion = SizedUnsignedList(size='n_comp')
+    pore_accessibility = SizedUnsignedList(ub=1, size='n_comp', default=1)
     pore_diffusion = SizedUnsignedList(size='n_comp')
     _surface_diffusion = SizedUnsignedList(size='n_bound_states')
-    pore_accessibility = SizedUnsignedList(size='n_comp')
     _parameters = [
         'bed_porosity', 'particle_porosity', 'particle_radius',
-        'film_diffusion', 'pore_diffusion', 'surface_diffusion'
+        'film_diffusion', 'pore_accessibility',
+        'pore_diffusion', 'surface_diffusion'
     ]
     _section_dependent_parameters = \
-        UnitBaseClass._section_dependent_parameters + \
         TubularReactorBase._section_dependent_parameters + \
-        ['film_diffusion']
+        ['film_diffusion', 'pore_accessibility', 'pore_diffusion', 'surface_diffusion']
 
     c = SizedList(size='n_comp', default=0)
     _cp = SizedUnsignedList(size='n_comp')
