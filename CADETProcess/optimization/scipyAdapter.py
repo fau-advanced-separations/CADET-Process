@@ -501,12 +501,12 @@ class NelderMead(SciPyInterface):
         Set to True to print convergence messages.
     """
 
-    maxiter = UnsignedInteger(1000)
+    maxiter = UnsignedInteger(default=1000)
     initial_simplex = None
     xatol = UnsignedFloat(default=1e-3)
     fatol = UnsignedFloat(default=1e-3)
     adaptive = Bool(default=True)
-    disp = Bool(optional=False)
+    disp = Bool(default=False)
 
     x_tol = xatol           # Alias for uniform interface
     f_tol = fatol           # Alias for uniform interface
