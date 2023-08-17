@@ -4,12 +4,17 @@ import numpy as np
 
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import Structure
-from CADETProcess.dataStructure import String, UnsignedInteger
+from CADETProcess.dataStructure import (
+    Aggregator, SizedAggregator, SizedClassDependentAggregator
+)
+from CADETProcess.dataStructure import (
+    Bool, String, SizedList, SizedNdArray, UnsignedInteger, UnsignedFloat
+)
 
 from .componentSystem import ComponentSystem
 
 
-class Reaction():
+class Reaction(Structure):
     """Helper class to store information about individual Mass Action Law Reactions.
 
     This class represents an individual reaction within a MAL model, and
@@ -44,6 +49,23 @@ class Reaction():
     k_eq : float
         The equilibrium constant for the reaction.
     """
+    is_kinetic = Bool(default=True)
+    stoich = SizedNdArray(size='n_comp', default=0)
+    k_fwd = UnsignedFloat()
+    k_bwd = UnsignedFloat()
+    k_fwd_min = UnsignedFloat(default=100)
+    exponents_fwd = SizedNdArray(size='n_comp', default=0)
+    exponents_bwd = SizedNdArray(size='n_comp', default=0)
+
+    _parameters = [
+        'is_kinetic',
+        'stoich',
+        'k_fwd',
+        'k_bwd',
+        'k_fwd_min',
+        'exponents_fwd',
+        'exponents_bwd',
+    ]
 
     def __init__(
             self, component_system, indices, coefficients,
@@ -57,7 +79,7 @@ class Reaction():
             Component system of the reaction.
         indices : list of int
             Component indices.
-        coefficients : list of float
+        coefficients : np.ndarray
             Stoichiometric coefficients in the same order of component indices.
         k_fwd : float
             Forward reaction rate.
@@ -80,6 +102,7 @@ class Reaction():
 
         """
         self.component_system = component_system
+        super().__init__()
 
         self.stoich = np.zeros((self.n_comp,))
         for i, c in zip(indices, coefficients):
@@ -147,7 +170,7 @@ class Reaction():
         return " + ".join(educts) + reaction_operator + " + ".join(products)
 
 
-class CrossPhaseReaction():
+class CrossPhaseReaction(Structure):
     """
     Helper class to store information about cross-phase Mass Action Law reactions.
 
@@ -190,6 +213,42 @@ class CrossPhaseReaction():
         An array of concentration exponents of the components in the solid phase for the
         backward reaction.
     """
+
+    is_kinetic = Bool(default=True)
+
+    stoich_liquid = SizedNdArray(size='n_comp', default=0)
+    stoich_solid = SizedNdArray(size='n_comp', default=0)
+    k_fwd = UnsignedFloat()
+    k_bwd = UnsignedFloat()
+    k_fwd_min = UnsignedFloat(default=100)
+
+    exponents_fwd_liquid = SizedNdArray(size='n_comp', default=0)
+    exponents_fwd_solid = SizedNdArray(size='n_comp', default=0)
+
+    exponents_bwd_liquid = SizedNdArray(size='n_comp', default=0)
+    exponents_bwd_solid = SizedNdArray(size='n_comp', default=0)
+
+    exponents_fwd_liquid_modsolid = SizedNdArray(size='n_comp', default=0)
+    exponents_fwd_solid_modliquid = SizedNdArray(size='n_comp', default=0)
+
+    exponents_bwd_liquid_modsolid = SizedNdArray(size='n_comp', default=0)
+    exponents_bwd_solid_modliquid = SizedNdArray(size='n_comp', default=0)
+
+    _parameters = [
+        'stoich_liquid',
+        'stoich_solid',
+        'k_fwd',
+        'k_bwd',
+        'k_fwd_min',
+        'exponents_fwd_liquid',
+        'exponents_fwd_solid',
+        'exponents_bwd_liquid',
+        'exponents_bwd_solid',
+        'exponents_fwd_liquid_modsolid',
+        'exponents_fwd_solid_modliquid',
+        'exponents_bwd_liquid_modsolid',
+        'exponents_bwd_solid_modliquid',
+    ]
 
     def __init__(
             self, component_system, indices, coefficients, phases,
@@ -239,6 +298,7 @@ class CrossPhaseReaction():
 
         """
         self.component_system = component_system
+        super().__init__()
 
         self.stoich_liquid = np.zeros((self.n_comp,))
         self.stoich_solid = np.zeros((self.n_comp,))
@@ -377,11 +437,6 @@ class ReactionBaseClass(Structure):
         self.component_system = component_system
         self.name = name
 
-        self._parameters = {
-            param: getattr(self, param)
-            for param in self._parameters
-        }
-
         super().__init__(*args, **kwargs)
 
     @property
@@ -430,11 +485,16 @@ class NoReaction(ReactionBaseClass):
 class MassActionLaw(ReactionBaseClass):
     """Parameters for Reaction in Bulk Phase."""
 
+    k_fwd = Aggregator('k_fwd', 'reactions')
+    k_bwd = Aggregator('k_bwd', 'reactions')
+    stoich = SizedAggregator('stoich', 'reactions')
+    exponents_fwd = SizedAggregator('exponents_fwd', 'reactions')
+    exponents_bwd = SizedAggregator('exponents_bwd', 'reactions')
+
     _parameters = ['stoich', 'exponents_fwd', 'exponents_bwd', 'k_fwd', 'k_bwd']
 
     def __init__(self, *args, **kwargs):
         self._reactions = []
-
         super().__init__(*args, **kwargs)
 
     @wraps(Reaction.__init__)
@@ -454,53 +514,67 @@ class MassActionLaw(ReactionBaseClass):
         return len(self.reactions)
 
     @property
-    def stoich(self):
-        """np.array: Stoichiometric coefficients of reactions."""
-        stoich = np.zeros((self.n_comp, self.n_reactions))
-
-        for i, r in enumerate(self.reactions):
-            stoich[:, i] = r.stoich
-
-        return stoich
-
-    @property
-    def exponents_fwd(self):
-        """np.array: Exponents of forward reactions."""
-        exponents = np.zeros((self.n_comp, self.n_reactions))
-
-        for i, r in enumerate(self.reactions):
-            exponents[:, i] = r.exponents_fwd
-
-        return exponents
-
-    @property
-    def exponents_bwd(self):
-        """np.array: Exponents of backward reactions."""
-        exponents = np.zeros((self.n_comp, self.n_reactions))
-
-        for i, r in enumerate(self.reactions):
-            exponents[:, i] = r.exponents_bwd
-
-        return exponents
-
-    @property
-    def k_fwd(self):
-        """list: Forward reaction rates."""
-        return [r.k_fwd for r in self.reactions]
-
-    @property
-    def k_bwd(self):
-        """list: Backward reaction rates."""
-        return [r.k_bwd for r in self.reactions]
-
-    @property
     def k_eq(self):
-        """list: Equilibrium constants."""
+        """list: Equilibrium constants of liquid phase Reactions."""
         return [r.k_eq for r in self.reactions]
 
 
 class MassActionLawParticle(ReactionBaseClass):
     """Parameters for Reaction in Particle Phase."""
+
+    stoich_liquid = SizedClassDependentAggregator(
+        'stoich_liquid', 'liquid_reactions',
+        mapping={
+            CrossPhaseReaction: 'stoich_liquid',
+            None: 'stoich'
+        }
+    )
+    k_fwd_liquid = Aggregator('k_fwd', 'liquid_reactions')
+    k_bwd_liquid = Aggregator('k_fwd', 'liquid_reactions')
+    exponents_fwd_liquid = SizedAggregator('exponents_fwd', 'liquid_reactions')
+    exponents_bwd_liquid = SizedAggregator('exponents_bwd', 'liquid_reactions')
+
+    stoich_solid = SizedClassDependentAggregator(
+        'stoich_solid', 'solid_reactions',
+        mapping={
+            CrossPhaseReaction: 'stoich_solid',
+            None: 'stoich'
+        }
+    )
+    k_fwd_solid = Aggregator('k_fwd', 'solid_reactions')
+    k_bwd_solid = Aggregator('k_fwd', 'solid_reactions')
+    exponents_fwd_solid = SizedAggregator('exponents_fwd', 'solid_reactions')
+    exponents_bwd_solid = SizedAggregator('exponents_bwd', 'solid_reactions')
+
+    exponents_fwd_liquid_modsolid = SizedClassDependentAggregator(
+        'exponents_fwd_liquid_modsolid', 'liquid_reactions',
+        mapping={
+            CrossPhaseReaction: 'exponents_fwd_liquid_modsolid',
+            None: None
+        }
+    )
+    exponents_bwd_liquid_modsolid = SizedClassDependentAggregator(
+        'exponents_bwd_liquid_modsolid', 'liquid_reactions',
+        mapping={
+            CrossPhaseReaction: 'exponents_bwd_liquid_modsolid',
+            None: None
+        }
+    )
+
+    exponents_fwd_solid_modliquid = SizedClassDependentAggregator(
+        'exponents_fwd_solid_modliquid', 'solid_reactions',
+        mapping={
+            CrossPhaseReaction: 'exponents_fwd_solid_modliquid',
+            None: None
+        }
+    )
+    exponents_bwd_solid_modliquid = SizedClassDependentAggregator(
+        'exponents_bwd_solid_modliquid', 'solid_reactions',
+        mapping={
+            CrossPhaseReaction: 'exponents_bwd_solid_modliquid',
+            None: None
+        }
+    )
 
     _parameters = [
         'stoich_liquid', 'exponents_fwd_liquid', 'exponents_bwd_liquid',
@@ -548,55 +622,6 @@ class MassActionLawParticle(ReactionBaseClass):
         return len(self.liquid_reactions)
 
     @property
-    def stoich_liquid(self):
-        """int: Number of liquid phase Reactions."""
-        stoich_liquid = np.zeros((self.n_comp, self.n_liquid_reactions))
-
-        for i, r in enumerate(self.liquid_reactions):
-            if isinstance(r, CrossPhaseReaction):
-                stoich_liquid[:, i] = r.stoich_liquid
-            else:
-                stoich_liquid[:, i] = r.stoich
-
-        return stoich_liquid
-
-    @property
-    def exponents_fwd_liquid(self):
-        """np.array: Forward reaction exponents of liquid phase Reactions."""
-        exponents = np.zeros((self.n_comp, self.n_liquid_reactions))
-
-        for i, r in enumerate(self.liquid_reactions):
-            if isinstance(r, CrossPhaseReaction):
-                exponents[:, i] = r.exponents_fwd_liquid
-            else:
-                exponents[:, i] = r.exponents_fwd
-
-        return exponents
-
-    @property
-    def exponents_bwd_liquid(self):
-        """np.array: Backward reaction exponents of liquid phase Reactions."""
-        exponents = np.zeros((self.n_comp, self.n_liquid_reactions))
-
-        for i, r in enumerate(self.liquid_reactions):
-            if isinstance(r, CrossPhaseReaction):
-                exponents[:, i] = r.exponents_bwd_liquid
-            else:
-                exponents[:, i] = r.exponents_bwd
-
-        return exponents
-
-    @property
-    def k_fwd_liquid(self):
-        """list: Forward reaction rates of liquid phase Reactions."""
-        return [r.k_fwd for r in self.liquid_reactions]
-
-    @property
-    def k_bwd_liquid(self):
-        """list: Backward reaction rates of liquid phase Reactions."""
-        return [r.k_bwd for r in self.liquid_reactions]
-
-    @property
     def k_eq_liquid(self):
         """list: Equilibrium constants of liquid phase Reactions."""
         return [r.k_eq for r in self.liquid_reactions]
@@ -613,54 +638,6 @@ class MassActionLawParticle(ReactionBaseClass):
         return len(self.solid_reactions)
 
     @property
-    def stoich_solid(self):
-        stoich_solid = np.zeros((self.n_comp, self.n_solid_reactions))
-
-        for i, r in enumerate(self.solid_reactions):
-            if isinstance(r, CrossPhaseReaction):
-                stoich_solid[:, i] = r.stoich_solid
-            else:
-                stoich_solid[:, i] = r.stoich
-
-        return stoich_solid
-
-    @property
-    def exponents_fwd_solid(self):
-        """np.array: Forward reaction exponents of solid phase Reactions."""
-        exponents = np.zeros((self.n_comp, self.n_solid_reactions))
-
-        for i, r in enumerate(self.solid_reactions):
-            if isinstance(r, CrossPhaseReaction):
-                exponents[:, i] = r.exponents_fwd_solid
-            else:
-                exponents[:, i] = r.exponents_fwd
-
-        return exponents
-
-    @property
-    def exponents_bwd_solid(self):
-        """np.array: Backward reaction exponents of solid phase Reactions."""
-        exponents = np.zeros((self.n_comp, self.n_solid_reactions))
-
-        for i, r in enumerate(self.solid_reactions):
-            if isinstance(r, CrossPhaseReaction):
-                exponents[:, i] = r.exponents_bwd_solid
-            else:
-                exponents[:, i] = r.exponents_bwd
-
-        return exponents
-
-    @property
-    def k_fwd_solid(self):
-        """list: Forward reaction rates of solid phase Reactions."""
-        return [r.k_fwd for r in self.solid_reactions]
-
-    @property
-    def k_bwd_solid(self):
-        """list: Backward reaction rates of solid phase Reactions."""
-        return [r.k_bwd for r in self.solid_reactions]
-
-    @property
     def k_eq_solid(self):
         """list: Equilibrium constants of solid phase Reactions."""
         return [r.k_eq for r in self.solid_reactions]
@@ -675,70 +652,6 @@ class MassActionLawParticle(ReactionBaseClass):
     def n_cross_phase_reactions(self):
         """int: Number of cross phase Reactions."""
         return len(self.cross_phase_reactions)
-
-    @property
-    def exponents_fwd_liquid_modsolid(self):
-        """
-        np.array: Forward reaction solid phase modifiers of liquid phase Reactions.
-        """
-        if self.n_cross_phase_reactions == 0:
-            return Dict()
-
-        liquid_fwd_modsolid = np.zeros((self.n_comp, self.n_liquid_reactions))
-
-        for i, r in enumerate(self.liquid_reactions):
-            if isinstance(r, CrossPhaseReaction):
-                liquid_fwd_modsolid[:, i] = r.exponents_fwd_liquid_modsolid
-
-        return liquid_fwd_modsolid
-
-    @property
-    def exponents_bwd_liquid_modsolid(self):
-        """
-        np.array: Backward reaction solid phase modifiers of liquid phase Reactions.
-        """
-        if self.n_cross_phase_reactions == 0:
-            return Dict()
-
-        liquid_bwd_modsolid = np.zeros((self.n_comp, self.n_liquid_reactions))
-
-        for i, r in enumerate(self.liquid_reactions):
-            if isinstance(r, CrossPhaseReaction):
-                liquid_bwd_modsolid[:, i] = r.exponents_bwd_liquid_modsolid
-
-        return liquid_bwd_modsolid
-
-    @property
-    def exponents_fwd_solid_modliquid(self):
-        """
-        np.array: Forward reaction liquid phase modifiers of solid phase Reactions.
-        """
-        if self.n_cross_phase_reactions == 0:
-            return Dict()
-
-        exponents = np.zeros((self.n_comp, self.n_solid_reactions))
-
-        for i, r in enumerate(self.solid_reactions):
-            if isinstance(r, CrossPhaseReaction):
-                exponents[:, i] = r.exponents_fwd_solid_modliquid
-
-        return exponents
-
-    @property
-    def exponents_bwd_solid_modliquid(self):
-        """
-        np.array: Backward reaction liquid phase modifiers of solid phase Reactions.
-        """
-        if self.n_cross_phase_reactions == 0:
-            return Dict()
-
-        exponents = np.zeros((self.n_comp, self.n_solid_reactions))
-
-        for i, r in enumerate(self.solid_reactions):
-            if isinstance(r, CrossPhaseReaction):
-                exponents[:, i] = r.exponents_bwd_solid_modliquid
-
-        return exponents
 
 
 def scale_to_rapid_equilibrium(k_eq, k_fwd_min=10):
