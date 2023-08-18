@@ -100,3 +100,16 @@ def set_nested_attribute(obj, attr_string, value):
     for attr in attributes[:-1]:
         obj = getattr(obj, attr)
     setattr(obj, attributes[-1], value)
+
+
+def get_nested_list_value(ls, idx_tuple):
+    return reduce(lambda l, i: l[i], idx_tuple, ls)
+
+
+def set_nested_list_value(ls, idx_tuple, value):
+    # Navigate through the nested list to the second last index
+    for idx in idx_tuple[:-1]:
+        ls = ls[idx]
+
+    # Set the value using the last index
+    ls[idx_tuple[-1]] = value
