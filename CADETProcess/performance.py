@@ -36,8 +36,8 @@ Mostly convenince method.
     PerformanceProduct
     MassBalanceDifference
 
-Note
-----
+Notes
+-----
 Performance Indicators might be deprecated in future since with new evaluation chains
 it's no longer required for setting up as optimization problem.
 
