@@ -13,6 +13,12 @@ repos:
   rev: v1.14.5
   hooks:
   - id: jupytext
-    files: './examples'
-    exclude: 'README.md|^index.md'
-    args: [--from, md, --to, "py:percent", './examples/*/*.md']
+    files: 'examples/[^/]+/'
+    types_or: [markdown, python]
+    exclude: |
+        (?x)^(
+            README.md|
+            examples/[^/]+/index.md|
+            examples/[^/]+/index.py
+        )$
+    args: [--sync]
