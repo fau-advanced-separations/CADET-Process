@@ -83,8 +83,8 @@ class SciPyInterface(OptimizerBase):
         def callback_function(x, state=None):
             """Internal callback to report progress after evaluation.
 
-            Note
-            ----
+            Notes
+            -----
             Currently, this evaluates all functions again. This should not be a problem
             since objectives and constraints are automatically cached.
 
@@ -118,7 +118,6 @@ class SciPyInterface(OptimizerBase):
             options['maxiter'] = self.maxiter - self.n_evals
             if str(self) == 'COBYLA':
                 options['maxiter'] -= 1
-
 
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore', category=OptimizeWarning)
@@ -292,8 +291,8 @@ class SciPyInterface(OptimizerBase):
             constr : optimize.NonlinearConstraint
                 Constraint object.
 
-            Note
-            ----
+            Notes
+            -----
             Note, this is necessary to avoid side effects when creating the function
             in the main loop.
             """
@@ -378,10 +377,10 @@ class TrustConstr(SciPyInterface):
     factorization_method : str or None, optional
         Method to factorize the Jacobian of the constraints.
         Use None (default) for auto selection or one of:
-            - 'NormalEquation'
-            - 'AugmentedSystem'
-            - 'QRFactorization'
-            - 'SVDFactorization'.
+        - 'NormalEquation'
+        - 'AugmentedSystem'
+        - 'QRFactorization'
+        - 'SVDFactorization'.
         The methods 'NormalEquation' and 'AugmentedSystem' can be used only with sparse
         constraints. The methods 'QRFactorization' and 'SVDFactorization' can be used
         only with dense constraints.
@@ -390,10 +389,10 @@ class TrustConstr(SciPyInterface):
         Maximum number of algorithm iterations. Default is 1000.
     verbose : UnsignedInteger, optional
         Level of algorithm's verbosity:
-            - 0 (default) for silent
-            - 1 for a termination report
-            - 2 for progress during iterations
-            - 3 for more complete progress report.
+        - 0 (default) for silent
+        - 1 for a termination report
+        - 2 for progress during iterations
+        - 3 for more complete progress report.
     disp : Bool, optional
         If True, then verbose will be set to 1 if it was 0. Default is False.
 
