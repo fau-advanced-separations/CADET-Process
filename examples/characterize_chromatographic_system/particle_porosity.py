@@ -124,10 +124,10 @@ process.add_event(
 
 # %%
 from CADETProcess.simulator import Cadet
-process_simulator = Cadet()
+simulator = Cadet()
 
 if __name__ == '__main__':
-    simulation_results = process_simulator.simulate(process)
+    simulation_results = simulator.simulate(process)
     _ = simulation_results.solution.outlet.inlet.plot()
 
 # %% [markdown]
