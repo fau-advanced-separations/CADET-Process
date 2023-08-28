@@ -466,7 +466,7 @@ class TestSliceSolution(unittest.TestCase):
         # Test with component that has > 1 species
         solution = slice_solution(self.solution_species, components='B')
         self.assertEqual(solution.component_system.names, ['B'])
-        self.assertEqual(solution.component_system.labels, ['B+', 'B-'])
+        self.assertEqual(solution.component_system.species, ['B+', 'B-'])
 
         np.testing.assert_equal(
             self.solution_species.solution[..., 1:], solution.solution
@@ -477,7 +477,7 @@ class TestSliceSolution(unittest.TestCase):
             self.solution_species, use_total_concentration_components=True
         )
         self.assertEqual(solution.component_system.names, ['A', 'B'])
-        self.assertEqual(solution.component_system.labels, ['A', 'B'])
+        self.assertEqual(solution.component_system.species, ['A', 'B'])
 
         np.testing.assert_equal(
             self.solution_species.solution[..., 0], solution.solution[:, 0]

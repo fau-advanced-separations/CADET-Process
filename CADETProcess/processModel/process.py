@@ -402,7 +402,7 @@ class Process(EventHandler):
             if len(param_parts) == 3:
                 associated_model = param_parts[1]
 
-            if comp is not None and comp not in self.component_system.labels:
+            if comp is not None and comp not in self.component_system.species:
                 raise CADETProcessError(f'Unknown component {comp}.')
 
             unit = self.flow_sheet[unit]
@@ -525,7 +525,7 @@ class Process(EventHandler):
         self.parameters = config['parameters']
         self.initial_state = config['initial_state']
 
-    def add_concentration_profile(self, unit, time, c, component_index=None, s=1e-6):
+    def add_concentration_profile(self, unit, time, c, components=None, s=1e-6):
         """Add concentration profile to Process.
 
         Parameters

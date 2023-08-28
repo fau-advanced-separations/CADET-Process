@@ -151,16 +151,16 @@ class Reaction(Structure):
         for i, nu in enumerate(self.stoich):
             if nu < 0:
                 if nu == - 1:
-                    educts.append(f"{self.component_system.labels[i]}")
+                    educts.append(f"{self.component_system.species[i]}")
                 else:
                     educts.append(
-                        f"{abs(nu)} {self.component_system.labels[i]}"
+                        f"{abs(nu)} {self.component_system.species[i]}"
                     )
             elif nu > 0:
                 if nu == 1:
-                    products.append(f"{self.component_system.labels[i]}")
+                    products.append(f"{self.component_system.species[i]}")
                 else:
-                    products.append(f"{nu} {self.component_system.labels[i]}")
+                    products.append(f"{nu} {self.component_system.species[i]}")
 
         if self.is_kinetic:
             reaction_operator = f' <=>[{self.k_fwd:.2E}][{self.k_bwd:.2E}] '
@@ -379,32 +379,32 @@ class CrossPhaseReaction(Structure):
         for i, nu in enumerate(self.stoich_liquid):
             if nu < 0:
                 if nu == - 1:
-                    educts.append(f"{self.component_system.labels[i]}(l)")
+                    educts.append(f"{self.component_system.species[i]}(l)")
                 else:
                     educts.append(
-                        f"{abs(nu)} {self.component_system.labels[i]}(l)"
+                        f"{abs(nu)} {self.component_system.species[i]}(l)"
                     )
             elif nu > 0:
                 if nu == 1:
-                    products.append(f"{self.component_system.labels[i]}(l)")
+                    products.append(f"{self.component_system.species[i]}(l)")
                 else:
                     products.append(
-                        f"{nu} {self.component_system.labels[i]}(l)"
+                        f"{nu} {self.component_system.species[i]}(l)"
                     )
         for i, nu in enumerate(self.stoich_solid):
             if nu < 0:
                 if nu == - 1:
-                    educts.append(f"{self.component_system.labels[i]}(s)")
+                    educts.append(f"{self.component_system.species[i]}(s)")
                 else:
                     educts.append(
-                        f"{abs(nu)} {self.component_system.labels[i]}(s)"
+                        f"{abs(nu)} {self.component_system.species[i]}(s)"
                     )
             elif nu > 0:
                 if nu == 1:
-                    products.append(f"{self.component_system.labels[i]}(s)")
+                    products.append(f"{self.component_system.species[i]}(s)")
                 else:
                     products.append(
-                        f"{nu} {self.component_system.labels[i]}(s)"
+                        f"{nu} {self.component_system.species[i]}(s)"
                     )
 
         if self.is_kinetic:
