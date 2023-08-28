@@ -1,4 +1,5 @@
 from collections import defaultdict
+from functools import wraps
 import os
 import platform
 from pathlib import Path
@@ -121,6 +122,25 @@ class Cadet(SimulatorBase):
     @temp_dir.setter
     def temp_dir(self, temp_dir):
         self._temp_dir = temp_dir
+
+    def locks_process(func):
+        """Lock process to enable caching."""
+        @wraps(func)
+        def wrapper(self, process, *args, **kwargs):
+            locked_process = False
+
+            if not process.lock:
+                process.lock = True
+                locked_process = True
+
+            results = func(self, process, *args, **kwargs)
+
+            if locked_process:
+                process.lock = False
+
+            return results
+
+        return wrapper
 
     def autodetect_cadet(self):
         """
@@ -356,6 +376,7 @@ class Cadet(SimulatorBase):
 
         return cadet_model
 
+    @locks_process
     def run(self, process, cadet=None, file_path=None):
         """Interface to the solver run function.
 
@@ -464,6 +485,7 @@ class Cadet(SimulatorBase):
 
         return cadet
 
+    @locks_process
     def get_process_config(self, process):
         """Create the CADET config.
 
@@ -484,15 +506,11 @@ class Cadet(SimulatorBase):
         get_input_sensitivity
 
         """
-        process.lock = True
-
         config = Dict()
         config.input.model = self.get_input_model(process)
         config.input.solver = self.get_input_solver(process)
         config.input['return'] = self.get_input_return(process)
         config.input.sensitivity = self.get_input_sensitivity(process)
-
-        process.lock = False
 
         return config
 
@@ -502,6 +520,7 @@ class Cadet(SimulatorBase):
 
         return results
 
+    @locks_process
     def get_simulation_results(
             self,
             process,
