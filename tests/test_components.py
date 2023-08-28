@@ -59,28 +59,28 @@ class TestComponents(unittest.TestCase):
         with self.assertRaises(CADETProcessError):
             self.component_system_1.add_component('A')
 
-    def test_labels(self):
-        labels_expected = ['0', '1']
-        labels = self.component_system_0.labels
-        np.testing.assert_equal(labels, labels_expected)
+    def test_species(self):
+        species_expected = ['0', '1']
+        species = self.component_system_0.species
+        np.testing.assert_equal(species, species_expected)
 
-        labels_expected = ['A', 'B']
-        labels = self.component_system_1.labels
-        np.testing.assert_equal(labels, labels_expected)
+        species_expected = ['A', 'B']
+        species = self.component_system_1.species
+        np.testing.assert_equal(species, species_expected)
 
-        labels_expected = ['A', 'B+', 'B-']
-        labels = self.component_system_2.labels
-        np.testing.assert_equal(labels, labels_expected)
+        species_expected = ['A', 'B+', 'B-']
+        species = self.component_system_2.species
+        np.testing.assert_equal(species, species_expected)
 
-        labels_expected = [
+        species_expected = [
             'NH4+', 'NH3', 'Lys2+', 'Lys+', 'Lys', 'Lys', 'H+'
         ]
-        labels = self.component_system_3.labels
-        np.testing.assert_equal(labels, labels_expected)
+        species = self.component_system_3.species
+        np.testing.assert_equal(species, species_expected)
 
-        labels_expected = ['0', '1', 'manual_label']
-        labels = self.component_system_4.labels
-        np.testing.assert_equal(labels, labels_expected)
+        species_expected = ['0', '1', 'manual_label']
+        species = self.component_system_4.species
+        np.testing.assert_equal(species, species_expected)
 
     def test_indices(self):
         indices_expected = {
