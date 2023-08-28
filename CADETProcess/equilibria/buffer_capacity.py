@@ -443,7 +443,7 @@ def plot_charge_distribution(
     if plot_cumulative:
         labels = reaction_system.component_system.names
     else:
-        labels = reaction_system.component_system.labels
+        labels = reaction_system.component_system.species
 
     labels.remove('H+')
 

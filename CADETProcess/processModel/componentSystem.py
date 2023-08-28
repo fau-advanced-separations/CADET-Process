@@ -159,19 +159,19 @@ class ComponentSystem(Structure):
     n_species : int
         Number of Subspecies.
     n_comp : int
-        Number of all components including species.
+        Number of all component species.
     n_components : int
         Number of components.
     indices : dict
         Component indices.
     names : list
         Names of all components.
-    labels : list
-        Labels of all components (including species).
+    species : list
+        Names of all component species.
     charge : list
-        Charges of all components (including species).
+        Charges of all components species.
     molecular_weight : list
-        Molecular weights of all components (including species).
+        Molecular weights of all component species.
 
     See Also
     --------
@@ -311,6 +311,7 @@ class ComponentSystem(Structure):
 
     @property
     def indices(self):
+        """dict: List of species indices for each component name."""
         indices = defaultdict(list)
 
         index = 0
@@ -320,6 +321,19 @@ class ComponentSystem(Structure):
                 index += 1
 
         return Dict(indices)
+
+    @property
+    def species_indices(self):
+        """dict: Indices for each species."""
+        indices = Dict()
+
+        index = 0
+        for comp in self.components:
+            for spec in comp.species:
+                indices[spec.name] = index
+                index += 1
+
+        return indices
 
     @property
     def names(self):
@@ -334,23 +348,18 @@ class ComponentSystem(Structure):
     @property
     def species(self):
         """list: List of species names."""
-        return self.labels
-
-    @property
-    def labels(self):
-        """list: List of species names."""
-        labels = []
+        species = []
         index = 0
         for comp in self.components:
             for label in comp.label:
                 if label is None:
-                    labels.append(str(index))
+                    species.append(str(index))
                 else:
-                    labels.append(label)
+                    species.append(label)
 
                 index += 1
 
-        return labels
+        return species
 
     @property
     def charges(self):
