@@ -535,13 +535,13 @@ class Process(EventHandler):
         time : np.ndarray
             An array containing the time values of the concentration profile.
         c : np.ndarray
-            An array containing the concentration profile. If `component_index`
-            is not provided, this array should have shape (len(time), self.n_comp).
-            If `component_index` is provided, this array should have shape (len(time),).
-        component_index : int, optional
-            An integer representing the index of the component to which the
-            concentration profile is being added. If `None`, the profile is added
-            to all components. If `-1`, the same profile is added to all components.
+            An array containing the concentration profile with shape
+            (len(time), n_comp), where n_comp is the number of components specified with
+            the `components` argument.
+        components : list, optional.
+            Component species for which the concentration profile shall be added.
+            If `None`, the profile is expected to have shape (len(time), n_comp).
+            If `-1`, the same (1D) profile is added to all components.
             The default is `None`.
         s : float, optional
             A smoothing factor used to generate the spline representation of the
@@ -568,19 +568,26 @@ class Process(EventHandler):
         if max(time) > self.cycle_time:
             raise ValueError('Inlet profile exceeds cycle time')
 
-        if component_index == -1:
+        if components == -1:
             # Assume same profile for all components.
             if c.ndim > 1:
                 raise ValueError('Expected single concentration profile')
 
             c = np.column_stack([c]*self.n_comp)
-
-        elif component_index is None and c.shape[1] != self.n_comp:
+            components = self.component_system.species
+        elif components is None and c.shape[1] != self.n_comp:
             # Else, c must be given for all components.
             raise CADETProcessError('Number of components does not match')
 
-        for comp in range(self.n_comp):
-            tck = interpolate.splrep(time, c[:, comp], s=s)
+        if not isinstance(components, list):
+            components = [components]
+
+        indices = [self.component_system.species_indices[comp] for comp in components]
+        if len(indices) == 1 and c.ndim == 1:
+            c = np.array(c, ndmin=2).T
+
+        for i, comp in enumerate(indices):
+            tck = interpolate.splrep(time, c[:, i], s=s)
             ppoly = interpolate.PPoly.from_spline(tck)
 
             for i, (t, sec) in enumerate(zip(ppoly.x, ppoly.c.T)):
