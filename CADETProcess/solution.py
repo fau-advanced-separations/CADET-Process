@@ -1337,7 +1337,7 @@ class SolutionSolid(SolutionBase):
         layout.title = f'Solid phase concentration, comp={comp}, state={state}'
         layout.x_label = '$z~/~m$'
         layout.y_label = '$r~/~m$'
-        layout.labels = self.component_system.labels[c_i]
+        layout.labels = self.component_system.species[c_i]
         plotting.set_layout(ax, layout)
 
         return ax, mesh
