@@ -352,6 +352,9 @@ class StericMassAction(BindingBaseClass):
 
     @property
     def adsorption_rate_transformed(self):
+        if self.adsorption_rate is None:
+            return None
+
         nu = np.array(self.characteristic_charge)
         return \
             self.adsorption_rate / \
@@ -359,13 +362,20 @@ class StericMassAction(BindingBaseClass):
 
     @adsorption_rate_transformed.setter
     def adsorption_rate_transformed(self, adsorption_rate_transformed):
+        if self.characteristic_charge is None:
+            raise ValueError("Please set nu before setting a transformed rate constant.")
+
         nu = np.array(self.characteristic_charge)
-        self.adsorption_rate = \
-            adsorption_rate_transformed * \
-            self.reference_solid_phase_conc**(-nu)
+        self.adsorption_rate = (
+            (adsorption_rate_transformed
+             * self.reference_solid_phase_conc ** (-nu)
+             ).tolist())
 
     @property
     def desorption_rate_transformed(self):
+        if self.desorption_rate is None:
+            return None
+
         nu = np.array(self.characteristic_charge)
         return \
             self.desorption_rate / \
@@ -373,10 +383,14 @@ class StericMassAction(BindingBaseClass):
 
     @desorption_rate_transformed.setter
     def desorption_rate_transformed(self, desorption_rate_transformed):
+        if self.characteristic_charge is None:
+            raise ValueError("Please set nu before setting a transformed rate constant.")
+
         nu = np.array(self.characteristic_charge)
-        self.desorption_rate = \
-            desorption_rate_transformed * \
-            self.reference_liquid_phase_conc**(-nu)
+        self.desorption_rate = (
+            (desorption_rate_transformed
+             * self.reference_liquid_phase_conc ** (-nu)
+             ).tolist())
 
 
 class AntiLangmuir(BindingBaseClass):
