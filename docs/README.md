@@ -3,7 +3,7 @@ Documentation
 ## CADET-Process Documentation
 
 
-To build the documentation locally, install sphinx and other dependencies by running (from the CADET-Process root directory)
+To build the documentation locally, install sphinx and other dependencies to an environment with a CADET-Process installation by running (from the CADET-Process root directory)
 
 ```
 pip install -e .[docs]
