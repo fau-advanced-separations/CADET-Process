@@ -40,7 +40,7 @@ optimization_problem.add_variable('var_0', lb=0, ub=100)
 ```
 
 Note that for many situations, it can be advantageous to normalize the optimization variables to ensure that all parameters are on a similar scale.
-For more information, refer to {ref}`parameter_normalization_guide`.
+For more information, refer to {ref}`variable_normalization_guide`.
 
 The total number of variables is stored in {attr}`~CADETProcess.optimization.OptimizationProblem.n_variables` and the names in {attr}`~CADETProcess.optimization.OptimizationProblem.variable_names`.
 
@@ -52,6 +52,7 @@ print(optimization_problem.variable_names)
 In order to reduce the complexity of the optimization problem, dependencies between individual variables can be defined.
 For more information, refer to {ref}`variable_dependencies_guide`.
 
+For more information on how to configure optimization variables of multi-dimensional parameters, refer to {ref}`variable_indices_gude.
 
 (objectives_guide)=
 ## Objectives

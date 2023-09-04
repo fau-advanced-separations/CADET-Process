@@ -14,8 +14,8 @@ import sys
 sys.path.append('../../../../')
 ```
 
-(parameter_normalization_guide)=
-# Parameter Normalization
+(variable_normalization_guide)=
+# Variable Normalization
 Most optimization algorithms struggle when optimization variables spread over multiple orders of magnitude.
 This is important because the magnitude or range of the parameters can impact the optimization process, and the relative importance of each parameter can be difficult to determine without normalization.
 Normalizing parameters makes the optimization process more efficient and helps ensure that the results are more accurate and reliable.
