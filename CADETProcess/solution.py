@@ -665,9 +665,10 @@ class SolutionIO(SolutionBase):
         local_purity_components = solution.local_purity_components * 100
         local_purity_species = solution.local_purity_species * 100
 
+        colors = iter(plt.rcParams["axes.prop_cycle"].by_key()["color"])
         species_index = 0
         for i, comp in enumerate(solution.component_system.components):
-            color = next(ax._get_lines.prop_cycler)['color']
+            color = next(colors)
             if hide_labels:
                 label = None
             else:
@@ -1446,9 +1447,10 @@ def _plot_solution_1D(
     y_max = 0
     y_min_sec = 0
     y_max_sec = 0
+    colors = iter(plt.rcParams["axes.prop_cycle"].by_key()["color"])
 
     for i, comp in enumerate(solution.component_system.components):
-        color = next(ax._get_lines.prop_cycler)['color']
+        color = next(colors)
         if hide_labels or not update_layout:
             label = None
         else:
