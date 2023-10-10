@@ -17,6 +17,7 @@ This module provides a class for storing simulation results.
 
 import copy
 import os
+import typing
 
 import numpy as np
 import addict
@@ -27,7 +28,6 @@ from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import (
     Dict, String, List, UnsignedInteger, UnsignedFloat
 )
-
 
 __all__ = ['SimulationResults']
 
@@ -88,7 +88,7 @@ class SimulationResults(Structure):
             process,
             solution_cycles, sensitivity_cycles, system_state,
             chromatograms
-            ):
+    ):
         self.solver_name = solver_name
         self.solver_parameters = solver_parameters
 
@@ -211,7 +211,7 @@ class SimulationResults(Structure):
         for i in range(1, self.n_cycles):
             time_complete = np.hstack((
                 time_complete,
-                self.time_cycle[1:] + i*self.process.cycle_time
+                self.time_cycle[1:] + i * self.process.cycle_time
             ))
 
         self._time_complete = time_complete
@@ -230,19 +230,58 @@ class SimulationResults(Structure):
 
         for unit in units:
             self.solution[unit][-1].plot(
-                save_path=path + '/' + unit + '_last.png',
+                save_path=os.path.join(path, unit + '_last.png'),
                 start=start, end=end
             )
 
         for unit in units:
             self.solution_complete[unit].plot(
-                save_path=path + '/' + unit + '_complete.png',
+                save_path=os.path.join(path, unit + '_complete.png'),
                 start=start, end=end
             )
 
         for unit in units:
             self.solution[unit][-1].plot(
-                save_path=path + '/' + unit + '_overlay.png',
+                save_path=os.path.join(path, unit + '_overlay.png'),
                 overlay=[cyc.signal for cyc in self.solution[unit][0:-1]],
                 start=start, end=end
             )
+
+    def save_csv(self, case_dir=None, filename=None, units: typing.Union[str, list] = None):
+        """
+        Save solution to csv file.
+
+        Parameters
+        ----------
+        case_dir : str
+            Directory to store the solution in.
+        filename : str
+            Filename for the solution csv file.
+        units : str or list of strings
+            Names of unit operations to write out.
+        """
+        path = settings.working_directory
+        if case_dir is not None:
+            path = os.path.join(settings.working_directory, case_dir)
+        if not os.path.exists(path):
+            os.makedirs(path)
+        if filename is None:
+            filename = 'output.csv'
+        if not filename.endswith(".csv"):
+            filename += ".csv"
+
+        if type(units) is str:
+            units = [units]
+
+        if units is None:
+            units = self.solution.keys()
+
+        for unit in units:
+            solution = self.solution[unit]["outlet"].solution
+            solution_times = self.solution[unit]["outlet"].time
+
+            full_solution = np.concatenate([np.atleast_2d(solution_times), solution.T]).T
+
+            file_path = os.path.join(path, unit + "_" + filename)
+            with open(file_path, "w") as file_handle:
+                np.savetxt(file_handle, full_solution, delimiter=",")
