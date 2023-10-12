@@ -1,11 +1,12 @@
 import unittest
 
-from CADETProcess.processModel import ComponentSystem
 import numpy
 
+from CADETProcess.processModel import ComponentSystem, binding, BindingBaseClass
 from CADETProcess.processModel import (
     Langmuir, BiLangmuir, MultistateStericMassAction, StericMassAction
 )
+from CADETProcess.simulator.cadetAdapter import adsorption_parameters_map
 
 
 class Test_Binding(unittest.TestCase):
@@ -65,6 +66,23 @@ class Test_Binding(unittest.TestCase):
             component_system = ComponentSystem(2)
             binding_model = StericMassAction(component_system, name='test')
             binding_model.adsorption_rate_untransformed = [0.02, 0.03]
+
+    def test_in_cadetAdapter(self):
+        binding_classes = {name: cls for name, cls in binding.__dict__.items() if (isinstance(cls, type) and
+                                                                                   issubclass(cls, BindingBaseClass))}
+        binding_classes.pop("BindingBaseClass")
+
+        for name, cls in binding_classes.items():
+            self.assertIn(name, adsorption_parameters_map)
+            map = adsorption_parameters_map[name]
+            try:
+                assert set(cls._parameters) == set(map["parameters"].values())  # This needs to compare to .values
+            except AssertionError:
+                raise AssertionError(f"Isotherm '{name}' has these parameters in cadetAdapter.py missing: "
+                                     f"{set(cls._parameters) - set(map['parameters'].values())} "
+                                     "and these parameters in binding.py missing: "
+                                     f"{set(map['parameters'].values()) - set(cls._parameters)}")
+
 
     def test_get_parameters(self):
         parameters_expected = {

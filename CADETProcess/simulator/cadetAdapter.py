@@ -1398,7 +1398,9 @@ class UnitParameters(ParameterWrapper):
 adsorption_parameters_map = {
     'NoBinding': {
         'name': 'NONE',
-        'parameters': {},
+        'parameters': {
+            'IS_KINETIC': 'is_kinetic',
+        },
     },
     'Linear': {
         'name': 'LINEAR',
@@ -1476,6 +1478,17 @@ adsorption_parameters_map = {
             'MCAL_ANTILANGMUIR': 'antilangmuir'
         },
     },
+    'Spreading': {
+        'name': 'MULTI_COMPONENT_SPREADING',
+        'parameters': {
+            'IS_KINETIC': 'is_kinetic',
+            'MCSPR_KA': 'adsorption_rate',
+            'MCSPR_KD': 'desorption_rate',
+            'MCSPR_QMAX': 'capacity',
+            'MCSPR_K12': 'exchange_from_1_2',
+            'MCSPR_K21': 'exchange_from_2_1',
+        },
+    },
     'MobilePhaseModulator': {
         'name': 'MOBILE_PHASE_MODULATOR',
         'parameters': {
@@ -1497,6 +1510,78 @@ adsorption_parameters_map = {
             'EMPM_BETA': 'ion_exchange_characteristic',
             'EMPM_GAMMA': 'hydrophobicity',
             'EMPM_COMP_MODE': 'component_mode',
+        },
+    },
+    'SelfAssociation': {
+        'name': 'SELF_ASSOCIATION',
+        'parameters': {
+            'IS_KINETIC': 'is_kinetic',
+            'SAI_KA1': 'adsorption_rate',
+            'SAI_KA2': 'adsorption_rate_dimerization',
+            'SAI_KD': 'desorption_rate',
+            'SAI_NU': 'characteristic_charge',
+            'SAI_SIGMA': 'steric_factor',
+            'SAI_LAMBDA': 'capacity',
+            'SAI_REFC0': 'reference_liquid_phase_conc',
+            'SAI_REFQ': 'reference_solid_phase_conc'
+        },
+    },
+    'BiStericMassAction': {
+        'name': 'BI_STERIC_MASS_ACTION',
+        'parameters': {
+            'IS_KINETIC': 'is_kinetic',
+            'BISMA_KA': 'adsorption_rate',
+            'BISMA_KD': 'desorption_rate',
+            'BISMA_LAMBDA': 'capacity',
+            'BISMA_NU': 'characteristic_charge',
+            'BISMA_SIGMA': 'steric_factor',
+            'BISMA_REFC0': 'reference_liquid_phase_conc',
+            'BISMA_REFQ': 'reference_solid_phase_conc'
+        },
+    },
+    'MultistateStericMassAction': {
+        'name': 'MULTISTATE_STERIC_MASS_ACTION',
+        'parameters': {
+            'IS_KINETIC': 'is_kinetic',
+            'MSSMA_KA': 'adsorption_rate',
+            'MSSMA_KD': 'desorption_rate',
+            'MSSMA_LAMBDA': 'capacity',
+            'MSSMA_NU': 'characteristic_charge',
+            'MSSMA_SIGMA': 'steric_factor',
+            'MSSMA_RATES': 'conversion_rate',
+            'MSSMA_REFC0': 'reference_liquid_phase_conc',
+            'MSSMA_REFQ': 'reference_solid_phase_conc'
+        },
+    },
+    'SimplifiedMultistateStericMassAction': {
+        'name': 'MULTISTATE_STERIC_MASS_ACTION',
+        'parameters': {
+            'IS_KINETIC': 'is_kinetic',
+            'SMSSMA_KA': 'adsorption_rate',
+            'SMSSMA_KD': 'desorption_rate',
+            'SMSSMA_NU_MIN': 'characteristic_charge_first',
+            'SMSSMA_NU_MAX': 'characteristic_charge_last',
+            'SMSSMA_NU_QUAD': 'quadratic_modifiers_charge',
+            'SMSSMA_SIGMA_MIN': 'steric_factor_first',
+            'SMSSMA_SIGMA_MAX': 'steric_factor_last',
+            'SMSSMA_SIGMA_QUAD': 'quadratic_modifiers_steric',
+            'SMSSMA_LAMBDA': 'capacity',
+            'SMSSMA_KWS': 'exchange_from_weak_stronger',
+            'SMSSMA_KWS_LIN': 'linear_exchange_ws',
+            'SMSSMA_KWS_QUAD': 'quadratic_exchange_ws',
+            'SMSSMA_KSW': 'exchange_from_stronger_weak',
+            'SMSSMA_KSW_LIN': 'linear_exchange_sw',
+            'SMSSMA_KSW_QUAD': 'quadratic_exchange_sw',
+            'SMSSMA_REFC0': 'reference_liquid_phase_conc',
+            'SMSSMA_REFQ': 'reference_solid_phase_conc'
+        },
+    },
+    'Saska': {
+        'name': 'SASKA',
+        'parameters': {
+            'IS_KINETIC': 'is_kinetic',
+            'SASKA_H': 'henry_const',
+            'SASKA_K': 'quadratic_factor',
         },
     },
     'GeneralizedIonExchange': {
