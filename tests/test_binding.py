@@ -1,8 +1,10 @@
 import unittest
 
 from CADETProcess.processModel import ComponentSystem
+import numpy
+
 from CADETProcess.processModel import (
-    Langmuir, BiLangmuir, MultistateStericMassAction
+    Langmuir, BiLangmuir, MultistateStericMassAction, StericMassAction
 )
 
 
@@ -36,6 +38,33 @@ class Test_Binding(unittest.TestCase):
         )
 
         self.multi_state_sma = binding_model
+
+        binding_model = StericMassAction(component_system, name='test')
+
+        binding_model.adsorption_rate = [0.02, 0.03]
+        binding_model.desorption_rate = [1, 1]
+        binding_model.characteristic_charge = [5, 10]
+        binding_model.steric_factor = [10, 10]
+        binding_model.capacity = 100
+        binding_model.reference_liquid_phase_conc = 200
+        binding_model.reference_solid_phase_conc = 100
+        self.sma = binding_model
+
+    def test_sma_reference_concentration_transformations(self):
+        adsorption_rate = numpy.array(self.sma.adsorption_rate)
+        desorption_rate = numpy.array(self.sma.desorption_rate)
+        characteristic_charge = numpy.array(self.sma.characteristic_charge)
+        expected_untransformed_adsorption_rate = adsorption_rate * (self.sma.reference_solid_phase_conc
+                                                                    ** -characteristic_charge)
+        expected_untransformed_desorption_rate = desorption_rate * (self.sma.reference_liquid_phase_conc
+                                                                    ** -characteristic_charge)
+        assert (numpy.allclose(expected_untransformed_adsorption_rate, self.sma.adsorption_rate_untransformed))
+        assert (numpy.allclose(expected_untransformed_desorption_rate, self.sma.desorption_rate_untransformed))
+
+        with self.assertRaises(ValueError):
+            component_system = ComponentSystem(2)
+            binding_model = StericMassAction(component_system, name='test')
+            binding_model.adsorption_rate_untransformed = [0.02, 0.03]
 
     def test_get_parameters(self):
         parameters_expected = {
