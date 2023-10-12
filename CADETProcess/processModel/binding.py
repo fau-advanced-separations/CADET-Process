@@ -351,45 +351,45 @@ class StericMassAction(BindingBaseClass):
     ]
 
     @property
-    def adsorption_rate_transformed(self):
+    def adsorption_rate_untransformed(self):
         if self.adsorption_rate is None:
             return None
 
         nu = np.array(self.characteristic_charge)
         return \
-            self.adsorption_rate / \
+            self.adsorption_rate * \
             self.reference_solid_phase_conc**(-nu)
 
-    @adsorption_rate_transformed.setter
-    def adsorption_rate_transformed(self, adsorption_rate_transformed):
+    @adsorption_rate_untransformed.setter
+    def adsorption_rate_untransformed(self, adsorption_rate_untransformed):
         if self.characteristic_charge is None:
-            raise ValueError("Please set nu before setting a transformed rate constant.")
+            raise ValueError("Please set nu before setting an untransformed rate constant.")
 
         nu = np.array(self.characteristic_charge)
         self.adsorption_rate = (
-            (adsorption_rate_transformed
-             * self.reference_solid_phase_conc ** (-nu)
+            (adsorption_rate_untransformed
+             / self.reference_solid_phase_conc ** (-nu)
              ).tolist())
 
     @property
-    def desorption_rate_transformed(self):
+    def desorption_rate_untransformed(self):
         if self.desorption_rate is None:
             return None
 
         nu = np.array(self.characteristic_charge)
         return \
-            self.desorption_rate / \
+            self.desorption_rate * \
             self.reference_liquid_phase_conc**(-nu)
 
-    @desorption_rate_transformed.setter
-    def desorption_rate_transformed(self, desorption_rate_transformed):
+    @desorption_rate_untransformed.setter
+    def desorption_rate_untransformed(self, desorption_rate_untransformed):
         if self.characteristic_charge is None:
             raise ValueError("Please set nu before setting a transformed rate constant.")
 
         nu = np.array(self.characteristic_charge)
         self.desorption_rate = (
-            (desorption_rate_transformed
-             * self.reference_liquid_phase_conc ** (-nu)
+            (desorption_rate_untransformed
+             / self.reference_liquid_phase_conc ** (-nu)
              ).tolist())
 
 
