@@ -1457,8 +1457,8 @@ adsorption_parameters_map = {
         'name': 'STERIC_MASS_ACTION',
         'parameters': {
             'IS_KINETIC': 'is_kinetic',
-            'SMA_KA': 'adsorption_rate_transformed',
-            'SMA_KD': 'desorption_rate_transformed',
+            'SMA_KA': 'adsorption_rate',
+            'SMA_KD': 'desorption_rate',
             'SMA_LAMBDA': 'capacity',
             'SMA_NU': 'characteristic_charge',
             'SMA_SIGMA': 'steric_factor',
