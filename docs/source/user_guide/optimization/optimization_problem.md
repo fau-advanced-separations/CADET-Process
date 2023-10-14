@@ -17,7 +17,7 @@ sys.path.append('../../../../')
 (optimization_problem_guide)=
 # Optimization Problem
 The {class}`~CADETProcess.optimization.OptimizationProblem` class is used to specify optimization variables, objectives and constraints.
-To instantiate a {class}`~CADETProcess.optimization.OptimizationProblem`, name needs to be passed as argument.
+To instantiate a {class}`~CADETProcess.optimization.OptimizationProblem`, a name needs to be passed as argument.
 
 ```{code-cell} ipython3
 from CADETProcess.optimization import OptimizationProblem

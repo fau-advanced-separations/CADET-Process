@@ -17,7 +17,7 @@ sys.path.append('../../../../')
 (process_guide)=
 # Process
 
-The {class}`~CADETProcess.processModel.Process` class is used to define dynamic changes to of the units and connections.
+The {class}`~CADETProcess.processModel.Process` class is used to define dynamic changes of model parameters or flow sheet connections.
 To instantiate a {class}`~CADETProcess.processModel.Process`, a {class}`~CADETProcess.processModel.FlowSheet` needs to be passed as argument, as well as a string to name that process.
 For this guide, a {ref}`flow_sheet_batch_elution` {class}`~CADETProcess.processModel.FlowSheet` is used.
 For more information on the {class}`~CADETProcess.processModel.FlowSheet`, refer to {ref}`flow_sheet_guide`.

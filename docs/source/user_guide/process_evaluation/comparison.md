@@ -97,7 +97,7 @@ This is particularly useful if system noise (e.g. injection peaks) should be ign
 
 ```{code-cell} ipython3
 comparator.add_difference_metric(
-    'SSE', reference, 'column.outlet', start=5*60, end=7*60
+    'SSE', reference, 'column.outlet', start=3*60, end=6*60
 )
 ```
 
@@ -106,7 +106,7 @@ Next to the experimental data, a reference model needs to be configured.
 It must include relevant details s.t. it is capable of accurately predicting the experimental system (e.g. tubing, valves etc.).
 For this example, the full process configuration can be found {ref}`here <fit_column_transport>`.
 
-As an initial guess, the bed porosity is set to $0.4$, and the axial dispersion to $1.0 \cdot 10^{-7}$.
+As an initial guess, the bed porosity is set to $0.5$, and the axial dispersion to $1.0 \cdot 10^{-7}$.
 After process simulation, the {meth}`~CADETProcess.comparison.Comparator.evaluate` method is called with the simulation results.
 
 ```{code-cell} ipython3
@@ -116,6 +116,10 @@ from CADETProcess.simulator import Cadet
 simulator = Cadet()
 
 from column_transport_parameters import process
+
+process.flow_sheet.column.bed_porosity = 0.5
+process.flow_sheet.column.axial_dispersion = 1e-7
+
 simulation_results = simulator.simulate(process)
 ```
 
