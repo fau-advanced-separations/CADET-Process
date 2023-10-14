@@ -462,7 +462,7 @@ class Process(EventHandler):
 
         parameters['flow_sheet'] = self.flow_sheet.parameters
 
-        return Dict(parameters)
+        return parameters
 
     @parameters.setter
     def parameters(self, parameters):
