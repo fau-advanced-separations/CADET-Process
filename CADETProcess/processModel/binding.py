@@ -22,6 +22,7 @@ __all__ = [
     'Linear',
     'Langmuir',
     'LangmuirLDF',
+    'LangmuirLDFLiquidPhase',
     'BiLangmuir',
     'BiLangmuirLDF',
     'FreundlichLDF',
@@ -192,6 +193,32 @@ class Langmuir(BindingBaseClass):
 
 class LangmuirLDF(BindingBaseClass):
     """Parameters for Multi Component Langmuir binding model.
+
+    Attributes
+    ----------
+    equilibrium_constant : list of unsigned floats. Length depends on n_comp.
+        Adsorption rate constants.
+    driving_force_coefficient : list of unsigned floats. Length depends on n_comp.
+        Desorption rate constants
+    capacity : list of unsigned floats. Length depends on n_comp.
+        Maximum adsorption capacities.
+
+    """
+
+    equilibrium_constant = SizedUnsignedList(size='n_comp')
+    driving_force_coefficient = SizedUnsignedList(size='n_comp')
+    capacity = SizedUnsignedList(size='n_comp')
+
+    _parameters = [
+        'equilibrium_constant',
+        'driving_force_coefficient',
+        'capacity',
+    ]
+
+
+class LangmuirLDFLiquidPhase(BindingBaseClass):
+    """Parameters for Multi Component Langmuir binding model using a linear driving force
+    approximation based on the equilibrium concentration c* for given q. 
 
     Attributes
     ----------
