@@ -1428,6 +1428,15 @@ adsorption_parameters_map = {
             'MCLLDF_QMAX': 'capacity'
         },
     },
+    'LangmuirLDFLiquidPhase': {
+        'name': 'MULTI_COMPONENT_LANGMUIR_LDF_LIQUID_PHASE',
+        'parameters': {
+            'IS_KINETIC': 'is_kinetic',
+            'MCLLDFC_KEQ': 'equilibrium_constant',
+            'MCLLDFC_KKIN': 'driving_force_coefficient',
+            'MCLLDFC_QMAX': 'capacity'
+        },
+    },
     'BiLangmuir': {
         'name': 'MULTI_COMPONENT_BILANGMUIR',
         'parameters': {
