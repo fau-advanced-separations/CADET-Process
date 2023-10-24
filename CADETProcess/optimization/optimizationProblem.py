@@ -3478,6 +3478,13 @@ class Objective(Structure):
                     f'{self.name}_{i}'
                     for i in range(self.n_metrics)
                 ]
+
+        if len(self.evaluation_objects) > 1:
+            labels = [
+                f"{eval_obj}_{l}"
+                for l in labels
+                for eval_obj in self.evaluation_objects
+            ]
         return labels
 
     @labels.setter
@@ -3569,6 +3576,14 @@ class NonlinearConstraint(Structure):
                     f'{self.name}_{i}'
                     for i in range(self.n_metrics)
                 ]
+
+        if len(self.evaluation_objects) > 1:
+            labels = [
+                f"{eval_obj}_{l}"
+                for l in labels
+                for eval_obj in self.evaluation_objects
+            ]
+
         return labels
 
     @labels.setter
@@ -3761,6 +3776,14 @@ class MetaScore(Structure):
                     f'{self.name}_{i}'
                     for i in range(self.n_metrics)
                 ]
+
+        if len(self.evaluation_objects) > 1:
+            labels = [
+                f"{eval_obj}_{l}"
+                for l in labels
+                for eval_obj in self.evaluation_objects
+            ]
+
         return labels
 
     @labels.setter

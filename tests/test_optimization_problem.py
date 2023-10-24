@@ -1270,6 +1270,23 @@ class Test_MultiEvaluationObjects(unittest.TestCase):
 
         np.testing.assert_allclose(f, f_expected)
 
+    def test_names(self):
+        names_expected = ['single_obj_1', 'single_obj_2', 'multi_obj']
+        names = self.optimization_problem.objective_names
+        self.assertEqual(names, names_expected)
+
+    def test_labels(self):
+        labels_expected = [
+            'foo_single_obj_1',
+            'bar_single_obj_1',
+            'single_obj_2',
+            'foo_multi_obj_0',
+            'bar_multi_obj_0',
+            'foo_multi_obj_1',
+            'bar_multi_obj_1'
+        ]
+        labels = self.optimization_problem.objective_labels
+        self.assertEqual(labels, labels_expected)
 
 
 if __name__ == '__main__':
