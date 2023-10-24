@@ -743,7 +743,7 @@ class OptimizationProblem(Structure):
             requires = [func]
 
         self.set_variables(x)
-        evaluation_objects = self.evaluation_objects
+        evaluation_objects = func.evaluation_objects
 
         if len(evaluation_objects) == 0:
             evaluation_objects = [None]
