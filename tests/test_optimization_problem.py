@@ -20,6 +20,7 @@ from tests.optimization_problem_fixtures import (
 class EvaluationObject(Structure):
     uninitialized = None
     scalar_param = Float(default=1)
+    scalar_param_2 = Float(default=1)
     list_param = List()
     sized_list_param = SizedList(size=2, default=[1, 2])
     sized_list_param_single = SizedList(size=1, default=1)
@@ -32,6 +33,7 @@ class EvaluationObject(Structure):
     _parameters = [
         'uninitialized',
         'scalar_param',
+        'scalar_param_2',
         'list_param',
         'sized_list_param',
         'sized_list_param_single',
@@ -1210,6 +1212,64 @@ class Test_OptimizationProblemEvaluator(unittest.TestCase):
 
     def test_cache(self):
         pass
+
+
+class Test_MultiEvaluationObjects(unittest.TestCase):
+    def __init__(self, methodName='runTest'):
+        super().__init__(methodName)
+
+    def setUp(self):
+        eval_obj_1 = EvaluationObject(name='foo')
+        eval_obj_2 = EvaluationObject(name='bar')
+
+        # Simple case
+        optimization_problem = OptimizationProblem(
+            'with_evaluator', use_diskcache=False
+        )
+
+        optimization_problem.add_evaluation_object(eval_obj_1)
+        optimization_problem.add_evaluation_object(eval_obj_2)
+
+        optimization_problem.add_variable(
+            name='scalar_eval_obj_1', parameter_path='scalar_param', lb=0, ub=1,
+            evaluation_objects=[eval_obj_1]
+        )
+        optimization_problem.add_variable(
+            name='scalar_eval_obj_2', parameter_path='scalar_param', lb=0, ub=1,
+            evaluation_objects=[eval_obj_2]
+        )
+
+        optimization_problem.add_variable(
+            name='scalar_both_eval_obj', parameter_path='scalar_param_2', lb=0, ub=1,
+        )
+
+
+        def single_obj_1(eval_obj):
+            return 0
+
+        optimization_problem.add_objective(single_obj_1)
+
+
+        def single_obj_2(eval_obj):
+            return 1
+
+        optimization_problem.add_objective(single_obj_2, evaluation_objects=eval_obj_1)
+
+
+        def multi_obj(eval_obj):
+            return [2, 3]
+
+        optimization_problem.add_objective(multi_obj, n_objectives=2)
+
+
+        self.optimization_problem = optimization_problem
+
+    def test_evaluation(self):
+        f_expected = [0, 0, 1, 2, 3, 2, 3]
+        f = self.optimization_problem.evaluate_objectives([1, 1, 1])
+
+        np.testing.assert_allclose(f, f_expected)
+
 
 
 if __name__ == '__main__':
