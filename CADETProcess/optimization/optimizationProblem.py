@@ -994,7 +994,7 @@ class OptimizationProblem(Structure):
         objective = Objective(
             objective,
             name,
-            type='minimize',
+            minimize=True,
             n_objectives=n_objectives,
             bad_metrics=bad_metrics,
             evaluation_objects=evaluation_objects,
@@ -3419,23 +3419,19 @@ class Evaluator(Structure):
         return self.name
 
 
-class Objective(Structure):
-    """Wrapper class to evaluate objective functions."""
+class Metric(Structure):
+    """Wrapper class to evaluate metrics (e.g. objective/nonlincon) functions."""
 
-    objective = Callable()
+    func = Callable()
     name = String()
-    # TODO: umbennennen
-    type = Switch(valid=['minimize', 'maximize'])
-    n_objectives = RangedInteger(lb=1)
-    n_metrics = n_objectives
+    n_metrics = RangedInteger(lb=1)
     bad_metrics = SizedNdArray(size='n_metrics', default=np.inf)
 
     def __init__(
             self,
-            objective,
+            func,
             name,
-            type='minimize',
-            n_objectives=1,
+            n_metrics=1,
             bad_metrics=np.inf,
             evaluation_objects=None,
             evaluators=None,
@@ -3443,14 +3439,13 @@ class Objective(Structure):
             args=None,
             kwargs=None):
 
-        self.objective = objective
+        self.func = func
         self.name = name
 
-        self.type = type
-        self.n_objectives = n_objectives
+        self.n_metrics = n_metrics
 
         if np.isscalar(bad_metrics):
-            bad_metrics = np.tile(bad_metrics, n_objectives)
+            bad_metrics = np.tile(bad_metrics, n_metrics)
         self.bad_metrics = bad_metrics
 
         self.evaluation_objects = evaluation_objects
@@ -3470,7 +3465,7 @@ class Objective(Structure):
             return self._labels
 
         try:
-            labels = self.objective.labels
+            labels = self.func.labels
         except AttributeError:
             labels = [f'{self.name}']
             if self.n_metrics > 1:
@@ -3509,7 +3504,7 @@ class Objective(Structure):
         else:
             kwargs = self.kwargs
 
-        f = self.objective(request, *args, **kwargs)
+        f = self.func(request, *args, **kwargs)
 
         return np.array(f, ndmin=1)
 
@@ -3519,103 +3514,29 @@ class Objective(Structure):
         return self.name
 
 
-class NonlinearConstraint(Structure):
+class Objective(Metric):
+    """Wrapper class to evaluate objective functions."""
+    minimize = Bool(default=True)
+    objective = Metric.func
+    n_objectives = Metric.n_metrics
+
+    def __init__(self, *args, n_objectives=1, minimize=True, **kwargs):
+        self.minimize = minimize
+
+        super().__init__(*args, n_metrics=n_objectives, **kwargs)
+
+
+class NonlinearConstraint(Metric):
     """Wrapper class to evaluate nonlinear constraint functions."""
 
-    nonlinear_constraint = Callable()
-    name = String()
-    n_nonlinear_constraints = RangedInteger(lb=1)
-    n_metrics = n_nonlinear_constraints
-    bad_metrics = SizedNdArray(size='n_metrics', default=np.inf)
+    minimize = Bool(default=True)
+    nonlinear_constraint = Metric.func
+    n_nonlinear_constraints = Metric.n_metrics
 
-    def __init__(
-            self,
-            nonlinear_constraint,
-            name,
-            bounds=0,
-            n_nonlinear_constraints=1,
-            bad_metrics=np.inf,
-            evaluation_objects=None,
-            evaluators=None,
-            labels=None,
-            args=None,
-            kwargs=None):
-
-        self.nonlinear_constraint = nonlinear_constraint
-        self.name = name
-
+    def __init__(self, *args, n_nonlinear_constraints=1, bounds=0, **kwargs):
         self.bounds = bounds
-        self.n_nonlinear_constraints = n_nonlinear_constraints
 
-        if np.isscalar(bad_metrics):
-            bad_metrics = np.tile(bad_metrics, n_nonlinear_constraints)
-        self.bad_metrics = bad_metrics
-
-        self.evaluation_objects = evaluation_objects
-        self.evaluators = evaluators
-
-        self.labels = labels
-
-        self.args = args
-        self.kwargs = kwargs
-
-        self.id = uuid.uuid4()
-
-    @property
-    def labels(self):
-        """list: List of metric labels."""
-        if self._labels is not None:
-            return self._labels
-
-        try:
-            labels = self.nonlinear_constraint.labels
-        except AttributeError:
-            labels = [f'{self.name}']
-            if self.n_metrics > 1:
-                labels = [
-                    f'{self.name}_{i}'
-                    for i in range(self.n_metrics)
-                ]
-
-        if len(self.evaluation_objects) > 1:
-            labels = [
-                f"{eval_obj}_{l}"
-                for l in labels
-                for eval_obj in self.evaluation_objects
-            ]
-
-        return labels
-
-    @labels.setter
-    def labels(self, labels):
-        if labels is not None:
-
-            if len(labels) != self.n_metrics:
-                raise CADETProcessError(
-                    f"Expected {self.n_metrics} labels."
-                )
-
-        self._labels = labels
-
-    def __call__(self, request):
-        if self.args is None:
-            args = ()
-        else:
-            args = self.args
-
-        if self.kwargs is None:
-            kwargs = {}
-        else:
-            kwargs = self.kwargs
-
-        g = self.nonlinear_constraint(request, *args, **kwargs)
-
-        return np.array(g, ndmin=1)
-
-    evaluate = __call__
-
-    def __str__(self):
-        return self.name
+        super().__init__(*args, n_metrics=n_nonlinear_constraints, **kwargs)
 
 
 class Callback(Structure):
@@ -3726,86 +3647,15 @@ class Callback(Structure):
         return self.name
 
 
-class MetaScore(Structure):
+class MetaScore(Metric):
     """Wrapper class to evaluate meta scores."""
+    meta_score = Metric.func
+    n_meta_scores = Metric.n_metrics
 
-    meta_score = Callable()
-    name = String()
-    n_meta_scores = RangedInteger(lb=1)
-    n_metrics = n_meta_scores
-    bad_metrics = SizedNdArray(size='n_metrics', default=np.inf)
+    def __init__(self, *args, bounds=0, **kwargs):
+        self.bounds = bounds
 
-    def __init__(
-            self,
-            meta_score,
-            name,
-            n_meta_scores=1,
-            bad_metrics=np.inf,
-            evaluation_objects=None,
-            evaluators=None,
-            labels=None):
-
-        self.meta_score = meta_score
-        self.name = name
-
-        self.n_meta_scores = n_meta_scores
-
-        if np.isscalar(bad_metrics):
-            bad_metrics = np.tile(bad_metrics, n_meta_scores)
-        self.bad_metrics = bad_metrics
-
-        self.evaluation_objects = evaluation_objects
-        self.evaluators = evaluators
-
-        self.labels = labels
-
-        self.id = uuid.uuid4()
-
-    @property
-    def labels(self):
-        """list: List of metric labels."""
-        if self._labels is not None:
-            return self._labels
-
-        try:
-            labels = self.meta_score.labels
-        except AttributeError:
-            labels = [f'{self.name}']
-            if self.n_metrics > 1:
-                labels = [
-                    f'{self.name}_{i}'
-                    for i in range(self.n_metrics)
-                ]
-
-        if len(self.evaluation_objects) > 1:
-            labels = [
-                f"{eval_obj}_{l}"
-                for l in labels
-                for eval_obj in self.evaluation_objects
-            ]
-
-        return labels
-
-    @labels.setter
-    def labels(self, labels):
-        if labels is not None:
-
-            if len(labels) != self.n_metrics:
-                raise CADETProcessError(
-                    f"Expected {self.n_metrics} labels."
-                )
-
-        self._labels = labels
-
-    def __call__(self, *args, **kwargs):
-        m = self.meta_score(*args, **kwargs)
-
-        return np.array(m, ndmin=1)
-
-    evaluate = __call__
-
-    def __str__(self):
-        return self.name
+        super().__init__(*args, **kwargs)
 
 
 class MultiCriteriaDecisionFunction(Structure):
