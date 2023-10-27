@@ -354,7 +354,8 @@ The callback signature may include any of the following arguments:
 Introspection is used to determine which of the signatures above to invoke.
 
 ```{code-cell} ipython3
-def callback(individual, evaluation_object, callbacks_dir):
+def callback(results, individual, evaluation_object, callbacks_dir):
+    print(results)
     print(individual.x, individual.f)
     print(evaluation_object)
     print(callbacks_dir)
