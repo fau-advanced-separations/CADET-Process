@@ -630,15 +630,18 @@ class MultiTimeLine():
 
 def generate_indices(shape, indices=None):
     """
-    Generate indices for indexing a parameter array from a list of indices.
+    Generate tuples representing indices for an array with a given shape.
+
+    This method allows specifying a list of indices where each entry can also contain
+    slices.
 
     Parameters
     ----------
-    parameter : array_like
-        An array which is to be indexed. Scalar parameters are not supported.
-    indices : array_like
-        A 2D array or list of lists, where each inner list is a set of indices
-        into the 'parameter' array. None can be used in place of a full slice (:).
+    shape : tuple of int
+        The shape of the array to be indexed.
+    indices : list of list of int, optional
+        A list where each sub-list contains indices for one dimension of the array.
+        'None' indicates a full slice (':') for that dimension.
 
     Raises
     ------
@@ -658,9 +661,8 @@ def generate_indices(shape, indices=None):
     >>> generate_indices(parameter, indices)
     [(0, 1), (1, 2)]
     """
-    size = np.prod(shape)
-    if size == 1:
-        raise ValueError("Scalar parameters cannot have index slices.")
+    if not shape:
+        raise ValueError("Shape must not be empty, scalar parameters are not supported.")
 
     if indices is None:
         indices = np.s_[:]
