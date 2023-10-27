@@ -22,6 +22,7 @@ class EvaluationObject(Structure):
     scalar_param = Float(default=1)
     list_param = List()
     sized_list_param = SizedList(size=2, default=[1, 2])
+    sized_list_param_single = SizedList(size=1, default=1)
     sized_list_param_no_default = SizedList(size=2)
     nd_array = SizedNdArray(size=(2, 2))
     polynomial_param = Polynomial(n_coeff=2, default=0)
@@ -33,6 +34,7 @@ class EvaluationObject(Structure):
         'scalar_param',
         'list_param',
         'sized_list_param',
+        'sized_list_param_single',
         'sized_list_param_no_default',
         'nd_array',
         'polynomial_param',
@@ -160,6 +162,44 @@ class Test_OptimizationVariable(unittest.TestCase):
                 evaluation_objects=[self.evaluation_object],
                 parameter_path='uninitialized',
                 indices=2
+            )
+
+    def test_sized_list_single(self):
+        """
+        Extra test for array with single entry.
+
+        See also: https://github.com/fau-advanced-separations/CADET-Process/pull/68
+        """
+        # No indices
+        var = OptimizationVariable(
+            'sized_list_param_single',
+            evaluation_objects=[self.evaluation_object],
+            parameter_path='sized_list_param_single',
+        )
+        np.testing.assert_equal(var.indices, [[(slice(None, None, None),)]])
+        var.value = 1
+        np.testing.assert_equal(var.value, 1)
+        np.testing.assert_equal(self.evaluation_object.sized_list_param_single, [1])
+
+        # Explicit index
+        var = OptimizationVariable(
+            'sized_list_param_single',
+            evaluation_objects=[self.evaluation_object],
+            parameter_path='sized_list_param_single',
+            indices=0,
+        )
+        np.testing.assert_equal(var.indices, [[(0, )]])
+        var.value = 2
+        np.testing.assert_equal(var.value, 2)
+        np.testing.assert_equal(self.evaluation_object.sized_list_param_single, [2])
+
+        # Raise Exception for exceeding index
+        with self.assertRaises(IndexError):
+            var = OptimizationVariable(
+                'sized_list_param_single',
+                evaluation_objects=[self.evaluation_object],
+                parameter_path='sized_list_param_single',
+                indices=1,
             )
 
     def test_nd_array(self):

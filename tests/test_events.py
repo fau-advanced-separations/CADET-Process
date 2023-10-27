@@ -39,6 +39,7 @@ class TestPerformer(Structure):
     switch = Switch(valid=[-1, 1], default=1)
     sized_tuple = SizedTuple(size=2, default=(1, 1))
     array_1d = SizedList(size=4, default=0)
+    array_1d_single = SizedList(size=1, default=0)
     ndarray = SizedNdArray(size=(2, 4), default=0)
     ndarray_no_default = SizedNdArray(size=(2, 4))
     array_1d_poly = Polynomial(n_coeff=4, default=0)
@@ -50,6 +51,7 @@ class TestPerformer(Structure):
         'sized_tuple',
         'switch',
         'array_1d',
+        'array_1d_single',
         'ndarray',
         'ndarray_no_default',
         'array_1d_poly',
@@ -60,6 +62,7 @@ class TestPerformer(Structure):
         'scalar_float',
         'sized_tuple',
         'array_1d',
+        'array_1d_single',
         'ndarray',
         'ndarray_no_default',
         'array_1d_poly',
@@ -173,6 +176,42 @@ class Test_Events(unittest.TestCase):
         with self.assertRaises(IndexError):
             evt = event_handler.add_event(
                 'param_has_no_indices', 'performer.scalar_float', 1, time=0, indices=1
+            )
+
+    def test_event_array_1d_single(self):
+        """
+        Extra test for array with single entry.
+
+        See also: https://github.com/fau-advanced-separations/CADET-Process/pull/68
+        """
+        event_handler = self.event_handler
+
+        # No index
+        evt = event_handler.add_event('trivial', 'performer.array_1d_single', 1, time=0)
+        self.assertEqual(evt.state, 1)
+        self.assertEqual(evt.full_state, [1])
+        self.assertEqual(evt.n_entries, 1)
+        self.assertEqual(evt.indices, [(slice(None, None, None),)])
+        self.assertEqual(evt.full_indices, [(0,)])
+        self.assertEqual(evt.n_indices, 1)
+        self.assertEqual(event_handler.performer.array_1d_single, [1])
+
+        # Explicit Index
+        evt = event_handler.add_event(
+            'trivial_1', 'performer.array_1d_single', 2, time=0, indices=0
+        )
+        self.assertEqual(evt.state, 2)
+        self.assertEqual(evt.full_state, [2])
+        self.assertEqual(evt.n_entries, 1)
+        self.assertEqual(evt.indices, [(0, )])
+        self.assertEqual(evt.full_indices, [(0,)])
+        self.assertEqual(evt.n_indices, 1)
+        self.assertEqual(event_handler.performer.array_1d_single, [2])
+
+        # Raise Error for exceeding indices
+        with self.assertRaises(IndexError):
+            evt = event_handler.add_event(
+                'param_has_no_indices', 'performer.array_1d_single', 1, time=0, indices=1
             )
 
     def test_event_1D(self):

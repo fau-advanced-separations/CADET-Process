@@ -2,7 +2,42 @@ import unittest
 
 import numpy as np
 
+from CADETProcess.dynamicEvents.section import generate_indices
 from CADETProcess.dynamicEvents import Section, TimeLine, MultiTimeLine
+
+
+class TestGenerateIndices(unittest.TestCase):
+    def __init__(self, methodName='runTest'):
+        super().__init__(methodName)
+
+    def test_generate_indices(self):
+        shape = (3, 3)
+
+        indices = [[0, 1], [1, 2]]
+        indices_tuple_expected = [(0, 1), (1, 2)]
+        indices_tuple = generate_indices(shape, indices)
+        np.testing.assert_equal(indices_tuple, indices_tuple_expected)
+
+        indices = np.s_[:]
+        indices_tuple_expected = [(slice(None, None, None),)]
+        indices_tuple = generate_indices(shape, indices)
+        np.testing.assert_equal(indices_tuple, indices_tuple_expected)
+
+        indices = np.s_[0, :]
+        indices_tuple_expected = [(0, slice(None, None, None))]
+        indices_tuple = generate_indices(shape, indices)
+        np.testing.assert_equal(indices_tuple, indices_tuple_expected)
+
+        indices = [np.s_[0, :], [1, 1]]
+        indices_tuple_expected = [(0, slice(None, None, None)), (1, 1)]
+        indices_tuple = generate_indices(shape, indices)
+        np.testing.assert_equal(indices_tuple, indices_tuple_expected)
+
+        with self.assertRaises(IndexError):
+            _ = generate_indices(shape, indices=[3, 3])
+
+        with self.assertRaises(ValueError):
+            _ = generate_indices((), indices=[[0, 1], [1, 2]])
 
 
 class TestSection(unittest.TestCase):
