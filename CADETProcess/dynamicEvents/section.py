@@ -784,11 +784,6 @@ def get_inhomogeneous_shape(value):
 
     for i in value:
         i_shape = get_inhomogeneous_shape(i)
-        # if len(i_shape) == 0:
-        #     i_shape = (1, )
-
-        # i_shape = (1, ) + i_shape
-
         shape.append(i_shape)
 
     return shape
