@@ -11,6 +11,8 @@ from ax import (
     RangeParameter, ParameterType, ParameterConstraint, Objective,
 
 )
+from ax.exceptions.core import OptimizationShouldStop
+from ax.global_stopping.strategies.improvement import ImprovementGlobalStoppingStrategy
 from ax.core.metric import MetricFetchResult, MetricFetchE
 from ax.core.base_trial import BaseTrial
 from ax.models.torch.botorch_modular.surrogate import Surrogate
@@ -21,7 +23,7 @@ from botorch.utils.sampling import manual_seed
 from botorch.models.gp_regression import FixedNoiseGP
 from botorch.acquisition.monte_carlo import qNoisyExpectedImprovement
 
-from CADETProcess.dataStructure import UnsignedInteger, Typed
+from CADETProcess.dataStructure import UnsignedInteger, Typed, Float
 from CADETProcess.optimization.optimizationProblem import OptimizationProblem
 from CADETProcess.optimization import OptimizerBase
 
@@ -154,10 +156,17 @@ class AxInterface(OptimizerBase):
     supports_linear_equality_constraints = False
     supports_nonlinear_constraints = True
 
+    early_stopping_improvement_window = UnsignedInteger(10)
+    early_stopping_improvement_bar = Float(1e-10)
     n_init_evals = UnsignedInteger(default=50)
     seed = UnsignedInteger(default=12345)
 
-    _specific_options = ['n_init_evals', 'seed',]
+    _specific_options = [
+        'n_init_evals',
+        'seed',
+        'early_stopping_improvement_window',
+        'early_stopping_improvement_bar',
+    ]
 
     @staticmethod
     def _setup_parameters(optimizationProblem: OptimizationProblem):
@@ -248,17 +257,21 @@ class AxInterface(OptimizerBase):
         """Create trial from pre-evaluated data."""
         variables = self.optimization_problem.independent_variable_names
 
-        trial = self.ax_experiment.new_batch_trial()
 
         for i, x in enumerate(X):
+            trial = self.ax_experiment.new_trial()
             trial_data = {
                 "input": {var: x_i for var, x_i in zip(variables, x)},
             }
 
-            arm_name = f"{trial.index}_{i}"
+            arm_name = f"{trial.index}_{0}"
             trial.add_arm(Arm(parameters=trial_data["input"], name=arm_name))
+            trial.run()
+            trial.mark_running()
+            trial.mark_completed()
+            self._post_processing(trial)
 
-        return trial
+        # return trial
 
     def _post_processing(self, trial):
         """
@@ -348,6 +361,13 @@ class AxInterface(OptimizerBase):
             n_cores=self.n_cores
         )
 
+        self.global_stopping_strategy = ImprovementGlobalStoppingStrategy(
+            min_trials=self.n_init_evals + self.early_stopping_improvement_window,
+            window_size=self.early_stopping_improvement_window,
+            improvement_bar=self.early_stopping_improvement_bar,
+            inactive_when_pending_trials=True
+        )
+
         self.ax_experiment = Experiment(
             search_space=search_space,
             name=self.optimization_problem.name,
@@ -377,11 +397,8 @@ class AxInterface(OptimizerBase):
                 seed=self.seed + 5641,
             )
 
-            trial = self._create_manual_trial(X_init)
-            trial.run()
-            trial.mark_running()
-            trial.mark_completed()
-            self._post_processing(trial)
+            self._create_manual_trial(X_init)
+
             print(exp_to_df(self.ax_experiment))
 
         n_iter = self.results.n_gen
@@ -402,6 +419,20 @@ class AxInterface(OptimizerBase):
                 # so this can be a staging environment
                 # TODO: here optimization-problem could be used to reject
                 #       samples based on non-linear constraints / dependent vars
+
+                # The strategy itself will check if enough trials have already been
+                # completed.
+                (
+                    stop_optimization,
+                    global_stopping_message,
+                ) = self.global_stopping_strategy.should_stop_optimization(
+                    experiment=self.ax_experiment
+                )
+                if stop_optimization:
+                    print(global_stopping_message)
+                    # raise OptimizationShouldStop(message=global_stopping_message)
+                    break
+
 
                 trial = self.ax_experiment.new_trial(generator_run=sample_generator)
                 trial.run()
