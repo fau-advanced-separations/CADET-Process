@@ -188,7 +188,7 @@ class NonlinearConstraintsSooTestProblem(TestProblem):
 
     def test_if_solved(self, optimization_results: OptimizationResults, decimal=7):
         x_true, f_true = self.optimal_solution()
-        x = optimization_results.x_untransformed
+        x = optimization_results.x
         f = optimization_results.f
 
         np.testing.assert_almost_equal(f-f_true, 0, decimal=decimal)
@@ -309,7 +309,7 @@ class NonlinearLinearConstraintsSooTestProblem(TestProblem):
 
     def test_if_solved(self, optimization_results: OptimizationResults, decimal=7):
         x_true, f_true = self.optimal_solution()
-        x = optimization_results.x_untransformed
+        x = optimization_results.x
         f = optimization_results.f
 
         np.testing.assert_almost_equal(f-f_true, 0, decimal=decimal)
