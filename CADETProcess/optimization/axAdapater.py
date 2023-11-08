@@ -101,7 +101,7 @@ class CADETProcessRunner(Runner):
         objective_labels = self.optimization_problem.objective_labels
         obj_fun = self.optimization_problem.evaluate_objectives_population
 
-        F = obj_fun(X, untransform=True, n_cores=n_cores)
+        F = obj_fun(X, untransform=True)
 
         # Calculate nonlinear constraints
         # TODO: add noise to the result
@@ -148,6 +148,7 @@ class CADETProcessRunner(Runner):
 class AxInterface(OptimizerBase):
     """Wrapper around Ax's bayesian optimization API."""
 
+    supports_bounds = True
     supports_multi_objective = False
     supports_linear_constraints = True
     supports_linear_equality_constraints = False
@@ -313,12 +314,11 @@ class AxInterface(OptimizerBase):
         # )
 
         self.run_post_generation_processing(
-            X=X,
+            X_transformed=X,
             F=F,
             G=G,
             CV=CV,
             current_generation=self.ax_experiment.num_trials,
-            X_opt=None,
         )
 
     def _setup_model(self):
@@ -435,7 +435,6 @@ class MultiObjectiveAxInterface(AxInterface):
             outcome_constraints=outcome_constraints
         )
 
-
 class GPEI(SingleObjectiveAxInterface):
     """
     Bayesian optimization algorithm with a Gaussian Process (GP) surrogate model
@@ -461,8 +460,8 @@ class BotorchModular(SingleObjectiveAxInterface):
     acquisition_fn: AcquisitionFunction class
     surrogate_model: Model class
     """
-    acquisition_fn = Typed(default=qNoisyExpectedImprovement)
-    surrogate_model = Typed(default=FixedNoiseGP)
+    acquisition_fn = Typed(ty=type, default=qNoisyExpectedImprovement)
+    surrogate_model = Typed(ty=type, default=FixedNoiseGP)
 
     _specific_options = [
         'acquisition_fn', 'surrogate_model'
