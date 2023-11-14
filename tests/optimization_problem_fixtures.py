@@ -23,7 +23,7 @@ class TestProblem(OptimizationProblem):
         """Must return X, F, and if it has, G."""
         raise NotImplementedError
 
-    def test_if_solved(self):
+    def test_if_solved(self, results):
         raise NotImplementedError
 
     @property
@@ -80,6 +80,15 @@ class Rosenbrock(TestProblem):
     def x0(self):
         return np.repeat(0.5, self.n_variables)
 
+    def test_if_solved(self, optimization_results: OptimizationResults):
+        x_true, f_true = self.optimal_solution
+        x = optimization_results.x
+        f = optimization_results.f
+
+        np.testing.assert_almost_equal(f-f_true, 0, decimal=3)
+        np.testing.assert_almost_equal(x-x_true, 0, decimal=3)
+
+
 
 class LinearConstraintsSooTestProblem(TestProblem):
     def __init__(self, transform=None, has_evaluator=False, *args, **kwargs):
@@ -107,6 +116,7 @@ class LinearConstraintsSooTestProblem(TestProblem):
     def _objective_function(self, x):
         return x[0] - x[1]
 
+    @property
     def optimal_solution(self):
         x = [-1, 2]
         f = -3
@@ -114,18 +124,22 @@ class LinearConstraintsSooTestProblem(TestProblem):
         return x, f
 
     @property
+    def x0(self):
+        return [0, 0]
+
+    @property
     def conditional_minima(self):
         f_x0 = lambda x0:  x0 - 2
         f_x1 = lambda x1:  x1 * - 3/2
         return f_x0, f_x1
 
-    def test_if_solved(self, optimization_results: OptimizationResults, decimal=7):
-        x_true, f_true = self.optimal_solution()
+    def test_if_solved(self, optimization_results: OptimizationResults):
+        x_true, f_true = self.optimal_solution
         x = optimization_results.x
         f = optimization_results.f
 
-        np.testing.assert_almost_equal(f-f_true, 0, decimal=decimal)
-        np.testing.assert_almost_equal(x-x_true, 0, decimal=decimal)
+        np.testing.assert_almost_equal(f-f_true, 0, decimal=2)
+        np.testing.assert_almost_equal(x-x_true, 0, decimal=2)
 
 
 

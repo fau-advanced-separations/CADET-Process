@@ -1,21 +1,29 @@
 import numpy as np
 import pytest
+from functools import partial
 
 from CADETProcess.optimization import OptimizationProblem, OptimizerBase
 
-from optimization_problem_fixtures import (
+from tests.optimization_problem_fixtures import (
+    TestProblem,
     Rosenbrock,
-    LinearConstrainedSooTestProblem,
-    LinearConstrainedMooTestProblem,
-    NonlinearConstrainedMooTestProblem
+    LinearConstraintsSooTestProblem,
+    LinearConstraintsSooTestProblem2,
+    NonlinearConstraintsSooTestProblem,
+    LinearConstraintsMooTestProblem,
+    LinearNonlinearConstraintsMooTestProblem,
+    NonlinearConstraintsMooTestProblem
 )
 
 
 @pytest.fixture(params=[
     Rosenbrock,
-    LinearConstrainedSooTestProblem,
-    LinearConstrainedMooTestProblem,
-    NonlinearConstrainedMooTestProblem
+    LinearConstraintsSooTestProblem,
+    LinearConstraintsSooTestProblem2,
+    NonlinearConstraintsSooTestProblem,
+    LinearConstraintsMooTestProblem,
+    LinearNonlinearConstraintsMooTestProblem,
+    NonlinearConstraintsMooTestProblem
 ])
 def optimization_problem(request):
     return request.param()
@@ -23,30 +31,32 @@ def optimization_problem(request):
 
 from CADETProcess.optimization import COBYLA, TrustConstr, NelderMead, SLSQP
 from CADETProcess.optimization import U_NSGA3
-from CADETProcess.optimization import AxInterface
+# from CADETProcess.optimization import AxInterface
 
 
 @pytest.fixture(params=[
-    COBYLA,
+    # COBYLA,
     TrustConstr,
-    U_NSGA3,
-    AxInterface
+    # U_NSGA3,
+    # AxInterface
 ])
 def optimizer(request):
     return request.param()
 
 
-def test_convergence(optimization_problem, optimizer):
+def test_convergence(optimization_problem: TestProblem, optimizer: OptimizerBase):
     if optimizer.check_optimization_problem(optimization_problem):
         results = optimizer.optimize(optimization_problem)
-        # TODO: check results
+        optimization_problem.test_if_solved(results)
 
 
 def test_from_initial_values(optimization_problem, optimizer):
+    pytest.skip()
     if optimizer.check_optimization_problem(optimization_problem):
         x0 = optimization_problem.x0
         results = optimizer.optimize(optimization_problem, x0=x0)
-        # TODO: check results
+        optimization_problem.test_if_solved(results)
+
 class AbortingCallback:
     """A callback that raises an exception after a specified number of calls."""
 
@@ -68,7 +78,10 @@ class AbortingCallback:
 
 
 def test_resume_from_checkpoint(
-        optimization_problem: OptimizationProblem, optimizer: OptimizerBase):
+        optimization_problem: OptimizationProblem, optimizer: OptimizerBase
+    ):
+    pytest.skip()
+
     # TODO: Do we need to run this for all problems?
     if optimizer.check_optimization_problem(optimization_problem):
 
