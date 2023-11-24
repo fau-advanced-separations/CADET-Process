@@ -450,6 +450,28 @@ class SolutionIO(SolutionBase):
 
         return self.solution_interpolated.integral(start, end)
 
+    def create_fraction(self, start=None, end=None):
+        """Create fraction in interval [start, end].
+
+        Parameters
+        ----------
+        start : float
+            Start time of the fraction
+
+        end: float
+            End time of the fraction
+
+        Returns
+        -------
+        fraction : Fraction
+            Fraction
+
+        """
+        from CADETProcess.fractionation import Fraction
+        mass = self.fraction_mass(start, end)
+        volume = self.fraction_volume(start, end)
+        return Fraction(mass, volume)
+
     def fraction_mass(self, start=None, end=None):
         """Component mass in a fraction interval
 
