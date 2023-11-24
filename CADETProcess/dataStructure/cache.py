@@ -23,6 +23,19 @@ class cached_property_if_locked(property):
 
 
 class CachedPropertiesMixin(Structure):
+    """
+    Mixin class for caching properties in a structured object.
+
+    This class is designed to be used as a mixin in conjunction with other classes
+    inheriting from `Structure`. It provides functionality for caching properties and
+    managing a lock state to control the caching behavior.
+
+    Notes
+    -----
+    - To prevent the return of outdated state, the cache is cleared whenever the `lock`
+      state is changed.
+    """
+
     _lock = Bool(default=False)
 
     def __init__(self, *args, **kwargs):
@@ -31,6 +44,7 @@ class CachedPropertiesMixin(Structure):
 
     @property
     def lock(self):
+        """bool: If True, properties are cached. False otherwise."""
         return self._lock
 
     @lock.setter

@@ -16,27 +16,31 @@ class Fraction(Structure):
     Attributes
     ----------
     mass : np.ndarray
-        The mass of each component in the fraction. The array is 1-dimensional.
+        Mass of each component in the fraction.
     volume : float
-        The volume of the fraction.
+        Volume of the fraction.
+
+    Properties
+    ----------
+    n_comp : int
+        Number of components in the fraction.
+    fraction_mass : np.ndarray
+        Cumulative mass of all species in the fraction.
+    purity : np.ndarray
+        Purity of the fraction, with invalid values set to zero.
+    concentration : np.ndarray
+        Component concentrations of the fraction, with invalid values set to zero.
+
+    See Also
+    --------
+    CADETProcess.fractionation.FractionPool
+    CADETProcess.fractionation.Fractionator
     """
 
     mass = Vector()
     volume = UnsignedFloat()
 
-    def __init__(self, mass, volume):
-        """Initialize a Fraction instance.
-
-        Parameters
-        ----------
-        mass : numpy.ndarray
-            The mass of each component in the fraction.
-            The array should be 1-dimensional.
-        volume : float
-            The volume of the fraction.
-        """
-        self.mass = mass
-        self.volume = volume
+    _parameters = ['mass', 'volume']
 
     @property
     def n_comp(self):
@@ -106,6 +110,23 @@ class FractionPool(Structure):
     n_comp : int
         The number of components each fraction in the pool should have.
 
+    Properties
+    ----------
+    fractions : list
+        List of fractions in the pool.
+    n_fractions : int
+        Number of fractions in the pool.
+    volume : float
+        Total volume of all fractions in the pool.
+    mass : np.ndarray
+        Cumulative mass of each component in the pool.
+    pool_mass : float
+        Total mass of all components in the pool.
+    purity : np.ndarray
+        Overall purity of the pool, with invalid values set to zero.
+    concentration : np.ndarray
+        Average concentration of the pool, with invalid values set to zero.
+
     See Also
     --------
     CADETProcess.fractionation.Fraction
@@ -114,7 +135,9 @@ class FractionPool(Structure):
 
     n_comp = UnsignedInteger()
 
-    def __init__(self, n_comp):
+    _parameters = ['n_comp']
+
+    def __init__(self, n_comp, *args, **kwargs):
         """Initialize a FractionPool instance.
 
         Parameters
@@ -124,6 +147,8 @@ class FractionPool(Structure):
         """
         self._fractions = []
         self.n_comp = n_comp
+
+        super().__init__(*args, **kwargs)
 
     def add_fraction(self, fraction):
         """Add a fraction to the fraction pool.
