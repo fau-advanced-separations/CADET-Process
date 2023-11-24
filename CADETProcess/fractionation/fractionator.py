@@ -449,9 +449,9 @@ class Fractionator(EventHandler):
             Chromatogram fraction
 
         """
-        mass = self.chromatograms[chrom_index].fraction_mass(start, end)
-        volume = self.chromatograms[chrom_index].fraction_volume(start, end)
-        return Fraction(mass, volume)
+        fraction = self.chromatograms[chrom_index].create_fraction(start, end)
+
+        return fraction
 
     def add_fraction(self, fraction, target):
         """Add Fraction to the FractionPool of target component.
