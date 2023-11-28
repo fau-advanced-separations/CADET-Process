@@ -25,7 +25,8 @@ from .discretization import (
 
 from .solutionRecorder import (
     IORecorder,
-    TubularReactorRecorder, LRMRecorder, LRMPRecorder, GRMRecorder, CSTRRecorder
+    TubularReactorRecorder, LRMRecorder, LRMPRecorder, GRMRecorder, CSTRRecorder,
+    MCTRecorder,
 )
 
 
@@ -1132,3 +1133,37 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         self._q = q
 
         self.parameters['q'] = q
+
+
+class MCT(UnitBaseClass): # or TubularReactorBase?
+    """Parameters for multi-channel transportmodel.
+
+    Parameters
+    ----------
+    c : List of unsigned floats. Length depends on n_comp
+        Initial concentration of the reactor.
+    q : List of unsigned floats. Length depends on n_comp
+        Initial concentration of the bound phase.
+    total_porosity : UnsignedFloat between 0 and 1.
+        Total porosity of the column.
+    solution_recorder : MCTRecorder
+        Solution recorder for the unit operation.
+
+    """
+    supports_ports = True
+    supports_bulk_reaction = True
+
+    _parameters = []
+
+    _section_dependent_parameters = \
+        UnitBaseClass._section_dependent_parameters + \
+        SourceMixin._section_dependent_parameters + \
+        []
+
+    c = SizedList(size='n_comp', default=0)
+    _initial_state = ['c']
+    _parameters = _parameters + _initial_state
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.solution_recorder = MCTRecorder()
