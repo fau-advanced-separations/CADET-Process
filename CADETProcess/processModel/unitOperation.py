@@ -60,6 +60,8 @@ class UnitBaseClass(Structure):
         list of parameter names.
     name : String
         name of the unit operation.
+    supports_ports : bool
+        True if unit supports ports.
     binding_model : BindingBaseClass
         binding behavior of the unit. Defaults to NoBinding.
     solution_recorder : IORecorder
@@ -78,6 +80,7 @@ class UnitBaseClass(Structure):
     _section_dependent_parameters = []
     _initial_state = []
 
+    supports_ports = False
     supports_binding = False
     supports_bulk_reaction = False
     supports_particle_reaction = False
