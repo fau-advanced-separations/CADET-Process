@@ -237,10 +237,18 @@ class FlowSheet(Structure):
             raise CADETProcessError('Component systems do not match.')
 
         self._units.append(unit)
-        self._connections[unit] = Dict({
-            'origins': [],
-            'destinations': [],
-        })
+
+        if unit.supports_ports:
+            for i in range(unit.secondary_discretization.n_ports):
+                self._connections[unit][i] = Dict({
+                    'origins': [],
+                    'destinations': [],
+                })
+        else:
+            self._connections[unit] = Dict({
+                'origins': [],
+                'destinations': [],
+            })
         self._output_states[unit] = []
         self._flow_rates[unit] = []
 
@@ -319,7 +327,8 @@ class FlowSheet(Structure):
 
     @origin_destination_name_decorator
     @update_parameters_decorator
-    def add_connection(self, origin, destination):
+    def add_connection(
+            self, origin, destination, origin_port=None, destination_port=None):
         """Add connection between units 'origin' and 'destination'.
 
         Parameters
@@ -328,6 +337,10 @@ class FlowSheet(Structure):
             UnitBaseClass from which the connection originates.
         destination : UnitBaseClass
             UnitBaseClass where the connection terminates.
+        origin_port : int
+            Port from which connection originates.
+        destination_port : int
+            Port where connection terminates.
 
         Raises
         ------
@@ -344,14 +357,44 @@ class FlowSheet(Structure):
         """
         if origin not in self._units:
             raise CADETProcessError('Origin not in flow sheet')
+        if not origin.has_ports and origin_port is not None:
+            raise CADETProcessError('Origin does not support ports.')
+        elif origin.has_ports and origin_port is None:
+            raise CADETProcessError('Missing `origin_port`')
+
         if destination not in self._units:
             raise CADETProcessError('Destination not in flow sheet')
+        if not destination.has_ports and destination_port is not None:
+            raise CADETProcessError('Destination does not support ports.')
+        elif destination.has_ports and destination_port is None:
+            raise CADETProcessError('Missing `destination_port`')
 
         if destination in self.connections[origin].destinations:
             raise CADETProcessError('Connection already exists')
 
-        self._connections[origin].destinations.append(destination)
-        self._connections[destination].origins.append(origin)
+        # TOOD: Add tests
+        # TODO: How to store connections with ports
+        # e.g. self._connections[origin][port].destinations.append(destination)
+        # e.g. self._connections[destination][port].origins.append(destination)
+        # TODO: How to expose discretization n_rad to flow_sheet/ports
+        # TODO: What happens if port index exceeds n_rad
+        # TODO: Add check methods (e.g. for unconnected ports, flow rate balance)
+        # TODO: Can ports have individual output states?
+
+        if origin_port is None:
+            if destination_port is None:
+                self._connections[origin].destinations.append(destination)
+                self._connections[destination].origins.append(origin)
+            else:
+                self._connections[origin].destinations[destination_port].append(destination)
+                self._connections[destination][destination_port].origins.append(origin)
+        else:
+            if destination_port is None:
+                self._connections[origin][origin_port].destinations.append(destination)
+                self._connections[destination].origins[origin_port].append(origin)
+            else:
+                self._connections[origin][origin_port].destinations[destination_port].append(destination)
+                self._connections[destination][destination_port].origins[origin_port].append(origin)
 
         self.set_output_state(origin, 0)
 
