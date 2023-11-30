@@ -1140,10 +1140,18 @@ class MCT(UnitBaseClass): # or TubularReactorBase?
 
     Parameters
     ----------
-    c : List of unsigned floats. Length depends on n_comp
-        Initial concentration of the reactor.
-    q : List of unsigned floats. Length depends on n_comp
-        Initial concentration of the bound phase.
+    length : UnsignedFloat
+        Length of column.
+    channel_cross_section_areas : List of unsinged floats. Lenght depends on nchannel.
+        Diameter of column.
+    axial_dispersion : UnsignedFloat
+        Dispersion rate of compnents in axial direction.
+    flow_direction : Switch
+        If 1: Forward flow.
+        If -1: Backwards flow.
+    c : List of unsigned floats. Length depends n_comp or n_comp*nchannel.
+        Initial concentration for components.
+    exchange_matrix : List of unsigned floats. Lenght depends on nchannel.
     total_porosity : UnsignedFloat between 0 and 1.
         Total porosity of the column.
     solution_recorder : MCTRecorder
@@ -1153,11 +1161,22 @@ class MCT(UnitBaseClass): # or TubularReactorBase?
     supports_ports = True
     supports_bulk_reaction = True
 
-    _parameters = []
+
+    length = UnsignedFloat()
+    channel_cross_section_areas = SizedList(size='nchannel')
+    axial_dispersion = UnsignedFloat()
+    flow_direction = Switch(valid=[-1, 1], default=1)
+
+    exchange_matrix = SizedList(size=('nchannel')**2) #TODO: How to get nchannel and square here? (Specified in Discretization)
+
+    _initial_state = UnitBaseClass._initial_state + ['c']
+    _parameters = ['length', 'channel_cross_section_areas', 'axial_dispersion', 'flow_direction', 'exchange_matrix']
+    _section_dependent_parameters = \
+        UnitBaseClass._section_dependent_parameters + \
+        ['axial_dispersion', 'flow_direction']
 
     _section_dependent_parameters = \
         UnitBaseClass._section_dependent_parameters + \
-        SourceMixin._section_dependent_parameters + \
         []
 
     c = SizedList(size='n_comp', default=0)
@@ -1167,3 +1186,19 @@ class MCT(UnitBaseClass): # or TubularReactorBase?
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.solution_recorder = MCTRecorder()
+
+    @property
+    def required_parameters(self):
+        #TODO: How do I correctly set required parameters?
+        return required_parameters
+
+    @property
+    def volume(self):
+        """float: Combined Volumes of all channels.
+
+        See Also
+        --------
+        channel_cross_section_areas
+
+        """
+        return sum(self.channel_cross_section_areas) * self.length
