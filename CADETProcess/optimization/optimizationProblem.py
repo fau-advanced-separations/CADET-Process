@@ -2691,6 +2691,13 @@ class OptimizationProblem(Structure):
             simplify=simplify,
         )
 
+        if self.n_linear_equality_constraints > 0:
+            problem = hopsy.add_equality_constraints(
+                problem,
+                self.Aeq,
+                self.beq
+            )
+
         return problem
 
     def create_initial_values(
