@@ -11,6 +11,21 @@ from CADETProcess.processModel import FlowSheet
 
 
 def setup_single_cstr_flow_sheet(component_system=None):
+    """
+    Set up a simple `FlowSheet` with a single Continuous Stirred Tank Reactor (CSTR).
+
+    Parameters
+    ----------
+    component_system : ComponentSystem, optional
+        The component system for the CSTR.
+        Defaults to a system with two components if None.
+
+    Returns
+    -------
+    FlowSheet
+        A flow sheet with a single CSTR unit.
+
+    """
     if component_system is None:
         component_system = ComponentSystem(2)
 
@@ -23,6 +38,22 @@ def setup_single_cstr_flow_sheet(component_system=None):
 
 
 def setup_batch_elution_flow_sheet(component_system=None):
+    """
+    Set up a `FlowSheet` for a typical batch elution process.
+
+    Parameters
+    ----------
+    component_system : ComponentSystem, optional
+        The component system for the batch elution process.
+        Defaults to a system with two components if None.
+
+    Returns
+    -------
+    FlowSheet
+        A flow sheet configured for batch elution processes, including feed and eluent
+        inlets, a column, and an outlet.
+
+    """
     if component_system is None:
         component_system = ComponentSystem(2)
 
@@ -46,6 +77,22 @@ def setup_batch_elution_flow_sheet(component_system=None):
 
 
 def setup_ssr_flow_sheet(component_system=None):
+    """
+    Set up a `FlowSheet` for a steady state recycling (SSR) process.
+
+    Parameters
+    ----------
+    component_system : ComponentSystem, optional
+        The component system for the SSR process.
+        Defaults to a system with two components if None.
+
+    Returns
+    -------
+    FlowSheet
+        A flow sheet configured for SSR elution, including feed and eluent inlets, a
+        mixer tank, a column, and an outlet.
+
+    """
     if component_system is None:
         component_system = ComponentSystem(2)
 
@@ -76,7 +123,8 @@ def setup_ssr_flow_sheet(component_system=None):
     return flow_sheet
 
 
-class Test_flow_sheet(unittest.TestCase):
+class TestFlowSheet(unittest.TestCase):
+    """Test general functionatlity of `FlowSheet` class."""
 
     def __init__(self, methodName='runTest'):
         super().__init__(methodName)
@@ -490,7 +538,18 @@ class Test_flow_sheet(unittest.TestCase):
                 }
             )
 
+
 class TestCstrFlowRate(unittest.TestCase):
+    """
+    Test `Cstr` behaviour.
+
+    Notes
+    -----
+    When the `flow_rate` parameter of the `Cstr` is not explicitly set, it is treated
+    just like any other `UnitOperation`. I.e., q_in == q_out. In contrast, when a value
+    is set, it has properties similar to an `Inlet`.
+    """
+
     def __init__(self, methodName='runTest'):
         super().__init__(methodName)
 
