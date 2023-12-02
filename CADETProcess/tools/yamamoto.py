@@ -255,7 +255,7 @@ def _fit_yamamoto(log_c_salt_at_max_M, log_gradient_slope, lambda_):
         return yamamoto_equation(c_s, lambda_, nu, k_eq)
 
     results, pcov = curve_fit(
-        yamamoto_wrapper, log_c_salt_at_max_M, log_gradient_slope, bounds=bounds
+        yamamoto_wrapper, log_c_salt_at_max_M, log_gradient_slope, bounds=bounds, p0=(1, 1)
     )
 
     return results
