@@ -140,12 +140,9 @@ class CarouselBuilder(Structure):
 
                 flow_sheet.add_connection(origin, destination)
 
-        flow_rates = self.flow_sheet.get_flow_rates()
         for zone in self.zones:
             output_state = self.flow_sheet.output_states[zone]
             flow_sheet.set_output_state(zone.outlet_unit, output_state)
-
-            zone_flow_flow_rate = flow_rates[zone.name].total_out
 
     def _add_intra_zone_connections(self, flow_sheet):
         """Add connections within zones."""
