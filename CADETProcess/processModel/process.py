@@ -685,6 +685,8 @@ class Process(EventHandler):
         """
         flag = True
         for cstr in self.flow_sheet.cstrs:
+            if cstr.flow_rate is None:
+                continue
             V_0 = cstr.V
             V_in = self.flow_rate_timelines[cstr.name].total_in.integral()
             V_out = self.flow_rate_timelines[cstr.name].total_out.integral()
