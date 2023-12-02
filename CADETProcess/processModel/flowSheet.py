@@ -540,7 +540,7 @@ class FlowSheet(Structure):
         else:
             raise TypeError("Output state must be integer, list or dict.")
 
-        if not np.isclose(sum(output_state), 1):
+        if state_length != 0 and not np.isclose(sum(output_state), 1):
             raise CADETProcessError('Sum of fractions must be 1')
 
         self._output_states[unit] = output_state
@@ -640,7 +640,7 @@ class FlowSheet(Structure):
                 unit_index = self.get_unit_index(self.units_dict[unit_name])
                 Q_vec[unit_index] = flow_rates[unit_name][i]
             try:
-                total_flow_rate_coefficents[i] = np.linalg.solve(w_out, Q_vec)
+                total_flow_rate_coefficents[i, :] = np.linalg.solve(w_out, Q_vec)
             except np.linalg.LinAlgError:
                 raise CADETProcessError(
                     "Unexpected error in flow rate calculation. "
