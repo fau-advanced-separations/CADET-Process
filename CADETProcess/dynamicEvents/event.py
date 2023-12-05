@@ -94,7 +94,7 @@ class EventHandler(CachedPropertiesMixin, Structure):
         self._durations = []
         self._lock = False
 
-    @property
+    @cached_property_if_locked
     def events(self):
         """list: All Events ordered by event time.
 
@@ -109,7 +109,7 @@ class EventHandler(CachedPropertiesMixin, Structure):
         """
         return sorted(self._events, key=lambda evt: evt.time)
 
-    @property
+    @cached_property_if_locked
     def events_dict(self):
         """dict: Events and Durations orderd by name."""
         evts = {evt.name: evt for evt in self.events}
@@ -276,7 +276,7 @@ class EventHandler(CachedPropertiesMixin, Structure):
         self._durations.remove(dur)
         self.__dict__.pop(duration_name)
 
-    @property
+    @cached_property_if_locked
     def durations(self):
         """List of all durations in the process."""
         return self._durations
@@ -392,29 +392,29 @@ class EventHandler(CachedPropertiesMixin, Structure):
         for indep in independent_events:
             self.events[dependent_event].remove_dependency(indep)
 
-    @property
+    @cached_property_if_locked
     def independent_events(self):
         """list: All events that are not dependent on other events."""
         return list(filter(lambda evt: evt.is_independent, self.events))
 
-    @property
+    @cached_property_if_locked
     def dependent_events(self):
         """list: All events that are dependent on other events."""
         return list(
             filter(lambda evt: evt.is_independent is False, self.events)
         )
 
-    @property
+    @cached_property_if_locked
     def event_parameters(self):
         """list: Event parameters."""
         return list({evt.parameter_path for evt in self.events})
 
-    @property
+    @cached_property_if_locked
     def event_performers(self):
         """list: Event peformers."""
         return list({evt.performer for evt in self.events})
 
-    @property
+    @cached_property_if_locked
     def event_times(self):
         """list: Time of events, sorted by Event time."""
         event_times = list({evt.time for evt in self.events})
@@ -422,7 +422,7 @@ class EventHandler(CachedPropertiesMixin, Structure):
 
         return event_times
 
-    @property
+    @cached_property_if_locked
     def section_times(self):
         """list: Section times.
 
