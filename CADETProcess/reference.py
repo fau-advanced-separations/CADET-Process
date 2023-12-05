@@ -72,7 +72,7 @@ class ReferenceIO(SolutionIO):
         time : array-like
             The time points for the reference.
         solution : array-like
-            The reference solution values.
+            The reference solution values with shape = (n_time, n_comp).
         flow_rate : array-like or float, optional
             The flow rates for the reference.
             If not provided, flow rate of 1 is assumed.
@@ -91,6 +91,12 @@ class ReferenceIO(SolutionIO):
 
         """
         time = np.array(time, dtype=np.float64).reshape(-1)
+
+        if solution.shape[0] != len(time):
+            raise ValueError(
+                "Solution had the wrong shape. Solution needs the shape (time, n_comp)."
+            )
+
         solution = np.array(solution, ndmin=2, dtype=np.float64).reshape(len(time), -1)
 
         if component_system is None:
