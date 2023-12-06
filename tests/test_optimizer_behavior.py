@@ -3,24 +3,32 @@ import pytest
 from functools import partial
 
 from CADETProcess.optimization import OptimizationProblem, OptimizerBase
+from CADETProcess.optimization import COBYLA, TrustConstr, NelderMead, SLSQP
+from CADETProcess.optimization import U_NSGA3
+from CADETProcess.optimization import GPEI, NEHVI
 
 from tests.optimization_problem_fixtures import (
     TestProblem,
     Rosenbrock,
     LinearConstraintsSooTestProblem,
     LinearConstraintsSooTestProblem2,
+    LinearEqualityConstraintsSooTestProblem,
     NonlinearConstraintsSooTestProblem,
+    NonlinearLinearConstraintsSooTestProblem,
     LinearConstraintsMooTestProblem,
     LinearNonlinearConstraintsMooTestProblem,
     NonlinearConstraintsMooTestProblem
 )
 
 
+
 @pytest.fixture(params=[
     Rosenbrock,
-    LinearConstraintsSooTestProblem,
-    LinearConstraintsSooTestProblem2,
     NonlinearConstraintsSooTestProblem,
+    LinearConstraintsSooTestProblem2,
+    LinearConstraintsSooTestProblem,
+    LinearEqualityConstraintsSooTestProblem,
+    NonlinearLinearConstraintsSooTestProblem,
     LinearConstraintsMooTestProblem,
     LinearNonlinearConstraintsMooTestProblem,
     NonlinearConstraintsMooTestProblem
@@ -28,10 +36,6 @@ from tests.optimization_problem_fixtures import (
 def optimization_problem(request):
     return request.param()
 
-
-from CADETProcess.optimization import COBYLA, TrustConstr, NelderMead, SLSQP
-from CADETProcess.optimization import U_NSGA3
-# from CADETProcess.optimization import AxInterface
 
 
 @pytest.fixture(params=[
