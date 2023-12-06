@@ -119,15 +119,15 @@ except ImportError:
    ax_imported = False
 
 
-def __getattr__(name):
-    if name == "AxInterface":
-        if ax_imported:
-            module = importlib.import_module(".optimization", package=__name__)
-            return getattr(module, "AxInterface")
-        else:
-            raise ImportError(
-                "The AxInterface class could not be imported. "
-                "This may be because the 'ax' package, which is an optional dependency, is not installed. "
-                "To install it, run 'pip install CADET-Process[ax]'"
-            )
-    raise AttributeError(f"module {__name__} has no attribute {name}")
+# def __getattr__(name):
+#     if name == "GPEI":
+#         if ax_imported:
+#             module = importlib.import_module("axAdapter", package=__name__)
+#             return getattr(module, "AxInterface")
+#         else:
+#             raise ImportError(
+#                 "The AxInterface class could not be imported. "
+#                 "This may be because the 'ax' package, which is an optional dependency, is not installed. "
+#                 "To install it, run 'pip install CADET-Process[ax]'"
+#             )
+#     raise AttributeError(f"module {__name__} has no attribute {name}")
