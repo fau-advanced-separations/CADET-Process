@@ -160,13 +160,15 @@ class AxInterface(OptimizerBase):
     supports_linear_equality_constraints = False
     supports_nonlinear_constraints = True
 
-    early_stopping_improvement_window = UnsignedInteger(10)
-    early_stopping_improvement_bar = Float(1e-10)
+    early_stopping_improvement_window = UnsignedInteger(default=10)
+    early_stopping_improvement_bar = Float(default=1e-10)
     n_init_evals = UnsignedInteger(default=50)
+    n_max_evals = UnsignedInteger(default=100)
     seed = UnsignedInteger(default=12345)
 
     _specific_options = [
         'n_init_evals',
+        'n_max_evals,'
         'seed',
         'early_stopping_improvement_window',
         'early_stopping_improvement_bar',
