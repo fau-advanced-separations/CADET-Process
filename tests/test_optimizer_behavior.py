@@ -58,6 +58,8 @@ def optimizer(request):
 
 
 def test_convergence(optimization_problem: TestProblem, optimizer: OptimizerBase):
+    # only test problems that the optimizer can handle. The rest of the tests
+    # will be marked as passed
     if optimizer.check_optimization_problem(optimization_problem):
         results = optimizer.optimize(optimization_problem)
         optimization_problem.test_if_solved(results)
