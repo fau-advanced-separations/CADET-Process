@@ -26,6 +26,10 @@ from botorch.acquisition.monte_carlo import qNoisyExpectedImprovement
 from CADETProcess.dataStructure import UnsignedInteger, Typed, Float
 from CADETProcess.optimization.optimizationProblem import OptimizationProblem
 from CADETProcess.optimization import OptimizerBase
+from CADETProcess.optimization.parallelizationBackend import (
+    SequentialBackend,
+    ParallelizationBackendBase
+)
 
 __all__ = [
     'GPEI',
@@ -76,9 +80,10 @@ class CADETProcessRunner(Runner):
     def __init__(
             self,
             optimization_problem: OptimizationProblem,
-            n_cores=1) -> None:
+            parallelization_backend: ParallelizationBackendBase
+        ) -> None:
         self.optimization_problem = optimization_problem
-        self.n_cores = n_cores
+        self.parallelization_backend = parallelization_backend
 
     def staging_required(self) -> bool:
         # TODO: change that to True
@@ -97,13 +102,12 @@ class CADETProcessRunner(Runner):
         # TODO: Adapt new parallelization backend once #40 is merged
         # See: https://github.com/fau-advanced-separations/CADET-Process/pull/40
 
-        n_cores = min(self.n_cores, len(X))
         # Calculate objectives
         # TODO: add noise to the result
         objective_labels = self.optimization_problem.objective_labels
         obj_fun = self.optimization_problem.evaluate_objectives_population
 
-        F = obj_fun(X, untransform=True)
+        F = obj_fun(X, untransform=True, parallelization_backend=self.parallelization_backend)
 
         # Calculate nonlinear constraints
         # TODO: add noise to the result
@@ -111,7 +115,7 @@ class CADETProcessRunner(Runner):
             nonlincon_fun = self.optimization_problem.evaluate_nonlinear_constraints_population
             nonlincon_labels = self.optimization_problem.nonlinear_constraint_labels
 
-            G = nonlincon_fun(X, untransform=True, n_cores=n_cores)
+            G = nonlincon_fun(X, untransform=True, parallelization_backend=self.parallelization_backend)
 
         else:
             G = None
@@ -358,7 +362,7 @@ class AxInterface(OptimizerBase):
 
         runner = CADETProcessRunner(
             optimization_problem=self.optimization_problem,
-            n_cores=self.n_cores
+            parallelization_backend=SequentialBackend()
         )
 
         self.global_stopping_strategy = ImprovementGlobalStoppingStrategy(
