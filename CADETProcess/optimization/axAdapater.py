@@ -414,8 +414,7 @@ class AxInterface(OptimizerBase):
         with manual_seed(seed=self.seed):
             while not (n_evals >= self.n_max_evals or n_iter >= self.n_max_iter):
                 # Reinitialize GP+EI model at each step with updated data.
-                data = self.ax_experiment.fetch_data()
-                modelbridge = self._train_model(data=data)
+                modelbridge = self.train_model()
 
                 print(f"Running optimization trial {n_evals+1}/{self.n_max_evals}...")
 
@@ -481,10 +480,10 @@ class GPEI(SingleObjectiveAxInterface):
     def __repr__(self):
         return 'GPEI'
 
-    def _train_model(self, data):
+    def train_model(self):
         return Models.GPEI(
             experiment=self.ax_experiment,
-            data=data
+            data=self.ax_experiment.fetch_data()
         )
 
 class BotorchModular(SingleObjectiveAxInterface):
@@ -511,12 +510,12 @@ class BotorchModular(SingleObjectiveAxInterface):
 
         return f'BotorchModular({smn}+{afn})'
 
-    def _train_model(self, data):
+    def train_model(self):
         return Models.BOTORCH_MODULAR(
             experiment=self.ax_experiment,
             surrogate=Surrogate(self.surrogate_model),
             botorch_acqf_class=self.acquisition_fn,
-            data=data
+            data=self.ax_experiment.fetch_data()
         )
 
 class NEHVI(MultiObjectiveAxInterface):
@@ -532,8 +531,8 @@ class NEHVI(MultiObjectiveAxInterface):
 
         return f'{smn}+{afn}'
 
-    def _train_model(self, data):
+    def train_model(self):
         return Models.MOO(
             experiment=self.ax_experiment,
-            data=data
+            data=self.ax_experiment.fetch_data()
         )
