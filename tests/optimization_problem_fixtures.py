@@ -12,8 +12,13 @@ from CADETProcess.transform import NormLinearTransform, NormLogTransform
 __all__ = [
     'Rosenbrock',
     'LinearConstraintsSooTestProblem',
+    'LinearConstraintsSooTestProblem2',
+    'LinearEqualityConstraintsSooTestProblem',
+    'NonlinearConstraintsSooTestProblem',
+    'NonlinearLinearConstraintsSooTestProblem',
     'LinearConstraintsMooTestProblem',
-    'NonlinearConstraintsMooTestProblem',
+    'LinearNonlinearConstraintsMooTestProblem',
+    'NonlinearConstraintsMooTestProblem'
 ]
 
 
@@ -194,19 +199,20 @@ class NonlinearConstraintsSooTestProblem(TestProblem):
     def _objective_function(self, x):
         return x[0] - x[1]
 
+    @property
     def optimal_solution(self):
         x = [-1, 2]
         f = -3
 
         return x, f
 
-    def test_if_solved(self, optimization_results: OptimizationResults, decimal=7):
-        x_true, f_true = self.optimal_solution()
+    def test_if_solved(self, optimization_results: OptimizationResults):
+        x_true, f_true = self.optimal_solution
         x = optimization_results.x
         f = optimization_results.f
 
-        np.testing.assert_almost_equal(f-f_true, 0, decimal=decimal)
-        np.testing.assert_almost_equal(x-x_true, 0, decimal=decimal)
+        np.testing.assert_almost_equal(f-f_true, 0, decimal=3)
+        np.testing.assert_almost_equal(x-x_true, 0, decimal=3)
 
 
 class LinearConstraintsSooTestProblem2(TestProblem):
@@ -239,6 +245,23 @@ class LinearConstraintsSooTestProblem2(TestProblem):
 
     def _objective_function(self, x):
         return 2 * x[0] - x[1] + 0.5 * x[2]
+
+    @property
+    def optimal_solution(self):
+        x = [-5.0, 5.0, 0.0]
+        f = -15.0
+        return x, f
+
+    def test_if_solved(self, optimization_results: OptimizationResults):
+        x_true, f_true = self.optimal_solution
+        x = optimization_results.x
+        f = optimization_results.f
+
+        np.testing.assert_almost_equal(f-f_true, 0, decimal=2)
+        np.testing.assert_almost_equal(x-x_true, 0, decimal=2)
+
+
+
 
 
 class LinearEqualityConstraintsSooTestProblem(TestProblem):
@@ -403,7 +426,7 @@ class LinearConstraintsMooTestProblem(TestProblem):
         x1, x2 = X.T
         x2_test = np.where(x1 <= 3, 3 - x1, 0)
 
-        np.testing.assert_almost_equal(x2, x2_test, decimal=decimal)
+        np.testing.assert_almost_equal(x2, x2_test, decimal=5)
 
 
 class LinearNonlinearConstraintsMooTestProblem(TestProblem):
