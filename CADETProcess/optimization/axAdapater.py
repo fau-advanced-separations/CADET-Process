@@ -513,6 +513,7 @@ class BotorchModular(SingleObjectiveAxInterface):
         return f'BotorchModular({smn}+{afn})'
 
     def train_model(self):
+        raise NotImplementedError("This model is currently broken. Please use Only GPEI or NEHVI")
         return Models.BOTORCH_MODULAR(
             experiment=self.ax_experiment,
             surrogate=Surrogate(self.surrogate_model),

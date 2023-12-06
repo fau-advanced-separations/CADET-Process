@@ -105,15 +105,7 @@ from .pymooAdapter import NSGA2, U_NSGA3
 import importlib
 
 try:
-   from .axAdapater import GPEI, BotorchModular, NEHVI
-   from botorch.models.gp_regression import FixedNoiseGP
-   from botorch.acquisition import (
-      qExpectedImprovement,
-      qNoisyExpectedImprovement,
-      qUpperConfidenceBound,
-      qKnowledgeGradient,
-   )
-
+   from .axAdapater import GPEI, NEHVI
    ax_imported = True
 except ImportError:
    ax_imported = False
