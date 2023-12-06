@@ -37,12 +37,21 @@ def optimization_problem(request):
     return request.param()
 
 
+ax_kwargs = dict(
+    n_init_evals = 20,
+    early_stopping_improvement_bar=1e-4,
+    early_stopping_improvement_window=10,
+    n_max_evals=50
+)
 
 @pytest.fixture(params=[
-    # COBYLA,
-    TrustConstr,
-    # U_NSGA3,
-    # AxInterface
+    partial(GPEI, **ax_kwargs),   # most tests pass
+    partial(NEHVI, **ax_kwargs),  # only tested for 2 multiobjective problems
+    TrustConstr,  # 5/7 are green
+    U_NSGA3,  # tests are running but not accurate enough in short runtimes
+    COBYLA,  # still has bounds problem
+    SLSQP,  # untested but should work without much problems
+    NelderMead,  # untested
 ])
 def optimizer(request):
     return request.param()
