@@ -21,7 +21,9 @@ from ax.utils.common.result import Err, Ok
 from ax.service.utils.report_utils import exp_to_df
 from botorch.utils.sampling import manual_seed
 from botorch.models.gp_regression import FixedNoiseGP
-from botorch.acquisition.monte_carlo import qNoisyExpectedImprovement
+from botorch.acquisition.analytic import (
+    LogExpectedImprovement
+)
 
 from CADETProcess.dataStructure import UnsignedInteger, Typed, Float
 from CADETProcess.optimization.optimizationProblem import OptimizationProblem
@@ -496,7 +498,7 @@ class BotorchModular(SingleObjectiveAxInterface):
     acquisition_fn: AcquisitionFunction class
     surrogate_model: Model class
     """
-    acquisition_fn = Typed(ty=type, default=qNoisyExpectedImprovement)
+    acquisition_fn = Typed(ty=type, default=LogExpectedImprovement)
     surrogate_model = Typed(ty=type, default=FixedNoiseGP)
 
     _specific_options = [
