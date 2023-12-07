@@ -138,7 +138,7 @@ class TestPeakHeight(unittest.TestCase):
     def test_metric(self):
         # Compare with itself
         difference = PeakHeight(
-            self.reference_single, components=['A']
+            self.reference, components=['A']
         )
         metrics_expected = [0]
         metrics = difference.evaluate(self.reference)
@@ -146,8 +146,8 @@ class TestPeakHeight(unittest.TestCase):
 
         # Compare with other Gauss Peak
         difference = PeakHeight(
-            self.reference_single,
-            components=['B'],
+            self.reference_switched,
+            components=['A'],
             normalize_metrics=False
         )
         metrics_expected = [0]
@@ -156,8 +156,8 @@ class TestPeakHeight(unittest.TestCase):
 
         # Compare with other Gauss Peak, normalize_metrics
         difference = PeakHeight(
-            self.reference_single,
-            components=['B'],
+            self.reference_switched,
+            components=['A'],
             normalize_metrics=True
         )
         metrics_expected = [0]
@@ -223,7 +223,7 @@ class TestPeakPosition(unittest.TestCase):
     def test_metric(self):
         # Compare with itself
         difference = PeakPosition(
-            self.reference_single, components=['A']
+            self.reference, components=['A']
         )
         metrics_expected = [0]
         metrics = difference.evaluate(self.reference)
@@ -231,8 +231,8 @@ class TestPeakPosition(unittest.TestCase):
 
         # Compare with other Gauss Peak
         difference = PeakPosition(
-            self.reference_single,
-            components=['B'],
+            self.reference_switched,
+            components=['A'],
             normalize_metrics=False
         )
         metrics_expected = [10]
@@ -241,7 +241,7 @@ class TestPeakPosition(unittest.TestCase):
 
         # Compare with other Gauss Peak, normalize_metrics
         difference = PeakPosition(
-            self.reference_single,
+            self.reference_switched,
             components=['B'],
             normalize_metrics=True
         )
@@ -296,7 +296,7 @@ class TestShape(unittest.TestCase):
     def test_metric(self):
         # Compare with itself
         difference = Shape(
-            self.reference_single,
+            self.reference,
             use_derivative=False,
             components=['A']
         )
@@ -306,9 +306,9 @@ class TestShape(unittest.TestCase):
 
         # Compare with other Gauss Peak
         difference = Shape(
-            self.reference_single,
+            self.reference_switched,
             use_derivative=False,
-            components=['B'],
+            components=['A'],
             normalize_metrics=False
         )
         metrics_expected = [5.5511151e-16, 10, 0.0000000e+00]
@@ -317,9 +317,9 @@ class TestShape(unittest.TestCase):
 
         # Compare with other Gauss Peak, normalize_metrics
         difference = Shape(
-            self.reference_single,
+            self.reference_switched,
             use_derivative=False,
-            components=['B'],
+            components=['A'],
             normalize_metrics=True
         )
         metrics_expected = [0, 4.6211716e-01, 0]
@@ -328,9 +328,9 @@ class TestShape(unittest.TestCase):
 
         # Compare with other Gauss Peak, include derivative
         difference = Shape(
-            self.reference_single,
+            self.reference_switched,
             use_derivative=True,
-            components=['B'],
+            components=['A'],
             normalize_metrics=False
         )
         metrics_expected = [0, 10, 0, 0, 0, 0]
@@ -339,9 +339,9 @@ class TestShape(unittest.TestCase):
 
         # Compare with other Gauss Peak, include derivative, normalize metrics
         difference = Shape(
-            self.reference_single,
+            self.reference_switched,
             use_derivative=True,
-            components=['B'],
+            components=['A'],
             normalize_metrics=True
         )
         metrics_expected = [0, 4.6211716e-01, 0, 0, 0, 0]
