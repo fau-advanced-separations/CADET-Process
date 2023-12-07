@@ -177,7 +177,7 @@ class DifferenceBase(MetricBase):
             self._reference.smooth_data()
         reference = slice_solution(
             self._reference,
-            None,
+            self.components,
             self.use_total_concentration,
             self.use_total_concentration_components,
             coordinates={'time': (self.start, self.end)}
