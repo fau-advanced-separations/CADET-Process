@@ -697,7 +697,7 @@ class MultistateStericMassAction(BindingBaseClass):
     @property
     def _conversion_entries(self):
         n = 0
-        for state in self.bound_states[1:]:
+        for state in self.bound_states:
             n += state**2
 
         return n
