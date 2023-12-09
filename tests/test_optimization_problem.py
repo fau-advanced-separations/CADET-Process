@@ -11,7 +11,7 @@ from CADETProcess.dataStructure import (
     Structure, Float, List, SizedList, SizedNdArray, Polynomial, NdPolynomial
 )
 from CADETProcess.optimization import OptimizationProblem
-from tests.optimization_problem_fixtures import (
+from optimization_problem_fixtures import (
     LinearConstraintsSooTestProblem2,
     LinearEqualityConstraintsSooTestProblem
 )
@@ -1142,14 +1142,20 @@ class Test_OptimizationProblemConstraintTransforms(unittest.TestCase):
         assert np.all(~CV_test_invalid)
 
     def test_linear_inequality_constrained_transform(self):
-        problem = LinearConstraintsSooTestProblem2(transform="linear")
+        problem = LinearConstraintsSooTestProblem2(
+            transform="linear",
+            use_diskcache=False,
+        )
 
         self.check_constraint_transform(
             problem, self.check_inequality_constraints
         )
 
     def test_linear_equality_constrained_transform(self):
-        problem = LinearEqualityConstraintsSooTestProblem(transform="linear")
+        problem = LinearEqualityConstraintsSooTestProblem(
+            transform="linear",
+            use_diskcache=False,
+        )
 
         self.check_constraint_transform(
             problem, self.check_equality_constraints

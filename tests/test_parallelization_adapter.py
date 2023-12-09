@@ -94,6 +94,7 @@ class TestParallelEvaluation(unittest.TestCase):
 
     def tearDown(self):
         shutil.rmtree('./tmp', ignore_errors=True)
+        shutil.rmtree('./test_parallelization', ignore_errors=True)
 
     def test_parallelization_backend(self):
         def evaluation_function(sleep_time=0.0):
@@ -143,8 +144,10 @@ class TestOptimizerParallelizationBackend(unittest.TestCase):
         super().__init__(methodName)
 
     def tearDown(self):
-        shutil.rmtree('./test_parallelization', ignore_errors=True)
         settings.working_directory = None
+
+        shutil.rmtree('./test_parallelization', ignore_errors=True)
+        shutil.rmtree('./diskcache_simple', ignore_errors=True)
 
     def test_parallel_optimization(self):
         def run_optimization(backend=None):

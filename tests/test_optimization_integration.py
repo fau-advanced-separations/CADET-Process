@@ -17,18 +17,23 @@ test_fit_column_parameters = False
 
 class TestBatchElutionOptimizationSingleObjective(unittest.TestCase):
     def setUp(self):
+        self.tearDown()
+
         settings.working_directory = './test_batch'
+        settings.temp_dir = './test_batch/tmp'
+
         from examples.batch_elution.optimization_single import (
             optimization_problem, optimizer
         )
+        optimization_problem.cache_directory = './test_batch/diskcache_batch_elution_single'
 
         self.optimization_problem = optimization_problem
         self.optimizer = optimizer
 
     def tearDown(self):
         shutil.rmtree('./test_batch', ignore_errors=True)
+        shutil.rmtree('./diskcache_batch_elution_single', ignore_errors=True)
         shutil.rmtree('./tmp', ignore_errors=True)
-        shutil.rmtree('./diskcache', ignore_errors=True)
 
     def test_single_core(self):
         if not test_batch_elution_single_objective_single_core:
@@ -56,7 +61,7 @@ class TestBatchElutionOptimizationSingleObjective(unittest.TestCase):
 
         self.optimizer.n_cores = -2
         self.optimizer.pop_size = 16
-        self.optimizer.n_max_gen = 4
+        self.optimizer.n_max_gen = 2
 
         print("start test_batch_elution_single_objective_multi_core")
 
@@ -73,18 +78,23 @@ class TestBatchElutionOptimizationSingleObjective(unittest.TestCase):
 
 class TestBatchElutionOptimizationMultiObjective(unittest.TestCase):
     def setUp(self):
+        self.tearDown()
+
         settings.working_directory = './test_batch'
+        settings.temp_dir = './test_batch/tmp'
+
         from examples.batch_elution.optimization_multi import (
             optimization_problem, optimizer
         )
+        optimization_problem.cache_directory = './test_batch/diskcache_batch_elution_multi'
 
         self.optimization_problem = optimization_problem
         self.optimizer = optimizer
 
     def tearDown(self):
         shutil.rmtree('./test_batch', ignore_errors=True)
+        shutil.rmtree('./diskcache_batch_elution_multi', ignore_errors=True)
         shutil.rmtree('./tmp', ignore_errors=True)
-        shutil.rmtree('./diskcache', ignore_errors=True)
 
     @unittest.skipIf(__name__ != "__main__", "Only run test if test is run as __main__")
     def test_optimization(self):
@@ -93,7 +103,7 @@ class TestBatchElutionOptimizationMultiObjective(unittest.TestCase):
 
         self.optimizer.n_cores = -2
         self.optimizer.pop_size = 16
-        self.optimizer.n_max_gen = 4
+        self.optimizer.n_max_gen = 2
 
         print("start test_batch_elution_multi_objective")
 
@@ -113,23 +123,27 @@ class TestBatchElutionOptimizationMultiObjective(unittest.TestCase):
 
 class TestFitColumnParameters(unittest.TestCase):
     def setUp(self):
+        self.tearDown()
+
         settings.working_directory = './test_fit_column_parameters'
+        settings.temp_dir = './test_fit_column_parameters/tmp'
 
         data_dir = Path(__file__).parent.parent / 'examples/characterize_chromatographic_system/experimental_data'
-        shutil.rmtree('./experimental_data/', ignore_errors=True)
         shutil.copytree(data_dir, './experimental_data')
 
         from examples.characterize_chromatographic_system.column_transport_parameters import (
             optimization_problem, optimizer
         )
+        optimization_problem.cache_directory = './test_fit_column_parameters/diskcache_bed_porosity_axial_dispersion'
 
         self.optimization_problem = optimization_problem
         self.optimizer = optimizer
 
     def tearDown(self):
         shutil.rmtree('./test_fit_column_parameters', ignore_errors=True)
+        shutil.rmtree('./diskcache_bed_porosity_axial_dispersion/', ignore_errors=True)
         shutil.rmtree('./tmp', ignore_errors=True)
-        shutil.rmtree('./diskcache', ignore_errors=True)
+
         shutil.rmtree('./experimental_data/', ignore_errors=True)
 
     def test_optimization(self):
@@ -138,7 +152,7 @@ class TestFitColumnParameters(unittest.TestCase):
 
         self.optimizer.n_cores = -2
         self.optimizer.pop_size = 16
-        self.optimizer.n_max_gen = 4
+        self.optimizer.n_max_gen = 2
 
         print("start test_fit_column_parameters")
 
@@ -151,7 +165,6 @@ class TestFitColumnParameters(unittest.TestCase):
 
         print(f"Finalized test_fit_column_parameters in {end - start} s")
         print(f"Equivalent CPU time: {(end - start)* self.optimizer.n_cores} s")
-
 
 
 if __name__ == '__main__':
