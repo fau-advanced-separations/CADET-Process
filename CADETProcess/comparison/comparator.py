@@ -238,22 +238,20 @@ class Comparator(Structure):
         tuple
             A tuple of the comparison figure(s) and axes object(s).
         """
-        n = len(self.metrics)
-
-        if n == 0:
+        if self.n_diffference_metrics == 0:
             return (None, None)
 
-        comparison_fig_all, comparison_axs_all = plt.subplots(
-            nrows=n,
-            figsize=(8 + 4 + 2, n*8 + 2),
+        comparison_fig_all, comparison_axs_all = plotting.setup_figure(
+            n_rows=self.n_diffference_metrics,
             squeeze=False
         )
+
         plt.close(comparison_fig_all)
         comparison_axs_all = comparison_axs_all.reshape(-1)
 
         comparison_fig_ind = []
         comparison_axs_ind = []
-        for i in range(n):
+        for i in range(self.n_diffference_metrics):
             fig, axs = plt.subplots()
             comparison_fig_ind.append(fig)
             comparison_axs_ind.append(axs)
