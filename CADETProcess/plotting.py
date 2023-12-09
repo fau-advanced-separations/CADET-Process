@@ -111,8 +111,40 @@ linestyle_cycler = cycler('linestyle', ['--', ':', '-.'])
 textbox_props = dict(facecolor='white', alpha=1)
 
 
-def set_style(style='medium'):
-    """Defines the sytle of a plot.
+figure_styles = {
+    'small': {
+        'width': 5,
+        'height': 3,
+        'linewidth': 2,
+        'font_small': 8,
+        'font_medium': 10,
+        'font_large': 12,
+        'color_cycler': chromapy_cycler,
+
+    },
+    'medium': {
+        'width': 10,
+        'height': 6,
+        'linewidth': 4,
+        'font_small': 20,
+        'font_medium': 24,
+        'font_large': 28,
+        'color_cycler': chromapy_cycler,
+    },
+    'large': {
+        'width': 15,
+        'height': 9,
+        'linewidth': 6,
+        'font_small': 25,
+        'font_medium': 30,
+        'font_large': 40,
+        'color_cycler': chromapy_cycler,
+    },
+}
+
+
+def set_figure_style(style='medium'):
+    """Define the sytle of a plot.
 
     Can set the sytle of a plot for small, medium and large plots. The
     figuresize of the figure, the linewitdth and color of the lines and the
@@ -128,38 +160,98 @@ def set_style(style='medium'):
     CADETProcessError
         If no valid style has been chosen as parameter.
     """
-    if style == 'small':
-        plt.rcParams['figure.figsize'] = (5, 3)
-        plt.rcParams['lines.linewidth'] = 2
-        plt.rcParams['font.size'] = 12
-        plt.rcParams['axes.prop_cycle'] = chromapy_cycler
-    elif style == 'medium':
-        plt.rcParams['figure.figsize'] = (10, 6)
-        plt.rcParams['lines.linewidth'] = 4
-        plt.rcParams['font.size'] = 24
-        plt.rcParams['axes.prop_cycle'] = chromapy_cycler
-    elif style == 'large':
-        plt.rcParams['figure.figsize'] = (15, 9)
-        plt.rcParams['lines.linewidth'] = 6
-        plt.rcParams['font.size'] = 30
-        plt.rcParams['axes.prop_cycle'] = chromapy_cycler
-    else:
+    if style not in figure_styles:
         raise CADETProcessError('Not a valid style')
 
+    width = figure_styles[style]['width']
+    height = figure_styles[style]['height']
+    linewidth = figure_styles[style]['linewidth']
+    font_small = figure_styles[style]['font_small']
+    font_medium = figure_styles[style]['font_medium']
+    font_large = figure_styles[style]['font_large']
+    color_cycler = figure_styles[style]['color_cycler']
 
-set_style()
+    plt.rcParams['figure.figsize'] = (width, height)
+    plt.rcParams['lines.linewidth'] = linewidth
+    plt.rcParams['font.size'] = font_small          # controls default text sizes
+    plt.rcParams['axes.titlesize'] = font_small     # fontsize of the axes title
+    plt.rcParams['axes.labelsize'] = font_medium    # fontsize of the x and y labels
+    plt.rcParams['xtick.labelsize'] = font_small    # fontsize of the tick labels
+    plt.rcParams['ytick.labelsize'] = font_small    # fontsize of the tick labels
+    plt.rcParams['legend.fontsize'] = font_small    # legend fontsize
+    plt.rcParams['figure.titlesize'] = font_large   # fontsize of the figure title
+    plt.rcParams['axes.prop_cycle'] = color_cycler
 
 
-def setup_figure(n_rows=1, n_cols=1, style=None):
-    fig, ax = plt.subplots(nrows=n_rows, ncols=n_cols)
+set_figure_style()
 
+
+def get_fig_size(n_rows=1, n_cols=1, style=None):
+    """
+    Get figure size for figures with multiple Axes.
+
+    Parameters
+    ----------
+    n_rows : int, optional
+        Number of rows in the figure. The default is 1.
+    n_cols : int, optional
+        Number of columns in the figure. The default is 1.
+    style : str, optional
+        Style to use for the figure. The default is None.
+
+    Returns
+    -------
+    fig_size : tuple
+        Size of the figure (width, height)
+
+    """
     if style is None:
         style = this.style
-    set_style(style)
+
+    width = figure_styles[style]['width']
+    height = figure_styles[style]['height']
+
+    fig_size = (n_cols * width + 2, n_rows * height + 2)
+
+    return fig_size
+
+
+def setup_figure(n_rows=1, n_cols=1, style=None, squeeze=True):
+    """
+    Setup a figure.
+
+    Parameters
+    ----------
+    n_rows : int, optional
+        Number of rows in the figure. The default is 1.
+    n_cols : int, optional
+        Number of columns in the figure. The default is 1.
+    style : str, optional
+        Style to use for the figure. The default is None.
+    squeeze : bool, optional
+        If True, extra dimensions are squeezed out from the returned array of Axes.
+        The default is True.
+
+    Returns
+    -------
+    fig : Figure
+    ax : Axes or array of Axes
+    """
+    if style is None:
+        style = this.style
+    set_figure_style(style)
+
+    fig_size = get_fig_size(n_rows, n_cols)
+    fig, axs = plt.subplots(
+        nrows=n_rows,
+        ncols=n_cols,
+        squeeze=squeeze,
+        figsize=fig_size
+    )
 
     fig.tight_layout()
 
-    return fig, ax
+    return fig, axs
 
 
 class SecondaryAxis(Structure):
@@ -346,10 +438,11 @@ def create_and_save_figure(func):
 
         ax = func(*args, ax=ax, **kwargs)
 
+        if fig is not None:
+            fig.tight_layout()
+
         if file_name is not None:
             plt.savefig(file_name)
-
-            fig.tight_layout()
 
             plt.close(fig)
             if show:
