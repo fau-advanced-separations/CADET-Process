@@ -54,7 +54,9 @@ Ax
 .. autosummary::
    :toctree: generated/
 
-   AxInterface
+   BotorchModular
+   GPEI
+   NEHVI
 
 Population
 ==========
