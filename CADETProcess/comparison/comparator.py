@@ -82,6 +82,11 @@ class Comparator(Structure):
         return self._metrics
 
     @property
+    def n_diffference_metrics(self):
+        """int: Number of difference metrics in the Comparator."""
+        return len(self.metrics)
+
+    @property
     def n_metrics(self):
         """int: Number of metrics to be evaluated."""
         return sum([metric.n_metrics for metric in self.metrics])
