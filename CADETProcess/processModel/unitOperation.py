@@ -20,7 +20,8 @@ from .discretization import (
     DiscretizationParametersBase, NoDiscretization,
     LRMDiscretizationFV, LRMDiscretizationDG,
     LRMPDiscretizationFV, LRMPDiscretizationDG,
-    GRMDiscretizationFV, GRMDiscretizationDG
+    GRMDiscretizationFV, GRMDiscretizationDG,
+    MCTDiscretizationFV,
 )
 
 from .solutionRecorder import (
