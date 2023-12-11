@@ -90,18 +90,40 @@ class UnitBaseClass(Structure):
     supports_particle_reaction = False
     discretization_schemes = ()
 
-    def __init__(self, component_system, name, *args, **kwargs):
+    def __init__(
+            self,
+            component_system,
+            name,
+            *args,
+            binding_model=None,
+            bulk_reaction_model=None,
+            particle_reaction_model=None,
+            discretization=None,
+            solution_recorder=None,
+            **kwargs
+            ):
         self.name = name
         self.component_system = component_system
 
-        self.binding_model = NoBinding()
+        if binding_model is None:
+            binding_model = NoBinding()
+        self.binding_model = binding_model
 
-        self.bulk_reaction_model = NoReaction()
-        self.particle_reaction_model = NoReaction()
+        if bulk_reaction_model is None:
+            bulk_reaction_model = NoReaction()
+        self.bulk_reaction_model = bulk_reaction_model
 
-        self.discretization = NoDiscretization()
+        if particle_reaction_model is None:
+            particle_reaction_model = NoReaction()
+        self.particle_reaction_model = particle_reaction_model
 
-        self.solution_recorder = IORecorder()
+        if discretization is None:
+            discretization = NoDiscretization()
+        self.discretization = discretization
+
+        if solution_recorder is None:
+            solution_recorder = IORecorder()
+        self.solution_recorder = solution_recorder
 
         super().__init__(*args, **kwargs)
 
@@ -684,14 +706,17 @@ class TubularReactor(TubularReactorBase):
     _parameters = ['c']
 
     def __init__(self, *args, discretization_scheme='FV', **kwargs):
-        super().__init__(*args, **kwargs)
-
         if discretization_scheme == 'FV':
-            self.discretization = LRMDiscretizationFV()
+            discretization = LRMDiscretizationFV()
         elif discretization_scheme == 'DG':
-            self.discretization = LRMDiscretizationDG()
+            discretization = LRMDiscretizationDG()
 
-        self.solution_recorder = TubularReactorRecorder()
+        super().__init__(
+            *args,
+            discretization=discretization,
+            solution_recorder=TubularReactorRecorder(),
+            **kwargs
+            )
 
 
 class LumpedRateModelWithoutPores(TubularReactorBase):
