@@ -11,7 +11,8 @@ import numpy as np
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess.processModel import (
     Inlet, Cstr,
-    TubularReactor, LumpedRateModelWithPores, LumpedRateModelWithoutPores
+    TubularReactor, LumpedRateModelWithPores, LumpedRateModelWithoutPores,
+    MCT
 )
 
 length = 0.6
