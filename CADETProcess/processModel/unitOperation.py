@@ -10,7 +10,7 @@ from CADETProcess.dataStructure import (
     Constant, UnsignedFloat,
     String, Switch,
     SizedUnsignedList,
-    Polynomial, NdPolynomial, SizedList
+    Polynomial, NdPolynomial, SizedList, SizedNdArray
 )
 
 from .componentSystem import ComponentSystem
@@ -1167,7 +1167,7 @@ class MCT(UnitBaseClass): # or TubularReactorBase?
     axial_dispersion = UnsignedFloat()
     flow_direction = Switch(valid=[-1, 1], default=1) #TODO: Change into array of Switches for every channel
 
-    exchange_matrix = SizedMatrix(size=('_nchannel', '_nchannel')) #TODO: Matrix has to have dimensions _nchannel*_nchannel, all entries are positive 
+    exchange_matrix = SizedNdArray(size=('nchannel', 'nchannel'))
 
     _parameters = ['length', 'channel_cross_section_areas', 'axial_dispersion', 'flow_direction', 'exchange_matrix']
     _section_dependent_parameters = \
@@ -1178,7 +1178,7 @@ class MCT(UnitBaseClass): # or TubularReactorBase?
         UnitBaseClass._section_dependent_parameters + \
         []
 
-    c = SizedList(size=('n_comp', '_nchannel'), default=0) #TODO: Make into Sized Matrix n_comp*nchannel, also change default to matrix of zeros of that size 
+    c = SizedNdArray(size=('n_comp', 'nchannel'), default=0) #TODO: Make into Sized Matrix n_comp*nchannel, also change default to matrix of zeros of that size
     _initial_state = ['c']
     _parameters = _parameters + _initial_state
 
