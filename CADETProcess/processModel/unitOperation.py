@@ -42,7 +42,7 @@ __all__ = [
     'LumpedRateModelWithoutPores',
     'LumpedRateModelWithPores',
     'GeneralRateModel',
-    'CSTR',
+    'Cstr',
     'MCT'
 ]
 
