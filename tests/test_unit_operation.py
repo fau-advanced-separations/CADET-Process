@@ -27,6 +27,10 @@ total_porosity = bed_porosity + (1 - bed_porosity) * particle_porosity
 
 axial_dispersion = 4.7e-7
 
+channel_cross_section_areas = [0.1,0.1,0.1]
+exchange_matrix = np.array([[0.0,0.01,0.0],[0.02,0.0,0.03],[0.0,0.0,0.0]])
+flow_direction = 1
+
 
 class Test_Unit_Operation(unittest.TestCase):
 
@@ -59,6 +63,15 @@ class Test_Unit_Operation(unittest.TestCase):
         tube.axial_dispersion = axial_dispersion
 
         return tube
+
+    def create_MCT(self):
+        mct = MCT(self.componen_system, name='test')
+
+        mct.length = length
+        mct.channel_cross_section_areas = channel_cross_section_areas
+        mct.axial_dispersion = axial_dispersion
+        mct.flow_direction = flow_direction
+        mct.exchange_matrix = exchange_matrix
 
     def create_lrmwop(self):
         lrmwop = LumpedRateModelWithoutPores(

@@ -1339,6 +1339,18 @@ unit_parameters_map = {
             'FLOWRATE_FILTER': 'flow_rate_filter',
         },
     },
+    'MCT': {
+        'name': 'MULTI_CHANNEL_TRANSPORT',
+        'parameters': {
+            'NCOMP': 'n_comp',
+            'INIT_C': 'c',
+            'COL_DISPERSION': 'axial_dispersion',
+            'COL_LENGTH': 'length',
+            'CHANNEL_CROSS_SECTION_AREAS': 'channel_cross_section_areas',
+            'EXCHANGE_MATRIX': 'exchange_matrix',
+            'VELOCITY': 'flow_direction',
+         },
+    },
     'Inlet': {
         'name': 'INLET',
         'parameters': {

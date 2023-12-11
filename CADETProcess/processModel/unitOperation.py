@@ -41,6 +41,8 @@ __all__ = [
     'LumpedRateModelWithoutPores',
     'LumpedRateModelWithPores',
     'GeneralRateModel',
+    'CSTR',
+    'MCT'
 ]
 
 
@@ -1152,8 +1154,6 @@ class MCT(UnitBaseClass): # or TubularReactorBase?
     c : List of unsigned floats. Length depends n_comp or n_comp*nchannel.
         Initial concentration for components.
     exchange_matrix : List of unsigned floats. Lenght depends on nchannel.
-    total_porosity : UnsignedFloat between 0 and 1.
-        Total porosity of the column.
     solution_recorder : MCTRecorder
         Solution recorder for the unit operation.
 
@@ -1163,13 +1163,12 @@ class MCT(UnitBaseClass): # or TubularReactorBase?
 
 
     length = UnsignedFloat()
-    channel_cross_section_areas = SizedList(size='nchannel')
+    channel_cross_section_areas = SizedList(size='_nchannel')
     axial_dispersion = UnsignedFloat()
-    flow_direction = Switch(valid=[-1, 1], default=1)
+    flow_direction = Switch(valid=[-1, 1], default=1) #TODO: Change into array of Switches for every channel
 
-    exchange_matrix = SizedList(size=('nchannel')**2) #TODO: How to get nchannel and square here? (Specified in Discretization)
+    exchange_matrix = SizedMatrix(size=('_nchannel', '_nchannel')) #TODO: Matrix has to have dimensions _nchannel*_nchannel, all entries are positive 
 
-    _initial_state = UnitBaseClass._initial_state + ['c']
     _parameters = ['length', 'channel_cross_section_areas', 'axial_dispersion', 'flow_direction', 'exchange_matrix']
     _section_dependent_parameters = \
         UnitBaseClass._section_dependent_parameters + \
@@ -1179,7 +1178,7 @@ class MCT(UnitBaseClass): # or TubularReactorBase?
         UnitBaseClass._section_dependent_parameters + \
         []
 
-    c = SizedList(size='n_comp', default=0)
+    c = SizedList(size=('n_comp', '_nchannel'), default=0) #TODO: Make into Sized Matrix n_comp*nchannel, also change default to matrix of zeros of that size 
     _initial_state = ['c']
     _parameters = _parameters + _initial_state
 
@@ -1188,9 +1187,9 @@ class MCT(UnitBaseClass): # or TubularReactorBase?
         self.solution_recorder = MCTRecorder()
 
     @property
-    def required_parameters(self):
-        #TODO: How do I correctly set required parameters?
-        return required_parameters
+    def _nchannel(self):
+        """Access nchannel from discretization to use in UnitOperation."""
+        return self.discretization.nchannel
 
     @property
     def volume(self):
