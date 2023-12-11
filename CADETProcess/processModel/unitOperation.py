@@ -1190,13 +1190,19 @@ class MCT(UnitBaseClass): # or TubularReactorBase?
     discretization_schemes = (MCTDiscretizationFV)
 
     length = UnsignedFloat()
-    channel_cross_section_areas = SizedList(size='_nchannel')
-    axial_dispersion = UnsignedFloat()
+    channel_cross_section_areas = SizedList(size='nchannel')
+    axial_dispersion = UnsignedFloat() #TODO: Should this also have size `nchannel`? Here we might need multiplexing
     flow_direction = Switch(valid=[-1, 1], default=1) #TODO: Change into array of Switches for every channel
 
     exchange_matrix = SizedNdArray(size=('nchannel', 'nchannel'))
 
-    _parameters = ['length', 'channel_cross_section_areas', 'axial_dispersion', 'flow_direction', 'exchange_matrix']
+    _parameters = [
+        'length',
+        'channel_cross_section_areas',
+        'axial_dispersion',
+        'flow_direction',
+        'exchange_matrix',
+    ]
     _section_dependent_parameters = \
         UnitBaseClass._section_dependent_parameters + \
         ['axial_dispersion', 'flow_direction']
@@ -1209,14 +1215,25 @@ class MCT(UnitBaseClass): # or TubularReactorBase?
     _initial_state = ['c']
     _parameters = _parameters + _initial_state
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.solution_recorder = MCTRecorder()
+    def __init__(self, *args, nchannel, **kwargs):
+        discretization = MCTDiscretizationFV()
+        discretization.nchannel = nchannel
+
+        super().__init__(
+            *args,
+            discretization=discretization,
+            solution_recorder=MCTRecorder(),
+            **kwargs
+            )
 
     @property
-    def _nchannel(self):
-        """Access nchannel from discretization to use in UnitOperation."""
+    def nchannel(self):
+        """int: Proxy for `discretization.nchannel`."""
         return self.discretization.nchannel
+
+    @nchannel.setter
+    def nchannel(self, nchannel):
+        self.discretization.nchannel = nchannel
 
     @property
     def volume(self):
