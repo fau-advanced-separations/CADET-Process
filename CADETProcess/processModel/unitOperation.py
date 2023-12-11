@@ -1187,6 +1187,7 @@ class MCT(UnitBaseClass): # or TubularReactorBase?
     supports_ports = True
     supports_bulk_reaction = True
 
+    discretization_schemes = (MCTDiscretizationFV)
 
     length = UnsignedFloat()
     channel_cross_section_areas = SizedList(size='_nchannel')
