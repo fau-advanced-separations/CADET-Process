@@ -641,7 +641,7 @@ class MCTDiscretizationFV(DiscretizationParametersBase):
     ----------
     ncol : UnsignedInteger, optional
         Number of axial column discretization cells. Default is 100.
-    nchannel : UnsignedInteger, 
+    nchannel : UnsignedInteger
         Number of channels, cannot be zero.
     use_analytic_jacobian : Bool, optional
         If True, use analytically computed Jacobian matrix (faster).
@@ -654,10 +654,11 @@ class MCTDiscretizationFV(DiscretizationParametersBase):
     """
 
     ncol = UnsignedInteger(default=100)
+    nchannel = UnsignedInteger()
     use_analytic_jacobian = Bool(default=True)
     reconstruction = Switch(default='WENO', valid=['WENO'])
 
-    _parameters = DiscretizationParametersBase._parameters + [
+    _parameters = [
         'ncol', 'nchannel' , 'use_analytic_jacobian', 'reconstruction',
     ]
-    _dimensionality = ['ncol']
+    _dimensionality = ['nchannel', 'ncol']
