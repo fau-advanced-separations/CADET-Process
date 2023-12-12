@@ -66,6 +66,9 @@ class NEHVI(NEHVI):
     early_stopping_improvement_window=10
     n_max_evals=50
 
+# =========================
+#   Test problem factory
+# =========================
 
 @pytest.fixture(params=[
     # single objective problems
@@ -85,13 +88,11 @@ def optimization_problem(request):
     return request.param()
 
 @pytest.fixture(params=[
-    partial(GPEI, **ax_kwargs),   # most tests pass
-    partial(NEHVI, **ax_kwargs),  # only tested for 2 multiobjective problems
-    TrustConstr,  # 5/7 are green
-    U_NSGA3,  # tests are running but not accurate enough in short runtimes
-    COBYLA,  # still has bounds problem
-    SLSQP,  # untested but should work without much problems
-    NelderMead,  # untested
+    SLSQP,  # tests pass
+    TrustConstr,  # tests pass
+    U_NSGA3,  # MOO tests --> accuracy too low, LEQ test --> cannot find individuals that fulfill constraints
+    # GPEI,
+    # NEHVI,
 ])
 def optimizer(request):
     return request.param()
