@@ -22,6 +22,8 @@ __all__ = [
 ]
 
 
+error = "Optimizer did not approach solution close enough."
+
 class TestProblem(OptimizationProblem):
     @property
     def optimal_solution(self):
@@ -83,15 +85,15 @@ class Rosenbrock(TestProblem):
 
     @property
     def x0(self):
-        return np.repeat(0.5, self.n_variables)
+        return np.repeat(0.9, self.n_variables)
 
-    def test_if_solved(self, optimization_results: OptimizationResults):
+    def test_if_solved(self, optimization_results: OptimizationResults, decimal=2):
         x_true, f_true = self.optimal_solution
         x = optimization_results.x
         f = optimization_results.f
 
-        np.testing.assert_almost_equal(f-f_true, 0, decimal=3)
-        np.testing.assert_almost_equal(x-x_true, 0, decimal=3)
+        np.testing.assert_almost_equal(f-f_true, 0, decimal=decimal, err_msg=error)
+        np.testing.assert_almost_equal(x-x_true, 0, decimal=decimal, err_msg=error)
 
 
 
@@ -130,7 +132,7 @@ class LinearConstraintsSooTestProblem(TestProblem):
 
     @property
     def x0(self):
-        return [0, 0]
+        return [-0.5, 1.5]
 
     @property
     def conditional_minima(self):
@@ -138,13 +140,13 @@ class LinearConstraintsSooTestProblem(TestProblem):
         f_x1 = lambda x1:  x1 * - 3/2
         return f_x0, f_x1
 
-    def test_if_solved(self, optimization_results: OptimizationResults):
+    def test_if_solved(self, optimization_results: OptimizationResults, decimal=2):
         x_true, f_true = self.optimal_solution
         x = optimization_results.x
         f = optimization_results.f
 
-        np.testing.assert_almost_equal(f-f_true, 0, decimal=2)
-        np.testing.assert_almost_equal(x-x_true, 0, decimal=2)
+        np.testing.assert_almost_equal(f-f_true, 0, decimal=decimal, err_msg=error)
+        np.testing.assert_almost_equal(x-x_true, 0, decimal=decimal, err_msg=error)
 
 
 
@@ -195,6 +197,9 @@ class NonlinearConstraintsSooTestProblem(TestProblem):
             requires=self.fixture_evaluator
         )
 
+    @property
+    def x0(self):
+        return [-0.5, 1.5]
 
     def _objective_function(self, x):
         return x[0] - x[1]
@@ -206,13 +211,13 @@ class NonlinearConstraintsSooTestProblem(TestProblem):
 
         return x, f
 
-    def test_if_solved(self, optimization_results: OptimizationResults):
+    def test_if_solved(self, optimization_results: OptimizationResults, decimal=2):
         x_true, f_true = self.optimal_solution
         x = optimization_results.x
         f = optimization_results.f
 
-        np.testing.assert_almost_equal(f-f_true, 0, decimal=3)
-        np.testing.assert_almost_equal(x-x_true, 0, decimal=3)
+        np.testing.assert_almost_equal(f-f_true, 0, decimal=decimal, err_msg=error)
+        np.testing.assert_almost_equal(x-x_true, 0, decimal=decimal, err_msg=error)
 
 
 class LinearConstraintsSooTestProblem2(TestProblem):
@@ -247,18 +252,22 @@ class LinearConstraintsSooTestProblem2(TestProblem):
         return 2 * x[0] - x[1] + 0.5 * x[2]
 
     @property
+    def x0(self):
+        return [-4, 4, 1]
+
+    @property
     def optimal_solution(self):
         x = [-5.0, 5.0, 0.0]
         f = -15.0
         return x, f
 
-    def test_if_solved(self, optimization_results: OptimizationResults):
+    def test_if_solved(self, optimization_results: OptimizationResults, decimal=2):
         x_true, f_true = self.optimal_solution
         x = optimization_results.x
         f = optimization_results.f
 
-        np.testing.assert_almost_equal(f-f_true, 0, decimal=2)
-        np.testing.assert_almost_equal(x-x_true, 0, decimal=2)
+        np.testing.assert_almost_equal(f-f_true, 0, decimal=decimal, err_msg=error)
+        np.testing.assert_almost_equal(x-x_true, 0, decimal=decimal, err_msg=error)
 
 
 
@@ -291,7 +300,7 @@ class LinearEqualityConstraintsSooTestProblem(TestProblem):
 
     @property
     def x0(self):
-        return np.array([2.0, 3.0, 0.0])
+        return np.array([-1.0, 4.5, -4.0])
 
     def _objective_function(self, x):
         return 2 * x[0] - x[1] + 0.5 * x[2]
@@ -303,13 +312,13 @@ class LinearEqualityConstraintsSooTestProblem(TestProblem):
 
         return x, f
 
-    def test_if_solved(self, optimization_results: OptimizationResults, decimal=7):
+    def test_if_solved(self, optimization_results: OptimizationResults, decimal=2):
         x_true, f_true = self.optimal_solution
         x = optimization_results.x
         f = optimization_results.f
 
-        np.testing.assert_almost_equal(f-f_true, 0, decimal=decimal)
-        np.testing.assert_almost_equal(x-x_true, 0, decimal=decimal)
+        np.testing.assert_almost_equal(f-f_true, 0, decimal=decimal, err_msg=error)
+        np.testing.assert_almost_equal(x-x_true, 0, decimal=decimal, err_msg=error)
 
 
 class NonlinearLinearConstraintsSooTestProblem(TestProblem):
@@ -338,19 +347,23 @@ class NonlinearLinearConstraintsSooTestProblem(TestProblem):
     def _objective_function(self, x):
         return x[0] - x[1]
 
+    @property
+    def x0(self):
+        return [-0.5, 1.5]
+
     def optimal_solution(self):
         x = [-1, 2]
         f = -3
 
         return x, f
 
-    def test_if_solved(self, optimization_results: OptimizationResults, decimal=7):
+    def test_if_solved(self, optimization_results: OptimizationResults, decimal=2):
         x_true, f_true = self.optimal_solution()
         x = optimization_results.x
         f = optimization_results.f
 
-        np.testing.assert_almost_equal(f-f_true, 0, decimal=decimal)
-        np.testing.assert_almost_equal(x-x_true, 0, decimal=decimal)
+        np.testing.assert_almost_equal(f-f_true, 0, decimal=decimal, err_msg=error)
+        np.testing.assert_almost_equal(x-x_true, 0, decimal=decimal, err_msg=error)
 
 
 class LinearConstraintsMooTestProblem(TestProblem):
@@ -409,6 +422,11 @@ class LinearConstraintsMooTestProblem(TestProblem):
 
         return f_x0, f_x1
 
+    @property
+    def x0(self):
+        return [1.6, 1.4]
+
+    @property
     def optimal_solution(self):
         x1 = np.linspace(1, 5, 101)
         x2 = self.find_corresponding_x2(x1=x1)
@@ -418,7 +436,7 @@ class LinearConstraintsMooTestProblem(TestProblem):
 
         return X, F
 
-    def test_if_solved(self, optimization_results, decimal=7):
+    def test_if_solved(self, optimization_results: OptimizationResults, decimal=2):
         flag = False
 
         X = optimization_results.x
@@ -426,7 +444,7 @@ class LinearConstraintsMooTestProblem(TestProblem):
         x1, x2 = X.T
         x2_test = np.where(x1 <= 3, 3 - x1, 0)
 
-        np.testing.assert_almost_equal(x2, x2_test, decimal=5)
+        np.testing.assert_almost_equal(x2, x2_test, decimal=decimal, err_msg=error)
 
 
 class LinearNonlinearConstraintsMooTestProblem(TestProblem):
@@ -490,6 +508,12 @@ class LinearNonlinearConstraintsMooTestProblem(TestProblem):
         """
         return np.where(x1 <= 3, 3 - x1, 0)
 
+
+    @property
+    def x0(self):
+        return [1.6, 1.4]
+
+    @property
     def optimal_solution(self):
         x1 = np.linspace(1, 5, 101)
         x2 = self.find_corresponding_x2(x1=x1)
@@ -499,7 +523,7 @@ class LinearNonlinearConstraintsMooTestProblem(TestProblem):
 
         return X, F
 
-    def test_if_solved(self, optimization_results, decimal=7):
+    def test_if_solved(self, optimization_results: OptimizationResults, decimal=2):
         flag = False
 
         X = optimization_results.x
@@ -507,7 +531,7 @@ class LinearNonlinearConstraintsMooTestProblem(TestProblem):
         x1, x2 = X.T
         x2_test = np.where(x1 <= 3, 3 - x1, 0)
 
-        np.testing.assert_almost_equal(x2, x2_test, decimal=decimal)
+        np.testing.assert_almost_equal(x2, x2_test, decimal=decimal, err_msg=error)
 
 
 class NonlinearConstraintsMooTestProblem(TestProblem):
@@ -551,6 +575,11 @@ class NonlinearConstraintsMooTestProblem(TestProblem):
     def _nonlincon_fun(self, x):
         return self._problem.evaluate(x)[1]
 
+    @property
+    def x0(self):
+        return [-2.4, 5.0]
+
+    @property
     def optimal_solution(self):
         X = self._problem.pareto_set()
         F = self._problem.pareto_front()
@@ -558,9 +587,9 @@ class NonlinearConstraintsMooTestProblem(TestProblem):
 
         return X, F     # G ???
 
-    def test_if_solved(self, optimization_results, decimal=7):
+    def test_if_solved(self, optimization_results: OptimizationResults, decimal=2):
         X = optimization_results.x_transformed
         x1, x2 = X.T
 
-        np.testing.assert_almost_equal(x1, -2.5, decimal=decimal)
+        np.testing.assert_almost_equal(x1, -2.5, decimal=decimal, err_msg=error)
         assert np.all(2.5 <= x2 <= 14.7902)
