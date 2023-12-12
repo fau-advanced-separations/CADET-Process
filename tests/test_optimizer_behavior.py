@@ -1,11 +1,15 @@
 import numpy as np
 import pytest
-from functools import partial
 
-from CADETProcess.optimization import OptimizationProblem, OptimizerBase
-from CADETProcess.optimization import COBYLA, TrustConstr, NelderMead, SLSQP
-from CADETProcess.optimization import U_NSGA3
-from CADETProcess.optimization import GPEI, NEHVI
+from CADETProcess.optimization import (
+    OptimizerBase,
+    TrustConstr,
+    SLSQP,
+    U_NSGA3,
+    GPEI,
+    NEHVI
+)
+
 
 from tests.optimization_problem_fixtures import (
     TestProblem,
@@ -23,15 +27,18 @@ from tests.optimization_problem_fixtures import (
 
 
 @pytest.fixture(params=[
+    # single objective problems
     Rosenbrock,
-    NonlinearConstraintsSooTestProblem,
-    LinearConstraintsSooTestProblem2,
     LinearConstraintsSooTestProblem,
+    LinearConstraintsSooTestProblem2,
+    NonlinearConstraintsSooTestProblem,
     LinearEqualityConstraintsSooTestProblem,
     NonlinearLinearConstraintsSooTestProblem,
+
+    # multi objective problems
     LinearConstraintsMooTestProblem,
+    NonlinearConstraintsMooTestProblem,
     LinearNonlinearConstraintsMooTestProblem,
-    NonlinearConstraintsMooTestProblem
 ])
 def optimization_problem(request):
     return request.param()
