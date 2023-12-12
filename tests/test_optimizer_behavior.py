@@ -24,6 +24,47 @@ from tests.optimization_problem_fixtures import (
     NonlinearConstraintsMooTestProblem
 )
 
+# =========================
+#   Test-Optimizer Setup
+# =========================
+
+ACCURACY_DECIMAL = 1  # 1 means low accuracy only accuracy to one decimal is tested
+FTOL = 0.0001
+XTOL = 0.0001
+GTOL = 0.0001
+
+
+class TrustConstr(TrustConstr):
+    f_tol = FTOL
+    x_tol = XTOL
+    gtol = GTOL
+
+
+class SLSQP(SLSQP):
+    f_tol = FTOL
+    x_tol = XTOL
+
+
+class U_NSGA3(U_NSGA3):
+    ftol = FTOL
+    xtol = XTOL
+    cvtol = GTOL
+    pop_size = 100
+    n_max_gen = 100
+
+
+class GPEI(GPEI):
+    n_init_evals = 20
+    early_stopping_improvement_bar=1e-4
+    early_stopping_improvement_window=10
+    n_max_evals=50
+
+
+class NEHVI(NEHVI):
+    n_init_evals = 20
+    early_stopping_improvement_bar=1e-4
+    early_stopping_improvement_window=10
+    n_max_evals=50
 
 
 @pytest.fixture(params=[
@@ -42,14 +83,6 @@ from tests.optimization_problem_fixtures import (
 ])
 def optimization_problem(request):
     return request.param()
-
-
-ax_kwargs = dict(
-    n_init_evals = 20,
-    early_stopping_improvement_bar=1e-4,
-    early_stopping_improvement_window=10,
-    n_max_evals=50
-)
 
 @pytest.fixture(params=[
     partial(GPEI, **ax_kwargs),   # most tests pass
