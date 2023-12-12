@@ -96,21 +96,32 @@ def optimization_problem(request):
 def optimizer(request):
     return request.param()
 
+# =========================
+#          Tests
+# =========================
 
 def test_convergence(optimization_problem: TestProblem, optimizer: OptimizerBase):
     # only test problems that the optimizer can handle. The rest of the tests
     # will be marked as passed
-    if optimizer.check_optimization_problem(optimization_problem):
-        results = optimizer.optimize(optimization_problem)
-        optimization_problem.test_if_solved(results)
-
-
-def test_from_initial_values(optimization_problem, optimizer):
     pytest.skip()
+
     if optimizer.check_optimization_problem(optimization_problem):
-        x0 = optimization_problem.x0
-        results = optimizer.optimize(optimization_problem, x0=x0)
-        optimization_problem.test_if_solved(results)
+        results = optimizer.optimize(
+            optimization_problem=optimization_problem,
+            save_results=False,
+        )
+        optimization_problem.test_if_solved(results, decimal=ACCURACY_DECIMAL)
+
+def test_from_initial_values(optimization_problem: TestProblem, optimizer: OptimizerBase):
+    # pytest.skip()
+
+    if optimizer.check_optimization_problem(optimization_problem):
+        results = optimizer.optimize(
+            optimization_problem=optimization_problem,
+            x0=optimization_problem.x0,
+            save_results=False,
+        )
+        optimization_problem.test_if_solved(results, decimal=ACCURACY_DECIMAL)
 
 class AbortingCallback:
     """A callback that raises an exception after a specified number of calls."""
@@ -131,9 +142,8 @@ class AbortingCallback:
             raise RuntimeError("Max number of evaluations reached. Aborting!")
         self.n_calls += 1
 
-
 def test_resume_from_checkpoint(
-        optimization_problem: OptimizationProblem, optimizer: OptimizerBase
+        optimization_problem: TestProblem, optimizer: OptimizerBase
     ):
     pytest.skip()
 
