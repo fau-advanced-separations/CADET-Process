@@ -5,7 +5,7 @@ import numpy as np
 from CADETProcess import CADETProcessError
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess.processModel import (
-    Inlet, Cstr, LumpedRateModelWithoutPores, Outlet
+    Inlet, Cstr, MCT, LumpedRateModelWithoutPores, Outlet
 )
 from CADETProcess.processModel import FlowSheet
 
@@ -653,6 +653,35 @@ class TestCstrFlowRate(unittest.TestCase):
         cstr_out = flow_rates['cstr']['total_out']
         cstr_out_expected = [2., 2., 0., 0.]
         np.testing.assert_almost_equal(cstr_out, cstr_out_expected)
+
+class TestPorts(unittest.TestCase):
+    def __init__(self, methodName='runTest'):
+        super().__init__(methodName)
+
+    def setUp(self):
+        self.component_system = ComponentSystem(1)
+
+
+        flow_sheet = FlowSheet(self.component_system)
+
+        inlet = Inlet(self.component_system, name='inlet')
+        mct = MCT(self.component_system,nchannel=3, name='mct')
+        outlet = Outlet(self.component_system, name='outlet')
+
+        
+
+        flow_sheet.add_unit(inlet)
+        flow_sheet.add_unit(mct)
+        flow_sheet.add_unit(outlet)
+
+        flow_sheet.add_connection(inlet, mct, destination_port=0)
+        flow_sheet.add_connection(mct, outlet, origin_port=0)
+
+        self.flow_sheet = flow_sheet
+
+    def test_something(self):
+        pass
+
 
 
 class TestFlowRateMatrix(unittest.TestCase):
