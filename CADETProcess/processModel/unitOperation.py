@@ -64,8 +64,8 @@ class UnitBaseClass(Structure):
         list of parameter names.
     name : String
         name of the unit operation.
-    supports_ports : bool
-        True if unit supports ports.
+    has_ports : bool
+        True if unit has ports.
     binding_model : BindingBaseClass
         binding behavior of the unit. Defaults to NoBinding.
     solution_recorder : IORecorder
@@ -84,7 +84,7 @@ class UnitBaseClass(Structure):
     _section_dependent_parameters = []
     _initial_state = []
 
-    supports_ports = False
+    has_ports = False
     supports_binding = False
     supports_bulk_reaction = False
     supports_particle_reaction = False
@@ -1163,7 +1163,7 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         self.parameters['q'] = q
 
 
-class MCT(UnitBaseClass): # or TubularReactorBase?
+class MCT(UnitBaseClass):
     """Parameters for multi-channel transportmodel.
 
     Parameters
@@ -1184,17 +1184,17 @@ class MCT(UnitBaseClass): # or TubularReactorBase?
         Solution recorder for the unit operation.
 
     """
-    supports_ports = True
+    has_ports = True
     supports_bulk_reaction = True
 
     discretization_schemes = (MCTDiscretizationFV)
 
     length = UnsignedFloat()
     channel_cross_section_areas = SizedList(size='nchannel')
-    axial_dispersion = UnsignedFloat() #TODO: Should this also have size `nchannel`? Here we might need multiplexing
-    flow_direction = Switch(valid=[-1, 1], default=1) #TODO: Change into array of Switches for every channel
+    axial_dispersion = UnsignedFloat() #TODO: Axial dipersion needs multiplexing to enable dependency on nchannel.
+    flow_direction = Switch(valid=[-1, 1], default=1) #TODO: Flow direction needs multiplexing to enable dependency on nchannel.
 
-    exchange_matrix = SizedNdArray(size=('nchannel', 'nchannel'))
+    exchange_matrix = SizedNdArray(size=('n_comp','nchannel', 'nchannel'))
 
     _parameters = [
         'length',
@@ -1211,7 +1211,7 @@ class MCT(UnitBaseClass): # or TubularReactorBase?
         UnitBaseClass._section_dependent_parameters + \
         []
 
-    c = SizedNdArray(size=('n_comp', 'nchannel'), default=0) #TODO: Make into Sized Matrix n_comp*nchannel, also change default to matrix of zeros of that size
+    c = SizedNdArray(size=('n_comp', 'nchannel'), default=0)
     _initial_state = ['c']
     _parameters = _parameters + _initial_state
 
@@ -1245,3 +1245,14 @@ class MCT(UnitBaseClass): # or TubularReactorBase?
 
         """
         return sum(self.channel_cross_section_areas) * self.length
+    
+    @property
+    def volume_liquid(self):
+        """float: Volume of the liquid phase. Equals the volume, since there is no solid phase."""
+        return 1 * self.volume
+
+    @property
+    def volume_solid(self):
+        """float: Volume of the solid phase. Equals zero, since there is no solid phase."""
+        return (1 - 1) * self.volume
+    
