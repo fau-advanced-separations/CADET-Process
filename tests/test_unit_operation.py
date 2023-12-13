@@ -11,8 +11,7 @@ import numpy as np
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess.processModel import (
     Inlet, Cstr,
-    TubularReactor, LumpedRateModelWithPores, LumpedRateModelWithoutPores,
-    MCT
+    TubularReactor, LumpedRateModelWithPores, LumpedRateModelWithoutPores, MCT
 )
 
 length = 0.6
@@ -29,7 +28,7 @@ total_porosity = bed_porosity + (1 - bed_porosity) * particle_porosity
 axial_dispersion = 4.7e-7
 
 channel_cross_section_areas = [0.1,0.1,0.1]
-exchange_matrix = np.array([[0.0,0.01,0.0],[0.02,0.0,0.03],[0.0,0.0,0.0]])
+exchange_matrix = np.array([[[0.0,0.01,0.0],[0.02,0.0,0.03],[0.0,0.0,0.0]]])
 flow_direction = 1
 
 
@@ -66,13 +65,15 @@ class Test_Unit_Operation(unittest.TestCase):
         return tube
 
     def create_MCT(self):
-        mct = MCT(self.componen_system, name='test')
+        mct = MCT(ComponentSystem(1), nchannel=3, name='test')
 
         mct.length = length
         mct.channel_cross_section_areas = channel_cross_section_areas
-        mct.axial_dispersion = axial_dispersion
+        mct.axial_dispersion = 0
         mct.flow_direction = flow_direction
         mct.exchange_matrix = exchange_matrix
+
+        return mct
 
     def create_lrmwop(self):
         lrmwop = LumpedRateModelWithoutPores(
@@ -211,6 +212,7 @@ class Test_Unit_Operation(unittest.TestCase):
                 'q': [],
                 'V': volume,
         }
+
         np.testing.assert_equal(parameters_expected, cstr.parameters)
 
         sec_dep_parameters_expected = {
@@ -229,6 +231,51 @@ class Test_Unit_Operation(unittest.TestCase):
         )
 
         self.assertEqual(cstr.required_parameters, ['V'])
+
+
+    def test_MCT(self):
+        """
+        Notes
+        -----
+            Tests Parameters, Volumes and Attributes depending on nchannel. Should be later integrated into general testing workflow.
+        """
+        total_porosity = 1
+
+        mct = self.create_MCT()
+
+        parameters_expected = {
+        'c': np.array([[0., 0., 0.]]), 
+        'axial_dispersion' : 0, #TODO: Update when multiplex is implemented
+        'channel_cross_section_areas' : channel_cross_section_areas,
+        'length' : length,
+        'exchange_matrix': exchange_matrix,
+        'flow_direction' : 1, #TODO: Update when multiplex is implemented
+        }
+        np.testing.assert_equal(parameters_expected, {key: value for key, value in mct.parameters.items() if key != 'discretization'}) #Why does mct give out discretization parameters and e.g. cstr does not?
+
+        volume = length*sum(channel_cross_section_areas)
+        volume_liquid = volume*total_porosity
+        volume_solid = (total_porosity-1)*volume
+
+        self.assertAlmostEqual(mct.volume_liquid, volume_liquid)
+        self.assertAlmostEqual(mct.volume_solid, volume_solid)
+
+        mct.nchannel = 2
+        with self.assertRaises(ValueError):
+            mct.exchange_matrix
+            mct.channel_cross_section_areas
+
+        self.assertTrue(mct.nchannel*mct.component_system.n_comp == mct.c.size)
+
+        
+
+        
+        
+
+
+
+
+
 
 
 if __name__ == '__main__':
