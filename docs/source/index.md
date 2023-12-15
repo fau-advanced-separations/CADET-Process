@@ -23,6 +23,8 @@ examples/batch_elution/process
 examples/load_wash_elute/index
 examples/recycling/index
 examples/characterize_chromatographic_system/column_transport_parameters
+examples/characterize_chromatographic_system/binding_model_parameters
+examples/characterize_chromatographic_system/Yamamoto_method
 ```
 
 ```{toctree}
