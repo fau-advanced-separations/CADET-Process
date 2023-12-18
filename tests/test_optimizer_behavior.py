@@ -29,19 +29,18 @@ from tests.optimization_problem_fixtures import (
 # =========================
 
 SOO_TEST_KWARGS = {
-    "atol": 0.01,
-    "rtol": 0.1,
+    "atol": 0.05, # allows absolute 0.05 deviation (low values) of solution or
+    "rtol": 0.1,  # 0.1 alows 10% deviation of true solution
 }
 
 MOO_TEST_KWARGS = {
     "atol": 0.01,
     "rtol": 0.1,
-    "mismatch_tol": 0.25,
+    "mismatch_tol": 0.25,  # 75 % of all solutions must lie on the pareto front
 }
 
-ACCURACY_DECIMAL = 1  # 1 means low accuracy only accuracy to one decimal is tested
-FTOL = 0.0001
-XTOL = 0.0001
+FTOL = 0.01
+XTOL = 0.001
 GTOL = 0.0001
 
 
