@@ -663,7 +663,7 @@ class NonlinearConstraintsMooTestProblem(TestProblem):
         mismatch_tol = test_kwargs_.pop("mismatch_tol", 0.0)
         test_kwargs_["err_msg"] = error
 
-        test_func_1 = partial(np.testing.assert_allclose, x=x1, y=-2.5)
+        test_func_1 = partial(np.testing.assert_allclose, actual=x1, desired=-2.5)
         test_func_2 = partial(np.testing.assert_array_less, x=x2, y=14.7902)
         test_func_3 = partial(np.testing.assert_array_less, x=-x2, y=-2.5)
 
