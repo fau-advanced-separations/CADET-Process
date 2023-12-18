@@ -58,14 +58,13 @@ def skip_if_combination_excluded(optimizer, problem):
 
 
 class TrustConstr(TrustConstr):
-    f_tol = FTOL
-    x_tol = XTOL
+    ftol = FTOL
+    xtol = XTOL
     gtol = GTOL
 
 
 class SLSQP(SLSQP):
-    f_tol = FTOL
-    x_tol = XTOL
+    ftol = FTOL
 
 
 class U_NSGA3(U_NSGA3):
@@ -73,7 +72,7 @@ class U_NSGA3(U_NSGA3):
     xtol = XTOL
     cvtol = GTOL
     pop_size = 100
-    n_max_gen = 20  # before used 100 generations --> this did not improve the fit
+    n_max_gen = 10  # before used 100 generations --> this did not improve the fit
 
 
 class GPEI(GPEI):
