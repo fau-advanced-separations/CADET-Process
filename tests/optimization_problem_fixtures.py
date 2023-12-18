@@ -117,7 +117,7 @@ class Rosenbrock(TestProblem):
 
     @property
     def optimal_solution(self):
-        x = np.repeat(1, self.n_variables)
+        x = np.repeat(1, self.n_variables).reshape(1, self.n_variables)
         f = 0
 
         return x, f
@@ -133,8 +133,8 @@ class Rosenbrock(TestProblem):
         f = optimization_results.f
 
         test_kwargs["err_msg"] = error
-        np.testing.assert_allclose(f-f_true, 0, **test_kwargs)
-        np.testing.assert_allclose(x-x_true, 0, **test_kwargs)
+        np.testing.assert_allclose(f, f_true, **test_kwargs)
+        np.testing.assert_allclose(x, x_true, **test_kwargs)
 
 
 
@@ -166,7 +166,7 @@ class LinearConstraintsSooTestProblem(TestProblem):
 
     @property
     def optimal_solution(self):
-        x = [-1, 2]
+        x = np.array([-1, 2]).reshape(1, self.n_variables)
         f = -3
 
         return x, f
@@ -188,8 +188,8 @@ class LinearConstraintsSooTestProblem(TestProblem):
         f = optimization_results.f
 
         test_kwargs["err_msg"] = error
-        np.testing.assert_allclose(f-f_true, 0, **test_kwargs)
-        np.testing.assert_allclose(x-x_true, 0, **test_kwargs)
+        np.testing.assert_allclose(f, f_true, **test_kwargs)
+        np.testing.assert_allclose(x, x_true, **test_kwargs)
 
 
 
@@ -249,7 +249,7 @@ class NonlinearConstraintsSooTestProblem(TestProblem):
 
     @property
     def optimal_solution(self):
-        x = [-1, 2]
+        x = np.array([-1, 2]).reshape(1, self.n_variables)
         f = -3
 
         return x, f
@@ -261,8 +261,8 @@ class NonlinearConstraintsSooTestProblem(TestProblem):
         f = optimization_results.f
 
         test_kwargs["err_msg"] = error
-        np.testing.assert_allclose(f-f_true, 0, **test_kwargs)
-        np.testing.assert_allclose(x-x_true, 0, **test_kwargs)
+        np.testing.assert_allclose(f, f_true, **test_kwargs)
+        np.testing.assert_allclose(x, x_true, **test_kwargs)
 
 
 class LinearConstraintsSooTestProblem2(TestProblem):
@@ -302,7 +302,7 @@ class LinearConstraintsSooTestProblem2(TestProblem):
 
     @property
     def optimal_solution(self):
-        x = [-5.0, 5.0, 0.0]
+        x = np.array([-5.0, 5.0, 0.0]).reshape(1, self.n_variables)
         f = -15.0
         return x, f
 
@@ -313,8 +313,8 @@ class LinearConstraintsSooTestProblem2(TestProblem):
         f = optimization_results.f
 
         test_kwargs["err_msg"] = error
-        np.testing.assert_allclose(f-f_true, 0, **test_kwargs)
-        np.testing.assert_allclose(x-x_true, 0, **test_kwargs)
+        np.testing.assert_allclose(f, f_true, **test_kwargs)
+        np.testing.assert_allclose(x, x_true, **test_kwargs)
 
 
 
@@ -357,7 +357,7 @@ class LinearEqualityConstraintsSooTestProblem(TestProblem):
         x = np.array([-2, 5, -5])
         f = self._objective_function(x)
 
-        return x, f
+        return x.reshape(1, self.n_variables), f
 
     def test_if_solved(self, optimization_results: OptimizationResults,
                        test_kwargs=default_test_kwargs):
@@ -366,8 +366,8 @@ class LinearEqualityConstraintsSooTestProblem(TestProblem):
         f = optimization_results.f
 
         test_kwargs["err_msg"] = error
-        np.testing.assert_allclose(f-f_true, 0, **test_kwargs)
-        np.testing.assert_allclose(x-x_true, 0, **test_kwargs)
+        np.testing.assert_allclose(f, f_true, **test_kwargs)
+        np.testing.assert_allclose(x, x_true, **test_kwargs)
 
 
 class NonlinearLinearConstraintsSooTestProblem(TestProblem):
@@ -401,7 +401,7 @@ class NonlinearLinearConstraintsSooTestProblem(TestProblem):
         return [-0.5, 1.5]
 
     def optimal_solution(self):
-        x = [-1, 2]
+        x = np.array([-1, 2]).reshape(1, self.n_variables)
         f = -3
 
         return x, f
@@ -413,8 +413,8 @@ class NonlinearLinearConstraintsSooTestProblem(TestProblem):
         f = optimization_results.f
 
         test_kwargs["err_msg"] = error
-        np.testing.assert_allclose(f-f_true, 0, **test_kwargs)
-        np.testing.assert_allclose(x-x_true, 0, **test_kwargs)
+        np.testing.assert_allclose(f, f_true, **test_kwargs)
+        np.testing.assert_allclose(x, x_true, **test_kwargs)
 
 
 class LinearConstraintsMooTestProblem(TestProblem):
