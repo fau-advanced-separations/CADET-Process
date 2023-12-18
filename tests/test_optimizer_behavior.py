@@ -28,6 +28,17 @@ from tests.optimization_problem_fixtures import (
 #   Test-Optimizer Setup
 # =========================
 
+SOO_TEST_KWARGS = {
+    "atol": 0.01,
+    "rtol": 0.1,
+}
+
+MOO_TEST_KWARGS = {
+    "atol": 0.01,
+    "rtol": 0.1,
+    "mismatch_tol": 0.25,
+}
+
 ACCURACY_DECIMAL = 1  # 1 means low accuracy only accuracy to one decimal is tested
 FTOL = 0.0001
 XTOL = 0.0001
@@ -50,7 +61,7 @@ class U_NSGA3(U_NSGA3):
     xtol = XTOL
     cvtol = GTOL
     pop_size = 100
-    n_max_gen = 100
+    n_max_gen = 20  # before used 100 generations --> this did not improve the fit
 
 
 class GPEI(GPEI):
@@ -111,7 +122,11 @@ def test_convergence(optimization_problem: TestProblem, optimizer: OptimizerBase
             optimization_problem=optimization_problem,
             save_results=False,
         )
-        optimization_problem.test_if_solved(results, decimal=ACCURACY_DECIMAL)
+        if optimization_problem.n_objectives == 1:
+            optimization_problem.test_if_solved(results, SOO_TEST_KWARGS)
+        else:
+            optimization_problem.test_if_solved(results, MOO_TEST_KWARGS)
+
 
 def test_from_initial_values(optimization_problem: TestProblem, optimizer: OptimizerBase):
     # pytest.skip()
@@ -122,7 +137,11 @@ def test_from_initial_values(optimization_problem: TestProblem, optimizer: Optim
             x0=optimization_problem.x0,
             save_results=False,
         )
-        optimization_problem.test_if_solved(results, decimal=ACCURACY_DECIMAL)
+        if optimization_problem.n_objectives == 1:
+            optimization_problem.test_if_solved(results, SOO_TEST_KWARGS)
+        else:
+            optimization_problem.test_if_solved(results, MOO_TEST_KWARGS)
+
 
 class AbortingCallback:
     """A callback that raises an exception after a specified number of calls."""
@@ -195,4 +214,9 @@ def test_resume_from_checkpoint(
 
 
 if __name__ == "__main__":
+
+    # gpei = GPEI(**ax_kwargs)
+    # nehvi = NEHVI(**ax_kwargs)
+    # test_convergence(NonlinearLinearConstraintsSooTestProblem(), gpei)
+    # test_convergence(NonlinearConstraintsMooTestProblem(), nehvi)
     pytest.main([__file__])

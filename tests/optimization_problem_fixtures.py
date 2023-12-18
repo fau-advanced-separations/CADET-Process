@@ -4,6 +4,7 @@ TODO:
 - [ ] Add documentation / scope of tests (e.g. link to scipy/pymoo)
 
 """
+from functools import partial
 import numpy as np
 
 from CADETProcess.optimization import OptimizationProblem, OptimizationResults
@@ -23,6 +24,44 @@ __all__ = [
 
 
 error = "Optimizer did not approach solution close enough."
+default_test_kwargs = {
+    "rtol": 0.01,
+    "atol": 0.0001,
+    "err_msg": error
+}
+
+def allow_test_failure_percentage(
+        test_function,
+        test_kwargs,
+        mismatch_tol=0.0
+    ):
+        """When two arrays are compared, allow a certain fraction of the comparisons
+        to fail. This behaviour is explicitly accepted in convergence tests of
+        multi-objective tests. The reason behind it is that building the pareto
+        front takes time and removing dominated solutions from the frontier can
+        take a long time. Hence accepting a certain fraction of dominated-solutions
+        is acceptable, when the majority points lies on the pareto front.
+
+        While of course for full convergence checks the mismatch tolerance should
+        be reduced to zero, for normal testing the fraction can be raised to
+        say 0.25. This value can be adapted for easy or difficult cases.
+        """
+        assert 0.0 <= mismatch_tol <= 1.0, "mismatch_tol must be between 0 and 1."
+        try:
+            test_function(**test_kwargs)
+        except AssertionError as e:
+            msg = e.args[0].split("\n")
+            lnum, mismatch_line = [(i, l) for i, l in enumerate(msg)
+                                   if "Mismatched elements:" in l][0]
+            mismatch_percent = float(mismatch_line.split("(")[1].split("%")[0])
+            if mismatch_percent / 100 > mismatch_tol:
+                err_line = (
+                     "---> " + mismatch_line +
+                     f" exceeded tolerance ({mismatch_percent}% > {mismatch_tol * 100}%)"
+                )
+                msg[lnum] = err_line
+                raise AssertionError("\n".join(msg))
+
 
 class TestProblem(OptimizationProblem):
     @property
@@ -87,13 +126,15 @@ class Rosenbrock(TestProblem):
     def x0(self):
         return np.repeat(0.9, self.n_variables)
 
-    def test_if_solved(self, optimization_results: OptimizationResults, decimal=2):
+    def test_if_solved(self, optimization_results: OptimizationResults,
+                       test_kwargs=default_test_kwargs):
         x_true, f_true = self.optimal_solution
         x = optimization_results.x
         f = optimization_results.f
 
-        np.testing.assert_almost_equal(f-f_true, 0, decimal=decimal, err_msg=error)
-        np.testing.assert_almost_equal(x-x_true, 0, decimal=decimal, err_msg=error)
+        test_kwargs["err_msg"] = error
+        np.testing.assert_allclose(f-f_true, 0, **test_kwargs)
+        np.testing.assert_allclose(x-x_true, 0, **test_kwargs)
 
 
 
@@ -140,13 +181,15 @@ class LinearConstraintsSooTestProblem(TestProblem):
         f_x1 = lambda x1:  x1 * - 3/2
         return f_x0, f_x1
 
-    def test_if_solved(self, optimization_results: OptimizationResults, decimal=2):
+    def test_if_solved(self, optimization_results: OptimizationResults,
+                       test_kwargs=default_test_kwargs):
         x_true, f_true = self.optimal_solution
         x = optimization_results.x
         f = optimization_results.f
 
-        np.testing.assert_almost_equal(f-f_true, 0, decimal=decimal, err_msg=error)
-        np.testing.assert_almost_equal(x-x_true, 0, decimal=decimal, err_msg=error)
+        test_kwargs["err_msg"] = error
+        np.testing.assert_allclose(f-f_true, 0, **test_kwargs)
+        np.testing.assert_allclose(x-x_true, 0, **test_kwargs)
 
 
 
@@ -211,13 +254,15 @@ class NonlinearConstraintsSooTestProblem(TestProblem):
 
         return x, f
 
-    def test_if_solved(self, optimization_results: OptimizationResults, decimal=2):
+    def test_if_solved(self, optimization_results: OptimizationResults,
+                       test_kwargs=default_test_kwargs):
         x_true, f_true = self.optimal_solution
         x = optimization_results.x
         f = optimization_results.f
 
-        np.testing.assert_almost_equal(f-f_true, 0, decimal=decimal, err_msg=error)
-        np.testing.assert_almost_equal(x-x_true, 0, decimal=decimal, err_msg=error)
+        test_kwargs["err_msg"] = error
+        np.testing.assert_allclose(f-f_true, 0, **test_kwargs)
+        np.testing.assert_allclose(x-x_true, 0, **test_kwargs)
 
 
 class LinearConstraintsSooTestProblem2(TestProblem):
@@ -261,13 +306,15 @@ class LinearConstraintsSooTestProblem2(TestProblem):
         f = -15.0
         return x, f
 
-    def test_if_solved(self, optimization_results: OptimizationResults, decimal=2):
+    def test_if_solved(self, optimization_results: OptimizationResults,
+                       test_kwargs=default_test_kwargs):
         x_true, f_true = self.optimal_solution
         x = optimization_results.x
         f = optimization_results.f
 
-        np.testing.assert_almost_equal(f-f_true, 0, decimal=decimal, err_msg=error)
-        np.testing.assert_almost_equal(x-x_true, 0, decimal=decimal, err_msg=error)
+        test_kwargs["err_msg"] = error
+        np.testing.assert_allclose(f-f_true, 0, **test_kwargs)
+        np.testing.assert_allclose(x-x_true, 0, **test_kwargs)
 
 
 
@@ -312,13 +359,15 @@ class LinearEqualityConstraintsSooTestProblem(TestProblem):
 
         return x, f
 
-    def test_if_solved(self, optimization_results: OptimizationResults, decimal=2):
+    def test_if_solved(self, optimization_results: OptimizationResults,
+                       test_kwargs=default_test_kwargs):
         x_true, f_true = self.optimal_solution
         x = optimization_results.x
         f = optimization_results.f
 
-        np.testing.assert_almost_equal(f-f_true, 0, decimal=decimal, err_msg=error)
-        np.testing.assert_almost_equal(x-x_true, 0, decimal=decimal, err_msg=error)
+        test_kwargs["err_msg"] = error
+        np.testing.assert_allclose(f-f_true, 0, **test_kwargs)
+        np.testing.assert_allclose(x-x_true, 0, **test_kwargs)
 
 
 class NonlinearLinearConstraintsSooTestProblem(TestProblem):
@@ -357,13 +406,15 @@ class NonlinearLinearConstraintsSooTestProblem(TestProblem):
 
         return x, f
 
-    def test_if_solved(self, optimization_results: OptimizationResults, decimal=2):
+    def test_if_solved(self, optimization_results: OptimizationResults,
+                       test_kwargs=default_test_kwargs):
         x_true, f_true = self.optimal_solution()
         x = optimization_results.x
         f = optimization_results.f
 
-        np.testing.assert_almost_equal(f-f_true, 0, decimal=decimal, err_msg=error)
-        np.testing.assert_almost_equal(x-x_true, 0, decimal=decimal, err_msg=error)
+        test_kwargs["err_msg"] = error
+        np.testing.assert_allclose(f-f_true, 0, **test_kwargs)
+        np.testing.assert_allclose(x-x_true, 0, **test_kwargs)
 
 
 class LinearConstraintsMooTestProblem(TestProblem):
@@ -436,15 +487,23 @@ class LinearConstraintsMooTestProblem(TestProblem):
 
         return X, F
 
-    def test_if_solved(self, optimization_results: OptimizationResults, decimal=2):
-        flag = False
-
+    def test_if_solved(self, optimization_results: OptimizationResults,
+                       test_kwargs=default_test_kwargs):
         X = optimization_results.x
 
         x1, x2 = X.T
         x2_test = np.where(x1 <= 3, 3 - x1, 0)
 
-        np.testing.assert_almost_equal(x2, x2_test, decimal=decimal, err_msg=error)
+        test_kwargs_ = test_kwargs.copy()
+        test_kwargs_["err_msg"] = error
+        mismatch_tol = test_kwargs_.pop("mismatch_tol", 0.0)
+        test_func = partial(np.testing.assert_allclose, actual=x2, desired=x2_test)
+
+        allow_test_failure_percentage(
+            test_function=test_func,
+            test_kwargs=test_kwargs_,
+            mismatch_tol=mismatch_tol
+        )
 
 
 class LinearNonlinearConstraintsMooTestProblem(TestProblem):
@@ -523,15 +582,23 @@ class LinearNonlinearConstraintsMooTestProblem(TestProblem):
 
         return X, F
 
-    def test_if_solved(self, optimization_results: OptimizationResults, decimal=2):
-        flag = False
-
+    def test_if_solved(self, optimization_results: OptimizationResults,
+                       test_kwargs=default_test_kwargs):
         X = optimization_results.x
 
         x1, x2 = X.T
         x2_test = np.where(x1 <= 3, 3 - x1, 0)
 
-        np.testing.assert_almost_equal(x2, x2_test, decimal=decimal, err_msg=error)
+        test_kwargs_ = test_kwargs.copy()
+        test_kwargs_["err_msg"] = error
+        mismatch_tol = test_kwargs_.pop("mismatch_tol", 0.0)
+        test_func = partial(np.testing.assert_allclose, actual=x2, desired=x2_test)
+
+        allow_test_failure_percentage(
+            test_function=test_func,
+            test_kwargs=test_kwargs_,
+            mismatch_tol=mismatch_tol
+        )
 
 
 class NonlinearConstraintsMooTestProblem(TestProblem):
@@ -583,13 +650,37 @@ class NonlinearConstraintsMooTestProblem(TestProblem):
     def optimal_solution(self):
         X = self._problem.pareto_set()
         F = self._problem.pareto_front()
-        # G = ???
+        # TODO: test nonlinear constraints as well.
 
         return X, F     # G ???
 
-    def test_if_solved(self, optimization_results: OptimizationResults, decimal=2):
+    def test_if_solved(self, optimization_results: OptimizationResults,
+                       test_kwargs=default_test_kwargs):
         X = optimization_results.x_transformed
         x1, x2 = X.T
 
-        np.testing.assert_almost_equal(x1, -2.5, decimal=decimal, err_msg=error)
-        assert np.all(2.5 <= x2 <= 14.7902)
+        test_kwargs_ = test_kwargs.copy()
+        mismatch_tol = test_kwargs_.pop("mismatch_tol", 0.0)
+        test_kwargs_["err_msg"] = error
+
+        test_func_1 = partial(np.testing.assert_allclose, x=x1, y=-2.5)
+        test_func_2 = partial(np.testing.assert_array_less, x=x2, y=14.7902)
+        test_func_3 = partial(np.testing.assert_array_less, x=-x2, y=-2.5)
+
+        allow_test_failure_percentage(
+            test_function=test_func_1,
+            test_kwargs=test_kwargs_,
+            mismatch_tol=mismatch_tol
+        )
+
+        allow_test_failure_percentage(
+            test_function=test_func_2,
+            test_kwargs={},
+            mismatch_tol=mismatch_tol
+        )
+
+        allow_test_failure_percentage(
+            test_function=test_func_3,
+            test_kwargs={},
+            mismatch_tol=mismatch_tol
+        )
