@@ -88,6 +88,10 @@ class PymooInterface(OptimizerBase):
         pop = np.array(pop, ndmin=2)
 
         if len(pop) < pop_size:
+            warnings.warn(
+                "Initial population smaller than popsize. "
+                "Creating missing entries."
+            )
             n_remaining = pop_size - len(pop)
             remaining = optimization_problem.create_initial_values(
                 n_remaining, method='chebyshev', seed=self.seed,
