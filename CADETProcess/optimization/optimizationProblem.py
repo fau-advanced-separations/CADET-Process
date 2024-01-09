@@ -1585,7 +1585,7 @@ class OptimizationProblem(Structure):
             callback._current_iteration = current_iteration
 
             try:
-                self._evaluate(ind.x, callback, force)
+                self._evaluate(ind.x_transformed, callback, force, untransform=True)
             except CADETProcessError:
                 self.logger.warning(
                     f'Evaluation of {callback} failed at {ind.x}.'
