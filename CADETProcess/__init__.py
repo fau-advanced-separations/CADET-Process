@@ -9,8 +9,8 @@ for other solvers.
 See https://cadet-process.readthedocs.io for complete documentation.
 """
 # Version information
-name = 'CADET-Process'
-__version__ = '0.8.0'
+name = "CADET-Process"
+__version__ = "0.9.0"
 
 # Imports
 from .CADETProcessError import *
@@ -18,6 +18,7 @@ from .CADETProcessError import *
 from . import log
 
 from .settings import Settings
+
 settings = Settings()
 
 from . import sysinfo
