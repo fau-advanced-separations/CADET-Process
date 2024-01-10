@@ -5,14 +5,14 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.15.2
+    jupytext_version: 1.14.5
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
   name: python3
 ---
 
-```{code-cell} ipython3
+```{code-cell}
 :tags: [remove-cell]
 
 from pathlib import Path
@@ -28,7 +28,7 @@ This example demonstrates how to estimate SMA binding parameters based on multip
 It assumes familiarity with the `CADETProcess` process models, as introduced in the
 **Fit Column Transport Parameters** example.
 
-```{code-cell} ipython3
+```{code-cell}
 import os
 
 import numpy as np
@@ -45,7 +45,7 @@ from CADETProcess.optimization import OptimizationProblem
 To simplify the creation of multiple `Process` instances with the correct configurations,
 the process creation was wrapped into a function below:
 
-```{code-cell} ipython3
+```{code-cell}
 def create_process(cv_length=30):
     # Component System
     component_system = ComponentSystem()
@@ -138,7 +138,7 @@ def create_binding_model(component_system, final_salt_concentration):
 To run the parameter estimation algorithm, we need experimental data. This function generates _in-silico_ based
 "experimental" data for us to use.
 
-```{code-cell} ipython3
+```{code-cell}
 def create_in_silico_experimental_data():
     def save_csv(results, directory=None, filename=None, units=None, noise_percentage=5):
         if not os.path.exists(directory):
@@ -177,7 +177,7 @@ def create_in_silico_experimental_data():
 
 Below are two convenience functions, written to simplifly loading `references` and creating `comparators`.
 
-```{code-cell} ipython3
+```{code-cell}
 def load_reference(file_name, component_index=2):
     data = np.loadtxt(file_name, delimiter=',')
 
@@ -206,7 +206,7 @@ def create_comparator(reference):
     return comparator
 ```
 
-```{code-cell} ipython3
+```{code-cell}
 if __name__ == '__main__':
     create_in_silico_experimental_data()
 
@@ -272,11 +272,10 @@ For performance reasons, the optimization is currently not run when building the
 In future, we will try to sideload pre-computed results to also discuss them here.
 ```
 
-```{code-cell} ipython3
-
+```{code-cell}
 # if __name__ == '__main__':
 #     from CADETProcess.optimization import U_NSGA3
-# 
+#
 #     optimizer = U_NSGA3()
 #     optimizer.n_cores = 4
 #     optimizer.pop_size = 50
@@ -288,6 +287,6 @@ In future, we will try to sideload pre-computed results to also discuss them her
 #     )
 ```
 
-```{code-cell} ipython3
+```{code-cell}
 
 ```
