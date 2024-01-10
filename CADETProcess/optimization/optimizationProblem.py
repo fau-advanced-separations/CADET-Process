@@ -577,7 +577,7 @@ class OptimizationProblem(Structure):
         """
         if len(x) != self.n_variables:
             raise CADETProcessError(
-                f'Expected {self.n_variables} value(s)'
+                f'Expected {self.n_variables} value(s), got {len(x)}'
             )
 
         x_independent = []
@@ -2555,21 +2555,21 @@ class OptimizationProblem(Structure):
 
         return flag
 
-    def transform(self, x):
-        """Transform the optimization variables from untransformed parameter space.
+    def transform(self, x_independent):
+        """Transform the independent optimization variables from untransformed parameter space.
 
         Parameters
         ----------
-        x : list
-            Value of the optimization variables in untransformed space.
+        x_independent : list
+            Value of the independent optimization variables in untransformed space.
 
         Returns
         -------
         list
             Optimization variables in transformed parameter space.
         """
-        x = np.array(x)
-        x_2d = np.array(x, ndmin=2)
+        x_independent = np.array(x_independent)
+        x_2d = np.array(x_independent, ndmin=2)
         transform = np.zeros(x_2d.shape)
 
         for i, ind in enumerate(x_2d):
@@ -2578,7 +2578,7 @@ class OptimizationProblem(Structure):
                 for value, var in zip(ind, self.independent_variables)
             ]
 
-        return transform.reshape(x.shape).tolist()
+        return transform.reshape(x_independent.shape).tolist()
 
     def untransform(self, x_transformed):
         """Untransform the optimization variables from transformed parameter space.
@@ -2716,7 +2716,7 @@ class OptimizationProblem(Structure):
             random: Any random valid point in the parameter space.
         seed : int, optional
             Seed to initialize random numbers. Only used if method == 'random'
-        burn_in: int, optional
+        burn_in : int, optional
             Number of samples that are created to ensure uniform sampling.
             The actual initial values are then drawn from this set.
             The default is 100000.
