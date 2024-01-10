@@ -850,10 +850,10 @@ class Test_OptimizationProblemDepVar(unittest.TestCase):
         variables = self.optimization_problem.variable_names
         self.assertEqual(variables_expected, variables)
 
-    def test_initial_values(self):
+    def test_initial_values_without_dependencies(self):
         x0_chebyshev_expected = [[0.79289322, 0.20710678, 0.5]]
         x0_chebyshev = self.optimization_problem.create_initial_values(
-            1, method='chebyshev'
+            1, method='chebyshev', include_dependent_variables=False
         )
         np.testing.assert_almost_equal(x0_chebyshev, x0_chebyshev_expected)
 
@@ -879,12 +879,12 @@ class Test_OptimizationProblemDepVar(unittest.TestCase):
 
         x0_seed_1_expected = [[0.7311044, 0.1727515, 0.1822629]]
         x0_seed_1 = self.optimization_problem.create_initial_values(
-            1, method='random', seed=1
+            1, method='random', seed=1, include_dependent_variables=False
         )
         np.testing.assert_almost_equal(x0_seed_1, x0_seed_1_expected)
 
         x0_seed_1_random = self.optimization_problem.create_initial_values(
-            1, method='random'
+            1, method='random', include_dependent_variables=False
         )
 
         with self.assertRaises(AssertionError):
@@ -906,12 +906,79 @@ class Test_OptimizationProblemDepVar(unittest.TestCase):
             [0.8359314486227345, 0.39493879515319996, 0.8128182754300088]
         ]
         x0_seed_10 = self.optimization_problem.create_initial_values(
-            10, method='random', seed=1
+            10, method='random', seed=1, include_dependent_variables=False
         )
         np.testing.assert_almost_equal(x0_seed_10, x0_seed_10_expected)
 
         x0_seed_10_random = self.optimization_problem.create_initial_values(
-            10, method='random'
+            10, method='random', include_dependent_variables=False
+        )
+
+        with self.assertRaises(AssertionError):
+            np.testing.assert_almost_equal(x0_seed_10_random, x0_seed_10_expected)
+
+    def test_initial_values(self):
+        x0_chebyshev_expected = [[0.79289322, 0.20710678, 0.2071068, 0.5]]
+        x0_chebyshev = self.optimization_problem.create_initial_values(
+            1, method='chebyshev', include_dependent_variables=True
+        )
+        np.testing.assert_almost_equal(x0_chebyshev, x0_chebyshev_expected)
+
+        variables_expected = [
+            0.7928932188134523,
+            0.2071067811865475,
+            0.2071067811865475,
+            0.4999999999999999
+        ]
+        variables = self.optimization_problem.get_dependent_values(
+            x0_chebyshev[0, [0, 1, 3]]
+        )
+        np.testing.assert_almost_equal(variables, variables_expected)
+
+        self.assertTrue(
+            self.optimization_problem.check_linear_constraints(
+                x0_chebyshev[0, :], get_dependent_values=False
+            )
+        )
+        self.assertTrue(
+            self.optimization_problem.check_linear_constraints(variables)
+        )
+
+        x0_seed_1_expected = [[0.7311044, 0.1727515, 0.1727515, 0.1822629]]
+        x0_seed_1 = self.optimization_problem.create_initial_values(
+            1, method='random', seed=1, include_dependent_variables=True
+        )
+        np.testing.assert_almost_equal(x0_seed_1, x0_seed_1_expected)
+
+        x0_seed_1_random = self.optimization_problem.create_initial_values(
+            1, method='random', include_dependent_variables=True
+        )
+
+        with self.assertRaises(AssertionError):
+            np.testing.assert_almost_equal(x0_seed_1_random, x0_seed_1_expected)
+
+        with self.assertRaises(AssertionError):
+            np.testing.assert_almost_equal(x0_seed_1_random, x0_chebyshev_expected)
+
+        x0_seed_10_expected = [
+            [0.7311043824888657, 0.1727515432673712, 0.1727515432673712, 0.18226293643057073],
+            [0.9836918383919191, 0.8152389217047241, 0.8152389217047241, 0.8560016844195478],
+            [0.7358144798470049, 0.2574714423019172, 0.2574714423019172, 0.49387609464567295],
+            [0.34919171897183954, 0.05751800197656948, 0.05751800197656948, 0.3237260675631758],
+            [0.9265061673265441, 0.4857572549618687, 0.4857572549618687, 0.8149444448089398],
+            [0.9065669851023331, 0.1513817591204391, 0.1513817591204391, 0.7710992332649812],
+            [0.8864554240066591, 0.4771068979697068, 0.4771068979697068, 0.5603893963194555],
+            [0.6845940550232432, 0.2843172686185149, 0.2843172686185149, 0.6792904559788712],
+            [0.923735889273789, 0.6890814170651027, 0.6890814170651027, 0.7366940211809302],
+            [0.8359314486227345, 0.39493879515319996, 0.39493879515319996, 0.8128182754300088]
+        ]
+        x0_seed_10 = self.optimization_problem.create_initial_values(
+            10, method='random', seed=1, include_dependent_variables=True
+        )
+        np.testing.assert_almost_equal(x0_seed_10, x0_seed_10_expected)
+
+        x0_seed_10_random = self.optimization_problem.create_initial_values(
+            10, method='random', include_dependent_variables=True
         )
 
         with self.assertRaises(AssertionError):
