@@ -2701,7 +2701,8 @@ class OptimizationProblem(Structure):
         return problem
 
     def create_initial_values(
-            self, n_samples=1, method='random', seed=None, burn_in=100000):
+            self, n_samples=1, method='random', seed=None, burn_in=100000,
+            include_dependent_variables=True):
         """Create initial value within parameter space.
 
         Uses hopsy (Highly Optimized toolbox for Polytope Sampling) to retrieve
@@ -2720,6 +2721,8 @@ class OptimizationProblem(Structure):
             Number of samples that are created to ensure uniform sampling.
             The actual initial values are then drawn from this set.
             The default is 100000.
+        include_dependent_variables : bool, optional
+            If True, include dependent variables in population.
 
         Raises
         ------
@@ -2781,21 +2784,25 @@ class OptimizationProblem(Structure):
                 )
                 values = states[0, ...]
 
+        # Because hopsy doesn't know about dependencies, remove dependencies and recompute them later
         independent_indices = [
             i for i, variable in enumerate(self.variables)
             if variable in self.independent_variables
         ]
         independent_values = values[:, independent_indices]
 
+        # from this point onward, `values` contains dependent variables
         if n_samples == 1 and method == 'chebyshev':
             values = independent_values
+            if include_dependent_variables:
+                values = self.get_dependent_values(values[0])
         else:
             values = []
             counter = 0
             while len(values) < n_samples:
                 if counter > burn_in:
                     raise CADETProcessError(
-                        "Cannot find invididuals that fulfill constraints."
+                        "Cannot find individuals that fulfill constraints."
                     )
 
                 counter += 1
@@ -2809,15 +2816,21 @@ class OptimizationProblem(Structure):
                         ))
                     )
 
-                if not self.check_bounds(ind, get_dependent_values=True):
+                ind = self.get_dependent_values(ind)
+
+                if not self.check_bounds(ind):
                     continue
-                if not self.check_linear_constraints(ind, get_dependent_values=True):
+                if not self.check_linear_constraints(ind):
                     continue
-                if not self.check_linear_equality_constraints(ind, get_dependent_values=True):
+                if not self.check_linear_equality_constraints(ind):
                     continue
+
+                if not include_dependent_variables:
+                    ind = self.get_independent_values(ind)
+
                 values.append(ind)
 
-        return np.array(values)
+        return np.array(values, ndmin=2)
 
     @property
     def parameters(self):
