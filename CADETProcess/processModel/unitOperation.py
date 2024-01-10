@@ -7,7 +7,7 @@ from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import frozen_attributes
 from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import (
-    Constant, UnsignedFloat,
+    Constant, UnsignedFloat,UnsignedInteger,
     String, Switch,
     SizedUnsignedList,
     Polynomial, NdPolynomial, SizedList, SizedNdArray
@@ -64,8 +64,8 @@ class UnitBaseClass(Structure):
         list of parameter names.
     name : String
         name of the unit operation.
-    has_ports : bool
-        True if unit has ports.
+    n_ports : UnsignedInteger 
+        Number of ports of a unit.
     binding_model : BindingBaseClass
         binding behavior of the unit. Defaults to NoBinding.
     solution_recorder : IORecorder
@@ -83,8 +83,8 @@ class UnitBaseClass(Structure):
     _parameters = []
     _section_dependent_parameters = []
     _initial_state = []
+    n_ports = UnsignedInteger()
 
-    has_ports = False
     supports_binding = False
     supports_bulk_reaction = False
     supports_particle_reaction = False
@@ -100,6 +100,7 @@ class UnitBaseClass(Structure):
             particle_reaction_model=None,
             discretization=None,
             solution_recorder=None,
+            n_ports = None,
             **kwargs
             ):
         self.name = name
@@ -124,6 +125,12 @@ class UnitBaseClass(Structure):
         if solution_recorder is None:
             solution_recorder = IORecorder()
         self.solution_recorder = solution_recorder
+
+        if self.n_ports == None:
+            self.n_ports = 1
+        else:
+            self.n_ports = n_ports
+  
 
         super().__init__(*args, **kwargs)
 
@@ -161,7 +168,7 @@ class UnitBaseClass(Structure):
     @property
     def n_comp(self):
         return self.component_system.n_comp
-
+    
     @property
     def parameters(self):
         """dict: Dictionary with parameter values."""
@@ -356,7 +363,7 @@ class UnitBaseClass(Structure):
         """str: String-representation of the object."""
         return \
             f'{self.__class__.__name__}' \
-            f'(n_comp={self.n_comp}, name={self.name})'
+            f'(n_comp={self.n_comp}, name={self.name})' \
 
     def __str__(self):
         """str: String-representation of the object."""
@@ -1184,7 +1191,6 @@ class MCT(UnitBaseClass):
         Solution recorder for the unit operation.
 
     """
-    has_ports = True
     supports_bulk_reaction = True
 
     discretization_schemes = (MCTDiscretizationFV)
@@ -1225,6 +1231,11 @@ class MCT(UnitBaseClass):
             solution_recorder=MCTRecorder(),
             **kwargs
             )
+        
+    
+    # @n_ports.setter
+    # def n_ports(self, n_ports):
+    #     self.n_ports = n_ports
 
     @property
     def nchannel(self):

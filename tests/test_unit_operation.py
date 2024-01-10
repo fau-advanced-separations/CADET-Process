@@ -72,6 +72,7 @@ class Test_Unit_Operation(unittest.TestCase):
         mct.axial_dispersion = 0
         mct.flow_direction = flow_direction
         mct.exchange_matrix = exchange_matrix
+        mct.n_ports = 3
 
         return mct
 
