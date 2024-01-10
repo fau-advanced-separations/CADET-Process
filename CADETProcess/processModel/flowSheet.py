@@ -445,9 +445,13 @@ class FlowSheet(Structure):
         destination : UnitBaseClass
             UnitBaseClass where the connection terminates.
 
+        Notes
+        -----
+        This method checks if the units destination equals any origin in the connected unit (and vice versa) while neglecting ports.
+
         """
-        if destination in self._connections[origin].destinations \
-                and origin in self._connections[destination].origins:
+        if any(destination in self._connections[origin].destinations[ports] for ports in self._connections[origin].destinations) \
+                and any(origin in self._connections[destination].origins[ports] for ports in self._connections[destination].origins):
             return True
 
         return False
