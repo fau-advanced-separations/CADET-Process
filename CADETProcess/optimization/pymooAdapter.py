@@ -73,29 +73,10 @@ class PymooInterface(OptimizerBase):
         pop_size = self.get_population_size(optimization_problem)
 
         if x0 is not None:
-            x0 = np.array(x0, ndmin=2)
-
-            n_dependent_variables = optimization_problem.n_dependent_variables
-            n_independent_variables = optimization_problem.n_independent_variables
-            n_variables = n_dependent_variables + n_independent_variables
-
-            if x0.shape[1] != n_variables and x0.shape[1] != n_independent_variables:
-                raise ValueError(
-                    f"x0 for optimization problem is expected to be of length "
-                    f"{n_independent_variables} or"
-                    f"{n_variables}. Got {x0.shape[1]}"
-                )
-
-            if n_dependent_variables > 0 and x0.shape[1] == n_variables:
-                x0 = [optimization_problem.get_independent_values(ind) for ind in x0]
-                warnings.warn(
-                    "x0 contains dependent values. Will recompute dependencies for consistency."
-                )
-
             pop = x0
         else:
             pop = optimization_problem.create_initial_values(
-                pop_size, seed=self.seed, include_dependent_variables=True
+                pop_size, seed=self.seed, include_dependent_variables=False
             )
 
         pop = np.array(pop, ndmin=2)
@@ -107,7 +88,7 @@ class PymooInterface(OptimizerBase):
             )
             n_remaining = pop_size - len(pop)
             remaining = optimization_problem.create_initial_values(
-                n_remaining, seed=self.seed, include_dependent_variables=True
+                n_remaining, seed=self.seed, include_dependent_variables=False
             )
             pop = np.vstack((pop, remaining))
         elif len(pop) > pop_size:
