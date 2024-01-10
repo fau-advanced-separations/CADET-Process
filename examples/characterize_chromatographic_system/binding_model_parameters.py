@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.15.2
+#       jupytext_version: 1.14.5
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -275,10 +275,9 @@ if __name__ == '__main__':
 # ```
 
 # %%
-
 # if __name__ == '__main__':
 #     from CADETProcess.optimization import U_NSGA3
-# 
+#
 #     optimizer = U_NSGA3()
 #     optimizer.n_cores = 4
 #     optimizer.pop_size = 50
