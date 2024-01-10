@@ -2837,11 +2837,7 @@ class OptimizationProblem(Structure):
 
             ind = self.get_dependent_values(ind)
 
-            if not self.check_bounds(ind):
-                continue
-            if not self.check_linear_constraints(ind):
-                continue
-            if not self.check_linear_equality_constraints(ind):
+            if not self.check_individual(ind, silent=True):
                 continue
 
             if not include_dependent_variables:
@@ -2953,6 +2949,39 @@ class OptimizationProblem(Structure):
 
             if not self.check_linear_constraints_dependency():
                 flag = False
+
+        return flag
+
+    @untransforms
+    @gets_dependent_values
+    def check_individual(self, x, silent=False):
+        """Check if individual is valid.
+
+        Parameters
+        ----------
+        x : list
+            Value of the optimization variables in untransformed space.
+
+        Returns
+        -------
+        bool
+            True if the individual is valid correctly, False otherwise.
+
+        """
+        flag = True
+
+        if not self.check_bounds(x):
+            if not silent:
+                warnings.warn("Individual does not satisfy bounds.")
+            flag = False
+        if not self.check_linear_constraints(x):
+            if not silent:
+                warnings.warn("Individual does not satisfy linear constraints.")
+            flag = False
+        if not self.check_linear_equality_constraints(x):
+            if not silent:
+                warnings.warn("Individual does not satisfy linear equality constraints.")
+            flag = False
 
         return flag
 
