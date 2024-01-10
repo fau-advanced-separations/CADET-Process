@@ -233,14 +233,10 @@ class OptimizerBase(Structure):
             self.optimization_problem.setup_cache()
 
         if x0 is not None:
-            x0check = np.array(x0, ndmin=2)
-            for x in x0check:
-                if not optimization_problem.check_bounds(x):
-                    raise CADETProcessError(f"x0 = {x} does not satisfy bounds.")
-                if not optimization_problem.check_linear_constraints(x):
-                    raise CADETProcessError(f"x0 = {x} does not satisfy linear constraints.")
-                if not optimization_problem.check_linear_equality_constraints(x):
-                    raise CADETProcessError(f"x0 = {x} does not satisfy linear equality constraints.")
+            flag, x0 = self.check_x0(optimization_problem, x0)
+
+            if not flag:
+                raise ValueError("x0 contains invalid entries.")
 
         log.log_time('Optimization', self.logger.level)(self.run)
         log.log_results('Optimization', self.logger.level)(self.run)
@@ -263,13 +259,15 @@ class OptimizerBase(Structure):
         return self.results
 
     @abstractmethod
-    def run(optimization_problem, *args, **kwargs):
+    def run(optimization_problem, x0=None, *args, **kwargs):
         """Abstract Method for solving an optimization problem.
 
         Parameters
         ----------
         optimization_problem : OptimizationProblem
             Optimization problem to be solved.
+        x0 : list, optional
+            Initial population of independent variables in untransformed space.
 
         Returns
         -------
@@ -345,6 +343,55 @@ class OptimizerBase(Structure):
             flag = False
 
         return flag
+
+    def check_x0(self, optimization_problem, x0):
+        """Check the initial guess x0 for an optimization problem.
+
+        Parameters
+        ----------
+        optimization_problem : OptimizationProblem
+            The optimization problem instance to which x0 is related.
+        x0 : array_like
+            The initial guess for the optimization problem.
+            It can be a single individual or a population.
+
+        Returns
+        -------
+        tuple
+            A tuple containing a boolean flag indicating if x0 is valid, and the
+            potentially modified x0.
+        """
+        flag = True
+
+        shape = np.array(x0).shape
+        x0 = np.array(x0, ndmin=2)
+
+        n_dependent_variables = optimization_problem.n_dependent_variables
+        n_independent_variables = optimization_problem.n_independent_variables
+        n_variables = n_dependent_variables + n_independent_variables
+
+        if x0.shape[1] != n_variables and x0.shape[1] != n_independent_variables:
+            warnings.warn(
+                f"x0 for optimization problem is expected to be of length "
+                f"{n_independent_variables} or"
+                f"{n_variables}. Got {x0.shape[1]}"
+            )
+            flag = False
+
+        if n_dependent_variables > 0 and x0.shape[1] == n_variables:
+            x0 = [optimization_problem.get_independent_values(ind) for ind in x0]
+            warnings.warn(
+                "x0 contains dependent values. Will recompute dependencies for consistency."
+            )
+
+        for x in x0:
+            if not optimization_problem.check_individual(x, get_dependent_values=True):
+                flag = False
+                break
+
+        x0 = x0.reshape(shape).tolist()
+
+        return flag, x0
 
     def _run_post_processing(self, current_iteration):
         if self.optimization_problem.n_multi_criteria_decision_functions > 0:
