@@ -284,17 +284,12 @@ class RepairIndividuals(Repair):
         # Check if linear (equality) constraints are met
         X_new = None
         for i, ind in enumerate(X):
-            if (
-                    not self.optimization_problem.check_linear_constraints(
-                        ind, untransform=True, get_dependent_values=True
-                    )
-                    or
-                    not self.optimization_problem.check_linear_equality_constraints(
-                        ind, untransform=True, get_dependent_values=True
-                    )
-            ):
+            if not self.optimization_problem.check_individual(
+                    ind, untransform=True, get_dependent_values=True):
                 if X_new is None:
-                    X_new = self.optimization_problem.create_initial_values(len(X), include_dependent_variables=False)
+                    X_new = self.optimization_problem.create_initial_values(
+                        len(X), include_dependent_variables=False
+                    )
                 x_new = X_new[i, :]
                 X[i, :] = self.optimization_problem.transform(x_new)
 
