@@ -59,7 +59,7 @@ class SciPyInterface(OptimizerBase):
             Optimization results including optimization_problem and solver
             configuration.
         x0 : list, optional
-            Initial values.
+            Initial values of independent variables in untransformed space.
 
         See Also
         --------
