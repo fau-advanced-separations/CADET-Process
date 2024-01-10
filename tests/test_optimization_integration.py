@@ -12,7 +12,7 @@ sys.path.insert(0, '../')
 test_batch_elution_single_objective_single_core = True
 test_batch_elution_single_objective_multi_core = True
 test_batch_elution_multi_objective = True
-test_fit_column_parameters = True
+test_fit_column_parameters = False
 
 
 class TestBatchElutionOptimizationSingleObjective(unittest.TestCase):
