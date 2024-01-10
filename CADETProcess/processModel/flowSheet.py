@@ -238,9 +238,21 @@ class FlowSheet(Structure):
 
         self._units.append(unit)
 
-        for i in range(unit.secondary_discretization.n_ports):
-            self._connections[unit]['origins'][i] = defaultdict(list)
-            self._connections[unit]['destinations'][i] = defaultdict(list)
+        for i in range(unit.n_ports): 
+
+            if isinstance(unit, Inlet):
+                self._connections[unit]['origins'] = None
+                self._connections[unit]['destinations'][i] = defaultdict(list)
+
+            elif isinstance(unit, Outlet):
+                self._connections[unit]['origins'][i] = defaultdict(list)
+                self._connections[unit]['destinations'] = None
+
+            else:
+                self._connections[unit]['origins'][i] = defaultdict(list)
+                self._connections[unit]['destinations'][i] = defaultdict(list)
+    
+    
 
         # TODO: Ports must also be implemented for output states and flow rates.
         self._output_states[unit] = []
@@ -352,22 +364,22 @@ class FlowSheet(Structure):
         """
         if origin not in self._units:
             raise CADETProcessError('Origin not in flow sheet')
-        if origin.has_ports and origin_port is None:
+        if origin.n_ports != 1 and origin_port is None:
             raise CADETProcessError('Missing `origin_port`')
-        if not origin.has_ports:
+        if origin.n_ports == 1:
             origin_port = 0
-        if origin_port > origin.secondary_discretization.n_ports:
+        if origin_port > origin.n_ports:
             raise CADETProcessError('Origin port exceeds number of ports.')
         if origin_port in self._connections[destination]['origins'][destination_port][origin]:
             raise Exception("Connection already exists")
 
         if destination not in self._units:
             raise CADETProcessError('Destination not in flow sheet')
-        if destination.has_ports and origin_port is None:
+        if destination.n_ports !=1 and origin_port is None:
             raise CADETProcessError('Missing `destination_port`')
-        if not destination.has_ports:
+        if destination.n_ports == 1:
             destination_port = 0
-        if destination_port > destination.secondary_discretization.n_ports:
+        if destination_port > destination.n_ports:
             raise CADETProcessError('Destination port exceeds number of ports.')
         if destination_port in self._connections[origin]['destinations'][origin_port][destination]:
             raise Exception("Connection already exists")

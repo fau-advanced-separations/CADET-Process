@@ -172,24 +172,59 @@ class TestFlowSheet(unittest.TestCase):
         outlet = self.ssr_flow_sheet['outlet']
         expected_connections = {
             feed: {
-                'origins': [],
-                'destinations': [cstr],
+                'origins': None,
+                'destinations': {
+                    0: {
+                        cstr:[0],
+                    },
+                },
             },
             eluent: {
-                'origins': [],
-                'destinations': [column],
+                'origins': None,
+                'destinations': {
+                    0: {
+                        column:[0],
+                    },
+                },
             },
+
             cstr: {
-                'origins': [feed, column],
-                'destinations': [column],
+                'origins': {
+                    0: {
+                        feed:[0], 
+                        column:[0],
+                    },
+                },
+                'destinations': {
+                    0: {
+                        column:[0],
+                    },
+                },
             },
+                
             column: {
-                'origins': [cstr, eluent],
-                'destinations': [cstr, outlet],
+                'origins': {
+                    0: {
+                        cstr:[0], 
+                        eluent:[0],
+                    },
+                },
+                'destinations': {
+                    0: {    
+                        cstr:[0],
+                        outlet:[0],
+                    },
+                },
             },
+        
             outlet: {
-                'origins': [column],
-                'destinations': [],
+                'origins':{
+                    0: {
+                        column:[0],
+                    },
+                },
+    
+                'destinations': None,
             },
         }
 
@@ -228,27 +263,61 @@ class TestFlowSheet(unittest.TestCase):
 
         expected_connections = {
             feed: {
-                'origins': [],
-                'destinations': [cstr],
+                'origins': None,
+                'destinations': {
+                    0: {
+                        cstr:[0],
+                    },
+                },
             },
             eluent: {
-                'origins': [],
-                'destinations': [column],
+                'origins': None,
+                'destinations': {
+                    0: {
+                        column:[0],
+                    },
+                },
             },
+
             cstr: {
-                'origins': [feed, column],
-                'destinations': [column],
+                'origins': {
+                    0: {
+                        feed:[0], 
+                        column:[0],
+                    },
+                },
+                'destinations': {
+                    0: {
+                        column:[0],
+                    },
+                },
             },
+                
             column: {
-                'origins': [cstr, eluent],
-                'destinations': [cstr, outlet],
+                'origins': {
+                    0: {
+                        cstr:[0], 
+                        eluent:[0],
+                    },
+                },
+                'destinations': {
+                    0: {    
+                        cstr:[0],
+                        column:[0],
+                    },
+                },
             },
+        
             outlet: {
-                'origins': [column],
-                'destinations': [],
+                'origins':{
+                    0: {
+                        column:[0],
+                    },
+                },
+    
+                'destinations': None,
             },
         }
-
         self.assertDictEqual(flow_sheet.connections, expected_connections)
 
         # Connection already exists
