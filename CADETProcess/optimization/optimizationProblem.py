@@ -2700,8 +2700,55 @@ class OptimizationProblem(Structure):
 
         return problem
 
+    def get_chebyshev_center(self, include_dependent_variables=True):
+        """Compute chebychev center.
+
+        The Chebyshev center is the center of the largest Euclidean ball that is fully
+        contained within the polytope of the parameter space.
+
+        Parameters
+        ----------
+        include_dependent_variables : bool, optional
+            If True, include dependent variables in population.
+
+        Returns
+        -------
+        chebyshev : list
+            Chebyshev center.
+        """
+        problem = self.create_hopsy_problem(
+            simplify=False, use_custom_model=True
+        )
+        # !!! Additional checks in place to handle PolyRound.round()
+        # removing "small" dimensions.
+        # Bug reported, Check for future release!
+        chebyshev_orig = hopsy.compute_chebyshev_center(problem)[:, 0]
+
+        try:
+            problem_rounded = hopsy.round(problem)
+        except ValueError:
+            problem_rounded = problem
+
+        if problem_rounded.A.shape[1] == problem.A.shape[1]:
+            chebyshev_rounded = hopsy.compute_chebyshev_center(problem_rounded)[:, 0]
+
+            if np.all(np.greater(chebyshev_rounded, self.lower_bounds)):
+                problem = problem_rounded
+                chebyshev = chebyshev_rounded
+            else:
+                chebyshev = chebyshev_orig
+        else:
+            chebyshev = chebyshev_orig
+
+        chebyshev = self.get_independent_values(chebyshev)
+
+        if include_dependent_variables:
+            chebyshev = self.get_dependent_values(chebyshev)
+
+        return chebyshev
+
     def create_initial_values(
-            self, n_samples=1, method='random', seed=None, burn_in=100000,
+            self, n_samples=1, seed=None, burn_in=100000,
             include_dependent_variables=True):
         """Create initial value within parameter space.
 
@@ -2712,9 +2759,6 @@ class OptimizationProblem(Structure):
         ----------
         n_samples : int
             Number of initial values to be drawn
-        method : str, optional
-            chebyshev: Return center of the minimal-radius ball enclosing the entire set .
-            random: Any random valid point in the parameter space.
         seed : int, optional
             Seed to initialize random numbers. Only used if method == 'random'
         burn_in : int, optional
@@ -2743,92 +2787,67 @@ class OptimizationProblem(Structure):
             problem = self.create_hopsy_problem(
                 simplify=False, use_custom_model=True
             )
-            # !!! Additional checks in place to handle PolyRound.round()
-            # removing "small" dimensions.
-            # Bug reported, Check for future release!
-            chebyshev_orig = hopsy.compute_chebyshev_center(problem)[:, 0]
 
-            try:
-                problem_rounded = hopsy.round(problem)
-            except ValueError:
-                problem_rounded = problem
+            chebychev_center = self.get_chebyshev_center(
+                include_dependent_variables=True
+            )
 
-            if problem_rounded.A.shape[1] == problem.A.shape[1]:
-                chebyshev_rounded = hopsy.compute_chebyshev_center(problem_rounded)[:, 0]
+            if seed is None:
+                seed = random.randint(0, 255)
 
-                if np.all(np.greater(chebyshev_rounded, self.lower_bounds)):
-                    problem = problem_rounded
-                    chebyshev = chebyshev_rounded
-                else:
-                    chebyshev = chebyshev_orig
-            else:
-                chebyshev = chebyshev_orig
+            rng = np.random.default_rng(seed)
 
-            if n_samples == 1 and method == 'chebyshev':
-                values = np.array(chebyshev_orig, ndmin=2)
-            else:
-                if seed is None:
-                    seed = random.randint(0, 255)
+            mc = hopsy.MarkovChain(
+                problem,
+                proposal=hopsy.UniformCoordinateHitAndRunProposal,
+                starting_point=chebychev_center
+            )
+            rng_hopsy = hopsy.RandomNumberGenerator(seed=seed)
 
-                rng = np.random.default_rng(seed)
+            acceptance_rate, states = hopsy.sample(
+                mc, rng_hopsy, n_samples=burn_in, thinning=2
+            )
+            values = states[0, ...]
 
-                mc = hopsy.MarkovChain(
-                    problem,
-                    proposal=hopsy.UniformCoordinateHitAndRunProposal,
-                    starting_point=chebyshev
-                )
-                rng_hopsy = hopsy.RandomNumberGenerator(seed=seed)
-
-                acceptance_rate, states = hopsy.sample(
-                    mc, rng_hopsy, n_samples=burn_in, thinning=2
-                )
-                values = states[0, ...]
-
-        # Because hopsy doesn't know about dependencies, remove dependencies and recompute them later
+        # Since hopsy does not know about dependencies, they are recomputed for consistency.
         independent_indices = [
             i for i, variable in enumerate(self.variables)
             if variable in self.independent_variables
         ]
         independent_values = values[:, independent_indices]
 
-        # from this point onward, `values` contains dependent variables
-        if n_samples == 1 and method == 'chebyshev':
-            values = independent_values
-            if include_dependent_variables:
-                values = self.get_dependent_values(values[0])
-        else:
-            values = []
-            counter = 0
-            while len(values) < n_samples:
-                if counter > burn_in:
-                    raise CADETProcessError(
-                        "Cannot find individuals that fulfill constraints."
-                    )
+        values = []
+        counter = 0
+        while len(values) < n_samples:
+            if counter > burn_in:
+                raise CADETProcessError(
+                    "Cannot find individuals that fulfill constraints."
+                )
 
-                counter += 1
-                i = rng.integers(0, burn_in)
-                ind = []
-                for i_var, var in enumerate(self.independent_variables):
-                    ind.append(
-                        float(np.format_float_positional(
-                            independent_values[i, i_var],
-                            precision=var.precision, fractional=False
-                        ))
-                    )
+            counter += 1
+            i = rng.integers(0, burn_in)
+            ind = []
+            for i_var, var in enumerate(self.independent_variables):
+                ind.append(
+                    float(np.format_float_positional(
+                        independent_values[i, i_var],
+                        precision=var.precision, fractional=False
+                    ))
+                )
 
-                ind = self.get_dependent_values(ind)
+            ind = self.get_dependent_values(ind)
 
-                if not self.check_bounds(ind):
-                    continue
-                if not self.check_linear_constraints(ind):
-                    continue
-                if not self.check_linear_equality_constraints(ind):
-                    continue
+            if not self.check_bounds(ind):
+                continue
+            if not self.check_linear_constraints(ind):
+                continue
+            if not self.check_linear_equality_constraints(ind):
+                continue
 
-                if not include_dependent_variables:
-                    ind = self.get_independent_values(ind)
+            if not include_dependent_variables:
+                ind = self.get_independent_values(ind)
 
-                values.append(ind)
+            values.append(ind)
 
         return np.array(values, ndmin=2)
 

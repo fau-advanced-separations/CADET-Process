@@ -313,7 +313,7 @@ optimization_problem.create_initial_values()
 Alternatively, the Chebyshev center of the polytope can be computed, which is the center of the largest Euclidean ball that is fully contained within that polytope.
 
 ```{code-cell} ipython3
-optimization_problem.create_initial_values(method='chebyshev')
+optimization_problem.get_chebyshev_center()
 ```
 
 It is also possible to generate multiple samples at once.
