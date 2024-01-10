@@ -56,7 +56,7 @@ class PymooInterface(OptimizerBase):
         optimization_problem : OptimizationProblem
             DESCRIPTION.
         x0 : list, optional
-            Initial population
+            Initial population of independent variables in untransformed space.
 
         Returns
         -------
