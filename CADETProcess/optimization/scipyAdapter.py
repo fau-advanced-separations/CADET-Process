@@ -107,7 +107,9 @@ class SciPyInterface(OptimizerBase):
             return False
 
         if x0 is None:
-            x0 = optimization_problem.create_initial_values(1, method='chebyshev')[0]
+            x0 = optimization_problem.create_initial_values(
+                1, method='chebyshev', include_dependent_variables=False
+            )[0]
 
         x0_transformed = optimization_problem.transform(x0)
 

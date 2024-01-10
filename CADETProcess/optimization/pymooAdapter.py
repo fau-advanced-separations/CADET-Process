@@ -95,7 +95,7 @@ class PymooInterface(OptimizerBase):
             pop = x0
         else:
             pop = optimization_problem.create_initial_values(
-                pop_size, method='chebyshev', seed=self.seed
+                pop_size, method='chebyshev', seed=self.seed, include_dependent_variables=True
             )
 
         pop = np.array(pop, ndmin=2)
@@ -107,7 +107,7 @@ class PymooInterface(OptimizerBase):
             )
             n_remaining = pop_size - len(pop)
             remaining = optimization_problem.create_initial_values(
-                n_remaining, method='chebyshev', seed=self.seed
+                n_remaining, method='chebyshev', seed=self.seed, include_dependent_variables=True
             )
             pop = np.vstack((pop, remaining))
         elif len(pop) > pop_size:
@@ -294,7 +294,7 @@ class RepairIndividuals(Repair):
                     )
             ):
                 if X_new is None:
-                    X_new = self.optimization_problem.create_initial_values(len(X))
+                    X_new = self.optimization_problem.create_initial_values(len(X), include_dependent_variables=False)
                 x_new = X_new[i, :]
                 X[i, :] = self.optimization_problem.transform(x_new)
 
