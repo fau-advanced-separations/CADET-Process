@@ -18,8 +18,9 @@ from CADETProcess.dataStructure import (
 )
 
 from CADETProcess import CADETProcessError
-from CADETProcess.optimization import Individual, Population, ParetoFront
-
+from CADETProcess.optimization import (
+    Individual, Population, ParetoFront
+)
 
 class OptimizationResults(Structure):
     """Optimization results.
