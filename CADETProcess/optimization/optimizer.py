@@ -364,6 +364,9 @@ class OptimizerBase(Structure):
         flag = True
 
         shape = np.array(x0).shape
+
+        is_x0_1d = len(shape) == 1
+
         x0 = np.array(x0, ndmin=2)
 
         n_dependent_variables = optimization_problem.n_dependent_variables
@@ -383,13 +386,17 @@ class OptimizerBase(Structure):
             warnings.warn(
                 "x0 contains dependent values. Will recompute dependencies for consistency."
             )
+            x0 = np.array(x0)
 
         for x in x0:
             if not optimization_problem.check_individual(x, get_dependent_values=True):
                 flag = False
                 break
 
-        x0 = x0.reshape(shape).tolist()
+        if is_x0_1d:
+            x0 = x0[0]
+
+        x0 = x0.tolist()
 
         return flag, x0
 
