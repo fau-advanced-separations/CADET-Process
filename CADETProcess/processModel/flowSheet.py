@@ -255,6 +255,7 @@ class FlowSheet(Structure):
     
 
         # TODO: Ports must also be implemented for output states and flow rates.
+        
         self._output_states[unit] = []
         self._flow_rates[unit] = []
 
@@ -625,9 +626,11 @@ class FlowSheet(Structure):
 
         self._output_states[unit] = output_state
 
-    def get_flow_rates(self, state=None):
-        """
-        Calculate the volumetric flow rate for all connections in the process.
+    def get_flow_rates(self, port=None, state=None):
+        """Calculate flow rate for all connections.
+
+        Optionally, an additional output state can be passed to update the
+        current output states.
 
         Parameters
         ----------
@@ -689,6 +692,8 @@ class FlowSheet(Structure):
         # Setup matrix with output states.
         w_out = np.zeros((n_units, n_units))
 
+
+        #TODO: add Ports
         for unit in self.units:
             unit_index = self.get_unit_index(unit)
             if unit.name in flow_rates:
