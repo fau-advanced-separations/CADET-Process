@@ -305,16 +305,28 @@ class FlowSheet(Structure):
             self.remove_eluent_inlet(unit)
         if unit is self.product_outlets:
             self.remove_product_outlet(unit)
-
         # TODO: Connections must be removed for ports @hannah
-        origins = self.connections[unit].origins.copy()
+        #Unit has to be removed from every port of every origin and every destination
+        
+        origins = []
+        destinations = []
+
+        if self._connections[unit]['origins'] is not None:
+            origins = [origin for ports in self._connections[unit]['origins'] for origin in self._connections[unit]['origins'][ports]].copy()
+     
         for origin in origins:
-            self.remove_connection(origin, unit)
+            for origin_port in self._connections[unit]['origins']:
+                for unit_port in self._connections[unit]['origins'][origin_port][origin]:  
+                    self.remove_connection(origin, unit, origin_port, unit_port)
 
-        destinations = self.connections[unit].destinations.copy()
+        if self._connections[unit]['destinations'] is not None:
+            destinations = [destination for ports in self._connections[unit]['destinations'] for destination in self._connections[unit]['destinations'][ports]].copy()
+        
         for destination in destinations:
-            self.remove_connection(unit, destination)
-
+            for destination_port in self._connections[unit]['destinations']:
+                for unit_port in self._connections[unit]['destinations'][destination_port][destination]: 
+                    self.remove_connection(unit, destination, unit_port, destination_port) 
+        
         self._units.remove(unit)
         self._connections.pop(unit)
         self._output_states.pop(unit)
@@ -368,10 +380,10 @@ class FlowSheet(Structure):
             raise CADETProcessError('Missing `origin_port`')
         if origin.n_ports == 1:
             origin_port = 0
-        if origin_port > origin.n_ports:
+        if origin_port > origin.n_ports-1:
             raise CADETProcessError('Origin port exceeds number of ports.')
         if origin_port in self._connections[destination]['origins'][destination_port][origin]:
-            raise Exception("Connection already exists")
+            raise CADETProcessError("Connection already exists")
 
         if destination not in self._units:
             raise CADETProcessError('Destination not in flow sheet')
@@ -379,10 +391,10 @@ class FlowSheet(Structure):
             raise CADETProcessError('Missing `destination_port`')
         if destination.n_ports == 1:
             destination_port = 0
-        if destination_port > destination.n_ports:
+        if destination_port > destination.n_ports-1:
             raise CADETProcessError('Destination port exceeds number of ports.')
         if destination_port in self._connections[origin]['destinations'][origin_port][destination]:
-            raise Exception("Connection already exists")
+            raise CADETProcessError("Connection already exists")
 
         # TOOD: Add tests
         # TODO: How to store connections with ports
@@ -401,7 +413,7 @@ class FlowSheet(Structure):
 
     @origin_destination_name_decorator
     @update_parameters_decorator
-    def remove_connection(self, origin, destination):
+    def remove_connection( self, origin, destination, origin_port=None, destination_port=None):
         """Remove connection between units 'origin' and 'destination'.
 
         Parameters
@@ -410,6 +422,10 @@ class FlowSheet(Structure):
             UnitBaseClass from which the connection originates.
         destination : UnitBaseClass
             UnitBaseClass where the connection terminates.
+        origin_port : int
+            Port from which connection originates.
+        destination_port : int
+            Port where connection terminates.
 
         Raises
         ------
@@ -425,12 +441,26 @@ class FlowSheet(Structure):
         """
         if origin not in self._units:
             raise CADETProcessError('Origin not in flow sheet')
+        if origin.n_ports != 1 and origin_port is None:
+            raise CADETProcessError('Missing `origin_port`')
+        if origin.n_ports == 1:
+            origin_port = 0
+        if origin_port > origin.n_ports-1:
+            raise CADETProcessError('Origin port exceeds number of ports.')
+        
         if destination not in self._units:
             raise CADETProcessError('Destination not in flow sheet')
+        if destination.n_ports !=1 and origin_port is None:
+            raise CADETProcessError('Missing `destination_port`')
+        if destination.n_ports == 1:
+            destination_port = 0
+        if destination_port > destination.n_ports-1:
+            raise CADETProcessError('Destination port exceeds number of ports.')
 
         try:
-            self._connections[origin].destinations.remove(destination)
-            self._connections[destination].origins.remove(origin)
+
+            self._connections[destination]['origins'][destination_port][origin].pop([origin_port])
+            self._connections[origin]['destinations'][origin_port][destination].pop([destination_port])
         except KeyError:
             raise CADETProcessError('Connection does not exist.')
 
@@ -475,14 +505,14 @@ class FlowSheet(Structure):
         flag = True
         for unit, connections in self.connections.items():
             if isinstance(unit, Inlet):
-                if len(connections.origins) != 0:
+                if connections.origins != None:
                     flag = False
                     warn("Inlet unit cannot have ingoing stream.")
                 if len(connections.destinations) == 0:
                     flag = False
                     warn(f" Unit '{unit.name}' does not have outgoing stream.")
             elif isinstance(unit, Outlet):
-                if len(connections.destinations) != 0:
+                if connections.destinations != None:
                     flag = False
                     warn("Outlet unit cannot have outgoing stream.")
                 if len(connections.origins) == 0:

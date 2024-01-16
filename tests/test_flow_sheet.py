@@ -260,7 +260,6 @@ class TestFlowSheet(unittest.TestCase):
         flow_sheet.add_connection(eluent, 'column')
         flow_sheet.add_connection(column, cstr)
         flow_sheet.add_connection('column', outlet)
-
         expected_connections = {
             feed: {
                 'origins': None,
@@ -303,7 +302,98 @@ class TestFlowSheet(unittest.TestCase):
                 'destinations': {
                     0: {    
                         cstr:[0],
+                        outlet:[0],
+                    },
+                },
+            },
+        
+            outlet: {
+                'origins':{
+                    0: {
                         column:[0],
+                    },
+                },
+    
+                'destinations': None,
+            },
+        }
+
+        self.assertDictEqual(
+            self.ssr_flow_sheet.connections, expected_connections
+        )
+
+        self.assertTrue(self.ssr_flow_sheet.connection_exists(feed, cstr))
+        self.assertTrue(self.ssr_flow_sheet.connection_exists(eluent, column))
+        self.assertTrue(self.ssr_flow_sheet.connection_exists(column, outlet))
+
+        self.assertFalse(self.ssr_flow_sheet.connection_exists(feed, eluent))
+
+    def test_name_decorator(self):
+        feed = Inlet(self.component_system, name='feed')
+        eluent = Inlet(self.component_system, name='eluent')
+        cstr = Cstr(self.component_system, name='cstr')
+        column = LumpedRateModelWithoutPores(
+            self.component_system, name='column'
+        )
+        outlet = Outlet(self.component_system, name='outlet')
+
+        flow_sheet = FlowSheet(self.component_system)
+
+        flow_sheet.add_unit(feed)
+        flow_sheet.add_unit(eluent)
+        flow_sheet.add_unit(cstr)
+        flow_sheet.add_unit(column)
+        flow_sheet.add_unit(outlet)
+
+        flow_sheet.add_connection('feed', 'cstr')
+        flow_sheet.add_connection(cstr, column)
+        flow_sheet.add_connection(eluent, 'column')
+        flow_sheet.add_connection(column, cstr)
+        flow_sheet.add_connection('column', outlet)
+
+        expected_connections = {
+            feed: {
+                'origins': None,
+                'destinations': {
+                    0: {
+                        cstr:[0],
+                    },
+                },
+            },
+            eluent: {
+                'origins': None,
+                'destinations': {
+                    0: {
+                        column:[0],
+                    },
+                },
+            },
+
+            cstr: {
+                'origins': {
+                    0: {
+                        feed:[0],
+                        column:[0],
+                    },
+                },
+                'destinations': {
+                    0: {
+                        column:[0],
+                    },
+                },
+            },
+                
+            column: {
+                'origins': {
+                    0: {
+                        cstr:[0], 
+                        eluent:[0],
+                    },
+                },
+                'destinations': {
+                    0: {    
+                        outlet:[0],
+                        cstr:[0],
                     },
                 },
             },
@@ -341,45 +431,74 @@ class TestFlowSheet(unittest.TestCase):
 
         expected_flow_rates = {
             'feed': {
-                'total_out': (0, 0, 0, 0),
+                'total_out':{ 
+                    0: (0, 0, 0, 0),
+                    },
+
                 'destinations': {
-                    'cstr': (0, 0, 0, 0),
+                    0: {
+                        'cstr': (0, 0, 0, 0),
+                    },
                 },
             },
             'eluent': {
-                'total_out': (0, 0, 0, 0),
+                'total_out': { 
+                    0: (0, 0, 0, 0),
+                    },
                 'destinations': {
+                    0: {
                     'column': (0, 0, 0, 0),
+                    },
                 },
             },
             'cstr': {
-                'total_in': (0.0, 0, 0, 0),
-                'total_out': (1.0, 0, 0, 0),
+                'total_in': { 
+                    0: (0, 0, 0, 0),
+                    },
+                'total_out': { 
+                    0: (1.0, 0, 0, 0),
+                    },
                 'origins': {
+                    0: {
                     'feed': (0, 0, 0, 0),
                     'column': (0, 0, 0, 0),
+                    },
                 },
                 'destinations': {
+                    0: {
                     'column': (1.0, 0, 0, 0),
+                    }
                 },
             },
             'column': {
-                'total_in': (1.0, 0, 0, 0),
-                'total_out': (1.0, 0, 0, 0),
+                'total_in': { 
+                    0: (1.0, 0, 0, 0),
+                    },
+                'total_out': { 
+                    0: (1.0, 0, 0, 0),
+                    },
                 'origins': {
+                    0: {
                     'cstr': (1.0, 0, 0, 0),
                     'eluent': (0, 0, 0, 0),
+                    },
                 },
                 'destinations': {
+                    0: {
                     'cstr': (0, 0, 0, 0),
                     'outlet': (1.0, 0, 0, 0),
+                    },
                 },
             },
             'outlet': {
                 'origins': {
+                    0: {
                     'column': (1.0, 0, 0, 0),
+                    },
                 },
-                'total_in': (1.0, 0, 0, 0),
+                'total_in': {
+                    0: (1.0, 0, 0, 0),
+                },
                 },
         }
 
@@ -397,41 +516,55 @@ class TestFlowSheet(unittest.TestCase):
             'feed': {
                 'total_out': (1, 0, 0, 0),
                 'destinations': {
+                    0: {
                     'cstr': (1, 0, 0, 0),
+                    }
                 },
             },
             'eluent': {
                 'total_out': (1, 0, 0, 0),
                 'destinations': {
+                    0: {
                     'column': (1, 0, 0, 0),
+                    },
                 },
             },
             'cstr': {
                 'total_in': (1.0, 0, 0, 0),
                 'total_out': (0.0, 0, 0, 0),
                 'origins': {
+                    0: {
                     'feed': (1, 0, 0, 0),
                     'column': (0, 0, 0, 0),
+                    },
                 },
                 'destinations': {
+                    0: {
                     'column': (0.0, 0, 0, 0),
+                    },
                 },
             },
             'column': {
                 'total_in': (1.0, 0, 0, 0),
                 'total_out': (1.0, 0, 0, 0),
                 'origins': {
+                    0: {
                     'cstr': (0, 0, 0, 0),
                     'eluent': (1, 0, 0, 0),
+                    },
                 },
                 'destinations': {
+                    0: {
                     'cstr': (0, 0, 0, 0),
                     'outlet': (1.0, 0, 0, 0),
+                    },
                 },
             },
             'outlet': {
                 'origins': {
+                    0: {
                     'column': (1.0, 0, 0, 0),
+                    },
                 },
                 'total_in': (1.0, 0, 0, 0),
                 },
@@ -448,45 +581,73 @@ class TestFlowSheet(unittest.TestCase):
 
         expected_flow_rates = {
             'feed': {
-                'total_out': (0, 0, 0, 0),
+                'total_out': {
+                    0: (0, 0, 0, 0),
+                    },
                 'destinations': {
+                    0: {
                     'cstr': (0, 0, 0, 0),
+                    },
                 },
             },
             'eluent': {
-                'total_out': (1, 0, 0, 0),
+                'total_out': {
+                    0: (1, 0, 0, 0),
+                    },
                 'destinations': {
+                    0: {
                     'column': (1, 0, 0, 0),
+                    },
                 },
             },
             'cstr': {
-                'total_in': (0.0, 0, 0, 0),
-                'total_out': (0.0, 0, 0, 0),
+                'total_in': {
+                    0: (0, 0, 0, 0),
+                    },
+                'total_out': {
+                    0: (0, 0, 0, 0),
+                    },
                 'origins': {
+                    0: {
                     'feed': (0, 0, 0, 0),
                     'column': (0, 0, 0, 0),
+                    },
                 },
                 'destinations': {
+                    0: {
                     'column': (0.0, 0, 0, 0),
+                    },
                 },
             },
             'column': {
-                'total_in': (1.0, 0, 0, 0),
-                'total_out': (1.0, 0, 0, 0),
+                'total_in': {
+                    0: (1.0, 0, 0, 0),
+                    },
+                'total_out': {
+                    0: (1.0, 0, 0, 0),
+                    },
                 'origins': {
+                    0: {
                     'cstr': (0, 0, 0, 0),
                     'eluent': (1, 0, 0, 0),
+                    },
                 },
                 'destinations': {
+                    0: {
                     'cstr': (0, 0, 0, 0),
                     'outlet': (1.0, 0, 0, 0),
+                    },
                 },
             },
             'outlet': {
                 'origins': {
+                    0: {
                     'column': (1.0, 0, 0, 0),
+                    },
                 },
-                'total_in': (1.0, 0, 0, 0),
+                'total_in': {
+                    0: (1.0, 0, 0, 0),
+                    },
                 },
         }
 
@@ -502,45 +663,73 @@ class TestFlowSheet(unittest.TestCase):
 
         expected_flow_rates = {
             'feed': {
-                'total_out': (0, 0, 0, 0),
+                'total_out': {
+                    0: (0, 0, 0, 0),
+                    },
                 'destinations': {
+                    0: {
                     'cstr': (0, 0, 0, 0),
+                    },
                 },
             },
             'eluent': {
-                'total_out': (1, 0, 0, 0),
+                'total_out': {
+                    0: (1, 0, 0, 0),
+                    },
                 'destinations': {
+                    0: {
                     'column': (1, 0, 0, 0),
+                    },
                 },
             },
             'cstr': {
-                'total_in': (1.0, 0, 0, 0),
-                'total_out': (0.0, 0, 0, 0),
+                'total_in': {
+                    0: (1.0, 0, 0, 0),
+                    },
+                'total_out': {
+                    0: (0.0, 0, 0, 0),
+                    },
                 'origins': {
+                    0: {
                     'feed': (0, 0, 0, 0),
                     'column': (1, 0, 0, 0),
+                    },
                 },
                 'destinations': {
+                    0: {
                     'column': (0.0, 0, 0, 0),
+                    },
                 },
             },
             'column': {
-                'total_in': (1.0, 0, 0, 0),
-                'total_out': (1.0, 0, 0, 0),
+                'total_in': {
+                    0: (1.0, 0, 0, 0),
+                    },
+                'total_out': {
+                    0: (1.0, 0, 0, 0),
+                    },
                 'origins': {
+                    0: {
                     'cstr': (0, 0, 0, 0),
                     'eluent': (1, 0, 0, 0),
+                    },
                 },
                 'destinations': {
+                    0: {
                     'cstr': (1, 0, 0, 0),
-                    'outlet': (0.0, 0, 0, 0),
+                    'outlet': (0.0, 0, 0, 0),#
+                    },
                 },
             },
             'outlet': {
                 'origins': {
+                    0: {
                     'column': (0, 0, 0, 0),
+                    },
                 },
-                'total_in': (0, 0, 0, 0),
+                'total_in': {
+                    0: (0.0, 0, 0, 0),
+                    },
                 },
         }
 
