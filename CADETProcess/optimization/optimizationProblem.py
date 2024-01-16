@@ -2722,7 +2722,9 @@ class OptimizationProblem(Structure):
         # !!! Additional checks in place to handle PolyRound.round()
         # removing "small" dimensions.
         # Bug reported, Check for future release!
-        chebyshev_orig = hopsy.compute_chebyshev_center(problem)[:, 0]
+        chebyshev_orig = hopsy.compute_chebyshev_center(
+            problem, original_space=True
+        )[:, 0]
 
         try:
             problem_rounded = hopsy.round(problem)
@@ -2730,7 +2732,9 @@ class OptimizationProblem(Structure):
             problem_rounded = problem
 
         if problem_rounded.A.shape[1] == problem.A.shape[1]:
-            chebyshev_rounded = hopsy.compute_chebyshev_center(problem_rounded)[:, 0]
+            chebyshev_rounded = hopsy.compute_chebyshev_center(
+                problem_rounded, original_space=True
+            )[:, 0]
 
             if np.all(np.greater(chebyshev_rounded, self.lower_bounds)):
                 problem = problem_rounded
