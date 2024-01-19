@@ -9,8 +9,9 @@ from scipy.special import expit
 
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import UnsignedInteger
-from CADETProcess.solution import SolutionBase, slice_solution
+from CADETProcess.solution import SolutionIO, slice_solution
 from CADETProcess.metric import MetricBase
+from CADETProcess.reference import ReferenceIO
 from .shape import pearson, pearson_offset
 from .peaks import find_peaks, find_breakthroughs
 
@@ -74,7 +75,7 @@ class DifferenceBase(MetricBase):
 
     Parameters
     ----------
-    reference : ReferenceIO
+    reference : ReferenceBase
         Reference used for calculating difference metric.
     components : {str, list}, optional
         Solution components to be considered.
@@ -97,6 +98,8 @@ class DifferenceBase(MetricBase):
         If True, normalize data. The default is False.
     """
 
+    _valid_references = ()
+
     def __init__(
             self,
             reference,
@@ -113,7 +116,7 @@ class DifferenceBase(MetricBase):
 
         Parameters
         ----------
-        reference : ReferenceIO
+        reference : ReferenceBase
             Reference used for calculating difference metric.
         components : {str, list}, optional
             Solution components to be considered.
@@ -165,8 +168,11 @@ class DifferenceBase(MetricBase):
 
     @reference.setter
     def reference(self, reference):
-        if not isinstance(reference, SolutionBase):
-            raise TypeError("Expected SolutionBase")
+        if not isinstance(reference, self._valid_references):
+            raise TypeError(
+                f"Invalid reference type: {type(reference)}. "
+                f"Expected types: {self._valid_references}."
+            )
 
         self._reference = copy.deepcopy(reference)
         if self.resample and not self._reference.is_resampled:
@@ -321,6 +327,8 @@ def calculate_sse(simulation, reference):
 class SSE(DifferenceBase):
     """Sum of squared errors (SSE) difference metric."""
 
+    _valid_references = (ReferenceIO, SolutionIO)
+
     def _evaluate(self, solution):
         sse = calculate_sse(solution.solution, self.reference.solution)
 
@@ -348,6 +356,8 @@ def calculate_rmse(simulation, reference):
 class RMSE(DifferenceBase):
     """Root mean squared errors (RMSE) difference metric."""
 
+    _valid_references = (SolutionIO, ReferenceIO)
+
     def _evaluate(self, solution):
         rmse = calculate_rmse(solution.solution, self.reference.solution)
 
@@ -356,6 +366,8 @@ class RMSE(DifferenceBase):
 
 class NRMSE(DifferenceBase):
     """Normalized root mean squared errors (RRMSE) difference metric."""
+
+    _valid_references = (SolutionIO, ReferenceIO)
 
     def _evaluate(self, solution):
         rmse = calculate_rmse(solution.solution, self.reference.solution)
@@ -372,6 +384,8 @@ class Norm(DifferenceBase):
     order : int
         The order of the norm.
     """
+
+    _valid_references = (SolutionIO, ReferenceIO)
 
     order = UnsignedInteger()
 
@@ -398,6 +412,8 @@ class L2(Norm):
 class AbsoluteArea(DifferenceBase):
     """Absolute difference in area difference metric."""
 
+    _valid_references = (SolutionIO, ReferenceIO)
+
     def _evaluate(self, solution):
         """np.array: Absolute difference in area compared to reference.
 
@@ -417,6 +433,8 @@ class AbsoluteArea(DifferenceBase):
 
 class RelativeArea(DifferenceBase):
     """Relative difference in area difference metric."""
+
+    _valid_references = (SolutionIO, ReferenceIO)
 
     def _evaluate(self, solution):
         """np.array: Relative difference in area compared to reference.
@@ -461,6 +479,8 @@ class Shape(DifferenceBase):
     Currently, this class only works for single-component systems with one peak.
 
     """
+
+    _valid_references = (SolutionIO, ReferenceIO)
 
     @wraps(DifferenceBase.__init__)
     def __init__(
@@ -645,6 +665,8 @@ class PeakHeight(DifferenceBase):
         Contains the normalization factors for each peak in each component.
     """
 
+    _valid_references = (SolutionIO, ReferenceIO)
+
     @wraps(DifferenceBase.__init__)
     def __init__(
             self, *args,
@@ -737,6 +759,8 @@ class PeakPosition(DifferenceBase):
         Contains the normalization factors for each peak in each component.
     """
 
+    _valid_references = (SolutionIO, ReferenceIO)
+
     @wraps(DifferenceBase.__init__)
     def __init__(self, *args, normalize_metrics=True, normalization_factor=None, **kwargs):
         """Initialize PeakPosition object.
@@ -823,6 +847,8 @@ class BreakthroughHeight(DifferenceBase):
 
     """
 
+    _valid_references = (SolutionIO, ReferenceIO)
+
     @wraps(DifferenceBase.__init__)
     def __init__(self, *args, normalize_metrics=True, **kwargs):
         """Initialize BreakthroughHeight metric.
@@ -873,6 +899,8 @@ class BreakthroughHeight(DifferenceBase):
 
 class BreakthroughPosition(DifferenceBase):
     """Absolute difference in breakthrough curve position difference metric."""
+
+    _valid_references = (SolutionIO, ReferenceIO)
 
     @wraps(DifferenceBase.__init__)
     def __init__(self, *args, normalize_metrics=True, normalization_factor=None, **kwargs):
