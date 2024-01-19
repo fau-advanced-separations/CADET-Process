@@ -470,7 +470,7 @@ class SolutionIO(SolutionBase):
         from CADETProcess.fractionation import Fraction
         mass = self.fraction_mass(start, end)
         volume = self.fraction_volume(start, end)
-        return Fraction(mass, volume)
+        return Fraction(mass, volume, start, end)
 
     def fraction_mass(self, start=None, end=None):
         """Component mass in a fraction interval
