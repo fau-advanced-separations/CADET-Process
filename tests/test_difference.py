@@ -6,6 +6,7 @@ from scipy import stats
 from CADETProcess import CADETProcessError
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess.reference import ReferenceIO
+from CADETProcess.solution import SolutionIO
 
 
 comp_2 = ComponentSystem(['A', 'B'])
@@ -33,6 +34,8 @@ solution_2_gaussian_switched[:, 0] = stats.norm.pdf(time, mu_1, sigma_1)
 solution_2_gaussian_different_height = np.zeros((len(time), 2))
 solution_2_gaussian_different_height[:, 1] = stats.norm.pdf(time, mu_0, sigma_0)
 solution_2_gaussian_different_height[:, 0] = stats.norm.pdf(time, mu_2, sigma_2)
+
+q_const = np.ones(time.shape)
 
 
 from CADETProcess.comparison import SSE
@@ -385,6 +388,51 @@ class TestShape(unittest.TestCase):
         with self.assertRaises(CADETProcessError):
             difference = Shape(self.reference_single)
             metrics = difference.evaluate(self.reference)
+
+
+from CADETProcess.fractionation import Fraction
+from CADETProcess.reference import FractionationReference
+from CADETProcess.comparison import FractionationSSE
+
+
+class TestFractionation(unittest.TestCase):
+    def __init__(self, methodName='runTest'):
+        super().__init__(methodName)
+
+    def setUp(self):
+        fraction_1 = Fraction(
+            start=15,
+            end=30,
+            mass=[0.49865015, 0.02274985],
+            volume=15,
+        )
+        fraction_2 = Fraction(
+            start=30,
+            end=45,
+            mass=[0.49865015, 0.81859462],
+            volume=15,
+        )
+        self.fractions = [fraction_1, fraction_2]
+
+        component_system = ComponentSystem(['A', 'B'])
+        self.reference = FractionationReference(
+            'fractions', [fraction_1, fraction_2],
+            component_system=component_system
+        )
+
+        self.solution = SolutionIO(
+            'simple', comp_2, time, solution_2_gaussian, flow_rate=q_const
+        )
+
+    def test_metric(self):
+        # Compare with itself
+        difference = FractionationSSE(
+            self.reference,
+            components=['A'],
+        )
+        metrics_expected = [1.30315857e-19]
+        metrics = difference.evaluate(self.solution)
+        np.testing.assert_almost_equal(metrics, metrics_expected)
 
 
 if __name__ == '__main__':
