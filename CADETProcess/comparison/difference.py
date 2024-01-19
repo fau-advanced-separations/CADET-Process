@@ -11,7 +11,7 @@ from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import UnsignedInteger
 from CADETProcess.solution import SolutionIO, slice_solution
 from CADETProcess.metric import MetricBase
-from CADETProcess.reference import ReferenceIO
+from CADETProcess.reference import ReferenceIO, FractionationReference
 from .shape import pearson, pearson_offset
 from .peaks import find_peaks, find_breakthroughs
 
@@ -25,6 +25,7 @@ __all__ = [
     'Shape',
     'PeakHeight', 'PeakPosition',
     'BreakthroughHeight', 'BreakthroughPosition',
+    'FractionationSSE',
 ]
 
 
@@ -972,3 +973,61 @@ class BreakthroughPosition(DifferenceBase):
             ]
 
         return np.abs(score)
+
+
+class FractionationSSE(DifferenceBase):
+    """Fractionation based score using SSE."""
+
+    _valid_references = (FractionationReference)
+
+    @wraps(DifferenceBase.__init__)
+    def __init__(self, *args, normalize_metrics=True, normalization_factor=None, **kwargs):
+        """
+        Initialize the FractionationSSE object.
+
+        Parameters
+        ----------
+        *args :
+            Positional arguments for DifferenceBase.
+        normalize_metrics : bool, optional
+            Whether to normalize the metrics. Default is True.
+        normalization_factor : float, optional
+            Factor to use for normalization.
+            If None, it is set to the maximum of the difference between the reference
+            breakthrough and the start time, and the difference between the end time and
+            the reference breakthrough.
+        **kwargs : dict
+            Keyword arguments passed to the base class constructor.
+
+        """
+        super().__init__(*args, resample=False, only_transforms_array=False, **kwargs)
+
+        if not isinstance(self.reference, FractionationReference):
+            raise TypeError("FractionationSSE can only work with FractionationReference")
+
+        def transform(solution):
+            solution = copy.deepcopy(solution)
+            solution_fractions = [
+                solution.create_fraction(frac.start, frac.end)
+                for frac in self.reference.fractions
+            ]
+
+            solution.time = np.array([(frac.start + frac.end)/2 for frac in solution_fractions])
+            solution.solution = np.array([frac.concentration for frac in solution_fractions])
+
+            return solution
+
+        self.transform = transform
+
+    def _evaluate(self, solution):
+        """np.array: Difference in breakthrough position (time).
+
+        Parameters
+        ----------
+        solution : SolutionIO
+            Concentration profile of simulation.
+
+        """
+        sse = calculate_sse(solution.solution, self.reference.solution)
+
+        return sse
