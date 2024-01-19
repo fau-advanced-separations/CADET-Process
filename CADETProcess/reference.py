@@ -18,11 +18,12 @@ comparison with ``SimulationResults``
 
 import numpy as np
 
+from CADETProcess import CADETProcessError
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess.solution import SolutionBase, SolutionIO
 
 
-__all__ = ['ReferenceBase', 'ReferenceIO']
+__all__ = ['ReferenceBase', 'ReferenceIO', 'FractionationReference']
 
 
 class ReferenceBase(SolutionBase):
@@ -37,8 +38,8 @@ class ReferenceBase(SolutionBase):
     pass
 
 
-class ReferenceIO(SolutionIO):
-    """A class representing reference data of of inlet or outlet unitoperations.
+class ReferenceIO(ReferenceBase, SolutionIO):
+    """A class representing reference data of inlet or outlet concentration profiles.
 
     Attributes
     ----------
@@ -109,3 +110,48 @@ class ReferenceIO(SolutionIO):
             flow_rate = flow_rate * np.ones(time.shape)
 
         super().__init__(name, component_system, time, solution, flow_rate)
+
+
+class FractionationReference(ReferenceBase):
+    """A class representing reference data of fractionation data.
+
+    Attributes
+    ----------
+    name : str
+        The name of the reference.
+    component_system : ComponentSystem
+        The reference component system.
+    time : np.ndarray
+        The time points for the reference.
+    solution : np.ndarray
+        The reference solution values.
+
+    See Also
+    --------
+    CADETProcess.reference.ReferenceBase
+    CADETProcess.fractionation.Fraction
+    """
+
+    dimensions = SolutionBase.dimensions + ['component_coordinates']
+
+    def __init__(self, name, fractions, component_system=None, *args, **kwargs):
+        from CADETProcess.fractionation import Fraction
+
+        for frac in fractions:
+            if not isinstance(frac, Fraction):
+                raise TypeError("Expected Fraction.")
+            if frac.start is None or frac.end is None:
+                raise CADETProcessError("Fractionation times must be provided.")
+            if not frac.end > frac.start:
+                raise CADETProcessError("Fraction end time must be greater than start.")
+
+        self.fractions = fractions
+
+        time = np.array([(frac.start + frac.end)/2 for frac in self.fractions])
+        solution = np.array([frac.mass / frac.volume for frac in self.fractions])
+
+        if component_system is None:
+            n_comp = solution.shape[1]
+            component_system = ComponentSystem(n_comp)
+
+        super().__init__(name, component_system, time, solution)
