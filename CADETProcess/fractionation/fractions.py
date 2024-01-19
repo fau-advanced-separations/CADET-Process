@@ -39,8 +39,10 @@ class Fraction(Structure):
 
     mass = Vector()
     volume = UnsignedFloat()
+    start = UnsignedFloat()
+    end = UnsignedFloat()
 
-    _parameters = ['mass', 'volume']
+    _parameters = ['mass', 'volume', 'start', 'end']
 
     @property
     def n_comp(self):
