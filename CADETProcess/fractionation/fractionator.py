@@ -17,6 +17,9 @@ from CADETProcess import SimulationResults
 from CADETProcess.fractionation.fractions import Fraction, FractionPool
 
 
+__all__ = ["Fractionator"]
+
+
 class Fractionator(EventHandler):
     """Class for Chromatogram Fractionation.
 
