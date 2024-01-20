@@ -33,7 +33,7 @@ __all__ = ['SimulationResults']
 
 
 class SimulationResults(Structure):
-    """Class for storing simulation results including the solver configuration
+    """Class for storing simulation results including the solver configuration.
 
     Attributes
     ----------
