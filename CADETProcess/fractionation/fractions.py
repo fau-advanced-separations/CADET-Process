@@ -7,6 +7,9 @@ from CADETProcess.dataStructure import (
 )
 
 
+__all__ = ["Fraction", "FractionPool"]
+
+
 class Fraction(Structure):
     """A class representing a fraction of a mixture.
 
