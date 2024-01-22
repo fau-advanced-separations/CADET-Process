@@ -231,11 +231,12 @@ class DifferenceBase(MetricBase):
         @wraps(func)
         def wrapper(self, solution, *args, **kwargs):
             solution = copy.deepcopy(solution)
-            solution.resample(
-                self._reference.time[0],
-                self._reference.time[-1],
-                len(self._reference.time),
-            )
+            if self.resample:
+                solution.resample(
+                    self._reference.time[0],
+                    self._reference.time[-1],
+                    len(self._reference.time),
+                )
             if self.normalize and not solution.is_normalized:
                 solution.normalize()
             if self.smooth and not solution.is_smoothed:
