@@ -109,6 +109,7 @@ class DifferenceBase(MetricBase):
             start=None,
             end=None,
             transform=None,
+            only_transforms_array=True,
             resample=True,
             smooth=False,
             normalize=False):
@@ -131,6 +132,8 @@ class DifferenceBase(MetricBase):
             End time of solution slice to be considerd. The default is None.
         transform : callable, optional
             Function to transform solution. The default is None.
+        only_transforms_array: bool, optional
+            If True, only transform np array of solution object. The default is True.
         resample : bool, optional
             If True, resample data. The default is True.
         smooth : bool, optional
@@ -146,6 +149,7 @@ class DifferenceBase(MetricBase):
         self.start = start
         self.end = end
         self.transform = transform
+        self.only_transforms_array = only_transforms_array
         self.resample = resample
         self.smooth = smooth
         self.normalize = normalize
@@ -247,7 +251,11 @@ class DifferenceBase(MetricBase):
         def wrapper(self, solution, *args, **kwargs):
             if self.transform is not None:
                 solution = copy.deepcopy(solution)
-                solution.solution = self.transform(solution.solution)
+
+                if self.only_transforms_array:
+                    solution.solution = self.transform(solution.solution)
+                else:
+                    solution = self.transform(solution)
 
             value = func(self, solution, *args, **kwargs)
             return value
