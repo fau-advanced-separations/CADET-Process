@@ -37,6 +37,7 @@ If **CADET-Process** is useful to you, please cite the following publication:
 ```
 
 ## Installation
+
 **CADET-Process** can be installed with the following command:
 
 ```
@@ -45,17 +46,25 @@ pip install CADET-Process
 
 To use **CADET-Process**, make sure, that **CADET** is also installed.
 This can for example be done using [conda](https://docs.conda.io/en/latest/):
+
 ```
 conda install -c conda-forge cadet
 ```
+
 For more information, see the [CADET Documentation](https://cadet.github.io/master/getting_started/installation.html).
 
 ## Free software
-CADET-Process is free software: you can redistribute it and/or modify it under the terms of the [GNU General Public License version 3](https://github.com/fau-advanced-separations/CADET-Process/blob/master/LICENSE).
+
+CADET-Process is free software: you can redistribute it and/or modify it under the terms of the [GNU General Public License version 3](https://github.com/fau-advanced-separations/CADET-Process/blob/master/LICENSE.md).
 
 ## Note
+
 This software is work in progress and being actively developed.
 Breaking changes and extensive restructuring may occur in any commit and release.
 If you encounter problems or if you have questions, feel free to ask for support in the [**CADET-Forum**](https://forum.cadet-web.de).
 Please report any bugs that you find [here](https://github.com/fau-advanced-separations/CADET-Process/issues).
 Pull requests on [GitHub](https://github.com/fau-advanced-separations/CADET-Process) are also welcome.
+
+## Acknowledgments
+
+Please refer to the [list of contributors](CONTRIBUTORS.md) who helped building and funding this project.
