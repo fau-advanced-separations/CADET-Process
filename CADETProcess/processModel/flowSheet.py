@@ -465,6 +465,8 @@ class FlowSheet(Structure):
         except KeyError:
             raise CADETProcessError('Connection does not exist.')
 
+
+    #TODO: Extend to also check that the right ports are connected.
     @origin_destination_name_decorator
     def connection_exists(self, origin, destination):
         """bool: check if connection exists in flow sheet.
