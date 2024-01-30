@@ -126,7 +126,7 @@ class UnitBaseClass(Structure):
             solution_recorder = IORecorder()
         self.solution_recorder = solution_recorder
 
-        if self.n_ports == None:
+        if n_ports == None:
             self.n_ports = 1
         else:
             self.n_ports = n_ports
