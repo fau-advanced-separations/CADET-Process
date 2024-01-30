@@ -927,9 +927,9 @@ class TestPorts(unittest.TestCase):
         mct_flow_sheet = FlowSheet(self.component_system)
 
         inlet = Inlet(self.component_system, name='inlet')
-        mct_3c = MCT(self.component_system,nchannel=3, name='mct_3c')
-        mct_2c1 = MCT(self.component_system,nchannel=2, name='mct_2c1')
-        mct_2c2 = MCT(self.component_system,nchannel=2, name='mct_2c2')
+        mct_3c = MCT(self.component_system,nchannel=3, name='mct_3c', n_ports=3)
+        mct_2c1 = MCT(self.component_system,nchannel=2, name='mct_2c1', n_ports=2)
+        mct_2c2 = MCT(self.component_system,nchannel=2, name='mct_2c2', n_ports=2)
         outlet1 = Outlet(self.component_system, name='outlet1')
         outlet2 = Outlet(self.component_system, name='outlet2')
 
@@ -940,11 +940,13 @@ class TestPorts(unittest.TestCase):
         mct_flow_sheet.add_unit(outlet1)
         mct_flow_sheet.add_unit(outlet2)
 
-        mct_flow_sheet.add_connection(inlet, mct_3c, origin_port=0, destination_port=0)
+        mct_flow_sheet.add_connection(inlet, mct_3c, destination_port=0)
         mct_flow_sheet.add_connection(mct_3c, mct_2c1, origin_port=0, destination_port=0)
+        mct_flow_sheet.add_connection(mct_3c, mct_2c1, origin_port=0, destination_port=1)
         mct_flow_sheet.add_connection(mct_3c, mct_2c2, origin_port=1, destination_port=0)
+        mct_flow_sheet.add_connection(mct_2c1, outlet1, origin_port=0, destination_port=0)
         mct_flow_sheet.add_connection(mct_2c1, outlet1, origin_port=1, destination_port=0)
-        mct_flow_sheet.add_connection(mct_2c2, outlet2, origin_port=1)
+        mct_flow_sheet.add_connection(mct_2c2, outlet2, origin_port=0)
 
         self.mct_flow_sheet = mct_flow_sheet
 
@@ -995,6 +997,12 @@ class TestPorts(unittest.TestCase):
                     0: {
                         inlet:[0],
                     },
+                    1: {
+
+                    },
+                    2: {
+
+                    },
                 },
                 'destinations': {
                     0: {
@@ -1002,7 +1010,10 @@ class TestPorts(unittest.TestCase):
                     },
                     1: {
                         mct_2c2:[0],
-                    }
+                    },
+                    2: {
+
+                    },
                 },
             },
 
@@ -1020,6 +1031,9 @@ class TestPorts(unittest.TestCase):
                     0: {
                         outlet1:[0],
                     },
+                    1: {
+                        outlet1:[0],
+                    },
                 },
             },
                 
@@ -1028,10 +1042,17 @@ class TestPorts(unittest.TestCase):
                     0: {
                         mct_3c:[1], 
                     },
+                    1: {
+
+                    },
                 },
+
                 'destinations': {
                     0: {    
                         outlet2:[0],
+                    },
+                    1: {
+
                     },
                 },
             },
@@ -1039,7 +1060,7 @@ class TestPorts(unittest.TestCase):
             outlet1: {
                 'origins':{
                     0: {
-                        mct_2c1:[0],
+                        mct_2c1:[0,1],
                     },
                 },
     
@@ -1061,88 +1082,90 @@ class TestPorts(unittest.TestCase):
             self.mct_flow_sheet.connections, expected_connections
         )
 
-        self.assertTrue(self.mct_flow_sheet.connection_exists(inlet, mct_3c, origin_port=0, destination_port=0))
-        self.assertTrue(self.mct_flow_sheet.connection_exists(mct_3c, mct_2c1, origin_port=0, destination_port=0))
-        self.assertTrue(self.mct_flow_sheet.connection_exists(mct_3c, mct_2c2, origin_port=1, destination_port=0))
-        self.assertTrue(self.mct_flow_sheet.connection_exists(mct_2c1, outlet1, origin_port=1, destination_port=0))
-        self.assertTrue(self.mct_flow_sheet.connection_exists(mct_2c2, outlet2, origin_port=1))
+        self.assertTrue(self.mct_flow_sheet.connection_exists(inlet, mct_3c))
+        self.assertTrue(self.mct_flow_sheet.connection_exists(mct_3c, mct_2c1))
+        self.assertTrue(self.mct_flow_sheet.connection_exists(mct_3c, mct_2c2,))
+        self.assertTrue(self.mct_flow_sheet.connection_exists(mct_2c1, outlet1))
+        self.assertTrue(self.mct_flow_sheet.connection_exists(mct_2c2, outlet2))
 
         self.assertFalse(self.mct_flow_sheet.connection_exists(inlet, mct_2c1))
 
-def test_ccc_connections(self):
-        feed = self.ssr_flow_sheet['feed']
-        eluent = self.ssr_flow_sheet['eluent']
-        cstr = self.ssr_flow_sheet['cstr']
-        column = self.ssr_flow_sheet['column']
-        outlet = self.ssr_flow_sheet['outlet']
+    def test_ccc_connections(self):
+            inlet = self.ccc_flow_sheet['inlet']
+            ccc1 = self.ccc_flow_sheet['ccc1']
+            ccc2 = self.ccc_flow_sheet['ccc2']
+            ccc3 = self.ccc_flow_sheet['ccc3']
+            outlet = self.ccc_flow_sheet['outlet']
 
-        expected_connections = {
-            feed: {
-                'origins': None,
-                'destinations': {
-                    0: {
-                        cstr:[0],
+            expected_connections = {
+                inlet: {
+                    'origins': None,
+                    'destinations': {
+                        0: {
+                            ccc1:[0],
+                        },
                     },
                 },
-            },
-            eluent: {
-                'origins': None,
-                'destinations': {
-                    0: {
-                        column:[0],
+                ccc1: {
+                    'origins': {
+                        0: {
+                            inlet:[0],
+                        },
+                    },
+                    'destinations': {
+                        0: {
+                            ccc2:[0],
+                        },
                     },
                 },
-            },
 
-            cstr: {
-                'origins': {
-                    0: {
-                        feed:[0], 
-                        column:[0],
+                ccc2: {
+                    'origins': {
+                        0: {
+                            ccc1:[0],
+                        },
+                    },
+                    'destinations': {
+                        0: {
+                            ccc3:[0],
+                        },
                     },
                 },
-                'destinations': {
-                    0: {
-                        column:[0],
+                    
+                ccc3: {
+                    'origins': {
+                        0: {
+                            ccc2:[0],
+                        },
+                    },
+                    'destinations': {
+                        0: {
+                            outlet:[0],
+                        },
                     },
                 },
-            },
-                
-            column: {
-                'origins': {
-                    0: {
-                        cstr:[0], 
-                        eluent:[0],
+            
+                outlet: {
+                    'origins':{
+                        0: {
+                            ccc3:[0],
+                        },
                     },
-                },
-                'destinations': {
-                    0: {    
-                        cstr:[0],
-                        outlet:[0],
-                    },
-                },
-            },
         
-            outlet: {
-                'origins':{
-                    0: {
-                        column:[0],
-                    },
+                    'destinations': None,
                 },
-    
-                'destinations': None,
-            },
-        }
+            }
 
-        self.assertDictEqual(
-            self.ssr_flow_sheet.connections, expected_connections
-        )
+            self.assertDictEqual(
+                self.ccc_flow_sheet.connections, expected_connections
+            )
 
-        self.assertTrue(self.ssr_flow_sheet.connection_exists(feed, cstr))
-        self.assertTrue(self.ssr_flow_sheet.connection_exists(eluent, column))
-        self.assertTrue(self.ssr_flow_sheet.connection_exists(column, outlet))
+            self.assertTrue(self.ccc_flow_sheet.connection_exists(inlet, ccc1))
+            self.assertTrue(self.ccc_flow_sheet.connection_exists(ccc1, ccc2))
+            self.assertTrue(self.ccc_flow_sheet.connection_exists(ccc2, ccc3))
+            self.assertTrue(self.ccc_flow_sheet.connection_exists(ccc3, outlet))
 
-        self.assertFalse(self.ssr_flow_sheet.connection_exists(feed, eluent))
+            self.assertFalse(self.ccc_flow_sheet.connection_exists(inlet, outlet))
 
 class TestFlowRateMatrix(unittest.TestCase):
     """Test calculation of flow rates with another simple testcase by @daklauss"""
