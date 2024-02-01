@@ -61,7 +61,14 @@ def allow_test_failure_percentage(
                 )
                 msg[lnum] = err_line
                 raise AssertionError("\n".join(msg))
-
+            else:
+                warn_line = (
+                    mismatch_line +
+                    f" below tolerance ({mismatch_percent}% <= {mismatch_tol * 100}%)"
+                )
+                warnings.warn(
+                     f"Equality test passed with {warn_line}"
+                )
 
 class TestProblem(OptimizationProblem):
     @property
