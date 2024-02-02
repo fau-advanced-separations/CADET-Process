@@ -631,6 +631,9 @@ class FlowSheet(Structure):
         # Solve system of equations for each polynomial coefficient
         total_flow_rate_coefficents = np.zeros((4, n_units))
         for i in range(4):
+            if len(flow_rates) == 0:
+                continue
+
             coeffs = np.array(list(flow_rates.values()), ndmin=2)[:, i]
             if not np.any(coeffs):
                 continue
