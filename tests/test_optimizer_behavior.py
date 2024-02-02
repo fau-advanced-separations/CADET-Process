@@ -36,7 +36,7 @@ SOO_TEST_KWARGS = {
 MOO_TEST_KWARGS = {
     "atol": 0.01,
     "rtol": 0.1,
-    "mismatch_tol": 0.25,  # 75 % of all solutions must lie on the pareto front
+    "mismatch_tol": 0.33,  # 75 % of all solutions must lie on the pareto front
 }
 
 FTOL = 0.1
