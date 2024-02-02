@@ -64,7 +64,7 @@ class UnitBaseClass(Structure):
         list of parameter names.
     name : String
         name of the unit operation.
-    n_ports : UnsignedInteger 
+    n_ports : UnsignedInteger
         Number of ports of a unit.
     binding_model : BindingBaseClass
         binding behavior of the unit. Defaults to NoBinding.
@@ -130,7 +130,7 @@ class UnitBaseClass(Structure):
             self.n_ports = 1
         else:
             self.n_ports = n_ports
-  
+
 
         super().__init__(*args, **kwargs)
 
@@ -168,7 +168,7 @@ class UnitBaseClass(Structure):
     @property
     def n_comp(self):
         return self.component_system.n_comp
-    
+
     @property
     def parameters(self):
         """dict: Dictionary with parameter values."""
@@ -1231,8 +1231,8 @@ class MCT(UnitBaseClass):
             solution_recorder=MCTRecorder(),
             **kwargs
             )
-        
-    
+
+
     # @n_ports.setter
     # def n_ports(self, n_ports):
     #     self.n_ports = n_ports
@@ -1256,7 +1256,7 @@ class MCT(UnitBaseClass):
 
         """
         return sum(self.channel_cross_section_areas) * self.length
-    
+
     @property
     def volume_liquid(self):
         """float: Volume of the liquid phase. Equals the volume, since there is no solid phase."""
@@ -1266,4 +1266,3 @@ class MCT(UnitBaseClass):
     def volume_solid(self):
         """float: Volume of the solid phase. Equals zero, since there is no solid phase."""
         return (1 - 1) * self.volume
-    

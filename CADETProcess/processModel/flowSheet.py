@@ -238,7 +238,7 @@ class FlowSheet(Structure):
 
         self._units.append(unit)
 
-        for i in range(unit.n_ports): 
+        for i in range(unit.n_ports):
 
             if isinstance(unit, Inlet):
                 self._connections[unit]['origins'] = None
@@ -251,11 +251,11 @@ class FlowSheet(Structure):
             else:
                 self._connections[unit]['origins'][i] = defaultdict(list)
                 self._connections[unit]['destinations'][i] = defaultdict(list)
-    
-    
+
+
 
         # TODO: Ports must also be implemented for output states and flow rates.
-        
+
         self._output_states[unit] = []
         self._flow_rates[unit] = []
 
@@ -308,26 +308,26 @@ class FlowSheet(Structure):
             self.remove_product_outlet(unit)
         # TODO: Connections must be removed for ports @hannah
         #Unit has to be removed from every port of every origin and every destination
-        
+
         origins = []
         destinations = []
 
         if self._connections[unit]['origins'] is not None:
             origins = [origin for ports in self._connections[unit]['origins'] for origin in self._connections[unit]['origins'][ports]].copy()
-     
+
         for origin in origins:
             for origin_port in self._connections[unit]['origins']:
-                for unit_port in self._connections[unit]['origins'][origin_port][origin]:  
+                for unit_port in self._connections[unit]['origins'][origin_port][origin]:
                     self.remove_connection(origin, unit, origin_port, unit_port)
 
         if self._connections[unit]['destinations'] is not None:
             destinations = [destination for ports in self._connections[unit]['destinations'] for destination in self._connections[unit]['destinations'][ports]].copy()
-        
+
         for destination in destinations:
             for destination_port in self._connections[unit]['destinations']:
-                for unit_port in self._connections[unit]['destinations'][destination_port][destination]: 
-                    self.remove_connection(unit, destination, unit_port, destination_port) 
-        
+                for unit_port in self._connections[unit]['destinations'][destination_port][destination]:
+                    self.remove_connection(unit, destination, unit_port, destination_port)
+
         self._units.remove(unit)
         self._connections.pop(unit)
         self._output_states.pop(unit)
@@ -448,7 +448,7 @@ class FlowSheet(Structure):
             origin_port = 0
         if origin_port > origin.n_ports-1:
             raise CADETProcessError('Origin port exceeds number of ports.')
-        
+
         if destination not in self._units:
             raise CADETProcessError('Destination not in flow sheet')
         if destination.n_ports !=1 and origin_port is None:

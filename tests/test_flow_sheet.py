@@ -191,7 +191,7 @@ class TestFlowSheet(unittest.TestCase):
             cstr: {
                 'origins': {
                     0: {
-                        feed:[0], 
+                        feed:[0],
                         column:[0],
                     },
                 },
@@ -201,29 +201,29 @@ class TestFlowSheet(unittest.TestCase):
                     },
                 },
             },
-                
+
             column: {
                 'origins': {
                     0: {
-                        cstr:[0], 
+                        cstr:[0],
                         eluent:[0],
                     },
                 },
                 'destinations': {
-                    0: {    
+                    0: {
                         cstr:[0],
                         outlet:[0],
                     },
                 },
             },
-        
+
             outlet: {
                 'origins':{
                     0: {
                         column:[0],
                     },
                 },
-    
+
                 'destinations': None,
             },
         }
@@ -281,7 +281,7 @@ class TestFlowSheet(unittest.TestCase):
             cstr: {
                 'origins': {
                     0: {
-                        feed:[0], 
+                        feed:[0],
                         column:[0],
                     },
                 },
@@ -291,29 +291,29 @@ class TestFlowSheet(unittest.TestCase):
                     },
                 },
             },
-                
+
             column: {
                 'origins': {
                     0: {
-                        cstr:[0], 
+                        cstr:[0],
                         eluent:[0],
                     },
                 },
                 'destinations': {
-                    0: {    
+                    0: {
                         cstr:[0],
                         outlet:[0],
                     },
                 },
             },
-        
+
             outlet: {
                 'origins':{
                     0: {
                         column:[0],
                     },
                 },
-    
+
                 'destinations': None,
             },
         }
@@ -382,29 +382,29 @@ class TestFlowSheet(unittest.TestCase):
                     },
                 },
             },
-                
+
             column: {
                 'origins': {
                     0: {
-                        cstr:[0], 
+                        cstr:[0],
                         eluent:[0],
                     },
                 },
                 'destinations': {
-                    0: {    
+                    0: {
                         outlet:[0],
                         cstr:[0],
                     },
                 },
             },
-        
+
             outlet: {
                 'origins':{
                     0: {
                         column:[0],
                     },
                 },
-    
+
                 'destinations': None,
             },
         }
@@ -431,7 +431,7 @@ class TestFlowSheet(unittest.TestCase):
 
         expected_flow_rates = {
             'feed': {
-                'total_out':{ 
+                'total_out':{
                     0: (0, 0, 0, 0),
                     },
 
@@ -442,7 +442,7 @@ class TestFlowSheet(unittest.TestCase):
                 },
             },
             'eluent': {
-                'total_out': { 
+                'total_out': {
                     0: (0, 0, 0, 0),
                     },
                 'destinations': {
@@ -452,10 +452,10 @@ class TestFlowSheet(unittest.TestCase):
                 },
             },
             'cstr': {
-                'total_in': { 
+                'total_in': {
                     0: (0, 0, 0, 0),
                     },
-                'total_out': { 
+                'total_out': {
                     0: (1.0, 0, 0, 0),
                     },
                 'origins': {
@@ -471,10 +471,10 @@ class TestFlowSheet(unittest.TestCase):
                 },
             },
             'column': {
-                'total_in': { 
+                'total_in': {
                     0: (1.0, 0, 0, 0),
                     },
-                'total_out': { 
+                'total_out': {
                     0: (1.0, 0, 0, 0),
                     },
                 'origins': {
@@ -971,7 +971,7 @@ class TestPorts(unittest.TestCase):
         ccc_flow_sheet.add_connection(ccc1, ccc2, origin_port=0, destination_port=0)
         ccc_flow_sheet.add_connection(ccc2, ccc3, origin_port=0, destination_port=0)
         ccc_flow_sheet.add_connection(ccc3, outlet, origin_port=0)
-      
+
 
         self.ccc_flow_sheet = ccc_flow_sheet
 
@@ -1020,11 +1020,11 @@ class TestPorts(unittest.TestCase):
             mct_2c1: {
                 'origins': {
                     0: {
-                        mct_3c:[0], 
+                        mct_3c:[0],
                     },
 
                     1: {
-                        mct_3c:[0], 
+                        mct_3c:[0],
                     },
                 },
                 'destinations': {
@@ -1036,11 +1036,11 @@ class TestPorts(unittest.TestCase):
                     },
                 },
             },
-                
+
             mct_2c2: {
                 'origins': {
                     0: {
-                        mct_3c:[1], 
+                        mct_3c:[1],
                     },
                     1: {
 
@@ -1048,7 +1048,7 @@ class TestPorts(unittest.TestCase):
                 },
 
                 'destinations': {
-                    0: {    
+                    0: {
                         outlet2:[0],
                     },
                     1: {
@@ -1056,14 +1056,14 @@ class TestPorts(unittest.TestCase):
                     },
                 },
             },
-        
+
             outlet1: {
                 'origins':{
                     0: {
                         mct_2c1:[0,1],
                     },
                 },
-    
+
                 'destinations': None,
             },
 
@@ -1073,7 +1073,7 @@ class TestPorts(unittest.TestCase):
                         mct_2c2:[0],
                     },
                 },
-    
+
                 'destinations': None,
             },
         }
@@ -1131,7 +1131,7 @@ class TestPorts(unittest.TestCase):
                         },
                     },
                 },
-                    
+
                 ccc3: {
                     'origins': {
                         0: {
@@ -1144,14 +1144,14 @@ class TestPorts(unittest.TestCase):
                         },
                     },
                 },
-            
+
                 outlet: {
                     'origins':{
                         0: {
                             ccc3:[0],
                         },
                     },
-        
+
                     'destinations': None,
                 },
             }

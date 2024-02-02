@@ -245,7 +245,7 @@ class Test_Unit_Operation(unittest.TestCase):
         mct = self.create_MCT()
 
         parameters_expected = {
-        'c': np.array([[0., 0., 0.]]), 
+        'c': np.array([[0., 0., 0.]]),
         'axial_dispersion' : 0, #TODO: Update when multiplex is implemented
         'channel_cross_section_areas' : channel_cross_section_areas,
         'length' : length,
@@ -268,10 +268,10 @@ class Test_Unit_Operation(unittest.TestCase):
 
         self.assertTrue(mct.nchannel*mct.component_system.n_comp == mct.c.size)
 
-        
 
-        
-        
+
+
+
 
 
 
