@@ -529,7 +529,7 @@ class LinearNonlinearConstraintsMooTestProblem(TestProblem):
         self.add_variable('var_1', lb=0, ub=3)
 
     def setup_linear_constraints(self):
-        self.add_linear_constraint(['var_0', 'var_1'], [-1, -1], -3)
+        self.add_linear_constraint(['var_0', 'var_1'], [-1, -1], -2)
         self.add_linear_constraint(['var_0', 'var_1'], [ 1, -1],  5)
 
     def setup_nonlinear_constraints(self):
@@ -573,7 +573,7 @@ class LinearNonlinearConstraintsMooTestProblem(TestProblem):
         """
         in a point x in a pareto set
         """
-        return np.where(x1 <= 3, 3 - x1, 0)
+        return np.where(x1 <= 2, 2 - x1, 0)
 
 
     @property
@@ -595,7 +595,7 @@ class LinearNonlinearConstraintsMooTestProblem(TestProblem):
         X = optimization_results.x
 
         x1, x2 = X.T
-        x2_test = np.where(x1 <= 3, 3 - x1, 0)
+        x2_test = self.find_corresponding_x2(x1)
 
         test_kwargs_ = test_kwargs.copy()
         test_kwargs_["err_msg"] = error
