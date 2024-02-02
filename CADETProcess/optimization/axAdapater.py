@@ -534,6 +534,7 @@ class NEHVI(MultiObjectiveAxInterface):
     with noisy expected hypervolume improvement (NEHVI) and approximates the
     model with a Fixed Noise Gaussian Process
     """
+    supports_single_objective = False
 
     def __repr__(self):
         smn = 'FixedNoiseGP'
