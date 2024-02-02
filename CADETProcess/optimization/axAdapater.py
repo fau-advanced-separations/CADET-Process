@@ -1,4 +1,5 @@
 from typing import Union, Dict, Any
+import warnings
 
 import pandas as pd
 import numpy as np
@@ -356,6 +357,13 @@ class AxInterface(OptimizerBase):
         raise NotImplementedError
 
     def run(self, optimization_problem, x0):
+        if x0 is not None:
+            # TODO: write issue to consider x0 support.
+            warnings.warn(
+                "Ax currently does not support specification of initial values "
+                "(x0). Provided x0 will be ignored"
+            )
+
         search_space = self._setup_searchspace(self.optimization_problem)
         objectives = self._setup_objectives()
         outcome_constraints = self._setup_outcome_constraints()
