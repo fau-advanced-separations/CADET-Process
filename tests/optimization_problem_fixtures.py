@@ -5,6 +5,7 @@ TODO:
 
 """
 from functools import partial
+import warnings
 import numpy as np
 
 from CADETProcess.optimization import OptimizationProblem, OptimizationResults
