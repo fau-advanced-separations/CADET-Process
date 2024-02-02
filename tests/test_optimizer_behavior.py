@@ -83,10 +83,10 @@ class GPEI(GPEI):
 
 
 class NEHVI(NEHVI):
-    n_init_evals = 20
+    n_init_evals = 50
     early_stopping_improvement_bar=1e-4
     early_stopping_improvement_window=10
-    n_max_evals=50
+    n_max_evals=60
 
 # =========================
 #   Test problem factory
