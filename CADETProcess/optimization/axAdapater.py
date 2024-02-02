@@ -401,7 +401,6 @@ class AxInterface(OptimizerBase):
             # Create initial samples
             X_init = self.optimization_problem.create_initial_values(
                 n_samples=self.n_init_evals,
-                method="chebyshev",
                 seed=self.seed + 5641,
             )
 
