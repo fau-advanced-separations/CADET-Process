@@ -357,12 +357,6 @@ class AxInterface(OptimizerBase):
         raise NotImplementedError
 
     def run(self, optimization_problem, x0):
-        if x0 is not None:
-            # TODO: write issue to consider x0 support.
-            warnings.warn(
-                "Ax currently does not support specification of initial values "
-                "(x0). Provided x0 will be ignored"
-            )
 
         search_space = self._setup_searchspace(self.optimization_problem)
         objectives = self._setup_objectives()
@@ -406,14 +400,33 @@ class AxInterface(OptimizerBase):
                 trial.mark_completed()
 
         else:
-            # Create initial samples
-            X_init = self.optimization_problem.create_initial_values(
-                n_samples=self.n_init_evals,
-                seed=self.seed + 5641,
-            )
+            if x0 is not None:
 
-            self._create_manual_trial(X_init)
+                x0_init = np.array(x0, ndmin=2)
 
+                if len(x0_init) < self.n_init_evals:
+                    warnings.warn(
+                        "Initial population smaller than popsize. "
+                        "Creating missing entries."
+                    )
+                    n_remaining = self.n_init_evals - len(x0_init)
+                    x0_remaining = optimization_problem.create_initial_values(
+                        n_remaining, seed=self.seed, include_dependent_variables=False
+                    )
+                    x0_init = np.vstack((x0_init, x0_remaining))
+                elif len(x0_init) > self.n_init_evals:
+                    warnings.warn("Initial population larger than popsize. Omitting overhead.")
+                    x0_init = x0_init[0:self.n_init_evals]
+
+            else:
+                # Create initial samples if they are not provided
+                x0_init = self.optimization_problem.create_initial_values(
+                    n_samples=self.n_init_evals,
+                    include_dependent_variables=False,
+                    seed=self.seed + 5641,
+                )
+
+            self._create_manual_trial(x0_init)
             print(exp_to_df(self.ax_experiment))
 
         n_iter = self.results.n_gen
