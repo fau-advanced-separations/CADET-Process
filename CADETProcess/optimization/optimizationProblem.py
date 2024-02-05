@@ -38,6 +38,7 @@ from CADETProcess.transform import (
 
 from CADETProcess.metric import MetricBase
 
+from CADETProcess.optimization import Individual, Population
 from CADETProcess.optimization import ResultsCache
 
 
@@ -2850,6 +2851,23 @@ class OptimizationProblem(Structure):
             values.append(ind)
 
         return np.array(values, ndmin=2)
+
+    @untransforms
+    @gets_dependent_values
+    def create_individual(self, x, f=None, g=None, m=None, cv=None, cv_tol=None):
+        x_indep = self.get_independent_values(x)
+        x_transformed = self.transform(x_indep)
+
+        ind = Individual(
+            x, f, g, m, cv, cv_tol, x_transformed,
+            self.independent_variable_names,
+            self.objective_labels,
+            self.nonlinear_constraint_labels,
+            self.meta_score_labels,
+            self.variable_names,
+        )
+
+        return ind
 
     @property
     def parameters(self):
