@@ -436,7 +436,7 @@ def create_and_save_figure(func):
         if ax is None:
             fig, ax = setup_figure(style=style)
 
-        ax = func(*args, ax=ax, **kwargs)
+        func(*args, ax=ax, **kwargs)
 
         if fig is not None:
             fig.tight_layout()
