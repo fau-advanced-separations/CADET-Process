@@ -39,21 +39,21 @@ MOO_TEST_KWARGS = {
     "mismatch_tol": 0.33,  # 75 % of all solutions must lie on the pareto front
 }
 
-FTOL = 0.1
-XTOL = 0.1
-GTOL = 0.01
+FTOL = 0.001
+XTOL = 0.001
+GTOL = 0.0001
 
 EXCLUDE_COMBINATIONS = [
-    (SLSQP, Rosenbrock,
-        "cannot solve problem with enough accuracy"),
+    (GPEI, Rosenbrock,
+        "cannot solve problem with enough accuracy fast enough-"),
     (U_NSGA3, LinearEqualityConstraintsSooTestProblem,
-        "CADETProcessError: Cannot find individuals that fulfill constraints")
+        "HopsyProblem: operands could not be broadcast together with shapes (2,) (3,)"),
 ]
 
 # this helps to test optimizers for hard problems
 NON_DEFAULT_PARAMETERS = [
     (NEHVI, LinearConstraintsMooTestProblem,
-        {"n_init_evals": 20, "n_max_evals": 30}),
+        {"n_init_evals": 20, "n_max_evals": 40}),
 ]
 
 def skip_if_combination_excluded(optimizer, problem):
@@ -88,14 +88,14 @@ class U_NSGA3(U_NSGA3):
 
 
 class GPEI(GPEI):
-    n_init_evals = 20
+    n_init_evals=40
     early_stopping_improvement_bar=1e-4
     early_stopping_improvement_window=10
     n_max_evals=50
 
 
 class NEHVI(NEHVI):
-    n_init_evals = 50
+    n_init_evals=50
     early_stopping_improvement_bar=1e-4
     early_stopping_improvement_window=10
     n_max_evals=60
@@ -124,9 +124,9 @@ def optimization_problem(request):
 @pytest.fixture(params=[
     SLSQP,  # tests pass
     TrustConstr,  # tests pass
-    U_NSGA3,  # MOO tests --> accuracy too low, LEQ test --> cannot find individuals that fulfill constraints
-    # GPEI,
-    # NEHVI,
+    # U_NSGA3,  # broken
+    GPEI,
+    NEHVI,
 ])
 def optimizer(request):
     return request.param()
@@ -167,7 +167,6 @@ def test_from_initial_values(optimization_problem: TestProblem, optimizer: Optim
             optimization_problem.test_if_solved(results, SOO_TEST_KWARGS)
         else:
             optimization_problem.test_if_solved(results, MOO_TEST_KWARGS)
-
 
 class AbortingCallback:
     """A callback that raises an exception after a specified number of calls."""
@@ -240,9 +239,4 @@ def test_resume_from_checkpoint(
 
 
 if __name__ == "__main__":
-
-    # gpei = GPEI(**ax_kwargs)
-    # nehvi = NEHVI(**ax_kwargs)
-    # test_convergence(NonlinearLinearConstraintsSooTestProblem(), gpei)
-    # test_convergence(NonlinearConstraintsMooTestProblem(), nehvi)
     pytest.main([__file__])
