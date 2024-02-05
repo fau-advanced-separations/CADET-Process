@@ -50,11 +50,23 @@ EXCLUDE_COMBINATIONS = [
         "CADETProcessError: Cannot find individuals that fulfill constraints")
 ]
 
+# this helps to test optimizers for hard problems
+NON_DEFAULT_PARAMETERS = [
+    (NEHVI, LinearConstraintsMooTestProblem,
+        {"n_init_evals": 20, "n_max_evals": 30}),
+]
 
 def skip_if_combination_excluded(optimizer, problem):
     for o, p, r in EXCLUDE_COMBINATIONS:
         if isinstance(optimizer, o) and isinstance(problem, p):
             pytest.skip(reason=r)
+
+def set_non_default_parameters(optimizer, problem):
+    for o, p, params in NON_DEFAULT_PARAMETERS:
+        if isinstance(optimizer, o) and isinstance(problem, p):
+            # override default parameters of the optimizer
+            for pk, pv in params.items():
+                setattr(optimizer, pk, pv)
 
 
 class TrustConstr(TrustConstr):
@@ -144,6 +156,8 @@ def test_from_initial_values(optimization_problem: TestProblem, optimizer: Optim
 
     if optimizer.check_optimization_problem(optimization_problem):
         skip_if_combination_excluded(optimizer, optimization_problem)
+        set_non_default_parameters(optimizer, optimization_problem)
+
         results = optimizer.optimize(
             optimization_problem=optimization_problem,
             x0=optimization_problem.x0,
