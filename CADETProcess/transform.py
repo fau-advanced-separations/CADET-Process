@@ -22,6 +22,9 @@ This module provides functionality for transforming data.
 from abc import ABC, abstractmethod, abstractproperty
 
 import numpy as np
+import matplotlib.pyplot as plt
+
+from CADETProcess import plotting
 
 
 class TransformBase(ABC):
@@ -56,7 +59,7 @@ class TransformBase(ABC):
     Notes
     -----
     - This is an abstract base class and cannot be instantiated directly.
-    - The `transform` method is not implemented in this class and must be implemented by a subclass.
+    - The `transform` method must be implemented by a subclass.
 
     Examples
     --------
@@ -228,6 +231,34 @@ class TransformBase(ABC):
             Transformed parameter values.
         """
         pass
+
+    @plotting.create_and_save_figure
+    def plot(self, ax, use_log_scale=False):
+        """
+        Plot the transformed space against the input space.
+
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes
+            The axes object to plot on.
+        use_log_scale : bool, optional
+            If True, use a logarithmic scale for the x-axis.
+        """
+        allow_extended_input = self.allow_extended_input
+        self.allow_extended_input = True
+
+        y = np.linspace(self.lb, self.ub)
+        x = self.untransform(y)
+
+        ax.plot(x, y)
+
+        ax.set_xlabel('Input Space')
+        ax.set_ylabel('Transformed Space')
+
+        if use_log_scale:
+            ax.set_xscale('log')
+
+        self.allow_extended_input = allow_extended_input
 
     def __str__(self):
         """Return the class name as a string."""
