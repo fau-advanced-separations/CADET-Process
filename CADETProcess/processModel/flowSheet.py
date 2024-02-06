@@ -596,7 +596,7 @@ class FlowSheet(Structure):
 
             Parameters
             ----------
-            
+
             unit_connection_dict : Defaultdict
                 contains dict with connected units and their respective ports
             destination : UnitBaseClass
@@ -605,16 +605,16 @@ class FlowSheet(Structure):
                 destination Port
 
             """
-            
+
             ret_index = 0
             for unit_destination in unit_connection_dict:
                 if unit_destination is destination:
                     ret_index+=unit_connection_dict[unit_destination].index(destination_port)
                     break
-                ret_index+=len(unit_connection_dict[unit_destination])            
+                ret_index+=len(unit_connection_dict[unit_destination])
             return ret_index
-        
-        
+
+
         if unit not in self._units:
             raise CADETProcessError('Unit not in flow sheet')
 

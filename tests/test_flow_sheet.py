@@ -489,7 +489,7 @@ class TestFlowSheet(unittest.TestCase):
                 },
                 'origins': {
                     0: {
-                        'cstr': { 
+                        'cstr': {
                             0: (1.0, 0, 0, 0),
                         },
                         'eluent': {
@@ -534,7 +534,7 @@ class TestFlowSheet(unittest.TestCase):
 
         expected_flow_rates = {
             'feed': {
-                'total_out': { 
+                'total_out': {
                     0: (1, 0, 0, 0),
                     },
                 'destinations': {
@@ -558,10 +558,10 @@ class TestFlowSheet(unittest.TestCase):
                 },
             },
             'cstr': {
-                'total_in': { 
+                'total_in': {
                     0: (1.0, 0, 0, 0),
                     },
-                'total_out': { 
+                'total_out': {
                     0: (0.0, 0, 0, 0),
                     },
                 'origins': {
@@ -667,7 +667,7 @@ class TestFlowSheet(unittest.TestCase):
                     },
                 'origins': {
                     0: {
-                        'feed': { 
+                        'feed': {
                             0: (0, 0, 0, 0),
                         },
                         'column': {
@@ -888,7 +888,7 @@ class TestFlowSheet(unittest.TestCase):
                 column,
                 {
                     'column': 0.1,
-                    'outlet': { 
+                    'outlet': {
                         0: 0.9,
                     }
                 }
@@ -1478,7 +1478,7 @@ class TestFlowRateSelfMatrix(unittest.TestCase):
                     0: {
                         'cstr': {
                             0: (1, 0, 0, 0),
-                        },    
+                        },
                     },
                 },
             },
@@ -1496,7 +1496,7 @@ class TestFlowRateSelfMatrix(unittest.TestCase):
                         },
                         'cstr': {
                             0: (1, 0, 0, 0),
-                        },                        
+                        },
                     },
                 },
                 'destinations': {
@@ -1516,7 +1516,7 @@ class TestFlowRateSelfMatrix(unittest.TestCase):
                 },
                 'origins': {
                     0: {
-                        'cstr': { 
+                        'cstr': {
                             0: (1, 0, 0, 0),
                         },
                     },
