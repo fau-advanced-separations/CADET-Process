@@ -868,7 +868,9 @@ class TestFlowSheet(unittest.TestCase):
             column,
             {
                 'cstr': 0.1,
-                'outlet': 0.9,
+                'outlet': {
+                    0: 0.9,
+                }
             }
         )
         output_state_expected = [0.1, 0.9]
@@ -886,7 +888,9 @@ class TestFlowSheet(unittest.TestCase):
                 column,
                 {
                     'column': 0.1,
-                    'outlet': 0.9,
+                    'outlet': { 
+                        0: 0.9,
+                    }
                 }
             )
 
@@ -1176,13 +1180,16 @@ class TestPorts(unittest.TestCase):
             self.mct_flow_sheet.connections, expected_connections
         )
 
-        self.assertTrue(self.mct_flow_sheet.connection_exists(inlet, mct_3c))
-        self.assertTrue(self.mct_flow_sheet.connection_exists(mct_3c, mct_2c1))
-        self.assertTrue(self.mct_flow_sheet.connection_exists(mct_3c, mct_2c2,))
-        self.assertTrue(self.mct_flow_sheet.connection_exists(mct_2c1, outlet1))
-        self.assertTrue(self.mct_flow_sheet.connection_exists(mct_2c2, outlet2))
+        self.assertTrue(self.mct_flow_sheet.connection_exists(inlet, mct_3c, 0, 0))
+        self.assertTrue(self.mct_flow_sheet.connection_exists(mct_3c, mct_2c1, 0, 0))
+        self.assertTrue(self.mct_flow_sheet.connection_exists(mct_3c, mct_2c1, 0, 1))
+        self.assertTrue(self.mct_flow_sheet.connection_exists(mct_3c, mct_2c2, 1, 0))
+        self.assertTrue(self.mct_flow_sheet.connection_exists(mct_2c1, outlet1, 0, 0))
+        self.assertTrue(self.mct_flow_sheet.connection_exists(mct_2c1, outlet1, 1, 0))
+        self.assertTrue(self.mct_flow_sheet.connection_exists(mct_2c2, outlet2, 0, 0))
 
-        self.assertFalse(self.mct_flow_sheet.connection_exists(inlet, mct_2c1))
+        self.assertFalse(self.mct_flow_sheet.connection_exists(mct_2c2, outlet2, 1, 0))
+        self.assertFalse(self.mct_flow_sheet.connection_exists(inlet, mct_2c1, 0, 0))
 
     def test_ccc_connections(self):
             inlet = self.ccc_flow_sheet['inlet']

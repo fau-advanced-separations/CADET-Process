@@ -314,15 +314,15 @@ class FlowSheet(Structure):
         destinations = []
 
         if self._connections[unit]['origins'] is not None:
-            origins = [origin for ports in self._connections[unit]['origins'] for origin in self._connections[unit]['origins'][ports]].copy()
+            origins = [origin for ports in self._connections[unit]['origins'] for origin in self._connections[unit]['origins'][ports]]
+
+        if self._connections[unit]['destinations'] is not None:
+            destinations = [destination for ports in self._connections[unit]['destinations'] for destination in self._connections[unit]['destinations'][ports]].copy()
 
         for origin in origins:
             for origin_port in self._connections[unit]['origins']:
                 for unit_port in self._connections[unit]['origins'][origin_port][origin]:
                     self.remove_connection(origin, unit, origin_port, unit_port)
-
-        if self._connections[unit]['destinations'] is not None:
-            destinations = [destination for ports in self._connections[unit]['destinations'] for destination in self._connections[unit]['destinations'][ports]].copy()
 
         for destination in destinations:
             for destination_port in self._connections[unit]['destinations']:
@@ -461,15 +461,15 @@ class FlowSheet(Structure):
 
         try:
 
-            self._connections[destination]['origins'][destination_port][origin].pop([origin_port])
-            self._connections[origin]['destinations'][origin_port][destination].pop([destination_port])
+            self._connections[destination]['origins'][destination_port].pop(origin)
+            self._connections[origin]['destinations'][origin_port].pop(destination)
         except KeyError:
             raise CADETProcessError('Connection does not exist.')
 
 
-    #TODO: Extend to also check that the right ports are connected.
+
     @origin_destination_name_decorator
-    def connection_exists(self, origin, destination):
+    def connection_exists(self, origin, destination, origin_port=0, destination_port=0):
         """bool: check if connection exists in flow sheet.
 
         Parameters
@@ -484,8 +484,10 @@ class FlowSheet(Structure):
         This method checks if the units destination equals any origin in the connected unit (and vice versa) while neglecting ports.
 
         """
-        if any(destination in self._connections[origin].destinations[ports] for ports in self._connections[origin].destinations) \
-                and any(origin in self._connections[destination].origins[ports] for ports in self._connections[destination].origins):
+        if destination in self._connections[origin].destinations[origin_port]\
+                and destination_port in self._connections[origin].destinations[origin_port][destination]\
+                and origin in self._connections[destination].origins[destination_port]\
+                and origin_port in self._connections[destination].origins[destination_port][origin]:
             return True
 
         return False
@@ -527,10 +529,10 @@ class FlowSheet(Structure):
                     flag = False
                     warn("Cstr cannot have flow rate without outgoing stream.")
             else:
-                if len(connections.origins) == 0:
+                if all(len(port_list) == 0 for port_list in connections.origins.values()):
                     flag = False
                     warn(f"Unit '{unit.name}' does not have ingoing stream.")
-                if len(connections.destinations) == 0:
+                if all(len(port_list) == 0 for port_list in connections.destinations.values()):
                     flag = False
                     warn(f" Unit '{unit.name}' does not have outgoing stream.")
 
@@ -589,10 +591,34 @@ class FlowSheet(Structure):
             If the sum of the states is not equal to 1.
 
         """
+        def get_port_index(unit_connection_dict, destination, destination_port):
+            """helper function to classify the index of a connection for your outputstate
+
+            Parameters
+            ----------
+            
+            unit_connection_dict : Defaultdict
+                contains dict with connected units and their respective ports
+            destination : UnitBaseClass
+                destination object
+            destination_port : int
+                destination Port
+
+            """
+            
+            ret_index = 0
+            for unit_destination in unit_connection_dict:
+                if unit_destination is destination:
+                    ret_index+=unit_connection_dict[unit_destination].index(destination_port)
+                    break
+                ret_index+=len(unit_connection_dict[unit_destination])            
+            return ret_index
+        
+        
         if unit not in self._units:
             raise CADETProcessError('Unit not in flow sheet')
 
-        state_length = len(self.connections[unit].destinations)
+        state_length = sum([len(self.connections[unit].destinations[port][unit_name]) for unit_name in self.connections[unit].destinations[port]])
 
         if state_length == 0:
             output_state = []
@@ -608,12 +634,23 @@ class FlowSheet(Structure):
             output_state = [0] * state_length
             for dest, value in state.items():
                 try:
-                    assert self.connection_exists(unit, dest)
-                except AssertionError:
-                    raise CADETProcessError(f'{unit} does not connect to {dest}.')
-                dest = self[dest]
-                index = self.connections[unit].destinations.index(dest)
-                output_state[index] = value
+                    for destination_port, output_value in value.items():
+                        try:
+                            assert self.connection_exists(unit, dest, port, destination_port)
+                        except AssertionError:
+                            raise CADETProcessError(f'{unit} on port {port} does not connect to {dest} on port {destination_port}.')
+                        dest = self[dest]
+                        index = get_port_index(self.connections[unit].destinations[port], dest, destination_port)
+                        output_state[index] = output_value
+                except AttributeError:
+                    destination_port = 0
+                    try:
+                        assert self.connection_exists(unit, dest, port, destination_port)
+                    except AssertionError:
+                        raise CADETProcessError(f'{unit} on port {port} does not connect to {dest} on port {destination_port}.')
+                    dest = self[dest]
+                    index = get_port_index(self.connections[unit].destinations[port], dest, destination_port)
+                    output_state[index] = value
 
         elif isinstance(state, list):
             if len(state) != state_length:
