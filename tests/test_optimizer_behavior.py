@@ -54,6 +54,8 @@ EXCLUDE_COMBINATIONS = [
 NON_DEFAULT_PARAMETERS = [
     (NEHVI, LinearConstraintsMooTestProblem,
         {"n_init_evals": 20, "n_max_evals": 40}),
+    (U_NSGA3, NonlinearConstraintsMooTestProblem,
+        {"pop_size": 300, "n_max_gen": 50}),
 ]
 
 def skip_if_combination_excluded(optimizer, problem):
@@ -84,7 +86,7 @@ class U_NSGA3(U_NSGA3):
     xtol = XTOL
     cvtol = GTOL
     pop_size = 100
-    n_max_gen = 10  # before used 100 generations --> this did not improve the fit
+    n_max_gen = 20  # before used 100 generations --> this did not improve the fit
 
 
 class GPEI(GPEI):
@@ -122,9 +124,9 @@ def optimization_problem(request):
     return request.param()
 
 @pytest.fixture(params=[
-    SLSQP,  # tests pass
-    TrustConstr,  # tests pass
-    # U_NSGA3,  # broken
+    SLSQP,
+    TrustConstr,
+    U_NSGA3,
     GPEI,
     NEHVI,
 ])
