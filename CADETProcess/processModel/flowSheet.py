@@ -257,7 +257,7 @@ class FlowSheet(Structure):
 
         # TODO: Ports must also be implemented for output states and flow rates.
 
-        self._output_states[unit] = []
+        self._output_states[unit] = Dict()
         self._flow_rates[unit] = []
 
         super().__setattr__(unit.name, unit)
@@ -664,7 +664,7 @@ class FlowSheet(Structure):
         if state_length != 0 and not np.isclose(sum(output_state), 1):
             raise CADETProcessError('Sum of fractions must be 1')
 
-        self._output_states[unit] = output_state
+        self._output_states[unit][port] = output_state
 
     def get_flow_rates(self, port=None, state=None):
         """Calculate flow rate for all connections.

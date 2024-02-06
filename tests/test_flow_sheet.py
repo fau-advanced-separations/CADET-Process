@@ -845,22 +845,22 @@ class TestFlowSheet(unittest.TestCase):
     def test_output_state(self):
         column = self.ssr_flow_sheet.column
 
-        output_state_expected = [1, 0]
+        output_state_expected = {0: [1, 0]}
         output_state = self.ssr_flow_sheet.output_states[column]
         np.testing.assert_equal(output_state, output_state_expected)
 
         self.ssr_flow_sheet.set_output_state(column, [0,  1])
-        output_state_expected = [0, 1]
+        output_state_expected = {0: [0, 1]}
         output_state = self.ssr_flow_sheet.output_states[column]
         np.testing.assert_equal(output_state, output_state_expected)
 
         self.ssr_flow_sheet.set_output_state(column, 0)
-        output_state_expected = [1, 0]
+        output_state_expected = {0: [1, 0]}
         output_state = self.ssr_flow_sheet.output_states[column]
         np.testing.assert_equal(output_state, output_state_expected)
 
         self.ssr_flow_sheet.set_output_state(column, [0.5, 0.5])
-        output_state_expected = [0.5, 0.5]
+        output_state_expected = {0: [0.5, 0.5]}
         output_state = self.ssr_flow_sheet.output_states[column]
         np.testing.assert_equal(output_state, output_state_expected)
 
@@ -873,7 +873,7 @@ class TestFlowSheet(unittest.TestCase):
                 }
             }
         )
-        output_state_expected = [0.1, 0.9]
+        output_state_expected = {0: [0.1, 0.9]}
         output_state = self.ssr_flow_sheet.output_states[column]
         np.testing.assert_equal(output_state, output_state_expected)
 
