@@ -1660,6 +1660,7 @@ class DependentlyModulated(Sized):
                 f"Size: {size}, Expected Size: {expected_size}"
             )
 
+    check_size = check_mod_value
 
 
 class DependentlyModulatedUnsignedList(UnsignedList, SizedList, DependentlyModulated):
