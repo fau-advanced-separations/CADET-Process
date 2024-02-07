@@ -1619,7 +1619,31 @@ adsorption_parameters_map = {
             'GIEX_REFC0': 'reference_liquid_phase_conc',
             'GIEX_REFQ': 'reference_solid_phase_conc',
         },
-    }
+    },
+    'HICConstantWaterActivity': {
+        'name': 'HIC_CONSTANT_WATER_ACTIVITY',
+        'parameters': {
+            'IS_KINETIC': 'is_kinetic',
+            'HICCWA_KA': 'adsorption_rate',
+            'HICCWA_KD': 'desorption_rate',
+            'HICCWA_NU': 'hic_characteristic',
+            'HICCWA_QMAX': 'capacity',
+            'HICCWA_BETA0': 'beta_0',
+            'HICCWA_BETA1': 'beta_1',
+        },
+    },
+    'HICWaterOnHydrophobicSurfaces': {
+        'name': 'HIC_WATER_ON_HYDROPHOBIC_SURFACES',
+        'parameters': {
+            'IS_KINETIC': 'is_kinetic',
+            'HICWHS_KA': 'adsorption_rate',
+            'HICWHS_KD': 'desorption_rate',
+            'HICWHS_NU': 'hic_characteristic',
+            'HICWHS_QMAX': 'capacity',
+            'HICWHS_BETA0': 'beta_0',
+            'HICWHS_BETA1': 'beta_1',
+        },
+    },
 }
 
 inv_adsorption_parameters_map = {
