@@ -35,6 +35,7 @@ __all__ = [
     'SinkMixin',
     'Inlet',
     'Outlet',
+    'Cstr',
     'TubularReactorBase',
     'TubularReactor',
     'LumpedRateModelWithoutPores',
