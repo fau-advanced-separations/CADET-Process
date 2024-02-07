@@ -1036,10 +1036,10 @@ class Sized(ParameterBase):
             return
 
         size = self.get_size(value)
-        exptected_size = self.get_expected_size(instance)
+        expected_size = self.get_expected_size(instance)
 
-        if size != exptected_size:
-            raise ValueError(f"Expected size {exptected_size}")
+        if size != expected_size:
+            raise ValueError(f"Expected size {expected_size}")
 
     def _prepare(self, instance, value, recursive=False):
         """
@@ -1650,12 +1650,13 @@ class DependentlyModulated(Sized):
             If the modulo condition of the size does not meet the expected criteria.
         """
         size = self.get_size(value)
-        exptected_size = self.get_expected_size(instance)
+        expected_size = self.get_expected_size(instance)
 
-        size %= exptected_size
+        size %= expected_size
 
         if size != 0:
             raise ValueError("Size mod exptected size is not 0")
+
 
 
 class DependentlyModulatedUnsignedList(UnsignedList, SizedList, DependentlyModulated):
