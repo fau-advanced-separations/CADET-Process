@@ -37,6 +37,8 @@ __all__ = [
     'SimplifiedMultistateStericMassAction',
     'Saska',
     'GeneralizedIonExchange',
+    'HICConstantWaterActivity',
+    'HICWaterOnHydrophobicSurfaces',
 ]
 
 
@@ -1021,3 +1023,83 @@ class GeneralizedIonExchange(BindingBaseClass):
         n_pieces_comp = int(n_pieces_all / self.n_comp)
 
         return n_pieces_comp
+
+
+class HICConstantWaterActivity(BindingBaseClass):
+    """HIC based on Constant Water Activity adsoprtion isotherm.
+
+    Attributes
+    ----------
+    adsorption_rate : list of unsigned floats.
+        Adsorption rate constants. Size depends on `n_comp`.
+    desorption_rate : list of unsigned floats.
+        Desorption rate constants. Size depends on `n_comp`.
+    capacity : list of unsigned floats.
+        Maximum adsorption capacities. Size depends on `n_comp`.
+    hic_characteristic : list of unsigned floats.
+        Parameters describing the number of ligands per ligand-protein interaction. Size depends on `n_comp`.
+    beta_0 : unsigned float.
+        Parameter describing the number of highly ordered water molecules that stabilize
+        the hydrophobic surfaces at infinitely diluted salt concentration.
+    beta_1 : unsigned float.
+        Parameter describing the change in the number of highly ordered water molecules that stabilize
+        the hydrophobic surfaces with respect to changes in the salt concentration.
+
+    """
+
+    adsorption_rate = SizedList(size='n_comp')
+    desorption_rate = SizedList(size='n_comp')
+    capacity = SizedList(size='n_comp')
+    hic_characteristic = SizedList(size='n_comp')
+
+    beta_0 = UnsignedFloat()
+    beta_1 = UnsignedFloat()
+
+    _parameters = [
+        'adsorption_rate',
+        'desorption_rate',
+        'hic_characteristic',
+        'capacity',
+        'beta_0',
+        'beta_1',
+    ]
+
+
+class HICWaterOnHydrophobicSurfaces(BindingBaseClass):
+    """HIC isotherm by Wang et al. based on their 2016 paper.
+
+    Attributes
+    ----------
+    adsorption_rate : list of unsigned floats.
+        Adsorption rate constants. Size depends on `n_comp`.
+    desorption_rate : list of unsigned floats.
+        Desorption rate constants. Size depends on `n_comp`.
+    capacity : list of unsigned floats.
+        Maximum adsorption capacities. Size depends on `n_comp`.
+    hic_characteristic : list of unsigned floats.
+        Parameters describing the number of ligands per ligand-protein interaction. Size depends on `n_comp`.
+    beta_0 : unsigned float.
+        Parameter describing the number of highly ordered water molecules that stabilize
+        the hydrophobic surfaces at infinitely diluted salt concentration.
+    beta_1 : unsigned float.
+        Parameter describing the change in the number of highly ordered water molecules that stabilize
+        the hydrophobic surfaces with respect to changes in the salt concentration.
+
+    """
+
+    adsorption_rate = SizedList(size='n_comp')
+    desorption_rate = SizedList(size='n_comp')
+    capacity = SizedList(size='n_comp')
+    hic_characteristic = SizedList(size='n_comp')
+
+    beta_0 = UnsignedFloat()
+    beta_1 = UnsignedFloat()
+
+    _parameters = [
+        'adsorption_rate',
+        'desorption_rate',
+        'hic_characteristic',
+        'capacity',
+        'beta_0',
+        'beta_1',
+    ]
