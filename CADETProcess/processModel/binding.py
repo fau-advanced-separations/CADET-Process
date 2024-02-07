@@ -46,7 +46,7 @@ class BindingBaseClass(Structure):
 
     Attributes
     ----------
-    name : String
+    name : str
         name of the binding model.
     component_system : ComponentSystem
         system of components.
@@ -150,10 +150,10 @@ class Linear(BindingBaseClass):
 
     Attributes
     ----------
-    adsorption_rate : list of unsigned floats. Length depends on n_comp.
-        Adsorption rate constants.
-    desorption_rate : list of unsigned floats. Length depends on n_comp.
-        Desorption rate constants.
+    adsorption_rate : list of unsigned floats.
+        Adsorption rate constants. Length depends on `n_comp`.
+    desorption_rate : list of unsigned floats.
+        Desorption rate constants. Length depends on `n_comp`.
 
     """
 
@@ -171,12 +171,12 @@ class Langmuir(BindingBaseClass):
 
     Attributes
     ----------
-    adsorption_rate : list of unsigned floats. Length depends on n_comp.
-        Adsorption rate constants.
-    desorption_rate : list of unsigned floats. Length depends on n_comp.
-        Desorption rate constants.
-    capacity : list of unsigned floats. Length depends on n_comp.
-        Maximum adsorption capacities.
+    adsorption_rate : list of unsigned floats.
+        Adsorption rate constants. Length depends on `n_comp`.
+    desorption_rate : list of unsigned floats.
+        Desorption rate constants. Length depends on `n_comp`.
+    capacity : list of unsigned floats.
+        Maximum adsorption capacities. Length depends on `n_comp`.
 
     """
 
@@ -197,12 +197,12 @@ class LangmuirLDF(BindingBaseClass):
 
     Attributes
     ----------
-    equilibrium_constant : list of unsigned floats. Length depends on n_comp.
-        Adsorption rate constants.
-    driving_force_coefficient : list of unsigned floats. Length depends on n_comp.
-        Desorption rate constants
-    capacity : list of unsigned floats. Length depends on n_comp.
-        Maximum adsorption capacities.
+    equilibrium_constant : list of unsigned floats.
+        Adsorption rate constants. Length depends on `n_comp`.
+    driving_force_coefficient : list of unsigned floats.
+        Desorption rate constants. Length depends on `n_comp`.
+    capacity : list of unsigned floats.
+        Maximum adsorption capacities. Length depends on `n_comp`.
 
     """
 
@@ -248,12 +248,15 @@ class BiLangmuir(BindingBaseClass):
 
     Attributes
     ----------
-    adsorption_rate : list of unsigned floats. Length depends on n_comp.
-        Adsorption rate constants.
-    desorption_rate : list of unsigned floats. Length depends on n_comp.
-        Desorption rate constants
-    capacity : list of unsigned floats. Length depends on n_comp.
-        Maximum adsorption capacities.
+    adsorption_rate : list of unsigned floats.
+        Adsorption rate constants in state-major ordering.
+        Length depends on `n_bound_states`.
+    desorption_rate : list of unsigned floats.
+        Desorption rate constants in state-major ordering.
+        Length depends on `n_bound_states`.
+    capacity : list of unsigned floats.
+        Maximum adsorption capacities in state-major ordering.
+        Length depends on `n_bound_states`.
 
     """
 
@@ -280,12 +283,15 @@ class BiLangmuirLDF(BindingBaseClass):
 
     Attributes
     ----------
-    equilibrium_constant : list of unsigned floats. Length depends on n_comp.
-        Adsorption rate constants.
-    driving_force_coefficient : list of unsigned floats. Length depends on n_comp.
-        Desorption rate constants
-    capacity : list of unsigned floats. Length depends on n_comp.
-        Maximum adsorption capacities.
+    equilibrium_constant : list of unsigned floats.
+        Adsorption rate constants in state-major ordering.
+        Length depends on `n_bound_states`.
+    driving_force_coefficient : list of unsigned floats.
+        Desorption rate constants in state-major ordering.
+        Length depends on `n_bound_states`.
+    capacity : list of unsigned floats.
+        Maximum adsorption capacities in state-major ordering.
+        Length depends on `n_bound_states`.
 
     """
 
@@ -313,11 +319,11 @@ class FreundlichLDF(BindingBaseClass):
     Attributes
     ----------
     driving_force_coefficient : list of unsigned floats.
-        Adsorption rate constants. Length depends on n_comp.
+        Driving force coefficient for each component. Length depends on `n_comp`.
     freundlich_coefficient : list of unsigned floats.
-        Freundlich coefficient for each component. Length depends on n_comp.
+        Freundlich coefficient for each component. Length depends on `n_comp`.
     exponent : list of unsigned floats.
-        Exponent for each component. Length depends on n_comp.
+        Freundlich exponent for each component. Length depends on `n_comp`.
 
     """
 
@@ -337,17 +343,19 @@ class StericMassAction(BindingBaseClass):
 
     Attributes
     ----------
-    adsorption_rate : list of unsigned floats. Length depends on n_comp.
-        Adsorption rate constants.
-    desorption_rate : list of unsigned floats. Length depends on n_comp.
-        Desorption rate constants.
-    characteristic_charge : list of unsigned floats. Length depends on n_comp.
-        The characteristic charge of the protein: The number sites v that
-        protein interacts on the resin surface.
-    steric_factor : list of unsigned floats. Length depends on n_comp.
-        Steric factors of the protein: The number of sites o on the surface
-        that are shileded by the protein and prevented from exchange with salt
+    adsorption_rate : list of unsigned floats.
+        Adsorption rate constants. Length depends on `n_comp`.
+    desorption_rate : list of unsigned floats.
+        Desorption rate constants. Length depends on `n_comp`.
+    characteristic_charge : list of unsigned floats.
+        Characteristic charges of the protein; The number of sites $\nu$ that the
+        protein interacts with on the resin surface.
+        Length depends on `n_comp`.
+    steric_factor : list of unsigned floats.
+        Steric factors of the protein: The number of sites $\sigma$ on the surface
+        that are shielded by the protein and prevented from exchange with salt
         counterions in solution.
+        Length depends on `n_comp`.
     capacity : unsigned float.
         Stationary phase capacity (monovalent salt counterions); The total
         number of binding sites available on the resin surface.
@@ -427,13 +435,13 @@ class AntiLangmuir(BindingBaseClass):
     Attributes
     ----------
     adsorption_rate : list of unsigned floats.
-        Adsorption rate constants. Length depends on n_comp.
-    desorption_rate : list of unsigned floats. Length depends on n_comp.
-        Desorption rate constants. Length depends on n_comp.
+        Adsorption rate constants. Length depends on `n_comp`.
+    desorption_rate : list of unsigned floats
+        Desorption rate constants. Length depends on `n_comp`.
     capacity : list of unsigned floats.
-        Maximum adsorption capacities. Length depends on n_comp.
+        Maximum adsorption capacities. Length depends on `n_comp`.
     antilangmuir : list of unsigned floats, optional.
-        Anti-Langmuir coefficients. Length depends on n_comp.
+        Anti-Langmuir coefficients. Length depends on `n_comp`.
 
     """
 
@@ -456,15 +464,20 @@ class Spreading(BindingBaseClass):
     Attributes
     ----------
     adsorption_rate : list of unsigned floats.
-        Adsorption rate constants.
+        Adsorption rate constants in state-major ordering.
+        Length depends on `n_total_bound`.
     desorption_rate : list of unsigned floats.
-        Desorption rate constants.
+        Desorption rate constants in state-major ordering.
+        Length depends on `n_total_bound`.
     capacity : list of unsigned floats.
         Maximum adsoprtion capacities in state-major ordering.
+        Length depends on `n_total_bound`.
     exchange_from_1_2 : list of unsigned floats.
         Exchange rates from the first to the second bound state.
+        Length depends on `n_comp`.
     exchange_from_2_1 : list of unsigned floats.
         Exchange rates from the second to the first bound state.
+        Length depends on `n_comp`.
 
     """
 
@@ -491,16 +504,17 @@ class MobilePhaseModulator(BindingBaseClass):
     Attributes
     ----------
     adsorption_rate : list of unsigned floats.
-        Adsorption rate constants.
+        Adsorption rate constants. Length depends on `n_comp`.
     desorption_rate : list of unsigned floats.
-        Desorption rate constants.
+        Desorption rate constants. Length depends on `n_comp`.
     capacity : list of unsigned floats.
-        Maximum adsorption capacities.
+        Maximum adsorption capacities. Length depends on `n_comp`.
     ion_exchange_characteristic : list of unsigned floats.
         Parameters describing the ion-exchange characteristics (IEX).
+        Length depends on `n_comp`.
     hydrophobicity : list of unsigned floats.
         Parameters describing the hydrophobicity (HIC).
-
+        Length depends on `n_comp`.
     """
 
     adsorption_rate = SizedUnsignedList(size='n_comp')
@@ -526,20 +540,23 @@ class ExtendedMobilePhaseModulator(BindingBaseClass):
     Attributes
     ----------
     adsorption_rate : list of unsigned floats.
-        Adsorption rate constants.
+        Adsorption rate constants. Length depends on `n_comp`.
     desorption_rate : list of unsigned floats.
-        Desorption rate constants.
+        Desorption rate constants. Length depends on `n_comp`.
     capacity : list of unsigned floats.
-        Maximum adsorption capacities.
+        Maximum adsorption capacities. Length depends on `n_comp`.
     ion_exchange_characteristic : list of unsigned floats.
         Parameters describing the ion-exchange characteristics (IEX).
+        Length depends on `n_comp`.
     hydrophobicity : list of unsigned floats.
         Parameters describing the hydrophobicity (HIC).
-    component_mode : list of unsigned floats.
+        Length depends on `n_comp`.
+    component_mode : list of unsigned integers.
         Mode of each component;
         0 denotes the modifier component,
         1 is linear binding,
         2 is modified Langmuir binding.
+        Length depends on `n_comp`.
 
     """
 
@@ -550,7 +567,7 @@ class ExtendedMobilePhaseModulator(BindingBaseClass):
     beta = ion_exchange_characteristic
     hydrophobicity = SizedUnsignedList(size='n_comp')
     gamma = hydrophobicity
-    component_mode = SizedUnsignedList(size='n_comp')
+    component_mode = SizedUnsignedIntegerList(size='n_comp', ub=2)
 
     _parameters = [
         'adsorption_rate',
@@ -568,22 +585,22 @@ class SelfAssociation(BindingBaseClass):
     Attributes
     ----------
     adsorption_rate : list of unsigned floats.
-        Adsorption rate constants.
+        Adsorption rate constants. Length depends on `n_comp`.
     adsorption_rate_dimerization : list of unsigned floats.
-        Adsorption rate constants of dimerization.
+        Adsorption rate constants of dimerization. Length depends on `n_comp`.
     desorption_rate : list of unsigned floats.
-        Desorption rate constants.
+        Desorption rate constants. Length depends on `n_comp`.
     characteristic_charge : list of unsigned floats.
-        The characteristic charge v of the protein.
+        The characteristic charge $\nu$ of the protein. Length depends on `n_comp`.
     steric_factor : list of unsigned floats.
-        Steric factor of of the protein.
+        Steric factor of of the protein. Length depends on `n_comp`.
     capacity : unsigned float.
-        Stationary phase capacity (monovalent salt counterions); The total
-        number of binding sites available on the resin surface.
-    reference_liquid_phase_conc : unsigned float
+        Stationary phase capacity (monovalent salt counterions); The total number of
+        binding sites available on the resin surface.
+    reference_liquid_phase_conc : unsigned float.
         Reference liquid phase concentration (optional, default value = 1.0).
         The default = 1.0
-    reference_solid_phase_conc : unsigned float
+    reference_solid_phase_conc : unsigned float.
         Reference liquid phase concentration (optional)
         The default = 1.0
 
@@ -617,17 +634,22 @@ class BiStericMassAction(BindingBaseClass):
     ----------
     adsorption_rate : list of unsigned floats.
         Adsorption rate constants in state-major ordering.
+        Length depends on `n_bound_states`.
     desorption_rate : list of unsigned floats.
         Desorption rate constants in state-major ordering.
+        Length depends on `n_bound_states`.
     characteristic_charge : list of unsigned floats.
         Characteristic charges v(i,j) of the it-h protein with respect to the
         j-th binding site type in state-major ordering.
+        Length depends on `n_bound_states`.
     steric_factor : list of unsigned floats.
         Steric factor o (i,j) of the it-h protein with respect to the j-th
         binding site type in state-major ordering.
+        Length depends on `n_bound_states`.
     capacity : unsigned float.
         Stationary phase capacity (monovalent salt counterions); The total
         number of binding sites available on the resin surface.
+        Length depends on `n_binding_sites`.
     reference_liquid_phase_conc : list of unsigned floats.
         Reference liquid phase concentration for each binding site type or one
         value for all types.
@@ -671,24 +693,28 @@ class MultistateStericMassAction(BindingBaseClass):
     Attributes
     ----------
     adsorption_rate : list of unsigned floats.
-        Adsorption rate constants of the components to different bound states
-        in component-major ordering.
+        Adsorption rate constants of the components to different bound states in
+        component-major ordering.
+        Length depends on `n_bound_states`.
     desorption_rate : list of unsigned floats.
-        Desorption rate constants of the components to different bound states
-        in component-major ordering.
+        Desorption rate constants of the components to different bound states in
+        component-major ordering.
+        Length depends on `n_bound_states`.
     characteristic_charge : list of unsigned floats.
         Characteristic charges of the components to different bound states in
         component-major ordering.
+        Length depends on `n_bound_states`.
     steric_factor : list of unsigned floats.
-        Steric factor of the components to different bound states in
-        component-major ordering.
+        Steric factor of the components to different bound states in component-major
+        ordering.
+        Length depends on `n_bound_states`.
     conversion_rate : list of unsigned floats.
         Conversion rates between different bound states in
         component-major ordering.
         Length: $sum_{i=1}^{n_{comp}} n_{bound, i}$
     capacity : unsigned float.
-        Stationary phase capacity (monovalent salt counterions); The total
-        number of binding sites available on the resin surface.
+        Stationary phase capacity (monovalent salt counterions); The total number of
+        binding sites available on the resin surface.
     reference_liquid_phase_conc : unsigned float.
         Reference liquid phase concentration.
         The default = 1.0
@@ -736,49 +762,59 @@ class SimplifiedMultistateStericMassAction(BindingBaseClass):
 
     Attributes
     ----------
-    adsorption_rate :list of unsigned floats.
+    adsorption_rate : list of unsigned floats.
         Adsorption rate constants of the components to different bound states
         in component-major ordering.
+        Length depends on `n_bound_states`.
     desorption_rate : list of unsigned floats.
         Desorption rate constants of the components to different bound states
         in component-major ordering.
+        Length depends on `n_bound_states`.
     characteristic_charge_first : list of unsigned floats.
-        Characteristic charges of the components in the first (weakest) bound
-        state.
+        Characteristic charges of the components in the first (weakest) bound state.
+        Length depends on `n_comp`.
     characteristic_charge_last : list of unsigned floats.
-        Characteristic charges of the components in the last (strongest) bound
-        state.
+        Characteristic charges of the components in the last (strongest) bound state.
+        Length depends on `n_comp`.
     quadratic_modifiers_charge : list of unsigned floats.
-        Quadratic modifiers of the characteristic charges of the different
-        components depending on the index of the bound state.
+        Quadratic modifiers of the characteristic charges of the different components
+        depending on the index of the bound state.
+        Length depends on `n_comp`.
     steric_factor_first : list of unsigned floats.
         Steric factor of the components in the first (weakest) bound state.
+        Length depends on `n_comp`.
     steric_factor_last : list of unsigned floats.
         Steric factor of the components in the last (strongest) bound state.
+        Length depends on `n_comp`.
     quadratic_modifiers_steric : list of unsigned floats.
-        Quadratic modifiers of the sterif factors of the different components
-        depending on the index of the bound state.
-    capacity : unsigned floats.
-        Stationary phase capacity (monovalent salt counterions): The total
-        number of binding sites available on the resin surface.
+        Quadratic modifiers of the sterif factors of the different components depending
+        on the index of the bound state.
+        Length depends on `n_comp`.
+    capacity : unsigned float.
+        Stationary phase capacity (monovalent salt counterions): The total number of
+        binding sites available on the resin surface.
     exchange_from_weak_stronger : list of unsigned floats.
-        Exchangde rated from a weakly bound state to the next stronger bound
-        state.
+        Exchangde rated from a weakly bound state to the next stronger bound state.
     linear_exchange_ws : list of unsigned floats.
-        Linear exchange rate coefficients from a weakly bound state to the next
-        stronger bound state.
+        Linear exchange rate coefficients from a weakly bound state to the next stronger
+        bound state.
+        Length depends on `n_comp`.
     quadratic_exchange_ws : list of unsigned floats.
-        Quadratic exchange rate coefficients from a weakly bound state to the
-        next stronger bound state.
+        Quadratic exchange rate coefficients from a weakly bound state to the next
+        stronger bound state.
+        Length depends on `n_comp`.
     exchange_from_stronger_weak : list of unsigned floats.
-        Exchange rate coefficients from a strongly bound state to the next
-        weaker bound state.
+        Exchange rate coefficients from a strongly bound state to the next weaker bound
+        state.
+        Length depends on `n_comp`.
     linear_exchange_sw : list of unsigned floats.
-        Linear exchange rate coefficients from a strongly bound state to the
-        next weaker bound state.
+        Linear exchange rate coefficients from a strongly bound state to the next weaker
+        bound state.
+        Length depends on `n_comp`.
     quadratic_exchange_sw : list of unsigned floats.
-        Quadratic exchange rate coefficients from a strongly bound state to the
-        next weaker bound state.
+        Quadratic exchange rate coefficients from a strongly bound state to the next
+        weaker bound state.
+        Length depends on `n_comp`.
     reference_liquid_phase_conc : list of unsigned floats.
         Reference liquid phase concentration (optional, default value = 1.0).
     reference_solid_phase_conc : list of unsigned floats.
@@ -835,9 +871,9 @@ class Saska(BindingBaseClass):
     Attributes
     ----------
     henry_const : list of unsigned floats.
-        The Henry coefficient.
+        The Henry coefficient. Length depends on `n_comp`.
     quadratic_factor : list of unsigned floats.
-        Quadratic factors.
+        Quadratic factors. Length depends on `n_comp`.
 
     """
 
@@ -855,52 +891,69 @@ class GeneralizedIonExchange(BindingBaseClass):
 
     Attributes
     ----------
-    adsorption_rate : list of unsigned floats. Length depends on n_comp.
-        Adsorption rate constants.
-    adsorption_rate_linear : list of unsigned floats. Length depends on n_comp.
+    adsorption_rate : list of unsigned floats.
+        Adsorption rate constants. Length depends on `n_comp`.
+    adsorption_rate_linear : list of unsigned floats.
         Linear dependence coefficient of adsorption rate on modifier component
-    adsorption_rate_quadratic : list of unsigned floats. Length depends on n_comp.
+        Length depends on `n_comp`.
+    adsorption_rate_quadratic : list of unsigned floats.
         Quadratic dependence coefficient of adsorption rate on modifier component.
-    adsorption_rate_cubic : list of unsigned floats. Length depends on n_comp.
+        Length depends on `n_comp`.
+    adsorption_rate_cubic : list of unsigned floats.
         Cubic dependence coefficient of adsorption rate on modifier component.
-    adsorption_rate_salt : list of unsigned floats. Length depends on n_comp.
+        Length depends on `n_comp`.
+    adsorption_rate_salt : list of unsigned floats.
         Salt coefficient of adsorption rate;
         difference of water-protein and salt-protein interactions.
-    adsorption_rate_protein : list of unsigned floats. Length depends on n_comp.
+        Length depends on `n_comp`.
+    adsorption_rate_protein : list of unsigned floats.
         Protein coefficient of adsorption rate;
         difference of water-protein and protein-protein interactions.
-    desorption_rate : list of unsigned floats. Length depends on n_comp.
-        Desorption rate constants.
-    desorption_rate_linear : list of unsigned floats. Length depends on n_comp.
+        Length depends on `n_comp`.
+    desorption_rate : list of unsigned floats.
+        Desorption rate constants. Length depends on `n_comp`.
+    desorption_rate_linear : list of unsigned floats.
         Linear dependence coefficient of desorption rate on modifier component.
-    desorption_rate_quadratic : list of unsigned floats. Length depends on n_comp.
+        Length depends on `n_comp`.
+    desorption_rate_quadratic : list of unsigned floats.
         Quadratic dependence coefficient of desorption rate on modifier component.
-    desorption_rate_cubic : list of unsigned floats. Length depends on n_comp.
+        Length depends on `n_comp`.
+    desorption_rate_cubic : list of unsigned floats.
         Cubic dependence coefficient of desorption rate on modifier component.
-    desorption_rate_salt : list of unsigned floats. Length depends on n_comp.
+        Length depends on `n_comp`.
+    desorption_rate_salt : list of unsigned floats.
         Salt coefficient of desorption rate;
         difference of water-protein and salt-protein interactions.
-    desorption_rate_protein : list of unsigned floats. Length depends on n_comp.
+        Length depends on `n_comp`.
+    desorption_rate_protein : list of unsigned floats.
         Protein coefficient of desorption rate;
         difference of water-protein and protein-protein interactions
-    characteristic_charge : list of unsigned floats. Length depends on n_comp.
-        The characteristic charge of the protein: The number sites v that
-        protein interacts on the resin surface.
-    characteristic_charge_linear : list of unsigned floats. Length depends on n_comp.
+        Length depends on `n_comp`.
+    characteristic_charge_breaks : list of unsigned floats, optional
+        Breaks of the characteristic charge pieces in component-major ordering.
+        Optional, only required if a piecewise cubic polynomial is used for $\nu$.
+        Length must be a multiple of `n_comp`.
+    characteristic_charge : list of unsigned floats.
+        Base value for characteristic charges of the protein; The number of sites $\nu$
+        that the protein interacts with on the resin surface.
+        Length depends on `n_comp` * `n_pieces`.
+    characteristic_charge_linear : list of unsigned floats.
         Linear dependence coefficient of characteristic charge on modifier component.
-    characteristic_charge_quadratic : list of unsigned floats. Length depends on n_comp.
+        Length depends on `n_comp` * `n_pieces`.
+    characteristic_charge_quadratic : list of unsigned floats.
         Quadratic dependence coefficient of characteristic charge on modifier component.
-    characteristic_charge_cubic : list of unsigned floats. Length depends on n_comp.
-        Cubic dependence coefficient of characteristic charge on modifier component .
-    characteristic_charge_breaks : list of unsigned floats. Length depends on n_comp.
-        Cubic dependence coefficient of characteristic charge on modifier component .
-    steric_factor : list of unsigned floats. Length depends on n_comp.
-        Steric factors of the protein: The number of sites o on the surface
-        that are shileded by the protein and prevented from exchange with salt
-        counterions in solution.
+        Length depends on `n_comp` * `n_pieces`.
+    characteristic_charge_cubic : list of unsigned floats.
+        Cubic dependence coefficient of characteristic charge on modifier component.
+        Length depends on `n_comp` * `n_pieces`.
+    steric_factor : list of unsigned floats.
+        Steric factors of the protein: The number of sites $\sigma$ on the surface that
+        are shielded by the protein and prevented from exchange with salt counterions in
+        solution.
+        Length depends on `n_comp`.
     capacity : unsigned float.
-        Stationary phase capacity (monovalent salt counterions); The total
-        number of binding sites available on the resin surface.
+        Stationary phase capacity (monovalent salt counterions); The total number of
+        binding sites available on the resin surface.
     reference_liquid_phase_conc : unsigned float.
         Reference liquid phase concentration (optional, default value = 1.0).
     reference_solid_phase_conc : unsigned float.
