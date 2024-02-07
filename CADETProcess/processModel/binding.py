@@ -975,7 +975,9 @@ class GeneralizedIonExchange(BindingBaseClass):
     desorption_rate_cubic = SizedList(size='n_comp', default=0)
     desorption_rate_salt = SizedList(size='n_comp', default=0)
     desorption_rate_protein = SizedList(size='n_comp', default=0)
-    characteristic_charge_breaks = DependentlyModulatedUnsignedList(size='n_comp')
+    characteristic_charge_breaks = DependentlyModulatedUnsignedList(
+        size='n_comp', is_optional=True
+    )
     characteristic_charge = SizedList(size=('n_pieces', 'n_comp'),)
     characteristic_charge_linear = SizedList(size=('n_pieces', 'n_comp'), default=0)
     characteristic_charge_quadratic = SizedList(size=('n_pieces', 'n_comp'), default=0)
