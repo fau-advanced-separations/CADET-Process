@@ -1655,7 +1655,10 @@ class DependentlyModulated(Sized):
         size %= expected_size
 
         if size != 0:
-            raise ValueError("Size mod exptected size is not 0")
+            raise ValueError(
+                f"The size of the value modulo the expected size is not zero. "
+                f"Size: {size}, Expected Size: {expected_size}"
+            )
 
 
 
