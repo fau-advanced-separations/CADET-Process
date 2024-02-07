@@ -596,6 +596,8 @@ class TestModulated(unittest.TestCase):
 
         np.testing.assert_equal(self.model.modulated_list, [1, 2, 3, 4])
 
+        self.model.modulated_list = [1, 2, 3, 4, 5, 6, 7, 8]
+
         with self.assertRaises(ValueError):
             self.model.modulated_list = [1, 2, 3, 4, 5]
 
