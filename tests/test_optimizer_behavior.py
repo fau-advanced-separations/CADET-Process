@@ -1,3 +1,4 @@
+from functools import partial
 import numpy as np
 import pytest
 
@@ -119,6 +120,11 @@ class NEHVI(NEHVI):
     LinearConstraintsMooTestProblem,
     NonlinearConstraintsMooTestProblem,
     LinearNonlinearConstraintsMooTestProblem,
+
+    # transformed problems
+    partial(LinearConstraintsSooTestProblem, transform="linear"),
+    partial(LinearEqualityConstraintsSooTestProblem, transform="linear"),
+    partial(NonlinearLinearConstraintsSooTestProblem, transform="linear"),
 ])
 def optimization_problem(request):
     return request.param()
@@ -154,7 +160,6 @@ def test_convergence(optimization_problem: TestProblem, optimizer: OptimizerBase
 
 
 def test_from_initial_values(optimization_problem: TestProblem, optimizer: OptimizerBase):
-    # pytest.skip()
 
     if optimizer.check_optimization_problem(optimization_problem):
         skip_if_combination_excluded(optimizer, optimization_problem)
