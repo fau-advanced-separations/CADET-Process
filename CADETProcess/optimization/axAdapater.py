@@ -10,14 +10,12 @@ from ax import (
     SearchSpace, MultiObjective, Experiment, Arm,
     ComparisonOp, OutcomeConstraint,
     RangeParameter, ParameterType, ParameterConstraint, Objective,
-
 )
-from ax.exceptions.core import OptimizationShouldStop
+
 from ax.global_stopping.strategies.improvement import ImprovementGlobalStoppingStrategy
 from ax.core.metric import MetricFetchResult, MetricFetchE
 from ax.core.base_trial import BaseTrial
 from ax.models.torch.botorch_modular.surrogate import Surrogate
-from ax.modelbridge.registry import Models
 from ax.utils.common.result import Err, Ok
 from ax.service.utils.report_utils import exp_to_df
 from botorch.utils.sampling import manual_seed
