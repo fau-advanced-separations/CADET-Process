@@ -197,15 +197,16 @@ class AxInterface(OptimizerBase):
 
     @staticmethod
     def _setup_linear_constraints(optimizationProblem: OptimizationProblem):
-        # TODO: Only independent variables
-        # TODO: Should be transformed space (e.g. linear_constraints_transformed)
+        A_transformed = optimizationProblem.A_transformed
+        b_transformed = optimizationProblem.b_transformed
+        indep_vars = optimizationProblem.independent_variables
         parameter_constraints = []
-        for lincon in optimizationProblem.linear_constraints:
+        for a_t, b_t in zip(A_transformed, b_transformed):
             constr = ParameterConstraint(
                 constraint_dict={
-                    var: lhs for var, lhs in zip(lincon['opt_vars'], lincon['lhs'])
+                    var.name: a for var, a in zip(indep_vars, a_t)
                 },
-                bound=lincon['b']
+                bound=b_t
             )
             parameter_constraints.append(constr)
 
@@ -424,7 +425,9 @@ class AxInterface(OptimizerBase):
                     seed=self.seed + 5641,
                 )
 
-            self._create_manual_trial(x0_init)
+
+            x0_init_transformed = np.array(optimization_problem.transform(x0_init))
+            self._create_manual_trial(x0_init_transformed)
             print(exp_to_df(self.ax_experiment))
 
         n_iter = self.results.n_gen
