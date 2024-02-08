@@ -87,7 +87,6 @@ class CADETProcessRunner(Runner):
         self.parallelization_backend = parallelization_backend
 
     def staging_required(self) -> bool:
-        # TODO: change that to True
         return False
 
     def run(self, trial: BaseTrial) -> Dict[str, Any]:
@@ -100,18 +99,17 @@ class CADETProcessRunner(Runner):
         X = np.row_stack(X)
 
         # adjust the number of cores to the number of batch trials
-        # TODO: Adapt new parallelization backend once #40 is merged
-        # See: https://github.com/fau-advanced-separations/CADET-Process/pull/40
+        # See: https://github.com/fau-advanced-separations/CADET-Process/issues/53
 
         # Calculate objectives
-        # TODO: add noise to the result
+        # Explore if adding a small amount of noise to the result helps BO
         objective_labels = self.optimization_problem.objective_labels
         obj_fun = self.optimization_problem.evaluate_objectives_population
 
         F = obj_fun(X, untransform=True, parallelization_backend=self.parallelization_backend)
 
         # Calculate nonlinear constraints
-        # TODO: add noise to the result
+        # Explore if adding a small amount of noise to the result helps BO
         if self.optimization_problem.n_nonlinear_constraints > 0:
             nonlincon_fun = self.optimization_problem.evaluate_nonlinear_constraints_population
             nonlincon_labels = self.optimization_problem.nonlinear_constraint_labels
@@ -129,13 +127,11 @@ class CADETProcessRunner(Runner):
 
         return trial_metadata
 
-    # TODO: rename: write_metadata
     @staticmethod
     def get_metadata(trial, F, objective_labels, G, nonlincon_labels):
         trial_metadata = {"name": str(trial.index)}
         trial_metadata.update({"arms": {}})
 
-        # TODO: Maybe more elegant: check if G is None
         for i, arm in enumerate(trial.arms):
             f_dict = {
                 metric: f_metric[i]
@@ -177,8 +173,6 @@ class AxInterface(OptimizerBase):
 
     @staticmethod
     def _setup_parameters(optimizationProblem: OptimizationProblem):
-        # TODO: can parameters have other choices except continuous
-        # integer erstmal nicht nötig
         parameters = []
         for var in optimizationProblem.independent_variables:
             lb, ub = var.transformed_bounds
@@ -188,7 +182,6 @@ class AxInterface(OptimizerBase):
                 lower=lb,
                 upper=ub,
                 log_scale=False,
-                # TODO: find out what fidelity means here
                 is_fidelity=False,
             )
             parameters.append(param)
@@ -265,7 +258,6 @@ class AxInterface(OptimizerBase):
         """Create trial from pre-evaluated data."""
         variables = self.optimization_problem.independent_variable_names
 
-
         for i, x in enumerate(X):
             trial = self.ax_experiment.new_trial()
             trial_data = {
@@ -279,7 +271,8 @@ class AxInterface(OptimizerBase):
             trial.mark_completed()
             self._post_processing(trial)
 
-        # return trial
+            # When returning to batch trials, the Arms can be initialized here
+            # and then collectively returned. See commit history
 
     def _post_processing(self, trial):
         """
@@ -318,21 +311,10 @@ class AxInterface(OptimizerBase):
             G = None
             CV = None
 
-        # übergeben von besten werten (xopt) - die müsste von ax kommen
-        # wenn das verfügbar ist,
-        # TODO: kann ax das auch?
-
-        ## Here, I'm trying to get the "best" values ever evaluated for each objective.
-        # This is interesting for logging but not quite yet what I'm looking for.
-        # I'd like to get the full "pareto" (i.e. non-dominated) front at that point.
-        # Try: exp_to_df!
-        # self._data = ax.Data.from_multiple_data([self._data, trial.fetch_data()])
-        # new_value = trial.fetch_data().df["mean"].min()
-
-        # print(
-        #     f"Iteration: Best in iteration {new_value:.3f}, "
-        #     f"Best so far: {self._data.df['mean'].min():.3f}"
-        # )
+        # Ideally, the current optimum w.r.t. single and multi objective can be
+        # obtained at this point and passed to run_post_generation_processing.
+        # with X_opt_transformed. Implementation is pending.
+        # See: https://github.com/fau-advanced-separations/CADET-Process/issues/53
 
         self.run_post_generation_processing(
             X_transformed=X,
@@ -340,6 +322,7 @@ class AxInterface(OptimizerBase):
             G=G,
             CV=CV,
             current_generation=self.ax_experiment.num_trials,
+            X_opt_transformed=None,
         )
 
     def _setup_model(self):
@@ -433,7 +416,6 @@ class AxInterface(OptimizerBase):
         n_iter = self.results.n_gen
         n_evals = self.results.n_evals
 
-        # TODO: termination criteria (check tutorial "early stopping strategies")
         with manual_seed(seed=self.seed):
             while not (n_evals >= self.n_max_evals or n_iter >= self.n_max_iter):
                 # Reinitialize GP+EI model at each step with updated data.
@@ -444,9 +426,8 @@ class AxInterface(OptimizerBase):
                 # samples can be accessed here by sample_generator.arms:
                 sample_generator = modelbridge.gen(n=1)
 
-                # so this can be a staging environment
-                # TODO: here optimization-problem could be used to reject
-                #       samples based on non-linear constraints / dependent vars
+                # A staging phase can be implemented here if needed.
+                # See: https://github.com/fau-advanced-separations/CADET-Process/issues/53
 
                 # The strategy itself will check if enough trials have already been
                 # completed.
@@ -456,18 +437,16 @@ class AxInterface(OptimizerBase):
                 ) = self.global_stopping_strategy.should_stop_optimization(
                     experiment=self.ax_experiment
                 )
+
                 if stop_optimization:
                     print(global_stopping_message)
-                    # raise OptimizationShouldStop(message=global_stopping_message)
                     break
-
 
                 trial = self.ax_experiment.new_trial(generator_run=sample_generator)
                 trial.run()
 
                 trial.mark_running()
 
-                # TODO: speed up post processing
                 trial.mark_completed()
                 self._post_processing(trial)
 
@@ -475,7 +454,6 @@ class AxInterface(OptimizerBase):
                 n_evals += len(trial.arms)
 
         print(exp_to_df(self.ax_experiment))
-        print("finished")
 
 
 class SingleObjectiveAxInterface(AxInterface):
