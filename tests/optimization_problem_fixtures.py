@@ -428,17 +428,21 @@ class NonlinearLinearConstraintsSooTestProblem(TestProblem):
 class LinearConstraintsMooTestProblem(TestProblem):
     """Function curtesy of Florian Schunck and Samuel Leweke."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, transform=None, *args, **kwargs):
         self.test_abs_tol = 0.1
 
         super().__init__('linear_constraints_multi_objective', *args, **kwargs)
+        self.setup_variables(transform=transform)
+        self.setup_linear_constraints()
+        self.setup_objectives()
 
-        self.add_variable('var_0', lb=1, ub=5)
-        self.add_variable('var_1', lb=0, ub=3)
+    def setup_variables(self: OptimizationProblem, transform=None):
+        self.add_variable('var_0', lb=1, ub=5, transform=transform)
+        self.add_variable('var_1', lb=0, ub=3, transform=transform)
 
+    def setup_linear_constraints(self):
         self.add_linear_constraint(['var_0', 'var_1'], [-1, -1], -3)
         self.add_linear_constraint(['var_0', 'var_1'], [ 1, -1],  5)
-        self.setup_objectives()
 
     @staticmethod
     def _objective_function(x):
