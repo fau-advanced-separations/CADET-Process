@@ -2772,6 +2772,7 @@ class OptimizationProblem(Structure):
             The default is 100000.
         include_dependent_variables : bool, optional
             If True, include dependent variables in population.
+            The default is True.
 
         Raises
         ------
