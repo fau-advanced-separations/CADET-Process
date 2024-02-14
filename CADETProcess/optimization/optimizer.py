@@ -74,6 +74,7 @@ class OptimizerBase(Structure):
 
     is_population_based = False
 
+    supports_single_objective = True
     supports_multi_objective = False
     supports_linear_constraints = False
     supports_linear_equality_constraints = False
@@ -303,6 +304,12 @@ class OptimizerBase(Structure):
         if not optimization_problem.check_config(
                 ignore_linear_constraints=self.ignore_linear_constraints_config):
             # Warnings are raised internally
+            flag = False
+
+        if optimization_problem.n_objectives == 1 and not self.supports_single_objective:
+            warnings.warn(
+                "Optimizer does not support single-objective problems"
+            )
             flag = False
 
         if optimization_problem.n_objectives > 1 and not self.supports_multi_objective:
