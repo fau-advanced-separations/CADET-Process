@@ -380,7 +380,7 @@ class FlowSheet(Structure):
             raise CADETProcessError('Origin not in flow sheet')
         if origin.n_ports != 1 and origin_port is None:
             raise CADETProcessError('Missing `origin_port`')
-        if origin.n_ports == 1:
+        if origin.n_ports == 1 and origin_port == None:
             origin_port = 0
         if origin_port > origin.n_ports-1:
             raise CADETProcessError('Origin port exceeds number of ports.')
@@ -391,7 +391,7 @@ class FlowSheet(Structure):
             raise CADETProcessError('Destination not in flow sheet')
         if destination.n_ports !=1 and origin_port is None:
             raise CADETProcessError('Missing `destination_port`')
-        if destination.n_ports == 1:
+        if destination.n_ports == 1 and destination_port == None:
             destination_port = 0
         if destination_port > destination.n_ports-1:
             raise CADETProcessError('Destination port exceeds number of ports.')
@@ -411,7 +411,7 @@ class FlowSheet(Structure):
         self._connections[origin]['destinations'][origin_port][destination].append(destination_port)
 
         # TODO: Set output state for ports @hannah
-        self.set_output_state(origin, 0)
+        self.set_output_state(origin, 0, origin_port)
 
     @origin_destination_name_decorator
     @update_parameters_decorator
@@ -447,7 +447,7 @@ class FlowSheet(Structure):
             raise CADETProcessError('Missing `origin_port`')
         if origin.n_ports == 1:
             origin_port = 0
-        if origin_port > origin.n_ports-1:
+        if origin_port >= origin.n_ports:
             raise CADETProcessError('Origin port exceeds number of ports.')
 
         if destination not in self._units:
@@ -456,7 +456,7 @@ class FlowSheet(Structure):
             raise CADETProcessError('Missing `destination_port`')
         if destination.n_ports == 1:
             destination_port = 0
-        if destination_port > destination.n_ports-1:
+        if destination_port >= destination.n_ports:
             raise CADETProcessError('Destination port exceeds number of ports.')
 
         try:
@@ -570,7 +570,7 @@ class FlowSheet(Structure):
 
     @unit_name_decorator
     @update_parameters_decorator
-    def set_output_state(self, unit, state, port=0):
+    def set_output_state(self, unit, state, port=None):
         """Set split ratio of outgoing streams for UnitOperation.
 
         Parameters
@@ -589,7 +589,7 @@ class FlowSheet(Structure):
             If state is integer and the state >= the state_length.
             If the length of the states is unequal the state_length.
             If the sum of the states is not equal to 1.
-
+            If port exceeds the number of ports
         """
         def get_port_index(unit_connection_dict, destination, destination_port):
             """helper function to classify the index of a connection for your outputstate
@@ -618,6 +618,16 @@ class FlowSheet(Structure):
         if unit not in self._units:
             raise CADETProcessError('Unit not in flow sheet')
 
+        if unit.n_ports == 1 and port == None:
+            port = 0
+        
+        try:
+            if port >= unit.n_ports:
+                raise CADETProcessError(f'Port exceeds number of ports of Unit {unit.name}')
+        except TypeError:
+            raise CADETProcessError(f'{unit.name} needs a specified port because it hase more than one')
+
+
         state_length = sum([len(self.connections[unit].destinations[port][unit_name]) for unit_name in self.connections[unit].destinations[port]])
 
         if state_length == 0:
@@ -639,8 +649,8 @@ class FlowSheet(Structure):
                             assert self.connection_exists(unit, dest, port, destination_port)
                         except AssertionError:
                             raise CADETProcessError(f'{unit} on port {port} does not connect to {dest} on port {destination_port}.')
-                        dest = self[dest]
-                        index = get_port_index(self.connections[unit].destinations[port], dest, destination_port)
+                        inner_dest = self[dest]
+                        index = get_port_index(self.connections[unit].destinations[port], inner_dest, destination_port)
                         output_state[index] = output_value
                 except AttributeError:
                     destination_port = 0

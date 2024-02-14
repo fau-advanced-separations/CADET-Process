@@ -849,6 +849,9 @@ class TestFlowSheet(unittest.TestCase):
         output_state = self.ssr_flow_sheet.output_states[column]
         np.testing.assert_equal(output_state, output_state_expected)
 
+
+
+
         self.ssr_flow_sheet.set_output_state(column, [0,  1])
         output_state_expected = {0: [0, 1]}
         output_state = self.ssr_flow_sheet.output_states[column]
@@ -893,6 +896,9 @@ class TestFlowSheet(unittest.TestCase):
                     }
                 }
             )
+
+        with self.assertRaisesRegex(CADETProcessError, "Port exceeds"):
+            self.ssr_flow_sheet.set_output_state(column, [0.5,0.5], 5)    
 
 
 class TestCstrFlowRate(unittest.TestCase):
@@ -1045,6 +1051,7 @@ class TestPorts(unittest.TestCase):
         mct_flow_sheet.add_connection(mct_2c1, outlet1, origin_port=0, destination_port=0)
         mct_flow_sheet.add_connection(mct_2c1, outlet1, origin_port=1, destination_port=0)
         mct_flow_sheet.add_connection(mct_2c2, outlet2, origin_port=0)
+
 
         self.mct_flow_sheet = mct_flow_sheet
 
@@ -1267,6 +1274,36 @@ class TestPorts(unittest.TestCase):
             self.assertTrue(self.ccc_flow_sheet.connection_exists(ccc3, outlet))
 
             self.assertFalse(self.ccc_flow_sheet.connection_exists(inlet, outlet))
+
+    def test_port_add_connection(self):
+        
+        inlet = self.mct_flow_sheet['inlet']
+        mct_3c = self.mct_flow_sheet['mct_3c']
+        mct_2c2 = self.mct_flow_sheet['mct_2c2']
+        outlet1 = self.mct_flow_sheet['outlet1']
+
+        with self.assertRaises(CADETProcessError):
+            self.mct_flow_sheet.add_connection(inlet, mct_3c, origin_port=0, destination_port=5)
+
+        with self.assertRaises(CADETProcessError):
+            self.mct_flow_sheet.add_connection(inlet, mct_3c, origin_port=5, destination_port=0)
+
+        with self.assertRaises(CADETProcessError):
+            self.mct_flow_sheet.add_connection(mct_2c2, outlet1, origin_port=0, destination_port=5)
+
+    def test_set_output_state(self):
+        
+        mct_3c = self.mct_flow_sheet['mct_3c']
+        
+        with self.assertRaises(CADETProcessError):
+            self.mct_flow_sheet.set_output_state(mct_3c, [0.5,0.5])
+
+        with self.assertRaises(CADETProcessError):
+            self.mct_flow_sheet.set_output_state(mct_3c, [0.5,0.5], 5)
+        
+        with self.assertRaises(CADETProcessError):
+            self.mct_flow_sheet.set_output_state(mct_3c, {'mct_2c1': {0: 0.5 , 5: 0.5}}, 0)
+
 
 class TestFlowRateMatrix(unittest.TestCase):
     """Test calculation of flow rates with another simple testcase by @daklauss"""
