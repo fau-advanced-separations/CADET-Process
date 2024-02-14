@@ -72,7 +72,6 @@ class EventHandler(CachedPropertiesMixin, Structure):
     parameter_events : dict
         A dictionary mapping each parameter to the list of events that affect it.
 
-
     Notes
     -----
     The class relies heavily on the concept of "events", which are instances
@@ -157,6 +156,7 @@ class EventHandler(CachedPropertiesMixin, Structure):
         --------
         events
         remove_event
+        add_event_dependency
         Event
         Event.add_dependency
         add_duration
