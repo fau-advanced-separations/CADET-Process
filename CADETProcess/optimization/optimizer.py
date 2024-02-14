@@ -69,7 +69,8 @@ class OptimizerBase(Structure):
         functions for each individual in a given population.
         The default parallelization backend is 'Joblib', which provides parallel
         execution using multiple cores.
-    n_cores
+    n_cores : int, optional
+        Proxy to the number of cores used by the parallelization backend.
     """
 
     is_population_based = False

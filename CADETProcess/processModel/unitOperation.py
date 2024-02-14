@@ -1037,8 +1037,8 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         Initial concentration of the bound phase.
     V : unsigned float
         Initial volume of the reactor.
-    total_porosity : UnsignedFloat between 0 and 1.
-        Total porosity of the column.
+    porosity : UnsignedFloat between 0 and 1.
+        Total porosity of the Cstr.
     flow_rate_filter: float
         Flow rate of pure liquid without components to reduce volume.
     solution_recorder : CSTRRecorder
