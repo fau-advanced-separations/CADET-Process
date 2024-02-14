@@ -4,79 +4,66 @@ from CADETProcess.processModel import ComponentSystem
 from CADETProcess.processModel import Linear, StericMassAction
 
 
-def create_component_system(components):
-    return ComponentSystem(components)
+def fixture_factory_callables(binding_class, defaults, extra_params):
+    class BindingFixture(binding_class):
+        def __init__(self, n_comp, **binding_kwargs):
+            for parameter in extra_params:
+                if callable(extra_params[parameter]):
+                    value = extra_params[parameter](n_comp)
+                else:
+                    value = extra_params[parameter]
+
+                setattr(self, parameter, value)
+
+            for parameter in binding_class._parameters:
+                if parameter in binding_kwargs:
+                    continue
+
+                if callable(defaults[parameter]):
+                    binding_kwargs[parameter] = defaults[parameter](n_comp)
+                else:
+                    binding_kwargs[parameter] = defaults[parameter]
+
+            super().__init__(ComponentSystem(n_comp), **binding_kwargs)
+
+    return BindingFixture
 
 
-class TestLinearFixture(Linear):
-    def __init__(
-        self,
-        n_comp,
-        is_kinetic=True,
-        adsorption_rate=None,
-        desorption_rate=None,
-        ):
+TestStericMassActionBinding = fixture_factory_callables(
+    StericMassAction,
+    defaults={
+        "is_kinetic": True,
+        "adsorption_rate": lambda x: np.arange(x).tolist(),
+        "desorption_rate": lambda x: np.ones((x,)).tolist(),
+        "characteristic_charge": lambda x: (2 * np.arange(x)).tolist(),
+        "steric_factor": lambda x: (2 * np.arange(x)).tolist(),
+        "use_reference_concentrations": True,
+        "capacity": 1000,
+        "reference_liquid_phase_conc": 1000,
+        "reference_solid_phase_conc": 1000,
+    },
+    extra_params={
+        "init_q": lambda x: [1000, ] + [0] * int(x - 1),
+    }
+)
 
-        component_system = ComponentSystem(n_comp)
-
-        if adsorption_rate is None:
-            adsorption_rate = np.arange(component_system.n_comp).tolist()
-        if desorption_rate is None:
-            desorption_rate = np.ones((n_comp,)).tolist()
-
-        super().__init__(
-            component_system,
-            is_kinetic=is_kinetic,
-            adsorption_rate=adsorption_rate,
-            desorption_rate=desorption_rate,
-        )
-
-
-class TestStericMassActionFixture(StericMassAction):
-    def __init__(
-        self,
-        n_comp,
-        is_kinetic=True,
-        adsorption_rate=None,
-        desorption_rate=None,
-        characteristic_charge=None,
-        steric_factor=None,
-        capacity=1000,
-        use_reference_concentrations=True,
-        ):
-        component_system = ComponentSystem(n_comp)
-
-        if adsorption_rate is None:
-            adsorption_rate = np.arange(component_system.n_comp)
-
-        if desorption_rate is None:
-            desorption_rate = np.ones((n_comp,))
-
-        if characteristic_charge is None:
-            characteristic_charge = 2 * np.arange((n_comp,))
-
-        if steric_factor is None:
-            steric_factor = 2 * np.arange((n_comp,))
-
-        if use_reference_concentrations:
-            reference_liquid_phase_conc = capacity
-            reference_solid_phase_conc = capacity
-
-        super().__init__(
-            component_system,
-            is_kinetic=is_kinetic,
-            adsorption_rate=adsorption_rate,
-            desorption_rate=desorption_rate,
-            characteristic_charge=characteristic_charge,
-            steric_factor=steric_factor,
-            capacity=capacity,
-            reference_liquid_phase_conc=reference_liquid_phase_conc,
-            reference_solid_phase_conc=reference_solid_phase_conc,
-        )
+TestLinearBinding = fixture_factory_callables(
+    Linear,
+    defaults={
+        "is_kinetic": True,
+        "adsorption_rate": lambda x: np.arange(x).tolist(),
+        "desorption_rate": lambda x: np.ones((x,)).tolist(),
+    },
+    extra_params={
+        "init_q": lambda x: [0, ] * int(x),
+    }
+)
 
 
-# def create_isotherm(isotherm, n_comp, isotherm_parameters):
-#     if isotherm == 'linear':
-#         return create_linear_isotherm(n_comp, **isotherm_parameters)
-#     else:
-#         raise ValueError(f"Unknown isotherm: {isotherm}")
+def create_isotherm(isotherm, n_comp, isotherm_parameters):
+    if isotherm == 'linear':
+        return TestLinearBinding(n_comp, **isotherm_parameters)
+    if isotherm == 'SMA':
+        return TestStericMassActionBinding(n_comp, **isotherm_parameters)
+    else:
+        raise ValueError(f"Unknown isotherm: {isotherm}")
