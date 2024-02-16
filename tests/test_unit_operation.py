@@ -252,7 +252,7 @@ class Test_Unit_Operation(unittest.TestCase):
         'exchange_matrix': exchange_matrix,
         'flow_direction' : 1, #TODO: Update when multiplex is implemented
         }
-        np.testing.assert_equal(parameters_expected, {key: value for key, value in mct.parameters.items() if key != 'discretization'}) #Why does mct give out discretization parameters and e.g. cstr does not?
+        np.testing.assert_equal(parameters_expected, {key: value for key, value in mct.parameters.items() if key != 'discretization'})
 
         volume = length*sum(channel_cross_section_areas)
         volume_liquid = volume*total_porosity
@@ -267,17 +267,6 @@ class Test_Unit_Operation(unittest.TestCase):
             mct.channel_cross_section_areas
 
         self.assertTrue(mct.nchannel*mct.component_system.n_comp == mct.c.size)
-
-
-
-
-
-
-
-
-
-
-
 
 if __name__ == '__main__':
     unittest.main()

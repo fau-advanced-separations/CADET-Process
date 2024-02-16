@@ -1232,11 +1232,6 @@ class MCT(UnitBaseClass):
             **kwargs
             )
 
-
-    # @n_ports.setter
-    # def n_ports(self, n_ports):
-    #     self.n_ports = n_ports
-
     @property
     def nchannel(self):
         """int: Proxy for `discretization.nchannel`."""

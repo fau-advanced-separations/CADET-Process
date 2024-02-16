@@ -25,4 +25,3 @@ html:
 	mkdir -p "$(SOURCEDIR)"/examples/parameter_estimation/reference_simulation
 	cp -r ../examples/parameter_estimation/reference_simulation "$(SOURCEDIR)"/examples/parameter_estimation/
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
-
