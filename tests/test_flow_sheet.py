@@ -1192,81 +1192,98 @@ class TestPorts(unittest.TestCase):
         self.assertFalse(self.mct_flow_sheet.connection_exists(inlet, mct_2c1, 0, 0))
 
     def test_ccc_connections(self):
-            inlet = self.ccc_flow_sheet['inlet']
-            ccc1 = self.ccc_flow_sheet['ccc1']
-            ccc2 = self.ccc_flow_sheet['ccc2']
-            ccc3 = self.ccc_flow_sheet['ccc3']
-            outlet = self.ccc_flow_sheet['outlet']
+        inlet = self.ccc_flow_sheet['inlet']
+        ccc1 = self.ccc_flow_sheet['ccc1']
+        ccc2 = self.ccc_flow_sheet['ccc2']
+        ccc3 = self.ccc_flow_sheet['ccc3']
+        outlet = self.ccc_flow_sheet['outlet']
 
-            expected_connections = {
-                inlet: {
-                    'origins': None,
-                    'destinations': {
-                        0: {
-                            ccc1:[0],
-                        },
+        expected_connections = {
+            inlet: {
+                'origins': None,
+                'destinations': {
+                    0: {
+                        ccc1:[0],
                     },
                 },
-                ccc1: {
-                    'origins': {
-                        0: {
-                            inlet:[0],
-                        },
+            },
+            ccc1: {
+                'origins': {
+                    0: {
+                        inlet:[0],
                     },
-                    'destinations': {
-                        0: {
-                            ccc2:[0],
-                        },
+                },
+                'destinations': {
+                    0: {
+                        ccc2:[0],
+                    },
+                },
+            },
+
+            ccc2: {
+                'origins': {
+                    0: {
+                        ccc1:[0],
+                    },
+                },
+                'destinations': {
+                    0: {
+                        ccc3:[0],
+                    },
+                },
+            },
+
+            ccc3: {
+                'origins': {
+                    0: {
+                        ccc2:[0],
+                    },
+                },
+                'destinations': {
+                    0: {
+                        outlet:[0],
+                    },
+                },
+            },
+
+            outlet: {
+                'origins':{
+                    0: {
+                        ccc3:[0],
                     },
                 },
 
-                ccc2: {
-                    'origins': {
-                        0: {
-                            ccc1:[0],
-                        },
-                    },
-                    'destinations': {
-                        0: {
-                            ccc3:[0],
-                        },
-                    },
-                },
+                'destinations': None,
+            },
+        }
 
-                ccc3: {
-                    'origins': {
-                        0: {
-                            ccc2:[0],
-                        },
-                    },
-                    'destinations': {
-                        0: {
-                            outlet:[0],
-                        },
-                    },
-                },
+        self.assertDictEqual(
+            self.ccc_flow_sheet.connections, expected_connections
+        )
 
-                outlet: {
-                    'origins':{
-                        0: {
-                            ccc3:[0],
-                        },
-                    },
+        self.assertTrue(self.ccc_flow_sheet.connection_exists(inlet, ccc1))
+        self.assertTrue(self.ccc_flow_sheet.connection_exists(ccc1, ccc2))
+        self.assertTrue(self.ccc_flow_sheet.connection_exists(ccc2, ccc3))
+        self.assertTrue(self.ccc_flow_sheet.connection_exists(ccc3, outlet))
 
-                    'destinations': None,
-                },
-            }
+        self.assertFalse(self.ccc_flow_sheet.connection_exists(inlet, outlet))
+            
+    def test_mct_flow_rate_calculation(self):
+        mct_flow_sheet = self.mct_flow_sheet
 
-            self.assertDictEqual(
-                self.ccc_flow_sheet.connections, expected_connections
-            )
-
-            self.assertTrue(self.ccc_flow_sheet.connection_exists(inlet, ccc1))
-            self.assertTrue(self.ccc_flow_sheet.connection_exists(ccc1, ccc2))
-            self.assertTrue(self.ccc_flow_sheet.connection_exists(ccc2, ccc3))
-            self.assertTrue(self.ccc_flow_sheet.connection_exists(ccc3, outlet))
-
-            self.assertFalse(self.ccc_flow_sheet.connection_exists(inlet, outlet))
+        mct_flow_sheet.inlet.flow_rate = 1
+        
+        inlet = self.mct_flow_sheet['inlet']
+        mct_3c = self.mct_flow_sheet['mct_3c']
+        mct_2c1 = self.mct_flow_sheet['mct_2c1']
+        mct_2c2 = self.mct_flow_sheet['mct_2c2']
+        
+        mct_flow_sheet.set_output_state(mct_3c, [0.5, 0.5], 0)
+        
+        hey = mct_flow_sheet.get_flow_rates()
+        
+        print("hello world")
+        
 
 class TestFlowRateMatrix(unittest.TestCase):
     """Test calculation of flow rates with another simple testcase by @daklauss"""

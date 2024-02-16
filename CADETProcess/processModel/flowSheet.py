@@ -708,6 +708,15 @@ class FlowSheet(Structure):
         Forum discussion on flow rate calculation:
         https://forum.cadet-web.de/t/improving-the-flowrate-calculation/795
         """
+        port_index_list = []
+        port_number = 0
+        
+        for unit in self.units:
+            for port in range(unit.n_ports):
+                port_index_list.append((unit, port))
+                port_number += 1        
+        
+        #TODO: flow_rate of a cstr?
         flow_rates = {
             unit.name: unit.flow_rate
             for unit in (self.inlets + self.cstrs)
@@ -716,6 +725,7 @@ class FlowSheet(Structure):
 
         output_states = self.output_states
 
+        #TODO: state as in set_outputstates
         if state is not None:
             for param, value in state.items():
                 param = param.split('.')
@@ -730,20 +740,31 @@ class FlowSheet(Structure):
         n_units = self.number_of_units
 
         # Setup matrix with output states.
-        w_out = np.zeros((n_units, n_units))
+        w_out = np.zeros((port_number, port_number))
 
 
         #TODO: add Ports
         for unit in self.units:
-            unit_index = self.get_unit_index(unit)
+            
             if unit.name in flow_rates:
+                unit_index = port_index_list.index((unit, 0))
                 w_out[unit_index, unit_index] = 1
             else:
-                for origin in self.connections[unit]['origins']:
-                    o_index = self.get_unit_index(origin)
-                    local_d_index = self.connections[origin].destinations.index(unit)
-                    w_out[unit_index, o_index] = output_states[origin][local_d_index]
-                w_out[unit_index, unit_index] += -1
+        
+                for port in self.connections[unit]['origins']:
+
+                    port_index = port_index_list.index((unit, port))                    
+                    
+                    for origin_unit in self.connections[unit]['origins'][port]:
+                        
+                        for origin_port in self.connections[unit]['origins'][port][origin_unit]:
+                            
+                            o_index = port_index_list.index((origin_unit, origin_port))
+                            local_d_index = list(self.connections[origin_unit]['destinations'][origin_port]).index(unit)
+                            if output_states[origin_unit][origin_port][local_d_index]:
+                                w_out[port_index, o_index] = output_states[origin_unit][origin_port][local_d_index]
+                    
+                    w_out[port_index, port_index] += -1
 
         # Check for a singular matrix before the loop
         if np.linalg.cond(w_out) == np.inf:
@@ -754,16 +775,16 @@ class FlowSheet(Structure):
             )
 
         # Solve system of equations for each polynomial coefficient
-        total_flow_rate_coefficents = np.zeros((4, n_units))
+        total_flow_rate_coefficents = np.zeros((4, port_number))
         for i in range(4):
             coeffs = np.array(list(flow_rates.values()), ndmin=2)[:, i]
             if not np.any(coeffs):
                 continue
 
-            Q_vec = np.zeros(n_units)
+            Q_vec = np.zeros(port_number)
             for unit_name in flow_rates:
-                unit_index = self.get_unit_index(self.units_dict[unit_name])
-                Q_vec[unit_index] = flow_rates[unit_name][i]
+                port_index = port_index_list.index((self.units_dict[unit_name], 0))
+                Q_vec[port_index] = flow_rates[unit_name][i]
             try:
                 total_flow_rate_coefficents[i, :] = np.linalg.solve(w_out, Q_vec)
             except np.linalg.LinAlgError:
@@ -773,50 +794,94 @@ class FlowSheet(Structure):
                 )
 
         # w_out_help is the same as w_out but it contains the origin flow for every unit
-        w_out_help = np.zeros((n_units, n_units))
+        w_out_help = np.zeros((port_number, port_number))
 
-        for unit in self.connections:
-            unit_index = self.get_unit_index(unit)
-            for origin in self.connections[unit]['origins']:
-                o_index = self.get_unit_index(origin)
-                local_d_index = self.connections[origin].destinations.index(unit)
-                w_out_help[unit_index, o_index] = output_states[origin][local_d_index]
+
+        for unit in self.units:
+            if self.connections[unit]['origins']:
+                for port in self.connections[unit]['origins']:
+
+                    port_index = port_index_list.index((unit, port))                    
+                    
+                    for origin_unit in self.connections[unit]['origins'][port]:
+                        
+                        for origin_port in self.connections[unit]['origins'][port][origin_unit]:
+                            o_index = port_index_list.index((origin_unit, origin_port))
+                            local_d_index = list(self.connections[origin_unit]['destinations'][origin_port]).index(unit)
+                            if not output_states[origin_unit][origin_port][local_d_index]:
+                                w_out_help[port_index, o_index] = 0
+                            else :
+                                w_out_help[port_index, o_index] = output_states[origin_unit][origin_port][local_d_index]
 
         # Calculate total_in as a matrix in "one" step rather than iterating manually.
         total_in_matrix = w_out_help @ total_flow_rate_coefficents.T
 
         # Generate output dict
         return_flow_rates = Dict()
-        for index, unit in enumerate(self.units):
+        for unit in self.units:
             unit_solution_dict = Dict()
 
             if not isinstance(unit, Inlet):
-                unit_solution_dict['total_in'] = list(total_in_matrix[index])
+                
+                unit_solution_dict['total_in'] = Dict()
+                
+                for unit_port in range(unit.n_ports):
+                    
+                    index = port_index_list.index((unit, unit_port))
+                    unit_solution_dict['total_in'][unit_port] = list(total_in_matrix[index])
 
             if not isinstance(unit, Outlet):
-                unit_solution_dict['total_out'] = list(total_flow_rate_coefficents[:, index])
+                
+                unit_solution_dict['total_out'] = Dict()
+                
+                for unit_port in range(unit.n_ports):
+                    
+                    index = port_index_list.index((unit, unit_port))
+                    unit_solution_dict['total_out'][unit_port] = list(total_flow_rate_coefficents[:, index])
+
 
             if not isinstance(unit, Inlet):
-                unit_solution_dict['origins'] = Dict(
-                    {
-                        origin.name: list(
-                            total_flow_rate_coefficents[:, self.get_unit_index(origin)]
-                            * w_out_help[index, self.get_unit_index(origin)]
-                        )
-                        for origin in self.connections[unit].origins
-                    }
-                )
+                unit_solution_dict['origins'] = Dict()
+                
+                for unit_port in self.connections[unit]['origins']:
+                    
+                    if self.connections[unit]['origins'][unit_port]:
+                        
+                        unit_solution_dict['origins'][unit_port] = Dict()
+                        
+                        for origin_unit in self.connections[unit]['origins'][unit_port]:
+                            
+                            unit_solution_dict['origins'][unit_port][origin_unit.name] = Dict()
+                            
+                            for origin_port in self.connections[unit]['origins'][unit_port][origin_unit]:
+                                origin_port_index = port_index_list.index((origin_unit, origin_port))
+                                unit_port_index = port_index_list.index((unit, unit_port))
+                                flow_list = list(
+                                        total_flow_rate_coefficents[:, origin_port_index]
+                                        * w_out_help[unit_port_index, origin_port_index])
+                                unit_solution_dict['origins'][unit_port][origin_unit.name][origin_port] = flow_list            
 
             if not isinstance(unit, Outlet):
-                unit_solution_dict['destinations'] = Dict(
-                    {
-                        destination.name: list(
-                            total_flow_rate_coefficents[:, index]
-                            * w_out_help[self.get_unit_index(destination), index]
-                        )
-                        for destination in self.connections[unit].destinations
-                    }
-                )
+                
+                unit_solution_dict['destinations'] = Dict()
+                
+                for unit_port in self.connections[unit]['destinations']:
+                    
+                    if self.connections[unit]['destinations'][unit_port]:
+                        
+                        unit_solution_dict['destinations'][unit_port] = Dict()
+                        
+                        for destination_unit in self.connections[unit]['destinations'][unit_port]:
+                            
+                            unit_solution_dict['destinations'][unit_port][destination_unit.name] = Dict()
+                            
+                            for destination_port in self.connections[unit]['destinations'][unit_port][destination_unit]:
+                                destination_port_index = port_index_list.index((destination_unit, destination_port))
+                                unit_port_index = port_index_list.index((unit, unit_port))
+                                flow_list = list(
+                                        total_flow_rate_coefficents[:, unit_port_index]
+                                        * w_out_help[destination_port_index, unit_port_index])
+                                unit_solution_dict['destinations'][unit_port][destination_unit.name][destination_port] = flow_list 
 
             return_flow_rates[unit.name] = unit_solution_dict
 
