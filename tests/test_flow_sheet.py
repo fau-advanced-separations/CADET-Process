@@ -938,11 +938,11 @@ class TestCstrFlowRate(unittest.TestCase):
 
         flow_rates = self.flow_sheet.get_flow_rates()
 
-        cstr_in = flow_rates['cstr']['total_in']
+        cstr_in = flow_rates['cstr']['total_in'][0]
         cstr_in_expected = [1., 0., 0., 0.]
         np.testing.assert_almost_equal(cstr_in, cstr_in_expected)
 
-        cstr_out = flow_rates['cstr']['total_out']
+        cstr_out = flow_rates['cstr']['total_out'][0]
         cstr_out_expected = [1., 0., 0., 0.]
         np.testing.assert_almost_equal(cstr_out, cstr_out_expected)
 
@@ -951,11 +951,11 @@ class TestCstrFlowRate(unittest.TestCase):
 
         flow_rates = self.flow_sheet.get_flow_rates()
 
-        cstr_in = flow_rates['cstr']['total_in']
+        cstr_in = flow_rates['cstr']['total_in'][0]
         cstr_in_expected = [1., 1., 0., 0.]
         np.testing.assert_almost_equal(cstr_in, cstr_in_expected)
 
-        cstr_out = flow_rates['cstr']['total_out']
+        cstr_out = flow_rates['cstr']['total_out'][0]
         cstr_out_expected = [1., 1., 0., 0.]
         np.testing.assert_almost_equal(cstr_out, cstr_out_expected)
 
@@ -964,11 +964,11 @@ class TestCstrFlowRate(unittest.TestCase):
 
         flow_rates = self.flow_sheet.get_flow_rates()
 
-        cstr_in = flow_rates['cstr']['total_in']
+        cstr_in = flow_rates['cstr']['total_in'][0]
         cstr_in_expected = [0., 0., 0., 0.]
         np.testing.assert_almost_equal(cstr_in, cstr_in_expected)
 
-        cstr_out = flow_rates['cstr']['total_out']
+        cstr_out = flow_rates['cstr']['total_out'][0]
         cstr_out_expected = [0., 0., 0., 0.]
         np.testing.assert_almost_equal(cstr_out, cstr_out_expected)
 
@@ -977,11 +977,11 @@ class TestCstrFlowRate(unittest.TestCase):
 
         flow_rates = self.flow_sheet.get_flow_rates()
 
-        cstr_in = flow_rates['cstr']['total_in']
+        cstr_in = flow_rates['cstr']['total_in'][0]
         cstr_in_expected = [0., 0., 0., 0.]
         np.testing.assert_almost_equal(cstr_in, cstr_in_expected)
 
-        cstr_out = flow_rates['cstr']['total_out']
+        cstr_out = flow_rates['cstr']['total_out'][0]
         cstr_out_expected = [0., 0., 0., 0.]
         np.testing.assert_almost_equal(cstr_out, cstr_out_expected)
 
@@ -991,11 +991,11 @@ class TestCstrFlowRate(unittest.TestCase):
 
         flow_rates = self.flow_sheet.get_flow_rates()
 
-        cstr_in = flow_rates['cstr']['total_in']
+        cstr_in = flow_rates['cstr']['total_in'][0]
         cstr_in_expected = [1., 0., 0., 0.]
         np.testing.assert_almost_equal(cstr_in, cstr_in_expected)
 
-        cstr_out = flow_rates['cstr']['total_out']
+        cstr_out = flow_rates['cstr']['total_out'][0]
         cstr_out_expected = [0., 0., 0., 0.]
         np.testing.assert_almost_equal(cstr_out, cstr_out_expected)
 
@@ -1008,11 +1008,11 @@ class TestCstrFlowRate(unittest.TestCase):
 
         flow_rates = self.flow_sheet.get_flow_rates(state)
 
-        cstr_in = flow_rates['cstr']['total_in']
+        cstr_in = flow_rates['cstr']['total_in'][0]
         cstr_in_expected = [1., 1., 0., 0.]
         np.testing.assert_almost_equal(cstr_in, cstr_in_expected)
 
-        cstr_out = flow_rates['cstr']['total_out']
+        cstr_out = flow_rates['cstr']['total_out'][0]
         cstr_out_expected = [2., 2., 0., 0.]
         np.testing.assert_almost_equal(cstr_out, cstr_out_expected)
 
