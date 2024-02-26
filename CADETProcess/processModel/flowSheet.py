@@ -517,11 +517,11 @@ class FlowSheet(Structure):
             if state >= state_length:
                 raise CADETProcessError('Index exceeds destinations')
 
-            output_state = [0] * state_length
-            output_state[state] = 1
+            output_state = [0.0] * state_length
+            output_state[state] = 1.0
 
         elif isinstance(state, dict):
-            output_state = [0] * state_length
+            output_state = [0.0] * state_length
             for dest, value in state.items():
                 try:
                     assert self.connection_exists(unit, dest)
