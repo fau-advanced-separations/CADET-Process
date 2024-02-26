@@ -282,7 +282,8 @@ class OptimizationProblem(Structure):
 
     def add_variable(
             self, name, evaluation_objects=-1, parameter_path=None,
-            lb=-math.inf, ub=math.inf, transform=None, indices=None):
+            lb=-math.inf, ub=math.inf, transform=None, indices=None,
+            pre_processing=None):
         """Add optimization variable to the OptimizationProblem.
 
         The function encapsulates the creation of OptimizationVariable objects
@@ -309,6 +310,9 @@ class OptimizationProblem(Structure):
         indices : int  or tuple, optional
             Indices for variables that modify entries of a parameter array.
             If None, variable is assumed to be index independent.
+        pre_processing : callable, optional
+            Additional step to process the value before setting it. This function must
+            accept a single argument (the value) and return the processed value.
 
         Raises
         ------
@@ -349,6 +353,7 @@ class OptimizationProblem(Structure):
             name, evaluation_objects, parameter_path,
             lb=lb, ub=ub, transform=transform,
             indices=indices,
+            pre_processing=pre_processing,
         )
 
         self._variables.append(var)
@@ -3039,6 +3044,9 @@ class OptimizationVariable:
     precision : int, optional
         Number of significant figures to which variable can be rounded.
         If None, variable is not rounded. The default is None.
+    pre_processing : callable, optional
+        Additional step to process the value before setting it. This function must
+        accept a single argument (the value) and return the processed value.
 
     Raises
     ------
@@ -3051,6 +3059,7 @@ class OptimizationVariable:
     def __init__(
         self, name, evaluation_objects=None, parameter_path=None,
         lb=-math.inf, ub=math.inf, transform=None, indices=None, precision=None,
+        pre_processing=None
     ):
         self.name = name
         self._value = None
@@ -3090,6 +3099,8 @@ class OptimizationVariable:
 
         self._dependencies = []
         self._dependency_transform = None
+
+        self.pre_processing = pre_processing
 
     @property
     def parameter_path(self):
@@ -3450,6 +3461,8 @@ class OptimizationVariable:
 
     def _set_value(self, evaluation_object, value):
         """Set the value to the evaluation object."""
+        if self.pre_processing is not None:
+            value = self.pre_processing(value)
         parameter_descriptor = self._parameter_descriptor(evaluation_object)
         if parameter_descriptor is not None:
             performer_obj = self._performer_obj(evaluation_object)
