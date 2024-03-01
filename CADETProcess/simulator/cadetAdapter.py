@@ -795,6 +795,8 @@ class Cadet(SimulatorBase):
         else:
             model_connections['CONNECTIONS_INCLUDE_DYNAMIC_FLOW'] = 1
 
+        model_connections['CONNECTIONS_INCLUDE_PORTS'] = 1
+
         index = 0
 
         section_states = process.flow_rate_section_states
@@ -837,21 +839,25 @@ class Cadet(SimulatorBase):
         for origin, unit_flow_rates in flow_rates.items():
             origin = flow_sheet[origin]
             origin_index = flow_sheet.get_unit_index(origin)
-            for dest, flow_rate in unit_flow_rates.destinations.items():
-                destination = flow_sheet[dest]
-                destination_index = flow_sheet.get_unit_index(destination)
-                if np.any(flow_rate):
-                    table[enum] = []
-                    table[enum].append(int(origin_index))
-                    table[enum].append(int(destination_index))
-                    table[enum].append(-1)
-                    table[enum].append(-1)
-                    Q = flow_rate.tolist()
-                    if self._force_constant_flow_rate:
-                        table[enum] += [Q[0]]
-                    else:
-                        table[enum] += Q
-                    enum += 1
+            for origin_port, dest_dict in unit_flow_rates.destinations.items():
+                for dest in dest_dict:
+                    for dest_port, flow_rate in dest_dict[dest].items():
+                        destination = flow_sheet[dest]
+                        destination_index = flow_sheet.get_unit_index(destination)
+                        if np.any(flow_rate):
+                            table[enum] = []
+                            table[enum].append(int(origin_index))
+                            table[enum].append(int(destination_index))
+                            table[enum].append(int(origin_port))
+                            table[enum].append(int(dest_port))
+                            table[enum].append(-1)
+                            table[enum].append(-1)
+                            Q = flow_rate.tolist()
+                            if self._force_constant_flow_rate:
+                                table[enum] += [Q[0]]
+                            else:
+                                table[enum] += Q
+                            enum += 1
 
         ls = []
         for connection in table.values():
