@@ -9,21 +9,29 @@ from CADETProcess import CADETProcessError
 
 from CADETProcess.dataStructure import Structure, frozen_attributes
 from CADETProcess.dataStructure import (
-    ParameterBase, Bool, Integer, Float, Sized, Typed, UnsignedFloat, NdPolynomial,
+    ParameterBase,
+    Bool,
+    Integer,
+    Float,
+    Sized,
+    Typed,
+    UnsignedFloat,
+    NdPolynomial,
 )
-from CADETProcess.dataStructure import (
-    CachedPropertiesMixin, cached_property_if_locked
-)
+from CADETProcess.dataStructure import CachedPropertiesMixin, cached_property_if_locked
 
 from CADETProcess.dataStructure import (
-    check_nested, generate_nested_dict, get_nested_value, get_nested_attribute
+    check_nested,
+    generate_nested_dict,
+    get_nested_value,
+    get_nested_attribute,
 )
 
 from CADETProcess import plotting
 from .section import Section, TimeLine, MultiTimeLine, generate_indices, unravel
 
 
-__all__ = ['EventHandler', 'Event', 'Duration']
+__all__ = ["EventHandler", "Event", "Duration"]
 
 
 @frozen_attributes
@@ -117,8 +125,16 @@ class EventHandler(CachedPropertiesMixin, Structure):
         return {**evts, **durs}
 
     def add_event(
-            self, name, parameter_path, state, time=0.0, indices=None,
-            dependencies=None, factors=None, transforms=None):
+        self,
+        name,
+        parameter_path,
+        state,
+        time=0.0,
+        indices=None,
+        dependencies=None,
+        factors=None,
+        transforms=None,
+    ):
         """Add a new event that changes a parameter during the process.
 
         An event is a dynamic alteration that occurs at a specified time and can modify
@@ -169,9 +185,7 @@ class EventHandler(CachedPropertiesMixin, Structure):
         super().__setattr__(name, evt)
 
         if dependencies is not None:
-            self.add_event_dependency(
-                evt.name, dependencies, factors, transforms
-            )
+            self.add_event_dependency(evt.name, dependencies, factors, transforms)
 
         return evt
 
@@ -281,10 +295,19 @@ class EventHandler(CachedPropertiesMixin, Structure):
         """List of all durations in the process."""
         return self._durations
 
-    def add_event_dependency(
-            self, dependent_event, independent_events,
-            factors=None, transforms=None):
-        """Create a dependency relationship between events.
+    def add_event_dependency(self, *args, **kwargs):
+        warnings.warn(
+            "This function is deprecated, use `add_event_time_dependency()`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
+        return self.add_event_time_dependency(*args, **kwargs)
+
+    def add_event_time_dependency(
+        self, dependent_event, independent_events, factors=None, transforms=None
+    ):
+        """Create a dependency relationship between event times.
 
         This method establishes how one event (dependent) is influenced by one or more
         other events (independents) through factors and optional transformation
@@ -330,12 +353,10 @@ class EventHandler(CachedPropertiesMixin, Structure):
         if not isinstance(independent_events, list):
             independent_events = [independent_events]
         if not all(indep in self.events_dict for indep in independent_events):
-            raise CADETProcessError(
-                "Cannot find one or more independent events"
-            )
+            raise CADETProcessError("Cannot find one or more independent events")
 
         if factors is None:
-            factors = [1]*len(independent_events)
+            factors = [1] * len(independent_events)
 
         if not isinstance(factors, list):
             factors = [factors]
@@ -344,7 +365,7 @@ class EventHandler(CachedPropertiesMixin, Structure):
                 "Length of factors must equal length of independent Events"
             )
         if transforms is None:
-            transforms = [None]*len(independent_events)
+            transforms = [None] * len(independent_events)
 
         if not isinstance(transforms, list):
             transforms = [transforms]
@@ -355,9 +376,9 @@ class EventHandler(CachedPropertiesMixin, Structure):
 
         for indep, fac, trans in zip(independent_events, factors, transforms):
             indep = self.events_dict[indep]
-            evt.add_dependency(indep, fac, trans)
+            evt.add_time_dependency(indep, fac, trans)
 
-    def remove_event_dependency(self, dependent_event, independent_events):
+    def remove_event_time_dependency(self, dependent_event, independent_events):
         """Remove a previously defined dependency between events.
 
         Parameters
@@ -385,24 +406,41 @@ class EventHandler(CachedPropertiesMixin, Structure):
             raise CADETProcessError("Cannot find dependent Event")
 
         if not all(evt in self.events_dict for evt in independent_events):
-            raise CADETProcessError(
-                "Cannot find one or more independent events"
-            )
+            raise CADETProcessError("Cannot find one or more independent events")
 
         for indep in independent_events:
             self.events[dependent_event].remove_dependency(indep)
 
     @cached_property_if_locked
     def independent_events(self):
+        warnings.warn(
+            "This function is deprecated, use `remove_event_time_dependency()`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.independent_time_events
+
+    @property
+    def independent_time_events(self):
         """list: All events that are not dependent on other events."""
-        return list(filter(lambda evt: evt.is_independent, self.events))
+        return list(filter(lambda evt: evt.is_time_independent, self.events))
 
     @cached_property_if_locked
     def dependent_events(self):
-        """list: All events that are dependent on other events."""
-        return list(
-            filter(lambda evt: evt.is_independent is False, self.events)
+        warnings.warn(
+            "This function is deprecated, use `remove_event_time_dependency()`.",
+            DeprecationWarning,
+            stacklevel=2,
         )
+        return self.dependent_time_events
+
+    @property
+    def dependent_time_events(self):
+        """list: All events that are dependent on other events."""
+        return list(filter(lambda evt: evt.is_time_independent is False, self.events))
+
+    def add_event_state_dependency(self, *args, **kwargs):
+        pass
 
     @cached_property_if_locked
     def event_parameters(self):
@@ -520,25 +558,34 @@ class EventHandler(CachedPropertiesMixin, Structure):
                     if i_evt < len(index_events) - 1:
                         section_end = index_events[i_evt + 1].time
                         self._create_and_add_sections(
-                            section_start, section_end,
-                            evt, index,
-                            parameter_timelines, multi_timelines
+                            section_start,
+                            section_end,
+                            evt,
+                            index,
+                            parameter_timelines,
+                            multi_timelines,
                         )
                     else:
                         section_end = self.cycle_time
                         self._create_and_add_sections(
-                            section_start, section_end,
-                            evt, index,
-                            parameter_timelines, multi_timelines
+                            section_start,
+                            section_end,
+                            evt,
+                            index,
+                            parameter_timelines,
+                            multi_timelines,
                         )
 
                         if index_events[0].time != 0:
                             section_start = 0.0
                             section_end = index_events[0].time
                             self._create_and_add_sections(
-                                section_start, section_end,
-                                evt, index,
-                                parameter_timelines, multi_timelines
+                                section_start,
+                                section_end,
+                                evt,
+                                index,
+                                parameter_timelines,
+                                multi_timelines,
                             )
 
         for param, tl in multi_timelines.items():
@@ -547,14 +594,8 @@ class EventHandler(CachedPropertiesMixin, Structure):
         return Dict(parameter_timelines)
 
     def _create_and_add_sections(
-            self,
-            start,
-            end,
-            evt,
-            index,
-            parameter_timelines,
-            multi_timelines
-            ):
+        self, start, end, evt, index, parameter_timelines, multi_timelines
+    ):
         """
         Create a new Section and integrate it into the correct TimeLine.
 
@@ -586,7 +627,7 @@ class EventHandler(CachedPropertiesMixin, Structure):
                 start, end, evt.index_states[index], is_polynomial=evt.is_polynomial
             )
             if evt.degree > 0 and len(index) == 1:
-                index = (0, ) + index
+                index = (0,) + index
             multi_timelines[evt.parameter_path].add_section(section, index)
 
     @property
@@ -611,12 +652,10 @@ class EventHandler(CachedPropertiesMixin, Structure):
         of timelines for each performer. This hierarchical structure helps in
         quickly accessing the TimeLine of any event parameter specific to a performer.
         """
-        performer_timelines = {
-            performer: {} for performer in self.event_performers
-        }
+        performer_timelines = {performer: {} for performer in self.event_performers}
 
         for param, tl in self.parameter_timelines.items():
-            performer, param = param.rsplit('.', 1)
+            performer, param = param.rsplit(".", 1)
             performer_timelines[performer][param] = tl
 
         return performer_timelines
@@ -640,7 +679,7 @@ class EventHandler(CachedPropertiesMixin, Structure):
         durations = {dur.name: dur.parameters for dur in self.durations}
         parameters.update(durations)
 
-        parameters['cycle_time'] = self.cycle_time
+        parameters["cycle_time"] = self.cycle_time
 
         return parameters
 
@@ -648,7 +687,7 @@ class EventHandler(CachedPropertiesMixin, Structure):
     def parameters(self, parameters):
         """Set event parameters based on provided dictionary."""
         try:
-            self.cycle_time = parameters.pop('cycle_time')
+            self.cycle_time = parameters.pop("cycle_time")
         except KeyError:
             pass
 
@@ -656,8 +695,11 @@ class EventHandler(CachedPropertiesMixin, Structure):
             try:
                 evt = self.events_dict[evt_name]
             except AttributeError:
-                raise CADETProcessError('Not a valid event')
-            if "time" in evt_parameters and evt not in self.independent_events + self.durations:
+                raise CADETProcessError("Not a valid event")
+            if (
+                "time" in evt_parameters
+                and evt not in self.independent_events + self.durations
+            ):
                 raise CADETProcessError(
                     f'Cannot set "time" for {str(evt)} because it is not an independent event.'
                 )
@@ -730,7 +772,8 @@ class EventHandler(CachedPropertiesMixin, Structure):
                 index_event_times = [evt.time for evt in index_events]
 
                 duplicates = [
-                    time for time in set(index_event_times)
+                    time
+                    for time in set(index_event_times)
                     if index_event_times.count(time) > 1
                 ]
 
@@ -760,9 +803,7 @@ class EventHandler(CachedPropertiesMixin, Structure):
         """
         flag = True
         for evt_parameter, events in self.parameter_events.items():
-            current_value = get_nested_value(
-                self.parameters, evt_parameter
-            )
+            current_value = get_nested_value(self.parameters, evt_parameter)
             current_value = np.array(current_value)
 
             if np.any(np.isnan(current_value)):
@@ -805,10 +846,10 @@ class EventHandler(CachedPropertiesMixin, Structure):
 
             layout = plotting.Layout()
             layout.title = str(parameter)
-            layout.x_label = '$time~/~min$'
-            layout.y_label = '$state$'
+            layout.x_label = "$time~/~min$"
+            layout.y_label = "$state$"
 
-            ax.plot(time/60, y)
+            ax.plot(time / 60, y)
 
             plotting.set_layout(ax, layout)
 
@@ -817,7 +858,7 @@ class EventHandler(CachedPropertiesMixin, Structure):
         return axs
 
 
-class Event():
+class Event:
     """Defines dynamic changes of model parameters based on events.
 
     An `Event` is a time-based modification to an attribute of a performer.
@@ -846,17 +887,17 @@ class Event():
 
     """
 
-    _parameters = ['time', 'state']
+    _parameters = ["time", "state"]
 
     def __init__(
-            self,
-            name,
-            event_handler,
-            parameter_path,
-            state,
-            time=0.0,
-            indices=None,
-            ):
+        self,
+        name,
+        event_handler,
+        parameter_path,
+        state,
+        time=0.0,
+        indices=None,
+    ):
         """Initialize the Event object.
 
         Parameters
@@ -881,12 +922,15 @@ class Event():
         self.parameter_path = parameter_path
 
         self.indices = indices
+
+        self._state_dependencies = []
+        self._state_factors = []
+        self._state_transforms = []
         self.state = state
 
-        self._dependencies = []
-        self._factors = []
-        self._transforms = []
-
+        self._time_dependencies = []
+        self._time_factors = []
+        self._time_transforms = []
         self.time = time
 
     @property
@@ -899,13 +943,13 @@ class Event():
         if not check_nested(
             self.event_handler.section_dependent_parameters, parameter_path
         ):
-            raise CADETProcessError('Not a valid event parameter')
+            raise CADETProcessError("Not a valid event parameter")
         self._parameter_path = parameter_path
 
     @property
     def parameter_sequence(self):
         """tuple: Tuple of parameters path elements."""
-        return tuple(self.parameter_path.split('.'))
+        return tuple(self.parameter_path.split("."))
 
     @property
     def parameter_descriptor(self):
@@ -928,8 +972,7 @@ class Event():
 
         if self.current_value is None:
             raise CADETProcessError(
-                "Parameter is not initialized. "
-                "Cannot determine parameter type."
+                "Parameter is not initialized. " "Cannot determine parameter type."
             )
 
         return type(self.current_value)
@@ -943,14 +986,13 @@ class Event():
         if isinstance(self.parameter_descriptor, Sized):
             shape = self.parameter_descriptor.get_expected_size(self.performer_obj)
             if not isinstance(shape, tuple):
-                shape = (shape, )
+                shape = (shape,)
 
             return shape
 
         if self.current_value is None:
             raise CADETProcessError(
-                "Parameter is not initialized. "
-                "Cannot determine parameter shape."
+                "Parameter is not initialized. " "Cannot determine parameter shape."
             )
 
         return np.array(self.current_value).shape
@@ -974,7 +1016,9 @@ class Event():
     @property
     def is_polynomial(self):
         """bool: True if descriptor is instance of NdPolynomial. False otherwise."""
-        return check_nested(self.event_handler.polynomial_parameters, self.parameter_path)
+        return check_nested(
+            self.event_handler.polynomial_parameters, self.parameter_path
+        )
 
     @property
     def degree(self):
@@ -1059,7 +1103,7 @@ class Event():
             else:
                 return self.n_indices
 
-    def add_dependency(self, dependency, factor=1, transform=None):
+    def add_time_dependency(self, dependency, factor=1, transform=None):
         """Add a time dependency on another event.
 
         When an event is dependent, the time of the event is based on a linear
@@ -1079,18 +1123,20 @@ class Event():
         CADETProcessError
             If the dependency is already listed.
         """
-        if dependency in self._dependencies:
+        if dependency in self._time_dependencies:
             raise CADETProcessError("Dependency already exists")
 
-        self._dependencies.append(dependency)
-        self._factors.append(factor)
+        self._time_dependencies.append(dependency)
+        self._time_factors.append(factor)
         if transform is None:
+
             def transform(t):
                 return t
-        self._transforms.append(transform)
 
-    def remove_dependency(self, dependency):
-        """Remove dependencies of events.
+        self._time_transforms.append(transform)
+
+    def remove_time_dependency(self, dependency):
+        """Remove time dependency of Event.
 
         Parameters
         ----------
@@ -1100,40 +1146,40 @@ class Event():
         Raises
         ------
         CADETProcessError
-            If the dependency doesn't exists in list dependencies.
+            If the dependency doesn't exists in time dependencies.
 
         """
-        if dependency in self._dependencies:
+        if dependency in self._time_dependencies:
             raise CADETProcessError("Dependency not found")
 
-        index = self._dependencies(dependency)
+        index = self._time_dependencies(dependency)
 
-        del self._dependencies[index]
-        del self._factors[index]
+        del self._time_dependencies[index]
+        del self._time_factors[index]
         del self._transforms[index]
 
     @property
-    def dependencies(self):
-        """list: Events on which the Event depends."""
-        return self._dependencies
+    def time_dependencies(self):
+        """list: Events on which the Event time depends."""
+        return self._time_dependencies
 
     @property
-    def is_independent(self):
-        """bool: True, if event is independent, False otherwise."""
-        if len(self.dependencies) == 0:
+    def is_time_independent(self):
+        """bool: True, if event is time independent, False otherwise."""
+        if len(self.time_dependencies) == 0:
             return True
         else:
             return False
 
     @property
-    def factors(self):
-        """list: Linear coefficients for dependent events."""
-        return self._factors
+    def time_factors(self):
+        """list: Linear coefficients for time dependent events."""
+        return self._time_factors
 
     @property
-    def transforms(self):
+    def time_transforms(self):
         """list: Transform functions for dependent events."""
-        return self._transforms
+        return self._time_transforms
 
     @property
     def time(self):
@@ -1149,15 +1195,15 @@ class Event():
             If the event is not independent.
 
         """
-        if self.is_independent:
+        if self.is_time_independent:
             time = self._time
         else:
             transformed_time = [
                 f(dep.time)
-                for f, dep in zip(self.transforms, self.dependencies)
+                for f, dep in zip(self.time_transforms, self.time_dependencies)
             ]
-            time = np.dot(transformed_time, self._factors)
-        cycle_time = getattr(self.event_handler, 'cycle_time')
+            time = np.dot(transformed_time, self._time_factors)
+        cycle_time = getattr(self.event_handler, "cycle_time")
         return time % cycle_time
 
     @time.setter
@@ -1165,10 +1211,33 @@ class Event():
         if not np.isscalar(time):
             raise TypeError("Expected scalar value")
 
-        if self.is_independent:
+        if self.is_time_independent:
             self._time = time
         else:
-            raise CADETProcessError("Cannot set time for dependent events")
+            raise CADETProcessError("Cannot set time for time dependent events")
+
+    @property
+    def state_dependencies(self):
+        """list: Events on which the Event state depends."""
+        return self._state_dependencies
+
+    @property
+    def is_state_independent(self):
+        """bool: True, if event is state independent, False otherwise."""
+        if len(self.state_dependencies) == 0:
+            return True
+        else:
+            return False
+
+    @property
+    def state_factors(self):
+        """list: Linear coefficients for state dependent events."""
+        return self._state_factors
+
+    @property
+    def state_transforms(self):
+        """list: Transform functions for dependent events."""
+        return self._state_transforms
 
     @property
     def state(self):
@@ -1194,9 +1263,14 @@ class Event():
 
         Raises
         ------
+        CADETProcessError
+            If the event is not state independent.
         ValueError, TypeError
             If the updated state does not align with the expected data type or structure.
         """
+        if not self.is_state_independent:
+            raise CADETProcessError("Cannot set state for state dependent events")
+
         # Initialize value to get dimensions
         if self._indices is None and self.current_value is None:
             self.set_value(state)
@@ -1226,10 +1300,8 @@ class Event():
         Union[float, np.array]
             Original state or a 2D structure depending on the indices.
         """
-        if (
-            len(self.indices) == 1
-            and
-            any(isinstance(i, slice) for i in self.indices[0])
+        if len(self.indices) == 1 and any(
+            isinstance(i, slice) for i in self.indices[0]
         ):
             state = [state]
 
@@ -1276,7 +1348,11 @@ class Event():
 
             for i, ind in enumerate(self.indices):
                 expected_shape = new_value[ind].shape
-                if self.is_polynomial and len(self.parameter_shape) > 1 and len(ind) == 1:
+                if (
+                    self.is_polynomial
+                    and len(self.parameter_shape) > 1
+                    and len(ind) == 1
+                ):
                     new_slice = self.parameter_descriptor.fill_values(
                         expected_shape, state[i]
                     )
@@ -1347,16 +1423,12 @@ class Event():
         if self.parameter_descriptor is not None:
             return getattr(self.performer_obj, self.parameter_sequence[-1])
         else:
-            return get_nested_value(
-                self.event_handler.parameters, self.parameter_path
-            )
+            return get_nested_value(self.event_handler.parameters, self.parameter_path)
 
     @property
     def parameters(self):
         """dict: list with all parameters."""
-        return Dict({
-            param: getattr(self, param) for param in self._parameters
-        })
+        return Dict({param: getattr(self, param) for param in self._parameters})
 
     @parameters.setter
     def parameters(self, parameters):
@@ -1365,24 +1437,26 @@ class Event():
         else:
             for param, value in parameters.items():
                 if param not in self._parameters:
-                    raise CADETProcessError('Not a valid parameter')
+                    raise CADETProcessError("Not a valid parameter")
                 setattr(self, param, value)
 
     def __repr__(self):
-        representation = \
-            f'{self.__class__.__name__}('\
-            f'name={self.name}, '\
-            f'parameter_path={self.parameter_path}, '\
-            f'state={self.state}, '\
-            f'time={self.time}'
+        representation = (
+            f"{self.__class__.__name__}("
+            f"name={self.name}, "
+            f"parameter_path={self.parameter_path}, "
+            f"state={self.state}, "
+            f"time={self.time}"
+        )
         if self.indices is not None:
-            representation += f', indices={self.indices}'
+            representation += f", indices={self.indices}"
 
-        representation += ')'
+        representation += ")"
 
         return representation
 
-class Duration():
+
+class Duration:
     """Class for representing a duration between two events in an Eventhandler.
 
     Attributes
@@ -1397,14 +1471,12 @@ class Duration():
     def __init__(self, name, event_handler, time=0.0):
         self.name = name
         self.time = time
-        self._parameters = ['time']
+        self._parameters = ["time"]
 
     @property
     def parameters(self):
         """dict: list with all parameters."""
-        return Dict({
-            param: getattr(self, param) for param in self._parameters
-        })
+        return Dict({param: getattr(self, param) for param in self._parameters})
 
     @parameters.setter
     def parameters(self, parameters):
@@ -1413,8 +1485,8 @@ class Duration():
         else:
             for param, value in parameters.items():
                 if param not in self._parameters:
-                    raise CADETProcessError('Not a valid parameter')
+                    raise CADETProcessError("Not a valid parameter")
                 setattr(self, param, value)
 
     def __repr__(self):
-        return f'{self.__class__.__name__}(name={self.name}, time={self.time})'
+        return f"{self.__class__.__name__}(name={self.name}, time={self.time})"
