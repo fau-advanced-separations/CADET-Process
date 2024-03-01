@@ -634,6 +634,9 @@ class EventHandler(CachedPropertiesMixin, Structure):
         events = {evt.name: evt.parameters for evt in self.independent_events}
         parameters.update(events)
 
+        events = {evt.name: evt.parameters for evt in self.dependent_events}
+        parameters.update(events)
+
         durations = {dur.name: dur.parameters for dur in self.durations}
         parameters.update(durations)
 
@@ -654,9 +657,9 @@ class EventHandler(CachedPropertiesMixin, Structure):
                 evt = self.events_dict[evt_name]
             except AttributeError:
                 raise CADETProcessError('Not a valid event')
-            if evt not in self.independent_events + self.durations:
+            if "time" in evt_parameters and evt not in self.independent_events + self.durations:
                 raise CADETProcessError(
-                    f'{str(evt)} is not a valid event'
+                    f'Cannot set "time" for {str(evt)} because it is not an independent event.'
                 )
 
             evt.parameters = evt_parameters
