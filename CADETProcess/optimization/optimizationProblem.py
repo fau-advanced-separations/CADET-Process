@@ -2427,6 +2427,19 @@ class OptimizationProblem(Structure):
         return Aeq_t
 
     @property
+    def Aeq_independent(self):
+        """np.ndarray: LHS Matrix of linear inequality constraints for indep variables.
+
+        See Also
+        --------
+        Aeq
+        Aeq_transformed
+        Aeq_independent_transformed
+
+        """
+        return self.Aeq[:, self.independent_variable_indices]
+
+    @property
     def Aeq_independent_transformed(self):
         """np.ndarray: LHS of lin ineqs for indep variables in transformed space.
 
@@ -2653,9 +2666,30 @@ class OptimizationProblem(Structure):
         """Prune cache with (intermediate) results."""
         self.cache.prune()
 
-    def create_hopsy_problem(self, simplify=False, use_custom_model=False):
-        """creates a hopsy problem from an optimization problem"""
+    def create_hopsy_problem(
+            self,
+            include_dependent_variables=True,
+            simplify=False,
+            use_custom_model=False
+            ):
+        """Creates a hopsy problem from the optimization problem.
 
+        Parameters
+        ----------
+        include_dependent_variables : bool, optional
+            If True, only use the hopsy problem. The default is False.
+        simplify : bool, optional
+            If True, simplify the hopsy problem. The default is False.
+        use_custom_model : bool, optional
+            If True, use custom model to improve sampling of log normalized parameters.
+            The default is False.
+
+        Returns
+        -------
+        problem
+            hopsy.Problem
+
+        """
         class CustomModel():
             def __init__(self, log_space_indices: list):
                 self.log_space_indices = log_space_indices
@@ -2663,8 +2697,14 @@ class OptimizationProblem(Structure):
             def compute_negative_log_likelihood(self, x):
                 return np.sum(np.log(x[self.log_space_indices]))
 
+        if include_dependent_variables:
+            variables = self.variables
+        else:
+            variables = self.independent_variables
+
         log_space_indices = []
-        for i, var in enumerate(self.variables):
+
+        for i, var in enumerate(variables):
             if (
                     isinstance(var._transform, NormLogTransform)
                     or
@@ -2684,24 +2724,39 @@ class OptimizationProblem(Structure):
         else:
             model = None
 
+        if include_dependent_variables:
+            A = self.A
+            b = self.b
+            lower_bounds = self.lower_bounds
+            upper_bounds = self.upper_bounds
+            Aeq = self.Aeq
+            beq = self.beq
+        else:
+            A = self.A_independent
+            b = self.b
+            lower_bounds = self.lower_bounds_independent
+            upper_bounds = self.upper_bounds_independent
+            Aeq = self.Aeq_independent
+            beq = self.beq
+
         problem = hopsy.Problem(
-            self.A,
-            self.b,
+            A,
+            b,
             model,
         )
 
         problem = hopsy.add_box_constraints(
             problem,
-            self.lower_bounds,
-            self.upper_bounds,
+            lower_bounds,
+            upper_bounds,
             simplify=simplify,
         )
 
         if self.n_linear_equality_constraints > 0:
             problem = hopsy.add_equality_constraints(
                 problem,
-                self.Aeq,
-                self.beq
+                Aeq,
+                beq
             )
 
         return problem
@@ -2723,7 +2778,7 @@ class OptimizationProblem(Structure):
             Chebyshev center.
         """
         problem = self.create_hopsy_problem(
-            simplify=False, use_custom_model=True
+            include_dependent_variables=False, simplify=False, use_custom_model=True
         )
         # !!! Additional checks in place to handle PolyRound.round()
         # removing "small" dimensions.
@@ -2742,15 +2797,13 @@ class OptimizationProblem(Structure):
                 problem_rounded, original_space=True
             )[:, 0]
 
-            if np.all(np.greater(chebyshev_rounded, self.lower_bounds)):
+            if np.all(np.greater(chebyshev_rounded, self.lower_bounds_independent)):
                 problem = problem_rounded
                 chebyshev = chebyshev_rounded
             else:
                 chebyshev = chebyshev_orig
         else:
             chebyshev = chebyshev_orig
-
-        chebyshev = self.get_independent_values(chebyshev)
 
         if include_dependent_variables:
             chebyshev = self.get_dependent_values(chebyshev)
@@ -2796,11 +2849,13 @@ class OptimizationProblem(Structure):
             warnings.simplefilter("ignore")
 
             problem = self.create_hopsy_problem(
-                simplify=False, use_custom_model=True
+                include_dependent_variables=False,
+                simplify=False,
+                use_custom_model=True,
             )
 
             chebychev_center = self.get_chebyshev_center(
-                include_dependent_variables=True
+                include_dependent_variables=False
             )
 
             if seed is None:
@@ -2818,14 +2873,7 @@ class OptimizationProblem(Structure):
             acceptance_rate, states = hopsy.sample(
                 mc, rng_hopsy, n_samples=burn_in, thinning=2
             )
-            values = states[0, ...]
-
-        # Since hopsy does not know about dependencies, they are recomputed for consistency.
-        independent_indices = [
-            i for i, variable in enumerate(self.variables)
-            if variable in self.independent_variables
-        ]
-        independent_values = values[:, independent_indices]
+            independent_values = states[0, ...]
 
         values = []
         counter = 0
@@ -2970,6 +3018,7 @@ class OptimizationProblem(Structure):
 
         if self.n_objectives == 0:
             flag = False
+
         if self.n_linear_constraints + self.n_linear_equality_constraints > 0 \
                 and not ignore_linear_constraints:
             if not self.check_linear_constraints_transforms():
