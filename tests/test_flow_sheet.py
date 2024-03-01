@@ -1289,8 +1289,8 @@ class TestPorts(unittest.TestCase):
         
         hey = mct_flow_sheet.get_flow_rates()
         
-        print("hello world")
-        
+
+        print("hello")
 
     def test_port_add_connection(self):
         

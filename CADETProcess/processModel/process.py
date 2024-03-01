@@ -164,18 +164,21 @@ class Process(EventHandler):
                 unit_flow_rates = flow_rate_timelines[unit]
 
                 # If inlet, also use outlet for total_in
-                for port in flow_rate_dict['total_in']:
-                    if isinstance(self.flow_sheet[unit], Inlet):
+
+                if isinstance(self.flow_sheet[unit], Inlet):
+                    for port in flow_rate_dict['total_out']:                        
                         section = Section(
                             start, end, flow_rate_dict.total_out[port], is_polynomial=True
                         )
-                    else:
+                        unit_flow_rates['total_in'][port].add_section(section)
+                else:
+                    for port in flow_rate_dict['total_in']:                     
                         section = Section(
                             start, end, flow_rate_dict.total_in[port], is_polynomial=True
                         )
-                    
+                        unit_flow_rates['total_in'][port].add_section(section)                    
 
-                        unit_flow_rates['total_in'][port].add_section(section)
+
                 
                 
                 for port in flow_rate_dict.origins:
@@ -188,16 +191,19 @@ class Process(EventHandler):
                             unit_flow_rates['origins'][port][orig][orig_port].add_section(section)
 
                 # If outlet, also use inlet for total_out
-                for port in flow_rate_dict['total_out']:
-                    if isinstance(self.flow_sheet[unit], Outlet):
+
+                if isinstance(self.flow_sheet[unit], Outlet):
+                    for port in flow_rate_dict['total_in']:                    
                         section = Section(
                             start, end, flow_rate_dict.total_in[port], is_polynomial=True
                         )
-                    else:
+                        unit_flow_rates['total_out'][port].add_section(section)
+                else:
+                    for port in flow_rate_dict['total_out']:
                         section = Section(
                             start, end, flow_rate_dict.total_out[port], is_polynomial=True
                         )        
-                    unit_flow_rates['total_out'][port].add_section(section)
+                        unit_flow_rates['total_out'][port].add_section(section)
                     
                 for port in flow_rate_dict.destinations:
                     for dest, dest_port_dict in flow_rate_dict.destinations[port].items():

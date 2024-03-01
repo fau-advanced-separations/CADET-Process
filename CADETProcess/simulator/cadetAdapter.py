@@ -562,85 +562,86 @@ class Cadet(SimulatorBase):
         try:
             solution = Dict()
             for unit in process.flow_sheet.units:
-                solution[unit.name] = defaultdict(list)
-                unit_index = self.get_unit_index(process, unit)
-                unit_solution = cadet.root.output.solution[unit_index]
-                unit_coordinates = \
-                    cadet.root.output.coordinates[unit_index].copy()
-                particle_coordinates = \
-                    unit_coordinates.pop('particle_coordinates_000', None)
+                for port in range(unit.n_ports):
+                    solution[unit.name] = defaultdict(lambda: defaultdict(list))
+                    unit_index = self.get_unit_index(process, unit)
+                    unit_solution = cadet.root.output.solution[unit_index]
+                    unit_coordinates = \
+                        cadet.root.output.coordinates[unit_index].copy()
+                    particle_coordinates = \
+                        unit_coordinates.pop('particle_coordinates_000', None)
 
-                flow_in = process.flow_rate_timelines[unit.name].total_in
-                flow_out = process.flow_rate_timelines[unit.name].total_out
+                    flow_in = process.flow_rate_timelines[unit.name].total_in[port]
+                    flow_out = process.flow_rate_timelines[unit.name].total_out[port]
 
-                for cycle in range(self.n_cycles):
-                    start = cycle * len(time)
-                    end = (cycle + 1) * len(time)
+                    for cycle in range(self.n_cycles):
+                        start = cycle * len(time)
+                        end = (cycle + 1) * len(time)
 
-                    if 'solution_inlet' in unit_solution.keys():
-                        sol_inlet = unit_solution.solution_inlet[start:end, :]
-                        solution[unit.name]['inlet'].append(
-                            SolutionIO(
-                                unit.name,
-                                unit.component_system, time, sol_inlet,
-                                flow_in
+                        if 'solution_inlet' in unit_solution.keys():
+                            sol_inlet = unit_solution.solution_inlet[start:end,]
+                            solution[unit.name]['inlet'][port].append(
+                                SolutionIO(
+                                    unit.name,
+                                    unit.component_system, time, sol_inlet,
+                                    flow_in
+                                )
                             )
-                        )
 
-                    if 'solution_outlet' in unit_solution.keys():
-                        sol_outlet = unit_solution.solution_outlet[start:end, :]
-                        solution[unit.name]['outlet'].append(
-                            SolutionIO(
-                                unit.name,
-                                unit.component_system, time, sol_outlet,
-                                flow_out
+                        if 'solution_outlet' in unit_solution.keys():
+                            sol_outlet = unit_solution.solution_outlet[start:end, :]
+                            solution[unit.name]['outlet'].append(
+                                SolutionIO(
+                                    unit.name,
+                                    unit.component_system, time, sol_outlet,
+                                    flow_out
+                                )
                             )
-                        )
 
-                    if 'solution_bulk' in unit_solution.keys():
-                        sol_bulk = unit_solution.solution_bulk[start:end, :]
-                        solution[unit.name]['bulk'].append(
-                            SolutionBulk(
-                                unit.name,
-                                unit.component_system, time, sol_bulk,
-                                **unit_coordinates
+                        if 'solution_bulk' in unit_solution.keys():
+                            sol_bulk = unit_solution.solution_bulk[start:end, :]
+                            solution[unit.name]['bulk'].append(
+                                SolutionBulk(
+                                    unit.name,
+                                    unit.component_system, time, sol_bulk,
+                                    **unit_coordinates
+                                )
                             )
-                        )
 
-                    if 'solution_particle' in unit_solution.keys():
-                        sol_particle = unit_solution.solution_particle[start:end, :]
-                        solution[unit.name]['particle'].append(
-                            SolutionParticle(
-                                unit.name,
-                                unit.component_system, time, sol_particle,
-                                **unit_coordinates,
-                                particle_coordinates=particle_coordinates
+                        if 'solution_particle' in unit_solution.keys():
+                            sol_particle = unit_solution.solution_particle[start:end, :]
+                            solution[unit.name]['particle'].append(
+                                SolutionParticle(
+                                    unit.name,
+                                    unit.component_system, time, sol_particle,
+                                    **unit_coordinates,
+                                    particle_coordinates=particle_coordinates
+                                )
                             )
-                        )
 
-                    if 'solution_solid' in unit_solution.keys():
-                        sol_solid = unit_solution.solution_solid[start:end, :]
-                        solution[unit.name]['solid'].append(
-                            SolutionSolid(
-                                unit.name,
-                                unit.component_system,
-                                unit.binding_model.bound_states,
-                                time, sol_solid,
-                                **unit_coordinates,
-                                particle_coordinates=particle_coordinates
+                        if 'solution_solid' in unit_solution.keys():
+                            sol_solid = unit_solution.solution_solid[start:end, :]
+                            solution[unit.name]['solid'].append(
+                                SolutionSolid(
+                                    unit.name,
+                                    unit.component_system,
+                                    unit.binding_model.bound_states,
+                                    time, sol_solid,
+                                    **unit_coordinates,
+                                    particle_coordinates=particle_coordinates
+                                )
                             )
-                        )
 
-                    if 'solution_volume' in unit_solution.keys():
-                        sol_volume = unit_solution.solution_volume[start:end, :]
-                        solution[unit.name]['volume'].append(
-                            SolutionVolume(
-                                unit.name,
-                                unit.component_system,
-                                time,
-                                sol_volume
+                        if 'solution_volume' in unit_solution.keys():
+                            sol_volume = unit_solution.solution_volume[start:end, :]
+                            solution[unit.name]['volume'].append(
+                                SolutionVolume(
+                                    unit.name,
+                                    unit.component_system,
+                                    time,
+                                    sol_volume
+                                )
                             )
-                        )
 
             solution = Dict(solution)
 
