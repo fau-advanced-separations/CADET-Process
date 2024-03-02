@@ -1286,6 +1286,8 @@ class Event():
                     else:
                         new_slice = np.reshape(new_slice, expected_shape)
 
+                if len(expected_shape) == 0:
+                    new_slice = new_slice.squeeze()
                 new_value[ind] = new_slice
 
             if self.parameter_type is not np.ndarray:

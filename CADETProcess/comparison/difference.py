@@ -4,7 +4,7 @@ from functools import wraps
 from warnings import warn
 
 import numpy as np
-from scipy.integrate import simps
+from scipy.integrate import simpson
 from scipy.special import expit
 
 from CADETProcess import CADETProcessError
@@ -407,10 +407,10 @@ class AbsoluteArea(DifferenceBase):
             Concentration profile of simulation.
 
         """
-        area_ref = simps(
+        area_ref = simpson(
             self.reference.solution, self.reference.time, axis=0
         )
-        area_sol = simps(solution.solution, solution.time, axis=0)
+        area_sol = simpson(solution.solution, solution.time, axis=0)
 
         return abs(area_ref - area_sol)
 
@@ -427,10 +427,10 @@ class RelativeArea(DifferenceBase):
             Concentration profile of simulation.
 
         """
-        area_ref = simps(
-            self.reference.solution, self.reference.time, axis=0
+        area_ref = simpson(
+            self.reference.solution, x=self.reference.time, axis=0
         )
-        area_new = simps(solution.solution, solution.time, axis=0)
+        area_new = simpson(solution.solution, x=solution.time, axis=0)
 
         return abs(area_ref - area_new)/area_ref
 

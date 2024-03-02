@@ -506,7 +506,7 @@ class SolutionIO(SolutionBase):
         if end is None:
             end = self.cycle_time
 
-        return float(self.flow_rate.integral(start, end))
+        return float(self.flow_rate.integral(start, end).squeeze())
 
     @plotting.create_and_save_figure
     def plot(
