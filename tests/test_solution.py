@@ -41,6 +41,61 @@ from scipy import stats
 
 show_plots = False
 
+
+class TestSolutionIO(SolutionIO):
+    def __init__(self, component_system, flow_rate=None, cycle_time=100, frequency=10):
+        time = np.linspace(0, cycle_time, frequency * cycle_time + 1)
+        solution = np.zeros((len(time), component_system.n_comp))
+
+        if flow_rate is None:
+            flow_rate = np.ones((time.shape))
+
+        super().__init__("TestSolutionIO", component_system, time, solution, flow_rate)
+
+
+class TestSolutionIOConstant(TestSolutionIO):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        for comp_i in range(self.component_system_originaln_comp):
+            self.solution[:, comp_i] = comp_i
+
+
+class TestSolutionIOPiecewiseConstant(TestSolutionIO):
+    def __init__(self, *args, breaks=None, values=None, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if breaks is None:
+            mid = self.cycle_time / 2
+            breaks = [(mid - mid / (i+2), mid + mid / (i+2)) for i in range(self.n_comp)]
+
+        if values is None:
+            values = np.arange(self.n_comp) + 1
+
+        for comp_i, (breaks_i, value_i) in enumerate(zip(breaks, values)):
+            indices = np.where(
+                np.logical_and(self.time > breaks_i[0], self.time < breaks_i[1])
+            )
+            self.solution[indices, comp_i] = value_i
+
+
+class TestSolutionIOPiecewiseLinear(TestSolutionIO):
+    def __init__(self, *args, **kwargs):
+        raise NotImplementedError("This test class is not yet implemented.")
+
+
+class TestSolutionIOGaussian(TestSolutionIO):
+    def __init__(self, *args, mu=None, sigma=None, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if mu is None:
+            mu = [(i+1) * self.cycle_time / (self.n_comp + 1) for i in range(self.n_comp)]
+        if sigma is None:
+            sigma = np.arange(self.n_comp) + 1
+
+        for comp_i, (mu_i, sigma_i) in enumerate(zip(mu, sigma)):
+            self.solution[:, comp_i] = stats.norm.pdf(self.time, mu_i, sigma_i)
+
 comp_2 = ComponentSystem(2)
 
 comp_2_3_species = ComponentSystem()
