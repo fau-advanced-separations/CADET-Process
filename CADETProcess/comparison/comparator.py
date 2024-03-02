@@ -84,7 +84,7 @@ class Comparator(Structure):
         return self._metrics
 
     @property
-    def n_diffference_metrics(self):
+    def n_difference_metrics(self):
         """int: Number of difference metrics in the Comparator."""
         return len(self.metrics)
 
@@ -242,11 +242,11 @@ class Comparator(Structure):
         tuple
             A tuple of the comparison figure(s) and axes object(s).
         """
-        if self.n_diffference_metrics == 0:
+        if self.n_difference_metrics == 0:
             return (None, None)
 
         comparison_fig_all, comparison_axs_all = plotting.setup_figure(
-            n_rows=self.n_diffference_metrics,
+            n_rows=self.n_difference_metrics,
             squeeze=False
         )
 
@@ -255,7 +255,7 @@ class Comparator(Structure):
 
         comparison_fig_ind: list[Figure] = []
         comparison_axs_ind: list[Axes] = []
-        for i in range(self.n_diffference_metrics):
+        for i in range(self.n_difference_metrics):
             fig, axs = plt.subplots()
             comparison_fig_ind.append(fig)
             comparison_axs_ind.append(axs)
