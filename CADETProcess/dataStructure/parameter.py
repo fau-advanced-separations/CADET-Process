@@ -1529,7 +1529,7 @@ class NdPolynomial(SizedNdArray):
             raise ValueError("Can only set single entry if n_entries == 1.")
 
         if isinstance(value, np.ndarray) and value.size == 1:
-            value = float(value)
+            value = float(value.squeeze())
 
         if isinstance(value, (int, float)):
             value = n_entries * [value]

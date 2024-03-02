@@ -263,7 +263,7 @@ class Fractionator(EventHandler):
 
         fill_regions = []
         for sec in time_line.sections:
-            comp_index = int(np.where(sec.coeffs)[0])
+            comp_index = int(np.where(sec.coeffs)[0].squeeze())
             if comp_index == self.n_comp:
                 color_index = -1
                 text = 'W'
@@ -379,7 +379,7 @@ class Fractionator(EventHandler):
             for chrom_index, chrom in enumerate(self.chromatograms):
                 chrom_events = self.chromatogram_events[chrom]
                 for evt_index, evt in enumerate(chrom_events):
-                    target = int(np.nonzero(evt.full_state)[0])
+                    target = np.nonzero(evt.full_state)[0].squeeze()
 
                     frac_start = evt.time
 

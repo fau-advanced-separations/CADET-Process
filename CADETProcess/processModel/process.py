@@ -123,7 +123,7 @@ class Process(EventHandler):
         V_all = 0
         for eluent in self.flow_sheet.eluent_inlets:
             eluent_time_line = flow_rate_timelines[eluent.name]['total_out']
-            V_eluent = eluent_time_line.integral()
+            V_eluent = eluent_time_line.integral().squeeze()
             V_all += V_eluent
 
         return float(V_all)
