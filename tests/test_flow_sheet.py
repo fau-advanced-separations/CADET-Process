@@ -10,6 +10,41 @@ from CADETProcess.processModel import (
 from CADETProcess.processModel import FlowSheet
 
 
+def assert_almost_equal_dict(
+                dict_actual, dict_expected, decimal=7, verbose=True):
+            """Helper function to assert nested dicts are (almost) equal.
+
+            Because of floating point calculations, it is necessary to use
+            `np.assert_almost_equal` to check the flow rates. However, this does not
+            work well with nested dicts which is why this helper function was written.
+
+            Parameters
+            ----------
+            dict_actual : dict
+                The object to check.
+            dict_expected : dict
+                The expected object.
+            decimal : int, optional
+                Desired precision, default is 7.
+            err_msg : str, optional
+                The error message to be printed in case of failure.
+            verbose : bool, optional
+                If True, the conflicting values are appended to the error message.
+
+            """
+            for key in dict_actual:
+                if isinstance(dict_actual[key], dict):
+                    assert_almost_equal_dict(dict_actual[key], dict_expected[key])
+
+                else:
+                    np.testing.assert_almost_equal(
+                        dict_actual[key], dict_expected[key],
+                        decimal=decimal,
+                        err_msg=f'Dicts are not equal in key {key}.',
+                        verbose=verbose
+                    )
+
+
 def setup_single_cstr_flow_sheet(component_system=None):
     """
     Set up a simple `FlowSheet` with a single Continuous Stirred Tank Reactor (CSTR).
@@ -1276,6 +1311,7 @@ class TestPorts(unittest.TestCase):
         self.assertFalse(self.ccc_flow_sheet.connection_exists(inlet, outlet))
             
     def test_mct_flow_rate_calculation(self):
+        
         mct_flow_sheet = self.mct_flow_sheet
 
         mct_flow_sheet.inlet.flow_rate = 1
@@ -1287,10 +1323,142 @@ class TestPorts(unittest.TestCase):
         
 #        mct_flow_sheet.set_output_state(mct_3c, [0.5, 0.5], 0)
         
+        expected_flow = {
+            'inlet': {
+                'total_out': {
+                    0: (1,0,0,0)
+                },
+                'destinations': {
+                    0: {
+                        'mct_3c': {
+                            0: (1,0,0,0)
+                        }        
+                    }
+                } 
+            },
+            'mct_3c': {
+                'total_in': {
+                    0: (1,0,0,0),
+                    1: (0,0,0,0),                    
+                    2: (0,0,0,0)                
+                },
+                'origins': {
+                    0: {
+                        'inlet':{
+                            0: (1,0,0,0)
+                        }
+                    } 
+                },
+                'total_out': {
+                    0: (1,0,0,0),
+                    1: (0,0,0,0),
+                    2: (0,0,0,0)
+                },
+                'destinations': {
+                    0: {
+                        'mct_2c1': {
+                            0: (1,0,0,0),
+                            1: (0,0,0,0)
+                        }
+                    },
+                    1: {
+                        'mct_2c2': {
+                            0: (0,0,0,0)
+                        }
+                    }
+                }
+            },
+            'mct_2c1': {
+                'total_in': {
+                    0: (1,0,0,0),
+                    1: (0,0,0,0)
+                },
+                'origins': {
+                    0: {
+                        'mct_3c': {
+                            0: (1,0,0,0)
+                        }
+                    }, 
+                    1: {
+                        'mct_3c': {
+                            0: (0,0,0,0)
+                        }
+                    }
+                },
+                'total_out': {
+                    0: (1,0,0,0),
+                    1: (0,0,0,0)
+                },
+                'destinations': {
+                    0: {
+                        'outlet1': {
+                            0: (1,0,0,0)
+                        }
+                    },
+                    1: {
+                        'outlet1': {
+                            0: (0,0,0,0)
+                        }
+                    }
+                }
+            },
+            
+            'mct_2c2': {
+                'total_in': {
+                    0: (0,0,0,0),
+                    1: (0,0,0,0)
+                },
+                'origins': {
+                    0: {
+                        'mct_3c': {
+                            1: (0,0,0,0)
+                        }
+                    }, 
+                },
+                'total_out': {
+                    0: (0,0,0,0),
+                    1: (0,0,0,0)
+                },
+                'destinations': {
+                    0: {
+                        'outlet2': {
+                            0: (0,0,0,0)
+                        }
+                    }
+                }
+            },
+            'outlet1': {
+                'total_in': {
+                    0: (1,0,0,0)
+                },
+                'origins': {
+                    0: {
+                        'mct_2c1': {
+                            0: (1,0,0,0),
+                            1: (0,0,0,0)
+                        }        
+                    }
+                }
+            },
+            'outlet2': {
+                'total_in': {
+                    0: (0,0,0,0)
+                },
+                'origins': {
+                    0: {
+                        'mct_2c2': {
+                            0: (0,0,0,0)
+                        }        
+                    }
+                }
+            }
+        }
+        
+        
         hey = mct_flow_sheet.get_flow_rates()
         
-
-        print("hello")
+        assert_almost_equal_dict(hey, expected_flow)
+        
 
     def test_port_add_connection(self):
         
@@ -1456,39 +1624,6 @@ class TestFlowRateMatrix(unittest.TestCase):
         }
 
         calc_flow_rate = self.flow_sheet.get_flow_rates()
-
-        def assert_almost_equal_dict(
-                dict_actual, dict_expected, decimal=7, verbose=True):
-            """Helper function to assert nested dicts are (almost) equal.
-
-            Because of floating point calculations, it is necessary to use
-            `np.assert_almost_equal` to check the flow rates. However, this does not
-            work well with nested dicts which is why this helper function was written.
-
-            Parameters
-            ----------
-            dict_actual : dict
-                The object to check.
-            dict_expected : dict
-                The expected object.
-            decimal : int, optional
-                Desired precision, default is 7.
-            err_msg : str, optional
-                The error message to be printed in case of failure.
-            verbose : bool, optional
-                If True, the conflicting values are appended to the error message.
-
-            """
-            for key in dict_actual:
-                if isinstance(dict_actual[key], dict):
-                    assert_almost_equal_dict(dict_actual[key], dict_expected[key])
-                else:
-                    np.testing.assert_almost_equal(
-                        dict_actual[key], dict_expected[key],
-                        decimal=decimal,
-                        err_msg=f'Dicts are not equal in key {key}.',
-                        verbose=verbose
-                    )
 
         assert_almost_equal_dict(calc_flow_rate, expected_flow_rates)
 
