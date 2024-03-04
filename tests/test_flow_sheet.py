@@ -1285,7 +1285,7 @@ class TestPorts(unittest.TestCase):
         mct_2c1 = self.mct_flow_sheet['mct_2c1']
         mct_2c2 = self.mct_flow_sheet['mct_2c2']
         
-        mct_flow_sheet.set_output_state(mct_3c, [0.5, 0.5], 0)
+#        mct_flow_sheet.set_output_state(mct_3c, [0.5, 0.5], 0)
         
         hey = mct_flow_sheet.get_flow_rates()
         

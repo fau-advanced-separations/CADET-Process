@@ -590,7 +590,7 @@ class Cadet(SimulatorBase):
 
                         if 'solution_outlet' in unit_solution.keys():
                             sol_outlet = unit_solution.solution_outlet[start:end, :]
-                            solution[unit.name]['outlet'].append(
+                            solution[unit.name]['outlet'][port].append(
                                 SolutionIO(
                                     unit.name,
                                     unit.component_system, time, sol_outlet,
@@ -1853,11 +1853,12 @@ class ReturnParameters(Structure):
     write_solution_last = Bool(default=True)
     write_sens_last = Bool(default=True)
     split_components_data = Bool(default=False)
-    split_ports_data = Bool(default=False)
+    split_ports_data = Bool(default=True)
+    single_as_multi_port = Bool(default=True)
 
     _parameters = [
         'write_solution_times', 'write_solution_last', 'write_sens_last',
-        'split_components_data', 'split_ports_data'
+        'split_components_data', 'split_ports_data', 'single_as_multi_port',
     ]
 
 

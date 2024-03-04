@@ -770,7 +770,16 @@ class FlowSheet(Structure):
                         for origin_port in self.connections[unit]['origins'][port][origin_unit]:
                             
                             o_index = port_index_list.index((origin_unit, origin_port))
-                            local_d_index = list(self.connections[origin_unit]['destinations'][origin_port]).index(unit)
+                            
+                            local_d_index = 0
+                            
+                            for inner_unit in self.connections[origin_unit]['destinations'][origin_port]:
+                                if inner_unit == unit:
+                                    break
+                                local_d_index += len(list(self.connections[origin_unit]['destinations'][origin_port][inner_unit]))
+                                
+                            local_d_index += self.connections[origin_unit]['destinations'][origin_port][unit].index(port)
+                            
                             if output_states[origin_unit][origin_port][local_d_index]:
                                 w_out[port_index, o_index] = output_states[origin_unit][origin_port][local_d_index]
                     
@@ -817,7 +826,16 @@ class FlowSheet(Structure):
                         
                         for origin_port in self.connections[unit]['origins'][port][origin_unit]:
                             o_index = port_index_list.index((origin_unit, origin_port))
-                            local_d_index = list(self.connections[origin_unit]['destinations'][origin_port]).index(unit)
+                            
+                            local_d_index = 0
+                            
+                            for inner_unit in self.connections[origin_unit]['destinations'][origin_port]:
+                                if inner_unit == unit:
+                                    break
+                                local_d_index += len(list(self.connections[origin_unit]['destinations'][origin_port][inner_unit]))
+                                
+                            local_d_index += self.connections[origin_unit]['destinations'][origin_port][unit].index(port)
+                           
                             if not output_states[origin_unit][origin_port][local_d_index]:
                                 w_out_help[port_index, o_index] = 0
                             else :
