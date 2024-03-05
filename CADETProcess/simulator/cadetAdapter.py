@@ -562,8 +562,19 @@ class Cadet(SimulatorBase):
         try:
             solution = Dict()
             for unit in process.flow_sheet.units:
+                #TODO: willst du mehrdimensional nutze hydrogal
+
+                solution[unit.name] = defaultdict(list)
+
+                port_flag = unit.n_ports != 1
+
+                if port_flag:
+                    solution[unit.name]['inlet'] = defaultdict(list)
+                    solution[unit.name]['outlet'] = defaultdict(list)
+
+
                 for port in range(unit.n_ports):
-                    solution[unit.name] = defaultdict(lambda: defaultdict(list))
+
                     unit_index = self.get_unit_index(process, unit)
                     unit_solution = cadet.root.output.solution[unit_index]
                     unit_coordinates = \
@@ -578,25 +589,45 @@ class Cadet(SimulatorBase):
                         start = cycle * len(time)
                         end = (cycle + 1) * len(time)
 
-                        if 'solution_inlet' in unit_solution.keys():
-                            sol_inlet = unit_solution.solution_inlet[start:end,]
-                            solution[unit.name]['inlet'][port].append(
-                                SolutionIO(
-                                    unit.name,
-                                    unit.component_system, time, sol_inlet,
-                                    flow_in
-                                )
-                            )
 
-                        if 'solution_outlet' in unit_solution.keys():
-                            sol_outlet = unit_solution.solution_outlet[start:end, :]
-                            solution[unit.name]['outlet'][port].append(
-                                SolutionIO(
-                                    unit.name,
-                                    unit.component_system, time, sol_outlet,
-                                    flow_out
+
+                        if f'solution_inlet_port_{port:03d}' in unit_solution.keys():
+                            sol_inlet = unit_solution[f'solution_inlet_port_{port:03d}'][start:end,]
+                            if port_flag:
+                                solution[unit.name]['inlet'][port].append(
+                                    SolutionIO(
+                                        unit.name,
+                                        unit.component_system, time, sol_inlet,
+                                        flow_in
+                                    )
                                 )
-                            )
+                            else:
+                                solution[unit.name]['inlet'].append(
+                                    SolutionIO(
+                                        unit.name,
+                                        unit.component_system, time, sol_inlet,
+                                        flow_in
+                                    )
+                                )
+
+                        if f'solution_outlet_port_{port:03d}' in unit_solution.keys():
+                            sol_outlet = unit_solution[f'solution_outlet_port_{port:03d}'][start:end, :]
+                            if port_flag:
+                                solution[unit.name]['outlet'][port].append(
+                                    SolutionIO(
+                                        unit.name,
+                                        unit.component_system, time, sol_outlet,
+                                        flow_out
+                                    )
+                                )
+                            else:
+                                solution[unit.name]['outlet'].append(
+                                    SolutionIO(
+                                        unit.name,
+                                        unit.component_system, time, sol_inlet,
+                                        flow_in
+                                    )
+                                )
 
                         if 'solution_bulk' in unit_solution.keys():
                             sol_bulk = unit_solution.solution_bulk[start:end, :]
@@ -644,7 +675,7 @@ class Cadet(SimulatorBase):
                             )
 
             solution = Dict(solution)
-
+#TODO: was sind parameter_sensitivities?
             sensitivity = Dict()
             for i, sens in enumerate(process.parameter_sensitivities):
                 sens_index = f'param_{i:03d}'
@@ -1847,7 +1878,11 @@ class SolverTimeIntegratorParameters(Structure):
 
 
 class ReturnParameters(Structure):
-    """Solution writer for system."""
+    """
+    Solution writer for system.
+    
+    Add more descriptions here!11einseflf!
+    """
 
     write_solution_times = Bool(default=True)
     write_solution_last = Bool(default=True)
