@@ -130,7 +130,7 @@ class CarouselBuilder(Structure):
 
         flow_rates = self.flow_sheet.get_flow_rates()
         for zone in self.zones:
-            output_state = self.flow_sheet.output_states[zone]
+            output_state = self.flow_sheet.output_states[zone][0]
             flow_sheet.set_output_state(zone.outlet_unit, output_state)
 
             zone_flow_flow_rate = flow_rates[zone.name].total_out
@@ -183,8 +183,8 @@ class CarouselBuilder(Structure):
                 if isinstance(zone, SerialZone):
                     evt = process.add_event(
                         f'{zone.name}_{carousel_state}',
-                        f'flow_sheet.output_states.{zone.inlet_unit}',
-                        col_indices[0]
+                        f'flow_sheet.output_states.{zone.inlet_unit}[0]',
+                        col_indices
                     )
                     process.add_event_dependency(
                         evt.name, 'switch_time', [carousel_state]
@@ -193,13 +193,13 @@ class CarouselBuilder(Structure):
                         if i < (zone.n_columns - 1):
                             evt = process.add_event(
                                 f'column_{col}_{carousel_state}',
-                                f'flow_sheet.output_states.column_{col}',
+                                f'flow_sheet.output_states.column_{col}[0]',
                                 self.n_zones
                             )
                         else:
                             evt = process.add_event(
                                 f'column_{col}_{carousel_state}',
-                                f'flow_sheet.output_states.column_{col}',
+                                f'flow_sheet.output_states.column_{col}[0]',
                                 i_zone
                             )
                         process.add_event_dependency(
