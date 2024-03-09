@@ -113,6 +113,10 @@ class Individual(Structure):
         self.id = hash_array(self.x)
 
     @property
+    def id_short(self):
+        return self.id[0:7]
+
+    @property
     def is_evaluated(self):
         """bool: Return True if individual has been evaluated. False otherwise."""
         if self.f is None:
