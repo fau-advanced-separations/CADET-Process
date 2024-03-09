@@ -407,7 +407,7 @@ class NormLogTransform(TransformBase):
         {float, array-like}
             The transformed output value(s).
         """
-        if self.lb_input < 0:
+        if self.lb_input <= 0:
             return \
                 np.exp(x * np.log(self.ub_input - self.lb_input + 1)) \
                 + self.lb_input - 1
