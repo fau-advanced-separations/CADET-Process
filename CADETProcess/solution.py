@@ -214,6 +214,9 @@ class SolutionBase(Structure):
 
         return purity
 
+    def __str__(self):
+        return self.name
+
 
 class SolutionIO(SolutionBase):
     """Solution representing streams at the inlet or outlet of a ``UnitOperation``.
