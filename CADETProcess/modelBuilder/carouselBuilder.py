@@ -94,13 +94,13 @@ class CarouselBuilder(Structure):
 
         flow_sheet = FlowSheet(self.component_system, self.name)
 
-        self.add_units(flow_sheet)
-        self.add_inter_zone_connections(flow_sheet)
-        self.add_intra_zone_connections(flow_sheet)
+        self._add_units(flow_sheet)
+        self._add_inter_zone_connections(flow_sheet)
+        self._add_intra_zone_connections(flow_sheet)
 
         return flow_sheet
 
-    def add_units(self, flow_sheet):
+    def _add_units(self, flow_sheet):
         """Add units to flow_sheet"""
         col_index = 0
         for unit in self.flow_sheet.units:
@@ -118,7 +118,7 @@ class CarouselBuilder(Structure):
                     flow_sheet.add_unit(col)
                     col_index += 1
 
-    def add_inter_zone_connections(self, flow_sheet):
+    def _add_inter_zone_connections(self, flow_sheet):
         """Add connections between zones."""
         for unit, connections in self.flow_sheet.connections.items():
             if isinstance(unit, ZoneBaseClass):
@@ -139,7 +139,7 @@ class CarouselBuilder(Structure):
 
             zone_flow_flow_rate = flow_rates[zone.name].total_out
 
-    def add_intra_zone_connections(self, flow_sheet):
+    def _add_intra_zone_connections(self, flow_sheet):
         """Add connections within zones."""
         for zone in self.zones:
             for col_index in range(self.n_columns):
@@ -161,7 +161,7 @@ class CarouselBuilder(Structure):
         flow_sheet = self.build_flow_sheet()
         process = Process(flow_sheet, self.name)
 
-        self.add_events(process)
+        self._add_events(process)
 
         return process
 
@@ -170,7 +170,7 @@ class CarouselBuilder(Structure):
         """float: cycle time of the process."""
         return self.n_columns * self.switch_time
 
-    def add_events(self, process):
+    def _add_events(self, process):
         """Add events to process."""
         process.cycle_time = self.n_columns * self.switch_time
         process.add_duration('switch_time', self.switch_time)
