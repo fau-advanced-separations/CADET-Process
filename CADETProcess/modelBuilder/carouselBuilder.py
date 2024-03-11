@@ -1,4 +1,5 @@
 from copy import deepcopy
+from functools import wraps
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -43,17 +44,20 @@ class CarouselBuilder(Structure):
             raise CADETProcessError('Number of components does not match.')
         self._column = column
 
-    def add_unit(self, unit):
+    @wraps(FlowSheet.add_unit)
+    def add_unit(self, *args, **kwargs):
         """Wrapper around function of auxiliary flow_sheet."""
-        self.flow_sheet.add_unit(unit)
+        self.flow_sheet.add_unit(*args, **kwargs)
 
-    def add_connection(self, origin, destination):
+    @wraps(FlowSheet.add_connection)
+    def add_connection(self, *args, **kwargs):
         """Wrapper around function of auxiliary flow_sheet."""
-        self.flow_sheet.add_connection(origin, destination)
+        self.flow_sheet.add_connection(*args, **kwargs)
 
-    def set_output_state(self, unit, state):
+    @wraps(FlowSheet.set_output_state)
+    def set_output_state(self, *args, **kwargs):
         """Wrapper around function of auxiliary flow_sheet."""
-        self.flow_sheet.set_output_state(unit, state)
+        self.flow_sheet.set_output_state(*args, **kwargs)
 
     @property
     def zones(self):
