@@ -124,7 +124,10 @@ class FractionationOptimizer():
 
         frac.initial_values(purity_required)
 
-        if not allow_empty_fractions:
+        if not np.any(frac.n_fractions_per_pool[:-1]):
+            raise CADETProcessError("No areas found with sufficient purity.")
+
+        if not allow_empty_fractions :
             empty_fractions = []
             for i, comp in enumerate(purity_required):
                 if comp > 0:
@@ -142,6 +145,7 @@ class FractionationOptimizer():
             self,
             frac,
             purity_required,
+            allow_empty_fractions=True,
             ranking=1,
             obj_fun=None,
             n_objectives=1):
@@ -153,10 +157,13 @@ class FractionationOptimizer():
             The Fractionator object.
         purity_required : list
             Minimum purity required for the components in the fractionation.
-        ranking : {float, list, None}
+        allow_empty_fractions: bool, optional
+            If True, allow empty fractions. The default is True.
+        ranking : list, 1 or None, optional
             Weighting factors for individual components.
-            If float, the same value is used for all components.
+            If 1, the same value is assumed for all components.
             If None, no ranking is used and the problem is solved as multi-objective.
+            The default is 1.
         obj_fun : callable, optional
             Alternative objective function.
             If no function is provided, the fraction mass is maximized.
@@ -176,6 +183,14 @@ class FractionationOptimizer():
         list
             The initial values for the optimization variables.
         """
+        # Handle empty fractions
+        n_fractions = np.array([pool.n_fractions for pool in frac.fraction_pools])
+        empty_fractions = np.where(n_fractions[0:-1] == 0)[0]
+        if len(empty_fractions) > 0 and allow_empty_fractions:
+            for empty_fraction in empty_fractions:
+                purity_required[empty_fraction] = 0
+
+        # Setup Optimization Problem
         opt = OptimizationProblem(
             'FractionationOptimization',
             log_level=self.log_level,
@@ -252,8 +267,13 @@ class FractionationOptimizer():
         purity_required :  float or array_like
             Minimum required purity for components. If is float, the same
             value is assumed for all components.
-        ranking : float or array_like
-            Relative value of components.
+        components : list
+            List of components to consider in the fractionation process.
+        ranking : list, 1 or None, optional
+            Weighting factors for individual components.
+            If 1, the same value is assumed for all components.
+            If None, no ranking is used and the problem is solved as multi-objective.
+            The default is 1.
         obj_fun : function, optional
             Objective function used for OptimizationProblem.
             If COBYLA is used, must return single objective.
@@ -321,31 +341,30 @@ class FractionationOptimizer():
             allow_empty_fractions=allow_empty_fractions
         )
 
+        opt, x0 = self._setup_optimization_problem(
+            frac, purity_required, allow_empty_fractions, ranking, obj_fun, n_objectives
+        )
+
         # Lock to enable caching
         simulation_results.process.lock = True
-
         try:
-            opt, x0 = self._setup_optimization_problem(
-                frac, purity_required, ranking, obj_fun, n_objectives
-            )
             results = self.optimizer.optimize(
                 opt, x0,
                 save_results=save_results,
                 log_level=self.log_level,
                 delete_cache=True,
             )
+            opt.set_variables(results.x[0])
+            frac.reset()
         except CADETProcessError as e:
             if ignore_failed:
                 warnings.warn('Optimization failed. Returning initial values')
                 frac.initial_values(purity_required)
             else:
                 raise CADETProcessError(str(e))
-
-        opt.set_variables(results.x[0])
-        frac.reset()
-
-        # Restore previous lock state
-        simulation_results.process.lock = lock_state
+        finally:
+            # Restore previous lock state
+            simulation_results.process.lock = lock_state
 
         if return_optimization_results:
             return results
