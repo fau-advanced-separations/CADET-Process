@@ -190,7 +190,7 @@ class AxInterface(OptimizerBase):
 
     @staticmethod
     def _setup_linear_constraints(optimizationProblem: OptimizationProblem):
-        A_transformed = optimizationProblem.A_transformed
+        A_transformed = optimizationProblem.A_independent_transformed
         b_transformed = optimizationProblem.b_transformed
         indep_vars = optimizationProblem.independent_variables
         parameter_constraints = []
