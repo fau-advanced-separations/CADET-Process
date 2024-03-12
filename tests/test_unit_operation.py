@@ -72,7 +72,7 @@ class Test_Unit_Operation(unittest.TestCase):
         mct.axial_dispersion = 0
         mct.flow_direction = flow_direction
         mct.exchange_matrix = exchange_matrix
-        mct.n_ports = 3
+
 
         return mct
 
@@ -251,6 +251,7 @@ class Test_Unit_Operation(unittest.TestCase):
         'length' : length,
         'exchange_matrix': exchange_matrix,
         'flow_direction' : 1, #TODO: Update when multiplex is implemented
+        'nchannel' : 3
         }
         np.testing.assert_equal(parameters_expected, {key: value for key, value in mct.parameters.items() if key != 'discretization'})
 

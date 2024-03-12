@@ -1192,7 +1192,7 @@ class MCT(UnitBaseClass):
     exchange_matrix : List of unsigned floats. Lenght depends on nchannel.
     solution_recorder : MCTRecorder
         Solution recorder for the unit operation.
-
+    n_channel : int number of channels
     """
     has_ports = True
     supports_bulk_reaction = True
