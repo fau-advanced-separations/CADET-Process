@@ -45,7 +45,8 @@ class TestMCT(unittest.TestCase):
         mct_flow_sheet.add_connection(mct_2c2, outlet2, origin_port='channel_1')
 
         self.mct_flow_sheet = mct_flow_sheet
-
+    
+    @unittest.skip("MCT not yet in CADET")
     def test_simulation(self):
 
         mct_flow_sheet = self.mct_flow_sheet
