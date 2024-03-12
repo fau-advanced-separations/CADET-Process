@@ -734,7 +734,7 @@ class FlowSheet(Structure):
 
         self._output_states[unit][port] = output_state
 
-    def get_flow_rates(self, state=None):
+    def get_flow_rates(self, state=None, eps=5.9e16):
         """Calculate flow rate for all connections.
 
         Optionally, an additional output state can be passed to update the
@@ -843,7 +843,7 @@ class FlowSheet(Structure):
                     w_out[port_index, port_index] += -1
  
         # Check for a singular matrix before the loop
-        if np.linalg.cond(w_out) == np.inf:
+        if np.linalg.cond(w_out) > eps:
             raise CADETProcessError(
                 "Flow sheet connectivity matrix is singular, which may be due to "
                 "unconnected units or missing flow rates. Please ensure all units are "

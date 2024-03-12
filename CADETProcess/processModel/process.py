@@ -90,7 +90,7 @@ class Process(EventHandler):
 
         feed_all = np.zeros((self.n_comp,))
         for feed in self.flow_sheet.feed_inlets:
-            feed_flow_rate_time_line = flow_rate_timelines[feed.name][None].total_out
+            feed_flow_rate_time_line = flow_rate_timelines[feed.name].total_out[None]
             feed_signal_param = f'flow_sheet.{feed.name}.c'
             if feed_signal_param in self.parameter_timelines:
                 tl = self.parameter_timelines[feed_signal_param]
@@ -122,7 +122,7 @@ class Process(EventHandler):
 
         V_all = 0
         for eluent in self.flow_sheet.eluent_inlets:
-            eluent_time_line = flow_rate_timelines[eluent.name]['total_out']
+            eluent_time_line = flow_rate_timelines[eluent.name]['total_out'][None]
             V_eluent = eluent_time_line.integral()
             V_all += V_eluent
 
