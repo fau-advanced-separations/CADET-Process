@@ -23,9 +23,9 @@ class TestMCT(unittest.TestCase):
         mct_flow_sheet = FlowSheet(self.component_system)
 
         inlet = Inlet(self.component_system, name='inlet')
-        mct_3c = MCT(self.component_system,nchannel=3, name='mct_3c', n_ports=3)
-        mct_2c1 = MCT(self.component_system,nchannel=2, name='mct_2c1', n_ports=2)
-        mct_2c2 = MCT(self.component_system,nchannel=2, name='mct_2c2', n_ports=2)
+        mct_3c = MCT(self.component_system,nchannel=3, name='mct_3c')
+        mct_2c1 = MCT(self.component_system,nchannel=2, name='mct_2c1')
+        mct_2c2 = MCT(self.component_system,nchannel=2, name='mct_2c2')
         outlet1 = Outlet(self.component_system, name='outlet1')
         outlet2 = Outlet(self.component_system, name='outlet2')
 
@@ -36,13 +36,13 @@ class TestMCT(unittest.TestCase):
         mct_flow_sheet.add_unit(outlet1)
         mct_flow_sheet.add_unit(outlet2)
 
-        mct_flow_sheet.add_connection(inlet, mct_3c, destination_port=0)
-        mct_flow_sheet.add_connection(mct_3c, mct_2c1, origin_port=0, destination_port=0)
-        mct_flow_sheet.add_connection(mct_3c, mct_2c1, origin_port=0, destination_port=1)
-        mct_flow_sheet.add_connection(mct_3c, mct_2c2, origin_port=1, destination_port=0)
-        mct_flow_sheet.add_connection(mct_2c1, outlet1, origin_port=0, destination_port=0)
-        mct_flow_sheet.add_connection(mct_2c1, outlet1, origin_port=1, destination_port=0)
-        mct_flow_sheet.add_connection(mct_2c2, outlet2, origin_port=0)
+        mct_flow_sheet.add_connection(inlet, mct_3c, destination_port='channel_0')
+        mct_flow_sheet.add_connection(mct_3c, mct_2c1, origin_port='channel_0', destination_port='channel_0')
+        mct_flow_sheet.add_connection(mct_3c, mct_2c1, origin_port='channel_0', destination_port='channel_1')
+        mct_flow_sheet.add_connection(mct_3c, mct_2c2, origin_port='channel_1', destination_port='channel_0')
+        mct_flow_sheet.add_connection(mct_2c1, outlet1, origin_port='channel_0')
+        mct_flow_sheet.add_connection(mct_2c1, outlet1, origin_port='channel_1')
+        mct_flow_sheet.add_connection(mct_2c2, outlet2, origin_port='channel_1')
 
         self.mct_flow_sheet = mct_flow_sheet
 

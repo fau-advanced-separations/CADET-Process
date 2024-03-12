@@ -122,7 +122,7 @@ class CarouselBuilder(Structure):
             else:
                 origin = unit
             if connections.destinations:
-                for destination in connections.destinations[0]:
+                for destination in connections.destinations[None]:
                     if isinstance(destination, ZoneBaseClass):
                         destination = destination.inlet_unit
 
@@ -130,7 +130,7 @@ class CarouselBuilder(Structure):
 
         flow_rates = self.flow_sheet.get_flow_rates()
         for zone in self.zones:
-            output_state = self.flow_sheet.output_states[zone][0]
+            output_state = self.flow_sheet.output_states[zone]
             flow_sheet.set_output_state(zone.outlet_unit, output_state)
 
             zone_flow_flow_rate = flow_rates[zone.name].total_out
@@ -183,8 +183,8 @@ class CarouselBuilder(Structure):
                 if isinstance(zone, SerialZone):
                     evt = process.add_event(
                         f'{zone.name}_{carousel_state}',
-                        f'flow_sheet.output_states.{zone.inlet_unit}[0]',
-                        col_indices
+                        f'flow_sheet.output_states.{zone.inlet_unit}',
+                        col_indices[0]
                     )
                     process.add_event_dependency(
                         evt.name, 'switch_time', [carousel_state]
@@ -193,13 +193,13 @@ class CarouselBuilder(Structure):
                         if i < (zone.n_columns - 1):
                             evt = process.add_event(
                                 f'column_{col}_{carousel_state}',
-                                f'flow_sheet.output_states.column_{col}[0]',
+                                f'flow_sheet.output_states.column_{col}',
                                 self.n_zones
                             )
                         else:
                             evt = process.add_event(
                                 f'column_{col}_{carousel_state}',
-                                f'flow_sheet.output_states.column_{col}[0]',
+                                f'flow_sheet.output_states.column_{col}',
                                 i_zone
                             )
                         process.add_event_dependency(

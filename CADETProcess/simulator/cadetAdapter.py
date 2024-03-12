@@ -10,6 +10,7 @@ import time
 import tempfile
 import warnings
 
+import re
 from addict import Dict
 import numpy as np
 from cadet import Cadet as CadetAPI
@@ -562,20 +563,21 @@ class Cadet(SimulatorBase):
         try:
             solution = Dict()
             for unit in process.flow_sheet.units:
-                #TODO: willst du mehrdimensional nutze hydrogal
 
                 solution[unit.name] = defaultdict(list)
 
-                port_flag = unit.n_ports != 1
+                port_flag = unit.has_ports
 
                 if port_flag:
                     solution[unit.name]['inlet'] = defaultdict(list)
                     solution[unit.name]['outlet'] = defaultdict(list)
 
 
-                for port in range(unit.n_ports):
+                for port in unit.ports:
 
                     unit_index = self.get_unit_index(process, unit)
+                    port_index = self.get_port_index(process.flow_sheet, unit, port)
+                    
                     unit_solution = cadet.root.output.solution[unit_index]
                     unit_coordinates = \
                         cadet.root.output.coordinates[unit_index].copy()
@@ -591,8 +593,8 @@ class Cadet(SimulatorBase):
 
 
 
-                        if f'solution_inlet_port_{port:03d}' in unit_solution.keys():
-                            sol_inlet = unit_solution[f'solution_inlet_port_{port:03d}'][start:end,]
+                        if f'solution_inlet_port_{port_index:03d}' in unit_solution.keys():
+                            sol_inlet = unit_solution[f'solution_inlet_port_{port_index:03d}'][start:end,]
                             if port_flag:
                                 solution[unit.name]['inlet'][port].append(
                                     SolutionIO(
@@ -610,8 +612,8 @@ class Cadet(SimulatorBase):
                                     )
                                 )
 
-                        if f'solution_outlet_port_{port:03d}' in unit_solution.keys():
-                            sol_outlet = unit_solution[f'solution_outlet_port_{port:03d}'][start:end, :]
+                        if f'solution_outlet_port_{port_index:03d}' in unit_solution.keys():
+                            sol_outlet = unit_solution[f'solution_outlet_port_{port_index:03d}'][start:end, :]
                             if port_flag:
                                 solution[unit.name]['outlet'][port].append(
                                     SolutionIO(
@@ -675,7 +677,7 @@ class Cadet(SimulatorBase):
                             )
 
             solution = Dict(solution)
-#TODO: was sind parameter_sensitivities?
+
             sensitivity = Dict()
             for i, sens in enumerate(process.parameter_sensitivities):
                 sens_index = f'param_{i:03d}'
@@ -877,11 +879,17 @@ class Cadet(SimulatorBase):
                         destination = flow_sheet[dest]
                         destination_index = flow_sheet.get_unit_index(destination)
                         if np.any(flow_rate):
+                            
+  
+                            origin_port_red = flow_sheet.get_port_index(origin, origin_port)
+                            dest_port_red = flow_sheet.get_port_index(destination, dest_port)
+                            
+                            
                             table[enum] = []
                             table[enum].append(int(origin_index))
                             table[enum].append(int(destination_index))
-                            table[enum].append(int(origin_port))
-                            table[enum].append(int(dest_port))
+                            table[enum].append(int(origin_port_red))
+                            table[enum].append(int(dest_port_red))
                             table[enum].append(-1)
                             table[enum].append(-1)
                             Q = flow_rate.tolist()
@@ -915,6 +923,29 @@ class Cadet(SimulatorBase):
         """
         index = process.flow_sheet.get_unit_index(unit)
         return f'unit_{index:03d}'
+    
+    def get_port_index(self, flow_sheet, unit, port):
+        """Helper function for getting port index in CADET format xxx.
+
+        Parameters
+        ----------
+        port : string
+            Indexed port
+        unit : UnitOperation
+            port of unit
+        Returns
+        -------
+        port_index : index
+            Return the port_index in CADET format xxx
+
+        """
+            
+        return flow_sheet.get_port_index(unit, port)                          
+
+
+        
+        
+    
 
     def get_model_units(self, process):
         """Config branches for all units /input/model/unit_000 ... unit_xxx.

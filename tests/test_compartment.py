@@ -67,128 +67,128 @@ class Test_CompartmentBuilder(unittest.TestCase):
         flow_rates_expected = {
             'compartment_0': {
                 'total_in': { 
-                    0: np.array([1., 0., 0., 0.])
+                    None: np.array([1., 0., 0., 0.])
                 },
                 'total_out': {
-                    0: np.array([1., 0., 0., 0.])
+                    None: np.array([1., 0., 0., 0.])
                 },
                 'origins': {
-                    0: {
+                    None: {
                         'compartment_1': {
-                            0: np.array([0.1, 0., 0., 0.])
+                            None: np.array([0.1, 0., 0., 0.])
                         },
                         'compartment_2': {
-                            0: np.array([0.2, 0., 0., 0.])
+                            None: np.array([0.2, 0., 0., 0.])
                         },
                         'compartment_3': {
-                            0: np.array([0.3, 0., 0., 0.])
+                            None: np.array([0.3, 0., 0., 0.])
                         },
                         'compartment_4': {
-                            0: np.array([0.4, 0., 0., 0.])
+                            None: np.array([0.4, 0., 0., 0.])
                         }
                     }
                 },
                 'destinations': {
-                    0: {
+                    None: {
                         'compartment_1': {
-                            0: np.array([0.1, 0., 0., 0.])
+                            None: np.array([0.1, 0., 0., 0.])
                         },
                         'compartment_2': {
-                            0: np.array([0.2, 0., 0., 0.])
+                            None: np.array([0.2, 0., 0., 0.])
                         },
                         'compartment_3': {
-                            0: np.array([0.3, 0., 0., 0.])
+                            None: np.array([0.3, 0., 0., 0.])
                         },
                         'compartment_4': {
-                            0: np.array([0.4, 0., 0., 0.])
+                            None: np.array([0.4, 0., 0., 0.])
                         }
                     }
                 },
             },
             'compartment_1': {
                 'total_in': {
-                    0: np.array([0.1, 0., 0., 0.])
+                    None: np.array([0.1, 0., 0., 0.])
                 },
                 'total_out': {
-                    0: np.array([0.1, 0., 0., 0.])
+                    None: np.array([0.1, 0., 0., 0.])
                 },
                 'origins': {
-                    0: {
+                    None: {
                         'compartment_0': {
-                            0: np.array([0.1, 0., 0., 0.])
+                            None: np.array([0.1, 0., 0., 0.])
                         }
                     }
                 },
                 'destinations': {
-                    0: {
+                    None: {
                         'compartment_0': {
-                            0: np.array([0.1, 0., 0., 0.])
+                            None: np.array([0.1, 0., 0., 0.])
                         }
                     }
                 },            
             },
             'compartment_2': {
                 'total_in': {
-                    0: np.array([0.2, 0., 0., 0.])
+                    None: np.array([0.2, 0., 0., 0.])
                 },
                 'total_out': {
-                    0: np.array([0.2, 0., 0., 0.])
+                    None: np.array([0.2, 0., 0., 0.])
                 },
                 'origins': { 
-                    0: {
+                    None: {
                         'compartment_0': {
-                            0: np.array([0.2, 0., 0., 0.])
+                            None: np.array([0.2, 0., 0., 0.])
                         }
                     }
                 },
                 'destinations': {
-                    0: {
+                    None: {
                         'compartment_0': {
-                            0: np.array([0.2, 0., 0., 0.])
+                            None: np.array([0.2, 0., 0., 0.])
                         }
                     }
                 }
             },
             'compartment_3': {
                 'total_in': {
-                    0: np.array([0.3, 0., 0., 0.])
+                    None: np.array([0.3, 0., 0., 0.])
                 },
                 'total_out': {
-                    0: np.array([0.3, 0., 0., 0.])
+                    None: np.array([0.3, 0., 0., 0.])
                 },
                 'origins': {
-                    0: {
+                    None: {
                         'compartment_0': {
-                            0: np.array([0.3, 0., 0., 0.])
+                            None: np.array([0.3, 0., 0., 0.])
                         }
                     }
                 },
                 'destinations': {
-                    0: {
+                    None: {
                         'compartment_0': {
-                            0: np.array([0.3, 0., 0., 0.])
+                            None: np.array([0.3, 0., 0., 0.])
                         }
                     }
                 }
             },
             'compartment_4': {
                 'total_in': {
-                    0: np.array([0.4, 0., 0., 0.])
+                    None: np.array([0.4, 0., 0., 0.])
                 },
                 'total_out': {
-                    0: np.array([0.4, 0., 0., 0.])
+                    None: np.array([0.4, 0., 0., 0.])
                 },
                 'origins': {
-                    0: {
+                    None: {
                         'compartment_0': {
-                            0: np.array([0.4, 0., 0., 0.])
+                            None: np.array([0.4, 0., 0., 0.])
                         }
                     }
                 },
                 'destinations': {
-                    0: {
+                    None: {
                         'compartment_0': {
-                            0: np.array([0.4, 0., 0., 0.])
+                            None: np.array([0.4, 0., 0., 0.])
                         }
                     }
                 }

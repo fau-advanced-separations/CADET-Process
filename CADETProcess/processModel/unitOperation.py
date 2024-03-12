@@ -64,8 +64,8 @@ class UnitBaseClass(Structure):
         list of parameter names.
     name : String
         name of the unit operation.
-    n_ports : UnsignedInteger
-        Number of ports of a unit.
+    has_ports : bool
+        flag if unit has ports. Default to false 
     binding_model : BindingBaseClass
         binding behavior of the unit. Defaults to NoBinding.
     solution_recorder : IORecorder
@@ -83,8 +83,8 @@ class UnitBaseClass(Structure):
     _parameters = []
     _section_dependent_parameters = []
     _initial_state = []
-    n_ports = UnsignedInteger()
-
+ 
+    has_ports = False
     supports_binding = False
     supports_bulk_reaction = False
     supports_particle_reaction = False
@@ -100,7 +100,6 @@ class UnitBaseClass(Structure):
             particle_reaction_model=None,
             discretization=None,
             solution_recorder=None,
-            n_ports = None,
             **kwargs
             ):
         self.name = name
@@ -126,10 +125,6 @@ class UnitBaseClass(Structure):
             solution_recorder = IORecorder()
         self.solution_recorder = solution_recorder
 
-        if n_ports == None:
-            self.n_ports = 1
-        else:
-            self.n_ports = n_ports
 
 
         super().__init__(*args, **kwargs)
@@ -168,6 +163,14 @@ class UnitBaseClass(Structure):
     @property
     def n_comp(self):
         return self.component_system.n_comp
+    
+    @property
+    def ports(self):
+        return [None]
+    
+    @property
+    def n_ports(self):
+        return 1
 
     @property
     def parameters(self):
@@ -1191,6 +1194,7 @@ class MCT(UnitBaseClass):
         Solution recorder for the unit operation.
 
     """
+    has_ports = True
     supports_bulk_reaction = True
 
     discretization_schemes = (MCTDiscretizationFV)
@@ -1208,6 +1212,7 @@ class MCT(UnitBaseClass):
         'axial_dispersion',
         'flow_direction',
         'exchange_matrix',
+        'nchannel'
     ]
     _section_dependent_parameters = \
         UnitBaseClass._section_dependent_parameters + \
@@ -1236,10 +1241,18 @@ class MCT(UnitBaseClass):
     def nchannel(self):
         """int: Proxy for `discretization.nchannel`."""
         return self.discretization.nchannel
-
+   
     @nchannel.setter
     def nchannel(self, nchannel):
         self.discretization.nchannel = nchannel
+    
+    @property
+    def ports(self):
+        return [f"channel_{i}" for i in range(self.nchannel)]
+    
+    @property
+    def n_ports(self):
+        return self.nchannel
 
     @property
     def volume(self):

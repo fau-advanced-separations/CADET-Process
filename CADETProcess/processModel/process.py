@@ -716,7 +716,7 @@ class Process(EventHandler):
                 continue
             V_0 = cstr.V
             unit_index = self.flow_sheet.get_unit_index(cstr)
-            for port in range(self.flow_sheet.units[unit_index].n_ports):
+            for port in self.flow_sheet.units[unit_index].ports:
                 V_in = self.flow_rate_timelines[cstr.name].total_in[port].integral()
                 V_out = self.flow_rate_timelines[cstr.name].total_out[port].integral()
                 if V_0 + V_in - V_out < 0:
