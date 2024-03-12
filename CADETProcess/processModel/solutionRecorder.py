@@ -363,3 +363,22 @@ class CSTRRecorder(
     """
 
     pass
+
+
+class MCTRecorder(
+        SolutionRecorderBase,
+        BaseMixin,
+        IOMixin,
+        BulkMixin):
+    """Recorder for TubularReactor.
+
+    See Also
+    --------
+    BaseMixin
+    IOMixin
+    BulkMixin
+    CADETProcess.processModel.MCT
+
+    """
+
+    pass
