@@ -745,7 +745,8 @@ class FlowSheet(Structure):
         state : Dict, optional
             Updated flow rates and output states for process sections.
             Default is None.
-
+        eps : float, optional
+            eps as an upper boarder for condition of flow_rate calculation
         Returns
         -------
         Dict
