@@ -105,7 +105,15 @@ class CarouselBuilder(Structure):
         col_index = 0
         for unit in self.flow_sheet.units:
             if not isinstance(unit, ZoneBaseClass):
-                flow_sheet.add_unit(unit)
+                is_feed_inlet = unit in self.flow_sheet.feed_inlets
+                is_eluent_inlet = unit in self.flow_sheet.eluent_inlets
+                is_output_outlet = unit in self.flow_sheet.product_outlets
+                flow_sheet.add_unit(
+                    unit,
+                    feed_inlet=is_feed_inlet,
+                    eluent_inlet=is_eluent_inlet,
+                    product_outlet=is_output_outlet,
+                )
             else:
                 flow_sheet.add_unit(unit.inlet_unit)
                 flow_sheet.add_unit(unit.outlet_unit)
