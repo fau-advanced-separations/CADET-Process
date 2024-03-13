@@ -46,7 +46,7 @@ class TestMCT(unittest.TestCase):
 
         self.mct_flow_sheet = mct_flow_sheet
     
-    @unittest.skip("MCT not yet in CADET")
+#    @unittest.skip("MCT not yet in CADET")
     def test_simulation(self):
 
         mct_flow_sheet = self.mct_flow_sheet
@@ -93,14 +93,15 @@ class TestMCT(unittest.TestCase):
         mct_2c2.exchange_matrix = np.array([[
             [0.0,0.01],
             [0.02,0.0],
-
         ]])
 
-        process_simulator = Cadet(install_path='C:/cadet_from_source/cadet/')
+        process_simulator = Cadet(install_path='c:\\Users\dklau\Documents\Arbeitsprojekte\ModSim\cadet\CADET\out\install\\aRelease')
         self.assertTrue(process_simulator.check_cadet())
         simulation_results = process_simulator.simulate(process)
 
         simulation_results.solution
+
+
 
 if __name__ == '__main__':
     unittest.main()
