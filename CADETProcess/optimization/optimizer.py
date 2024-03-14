@@ -235,7 +235,7 @@ class OptimizerBase(Structure):
         self.callbacks_dir = callbacks_dir
 
         if reinit_cache:
-            self.optimization_problem.setup_cache()
+            self.optimization_problem.setup_cache(self.n_cores)
 
         if x0 is not None:
             flag, x0 = self.check_x0(optimization_problem, x0)
