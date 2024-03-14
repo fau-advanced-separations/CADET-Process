@@ -1,4 +1,3 @@
-import os
 from collections import defaultdict
 from functools import wraps
 from typing import Any, Callable, Optional
@@ -7,13 +6,12 @@ import numpy as np
 from addict import Dict
 from matplotlib.axes import Axes
 
-from CADETProcess import CADETProcessError, plotting, settings
+from CADETProcess import CADETProcessError, plotting
 from CADETProcess.dataStructure import String
 from CADETProcess.dynamicEvents import Event, EventHandler
 from CADETProcess.fractionation.fractions import Fraction, FractionPool
 from CADETProcess.performance import Performance
-from CADETProcess.processModel import ComponentSystem, Process
-from CADETProcess.simulationResults import SimulationResults
+from CADETProcess.processModel import ComponentSystem, ProcessMetaInformation
 from CADETProcess.solution import SolutionIO, slice_solution
 
 __all__ = ["Fractionator"]
@@ -21,7 +19,7 @@ __all__ = ["Fractionator"]
 
 class Fractionator(EventHandler):
     """
-    Class for Chromatogram Fractionation.
+    Class for fractionation of Chromatograms.
 
     This class is responsible for setting events for starting and ending fractionation,
     handling multiple chromatograms, and calculating various performance metrics.
@@ -33,6 +31,7 @@ class Fractionator(EventHandler):
     performance_keys : list
         Keys for performance metrics including mass, concentration, purity, recovery,
         productivity, and eluent consumption.
+
     """
 
     name = String(default="Fractionator")
@@ -47,9 +46,10 @@ class Fractionator(EventHandler):
 
     def __init__(
         self,
-        simulation_results: SimulationResults,
+        chromatograms: SolutionIO | list[SolutionIO],
+        process_meta_information: ProcessMetaInformation,
         components: Optional[list[str]] = None,
-        use_total_concentration_components: bool = True,
+        use_total_concentration_components: Optional[bool] = True,
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -58,52 +58,42 @@ class Fractionator(EventHandler):
 
         Parameters
         ----------
-        simulation_results : SimulationResults
-            Simulation results containing chromatograms.
-        components : list, optional
-            List of components to be fractionated. Default is None.
-        use_total_concentration_components : bool, optional
-            Use total concentration components. Default is True.
+        chromatograms : SolutionIO | list[SolutionIO]
+            Chromatograms to be fractionated.
+        process_meta_information: ProcessMetaInformation
+            Process meta information.
+        components : Optional[list[str]]
+            List of components to be fractionated. If None, all components are
+            considered. The default is None.
+        use_total_concentration_components : Optional[bool]
+            If True, use the total concentration of components, i.e. the sum of all
+            subspecies of each component. The default is True.
         *args
             Variable length argument list.
         **kwargs
             Arbitrary keyword arguments.
+
         """
-        self.components: Optional[list[str]] = components
-        self.use_total_concentration_components: bool = use_total_concentration_components
-        self.simulation_results = simulation_results
+        if not isinstance(chromatograms, list):
+            chromatograms = [chromatograms]
 
-        super().__init__(*args, **kwargs)
+        self.process_meta_information = process_meta_information
 
-    @property
-    def simulation_results(self) -> SimulationResults:
-        """SimulationResults: The simulation results containing the chromatograms."""
-        return self._simulation_results
+        for chrom in chromatograms:
+            if chrom.component_system is not self.component_system:
+                raise CADETProcessError("Component systems do not match.")
 
-    @simulation_results.setter
-    def simulation_results(self, simulation_results: SimulationResults) -> None:
-        """
-        Set the simulation results.
+        component_system = chromatograms[0].component_system
 
-        Parameters
-        ----------
-        simulation_results : SimulationResults
-            Simulation results containing chromatograms.
+        if components is not None:
+            for comp in components:
+                if comp not in component_system:
+                    raise CADETProcessError(
+                        f"Could not find component {comp} in component system."
+                    )
 
-        Raises
-        ------
-        TypeError
-            If simulation_results is not of type SimulationResults.
-        CADETProcessError
-            If the simulation results do not contain any chromatograms.
-        """
-        if not isinstance(simulation_results, SimulationResults):
-            raise TypeError("Expected SimulationResults")
-
-        if len(simulation_results.chromatograms) == 0:
-            raise CADETProcessError("Simulation results do not contain chromatogram")
-
-        self._simulation_results = simulation_results
+        self.components = components
+        self.use_total_concentration_components = use_total_concentration_components
 
         self._chromatograms = [
             slice_solution(
@@ -111,14 +101,14 @@ class Fractionator(EventHandler):
                 components=self.components,
                 use_total_concentration_components=self.use_total_concentration_components,
             )
-            for chrom in simulation_results.chromatograms
+            for chrom in chromatograms
         ]
 
         m_feed = np.zeros((self.component_system.n_comp,))
         counter = 0
-        for comp, indices in simulation_results.component_system.indices.items():
+        for comp, indices in self.component_system.indices.items():
             if comp in self.component_system.names:
-                m_feed_comp = simulation_results.process.m_feed[indices]
+                m_feed_comp = process_meta_information.m_feed[indices]
                 if self.use_total_concentration_components:
                     m_feed[counter] = np.sum(m_feed_comp)
                     counter += 1
@@ -126,14 +116,16 @@ class Fractionator(EventHandler):
                     n_species = len(indices)
                     m_feed[counter : counter + n_species] = m_feed_comp
                     counter += n_species
-        self.m_feed: np.ndarray = m_feed
+        self.m_feed = m_feed
 
         self._fractionation_states = Dict({chrom: [] for chrom in self.chromatograms})
         self._chromatogram_events = Dict({chrom: [] for chrom in self.chromatograms})
 
-        self._cycle_time = self.process.cycle_time
+        self._cycle_time = self.process_meta_information.cycle_time
 
         self.reset()
+
+        super().__init__(*args, **kwargs)
 
     @property
     def component_system(self) -> ComponentSystem:
@@ -196,13 +188,23 @@ class Fractionator(EventHandler):
         return chrom_events
 
     @property
-    def process(self) -> Process:
-        """Process: The process from the simulation results."""
-        return self.simulation_results.process
+    def process_meta_information(self) -> ProcessMetaInformation:
+        """Process:  from the simulation results."""
+        return self._process_meta_information
+
+    @process_meta_information.setter
+    def process_meta_information(
+        self,
+        process_meta_information: ProcessMetaInformation
+    ) -> None:
+        if not isinstance(process_meta_information, ProcessMetaInformation):
+            raise TypeError("Expected ProcessMetaInformation.")
+
+        self._process_meta_information = process_meta_information
 
     @property
     def n_comp(self) -> int:
-        """int: Number of components to be fractionized."""
+        """int: Number of components to be fractionated."""
         return self.chromatograms[0].n_comp
 
     @property
@@ -744,41 +746,6 @@ class Fractionator(EventHandler):
     def section_dependent_parameters(self) -> Dict:
         """dict: Section dependent parameters of the fractionator."""
         return self.parameters
-
-    def save(
-        self,
-        case_dir: str,
-        start: float = 0,
-        end: Optional[float] = None,
-    ) -> None:
-        """
-        Save chromatogram and purity plots to a specified directory.
-
-        Parameters
-        ----------
-        case_dir : str
-            Directory name within the working directory to save plots.
-        start : float, optional
-            Start time for plotting purity, default is 0.
-        end : Optional[float]
-            End time for plotting purity. If None, includes all data.
-        """
-        path = os.path.join(settings.working_directory, case_dir)
-
-        for index, chrom in enumerate(self.chromatograms):
-            chrom.plot(save_path=path + f"/chrom_{index}.png")
-            chrom.plot_purity(
-                start=start, end=end, save_path=path + "/chrom_purity.png"
-            )
-
-        for chrom in enumerate(self.chromatograms):
-            self.plot_fraction_signal(
-                chromatogram=chrom,
-                start=start,
-                end=end,
-                save_path=path + f"/fractionation_signal_{index}.png",
-                index=index,
-            )
 
     def __str__(self) -> str:
         """str: String representation of the fractionator."""

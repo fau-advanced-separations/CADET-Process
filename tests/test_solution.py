@@ -67,7 +67,7 @@ class TestSolutionIOPiecewiseConstant(TestSolutionIO):
 
         if breaks is None:
             mid = self.cycle_time / 2
-            breaks = [(mid - mid / (i+2), mid + mid / (i+2)) for i in range(self.n_comp)]
+            breaks = [(mid - mid / (i + 2), mid + mid / (i + 2)) for i in range(self.n_comp)]
 
         if values is None:
             values = np.arange(self.n_comp) + 1
@@ -89,12 +89,13 @@ class TestSolutionIOGaussian(TestSolutionIO):
         super().__init__(*args, **kwargs)
 
         if mu is None:
-            mu = [(i+1) * self.cycle_time / (self.n_comp + 1) for i in range(self.n_comp)]
+            mu = [(i + 1) * self.cycle_time / (self.n_comp + 1) for i in range(self.n_comp)]
         if sigma is None:
             sigma = np.arange(self.n_comp) + 1
 
         for comp_i, (mu_i, sigma_i) in enumerate(zip(mu, sigma)):
             self.solution[:, comp_i] = stats.norm.pdf(self.time, mu_i, sigma_i)
+
 
 comp_2 = ComponentSystem(2)
 

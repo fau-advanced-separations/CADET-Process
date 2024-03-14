@@ -125,7 +125,7 @@ class FractionationOptimizer:
         Fractionator
             The Fractionator object that has been set up using the provided arguments.
         """
-        frac = Fractionator(
+        frac = Fractionator.from_simulation_results(
             simulation_results,
             components=components,
             use_total_concentration_components=use_total_concentration_components,
