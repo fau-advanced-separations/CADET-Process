@@ -3,7 +3,7 @@ from pathlib import Path
 import shutil
 import tempfile
 
-from diskcache import Cache
+from diskcache import Cache, FanoutCache
 
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import DillDisk
@@ -39,9 +39,10 @@ class ResultsCache():
     CADETProcess.optimization.OptimizationProblem.add_evaluator
     """
 
-    def __init__(self, use_diskcache=False, directory=None):
+    def __init__(self, use_diskcache=False, directory=None, n_shards=1):
         self.use_diskcache = use_diskcache
         self.directory = directory
+        self.n_shards = n_shards
         self.init_cache()
 
         self.tags = defaultdict(list)
@@ -57,13 +58,23 @@ class ResultsCache():
 
             self.directory.mkdir(exist_ok=True, parents=True)
 
-            self.cache = Cache(
-               self.directory.as_posix(),
-               disk=DillDisk,
-               disk_min_file_size=2**18,    # 256 kb
-               size_limit=2**36,            # 64 GB
-               tag_index=True,
-            )
+            if self.n_shards == 1:
+                self.cache = Cache(
+                   self.directory.as_posix(),
+                   disk=DillDisk,
+                   disk_min_file_size=2**18,    # 256 kb
+                   size_limit=2**36,            # 64 GB
+                   tag_index=True,
+                )
+            else:
+                self.cache = FanoutCache(
+                   self.directory.as_posix(),
+                   shards=self.n_shards,
+                   disk=DillDisk,
+                   disk_min_file_size=2**18,    # 256 kb
+                   size_limit=2**36,            # 64 GB
+                   tag_index=True,
+                )
             self.directory = self.cache.directory
         else:
             self.cache = {}

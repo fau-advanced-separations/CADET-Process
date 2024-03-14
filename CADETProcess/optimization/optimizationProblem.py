@@ -2633,9 +2633,9 @@ class OptimizationProblem(Structure):
     def cache_directory(self, cache_directory):
         self._cache_directory = cache_directory
 
-    def setup_cache(self):
+    def setup_cache(self, n_shards=1):
         """Setup cache to store (intermediate) results."""
-        self.cache = ResultsCache(self.use_diskcache, self.cache_directory)
+        self.cache = ResultsCache(self.use_diskcache, self.cache_directory, n_shards)
 
     def delete_cache(self, reinit=False):
         """Delete cache with (intermediate) results."""
