@@ -22,6 +22,12 @@ try:
 except ImportError:
     skip_ax = True
 
+skip_ipopt = False
+try:
+    from CADETProcess.optimization import IPOPT
+except ImportError:
+    skip_ipopt = True
+
 from tests.optimization.conftest import (
     LinearConstraintsMooTestProblem,
     LinearConstraintsSooTestProblem,
@@ -105,6 +111,12 @@ class SLSQP(SLSQP):
     cv_lincon_tol = CV_LINCON_TOL
 
 
+if not skip_ipopt:
+    class IPOPT(IPOPT):
+        tol = 1e-8
+        cv_nonlincon_tol = CV_NONLINCON_TOL
+
+
 class TrustConstr(TrustConstr):
     x_tol = X_TOL
     cv_nonlincon_tol = CV_NONLINCON_TOL
@@ -176,6 +188,9 @@ params = [
     NelderMead,
     U_NSGA3,
 ]
+
+if not skip_ipopt:
+    params.append(IPOPT)
 
 if not skip_ax:
     params.extend(

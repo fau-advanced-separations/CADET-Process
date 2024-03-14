@@ -7,7 +7,7 @@ Optimization (:mod:`CADETProcess.optimization`)
 
 The ``optimization`` module provides functionality for minimizing (or maximizing)
 objective functions, possibly subject to constraints. It includes interfaces to several
-optimization suites, notably, ``scipy.optimize`` and ``pymoo``.
+optimization suites, notably, ``scipy.optimize``, ``cyipopt``, and ``pymoo``.
 
 OptimizationProblem
 ===================
@@ -39,6 +39,14 @@ Scipy
    COBYQA
    NelderMead
    SLSQP
+
+IPOPT
+-----
+
+.. autosummary::
+   :toctree: generated/
+
+   IPOPT
 
 Pymoo
 -----
@@ -118,4 +126,23 @@ def __getattr__(name):
                 "This may be because the 'ax' package, which is an optional dependency, is not installed. "
                 "To install it, run 'pip install CADET-Process[ax]'"
             )
+    if name == "IPOPT":
+        if ipopt_imported:
+            module = importlib.import_module("ipoptAdapter", package=__name__)
+            return getattr(module, name)
+        else:
+            raise ImportError(
+                "IPOPT could not be imported. "
+                "The 'cyipopt' package is an optional dependency. "
+                "To install it, run 'pip install CADET-Process[ipopt]' "
+                "or 'conda install -c conda-forge cyipopt'."
+            )
     raise AttributeError(f"module {__name__} has no attribute {name}")
+
+
+try:
+    from .ipoptAdapter import IPOPT
+
+    ipopt_imported = True
+except ImportError:
+    ipopt_imported = False
