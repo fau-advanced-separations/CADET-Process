@@ -1,3 +1,4 @@
+from collections import defaultdict
 from functools import wraps
 import os
 
@@ -560,15 +561,21 @@ class Fractionator(EventHandler):
             If the chromatogram is not found.
 
         """
-        if chromatogram is None and self.n_chromatograms == 1:
+        if chromatogram is None and self.n_chromatograms > 1:
+            raise CADETProcessError(
+                "Missing chromatogram for which the fractionation is added."
+            )
+        elif chromatogram is None and self.n_chromatograms == 1:
             chromatogram = self.chromatograms[0]
-        elif isinstance(chromatogram, str):
+
+        if isinstance(chromatogram, str):
             try:
                 chromatogram = self.chromatograms_dict[f"{chromatogram}"]
             except KeyError:
                 raise CADETProcessError("Could not find chromatogram.")
-        else:
-            raise CADETProcessError("Expected chromatogram.")
+
+        if chromatogram not in self.chromatograms:
+            raise CADETProcessError("Could not find chromatogram.")
 
         param_path = f'fractionation_states.{chromatogram.name}'
         evt = self.add_event(
@@ -645,6 +652,21 @@ class Fractionator(EventHandler):
                             event_name, param_path, self.n_comp, time
                         )
                         self._chromatogram_events[chrom].append(evt)
+
+        if not self.check_duplicate_events():
+            chrom_events = self._chromatogram_events.copy()
+            for chrom, events in chrom_events.items():
+                events_at_time = defaultdict(list)
+                for event in events:
+                    events_at_time[time].append(event)
+
+                for events in events_at_time.values():
+                    if len(events) == 1:
+                        continue
+                    for evt in events:
+                        if evt.state == self.n_comp:
+                            self.remove_event(evt.name)
+                            self._chromatogram_events[chrom].remove(evt)
 
     @property
     def parameters(self):
