@@ -1,5 +1,6 @@
 from copy import deepcopy
 from functools import wraps
+import warnings
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -10,13 +11,20 @@ from CADETProcess import plotting
 from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import Integer, UnsignedInteger, UnsignedFloat
 
+from CADETProcess.processModel import Linear, Langmuir
 from CADETProcess.processModel import UnitBaseClass, FlowSheet, Process
-from CADETProcess.processModel import TubularReactorBase, Cstr
+from CADETProcess.processModel import Inlet, TubularReactorBase, Cstr, Outlet
 
 from CADETProcess.solution import SolutionBase
 
 
-__all__ = ['CarouselBuilder', 'SerialZone', 'ParallelZone']
+__all__ = [
+    'SerialZone',
+    'ParallelZone',
+    'CarouselBuilder',
+    'LinearSMBBuilder',
+    'LangmuirSMBBuilder',
+]
 
 
 class CarouselBuilder(Structure):
@@ -296,7 +304,7 @@ class CarouselBuilder(Structure):
 class ZoneBaseClass(UnitBaseClass):
     n_columns = UnsignedInteger()
     flow_direction = Integer(default=1)
-    _valve_dead_volume = 1e-12
+    _valve_dead_volume = 1e-9
 
     def __init__(
             self,
@@ -348,6 +356,411 @@ class SerialZone(ZoneBaseClass):
 
 class ParallelZone(ZoneBaseClass):
     pass
+
+
+class SMBBuilder(CarouselBuilder):
+    binding_model_type = None
+
+    def __init__(self, feed, eluent, column, name='SMB'):
+        component_system = feed.component_system
+        if not (component_system is eluent.component_system is column.component_system):
+            raise CADETProcessError("ComponentSystems do not match.")
+        if not isinstance(feed, Inlet):
+            raise TypeError(f"Expected inlet object. Got {type(feed)}.")
+        if not isinstance(eluent, Inlet):
+            raise TypeError(f"Expected inlet object. Got {type(eluent)}.")
+
+        if not isinstance(column, TubularReactorBase):
+            raise TypeError(f"Expected Column object. Got {type(column)}.")
+
+        self._validate_binding_model(column.binding_model)
+
+        super().__init__(component_system, name)
+
+        raffinate = Outlet(component_system, name='raffinate')
+        extract = Outlet(component_system, name='extract')
+
+        zone_I = SerialZone(component_system, 'zone_I', 1)
+        zone_II = SerialZone(component_system, 'zone_II', 1)
+        zone_III = SerialZone(component_system, 'zone_III', 1)
+        zone_IV = SerialZone(component_system, 'zone_IV', 1)
+
+        # Carousel Builder
+        self.column = column
+        self.add_unit(feed, feed_inlet=True)
+        self.add_unit(eluent, eluent_inlet=True)
+
+        self.add_unit(raffinate, product_outlet=True)
+        self.add_unit(extract, product_outlet=True)
+
+        self.add_unit(zone_I)
+        self.add_unit(zone_II)
+        self.add_unit(zone_III)
+        self.add_unit(zone_IV)
+
+        self.add_connection(eluent, zone_I)
+
+        self.add_connection(zone_I, extract)
+        self.add_connection(zone_I, zone_II)
+
+        self.add_connection(zone_II, zone_III)
+
+        self.add_connection(feed, zone_III)
+
+        self.add_connection(zone_III, raffinate)
+        self.add_connection(zone_III, zone_IV)
+
+        self.add_connection(zone_IV, zone_I)
+
+    def _validate_binding_model(self, binding_model):
+        if not isinstance(binding_model, self.binding_model_type):
+            raise TypeError(f'Invalid binding model. Expected {self.binding_model_type}.')
+
+        if binding_model.n_comp != 2:
+            raise CADETProcessError("This only works for 2-Component Systems.")
+
+        if binding_model.is_kinetic:
+            warnings.warn(
+                "Isotherm uses kinetic binding, "
+                "however, triangle theory assumes instant equilibrium."
+            )
+
+    def _get_zone_flow_rates(self, m, switch_time):
+        m1, m2, m3, m4 = m
+
+        Vc = self.column.volume
+        et = self.column.total_porosity
+
+        Q_I = Vc*(m1*(1-et)+et)/switch_time   # Flussrate Zone 1
+        Q_II = Vc*(m2*(1-et)+et)/switch_time   # Flussrate Zone 2
+        Q_III = Vc*(m3*(1-et)+et)/switch_time   # Flussrate Zone 3
+        Q_IV = Vc*(m4*(1-et)+et)/switch_time   # Flussrate Zone 4
+
+        return [Q_I, Q_II, Q_III, Q_IV]
+
+    def _get_unit_flow_rates(self, Q_zones):
+        Q_I, Q_II, Q_III, Q_IV = Q_zones
+
+        Q_feed = Q_III - Q_II
+        Q_eluent = Q_I - Q_IV
+        Q_raffinate = Q_III - Q_IV
+        Q_extract = Q_I - Q_II
+
+        return [Q_feed, Q_eluent, Q_raffinate, Q_extract]
+
+    def _get_split_ratios(self, Q_zones, Q_units):
+        Q_I, Q_II, Q_III, Q_IV = Q_zones
+        Q_feed, Q_eluent, Q_raffinate, Q_extract = Q_units
+
+        w_r = Q_raffinate / Q_III
+        w_e = Q_extract / Q_I
+
+        return w_r, w_e
+
+    def get_design_parameters(self, binding_model):
+        raise NotImplementedError()
+
+    def calculate_m_opt(self, *design_parameters):
+        raise NotImplementedError()
+
+    def apply_safety_factor(self, m_opt, *design_parameters, gamma):
+        raise NotImplementedError()
+
+    def triangle_design(
+            self,
+            binding_model=None,
+            c_feed=None,
+            switch_time=None,
+            gamma=1,
+            set_values=True,
+            ):
+
+        if binding_model is None:
+            binding_model = self.column.binding_model
+        elif set_values is True:
+            warnings.warn("Cannot set values if binding_model is given.")
+            set_values = False
+
+        self._validate_binding_model(binding_model)
+
+        if c_feed is None:
+            c_feed = self.flow_sheet.feed.c[:, 0]
+        elif set_values is True:
+            self.flow_sheet.feed.c = c_feed
+
+        design_parameters = self.get_design_parameters(binding_model, c_feed)
+        m_opt = self.calculate_m_opt(*design_parameters)
+        m = self.apply_safety_factor(m_opt, *design_parameters, gamma)
+
+        if switch_time is None:
+            switch_time = self.switch_time
+        elif set_values is True:
+            self.switch_time = switch_time
+
+        Q_zones = self._get_zone_flow_rates(m, switch_time)
+        Q_units = self._get_unit_flow_rates(Q_zones)
+        Q_feed, Q_eluent, Q_raffinate, Q_extract = Q_units
+        w_r, w_e = self._get_split_ratios(Q_zones, Q_units)
+
+        if set_values:
+            self.flow_sheet.feed.flow_rate = Q_feed
+            self.flow_sheet.eluent.flow_rate = Q_eluent
+            self.set_output_state('zone_I', [w_e, 1-w_e])
+            self.set_output_state('zone_III', [w_r, 1-w_r])
+
+        return [Q_feed, Q_eluent, w_r, w_e]
+
+    def plot_triangle(
+            self,
+            binding_model=None,
+            c_feed=None,
+            gamma=1,
+            operating_point=None,
+            fig=None,
+            ax=None,
+            ):
+        if binding_model is None:
+            binding_model = self.column.binding_model
+        self._validate_binding_model(binding_model)
+
+        if c_feed is None:
+            c_feed = self.flow_sheet.feed.c[:, 0]
+
+        # Operating Point
+        design_parameters = self.get_design_parameters(binding_model, c_feed)
+        m_opt = self.calculate_m_opt(*design_parameters)
+        m1, m2, m3, m4 = self.apply_safety_factor(m_opt, *design_parameters, gamma)
+
+        # Setup figure
+        if fig is None:
+            fig, ax = plt.subplots(figsize=(10, 10))
+
+        # Plot Triangle
+        self._plot_triangle(ax, *design_parameters)
+
+        ax.set_xlabel('$m_{II}$')
+        ax.set_ylabel('$m_{III}$')
+
+        # Operating point
+        ax.plot(m2, m3, 'ok')
+
+        return fig, ax
+
+    def _plot_triangle(self, ax, *design_parameters):
+        raise NotImplementedError()
+
+
+class LinearSMBBuilder(SMBBuilder):
+    binding_model_type = Linear
+
+    def get_design_parameters(self, binding_model, c_feed):
+        k_ads = np.array(binding_model.adsorption_rate)
+        k_des = np.array(binding_model.desorption_rate)
+        H = k_ads / k_des
+
+        if H[1] < H[0]:
+            HA, HB = H
+        else:
+            HB, HA = H
+
+        return HA, HB
+
+    def calculate_m_opt(self, HA, HB):
+        m1 = HB
+        m2 = HB
+        m3 = HA
+        m4 = HA
+
+        return [m1, m2, m3, m4]
+
+    def apply_safety_factor(self, m_opt, *design_parameters, gamma=1):
+        m1_opt, m2_opt, m3_opt, m4_opt = m_opt
+
+        if np.isscalar(gamma):
+            gamma = 4 * [gamma]
+
+        gamma_1, gamma_2, gamma_3, gamma_4 = gamma
+
+        if gamma_2 * gamma_3 >= m3_opt / m2_opt:
+            raise ValueError("gamma_2 * gamma_3 must be smaller than HA / HB ")
+
+        m1 = gamma_1 * m1_opt
+        m2 = gamma_2 * m2_opt
+        m3 = m3_opt / gamma_3
+        m4 = m4_opt / gamma_4
+
+        return [m1, m2, m3, m4]
+
+    def _plot_triangle(self, ax, HA, HB):
+        """
+        Plot SMB triangle for linear isotherm.
+
+        Notable points:
+        - a: [HA, HA]
+        - b: [HB, HB]
+        - w_opt: [HB, HA]
+
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes
+            Axes to plot on.
+        binding_model : CADETProcess.processModel.BindingBaseClass
+            Binding model to use for plotting.
+        gamma : list or float, optional
+            Safety factor(s) for operating points.
+
+        """
+        # Bounds
+        lb = HB - 0.3 * (HA - HB)
+        ub = HA + 0.3 * (HA - HB)
+
+        ax.set_xlim(lb, ub)
+        ax.set_ylim(lb, ub)
+
+        # Diagonal
+        ax.plot((lb, ub), (lb, ub), 'k')
+
+        # Henry coefficients
+        for h in [HB, HA]:
+            ax.hlines(h, 0, h, 'k', 'dashed')
+            ax.vlines(h, h, ub, 'k', 'dashed')
+
+        # Triangle
+        ax.hlines(HA, HB, HA, 'k')
+        ax.vlines(HB, HB, HA, 'k')
+
+        # Label regions
+        ax.text(
+            (HB + (HA - HB) / 2), (0.95 * ub),
+            'Pure extract',
+            ha='center', va='center'
+        )
+        ax.text(
+            (1.05 * lb), (HB + (HA - HB) / 2),
+            'Pure raffinate',
+            ha='center', va='center',
+            rotation='vertical',
+        )
+
+
+class LangmuirSMBBuilder(SMBBuilder):
+    binding_model_type = Langmuir
+
+    def get_design_parameters(self, binding_model, c_feed):
+        k_ads = np.array(binding_model.adsorption_rate)
+        k_des = np.array(binding_model.desorption_rate)
+        k_eq = k_ads / k_des
+        q_sat = np.array(binding_model.capacity)
+        H = [k_eq * q_s for k_eq, q_s in zip(k_eq, q_sat)]
+
+        if H[1] < H[0]:
+            HA, HB = H
+            bA, bB = k_eq
+            cFA, cFB = c_feed
+        else:
+            HB, HA = H
+            bB, bA = k_eq
+            cFB, cFA = c_feed
+
+        a = -(HA * (1 + bB * cFB) + HB * (1 + bA * cFA)) / (1 + bB * cFB + bA * cFA)
+        b = HA * HB / (1 + bB * cFB + bA * cFA)
+        wG = -a / 2 + np.sqrt((-a / 2)**2 - b)
+        wF = -a / 2 - np.sqrt((-a / 2)**2 - b)
+
+        return HA, HB, bA, bB, cFA, cFB, wG, wF
+
+    def calculate_m_opt(self, HA, HB, bA, bB, cFA, cFB, wG, wF):
+        m1 = HA
+        m2 = HB / HA * wG
+        m3 = wG * (wF * (HA - HB) + HB * (HB - wF)) / (HB * (HA - wF))
+        m4 = 1 / 2 * (HB + m3 + bB * cFB * (m3 - m2) - np.sqrt((HB + m3 + bB * cFB * (m3 - m2))**2 - 4 * HB * m3))
+
+        return [m1, m2, m3, m4]
+
+    def apply_safety_factor(self, m_opt, HA, HB, bA, bB, cFA, cFB, wG, wF, gamma=1):
+        m1_opt, m2_opt, m3_opt, m4_opt = m_opt
+
+        if np.isscalar(gamma):
+            W_opt = np.array([m2_opt, m3_opt])
+            B = np.array([HB, HB])
+            R = [
+                wG ** 2 / HA,
+                wG * (wF * (HA - wG) * (HA - HB) + HB * wG * (HA - wF)) / (HA * HB * (HA - wF))
+            ]
+
+            # Calculating vectors WB and WA
+            WB = B - W_opt
+            WR = R - W_opt
+
+            # Normalizing vectors
+            norm_WB = WB / np.linalg.norm(WB)
+            norm_WR = WR / np.linalg.norm(WR)
+
+            # Calculating the bisector WB / WR
+            bisector = norm_WB + norm_WR
+            norm_dir_vec_bisector = bisector / np.linalg.norm(bisector)
+
+            # Calculating the new point W' using the safety factor gamma
+            W = W_opt + (gamma - 1) * norm_dir_vec_bisector
+
+            m1 = gamma * m1_opt
+            m2 = W[0]
+            m3 = W[1]
+            m4 = m4_opt / gamma
+
+        else:
+            gamma_1, gamma_2, gamma_3, gamma_4 = gamma
+
+            m1 = gamma_1 * m1_opt
+            m2 = gamma_2 * m2_opt
+            m3 = m3_opt / gamma_3
+            m4 = m4_opt / gamma_4
+
+        return [m1, m2, m3, m4]
+
+    def _plot_triangle(self, ax, HA, HB, bA, bB, cFA, cFB, wG, wF):
+        """
+        Plot SMB triangle for Langmuir isotherm.
+
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes
+            Axes to plot on.
+        """
+        m1, m2, m3, m4 = self.calculate_m_opt(HA, HB, bA, bB, cFA, cFB, wG, wF)
+        W = [m2, m3]
+
+        R = [
+            wG ** 2 / HA,
+            wG * (wF * (HA - wG) * (HA - HB) + HB * wG * (HA - wF)) / (HA * HB * (HA - wF))
+        ]
+
+        # Bounds
+        lb = W[0] - 0.3 * (HA - W[0])
+        ub = HA + 0.3 * (HA - W[0])
+
+        ax.set_xlim(lb, ub)
+        ax.set_ylim(lb, ub)
+
+        # Diagonal
+        ax.plot((lb, ub), (lb, ub), 'k')
+
+        # Plot [W -> R]
+        m2WR = np.linspace(W[0], R[0], 50)
+        m3WR = 1 / (bA * cFA * wG) * (wG * (HA - wG) - (HA - wG * (1 + bA * cFA)) * m2WR)
+        ax.plot(m2WR, m3WR, 'k-')
+
+        # plot [W -> HB]
+        m2WHB = np.linspace(W[0], HB, 10)
+        m3WHB = 1 / (bA * cFA * HB) * (HB * (HA - HB) - (HA - HB * (1 + bA * cFA)) * m2WHB)
+        ax.plot(m2WHB, m3WHB, 'k-')
+
+        # plot [R -> HA]
+        m2RHA = np.linspace(R[0], HA, 10)
+        m3RHA = m2RHA + (np.sqrt(HA) - np.sqrt(m2RHA)) ** 2 / (bA * cFA)
+        ax.plot(m2RHA, m3RHA, 'k-')
+
+        # TODO: Equations that plot regions of pure extract / raffinate not clear yet.
 
 
 class CarouselSolutionBulk(SolutionBase):
