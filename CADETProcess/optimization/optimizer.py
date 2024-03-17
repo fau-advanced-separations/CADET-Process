@@ -251,12 +251,13 @@ class OptimizerBase(Structure):
         plt.switch_backend('agg')
 
         start = time.time()
-
         self.run(self.optimization_problem, x0, *args, **kwargs)
-
         time_elapsed = time.time() - start
+
         self.results.time_elapsed = time_elapsed
         self.results.cpu_time = self.n_cores * time_elapsed
+
+        self.run_final_processing()
 
         if delete_cache:
             optimization_problem.delete_cache(reinit=True)
@@ -485,12 +486,19 @@ class OptimizerBase(Structure):
 
         return meta_front
 
-    def _evaluate_callbacks(self, current_generation):
+    def _evaluate_callbacks(self, current_generation, sub_dir=None):
+        if sub_dir is not None:
+            callbacks_dir = self.callbacks_dir / sub_dir
+            callbacks_dir.mkdir(exist_ok=True, parents=True)
+        else:
+            callbacks_dir = self.callbacks_dir
+
         for callback in self.optimization_problem.callbacks:
             if self.optimization_problem.n_callbacks > 1:
-                _callbacks_dir = self.callbacks_dir / str(callback)
+                _callbacks_dir = callbacks_dir / str(callback)
             else:
-                _callbacks_dir = self.callbacks_dir
+                _callbacks_dir = callbacks_dir
+
             callback.cleanup(_callbacks_dir, current_generation)
             callback._callbacks_dir = _callbacks_dir
 
@@ -555,7 +563,7 @@ class OptimizerBase(Structure):
 
         self._evaluate_callbacks(current_generation)
 
-        self.results.save_results()
+        self.results.save_results('checkpoint')
 
         # Remove new entries from cache that didn't make it to the meta front
         for x in population.x:
@@ -573,6 +581,12 @@ class OptimizerBase(Structure):
                 self._current_cache_entries.remove(x_key)
 
         self._log_results(current_generation)
+
+    def run_final_processing(self):
+        self.results.plot_figures(show=False)
+        if self.optimization_problem.n_callbacks > 0:
+            self._evaluate_callbacks(0, 'final')
+        self.results.save_results('final')
 
     @property
     def options(self):
