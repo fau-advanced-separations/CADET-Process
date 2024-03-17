@@ -254,7 +254,9 @@ class OptimizerBase(Structure):
 
         self.run(self.optimization_problem, x0, *args, **kwargs)
 
-        self.results.time_elapsed = time.time() - start
+        time_elapsed = time.time() - start
+        self.results.time_elapsed = time_elapsed
+        self.results.cpu_time = self.n_cores * time_elapsed
 
         if delete_cache:
             optimization_problem.delete_cache(reinit=True)
@@ -592,12 +594,15 @@ class OptimizerBase(Structure):
     def n_cores(self):
         """int: Proxy to the number of cores used by the parallelization backend.
 
+        Note, this will always return the actual number of cores used, even if negative
+        values are set.
+
         See Also
         --------
         parallelization_backend
 
         """
-        return self.parallelization_backend.n_cores
+        return self.parallelization_backend._n_cores
 
     @n_cores.setter
     def n_cores(self, n_cores):

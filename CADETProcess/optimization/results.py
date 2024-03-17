@@ -14,10 +14,11 @@ from cadet import H5
 from CADETProcess import plotting
 from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import (
-    NdArray, String, UnsignedInteger, UnsignedFloat
+    Dictionary, NdArray, String, UnsignedInteger, UnsignedFloat
 )
 
 from CADETProcess import CADETProcessError
+from CADETProcess.sysinfo import system_information
 from CADETProcess.optimization import Individual, Population, ParetoFront
 
 
@@ -54,6 +55,8 @@ class OptimizationResults(Structure):
     exit_flag = UnsignedInteger()
     exit_message = String()
     time_elapsed = UnsignedFloat()
+    cpu_time = UnsignedFloat()
+    system_information = Dictionary()
 
     def __init__(
             self, optimization_problem, optimizer,
@@ -75,6 +78,8 @@ class OptimizationResults(Structure):
             self._meta_fronts = None
 
         self.results_directory = None
+
+        self.system_information = system_information
 
     @property
     def results_directory(self):
