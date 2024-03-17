@@ -170,6 +170,8 @@ class OptimizerBase(Structure):
         CADETProcess.optimization.ResultsCache
 
         """
+        self._current_cache_entries = []
+
         self.logger = log.get_logger(str(self), level=log_level)
 
         # Check OptimizationProblem
@@ -256,6 +258,7 @@ class OptimizerBase(Structure):
 
         if delete_cache:
             optimization_problem.delete_cache(reinit=True)
+        self._current_cache_entries = []
 
         plt.switch_backend(backend)
 
@@ -552,7 +555,20 @@ class OptimizerBase(Structure):
 
         self.results.save_results()
 
-        self.optimization_problem.prune_cache()
+        # Remove new entries from cache that didn't make it to the meta front
+        for x in population.x:
+            x_key = x.tobytes()
+            if x not in self.results.meta_front.x:
+                self.optimization_problem.prune_cache(x_key)
+            else:
+                self._current_cache_entries.append(x_key)
+
+        # Remove old meta front entries from cache that were replaced by better ones
+        for x_key in self._current_cache_entries:
+            x = np.frombuffer(x_key)
+            if not np.all(np.isin(x, self.results.meta_front.x)):
+                self.optimization_problem.prune_cache(x_key)
+                self._current_cache_entries.remove(x_key)
 
         self._log_results(current_generation)
 

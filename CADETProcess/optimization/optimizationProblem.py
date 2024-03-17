@@ -112,7 +112,6 @@ class OptimizationProblem(Structure):
         self._evaluation_objects_dict = {}
         self._evaluators = []
 
-        self.cached_evaluators = []
         self.use_diskcache = use_diskcache
         self.cache_directory = cache_directory
         self.setup_cache()
@@ -742,6 +741,7 @@ class OptimizationProblem(Structure):
         self.logger.debug(f'evaluate {str(func)} at {x}')
 
         results = np.empty((0,))
+        x_key = np.array(x).tobytes()
 
         if func.evaluators is not None:
             requires = [*func.evaluators, func]
@@ -769,7 +769,7 @@ class OptimizationProblem(Structure):
                 remaining = []
                 for step in reversed(requires):
                     try:
-                        key = (str(eval_obj), step.id, str(x))
+                        key = (str(eval_obj), step.id, x_key)
                         result = self.cache.get(key)
                         self.logger.debug(
                             f'Got {str(step)} results from cache.'
@@ -794,12 +794,9 @@ class OptimizationProblem(Structure):
                     result = np.empty((0))
                 else:
                     result = step.evaluate(current_request)
-                if step not in self.cached_steps:
-                    tag = 'temp'
-                else:
-                    tag = None
-                key = (str(eval_obj), step.id, str(x))
-                self.cache.set(key, result, tag=tag)
+
+                key = (str(eval_obj), step.id, x_key)
+                self.cache.set(key, result, tag=x_key)
                 current_request = result
 
             if len(result) != func.n_metrics:
@@ -827,7 +824,7 @@ class OptimizationProblem(Structure):
         """dict: Evaluator objects indexed by name."""
         return {evaluator.name: evaluator for evaluator in self.evaluators}
 
-    def add_evaluator(self, evaluator, name=None, cache=False, args=None, kwargs=None):
+    def add_evaluator(self, evaluator, name=None, args=None, kwargs=None):
         """Add Evaluator to OptimizationProblem.
 
         Evaluators can be referenced by objective and constraint functions to
@@ -839,8 +836,6 @@ class OptimizationProblem(Structure):
             Evaluation function.
         name : str, optional
             Name of the evaluator.
-        cache : bool, optional
-            If True, results of the evaluator are cached. The default is False.
         args : tuple, optional
             Additional arguments for evaluation function.
         kwargs : dict, optional
@@ -873,9 +868,6 @@ class OptimizationProblem(Structure):
             kwargs=kwargs,
         )
         self._evaluators.append(evaluator)
-
-        if cache:
-            self.cached_evaluators.append(evaluator)
 
     @property
     def objectives(self):
@@ -2628,7 +2620,6 @@ class OptimizationProblem(Structure):
     def cached_steps(self):
         """list: Cached evaluation steps."""
         return \
-            self.cached_evaluators + \
             self.objectives + \
             self.nonlinear_constraints + \
             self.meta_scores
@@ -2663,9 +2654,9 @@ class OptimizationProblem(Structure):
         if reinit:
             self.setup_cache()
 
-    def prune_cache(self):
+    def prune_cache(self, tag=None):
         """Prune cache with (intermediate) results."""
-        self.cache.prune()
+        self.cache.prune(tag)
 
     def create_hopsy_problem(
             self,
