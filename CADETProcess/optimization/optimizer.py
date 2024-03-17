@@ -252,7 +252,9 @@ class OptimizerBase(Structure):
 
         self.run(self.optimization_problem, x0, *args, **kwargs)
 
-        self.results.time_elapsed = time.time() - start
+        time_elapsed = time.time() - start
+        self.results.time_elapsed = time_elapsed
+        self.results.cpu_time = self.n_cores * time_elapsed
 
         if delete_cache:
             optimization_problem.delete_cache(reinit=True)
