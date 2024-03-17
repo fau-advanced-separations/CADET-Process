@@ -499,7 +499,7 @@ class OptimizerBase(Structure):
         self.logger.info(
             f'Finished Generation {current_generation}.'
         )
-        for ind in self.results.pareto_front:
+        for ind in self.results.meta_front:
             message = f'x: {ind.x}, f: {ind.f}'
 
             if self.optimization_problem.n_nonlinear_constraints > 0:
