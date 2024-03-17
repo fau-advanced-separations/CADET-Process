@@ -2630,7 +2630,8 @@ class OptimizationProblem(Structure):
         return \
             self.cached_evaluators + \
             self.objectives + \
-            self.nonlinear_constraints
+            self.nonlinear_constraints + \
+            self.meta_scores
 
     @property
     def cache_directory(self):
