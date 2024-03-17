@@ -200,7 +200,7 @@ class FractionationOptimizer():
         opt.add_evaluation_object(frac)
 
         frac_evaluator = FractionationEvaluator()
-        opt.add_evaluator(frac_evaluator, cache=True)
+        opt.add_evaluator(frac_evaluator)
 
         if obj_fun is None:
             obj_fun = Mass(ranking=ranking)
