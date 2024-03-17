@@ -745,7 +745,7 @@ class OptimizationResults(Structure):
                     f'{plot_directory / figname}.png'
                 )
 
-    def save_results(self):
+    def save_results(self, name):
         if self.results_directory is not None:
             self._update_csv(self.population_last, 'results_all', mode='a')
             self._update_csv(self.population_last, 'results_last', mode='w')
@@ -755,7 +755,7 @@ class OptimizationResults(Structure):
 
             results = H5()
             results.root = Dict(self.to_dict())
-            results.filename = self.results_directory / 'checkpoint.h5'
+            results.filename = self.results_directory / f'{name}.h5'
             results.save()
 
     def to_dict(self):
@@ -767,6 +767,7 @@ class OptimizationResults(Structure):
             Results as a dictionary with populations stored as list of dictionaries.
         """
         data = Dict()
+        data.system_information = self.system_information
         data.optimizer_state = self.optimizer_state
         data.population_all_id = str(self.population_all.id)
         data.populations = {i: pop.to_dict() for i, pop in enumerate(self.populations)}
@@ -777,6 +778,9 @@ class OptimizationResults(Structure):
             data.meta_fronts = {
                 i: front.to_dict() for i, front in enumerate(self.meta_fronts)
             }
+        if self.time_elapsed is not None:
+            data.time_elapsed = self.time_elapsed
+            data.cpu_time = self.cpu_time
 
         return data
 

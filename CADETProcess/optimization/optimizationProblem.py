@@ -796,7 +796,8 @@ class OptimizationProblem(Structure):
                     result = step.evaluate(current_request)
 
                 key = (str(eval_obj), step.id, x_key)
-                self.cache.set(key, result, tag=x_key)
+                if not isinstance(step, Callback):
+                    self.cache.set(key, result, tag=x_key)
                 current_request = result
 
             if len(result) != func.n_metrics:
