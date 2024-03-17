@@ -42,7 +42,7 @@ class ParameterBase(Descriptor):
     Tuple
     Float
     String
-    Dict
+    Dictionary
     """
 
     def __init__(
@@ -378,7 +378,7 @@ class Typed(ParameterBase):
     Tuple
     Float
     String
-    Dict
+    Dictionary
     """
 
     def __init__(self, *args, ty=None, **kwargs):
@@ -568,15 +568,8 @@ class List(Typed):
     ty = list
 
 
-class Dict(Typed):
-    """
-    Parameter descriptor constrained to dictionary (`dict`) values.
-
-    Notes
-    -----
-    When integrating with libraries like `addict`, be cautious about potential
-    name collisions with `addict.Dict`.
-    """
+class Dictionary(Typed):
+    """Parameter descriptor constrained to dictionary (`dict`) values."""
 
     ty = dict
 
