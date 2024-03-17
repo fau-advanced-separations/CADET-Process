@@ -552,7 +552,9 @@ class OptimizerBase(Structure):
 
         self.results.save_results()
 
-        self.optimization_problem.prune_cache()
+        for x in self.results.population_all.x:
+            if x not in self.results.meta_front.x:
+                self.optimization_problem.prune_cache(str(x))
 
         self._log_results(current_generation)
 

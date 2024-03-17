@@ -130,7 +130,7 @@ class ResultsCache():
         if close:
             self.close()
 
-    def prune(self, tag='temp'):
+    def prune(self, tag):
         """Remove tagged entries from cache.
 
         Parameters
