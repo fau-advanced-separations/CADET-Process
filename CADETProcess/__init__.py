@@ -20,6 +20,7 @@ from . import log
 from .settings import Settings
 settings = Settings()
 
+from . import sysinfo
 from . import dataStructure
 from . import transform
 from . import plotting
