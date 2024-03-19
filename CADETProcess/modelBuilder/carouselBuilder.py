@@ -304,7 +304,7 @@ class CarouselBuilder(Structure):
 class ZoneBaseClass(UnitBaseClass):
     n_columns = UnsignedInteger()
     flow_direction = Integer(default=1)
-    _valve_dead_volume = 1e-9
+    valve_dead_volume = UnsignedFloat(default=1e-6)
 
     def __init__(
             self,
@@ -317,9 +317,9 @@ class ZoneBaseClass(UnitBaseClass):
 
         self._inlet_unit = Cstr(component_system, f'{name}_inlet')
 
-        self._inlet_unit.V = self._valve_dead_volume
+        self._inlet_unit.V = self.valve_dead_volume
         self._outlet_unit = Cstr(component_system, f'{name}_outlet')
-        self._outlet_unit.V = self._valve_dead_volume
+        self._outlet_unit.V = self.valve_dead_volume
 
         super().__init__(component_system, name, *args, **kwargs)
 
