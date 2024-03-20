@@ -273,6 +273,11 @@ class OptimizationResults(Structure):
         return np.array([pop.f_avg for pop in self.meta_fronts])
 
     @property
+    def g_best_history(self):
+        """np.array: Best nonlinear constraint per generation."""
+        return np.array([pop.g_best for pop in self.meta_fronts])
+
+    @property
     def g_min_history(self):
         """np.array: Minimum nonlinear constraint values per generation."""
         if self.optimization_problem.n_nonlinear_constraints == 0:
@@ -646,7 +651,7 @@ class OptimizationResults(Structure):
             values_avg = self.f_avg_history
         elif target == 'nonlinear_constraints':
             funcs = self.optimization_problem.nonlinear_constraints
-            values_min = self.g_min_history
+            values_min = self.g_best_history
             values_avg = self.g_avg_history
         elif target == 'meta_scores':
             funcs = self.optimization_problem.meta_scores

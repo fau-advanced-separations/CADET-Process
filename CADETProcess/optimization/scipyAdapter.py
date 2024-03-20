@@ -165,17 +165,13 @@ class SciPyInterface(OptimizerBase):
         )
 
     def get_constraint_objects(self, optimization_problem):
-        """Defines the constraints of the optimization_problem and resturns
-        them into a list.
-
-        First defines the lincon, the linequon and the nonlincon constraints.
-        Returns the constrainst in a list.
+        """Return constraints as objets.
 
         Returns
         -------
         constraint_objects : list
-            List containing  a sorted list of all constraints of an
-            optimization_problem, if they're not None.
+            List containing lists of all constraint types of the optimization_problem.
+            If type of constraints is not defined, it is replaced with None.
 
         See Also
         --------
@@ -192,16 +188,13 @@ class SciPyInterface(OptimizerBase):
         return [con for con in constraints if con is not None]
 
     def get_lincon_obj(self, optimization_problem):
-        """Returns the optimized linear constraint as an object.
-
-        Sets the lower and upper bounds of the optimization_problem and returns
-        optimized linear constraints. Keep_feasible is set to True.
+        """Return the linear constraints as an object.
 
         Returns
         -------
         lincon_obj : LinearConstraint
-            Linear Constraint object with optimized upper and lower bounds of b
-            of the optimization_problem.
+            Linear Constraint object with lower and upper bounds of b of the
+            optimization_problem.
 
         See Also
         --------
@@ -220,20 +213,13 @@ class SciPyInterface(OptimizerBase):
         )
 
     def get_lineqcon_obj(self, optimization_problem):
-        """Returns the optimized linear equality constraints as an object.
-
-        Checks the length of the beq first, before setting the bounds of the
-        constraint. Sets the lower and upper bounds of the
-        optimization_problem and returns optimized linear equality constraints.
-        Keep_feasible is set to True.
+        """Return the linear equality constraints as an object.
 
         Returns
         -------
-        None: bool
-            If the length of the beq of the optimization_problem is equal zero.
         lineqcon_obj : LinearConstraint
-            Linear equality Constraint object with optimized upper and lower
-            bounds of beq of the optimization_problem.
+            Linear equality Constraint object with lower and upper bounds of beq of the
+            optimization_problem.
 
         See Also
         --------
@@ -253,29 +239,12 @@ class SciPyInterface(OptimizerBase):
         )
 
     def get_nonlincon_obj(self, optimization_problem):
-        """Returns the optimized nonlinear constraints as an object.
-
-        Checks the length of the nonlinear_constraints first, before setting
-        the bounds of the constraint. Tries to set the bounds from the list
-        nonlinear_constraints from the optimization_problem for the lower
-        bounds and sets the upper bounds for the length of the
-        nonlinear_constraints list. If a TypeError is excepted it sets the
-        lower bound by the first entry of the nonlinear_constraints list and
-        the upper bound to infinity. Then a local variable named
-        finite_diff_rel_step is defined. After setting the bounds it returns
-        the optimized nonlinear constraints as an object with the
-        finite_diff_rel_step and the jacobian matrix. The jacobian matrix is
-        got by calling the method nonlinear_constraint_jacobian from the
-        optimization_problem. Keep_feasible is set to True.
+        """Return the optimized nonlinear constraints as an object.
 
         Returns
         -------
-        None: bool
-            If the length of the nonlinear_constraints of the
-            optimization_problem is equal zero.
-        nonlincon_obj : NonlinearConstraint
-            Linear equality Constraint object with optimized upper and lower
-            bounds of beq of the optimization_problem.
+        nonlincon_obj : list
+            Nonlinear constraint violation objects with bounds the optimization_problem.
 
         See Also
         --------
@@ -306,11 +275,11 @@ class SciPyInterface(OptimizerBase):
             in the main loop.
             """
             constr = optimize.NonlinearConstraint(
-                lambda x: opt.evaluate_nonlinear_constraints(x, untransform=True)[i],
-                lb=-np.inf, ub=opt.nonlinear_constraints_bounds[i],
+                lambda x: opt.evaluate_nonlinear_constraints_violation(x, untransform=True)[i],
+                lb=-np.inf, ub=0,
                 finite_diff_rel_step=self.finite_diff_rel_step,
                 keep_feasible=True
-                )
+            )
             return constr
 
         constraints = []
