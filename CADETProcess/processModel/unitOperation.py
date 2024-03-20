@@ -634,7 +634,7 @@ class TubularReactorBase(UnitBaseClass):
         See Also
         --------
         calculate_interstitial_velocity
-        t0
+        calculate_interstitial_rt
 
         """
         return u0 * self.cross_section_area_interstitial
@@ -1130,13 +1130,13 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         """float: Volume of the solid phase."""
         return (1 - self.porosity) * self.V
 
-    def t0(self, flow_rate):
-        """Mean residence time of a (non adsorbing) volume element.
+    def calculate_interstitial_rt(self, flow_rate):
+        """Calculate mean residence time of a (non adsorbing) volume element.
 
         Parameters
         ----------
         flow_rate : float
-            volumetric flow rate
+            Volumetric flow rate.
 
         Returns
         -------

@@ -127,13 +127,18 @@ class Test_Unit_Operation(unittest.TestCase):
         tube.axial_dispersion = 0
 
         with self.assertRaises(ZeroDivisionError):
-            tube.u0(flow_rate)
+            tube.calculate_interstitial_velocity(flow_rate)
+        with self.assertRaises(ZeroDivisionError):
+            tube.calculate_superficial_velocity(flow_rate)
+        with self.assertRaises(ZeroDivisionError):
             tube.NTP(flow_rate)
 
         flow_rate = 2
         tube.axial_dispersion = 3
-        self.assertAlmostEqual(tube.u0(flow_rate), 2)
-        self.assertAlmostEqual(tube.t0(flow_rate), 0.5)
+        self.assertAlmostEqual(tube.calculate_interstitial_velocity(flow_rate), 2)
+        self.assertAlmostEqual(tube.calculate_interstitial_rt(flow_rate), 0.5)
+        self.assertAlmostEqual(tube.calculate_superficial_velocity(flow_rate), 2)
+        self.assertAlmostEqual(tube.calculate_superficial_rt(flow_rate), 0.5)
         self.assertAlmostEqual(tube.NTP(flow_rate), 1/3)
 
         tube.set_axial_dispersion_from_NTP(1/3, 2)
@@ -143,8 +148,10 @@ class Test_Unit_Operation(unittest.TestCase):
         lrmwp.length = 1
         lrmwp.bed_porosity = 0.5
         lrmwp.cross_section_area = 1
-        self.assertAlmostEqual(lrmwp.u0(flow_rate), 4)
-        self.assertAlmostEqual(lrmwp.t0(flow_rate), 0.25)
+        self.assertAlmostEqual(lrmwp.calculate_interstitial_velocity(flow_rate), 4)
+        self.assertAlmostEqual(lrmwp.calculate_interstitial_rt(flow_rate), 0.25)
+        self.assertAlmostEqual(lrmwp.calculate_superficial_velocity(flow_rate), 2)
+        self.assertAlmostEqual(lrmwp.calculate_superficial_rt(flow_rate), 0.5)
 
     def test_poly_properties(self):
         source = self.create_source()
