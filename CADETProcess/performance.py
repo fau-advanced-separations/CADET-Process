@@ -309,7 +309,7 @@ class Mass(PerformanceIndicator):
     """
 
     def _evaluate(self, performance):
-        return - performance.mass
+        return performance.mass
 
 
 class Recovery(PerformanceIndicator):
@@ -322,7 +322,7 @@ class Recovery(PerformanceIndicator):
     """
 
     def _evaluate(self, performance):
-        return - performance.recovery
+        return performance.recovery
 
 
 class Productivity(PerformanceIndicator):
@@ -335,7 +335,7 @@ class Productivity(PerformanceIndicator):
     """
 
     def _evaluate(self, performance):
-        return - performance.productivity
+        return performance.productivity
 
 
 class EluentConsumption(PerformanceIndicator):
@@ -348,7 +348,7 @@ class EluentConsumption(PerformanceIndicator):
     """
 
     def _evaluate(self, performance):
-        return - performance.eluent_consumption
+        return performance.eluent_consumption
 
 
 class Purity(PerformanceIndicator):
@@ -374,7 +374,7 @@ class Concentration(PerformanceIndicator):
     """
 
     def _evaluate(self, performance):
-        return - performance.concentration
+        return performance.concentration
 
 
 class PerformanceProduct(PerformanceIndicator):
@@ -391,7 +391,7 @@ class PerformanceProduct(PerformanceIndicator):
 
     def _evaluate(self, performance):
         return \
-            - performance.productivity \
+            performance.productivity \
             * performance.recovery \
             * performance.eluent_consumption
 
