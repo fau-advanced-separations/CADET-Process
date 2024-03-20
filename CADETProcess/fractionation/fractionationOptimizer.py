@@ -226,11 +226,12 @@ class FractionationOptimizer():
 
         purity = Purity()
         purity.n_metrics = frac.component_system.n_comp
-        constraint_bounds = -np.array(purity_required, ndmin=1)
-        constraint_bounds = constraint_bounds.tolist()
         opt.add_nonlinear_constraint(
-            purity, n_nonlinear_constraints=len(constraint_bounds),
-            bounds=constraint_bounds, requires=frac_evaluator
+            purity,
+            n_nonlinear_constraints=len(purity_required),
+            bounds=purity_required,
+            comparison_operator='ge',
+            requires=frac_evaluator,
         )
 
         for evt in frac.events:

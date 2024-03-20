@@ -361,7 +361,7 @@ class Purity(PerformanceIndicator):
     """
 
     def _evaluate(self, performance):
-        return - performance.purity
+        return performance.purity
 
 
 class Concentration(PerformanceIndicator):
