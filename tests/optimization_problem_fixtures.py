@@ -147,10 +147,10 @@ class Rosenbrock(TestProblem):
 
 
 class LinearConstraintsSooTestProblem(TestProblem):
-    def __init__(self, transform=None, has_evaluator=False, *args, **kwargs):
+    def __init__(self, transform=None, transform_kwargs=None, has_evaluator=False, precision=None, *args, **kwargs):
         self.test_abs_tol = 0.1
         super().__init__('linear_constraints_single_objective', *args, **kwargs)
-        self.setup_variables(transform=transform)
+        self.setup_variables(transform=transform, transform_kwargs=transform_kwargs, precision=precision)
         self.setup_linear_constraints()
         if has_evaluator:
             eval_fun = lambda x: x
@@ -162,9 +162,9 @@ class LinearConstraintsSooTestProblem(TestProblem):
         else:
             self.add_objective(self._objective_function)
 
-    def setup_variables(self, transform):
-        self.add_variable('var_0', lb=-2, ub=2, transform=transform)
-        self.add_variable('var_1', lb=-2, ub=2, transform=transform)
+    def setup_variables(self, transform, transform_kwargs, precision):
+        self.add_variable('var_0', lb=-2, ub=2, transform=transform, transform_kwargs=transform_kwargs, precision=precision)
+        self.add_variable('var_1', lb=-2, ub=2, transform=transform, transform_kwargs=transform_kwargs, precision=precision)
 
     def setup_linear_constraints(self):
         self.add_linear_constraint(['var_0', 'var_1'], [-1, -0.5], 0)
