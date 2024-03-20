@@ -278,6 +278,12 @@ class Population():
             return np.array([ind.g for ind in self.individuals])
 
     @property
+    def g_best(self):
+        """np.array: Best nonlinear constraint values."""
+        indices = np.argmin(self.cv, axis=0)
+        return [self.g[ind, i] for i, ind in enumerate(indices)]
+
+    @property
     def g_min(self):
         """np.array: Minimum nonlinear constraint values."""
         if self.dimensions[2] > 0:
@@ -292,7 +298,8 @@ class Population():
     @property
     def g_avg(self):
         """np.array: Average nonlinear constraint values."""
-        return np.mean(self.g, axis=0)
+        if self.dimensions[2] > 0:
+            return np.mean(self.g, axis=0)
 
     @property
     def cv(self):
@@ -315,7 +322,8 @@ class Population():
     @property
     def cv_avg(self):
         """np.array: Average nonlinear constraint violation values."""
-        return np.mean(self.cv, axis=0)
+        if self.dimensions[2] > 0:
+            return np.mean(self.cv, axis=0)
 
     @property
     def m(self):

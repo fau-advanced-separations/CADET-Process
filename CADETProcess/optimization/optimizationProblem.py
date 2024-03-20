@@ -1172,6 +1172,7 @@ class OptimizationProblem(Structure):
             bad_metrics=None,
             evaluation_objects=-1,
             bounds=0,
+            comparison_operator='le',
             labels=None,
             requires=None,
             *args, **kwargs):
@@ -1196,6 +1197,10 @@ class OptimizationProblem(Structure):
             Upper limits of constraint function.
             If only one value is given, the same value is assumed for all
             constraints. The default is 0.
+        comparison_operator : {'ge', 'le'}, optional
+            Comparator to define whether metric should be greater or equal to, or less
+            than or equal to the specified bounds.
+            The default is 'le' (lower or equal).
         labels : str, optional
             Names of the individual metrics.
         requires : {None, Evaluator, list}, optional
@@ -1267,8 +1272,9 @@ class OptimizationProblem(Structure):
         nonlincon = NonlinearConstraint(
             nonlincon,
             name,
-            bounds=bounds,
             n_nonlinear_constraints=n_nonlinear_constraints,
+            bounds=bounds,
+            comparison_operator=comparison_operator,
             bad_metrics=bad_metrics,
             evaluation_objects=evaluation_objects,
             evaluators=evaluators,
@@ -1374,8 +1380,17 @@ class OptimizationProblem(Structure):
         """
         self.logger.debug(f'Evaluate nonlinear constraints violation at {x}.')
 
+        factors = []
+        for constr in self.nonlinear_constraints:
+            factor = -1 if constr.comparison_operator == 'ge' else 1
+            factors += constr.n_total_metrics * [factor]
+
         g = self._evaluate_individual(self.nonlinear_constraints, x, force=False)
-        cv = np.array(g) - np.array(self.nonlinear_constraints_bounds)
+        g_transformed = np.multiply(factors, g)
+
+        bounds_transformed = np.multiply(factors, self.nonlinear_constraints_bounds)
+
+        cv = g_transformed - bounds_transformed
 
         return cv
 
@@ -3735,12 +3750,20 @@ class Objective(Metric):
 class NonlinearConstraint(Metric):
     """Wrapper class to evaluate nonlinear constraint functions."""
 
-    minimize = Bool(default=True)
     nonlinear_constraint = Metric.func
     n_nonlinear_constraints = Metric.n_metrics
+    comparison_operator = Switch(valid=['le', 'ge'], default='le')
 
-    def __init__(self, *args, n_nonlinear_constraints=1, bounds=0, **kwargs):
+    def __init__(
+            self,
+            *args,
+            n_nonlinear_constraints=1,
+            bounds=0,
+            comparison_operator='le',
+            **kwargs
+            ):
         self.bounds = bounds
+        self.comparison_operator = comparison_operator
 
         super().__init__(*args, n_metrics=n_nonlinear_constraints, **kwargs)
 
