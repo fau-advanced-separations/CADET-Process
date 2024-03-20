@@ -69,21 +69,24 @@ productivity = Productivity()
 optimization_problem.add_objective(
     productivity,
     n_objectives=2,
-    requires=[process_simulator, frac_opt]
+    requires=[process_simulator, frac_opt],
+    minimize=False,
 )
 
 recovery = Recovery()
 optimization_problem.add_objective(
     recovery,
     n_objectives=2,
-    requires=[process_simulator, frac_opt]
+    requires=[process_simulator, frac_opt],
+    minimize=False,
 )
 
 eluent_consumption = EluentConsumption()
 optimization_problem.add_objective(
     eluent_consumption,
     n_objectives=2,
-    requires=[process_simulator, frac_opt]
+    requires=[process_simulator, frac_opt],
+    minimize=False,
 )
 
 

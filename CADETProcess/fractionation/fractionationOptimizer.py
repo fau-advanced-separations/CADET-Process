@@ -149,6 +149,8 @@ class FractionationOptimizer():
             allow_empty_fractions=True,
             ranking=1,
             obj_fun=None,
+            minimize=True,
+            bad_metrics=None,
             n_objectives=1):
         """Set up the OptimizationProblem for optimizing the fractionation times.
 
@@ -169,6 +171,12 @@ class FractionationOptimizer():
             Alternative objective function.
             If no function is provided, the fraction mass is maximized.
             The default is None.
+        bad_metrics : float or list of floats, optional
+            Values to be returned if evaluation of objective function failes.
+            The default is 0.
+        minimize : bool, optional
+            If True, the obj_fun is assumed to return a value that is to be minimized.
+            The default it True.
         n_objectives : int
             Number of objectives. The default is 1.
 
@@ -205,9 +213,15 @@ class FractionationOptimizer():
 
         if obj_fun is None:
             obj_fun = Mass(ranking=ranking)
+            minimize = False
+            bad_metrics = 0
+
         opt.add_objective(
-            obj_fun, requires=frac_evaluator, n_objectives=n_objectives,
-            bad_metrics=0
+            obj_fun,
+            requires=frac_evaluator,
+            n_objectives=n_objectives,
+            minimize=minimize,
+            bad_metrics=bad_metrics,
         )
 
         purity = Purity()
@@ -255,6 +269,8 @@ class FractionationOptimizer():
             ranking=1,
             obj_fun=None,
             n_objectives=1,
+            bad_metrics=0,
+            minimize=True,
             allow_empty_fractions=True,
             ignore_failed=False,
             return_optimization_results=False,
@@ -281,6 +297,12 @@ class FractionationOptimizer():
             If is None, the mass of all components is maximized.
         n_objectives : int, optional
             Number of objectives returned by obj_fun. The default is 1.
+        bad_metrics : float or list of floats, optional
+            Values to be returned if evaluation of objective function failes.
+            The default is 0.
+        minimize : bool, optional
+            If True, the obj_fun is assumed to return a value that is to be minimized.
+            The default it True.
         allow_empty_fractions: bool, optional
             If True, allow empty fractions. The default is True.
         ignore_failed : bool, optional
@@ -343,7 +365,14 @@ class FractionationOptimizer():
         )
 
         opt, x0 = self._setup_optimization_problem(
-            frac, purity_required, allow_empty_fractions, ranking, obj_fun, n_objectives
+            frac,
+            purity_required,
+            allow_empty_fractions,
+            ranking,
+            obj_fun,
+            n_objectives,
+            bad_metrics,
+            minimize,
         )
 
         # Lock to enable caching

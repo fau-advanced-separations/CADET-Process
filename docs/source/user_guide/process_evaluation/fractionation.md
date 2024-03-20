@@ -224,8 +224,8 @@ $$
 p = \frac{\sum_i^{n_{comp}}w_i \cdot p_i}{\sum_i^{n_{comp}}(w_i)}
 $$
 
-It is also important to remember that by convention, objectives are minimized.
-Since in this example, the product of mass and concentration should be maximized, the value of the objective function is multiplied by $-1$.
+It is important to remember that by default, objectives are minimized.
+To register a function that is to be maximized, add the `minimize=False` flag.
 Also, the number of objectives the function returns needs to be specified.
 
 ```{code-cell} ipython3
@@ -233,12 +233,13 @@ from CADETProcess.performance import RankedPerformance
 ranking = [1, 1]
 def alternative_objective(performance):
 	performance = RankedPerformance(performance, ranking)
-	return - performance.mass * performance.concentration
+	return performance.mass * performance.concentration
 
 fractionator = fractionation_optimizer.optimize_fractionation(
 	simulation_results, purity_required=[0.95, 0.95],
 	obj_fun=alternative_objective,
     n_objectives=1,
+    minimize=False,
 )
 
 print(fractionator.performance)

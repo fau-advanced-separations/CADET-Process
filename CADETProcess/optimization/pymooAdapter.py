@@ -238,6 +238,7 @@ class PymooProblem(Problem):
             F = opt.evaluate_objectives_population(
                 X,
                 untransform=True,
+                ensure_minimization=True,
                 parallelization_backend=self.parallelization_backend,
             )
             out["F"] = np.array(F)

@@ -78,7 +78,9 @@ class SciPyInterface(OptimizerBase):
             raise CADETProcessError("Can only handle single objective.")
 
         def objective_function(x):
-            return optimization_problem.evaluate_objectives(x, untransform=True)[0]
+            return optimization_problem.evaluate_objectives(
+                x, untransform=True, ensure_minimization=True,
+            )[0]
 
         def callback_function(x, state=None):
             """Internal callback to report progress after evaluation.
@@ -94,7 +96,11 @@ class SciPyInterface(OptimizerBase):
             self.n_evals += 1
 
             x = x.tolist()
-            f = optimization_problem.evaluate_objectives(x, untransform=True)
+            f = optimization_problem.evaluate_objectives(
+                x,
+                untransform=True,
+                ensure_minimization=True,
+            )
             g = optimization_problem.evaluate_nonlinear_constraints(
                 x, untransform=True
             )

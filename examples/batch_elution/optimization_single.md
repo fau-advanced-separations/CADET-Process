@@ -80,7 +80,7 @@ ranking = [1, 1]
 performance = PerformanceProduct(ranking=ranking)
 
 optimization_problem.add_objective(
-    performance, requires=[process_simulator, frac_opt]
+    performance, requires=[process_simulator, frac_opt], minimize=False,
 )
 ```
 
