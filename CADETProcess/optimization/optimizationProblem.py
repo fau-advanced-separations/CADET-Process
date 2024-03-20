@@ -892,16 +892,7 @@ class OptimizationProblem(Structure):
     @property
     def n_objectives(self):
         """int: Number of objectives."""
-        n_objectives = 0
-
-        for objective in self.objectives:
-            if len(objective.evaluation_objects) != 0:
-                factor = len(objective.evaluation_objects)
-            else:
-                factor = 1
-            n_objectives += factor*objective.n_objectives
-
-        return n_objectives
+        return sum([obj.n_total_metrics for obj in self.objectives])
 
     def add_objective(
             self,
@@ -1124,16 +1115,9 @@ class OptimizationProblem(Structure):
     @property
     def n_nonlinear_constraints(self):
         """int: Number of nonlinear_constraints."""
-        n_nonlinear_constraints = 0
-
-        for nonlincon in self.nonlinear_constraints:
-            if len(nonlincon.evaluation_objects) != 0:
-                factor = len(nonlincon.evaluation_objects)
-            else:
-                factor = 1
-            n_nonlinear_constraints += factor*nonlincon.n_nonlinear_constraints
-
-        return n_nonlinear_constraints
+        return sum(
+            [nonlincon.n_total_metrics for nonlincon in self.nonlinear_constraints]
+        )
 
     def add_nonlinear_constraint(
             self,
@@ -1656,16 +1640,7 @@ class OptimizationProblem(Structure):
     @property
     def n_meta_scores(self):
         """int: Number of meta score functions."""
-        n_meta_scores = 0
-
-        for meta_score in self.meta_scores:
-            if len(meta_score.evaluation_objects) != 0:
-                factor = len(meta_score.evaluation_objects)
-            else:
-                factor = 1
-            n_meta_scores += factor*meta_score.n_meta_scores
-
-        return n_meta_scores
+        return sum([meta_score.n_total_metrics for meta_score in self.meta_scores])
 
     def add_meta_score(
             self,
@@ -3615,6 +3590,12 @@ class Metric(Structure):
         self.id = uuid.uuid4()
 
     @property
+    def n_total_metrics(self):
+        """int: Total number of objectives."""
+        n_eval_objects = len(self.evaluation_objects) if self.evaluation_objects else 1
+        return n_eval_objects * self.n_metrics
+
+    @property
     def labels(self):
         """list: List of metric labels."""
         if self._labels is not None:
@@ -3632,8 +3613,8 @@ class Metric(Structure):
 
         if len(self.evaluation_objects) > 1:
             labels = [
-                f"{eval_obj}_{l}"
-                for l in labels
+                f"{eval_obj}_{label}"
+                for label in labels
                 for eval_obj in self.evaluation_objects
             ]
         return labels
@@ -3650,6 +3631,20 @@ class Metric(Structure):
         self._labels = labels
 
     def __call__(self, request):
+        """
+        Evaluate the metric function with the given request and predefined arguments.
+
+        Parameters
+        ----------
+        request
+            The input to the metric function, typically representing the current state
+            or results of intermediate steps in the optimization process.
+
+        Returns
+        -------
+        ndarray
+            The evaluated metric values, returned as a NumPy array.
+        """
         if self.args is None:
             args = ()
         else:
