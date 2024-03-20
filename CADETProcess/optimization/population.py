@@ -90,6 +90,10 @@ class Population():
         return self.individuals[0].dimensions
 
     @property
+    def objectives_minimization_factors(self):
+        return self.individuals[0].objectives_minimization_factors
+
+    @property
     def variable_names(self):
         """list: Names of the optimization variables."""
         if self.individuals[0].variable_names is None:
@@ -240,6 +244,17 @@ class Population():
     def f(self):
         """np.array: All evaluated objective function values."""
         return np.array([ind.f for ind in self.individuals])
+
+    @property
+    def f_minimized(self):
+        """np.array: All evaluated objective function values, transformed to be minimized."""
+        return np.array([ind.f_min for ind in self.individuals])
+
+    @property
+    def f_best(self):
+        """np.array: Best objective values."""
+        f_best = np.min(self.f_minimized, axis=0)
+        return np.multiply(self.objectives_minimization_factors, f_best)
 
     @property
     def f_min(self):
