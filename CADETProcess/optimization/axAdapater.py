@@ -116,24 +116,28 @@ class CADETProcessRunner(Runner):
         # Calculate nonlinear constraints
         # Explore if adding a small amount of noise to the result helps BO
         if self.optimization_problem.n_nonlinear_constraints > 0:
-            nonlincon_fun = self.optimization_problem.evaluate_nonlinear_constraints_population
+            nonlincon_cv_fun = self.optimization_problem.evaluate_nonlinear_constraints_violation_population
             nonlincon_labels = self.optimization_problem.nonlinear_constraint_labels
 
-            G = nonlincon_fun(X, untransform=True, parallelization_backend=self.parallelization_backend)
+            CV = nonlincon_cv_fun(
+                X,
+                untransform=True,
+                parallelization_backend=self.parallelization_backend
+            )
 
         else:
-            G = None
+            CV = None
             nonlincon_labels = None
 
         # Update trial information with results.
         trial_metadata = self.get_metadata(
-            trial, F, objective_labels, G, nonlincon_labels
+            trial, F, objective_labels, CV, nonlincon_labels
         )
 
         return trial_metadata
 
     @staticmethod
-    def get_metadata(trial, F, objective_labels, G, nonlincon_labels):
+    def get_metadata(trial, F, objective_labels, CV, nonlincon_labels):
         trial_metadata = {"name": str(trial.index)}
         trial_metadata.update({"arms": {}})
 
@@ -142,13 +146,13 @@ class CADETProcessRunner(Runner):
                 metric: f_metric[i]
                 for metric, f_metric in zip(objective_labels, F.T)
             }
-            g_dict = {}
-            if G is not None:
-                g_dict = {
-                    metric: g_metric[i]
-                    for metric, g_metric in zip(nonlincon_labels, G.T)
+            cv_dict = {}
+            if CV is not None:
+                cv_dict = {
+                    metric: cv_metric[i]
+                    for metric, cv_metric in zip(nonlincon_labels, CV.T)
                 }
-            trial_metadata["arms"].update({arm: {**f_dict, **g_dict}})
+            trial_metadata["arms"].update({arm: {**f_dict, **cv_dict}})
 
         return trial_metadata
 
@@ -237,16 +241,15 @@ class AxInterface(OptimizerBase):
     def _setup_outcome_constraints(self):
         """Parse nonliear constraint functions from optimization problem."""
         nonlincon_names = self.optimization_problem.nonlinear_constraint_labels
-        bounds = self.optimization_problem.nonlinear_constraints_bounds
 
         outcome_constraints = []
-        for name, bound in zip(nonlincon_names, bounds):
+        for name in nonlincon_names:
             ax_metric = CADETProcessMetric(name=name)
 
             nonlincon = OutcomeConstraint(
                 metric=ax_metric,
                 op=ComparisonOp.LEQ,
-                bound=bound,
+                bound=0.0,
                 relative=False,
             )
             outcome_constraints.append(nonlincon)
