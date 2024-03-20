@@ -106,7 +106,12 @@ class CADETProcessRunner(Runner):
         objective_labels = self.optimization_problem.objective_labels
         obj_fun = self.optimization_problem.evaluate_objectives_population
 
-        F = obj_fun(X, untransform=True, parallelization_backend=self.parallelization_backend)
+        F = obj_fun(
+            X,
+            untransform=True,
+            ensure_minimization=True,
+            parallelization_backend=self.parallelization_backend
+        )
 
         # Calculate nonlinear constraints
         # Explore if adding a small amount of noise to the result helps BO
@@ -318,7 +323,7 @@ class AxInterface(OptimizerBase):
 
         self.run_post_processing(
             X_transformed=X,
-            F=F,
+            F_minimized=F,
             G=G,
             CV=CV,
             current_generation=self.ax_experiment.num_trials,

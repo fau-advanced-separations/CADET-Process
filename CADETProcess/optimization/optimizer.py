@@ -420,10 +420,11 @@ class OptimizerBase(Structure):
 
         return flag, x0
 
-    def _create_population(self, X_transformed, F, G, CV):
+    def _create_population(self, X_transformed, F, F_min, G, CV):
         """Create new population from current generation for post procesing."""
         X_transformed = np.array(X_transformed, ndmin=2)
         F = np.array(F, ndmin=2)
+        F_min = np.array(F_min, ndmin=2)
         G = np.array(G, ndmin=2)
         CV = np.array(CV, ndmin=2)
 
@@ -441,12 +442,12 @@ class OptimizerBase(Structure):
             CV = len(X_transformed)*[None]
 
         population = Population()
-        for x_transformed, f, g, cv, m in zip(X_transformed, F, G, CV, M):
+        for x_transformed, f, f_min, g, cv, m in zip(X_transformed, F, F_min, G, CV, M):
             x = self.optimization_problem.get_dependent_values(
                 x_transformed, untransform=True
             )
             ind = Individual(
-                x, f, g, m, cv, self.cv_tol, x_transformed,
+                x, f, g, m, x_transformed, f_min, cv, self.cv_tol,
                 self.optimization_problem.independent_variable_names,
                 self.optimization_problem.objective_labels,
                 self.optimization_problem.nonlinear_constraint_labels,
@@ -528,7 +529,14 @@ class OptimizerBase(Structure):
             self.logger.info(message)
 
     def run_post_processing(
-            self, X_transformed, F, G, CV, current_generation, X_opt_transformed=None):
+            self,
+            X_transformed,
+            F_minimized,
+            G,
+            CV,
+            current_generation,
+            X_opt_transformed=None
+            ):
         """Run post-processing of generation.
 
         Notes
@@ -540,8 +548,9 @@ class OptimizerBase(Structure):
         ----------
         X_transformed : list
             Optimization variable values of generation in independent transformed space.
-        F : list
+        F_minimized : list
             Objective function values of generation.
+            This assumes that all objective function values are minimized.
         G : list
             Nonlinear constraint function values of generation.
         CV : list
@@ -553,7 +562,8 @@ class OptimizerBase(Structure):
             If None, internal pareto front is used to determine best values.
 
         """
-        population = self._create_population(X_transformed, F, G, CV)
+        F = self.optimization_problem.transform_maximization(F_minimized, scores='objectives')
+        population = self._create_population(X_transformed, F, F_minimized, G, CV)
         self.results.update(population)
 
         pareto_front = self._create_pareto_front(X_opt_transformed)
