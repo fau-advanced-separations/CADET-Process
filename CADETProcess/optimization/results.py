@@ -253,6 +253,11 @@ class OptimizationResults(Structure):
         return np.cumsum(n_evals)
 
     @property
+    def f_best_history(self):
+        """np.array: Best objective values per generation."""
+        return np.array([pop.f_best for pop in self.meta_fronts])
+
+    @property
     def f_min_history(self):
         """np.array: Minimum objective values per generation."""
         return np.array([pop.f_min for pop in self.meta_fronts])
@@ -637,7 +642,7 @@ class OptimizationResults(Structure):
 
         if target == 'objectives':
             funcs = self.optimization_problem.objectives
-            values_min = self.f_min_history
+            values_min = self.f_best_history
             values_avg = self.f_avg_history
         elif target == 'nonlinear_constraints':
             funcs = self.optimization_problem.nonlinear_constraints

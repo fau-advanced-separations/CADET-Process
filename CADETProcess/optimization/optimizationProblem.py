@@ -130,7 +130,6 @@ class OptimizationProblem(Structure):
         """Untransform population or individual before calling function."""
         @wraps(func)
         def wrapper(self, x, *args, untransform=False, **kwargs):
-            """Untransform population or individual before calling function."""
             x = np.array(x, ndmin=1)
             if untransform:
                 x = self.untransform(x)
@@ -159,6 +158,37 @@ class OptimizationProblem(Structure):
             return func(self, population, *args, **kwargs)
 
         return wrapper
+
+    def ensures_minimization(scores):
+        """Convert maximization problems to minimization problems."""
+        def wrap(func):
+            @wraps(func)
+            def wrapper(self, *args, ensure_minimization=False, **kwargs):
+                s = func(self, *args, **kwargs)
+
+                if ensure_minimization:
+                    s = self.transform_maximization(s, scores)
+
+                return s
+
+            return wrapper
+        return wrap
+
+    def transform_maximization(self, s, scores):
+        """Transform maximization problems to minimization problems."""
+        factors = []
+        if scores == 'objectives':
+            scores = self.objectives
+        else:
+            raise ValueError(f'Unknown scores: {scores}.')
+
+        for score in scores:
+            factor = 1 if score.minimize else -1
+            factors += score.n_total_metrics * [factor]
+
+        s = np.multiply(factors, s).tolist()
+
+        return s
 
     @property
     def evaluation_objects(self):
@@ -899,6 +929,7 @@ class OptimizationProblem(Structure):
             objective,
             name=None,
             n_objectives=1,
+            minimize=True,
             bad_metrics=None,
             evaluation_objects=-1,
             labels=None,
@@ -915,6 +946,8 @@ class OptimizationProblem(Structure):
         n_objectives : int, optional
             Number of metrics returned by objective function.
             The default is 1.
+        minimize : bool, optional
+            If True, objective is treated as minimization problem. The default is True.
         bad_metrics : flot or list of floats, optional
             Value which is returned when evaluation fails.
         evaluation_objects : {EvaluationObject, None, -1, list}
@@ -984,8 +1017,8 @@ class OptimizationProblem(Structure):
         objective = Objective(
             objective,
             name,
-            minimize=True,
             n_objectives=n_objectives,
+            minimize=minimize,
             bad_metrics=bad_metrics,
             evaluation_objects=evaluation_objects,
             evaluators=evaluators,
@@ -996,6 +1029,7 @@ class OptimizationProblem(Structure):
         self._objectives.append(objective)
 
     @untransforms
+    @ensures_minimization(scores='objectives')
     def evaluate_objectives(self, x, force=False):
         """Evaluate objective functions at point x.
 
@@ -1027,7 +1061,13 @@ class OptimizationProblem(Structure):
 
     @untransforms
     @ensures2d
-    def evaluate_objectives_population(self, population, force=False, parallelization_backend=None):
+    @ensures_minimization(scores='objectives')
+    def evaluate_objectives_population(
+            self,
+            population,
+            force=False,
+            parallelization_backend=None
+            ):
         """Evaluate objective functions for each point x in population.
 
         Parameters
@@ -1059,7 +1099,7 @@ class OptimizationProblem(Structure):
         return results
 
     @untransforms
-    def objective_jacobian(self, x, dx=1e-3):
+    def objective_jacobian(self, x, ensure_minimization=False, dx=1e-3):
         """Compute jacobian of objective functions using finite differences.
 
         Parameters
@@ -1080,7 +1120,12 @@ class OptimizationProblem(Structure):
         approximate_jac
 
         """
-        jacobian = approximate_jac(x, self.evaluate_objectives, dx)
+        jacobian = approximate_jac(
+            x,
+            self.evaluate_objectives,
+            dx,
+            ensure_minimization=ensure_minimization
+        )
 
         return jacobian
 
@@ -2876,12 +2921,22 @@ class OptimizationProblem(Structure):
 
     @untransforms
     @gets_dependent_values
-    def create_individual(self, x, f=None, g=None, m=None, cv=None, cv_tol=None):
+    def create_individual(
+            self,
+            x,
+            f=None,
+            g=None,
+            m=None,
+            x_transformed=None,
+            f_min=None,
+            cv=None,
+            cv_tol=None,
+            ):
         x_indep = self.get_independent_values(x)
         x_transformed = self.transform(x_indep)
 
         ind = Individual(
-            x, f, g, m, cv, cv_tol, x_transformed,
+            x, f, g, m, x_transformed, f_min, cv, cv_tol,
             self.independent_variable_names,
             self.objective_labels,
             self.nonlinear_constraint_labels,
@@ -3667,9 +3722,9 @@ class Metric(Structure):
 
 class Objective(Metric):
     """Wrapper class to evaluate objective functions."""
-    minimize = Bool(default=True)
     objective = Metric.func
     n_objectives = Metric.n_metrics
+    minimize = Bool(default=True)
 
     def __init__(self, *args, n_objectives=1, minimize=True, **kwargs):
         self.minimize = minimize
@@ -3830,8 +3885,7 @@ class MultiCriteriaDecisionFunction(Structure):
     def __str__(self):
         return self.name
 
-
-def approximate_jac(xk, f, epsilon, args=()):
+def approximate_jac(xk, f, epsilon, args=(), **kwargs):
     """Finite-difference approximation of the jacobian of a vector function
 
     Parameters
@@ -3873,7 +3927,7 @@ def approximate_jac(xk, f, epsilon, args=()):
     for k in range(len(xk)):
         ei[k] = 1.0
         d = epsilon * ei
-        f_k = np.array(f(*((xk + d,) + args)))
+        f_k = np.array(f(*((xk + d,) + args), **kwargs))
         jac[:, k] = (f_k - f0) / d[k]
         ei[k] = 0.0
 
