@@ -326,8 +326,13 @@ class OptimizationResults(Structure):
             return np.array([pop.cv_avg for pop in self.meta_fronts])
 
     @property
+    def m_best_history(self):
+        """np.array: Best meta scores per generation."""
+        return np.array([pop.m_best for pop in self.meta_fronts])
+
+    @property
     def m_min_history(self):
-        """np.array: Minimum meta score values per generation."""
+        """np.array: Minimum meta scores per generation."""
         if self.optimization_problem.n_meta_scores == 0:
             return None
         else:
@@ -335,7 +340,7 @@ class OptimizationResults(Structure):
 
     @property
     def m_max_history(self):
-        """np.array: Maximum meta score values per generation."""
+        """np.array: Maximum meta scores per generation."""
         if self.optimization_problem.n_meta_scores == 0:
             return None
         else:
@@ -343,7 +348,7 @@ class OptimizationResults(Structure):
 
     @property
     def m_avg_history(self):
-        """np.array: Average meta score values per generation."""
+        """np.array: Average meta scores per generation."""
         if self.optimization_problem.n_meta_scores == 0:
             return None
         else:
@@ -655,7 +660,7 @@ class OptimizationResults(Structure):
             values_avg = self.g_avg_history
         elif target == 'meta_scores':
             funcs = self.optimization_problem.meta_scores
-            values_min = self.m_min_history
+            values_min = self.m_best_history
             values_avg = self.m_avg_history
         else:
             raise CADETProcessError("Unknown target.")
