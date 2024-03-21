@@ -383,7 +383,8 @@ class OptimizationResults(Structure):
 
             if self.optimization_problem.n_objectives > 1:
                 self.plot_pareto(
-                    show=show, plot_directory=self.plot_directory
+                    show=show, plot_directory=self.plot_directory,
+                    plot_evolution=True, plot_pareto=False,
                 )
 
     def plot_objectives(
