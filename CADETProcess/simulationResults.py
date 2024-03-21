@@ -143,29 +143,37 @@ class SimulationResults(Structure):
         solution = addict.Dict()
         for unit, solutions in self.solution_cycles.items():
             
+            sol_dep = solutions.copy()
+            not_these = []
             if self.process.flow_sheet[unit].has_ports:
-                for sol, ports in solutions.items():
-                    for port, cycles in ports.items():
-                        solution[unit][sol][port] = copy.deepcopy(cycles[0])
-                        solution_complete = cycles[0].solution_original
-                        for i in range(1, self.n_cycles):
-                            solution_complete = np.vstack((
-                                solution_complete, cycles[i].solution_original[1:]
-                            ))
-                        solution[unit][sol][port].time_original = time_complete
-                        solution[unit][sol][port].solution_original = solution_complete
-                        solution[unit][sol][port].reset()                                    
-            else:
-                for sol, cycles in solutions.items():
-                        solution[unit][sol] = copy.deepcopy(cycles[0])
-                        solution_complete = cycles[0].solution_original
-                        for i in range(1, self.n_cycles):
-                            solution_complete = np.vstack((
-                                solution_complete, cycles[i].solution_original[1:]
-                            ))
-                        solution[unit][sol].time_original = time_complete
-                        solution[unit][sol].solution_original = solution_complete
-                        solution[unit][sol].reset()
+                for sol, ports in sol_dep.items():
+                    if isinstance(ports, addict.Dict):
+                        for port, cycles in ports.items():
+                            solution[unit][sol][port] = copy.deepcopy(cycles[0])
+                            solution_complete = cycles[0].solution_original
+                            for i in range(1, self.n_cycles):
+                                solution_complete = np.vstack((
+                                    solution_complete, cycles[i].solution_original[1:]
+                                ))
+                            solution[unit][sol][port].time_original = time_complete
+                            solution[unit][sol][port].solution_original = solution_complete
+                            solution[unit][sol][port].reset()
+                        not_these.append(sol)
+            
+            for key in not_these:
+                sol_dep.pop(key)
+
+
+            for sol, cycles in sol_dep.items():
+                    solution[unit][sol] = copy.deepcopy(cycles[0])
+                    solution_complete = cycles[0].solution_original
+                    for i in range(1, self.n_cycles):
+                        solution_complete = np.vstack((
+                            solution_complete, cycles[i].solution_original[1:]
+                        ))
+                    solution[unit][sol].time_original = time_complete
+                    solution[unit][sol].solution_original = solution_complete
+                    solution[unit][sol].reset()
                     
 
         self._solution = solution

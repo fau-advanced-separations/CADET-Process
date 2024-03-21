@@ -571,18 +571,21 @@ class Cadet(SimulatorBase):
                 if port_flag:
                     solution[unit.name]['inlet'] = defaultdict(list)
                     solution[unit.name]['outlet'] = defaultdict(list)
+#                    solution[unit.name]['bulk'] = defaultdict(list)
+
+                unit_index = self.get_unit_index(process, unit)
+                unit_solution = cadet.root.output.solution[unit_index]
+
+                unit_coordinates = \
+                    cadet.root.output.coordinates[unit_index].copy()
+                particle_coordinates = \
+                    unit_coordinates.pop('particle_coordinates_000', None)
 
 
                 for port in unit.ports:
 
-                    unit_index = self.get_unit_index(process, unit)
                     port_index = self.get_port_index(process.flow_sheet, unit, port)
                     
-                    unit_solution = cadet.root.output.solution[unit_index]
-                    unit_coordinates = \
-                        cadet.root.output.coordinates[unit_index].copy()
-                    particle_coordinates = \
-                        unit_coordinates.pop('particle_coordinates_000', None)
 
                     flow_in = process.flow_rate_timelines[unit.name].total_in[port]
                     flow_out = process.flow_rate_timelines[unit.name].total_out[port]
@@ -632,14 +635,14 @@ class Cadet(SimulatorBase):
                                 )
 
                         if 'solution_bulk' in unit_solution.keys():
-                            sol_bulk = unit_solution.solution_bulk[start:end, :]
-                            solution[unit.name]['bulk'].append(
-                                SolutionBulk(
-                                    unit.name,
-                                    unit.component_system, time, sol_bulk,
-                                    **unit_coordinates
+                                sol_bulk = unit_solution.solution_bulk[start:end,:]
+                                solution[unit.name]['bulk'].append(
+                                    SolutionBulk(
+                                        unit.name,
+                                        unit.component_system, time, sol_bulk,
+                                        **unit_coordinates
+                                    )
                                 )
-                            )
 
                         if 'solution_particle' in unit_solution.keys():
                             sol_particle = unit_solution.solution_particle[start:end, :]
