@@ -179,6 +179,8 @@ class OptimizationProblem(Structure):
         factors = []
         if scores == 'objectives':
             scores = self.objectives
+        elif scores == 'meta_scores':
+            scores = self.meta_scores
         else:
             raise ValueError(f'Unknown scores: {scores}.')
 
@@ -1707,6 +1709,7 @@ class OptimizationProblem(Structure):
             meta_score,
             name=None,
             n_meta_scores=1,
+            minimize=True,
             evaluation_objects=-1,
             requires=None):
         """Add Meta score to the OptimizationProblem.
@@ -1720,6 +1723,8 @@ class OptimizationProblem(Structure):
         n_meta_scores : int, optional
             Number of meta scores returned by callable.
             The default is 1.
+        minimize : bool, optional
+            If True, meta score is treated as minimization problem. The default is True.
         evaluation_objects : {EvaluationObject, None, -1, list}
             EvaluationObjects which are evaluated by objective.
             If None, no EvaluationObject is used.
@@ -1785,6 +1790,7 @@ class OptimizationProblem(Structure):
         self._meta_scores.append(meta_score)
 
     @untransforms
+    @ensures_minimization(scores='meta_scores')
     def evaluate_meta_scores(self, x, force=False):
         """Evaluate meta functions at point x.
 
@@ -1815,6 +1821,7 @@ class OptimizationProblem(Structure):
 
     @untransforms
     @ensures2d
+    @ensures_minimization(scores='meta_scores')
     def evaluate_meta_scores_population(self, population, force=False, parallelization_backend=None):
         """Evaluate meta score functions for each point x in population.
 
@@ -2946,12 +2953,13 @@ class OptimizationProblem(Structure):
             f_min=None,
             cv=None,
             cv_tol=None,
+            m_min=None,
             ):
         x_indep = self.get_independent_values(x)
         x_transformed = self.transform(x_indep)
 
         ind = Individual(
-            x, f, g, m, x_transformed, f_min, cv, cv_tol,
+            x, f, g, m, x_transformed, f_min, cv, cv_tol, m_min,
             self.independent_variable_names,
             self.objective_labels,
             self.nonlinear_constraint_labels,
@@ -3880,11 +3888,12 @@ class MetaScore(Metric):
     """Wrapper class to evaluate meta scores."""
     meta_score = Metric.func
     n_meta_scores = Metric.n_metrics
+    minimize = Bool(default=True)
 
-    def __init__(self, *args, bounds=0, **kwargs):
-        self.bounds = bounds
+    def __init__(self, *args, n_meta_scores=1, minimize=True, **kwargs):
+        self.minimize = minimize
 
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, n_metrics=n_meta_scores, **kwargs)
 
 
 class MultiCriteriaDecisionFunction(Structure):
