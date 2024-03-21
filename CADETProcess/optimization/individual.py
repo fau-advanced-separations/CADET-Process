@@ -52,6 +52,8 @@ class Individual(Structure):
         Tolerance for constraints violation.
     m : list
         Meta score values.
+    m_min : list
+        Minimized meta score values.
 
     See Also
     --------
@@ -66,6 +68,7 @@ class Individual(Structure):
     cv = Vector()
     cv_tol = Float()
     m = Vector()
+    m_min = Vector()
 
     def __init__(
             self,
@@ -77,6 +80,7 @@ class Individual(Structure):
             f_min=None,
             cv=None,
             cv_tol=0,
+            m_min=None,
             independent_variable_names=None,
             objective_labels=None,
             contraint_labels=None,
@@ -100,6 +104,9 @@ class Individual(Structure):
         self.cv_tol = cv_tol
 
         self.m = m
+        if m_min is None:
+            m_min = m
+        self.m_min = m_min
 
         if isinstance(variable_names, np.ndarray):
             variable_names = [s.decode() for s in variable_names]
@@ -169,12 +176,16 @@ class Individual(Structure):
 
     @property
     def dimensions(self):
-        """tuple: Individual dimensions (n_x, n_f, n_g)"""
+        """tuple: Individual dimensions (n_x, n_f, n_g, n_m)"""
         return (self.n_x, self.n_f, self.n_g, self.n_m)
 
     @property
     def objectives_minimization_factors(self):
         return self.f_min / self.f
+
+    @property
+    def meta_scores_minimization_factors(self):
+        return self.m_min / self.m
 
     def dominates(self, other):
         """Determine if individual dominates other.
