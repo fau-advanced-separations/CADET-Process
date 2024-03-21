@@ -429,12 +429,15 @@ class OptimizerBase(Structure):
         CV = np.array(CV, ndmin=2)
 
         if self.optimization_problem.n_meta_scores > 0:
-            M = self.optimization_problem.evaluate_meta_scores_population(
+            M_min = self.optimization_problem.evaluate_meta_scores_population(
                 X_transformed,
                 untransform=True,
+                ensure_minimization=True,
                 parallelization_backend=self.parallelization_backend,
             )
+            M = self.optimization_problem.transform_maximization(M_min, scores='meta_scores')
         else:
+            M_min = len(X_transformed)*[None]
             M = len(X_transformed)*[None]
 
         if self.optimization_problem.n_nonlinear_constraints == 0:
@@ -442,12 +445,12 @@ class OptimizerBase(Structure):
             CV = len(X_transformed)*[None]
 
         population = Population()
-        for x_transformed, f, f_min, g, cv, m in zip(X_transformed, F, F_min, G, CV, M):
+        for x_transformed, f, f_min, g, cv, m, m_min in zip(X_transformed, F, F_min, G, CV, M, M_min):
             x = self.optimization_problem.get_dependent_values(
                 x_transformed, untransform=True
             )
             ind = Individual(
-                x, f, g, m, x_transformed, f_min, cv, self.cv_tol,
+                x, f, g, m, x_transformed, f_min, cv, self.cv_tol, m_min,
                 self.optimization_problem.independent_variable_names,
                 self.optimization_problem.objective_labels,
                 self.optimization_problem.nonlinear_constraint_labels,
