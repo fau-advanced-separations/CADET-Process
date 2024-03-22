@@ -31,6 +31,8 @@ class OptimizationResults(Structure):
         Optimization problem.
     optimizer : OptimizerBase
         Optimizer used to optimize the OptimizationProblem.
+    success : bool
+        True if optimization was successfully terminated. False otherwise.
     exit_flag : int
         Information about the solver termination.
     exit_message : str
@@ -56,6 +58,7 @@ class OptimizationResults(Structure):
         functions.
 
     """
+    success = Bool(default=False)
     exit_flag = UnsignedInteger()
     exit_message = String()
     time_elapsed = UnsignedFloat()

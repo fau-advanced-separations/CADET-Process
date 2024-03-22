@@ -265,6 +265,11 @@ class OptimizerBase(Structure):
 
         plt.switch_backend(backend)
 
+        if not self.results.success:
+            raise CADETProcessError(
+                f"Optimizaton failed with message: {self.results.exit_message}"
+            )
+
         return self.results
 
     @abstractmethod
