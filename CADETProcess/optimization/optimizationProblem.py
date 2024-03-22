@@ -276,13 +276,18 @@ class OptimizationProblem(Structure):
 
     @property
     def variable_values(self):
-        """list: Values of optimization variables."""
+        """list: Values of optimization variables in untransformed space."""
         return [var.value for var in self.variables]
+
+    @property
+    def variable_values_transformed(self):
+        """list: Values of optimization variables in transformed space."""
+        return self.transform(self.variable_values)
 
     def add_variable(
             self, name, evaluation_objects=-1, parameter_path=None,
-            lb=-math.inf, ub=math.inf, transform=None, indices=None,
-            pre_processing=None):
+            lb=-math.inf, ub=math.inf, transform=None, transform_kwargs=None, indices=None,
+            precision=None, pre_processing=None):
         """Add optimization variable to the OptimizationProblem.
 
         The function encapsulates the creation of OptimizationVariable objects
@@ -309,6 +314,9 @@ class OptimizationProblem(Structure):
         indices : int  or tuple, optional
             Indices for variables that modify entries of a parameter array.
             If None, variable is assumed to be index independent.
+        precision : int, optional
+            Number of significant figures to which variable can be rounded.
+            If None, variable is not rounded. The default is None.
         pre_processing : callable, optional
             Additional step to process the value before setting it. This function must
             accept a single argument (the value) and return the processed value.
@@ -351,7 +359,9 @@ class OptimizationProblem(Structure):
         var = OptimizationVariable(
             name, evaluation_objects, parameter_path,
             lb=lb, ub=ub, transform=transform,
+            transform_kwargs=transform_kwargs,
             indices=indices,
+            precision=precision,
             pre_processing=pre_processing,
         )
 
@@ -2611,7 +2621,7 @@ class OptimizationProblem(Structure):
 
         for i, ind in enumerate(x_transformed_2d):
             untransform[i, :] = [
-                var.untransform_fun(value)
+                var.untransform_fun(value, var.precision)
                 for value, var in zip(ind, self.independent_variables)
             ]
 
@@ -3100,7 +3110,8 @@ class OptimizationVariable:
 
     def __init__(
         self, name, evaluation_objects=None, parameter_path=None,
-        lb=-math.inf, ub=math.inf, transform=None, indices=None, precision=None,
+        lb=-math.inf, ub=math.inf, transform=None, transform_kwargs=None,
+        indices=None, precision=None,
         pre_processing=None
     ):
         self.name = name
@@ -3122,17 +3133,19 @@ class OptimizationVariable:
         self.lb = lb
         self.ub = ub
 
+        if transform_kwargs is None:
+            transform_kwargs = {}
         if transform is None:
-            transform = NoTransform(lb, ub)
+            transform = NoTransform(lb, ub, **transform_kwargs)
         else:
             if np.isinf(lb) or np.isinf(ub):
                 raise CADETProcessError("Transform requires bound constraints.")
             if transform == 'auto':
-                transform = AutoTransform(lb, ub)
+                transform = AutoTransform(lb, ub, **transform_kwargs)
             elif transform == 'linear':
-                transform = NormLinearTransform(lb, ub)
+                transform = NormLinearTransform(lb, ub, **transform_kwargs)
             elif transform == 'log':
-                transform = NormLogTransform(lb, ub)
+                transform = NormLogTransform(lb, ub, **transform_kwargs)
             else:
                 raise ValueError("Unknown transform")
 
@@ -3363,11 +3376,11 @@ class OptimizationVariable:
     def transform(self):
         return self._transform
 
-    def transform_fun(self, x):
-        return self._transform.transform(x)
+    def transform_fun(self, x, *args, **kwargs):
+        return self._transform.transform(x, *args, **kwargs)
 
-    def untransform_fun(self, x):
-        return self._transform.untransform(x)
+    def untransform_fun(self, x, *args, **kwargs):
+        return self._transform.untransform(x, *args, **kwargs)
 
     def add_dependency(self, dependencies, transform):
         """Add dependency of Variable on other Variables.
