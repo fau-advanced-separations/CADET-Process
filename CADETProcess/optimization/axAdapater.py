@@ -455,6 +455,10 @@ class AxInterface(OptimizerBase):
 
         print(exp_to_df(self.ax_experiment))
 
+        self.results.success = True
+        self.results.exit_flag = 0
+        self.results.exit_message = global_stopping_message
+
 
 class SingleObjectiveAxInterface(AxInterface):
     def _setup_optimization_config(self, objectives, outcome_constraints):
