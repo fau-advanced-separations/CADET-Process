@@ -169,12 +169,15 @@ class PymooInterface(OptimizerBase):
             self.run_post_processing(X, F, G, CV, algorithm.n_gen-1, X_opt)
 
         if algorithm.n_gen >= n_max_gen:
-            exit_message = 'Max number of generations exceeded.'
+            success = True
             exit_flag = 1
+            exit_message = 'Max number of generations exceeded.'
         else:
+            success = True
             exit_flag = 0
-            exit_message = 'success'
+            exit_message = 'Success'
 
+        self.results.success = success
         self.results.exit_flag = exit_flag
         self.results.exit_message = exit_message
 

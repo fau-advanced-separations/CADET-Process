@@ -136,6 +136,7 @@ class SciPyInterface(OptimizerBase):
                 callback=callback_function,
             )
 
+        self.results.success = bool(scipy_results.success)
         self.results.exit_flag = scipy_results.status
         self.results.exit_message = scipy_results.message
 
