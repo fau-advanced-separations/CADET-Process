@@ -436,8 +436,15 @@ class Population():
         x_infeas = infeasible.x
 
         if include_meta and self.m is not None:
-            values_feas = np.hstack((feasible.f, feasible.m))
-            values_infeas = np.hstack((infeasible.f, infeasible.m))
+            if len(feasible) > 0:
+                values_feas = np.hstack((feasible.f, feasible.m))
+            else:
+                values_infeas = np.empty((0, self.n_f + self.n_m))
+            if len(infeasible) > 0:
+                values_infeas = np.hstack((infeasible.f, infeasible.m))
+            else:
+                values_infeas = np.empty((0, self.n_f + self.n_m))
+
             labels = self.objective_labels + self.meta_score_labels
         else:
             values_feas = feasible.f
