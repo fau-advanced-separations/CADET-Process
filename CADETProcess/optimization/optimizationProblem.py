@@ -37,7 +37,6 @@ from CADETProcess.transform import (
 )
 
 from CADETProcess.metric import MetricBase
-
 from CADETProcess.optimization import Individual, Population
 from CADETProcess.optimization import ResultsCache
 
@@ -2170,7 +2169,7 @@ class OptimizationProblem(Structure):
                 if isinstance(t, NoTransform):
                     continue
 
-                if not t.is_linear:
+                if a[j] != 0 and not t.is_linear:
                     raise CADETProcessError(
                         "Non-linear transform was used in linear constraints."
                     )
@@ -2250,7 +2249,7 @@ class OptimizationProblem(Structure):
                 if isinstance(t, NoTransform):
                     continue
 
-                if not t.is_linear:
+                if a[j] != 0 and not t.is_linear:
                     raise CADETProcessError(
                         "Non-linear transform was used in linear constraints."
                     )
@@ -2447,7 +2446,7 @@ class OptimizationProblem(Structure):
                 if isinstance(t, NoTransform):
                     continue
 
-                if not t.is_linear:
+                if aeq[j] != 0 and not t.is_linear:
                     raise CADETProcessError(
                         "Non-linear transform was used in linear constraints."
                     )
@@ -2527,7 +2526,7 @@ class OptimizationProblem(Structure):
                 if isinstance(t, NoTransform):
                     continue
 
-                if not t.is_linear:
+                if aeq[j] != 0 and not t.is_linear:
                     raise CADETProcessError(
                         "Non-linear transform was used in linear constraints."
                     )

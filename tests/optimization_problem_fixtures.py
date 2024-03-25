@@ -165,29 +165,30 @@ class LinearConstraintsSooTestProblem(TestProblem):
     def setup_variables(self, transform):
         self.add_variable('var_0', lb=-2, ub=2, transform=transform)
         self.add_variable('var_1', lb=-2, ub=2, transform=transform)
-
+        self.add_variable('var_2', lb=0, ub=2, transform="log")
     def setup_linear_constraints(self):
         self.add_linear_constraint(['var_0', 'var_1'], [-1, -0.5], 0)
 
     def _objective_function(self, x):
-        return x[0] - x[1]
+        return x[0] - x[1] + x[2]
 
     @property
     def optimal_solution(self):
-        x = np.array([-1, 2]).reshape(1, self.n_variables)
+        x = np.array([-1, 2, 0.0]).reshape(1, self.n_variables)
         f = -3
 
         return x, f
 
     @property
     def x0(self):
-        return [-0.5, 1.5]
+        return [-0.5, 1.5, 0.1]
 
     @property
     def conditional_minima(self):
         f_x0 = lambda x0:  x0 - 2
         f_x1 = lambda x1:  x1 * - 3/2
-        return f_x0, f_x1
+        f_x2 = lambda x2: x2
+        return f_x0, f_x1, f_x2
 
     def test_if_solved(self, optimization_results: OptimizationResults,
                        test_kwargs=default_test_kwargs):
