@@ -31,7 +31,6 @@ from CADETProcess.optimization.parallelizationBackend import (
     SequentialBackend,
     ParallelizationBackendBase
 )
-
 __all__ = [
     'GPEI',
     'BotorchModular',
@@ -82,7 +81,7 @@ class CADETProcessRunner(Runner):
             self,
             optimization_problem: OptimizationProblem,
             parallelization_backend: ParallelizationBackendBase
-        ) -> None:
+    ) -> None:
         self.optimization_problem = optimization_problem
         self.parallelization_backend = parallelization_backend
 
@@ -143,14 +142,14 @@ class CADETProcessRunner(Runner):
 
         for i, arm in enumerate(trial.arms):
             f_dict = {
-                metric: f_metric[i]
-                for metric, f_metric in zip(objective_labels, F.T)
+                f"{metric}_axidx_{i_obj}": f_metric[i]
+                for i_obj, (metric, f_metric) in enumerate(zip(objective_labels, F.T))
             }
             cv_dict = {}
             if CV is not None:
                 cv_dict = {
-                    metric: cv_metric[i]
-                    for metric, cv_metric in zip(nonlincon_labels, CV.T)
+                    f"{metric}_axidx_{i_constr}": cv_metric[i]
+                    for i_constr, (metric, cv_metric) in enumerate(zip(nonlincon_labels, CV.T))
                 }
             trial_metadata["arms"].update({arm: {**f_dict, **cv_dict}})
 
@@ -229,7 +228,7 @@ class AxInterface(OptimizerBase):
         objectives = []
         for i, obj_name in enumerate(objective_names):
             ax_metric = CADETProcessMetric(
-                name=obj_name,
+                name=f"{obj_name}_axidx_{i}",
                 lower_is_better=True,
             )
 
@@ -243,8 +242,8 @@ class AxInterface(OptimizerBase):
         nonlincon_names = self.optimization_problem.nonlinear_constraint_labels
 
         outcome_constraints = []
-        for name in nonlincon_names:
-            ax_metric = CADETProcessMetric(name=name)
+        for i_constr, name in enumerate(nonlincon_names):
+            ax_metric = CADETProcessMetric(name=f"{name}_axidx_{i_constr}")
 
             nonlincon = OutcomeConstraint(
                 metric=ax_metric,
@@ -297,7 +296,7 @@ class AxInterface(OptimizerBase):
 
         # DONE: Update for multi-processing. If n_cores > 1: len(arms) > 1 (oder @Flo?)
         X = np.array([list(arm.parameters.values()) for arm in trial.arms])
-        objective_labels = op.objective_labels
+        objective_labels = [f"{obj_name}_axidx_{i}" for i, obj_name in enumerate(op.objective_labels)]
 
         n_ind = len(X)
 
@@ -416,7 +415,6 @@ class AxInterface(OptimizerBase):
                     seed=self.seed + 5641,
                 )
 
-
             x0_init_transformed = np.array(optimization_problem.transform(x0_init))
             self._create_manual_trial(x0_init_transformed)
             print(exp_to_df(self.ax_experiment))
@@ -429,7 +427,7 @@ class AxInterface(OptimizerBase):
                 # Reinitialize GP+EI model at each step with updated data.
                 modelbridge = self.train_model()
 
-                print(f"Running optimization trial {n_evals+1}/{self.n_max_evals}...")
+                print(f"Running optimization trial {n_evals + 1}/{self.n_max_evals}...")
 
                 # samples can be accessed here by sample_generator.arms:
                 sample_generator = modelbridge.gen(n=1)
@@ -475,6 +473,7 @@ class SingleObjectiveAxInterface(AxInterface):
             outcome_constraints=outcome_constraints
         )
 
+
 class MultiObjectiveAxInterface(AxInterface):
     supports_multi_objective = True
 
@@ -483,6 +482,7 @@ class MultiObjectiveAxInterface(AxInterface):
             objective=MultiObjective(objectives),
             outcome_constraints=outcome_constraints
         )
+
 
 class GPEI(SingleObjectiveAxInterface):
     """
@@ -498,6 +498,7 @@ class GPEI(SingleObjectiveAxInterface):
             experiment=self.ax_experiment,
             data=self.ax_experiment.fetch_data()
         )
+
 
 class BotorchModular(SingleObjectiveAxInterface):
     """
@@ -516,7 +517,6 @@ class BotorchModular(SingleObjectiveAxInterface):
         'acquisition_fn', 'surrogate_model'
     ]
 
-
     def __repr__(self):
         afn = self.acquisition_fn.__name__
         smn = self.surrogate_model.__name__
@@ -531,6 +531,7 @@ class BotorchModular(SingleObjectiveAxInterface):
             botorch_acqf_class=self.acquisition_fn,
             data=self.ax_experiment.fetch_data()
         )
+
 
 class NEHVI(MultiObjectiveAxInterface):
     """
