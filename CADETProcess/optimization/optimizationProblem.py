@@ -308,7 +308,7 @@ class OptimizationProblem(Structure):
     @property
     def variable_values(self):
         """list: Values of optimization variables."""
-        return [var.value for var in self.variables]
+        return np.array([var.value for var in self.variables])
 
     def add_variable(
             self, name, evaluation_objects=-1, parameter_path=None,
@@ -561,7 +561,7 @@ class OptimizationProblem(Structure):
 
         Parameters
         ----------
-        x : list
+        x : array_like
             Value of the optimization variables in untransformed space.
 
         Raises
@@ -571,7 +571,7 @@ class OptimizationProblem(Structure):
 
         Returns
         -------
-        x : list
+        x : np.ndarray
             Value of all optimization variables in untransformed space.
 
         """
@@ -596,7 +596,7 @@ class OptimizationProblem(Structure):
 
         Parameters
         ----------
-        x : list
+        x : array_like
             Value of all optimization variables.
             Works for transformed and untransformed space.
 
@@ -607,7 +607,7 @@ class OptimizationProblem(Structure):
 
         Returns
         -------
-        x_independent : list
+        x_independent : np.ndarray
             Values of all independent optimization variables.
 
         """
@@ -622,7 +622,7 @@ class OptimizationProblem(Structure):
             if variable.is_independent:
                 x_independent.append(value)
 
-        return x_independent
+        return np.array(x_independent)
 
     @untransforms
     def set_variables(self, x, evaluation_objects=-1):
@@ -678,7 +678,7 @@ class OptimizationProblem(Structure):
 
         Returns
         -------
-        results : list
+        results : np.ndarray
             Values of the evaluation functions at point x.
 
         See Also
@@ -721,12 +721,12 @@ class OptimizationProblem(Structure):
         Raises
         ------
         CADETProcessError
-            DESCRIPTION.
+            If dictcache is used for parallelized evaluation.
 
         Returns
         -------
-        results : list
-            DESCRIPTION.
+        results : np.ndarray
+            Results of the evaluation functions.
 
         """
         if parallelization_backend is None:
@@ -765,8 +765,8 @@ class OptimizationProblem(Structure):
 
         Returns
         -------
-        results : TYPE
-            DESCRIPTION.
+        results : np.ndarray
+            Results of the evaluation functions.
 
         """
         self.logger.debug(f'evaluate {str(func)} at {x}')
@@ -1043,7 +1043,7 @@ class OptimizationProblem(Structure):
 
         Returns
         -------
-        f : list
+        f : np.ndarray
             Values of the objective functions at point x.
 
         See Also
@@ -1083,7 +1083,7 @@ class OptimizationProblem(Structure):
 
         Returns
         -------
-        results : list
+        results : np.ndarray
             Objective function values.
 
         See Also
@@ -1112,7 +1112,7 @@ class OptimizationProblem(Structure):
 
         Returns
         -------
-        jacobian: list
+        jacobian: np.array
             Value of the partial derivatives at point x.
 
         See Also
@@ -1298,7 +1298,7 @@ class OptimizationProblem(Structure):
 
         Returns
         -------
-        g : list
+        g : np.ndarray
             Nonlinear constraint function values.
 
         See Also
@@ -1334,7 +1334,7 @@ class OptimizationProblem(Structure):
 
         Returns
         -------
-        results : list
+        results : np.ndarray
             Nonlinear constraints.
 
         See Also
@@ -1417,7 +1417,7 @@ class OptimizationProblem(Structure):
 
         Returns
         -------
-        results : list
+        results : np.ndarray
             Nonlinear constraints violation.
 
         See Also
@@ -1651,11 +1651,6 @@ class OptimizationProblem(Structure):
             Runner to use for the evaluation of the population in
             sequential or parallel mode.
 
-        Returns
-        -------
-        results : list
-            Nonlinear constraint function values.
-
         See Also
         --------
         add_callback
@@ -1802,7 +1797,7 @@ class OptimizationProblem(Structure):
 
         Returns
         -------
-        m : list
+        m : np.ndarray
             Meta scores.
 
         See Also
@@ -1835,7 +1830,7 @@ class OptimizationProblem(Structure):
             sequential or parallel mode.
         Returns
         -------
-        results : list
+        results : np.ndarray
             Meta scores.
 
         See Also
@@ -1917,7 +1912,7 @@ class OptimizationProblem(Structure):
 
         Returns
         -------
-        x_pareto : list
+        x_pareto : np.ndarray
             Value of the optimization variables.
 
         See Also
@@ -2281,7 +2276,7 @@ class OptimizationProblem(Structure):
 
         Returns
         -------
-        constraints: np.array
+        constraints: np.ndarray
             Value of the linear constraints at point x
 
         See Also
@@ -2618,7 +2613,7 @@ class OptimizationProblem(Structure):
 
         Returns
         -------
-        list
+        np.ndarray
             Optimization variables in transformed parameter space.
         """
         x_independent = np.array(x_independent)
@@ -2631,7 +2626,7 @@ class OptimizationProblem(Structure):
                 for value, var in zip(ind, self.independent_variables)
             ]
 
-        return transform.reshape(x_independent.shape).tolist()
+        return transform.reshape(x_independent.shape)
 
     def untransform(self, x_transformed):
         """Untransform the optimization variables from transformed parameter space.
@@ -2643,7 +2638,7 @@ class OptimizationProblem(Structure):
 
         Returns
         -------
-        list
+        np.ndarray
             Optimization variables in untransformed parameter space.
         """
         x_transformed = np.array(x_transformed)
@@ -2656,7 +2651,7 @@ class OptimizationProblem(Structure):
                 for value, var in zip(ind, self.independent_variables)
             ]
 
-        return untransform.reshape(x_transformed.shape).tolist()
+        return untransform.reshape(x_transformed.shape)
 
     @property
     def cached_steps(self):
@@ -3081,7 +3076,7 @@ class OptimizationProblem(Structure):
 
         Parameters
         ----------
-        x : list
+        x : array_like
             Value of the optimization variables in untransformed space.
 
         Returns
