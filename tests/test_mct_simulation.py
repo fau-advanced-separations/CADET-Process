@@ -45,7 +45,7 @@ class TestMCT(unittest.TestCase):
         mct_flow_sheet.add_connection(mct_2c2, outlet2, origin_port='channel_1')
 
         self.mct_flow_sheet = mct_flow_sheet
-    
+
     def test_simulation(self):
 
         mct_flow_sheet = self.mct_flow_sheet
@@ -94,17 +94,83 @@ class TestMCT(unittest.TestCase):
             [0.02,0.0],
         ]])
         mct_3c.solution_recorder.write_solution_bulk = 1
-        mct_2c2.solution_recorder.write_solution_bulk = 1        
+        mct_2c2.solution_recorder.write_solution_bulk = 1
         process_simulator = Cadet(install_path='c:\\Users\dklau\Documents\Arbeitsprojekte\ModSim\cadet\CADET\out\install\\aRelease')
         self.assertTrue(process_simulator.check_cadet())
         simulation_results = process_simulator.simulate(process)
 
         simulation_results.solution
 
+    def test_single_channel_setup(self):
+
+        component_system = ComponentSystem(1)
+
+        mct_flow_sheet = FlowSheet(component_system)
+
+        inlet = Inlet(component_system, name='inlet')
+        mct = MCT(component_system,nchannel=1, name='mct')
+        outlet = Outlet(component_system, name='outlet1')
+
+        mct.solution_recorder.write_solution_bulk = 1
+
+        mct_flow_sheet.add_unit(inlet)
+        mct_flow_sheet.add_unit(mct)
+        mct_flow_sheet.add_unit(outlet)
+
+        mct_flow_sheet.add_connection(inlet, mct, destination_port='channel_0')
+        mct_flow_sheet.add_connection(mct, outlet, origin_port='channel_0')
+
+        process = Process(mct_flow_sheet, 'Tracer_Transport')
+
+        inlet.flow_rate = 8e-5
+
+        mct.length = 0.3
+        mct.channel_cross_section_areas = [1,]
+        mct.axial_dispersion = 0
+        mct.exchange_matrix = np.array([]) #Hier error es beim Setup wegen der Size, das ist das was Cadet-Core als Eingabe Erwarten würde.
+        #Wenn nur ein Channel existiert, sollte es aber ne leere exchange matrix akzeptieren
+        process.cycle_time = 120*60
 
 
 
+    def test_single_channel_setup_alt(self):
 
+        component_system = ComponentSystem(1)
+
+        mct_flow_sheet = FlowSheet(component_system)
+
+        inlet = Inlet(component_system, name='inlet')
+        mct = MCT(component_system,nchannel=1, name='mct')
+        outlet = Outlet(component_system, name='outlet1')
+
+        mct.solution_recorder.write_solution_bulk = 1
+
+        mct_flow_sheet.add_unit(inlet)
+        mct_flow_sheet.add_unit(mct)
+        mct_flow_sheet.add_unit(outlet)
+
+        mct_flow_sheet.add_connection(inlet, mct, destination_port='channel_0')
+        mct_flow_sheet.add_connection(mct, outlet, origin_port='channel_0')
+
+        process = Process(mct_flow_sheet, 'Tracer_Transport')
+
+        inlet.flow_rate = 8e-5
+
+        mct.length = 0.3
+        mct.channel_cross_section_areas = [1,]
+        mct.axial_dispersion = 0
+        mct.exchange_matrix = np.array([[0.0]]) #Hier errort er bei der Simulation, Cadet-Core kommt damit allerdings auch zurecht also muss es eig an Process liegen
+        #Wundert mich, dass dann hier nicht mehr das setup buggt sondern die Sim, weil von der array Größe müsste es ja so stimmen. (Obwohl es eig eher so wie oben sein sollte)
+        #oder standardmäßig abgefangen werden sollte.
+        process.cycle_time = 120*60
+
+
+        _ = process.add_event('Start', 'flow_sheet.inlet.c', [1], 0)
+        _ = process.add_event('Stop', 'flow_sheet.inlet.c', [0], 1*60)
+
+        process_simulator = Cadet(install_path='C:/cadet_from_source/cadet/')
+        process_simulator.check_cadet()
+        simulation_results = process_simulator.simulate(process)
 
 
 if __name__ == '__main__':
