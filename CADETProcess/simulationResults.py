@@ -19,13 +19,13 @@ import copy
 import os
 
 import numpy as np
-import addict
+from addict import Dict
 
 from CADETProcess import CADETProcessError
 from CADETProcess import settings
 from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import (
-    Dict, String, List, UnsignedInteger, UnsignedFloat
+    Dictionary, String, List, UnsignedInteger, UnsignedFloat
 )
 
 
@@ -72,13 +72,13 @@ class SimulationResults(Structure):
     """
 
     solver_name = String()
-    solver_parameters = Dict()
+    solver_parameters = Dictionary()
     exit_flag = UnsignedInteger()
     exit_message = String()
     time_elapsed = UnsignedFloat()
-    solution_cycles = Dict()
-    sensitivity_cycles = Dict()
-    system_state = Dict()
+    solution_cycles = Dictionary()
+    sensitivity_cycles = Dictionary()
+    system_state = Dictionary()
     chromatograms = List()
 
     def __init__(
@@ -140,7 +140,7 @@ class SimulationResults(Structure):
 
         time_complete = self.time_complete
 
-        solution = addict.Dict()
+        solution = Dict()
         for unit, solutions in self.solution_cycles.items():
             for sol, cycles in solutions.items():
                 solution[unit][sol] = copy.deepcopy(cycles[0])
@@ -165,7 +165,7 @@ class SimulationResults(Structure):
 
         time_complete = self.time_complete
 
-        sensitivity = addict.Dict()
+        sensitivity = Dict()
         for unit, sensitivities in self.sensitivity_cycles.items():
             for sens_name, sensitivities in sensitivities.items():
                 for sens, cycles in sensitivities.items():

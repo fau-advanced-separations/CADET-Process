@@ -55,9 +55,10 @@ class FractionationOptimizer():
         """
         if optimizer is None:
             optimizer = COBYLA()
-            optimizer.tol = 0.1
-            optimizer.catol = 1e-4
-            optimizer.rhobeg = 5e-4
+            optimizer.tol = 1e-3
+            optimizer.catol = 5e-3
+            optimizer.rhobeg = 1e-4
+
         self.optimizer = optimizer
         self.log_level = log_level
 
@@ -124,7 +125,10 @@ class FractionationOptimizer():
 
         frac.initial_values(purity_required)
 
-        if not allow_empty_fractions:
+        if not np.any(frac.n_fractions_per_pool[:-1]):
+            raise CADETProcessError("No areas found with sufficient purity.")
+
+        if not allow_empty_fractions :
             empty_fractions = []
             for i, comp in enumerate(purity_required):
                 if comp > 0:
@@ -142,8 +146,11 @@ class FractionationOptimizer():
             self,
             frac,
             purity_required,
+            allow_empty_fractions=True,
             ranking=1,
             obj_fun=None,
+            minimize=True,
+            bad_metrics=None,
             n_objectives=1):
         """Set up the OptimizationProblem for optimizing the fractionation times.
 
@@ -153,14 +160,23 @@ class FractionationOptimizer():
             The Fractionator object.
         purity_required : list
             Minimum purity required for the components in the fractionation.
-        ranking : {float, list, None}
+        allow_empty_fractions: bool, optional
+            If True, allow empty fractions. The default is True.
+        ranking : list, 1 or None, optional
             Weighting factors for individual components.
-            If float, the same value is used for all components.
+            If 1, the same value is assumed for all components.
             If None, no ranking is used and the problem is solved as multi-objective.
+            The default is 1.
         obj_fun : callable, optional
             Alternative objective function.
             If no function is provided, the fraction mass is maximized.
             The default is None.
+        bad_metrics : float or list of floats, optional
+            Values to be returned if evaluation of objective function failes.
+            The default is 0.
+        minimize : bool, optional
+            If True, the obj_fun is assumed to return a value that is to be minimized.
+            The default it True.
         n_objectives : int
             Number of objectives. The default is 1.
 
@@ -176,6 +192,14 @@ class FractionationOptimizer():
         list
             The initial values for the optimization variables.
         """
+        # Handle empty fractions
+        n_fractions = np.array([pool.n_fractions for pool in frac.fraction_pools])
+        empty_fractions = np.where(n_fractions[0:-1] == 0)[0]
+        if len(empty_fractions) > 0 and allow_empty_fractions:
+            for empty_fraction in empty_fractions:
+                purity_required[empty_fraction] = 0
+
+        # Setup Optimization Problem
         opt = OptimizationProblem(
             'FractionationOptimization',
             log_level=self.log_level,
@@ -185,22 +209,29 @@ class FractionationOptimizer():
         opt.add_evaluation_object(frac)
 
         frac_evaluator = FractionationEvaluator()
-        opt.add_evaluator(frac_evaluator, cache=True)
+        opt.add_evaluator(frac_evaluator)
 
         if obj_fun is None:
             obj_fun = Mass(ranking=ranking)
+            minimize = False
+            bad_metrics = 0
+
         opt.add_objective(
-            obj_fun, requires=frac_evaluator, n_objectives=n_objectives,
-            bad_metrics=0
+            obj_fun,
+            requires=frac_evaluator,
+            n_objectives=n_objectives,
+            minimize=minimize,
+            bad_metrics=bad_metrics,
         )
 
         purity = Purity()
         purity.n_metrics = frac.component_system.n_comp
-        constraint_bounds = -np.array(purity_required, ndmin=1)
-        constraint_bounds = constraint_bounds.tolist()
         opt.add_nonlinear_constraint(
-            purity, n_nonlinear_constraints=len(constraint_bounds),
-            bounds=constraint_bounds, requires=frac_evaluator
+            purity,
+            n_nonlinear_constraints=len(purity_required),
+            bounds=purity_required,
+            comparison_operator='ge',
+            requires=frac_evaluator,
         )
 
         for evt in frac.events:
@@ -239,6 +270,8 @@ class FractionationOptimizer():
             ranking=1,
             obj_fun=None,
             n_objectives=1,
+            bad_metrics=0,
+            minimize=True,
             allow_empty_fractions=True,
             ignore_failed=False,
             return_optimization_results=False,
@@ -252,14 +285,25 @@ class FractionationOptimizer():
         purity_required :  float or array_like
             Minimum required purity for components. If is float, the same
             value is assumed for all components.
-        ranking : float or array_like
-            Relative value of components.
+        components : list
+            List of components to consider in the fractionation process.
+        ranking : list, 1 or None, optional
+            Weighting factors for individual components.
+            If 1, the same value is assumed for all components.
+            If None, no ranking is used and the problem is solved as multi-objective.
+            The default is 1.
         obj_fun : function, optional
             Objective function used for OptimizationProblem.
             If COBYLA is used, must return single objective.
             If is None, the mass of all components is maximized.
         n_objectives : int, optional
             Number of objectives returned by obj_fun. The default is 1.
+        bad_metrics : float or list of floats, optional
+            Values to be returned if evaluation of objective function failes.
+            The default is 0.
+        minimize : bool, optional
+            If True, the obj_fun is assumed to return a value that is to be minimized.
+            The default it True.
         allow_empty_fractions: bool, optional
             If True, allow empty fractions. The default is True.
         ignore_failed : bool, optional
@@ -321,31 +365,37 @@ class FractionationOptimizer():
             allow_empty_fractions=allow_empty_fractions
         )
 
+        opt, x0 = self._setup_optimization_problem(
+            frac,
+            purity_required,
+            allow_empty_fractions,
+            ranking,
+            obj_fun,
+            n_objectives,
+            bad_metrics,
+            minimize,
+        )
+
         # Lock to enable caching
         simulation_results.process.lock = True
-
         try:
-            opt, x0 = self._setup_optimization_problem(
-                frac, purity_required, ranking, obj_fun, n_objectives
-            )
             results = self.optimizer.optimize(
                 opt, x0,
                 save_results=save_results,
                 log_level=self.log_level,
                 delete_cache=True,
             )
+            opt.set_variables(results.x[0])
+            frac.reset()
         except CADETProcessError as e:
             if ignore_failed:
                 warnings.warn('Optimization failed. Returning initial values')
                 frac.initial_values(purity_required)
             else:
                 raise CADETProcessError(str(e))
-
-        opt.set_variables(results.x[0])
-        frac.reset()
-
-        # Restore previous lock state
-        simulation_results.process.lock = lock_state
+        finally:
+            # Restore previous lock state
+            simulation_results.process.lock = lock_state
 
         if return_optimization_results:
             return results

@@ -517,11 +517,11 @@ class FlowSheet(Structure):
             if state >= state_length:
                 raise CADETProcessError('Index exceeds destinations')
 
-            output_state = [0] * state_length
-            output_state[state] = 1
+            output_state = [0.0] * state_length
+            output_state[state] = 1.0
 
         elif isinstance(state, dict):
-            output_state = [0] * state_length
+            output_state = [0.0] * state_length
             for dest, value in state.items():
                 try:
                     assert self.connection_exists(unit, dest)
@@ -540,7 +540,7 @@ class FlowSheet(Structure):
         else:
             raise TypeError("Output state must be integer, list or dict.")
 
-        if not np.isclose(sum(output_state), 1):
+        if state_length != 0 and not np.isclose(sum(output_state), 1):
             raise CADETProcessError('Sum of fractions must be 1')
 
         self._output_states[unit] = output_state
@@ -631,6 +631,9 @@ class FlowSheet(Structure):
         # Solve system of equations for each polynomial coefficient
         total_flow_rate_coefficents = np.zeros((4, n_units))
         for i in range(4):
+            if len(flow_rates) == 0:
+                continue
+
             coeffs = np.array(list(flow_rates.values()), ndmin=2)[:, i]
             if not np.any(coeffs):
                 continue
@@ -640,7 +643,7 @@ class FlowSheet(Structure):
                 unit_index = self.get_unit_index(self.units_dict[unit_name])
                 Q_vec[unit_index] = flow_rates[unit_name][i]
             try:
-                total_flow_rate_coefficents[i] = np.linalg.solve(w_out, Q_vec)
+                total_flow_rate_coefficents[i, :] = np.linalg.solve(w_out, Q_vec)
             except np.linalg.LinAlgError:
                 raise CADETProcessError(
                     "Unexpected error in flow rate calculation. "

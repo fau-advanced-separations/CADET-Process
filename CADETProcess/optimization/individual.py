@@ -42,14 +42,18 @@ class Individual(Structure):
         Independent variable values in transformed space.
     f : list
         Objective values.
+    f_min : list
+        Minimized objective values.
     g : list
         Nonlinear constraint values.
-    m : list
-        Meta score values.
     cv : list
         Nonlinear constraints violation.
     cv_tol : float
         Tolerance for constraints violation.
+    m : list
+        Meta score values.
+    m_min : list
+        Minimized meta score values.
 
     See Also
     --------
@@ -59,10 +63,12 @@ class Individual(Structure):
     x = Vector()
     x_transformed = Vector()
     f = Vector()
+    f_min = Vector()
     g = Vector()
-    m = Vector()
     cv = Vector()
     cv_tol = Float()
+    m = Vector()
+    m_min = Vector()
 
     def __init__(
             self,
@@ -70,29 +76,37 @@ class Individual(Structure):
             f=None,
             g=None,
             m=None,
+            x_transformed=None,
+            f_min=None,
             cv=None,
             cv_tol=0,
-            x_transformed=None,
+            m_min=None,
             independent_variable_names=None,
             objective_labels=None,
             contraint_labels=None,
             meta_score_labels=None,
             variable_names=None):
         self.x = x
-        self.f = f
-        self.g = g
-        self.m = m
+        if x_transformed is None:
+            x_transformed = x
+            independent_variable_names = variable_names
+        self.x_transformed = x_transformed
 
+        self.f = f
+        if f_min is None:
+            f_min = f
+        self.f_min = f_min
+
+        self.g = g
         if g is not None and cv is None:
             cv = g
         self.cv = cv
         self.cv_tol = cv_tol
 
-        if x_transformed is None:
-            x_transformed = x
-            independent_variable_names = variable_names
-
-        self.x_transformed = x_transformed
+        self.m = m
+        if m_min is None:
+            m_min = m
+        self.m_min = m_min
 
         if isinstance(variable_names, np.ndarray):
             variable_names = [s.decode() for s in variable_names]
@@ -111,6 +125,10 @@ class Individual(Structure):
         self.meta_score_labels = meta_score_labels
 
         self.id = hash_array(self.x)
+
+    @property
+    def id_short(self):
+        return self.id[0:7]
 
     @property
     def is_evaluated(self):
@@ -158,8 +176,16 @@ class Individual(Structure):
 
     @property
     def dimensions(self):
-        """tuple: Individual dimensions (n_x, n_f, n_g)"""
+        """tuple: Individual dimensions (n_x, n_f, n_g, n_m)"""
         return (self.n_x, self.n_f, self.n_g, self.n_m)
+
+    @property
+    def objectives_minimization_factors(self):
+        return self.f_min / self.f
+
+    @property
+    def meta_scores_minimization_factors(self):
+        return self.m_min / self.m
 
     def dominates(self, other):
         """Determine if individual dominates other.
@@ -191,8 +217,8 @@ class Individual(Structure):
             self_values = self.m
             other_values = other.m
         else:
-            self_values = self.f
-            other_values = other.f
+            self_values = self.f_min
+            other_values = other.f_min
 
         if np.any(self_values > other_values):
             return False

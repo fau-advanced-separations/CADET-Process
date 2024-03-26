@@ -90,6 +90,14 @@ class Population():
         return self.individuals[0].dimensions
 
     @property
+    def objectives_minimization_factors(self):
+        return self.individuals[0].objectives_minimization_factors
+
+    @property
+    def meta_scores_minimization_factors(self):
+        return self.individuals[0].meta_scores_minimization_factors
+
+    @property
     def variable_names(self):
         """list: Names of the optimization variables."""
         if self.individuals[0].variable_names is None:
@@ -242,6 +250,17 @@ class Population():
         return np.array([ind.f for ind in self.individuals])
 
     @property
+    def f_minimized(self):
+        """np.array: All evaluated objective function values, transformed to be minimized."""
+        return np.array([ind.f_min for ind in self.individuals])
+
+    @property
+    def f_best(self):
+        """np.array: Best objective values."""
+        f_best = np.min(self.f_minimized, axis=0)
+        return np.multiply(self.objectives_minimization_factors, f_best)
+
+    @property
     def f_min(self):
         """np.array: Minimum objective values."""
         return np.min(self.f, axis=0)
@@ -263,6 +282,12 @@ class Population():
             return np.array([ind.g for ind in self.individuals])
 
     @property
+    def g_best(self):
+        """np.array: Best nonlinear constraint values."""
+        indices = np.argmin(self.cv, axis=0)
+        return [self.g[ind, i] for i, ind in enumerate(indices)]
+
+    @property
     def g_min(self):
         """np.array: Minimum nonlinear constraint values."""
         if self.dimensions[2] > 0:
@@ -277,7 +302,8 @@ class Population():
     @property
     def g_avg(self):
         """np.array: Average nonlinear constraint values."""
-        return np.mean(self.g, axis=0)
+        if self.dimensions[2] > 0:
+            return np.mean(self.g, axis=0)
 
     @property
     def cv(self):
@@ -300,34 +326,49 @@ class Population():
     @property
     def cv_avg(self):
         """np.array: Average nonlinear constraint violation values."""
-        return np.mean(self.cv, axis=0)
+        if self.dimensions[2] > 0:
+            return np.mean(self.cv, axis=0)
 
     @property
     def m(self):
-        """np.array: All evaluated metas core values."""
+        """np.array: All evaluated meta scores."""
         if self.dimensions[3] > 0:
             return np.array([ind.m for ind in self.individuals])
 
     @property
+    def m_minimized(self):
+        """np.array: All evaluated meta scores, transformed to be minimized."""
+        if self.dimensions[3] > 0:
+            return np.array([ind.m_min for ind in self.individuals])
+
+    @property
+    def m_best(self):
+        """np.array: Best meta scores."""
+        if self.dimensions[3] > 0:
+            m_best = np.min(self.m_minimized, axis=0)
+            return np.multiply(self.meta_scores_minimization_factors, m_best)
+
+    @property
     def m_min(self):
-        """np.array: Minimum meta score values."""
+        """np.array: Minimum meta scores."""
         if self.dimensions[3] > 0:
             return np.min(self.m, axis=0)
 
     @property
     def m_max(self):
-        """np.array: Maximum meta score values."""
+        """np.array: Maximum meta scores."""
         if self.dimensions[3] > 0:
             return np.max(self.m, axis=0)
 
     @property
     def m_avg(self):
-        """np.array: Average meta score values."""
-        return np.mean(self.m, axis=0)
+        """np.array: Average meta scores."""
+        if self.dimensions[3] > 0:
+            return np.mean(self.m, axis=0)
 
     @property
     def is_feasilbe(self):
-        """np.array: Average meta score values."""
+        """np.array: False if any constraint is not met. True otherwise."""
         return np.array([ind.is_feasible for ind in self.individuals])
 
     def setup_objectives_figure(self, include_meta=True, plot_individual=False):
@@ -436,8 +477,15 @@ class Population():
         x_infeas = infeasible.x
 
         if include_meta and self.m is not None:
-            values_feas = np.hstack((feasible.f, feasible.m))
-            values_infeas = np.hstack((infeasible.f, infeasible.m))
+            if len(feasible) > 0:
+                values_feas = np.hstack((feasible.f, feasible.m))
+            else:
+                values_infeas = np.empty((0, self.n_f + self.n_m))
+            if len(infeasible) > 0:
+                values_infeas = np.hstack((infeasible.f, infeasible.m))
+            else:
+                values_infeas = np.empty((0, self.n_f + self.n_m))
+
             labels = self.objective_labels + self.meta_score_labels
         else:
             values_feas = feasible.f

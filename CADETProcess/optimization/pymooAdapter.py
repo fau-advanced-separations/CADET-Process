@@ -56,7 +56,7 @@ class PymooInterface(OptimizerBase):
         optimization_problem : OptimizationProblem
             DESCRIPTION.
         x0 : list, optional
-            Initial population
+            Initial population of independent variables in untransformed space.
 
         Returns
         -------
@@ -72,26 +72,23 @@ class PymooInterface(OptimizerBase):
         """
         pop_size = self.get_population_size(optimization_problem)
 
-        # equality constraints make it more difficult to find feasible samples
-        # in the parameter space. Therefore increase burnin
-        # this gets very expensive with lots of constraints
-        burn_in = 1e5 * 10 ** optimization_problem.n_linear_equality_constraints
-
         if x0 is not None:
             pop = x0
         else:
             pop = optimization_problem.create_initial_values(
-                pop_size, method='chebyshev', seed=self.seed,
-                burn_in=burn_in
+                pop_size, seed=self.seed, include_dependent_variables=False
             )
 
         pop = np.array(pop, ndmin=2)
 
         if len(pop) < pop_size:
+            warnings.warn(
+                "Initial population smaller than popsize. "
+                "Creating missing entries."
+            )
             n_remaining = pop_size - len(pop)
             remaining = optimization_problem.create_initial_values(
-                n_remaining, method='chebyshev', seed=self.seed,
-                burn_in=burn_in
+                n_remaining, seed=self.seed, include_dependent_variables=False
             )
             pop = np.vstack((pop, remaining))
         elif len(pop) > pop_size:
@@ -169,15 +166,18 @@ class PymooInterface(OptimizerBase):
 
             # Post generation processing
             X_opt = algorithm.opt.get("X").tolist()
-            self.run_post_generation_processing(X, F, G, CV, algorithm.n_gen-1, X_opt)
+            self.run_post_processing(X, F, G, CV, algorithm.n_gen-1, X_opt)
 
         if algorithm.n_gen >= n_max_gen:
-            exit_message = 'Max number of generations exceeded.'
+            success = True
             exit_flag = 1
+            exit_message = 'Max number of generations exceeded.'
         else:
+            success = True
             exit_flag = 0
-            exit_message = 'success'
+            exit_message = 'Success'
 
+        self.results.success = success
         self.results.exit_flag = exit_flag
         self.results.exit_message = exit_message
 
@@ -238,6 +238,7 @@ class PymooProblem(Problem):
             F = opt.evaluate_objectives_population(
                 X,
                 untransform=True,
+                ensure_minimization=True,
                 parallelization_backend=self.parallelization_backend,
             )
             out["F"] = np.array(F)
@@ -268,18 +269,12 @@ class RepairIndividuals(Repair):
         # Check if linear (equality) constraints are met
         X_new = None
         for i, ind in enumerate(X):
-            if (
-                    not self.optimization_problem.check_linear_constraints(
-                        ind, untransform=True, get_dependent_values=True
-                    )
-                    or
-                    not self.optimization_problem.check_linear_equality_constraints(
-                        ind, untransform=True, get_dependent_values=True
-                    )
-            ):
+            if not self.optimization_problem.check_individual(
+                    ind, untransform=True, get_dependent_values=True):
                 if X_new is None:
-                    burn_in = 1e5 * 10 ** self.optimization_problem.n_linear_equality_constraints
-                    X_new = self.optimization_problem.create_initial_values(len(X), burn_in)
+                    X_new = self.optimization_problem.create_initial_values(
+                        len(X), include_dependent_variables=False
+                    )
                 x_new = X_new[i, :]
                 X[i, :] = self.optimization_problem.transform(x_new)
 

@@ -23,7 +23,7 @@ def setup_optimization_results(
 
         for gen in range(n_gen):
             pop = setup_population(n_ind, n_vars, n_obj, n_nonlin, n_meta, rng)
-            optimization_results.update_population(pop)
+            optimization_results.update(pop)
             optimization_results.update_pareto()
             if n_meta > 0:
                 optimization_results.update_meta()

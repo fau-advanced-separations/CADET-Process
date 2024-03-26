@@ -313,7 +313,7 @@ optimization_problem.create_initial_values()
 Alternatively, the Chebyshev center of the polytope can be computed, which is the center of the largest Euclidean ball that is fully contained within that polytope.
 
 ```{code-cell} ipython3
-optimization_problem.create_initial_values(method='chebyshev')
+optimization_problem.get_chebyshev_center()
 ```
 
 It is also possible to generate multiple samples at once.
@@ -354,7 +354,8 @@ The callback signature may include any of the following arguments:
 Introspection is used to determine which of the signatures above to invoke.
 
 ```{code-cell} ipython3
-def callback(individual, evaluation_object, callbacks_dir):
+def callback(results, individual, evaluation_object, callbacks_dir):
+    print(results)
     print(individual.x, individual.f)
     print(evaluation_object)
     print(callbacks_dir)

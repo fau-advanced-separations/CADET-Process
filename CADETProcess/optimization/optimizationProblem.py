@@ -37,7 +37,7 @@ from CADETProcess.transform import (
 )
 
 from CADETProcess.metric import MetricBase
-
+from CADETProcess.optimization import Individual, Population
 from CADETProcess.optimization import ResultsCache
 
 
@@ -111,7 +111,6 @@ class OptimizationProblem(Structure):
         self._evaluation_objects_dict = {}
         self._evaluators = []
 
-        self.cached_evaluators = []
         self.use_diskcache = use_diskcache
         self.cache_directory = cache_directory
         self.setup_cache()
@@ -130,7 +129,6 @@ class OptimizationProblem(Structure):
         """Untransform population or individual before calling function."""
         @wraps(func)
         def wrapper(self, x, *args, untransform=False, **kwargs):
-            """Untransform population or individual before calling function."""
             x = np.array(x, ndmin=1)
             if untransform:
                 x = self.untransform(x)
@@ -159,6 +157,39 @@ class OptimizationProblem(Structure):
             return func(self, population, *args, **kwargs)
 
         return wrapper
+
+    def ensures_minimization(scores):
+        """Convert maximization problems to minimization problems."""
+        def wrap(func):
+            @wraps(func)
+            def wrapper(self, *args, ensure_minimization=False, **kwargs):
+                s = func(self, *args, **kwargs)
+
+                if ensure_minimization:
+                    s = self.transform_maximization(s, scores)
+
+                return s
+
+            return wrapper
+        return wrap
+
+    def transform_maximization(self, s, scores):
+        """Transform maximization problems to minimization problems."""
+        factors = []
+        if scores == 'objectives':
+            scores = self.objectives
+        elif scores == 'meta_scores':
+            scores = self.meta_scores
+        else:
+            raise ValueError(f'Unknown scores: {scores}.')
+
+        for score in scores:
+            factor = 1 if score.minimize else -1
+            factors += score.n_total_metrics * [factor]
+
+        s = np.multiply(factors, s)
+
+        return s
 
     @property
     def evaluation_objects(self):
@@ -277,11 +308,12 @@ class OptimizationProblem(Structure):
     @property
     def variable_values(self):
         """list: Values of optimization variables."""
-        return [var.value for var in self.variables]
+        return np.array([var.value for var in self.variables])
 
     def add_variable(
             self, name, evaluation_objects=-1, parameter_path=None,
-            lb=-math.inf, ub=math.inf, transform=None, indices=None):
+            lb=-math.inf, ub=math.inf, transform=None, indices=None,
+            pre_processing=None):
         """Add optimization variable to the OptimizationProblem.
 
         The function encapsulates the creation of OptimizationVariable objects
@@ -308,6 +340,9 @@ class OptimizationProblem(Structure):
         indices : int  or tuple, optional
             Indices for variables that modify entries of a parameter array.
             If None, variable is assumed to be index independent.
+        pre_processing : callable, optional
+            Additional step to process the value before setting it. This function must
+            accept a single argument (the value) and return the processed value.
 
         Raises
         ------
@@ -348,6 +383,7 @@ class OptimizationProblem(Structure):
             name, evaluation_objects, parameter_path,
             lb=lb, ub=ub, transform=transform,
             indices=indices,
+            pre_processing=pre_processing,
         )
 
         self._variables.append(var)
@@ -525,7 +561,7 @@ class OptimizationProblem(Structure):
 
         Parameters
         ----------
-        x : list
+        x : array_like
             Value of the optimization variables in untransformed space.
 
         Raises
@@ -535,7 +571,7 @@ class OptimizationProblem(Structure):
 
         Returns
         -------
-        x : list
+        x : np.ndarray
             Value of all optimization variables in untransformed space.
 
         """
@@ -560,7 +596,7 @@ class OptimizationProblem(Structure):
 
         Parameters
         ----------
-        x : list
+        x : array_like
             Value of all optimization variables.
             Works for transformed and untransformed space.
 
@@ -571,13 +607,13 @@ class OptimizationProblem(Structure):
 
         Returns
         -------
-        x_independent : list
+        x_independent : np.ndarray
             Values of all independent optimization variables.
 
         """
         if len(x) != self.n_variables:
             raise CADETProcessError(
-                f'Expected {self.n_variables} value(s)'
+                f'Expected {self.n_variables} value(s), got {len(x)}'
             )
 
         x_independent = []
@@ -586,7 +622,7 @@ class OptimizationProblem(Structure):
             if variable.is_independent:
                 x_independent.append(value)
 
-        return x_independent
+        return np.array(x_independent)
 
     @untransforms
     def set_variables(self, x, evaluation_objects=-1):
@@ -642,7 +678,7 @@ class OptimizationProblem(Structure):
 
         Returns
         -------
-        results : list
+        results : np.ndarray
             Values of the evaluation functions at point x.
 
         See Also
@@ -685,12 +721,12 @@ class OptimizationProblem(Structure):
         Raises
         ------
         CADETProcessError
-            DESCRIPTION.
+            If dictcache is used for parallelized evaluation.
 
         Returns
         -------
-        results : list
-            DESCRIPTION.
+        results : np.ndarray
+            Results of the evaluation functions.
 
         """
         if parallelization_backend is None:
@@ -729,13 +765,14 @@ class OptimizationProblem(Structure):
 
         Returns
         -------
-        results : TYPE
-            DESCRIPTION.
+        results : np.ndarray
+            Results of the evaluation functions.
 
         """
         self.logger.debug(f'evaluate {str(func)} at {x}')
 
         results = np.empty((0,))
+        x_key = np.array(x).tobytes()
 
         if func.evaluators is not None:
             requires = [*func.evaluators, func]
@@ -743,7 +780,7 @@ class OptimizationProblem(Structure):
             requires = [func]
 
         self.set_variables(x)
-        evaluation_objects = self.evaluation_objects
+        evaluation_objects = func.evaluation_objects
 
         if len(evaluation_objects) == 0:
             evaluation_objects = [None]
@@ -763,7 +800,7 @@ class OptimizationProblem(Structure):
                 remaining = []
                 for step in reversed(requires):
                     try:
-                        key = (str(eval_obj), step.id, str(x))
+                        key = (str(eval_obj), step.id, x_key)
                         result = self.cache.get(key)
                         self.logger.debug(
                             f'Got {str(step)} results from cache.'
@@ -788,12 +825,10 @@ class OptimizationProblem(Structure):
                     result = np.empty((0))
                 else:
                     result = step.evaluate(current_request)
-                if step not in self.cached_steps:
-                    tag = 'temp'
-                else:
-                    tag = None
-                key = (str(eval_obj), step.id, str(x))
-                self.cache.set(key, result, tag=tag)
+
+                key = (str(eval_obj), step.id, x_key)
+                if not isinstance(step, Callback):
+                    self.cache.set(key, result, tag=x_key)
                 current_request = result
 
             if len(result) != func.n_metrics:
@@ -821,7 +856,7 @@ class OptimizationProblem(Structure):
         """dict: Evaluator objects indexed by name."""
         return {evaluator.name: evaluator for evaluator in self.evaluators}
 
-    def add_evaluator(self, evaluator, name=None, cache=False, args=None, kwargs=None):
+    def add_evaluator(self, evaluator, name=None, args=None, kwargs=None):
         """Add Evaluator to OptimizationProblem.
 
         Evaluators can be referenced by objective and constraint functions to
@@ -833,8 +868,6 @@ class OptimizationProblem(Structure):
             Evaluation function.
         name : str, optional
             Name of the evaluator.
-        cache : bool, optional
-            If True, results of the evaluator are cached. The default is False.
         args : tuple, optional
             Additional arguments for evaluation function.
         kwargs : dict, optional
@@ -868,9 +901,6 @@ class OptimizationProblem(Structure):
         )
         self._evaluators.append(evaluator)
 
-        if cache:
-            self.cached_evaluators.append(evaluator)
-
     @property
     def objectives(self):
         """list: Objective functions."""
@@ -893,22 +923,14 @@ class OptimizationProblem(Structure):
     @property
     def n_objectives(self):
         """int: Number of objectives."""
-        n_objectives = 0
-
-        for objective in self.objectives:
-            if len(objective.evaluation_objects) != 0:
-                factor = len(objective.evaluation_objects)
-            else:
-                factor = 1
-            n_objectives += factor*objective.n_objectives
-
-        return n_objectives
+        return sum([obj.n_total_metrics for obj in self.objectives])
 
     def add_objective(
             self,
             objective,
             name=None,
             n_objectives=1,
+            minimize=True,
             bad_metrics=None,
             evaluation_objects=-1,
             labels=None,
@@ -925,6 +947,8 @@ class OptimizationProblem(Structure):
         n_objectives : int, optional
             Number of metrics returned by objective function.
             The default is 1.
+        minimize : bool, optional
+            If True, objective is treated as minimization problem. The default is True.
         bad_metrics : flot or list of floats, optional
             Value which is returned when evaluation fails.
         evaluation_objects : {EvaluationObject, None, -1, list}
@@ -994,8 +1018,8 @@ class OptimizationProblem(Structure):
         objective = Objective(
             objective,
             name,
-            type='minimize',
             n_objectives=n_objectives,
+            minimize=minimize,
             bad_metrics=bad_metrics,
             evaluation_objects=evaluation_objects,
             evaluators=evaluators,
@@ -1006,6 +1030,7 @@ class OptimizationProblem(Structure):
         self._objectives.append(objective)
 
     @untransforms
+    @ensures_minimization(scores='objectives')
     def evaluate_objectives(self, x, force=False):
         """Evaluate objective functions at point x.
 
@@ -1018,7 +1043,7 @@ class OptimizationProblem(Structure):
 
         Returns
         -------
-        f : list
+        f : np.ndarray
             Values of the objective functions at point x.
 
         See Also
@@ -1037,7 +1062,13 @@ class OptimizationProblem(Structure):
 
     @untransforms
     @ensures2d
-    def evaluate_objectives_population(self, population, force=False, parallelization_backend=None):
+    @ensures_minimization(scores='objectives')
+    def evaluate_objectives_population(
+            self,
+            population,
+            force=False,
+            parallelization_backend=None
+            ):
         """Evaluate objective functions for each point x in population.
 
         Parameters
@@ -1052,7 +1083,7 @@ class OptimizationProblem(Structure):
 
         Returns
         -------
-        results : list
+        results : np.ndarray
             Objective function values.
 
         See Also
@@ -1069,7 +1100,7 @@ class OptimizationProblem(Structure):
         return results
 
     @untransforms
-    def objective_jacobian(self, x, dx=1e-3):
+    def objective_jacobian(self, x, ensure_minimization=False, dx=1e-3):
         """Compute jacobian of objective functions using finite differences.
 
         Parameters
@@ -1081,7 +1112,7 @@ class OptimizationProblem(Structure):
 
         Returns
         -------
-        jacobian: list
+        jacobian: np.array
             Value of the partial derivatives at point x.
 
         See Also
@@ -1090,7 +1121,12 @@ class OptimizationProblem(Structure):
         approximate_jac
 
         """
-        jacobian = approximate_jac(x, self.evaluate_objectives, dx)
+        jacobian = approximate_jac(
+            x,
+            self.evaluate_objectives,
+            dx,
+            ensure_minimization=ensure_minimization
+        )
 
         return jacobian
 
@@ -1125,16 +1161,9 @@ class OptimizationProblem(Structure):
     @property
     def n_nonlinear_constraints(self):
         """int: Number of nonlinear_constraints."""
-        n_nonlinear_constraints = 0
-
-        for nonlincon in self.nonlinear_constraints:
-            if len(nonlincon.evaluation_objects) != 0:
-                factor = len(nonlincon.evaluation_objects)
-            else:
-                factor = 1
-            n_nonlinear_constraints += factor*nonlincon.n_nonlinear_constraints
-
-        return n_nonlinear_constraints
+        return sum(
+            [nonlincon.n_total_metrics for nonlincon in self.nonlinear_constraints]
+        )
 
     def add_nonlinear_constraint(
             self,
@@ -1144,6 +1173,7 @@ class OptimizationProblem(Structure):
             bad_metrics=None,
             evaluation_objects=-1,
             bounds=0,
+            comparison_operator='le',
             labels=None,
             requires=None,
             *args, **kwargs):
@@ -1168,6 +1198,10 @@ class OptimizationProblem(Structure):
             Upper limits of constraint function.
             If only one value is given, the same value is assumed for all
             constraints. The default is 0.
+        comparison_operator : {'ge', 'le'}, optional
+            Comparator to define whether metric should be greater or equal to, or less
+            than or equal to the specified bounds.
+            The default is 'le' (lower or equal).
         labels : str, optional
             Names of the individual metrics.
         requires : {None, Evaluator, list}, optional
@@ -1239,8 +1273,9 @@ class OptimizationProblem(Structure):
         nonlincon = NonlinearConstraint(
             nonlincon,
             name,
-            bounds=bounds,
             n_nonlinear_constraints=n_nonlinear_constraints,
+            bounds=bounds,
+            comparison_operator=comparison_operator,
             bad_metrics=bad_metrics,
             evaluation_objects=evaluation_objects,
             evaluators=evaluators,
@@ -1263,7 +1298,7 @@ class OptimizationProblem(Structure):
 
         Returns
         -------
-        g : list
+        g : np.ndarray
             Nonlinear constraint function values.
 
         See Also
@@ -1299,7 +1334,7 @@ class OptimizationProblem(Structure):
 
         Returns
         -------
-        results : list
+        results : np.ndarray
             Nonlinear constraints.
 
         See Also
@@ -1346,8 +1381,17 @@ class OptimizationProblem(Structure):
         """
         self.logger.debug(f'Evaluate nonlinear constraints violation at {x}.')
 
+        factors = []
+        for constr in self.nonlinear_constraints:
+            factor = -1 if constr.comparison_operator == 'ge' else 1
+            factors += constr.n_total_metrics * [factor]
+
         g = self._evaluate_individual(self.nonlinear_constraints, x, force=False)
-        cv = np.array(g) - np.array(self.nonlinear_constraints_bounds)
+        g_transformed = np.multiply(factors, g)
+
+        bounds_transformed = np.multiply(factors, self.nonlinear_constraints_bounds)
+
+        cv = g_transformed - bounds_transformed
 
         return cv
 
@@ -1373,7 +1417,7 @@ class OptimizationProblem(Structure):
 
         Returns
         -------
-        results : list
+        results : np.ndarray
             Nonlinear constraints violation.
 
         See Also
@@ -1585,7 +1629,7 @@ class OptimizationProblem(Structure):
             callback._current_iteration = current_iteration
 
             try:
-                self._evaluate(ind.x, callback, force)
+                self._evaluate(ind.x_transformed, callback, force, untransform=True)
             except CADETProcessError:
                 self.logger.warning(
                     f'Evaluation of {callback} failed at {ind.x}.'
@@ -1606,11 +1650,6 @@ class OptimizationProblem(Structure):
         parallelization_backend : RunnerBase, optional
             Runner to use for the evaluation of the population in
             sequential or parallel mode.
-
-        Returns
-        -------
-        results : list
-            Nonlinear constraint function values.
 
         See Also
         --------
@@ -1657,22 +1696,14 @@ class OptimizationProblem(Structure):
     @property
     def n_meta_scores(self):
         """int: Number of meta score functions."""
-        n_meta_scores = 0
-
-        for meta_score in self.meta_scores:
-            if len(meta_score.evaluation_objects) != 0:
-                factor = len(meta_score.evaluation_objects)
-            else:
-                factor = 1
-            n_meta_scores += factor*meta_score.n_meta_scores
-
-        return n_meta_scores
+        return sum([meta_score.n_total_metrics for meta_score in self.meta_scores])
 
     def add_meta_score(
             self,
             meta_score,
             name=None,
             n_meta_scores=1,
+            minimize=True,
             evaluation_objects=-1,
             requires=None):
         """Add Meta score to the OptimizationProblem.
@@ -1686,6 +1717,8 @@ class OptimizationProblem(Structure):
         n_meta_scores : int, optional
             Number of meta scores returned by callable.
             The default is 1.
+        minimize : bool, optional
+            If True, meta score is treated as minimization problem. The default is True.
         evaluation_objects : {EvaluationObject, None, -1, list}
             EvaluationObjects which are evaluated by objective.
             If None, no EvaluationObject is used.
@@ -1751,6 +1784,7 @@ class OptimizationProblem(Structure):
         self._meta_scores.append(meta_score)
 
     @untransforms
+    @ensures_minimization(scores='meta_scores')
     def evaluate_meta_scores(self, x, force=False):
         """Evaluate meta functions at point x.
 
@@ -1763,7 +1797,7 @@ class OptimizationProblem(Structure):
 
         Returns
         -------
-        m : list
+        m : np.ndarray
             Meta scores.
 
         See Also
@@ -1781,6 +1815,7 @@ class OptimizationProblem(Structure):
 
     @untransforms
     @ensures2d
+    @ensures_minimization(scores='meta_scores')
     def evaluate_meta_scores_population(self, population, force=False, parallelization_backend=None):
         """Evaluate meta score functions for each point x in population.
 
@@ -1795,7 +1830,7 @@ class OptimizationProblem(Structure):
             sequential or parallel mode.
         Returns
         -------
-        results : list
+        results : np.ndarray
             Meta scores.
 
         See Also
@@ -1877,7 +1912,7 @@ class OptimizationProblem(Structure):
 
         Returns
         -------
-        x_pareto : list
+        x_pareto : np.ndarray
             Value of the optimization variables.
 
         See Also
@@ -2129,7 +2164,7 @@ class OptimizationProblem(Structure):
                 if isinstance(t, NoTransform):
                     continue
 
-                if not t.is_linear:
+                if a[j] != 0 and not t.is_linear:
                     raise CADETProcessError(
                         "Non-linear transform was used in linear constraints."
                     )
@@ -2209,7 +2244,7 @@ class OptimizationProblem(Structure):
                 if isinstance(t, NoTransform):
                     continue
 
-                if not t.is_linear:
+                if a[j] != 0 and not t.is_linear:
                     raise CADETProcessError(
                         "Non-linear transform was used in linear constraints."
                     )
@@ -2241,7 +2276,7 @@ class OptimizationProblem(Structure):
 
         Returns
         -------
-        constraints: np.array
+        constraints: np.ndarray
             Value of the linear constraints at point x
 
         See Also
@@ -2406,7 +2441,7 @@ class OptimizationProblem(Structure):
                 if isinstance(t, NoTransform):
                     continue
 
-                if not t.is_linear:
+                if aeq[j] != 0 and not t.is_linear:
                     raise CADETProcessError(
                         "Non-linear transform was used in linear constraints."
                     )
@@ -2419,6 +2454,19 @@ class OptimizationProblem(Structure):
                 aeq[j] *= scale
 
         return Aeq_t
+
+    @property
+    def Aeq_independent(self):
+        """np.ndarray: LHS Matrix of linear inequality constraints for indep variables.
+
+        See Also
+        --------
+        Aeq
+        Aeq_transformed
+        Aeq_independent_transformed
+
+        """
+        return self.Aeq[:, self.independent_variable_indices]
 
     @property
     def Aeq_independent_transformed(self):
@@ -2473,7 +2521,7 @@ class OptimizationProblem(Structure):
                 if isinstance(t, NoTransform):
                     continue
 
-                if not t.is_linear:
+                if aeq[j] != 0 and not t.is_linear:
                     raise CADETProcessError(
                         "Non-linear transform was used in linear constraints."
                     )
@@ -2555,21 +2603,21 @@ class OptimizationProblem(Structure):
 
         return flag
 
-    def transform(self, x):
-        """Transform the optimization variables from untransformed parameter space.
+    def transform(self, x_independent):
+        """Transform the independent optimization variables from untransformed parameter space.
 
         Parameters
         ----------
-        x : list
-            Value of the optimization variables in untransformed space.
+        x_independent : list
+            Value of the independent optimization variables in untransformed space.
 
         Returns
         -------
-        list
+        np.ndarray
             Optimization variables in transformed parameter space.
         """
-        x = np.array(x)
-        x_2d = np.array(x, ndmin=2)
+        x_independent = np.array(x_independent)
+        x_2d = np.array(x_independent, ndmin=2)
         transform = np.zeros(x_2d.shape)
 
         for i, ind in enumerate(x_2d):
@@ -2578,7 +2626,7 @@ class OptimizationProblem(Structure):
                 for value, var in zip(ind, self.independent_variables)
             ]
 
-        return transform.reshape(x.shape).tolist()
+        return transform.reshape(x_independent.shape)
 
     def untransform(self, x_transformed):
         """Untransform the optimization variables from transformed parameter space.
@@ -2590,7 +2638,7 @@ class OptimizationProblem(Structure):
 
         Returns
         -------
-        list
+        np.ndarray
             Optimization variables in untransformed parameter space.
         """
         x_transformed = np.array(x_transformed)
@@ -2603,15 +2651,15 @@ class OptimizationProblem(Structure):
                 for value, var in zip(ind, self.independent_variables)
             ]
 
-        return untransform.reshape(x_transformed.shape).tolist()
+        return untransform.reshape(x_transformed.shape)
 
     @property
     def cached_steps(self):
         """list: Cached evaluation steps."""
         return \
-            self.cached_evaluators + \
             self.objectives + \
-            self.nonlinear_constraints
+            self.nonlinear_constraints + \
+            self.meta_scores
 
     @property
     def cache_directory(self):
@@ -2643,12 +2691,157 @@ class OptimizationProblem(Structure):
         if reinit:
             self.setup_cache()
 
-    def prune_cache(self):
+    def prune_cache(self, tag=None):
         """Prune cache with (intermediate) results."""
-        self.cache.prune()
+        self.cache.prune(tag)
+
+    def create_hopsy_problem(
+            self,
+            include_dependent_variables=True,
+            simplify=False,
+            use_custom_model=False
+            ):
+        """Creates a hopsy problem from the optimization problem.
+
+        Parameters
+        ----------
+        include_dependent_variables : bool, optional
+            If True, only use the hopsy problem. The default is False.
+        simplify : bool, optional
+            If True, simplify the hopsy problem. The default is False.
+        use_custom_model : bool, optional
+            If True, use custom model to improve sampling of log normalized parameters.
+            The default is False.
+
+        Returns
+        -------
+        problem
+            hopsy.Problem
+
+        """
+        class CustomModel():
+            def __init__(self, log_space_indices: list):
+                self.log_space_indices = log_space_indices
+
+            def compute_negative_log_likelihood(self, x):
+                return np.sum(np.log(x[self.log_space_indices]))
+
+        if include_dependent_variables:
+            variables = self.variables
+        else:
+            variables = self.independent_variables
+
+        log_space_indices = []
+
+        for i, var in enumerate(variables):
+            if (
+                    isinstance(var._transform, NormLogTransform)
+                    or
+                    (
+                        isinstance(var._transform, AutoTransform) and
+                        var._transform.use_log
+                    )
+            ):
+                log_space_indices.append(i)
+
+        lp = hopsy.LP()
+        lp.reset()
+        lp.settings.thresh = 1e-15
+
+        if len(log_space_indices) and use_custom_model > 0:
+            model = CustomModel(log_space_indices)
+        else:
+            model = None
+
+        if include_dependent_variables:
+            A = self.A
+            b = self.b
+            lower_bounds = self.lower_bounds
+            upper_bounds = self.upper_bounds
+            Aeq = self.Aeq
+            beq = self.beq
+        else:
+            A = self.A_independent
+            b = self.b
+            lower_bounds = self.lower_bounds_independent
+            upper_bounds = self.upper_bounds_independent
+            Aeq = self.Aeq_independent
+            beq = self.beq
+
+        problem = hopsy.Problem(
+            A,
+            b,
+            model,
+        )
+
+        problem = hopsy.add_box_constraints(
+            problem,
+            lower_bounds,
+            upper_bounds,
+            simplify=simplify,
+        )
+
+        if self.n_linear_equality_constraints > 0:
+            problem = hopsy.add_equality_constraints(
+                problem,
+                Aeq,
+                beq
+            )
+
+        return problem
+
+    def get_chebyshev_center(self, include_dependent_variables=True):
+        """Compute chebychev center.
+
+        The Chebyshev center is the center of the largest Euclidean ball that is fully
+        contained within the polytope of the parameter space.
+
+        Parameters
+        ----------
+        include_dependent_variables : bool, optional
+            If True, include dependent variables in population.
+
+        Returns
+        -------
+        chebyshev : list
+            Chebyshev center.
+        """
+        problem = self.create_hopsy_problem(
+            include_dependent_variables=False, simplify=False, use_custom_model=True
+        )
+        # !!! Additional checks in place to handle PolyRound.round()
+        # removing "small" dimensions.
+        # Bug reported, Check for future release!
+        chebyshev_orig = hopsy.compute_chebyshev_center(
+            problem, original_space=True
+        )[:, 0]
+
+        try:
+            problem_rounded = hopsy.round(problem)
+        except ValueError:
+            problem_rounded = problem
+
+        if problem_rounded.A.shape[1] == problem.A.shape[1]:
+            chebyshev_rounded = hopsy.compute_chebyshev_center(
+                problem_rounded, original_space=True
+            )[:, 0]
+
+            if np.all(np.greater(chebyshev_rounded, self.lower_bounds_independent)):
+                problem = problem_rounded
+                chebyshev = chebyshev_rounded
+            else:
+                chebyshev = chebyshev_orig
+        else:
+            chebyshev = chebyshev_orig
+
+        if include_dependent_variables:
+            chebyshev = self.get_dependent_values(chebyshev)
+
+        return chebyshev
 
     def create_initial_values(
-            self, n_samples=1, method='random', seed=None, burn_in=100000):
+            self, n_samples=1, seed=None, burn_in=100000,
+            include_dependent_variables=True):
         """Create initial value within parameter space.
 
         Uses hopsy (Highly Optimized toolbox for Polytope Sampling) to retrieve
@@ -2658,15 +2851,15 @@ class OptimizationProblem(Structure):
         ----------
         n_samples : int
             Number of initial values to be drawn
-        method : str, optional
-            chebyshev: Return center of the minimal-radius ball enclosing the entire set .
-            random: Any random valid point in the parameter space.
         seed : int, optional
             Seed to initialize random numbers. Only used if method == 'random'
-        burn_in: int, optional
+        burn_in : int, optional
             Number of samples that are created to ensure uniform sampling.
             The actual initial values are then drawn from this set.
             The default is 100000.
+        include_dependent_variables : bool, optional
+            If True, include dependent variables in population.
+            The default is True.
 
         Raises
         ------
@@ -2681,126 +2874,94 @@ class OptimizationProblem(Structure):
         """
         burn_in = int(burn_in)
 
-        class CustomModel():
-            def __init__(self, log_space_indices: list):
-                self.log_space_indices = log_space_indices
-
-            def compute_negative_log_likelihood(self, x):
-                return np.sum(np.log(x[self.log_space_indices]))
-
-        log_space_indices = []
-        for i, var in enumerate(self.variables):
-            if (
-                    isinstance(var._transform, NormLogTransform)
-                    or
-                    (
-                        isinstance(var._transform, AutoTransform) and
-                        var._transform.use_log
-                    )
-            ):
-                log_space_indices.append(i)
-
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
 
-            lp = hopsy.LP()
-            lp.reset()
-            lp.settings.thresh = 1e-15
-
-            if len(log_space_indices) > 0:
-                model = CustomModel(log_space_indices)
-            else:
-                model = None
-
-            problem = hopsy.Problem(
-                self.A,
-                self.b,
-                model,
-            )
-
-            problem = hopsy.add_box_constraints(
-                problem,
-                self.lower_bounds,
-                self.upper_bounds,
+            problem = self.create_hopsy_problem(
+                include_dependent_variables=False,
                 simplify=False,
+                use_custom_model=True,
             )
 
-            # !!! Additional checks in place to handle PolyRound.round()
-            # removing "small" dimensions.
-            # Bug reported, Check for future release!
-            chebyshev_orig = hopsy.compute_chebyshev_center(problem)[:, 0]
+            chebychev_center = self.get_chebyshev_center(
+                include_dependent_variables=False
+            )
 
-            try:
-                problem_rounded = hopsy.round(problem)
-            except ValueError:
-                problem_rounded = problem
+            if seed is None:
+                seed = random.randint(0, 255)
 
-            if problem_rounded.A.shape[1] == problem.A.shape[1]:
-                chebyshev_rounded = hopsy.compute_chebyshev_center(problem_rounded)[:, 0]
+            rng = np.random.default_rng(seed)
 
-                if np.all(np.greater(chebyshev_rounded, self.lower_bounds)):
-                    problem = problem_rounded
-                    chebyshev = chebyshev_rounded
-                else:
-                    chebyshev = chebyshev_orig
+            mc = hopsy.MarkovChain(
+                problem,
+                proposal=hopsy.UniformCoordinateHitAndRunProposal,
+                starting_point=chebychev_center
+            )
+            rng_hopsy = hopsy.RandomNumberGenerator(seed=seed)
 
-            if n_samples == 1 and method == 'chebyshev':
-                values = np.array(chebyshev_orig, ndmin=2)
-            else:
-                if seed is None:
-                    seed = random.randint(0, 255)
+            acceptance_rate, states = hopsy.sample(
+                mc, rng_hopsy, n_samples=burn_in, thinning=2
+            )
+            independent_values = states[0, ...]
 
-                rng = np.random.default_rng(seed)
-
-                mc = hopsy.MarkovChain(
-                    problem,
-                    proposal=hopsy.UniformCoordinateHitAndRunProposal,
-                    starting_point=chebyshev
+        values = []
+        counter = 0
+        while len(values) < n_samples:
+            if counter > burn_in:
+                raise CADETProcessError(
+                    "Cannot find individuals that fulfill constraints."
                 )
-                rng_hopsy = hopsy.RandomNumberGenerator(seed=seed)
 
-                acceptance_rate, states = hopsy.sample(
-                    mc, rng_hopsy, n_samples=burn_in, thinning=2
+            counter += 1
+            i = rng.integers(0, burn_in)
+            ind = []
+            for i_var, var in enumerate(self.independent_variables):
+                ind.append(
+                    float(np.format_float_positional(
+                        independent_values[i, i_var],
+                        precision=var.precision, fractional=False
+                    ))
                 )
-                values = states[0, ...]
 
-        independent_indices = [
-            i for i, variable in enumerate(self.variables)
-            if variable in self.independent_variables
-        ]
-        independent_values = values[:, independent_indices]
+            ind = self.get_dependent_values(ind)
 
-        if n_samples == 1 and method == 'chebyshev':
-            values = independent_values
-        else:
-            values = []
-            counter = 0
-            while len(values) < n_samples:
-                if counter > burn_in:
-                    raise CADETProcessError(
-                        "Cannot find invididuals that fulfill constraints."
-                    )
+            if not self.check_individual(ind, silent=True):
+                continue
 
-                counter += 1
-                i = rng.integers(0, burn_in)
-                ind = []
-                for i_var, var in enumerate(self.independent_variables):
-                    ind.append(
-                        float(np.format_float_positional(
-                            independent_values[i, i_var],
-                            precision=var.precision, fractional=False
-                        ))
-                    )
+            if not include_dependent_variables:
+                ind = self.get_independent_values(ind)
 
-                if not self.check_bounds(ind, get_dependent_values=True):
-                    continue
-                if not self.check_linear_constraints(ind, get_dependent_values=True):
-                    continue
-                if not self.check_linear_equality_constraints(ind, get_dependent_values=True):
-                    continue
-                values.append(ind)
+            values.append(ind)
 
-        return np.array(values)
+        return np.array(values, ndmin=2)
+
+    @untransforms
+    @gets_dependent_values
+    def create_individual(
+            self,
+            x,
+            f=None,
+            g=None,
+            m=None,
+            x_transformed=None,
+            f_min=None,
+            cv=None,
+            cv_tol=None,
+            m_min=None,
+            ):
+        x_indep = self.get_independent_values(x)
+        x_transformed = self.transform(x_indep)
+
+        ind = Individual(
+            x, f, g, m, x_transformed, f_min, cv, cv_tol, m_min,
+            self.independent_variable_names,
+            self.objective_labels,
+            self.nonlinear_constraint_labels,
+            self.meta_score_labels,
+            self.variable_names,
+        )
+
+        return ind
 
     @property
     def parameters(self):
@@ -2897,6 +3058,7 @@ class OptimizationProblem(Structure):
 
         if self.n_objectives == 0:
             flag = False
+
         if self.n_linear_constraints + self.n_linear_equality_constraints > 0 \
                 and not ignore_linear_constraints:
             if not self.check_linear_constraints_transforms():
@@ -2904,6 +3066,39 @@ class OptimizationProblem(Structure):
 
             if not self.check_linear_constraints_dependency():
                 flag = False
+
+        return flag
+
+    @untransforms
+    @gets_dependent_values
+    def check_individual(self, x, silent=False):
+        """Check if individual is valid.
+
+        Parameters
+        ----------
+        x : array_like
+            Value of the optimization variables in untransformed space.
+
+        Returns
+        -------
+        bool
+            True if the individual is valid correctly, False otherwise.
+
+        """
+        flag = True
+
+        if not self.check_bounds(x):
+            if not silent:
+                warnings.warn("Individual does not satisfy bounds.")
+            flag = False
+        if not self.check_linear_constraints(x):
+            if not silent:
+                warnings.warn("Individual does not satisfy linear constraints.")
+            flag = False
+        if not self.check_linear_equality_constraints(x):
+            if not silent:
+                warnings.warn("Individual does not satisfy linear equality constraints.")
+            flag = False
 
         return flag
 
@@ -2938,6 +3133,9 @@ class OptimizationVariable:
     precision : int, optional
         Number of significant figures to which variable can be rounded.
         If None, variable is not rounded. The default is None.
+    pre_processing : callable, optional
+        Additional step to process the value before setting it. This function must
+        accept a single argument (the value) and return the processed value.
 
     Raises
     ------
@@ -2950,6 +3148,7 @@ class OptimizationVariable:
     def __init__(
         self, name, evaluation_objects=None, parameter_path=None,
         lb=-math.inf, ub=math.inf, transform=None, indices=None, precision=None,
+        pre_processing=None
     ):
         self.name = name
         self._value = None
@@ -2989,6 +3188,8 @@ class OptimizationVariable:
 
         self._dependencies = []
         self._dependency_transform = None
+
+        self.pre_processing = pre_processing
 
     @property
     def parameter_path(self):
@@ -3349,6 +3550,8 @@ class OptimizationVariable:
 
     def _set_value(self, evaluation_object, value):
         """Set the value to the evaluation object."""
+        if self.pre_processing is not None:
+            value = self.pre_processing(value)
         parameter_descriptor = self._parameter_descriptor(evaluation_object)
         if parameter_descriptor is not None:
             performer_obj = self._performer_obj(evaluation_object)
@@ -3419,23 +3622,19 @@ class Evaluator(Structure):
         return self.name
 
 
-class Objective(Structure):
-    """Wrapper class to evaluate objective functions."""
+class Metric(Structure):
+    """Wrapper class to evaluate metrics (e.g. objective/nonlincon) functions."""
 
-    objective = Callable()
+    func = Callable()
     name = String()
-    # TODO: umbennennen
-    type = Switch(valid=['minimize', 'maximize'])
-    n_objectives = RangedInteger(lb=1)
-    n_metrics = n_objectives
+    n_metrics = RangedInteger(lb=1)
     bad_metrics = SizedNdArray(size='n_metrics', default=np.inf)
 
     def __init__(
             self,
-            objective,
+            func,
             name,
-            type='minimize',
-            n_objectives=1,
+            n_metrics=1,
             bad_metrics=np.inf,
             evaluation_objects=None,
             evaluators=None,
@@ -3443,14 +3642,13 @@ class Objective(Structure):
             args=None,
             kwargs=None):
 
-        self.objective = objective
+        self.func = func
         self.name = name
 
-        self.type = type
-        self.n_objectives = n_objectives
+        self.n_metrics = n_metrics
 
         if np.isscalar(bad_metrics):
-            bad_metrics = np.tile(bad_metrics, n_objectives)
+            bad_metrics = np.tile(bad_metrics, n_metrics)
         self.bad_metrics = bad_metrics
 
         self.evaluation_objects = evaluation_objects
@@ -3464,13 +3662,19 @@ class Objective(Structure):
         self.id = uuid.uuid4()
 
     @property
+    def n_total_metrics(self):
+        """int: Total number of objectives."""
+        n_eval_objects = len(self.evaluation_objects) if self.evaluation_objects else 1
+        return n_eval_objects * self.n_metrics
+
+    @property
     def labels(self):
         """list: List of metric labels."""
         if self._labels is not None:
             return self._labels
 
         try:
-            labels = self.objective.labels
+            labels = self.func.labels
         except AttributeError:
             labels = [f'{self.name}']
             if self.n_metrics > 1:
@@ -3478,6 +3682,13 @@ class Objective(Structure):
                     f'{self.name}_{i}'
                     for i in range(self.n_metrics)
                 ]
+
+        if len(self.evaluation_objects) > 1:
+            labels = [
+                f"{eval_obj}_{label}"
+                for label in labels
+                for eval_obj in self.evaluation_objects
+            ]
         return labels
 
     @labels.setter
@@ -3492,6 +3703,20 @@ class Objective(Structure):
         self._labels = labels
 
     def __call__(self, request):
+        """
+        Evaluate the metric function with the given request and predefined arguments.
+
+        Parameters
+        ----------
+        request
+            The input to the metric function, typically representing the current state
+            or results of intermediate steps in the optimization process.
+
+        Returns
+        -------
+        ndarray
+            The evaluated metric values, returned as a NumPy array.
+        """
         if self.args is None:
             args = ()
         else:
@@ -3502,7 +3727,7 @@ class Objective(Structure):
         else:
             kwargs = self.kwargs
 
-        f = self.objective(request, *args, **kwargs)
+        f = self.func(request, *args, **kwargs)
 
         return np.array(f, ndmin=1)
 
@@ -3512,95 +3737,37 @@ class Objective(Structure):
         return self.name
 
 
-class NonlinearConstraint(Structure):
+class Objective(Metric):
+    """Wrapper class to evaluate objective functions."""
+    objective = Metric.func
+    n_objectives = Metric.n_metrics
+    minimize = Bool(default=True)
+
+    def __init__(self, *args, n_objectives=1, minimize=True, **kwargs):
+        self.minimize = minimize
+
+        super().__init__(*args, n_metrics=n_objectives, **kwargs)
+
+
+class NonlinearConstraint(Metric):
     """Wrapper class to evaluate nonlinear constraint functions."""
 
-    nonlinear_constraint = Callable()
-    name = String()
-    n_nonlinear_constraints = RangedInteger(lb=1)
-    n_metrics = n_nonlinear_constraints
-    bad_metrics = SizedNdArray(size='n_metrics', default=np.inf)
+    nonlinear_constraint = Metric.func
+    n_nonlinear_constraints = Metric.n_metrics
+    comparison_operator = Switch(valid=['le', 'ge'], default='le')
 
     def __init__(
             self,
-            nonlinear_constraint,
-            name,
-            bounds=0,
+            *args,
             n_nonlinear_constraints=1,
-            bad_metrics=np.inf,
-            evaluation_objects=None,
-            evaluators=None,
-            labels=None,
-            args=None,
-            kwargs=None):
-
-        self.nonlinear_constraint = nonlinear_constraint
-        self.name = name
-
+            bounds=0,
+            comparison_operator='le',
+            **kwargs
+            ):
         self.bounds = bounds
-        self.n_nonlinear_constraints = n_nonlinear_constraints
+        self.comparison_operator = comparison_operator
 
-        if np.isscalar(bad_metrics):
-            bad_metrics = np.tile(bad_metrics, n_nonlinear_constraints)
-        self.bad_metrics = bad_metrics
-
-        self.evaluation_objects = evaluation_objects
-        self.evaluators = evaluators
-
-        self.labels = labels
-
-        self.args = args
-        self.kwargs = kwargs
-
-        self.id = uuid.uuid4()
-
-    @property
-    def labels(self):
-        """list: List of metric labels."""
-        if self._labels is not None:
-            return self._labels
-
-        try:
-            labels = self.nonlinear_constraint.labels
-        except AttributeError:
-            labels = [f'{self.name}']
-            if self.n_metrics > 1:
-                labels = [
-                    f'{self.name}_{i}'
-                    for i in range(self.n_metrics)
-                ]
-        return labels
-
-    @labels.setter
-    def labels(self, labels):
-        if labels is not None:
-
-            if len(labels) != self.n_metrics:
-                raise CADETProcessError(
-                    f"Expected {self.n_metrics} labels."
-                )
-
-        self._labels = labels
-
-    def __call__(self, request):
-        if self.args is None:
-            args = ()
-        else:
-            args = self.args
-
-        if self.kwargs is None:
-            kwargs = {}
-        else:
-            kwargs = self.kwargs
-
-        g = self.nonlinear_constraint(request, *args, **kwargs)
-
-        return np.array(g, ndmin=1)
-
-    evaluate = __call__
-
-    def __str__(self):
-        return self.name
+        super().__init__(*args, n_metrics=n_nonlinear_constraints, **kwargs)
 
 
 class Callback(Structure):
@@ -3711,78 +3878,16 @@ class Callback(Structure):
         return self.name
 
 
-class MetaScore(Structure):
+class MetaScore(Metric):
     """Wrapper class to evaluate meta scores."""
+    meta_score = Metric.func
+    n_meta_scores = Metric.n_metrics
+    minimize = Bool(default=True)
 
-    meta_score = Callable()
-    name = String()
-    n_meta_scores = RangedInteger(lb=1)
-    n_metrics = n_meta_scores
-    bad_metrics = SizedNdArray(size='n_metrics', default=np.inf)
+    def __init__(self, *args, n_meta_scores=1, minimize=True, **kwargs):
+        self.minimize = minimize
 
-    def __init__(
-            self,
-            meta_score,
-            name,
-            n_meta_scores=1,
-            bad_metrics=np.inf,
-            evaluation_objects=None,
-            evaluators=None,
-            labels=None):
-
-        self.meta_score = meta_score
-        self.name = name
-
-        self.n_meta_scores = n_meta_scores
-
-        if np.isscalar(bad_metrics):
-            bad_metrics = np.tile(bad_metrics, n_meta_scores)
-        self.bad_metrics = bad_metrics
-
-        self.evaluation_objects = evaluation_objects
-        self.evaluators = evaluators
-
-        self.labels = labels
-
-        self.id = uuid.uuid4()
-
-    @property
-    def labels(self):
-        """list: List of metric labels."""
-        if self._labels is not None:
-            return self._labels
-
-        try:
-            labels = self.meta_score.labels
-        except AttributeError:
-            labels = [f'{self.name}']
-            if self.n_metrics > 1:
-                labels = [
-                    f'{self.name}_{i}'
-                    for i in range(self.n_metrics)
-                ]
-        return labels
-
-    @labels.setter
-    def labels(self, labels):
-        if labels is not None:
-
-            if len(labels) != self.n_metrics:
-                raise CADETProcessError(
-                    f"Expected {self.n_metrics} labels."
-                )
-
-        self._labels = labels
-
-    def __call__(self, *args, **kwargs):
-        m = self.meta_score(*args, **kwargs)
-
-        return np.array(m, ndmin=1)
-
-    evaluate = __call__
-
-    def __str__(self):
-        return self.name
+        super().__init__(*args, n_metrics=n_meta_scores, **kwargs)
 
 
 class MultiCriteriaDecisionFunction(Structure):
@@ -3806,8 +3911,7 @@ class MultiCriteriaDecisionFunction(Structure):
     def __str__(self):
         return self.name
 
-
-def approximate_jac(xk, f, epsilon, args=()):
+def approximate_jac(xk, f, epsilon, args=(), **kwargs):
     """Finite-difference approximation of the jacobian of a vector function
 
     Parameters
@@ -3849,7 +3953,7 @@ def approximate_jac(xk, f, epsilon, args=()):
     for k in range(len(xk)):
         ei[k] = 1.0
         d = epsilon * ei
-        f_k = np.array(f(*((xk + d,) + args)))
+        f_k = np.array(f(*((xk + d,) + args), **kwargs))
         jac[:, k] = (f_k - f0) / d[k]
         ei[k] = 0.0
 

@@ -214,6 +214,9 @@ class SolutionBase(Structure):
 
         return purity
 
+    def __str__(self):
+        return self.name
+
 
 class SolutionIO(SolutionBase):
     """Solution representing streams at the inlet or outlet of a ``UnitOperation``.
@@ -506,7 +509,7 @@ class SolutionIO(SolutionBase):
         if end is None:
             end = self.cycle_time
 
-        return float(self.flow_rate.integral(start, end))
+        return float(self.flow_rate.integral(start, end).squeeze())
 
     @plotting.create_and_save_figure
     def plot(

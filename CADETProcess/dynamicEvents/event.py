@@ -72,7 +72,6 @@ class EventHandler(CachedPropertiesMixin, Structure):
     parameter_events : dict
         A dictionary mapping each parameter to the list of events that affect it.
 
-
     Notes
     -----
     The class relies heavily on the concept of "events", which are instances
@@ -95,7 +94,7 @@ class EventHandler(CachedPropertiesMixin, Structure):
         self._durations = []
         self._lock = False
 
-    @property
+    @cached_property_if_locked
     def events(self):
         """list: All Events ordered by event time.
 
@@ -110,7 +109,7 @@ class EventHandler(CachedPropertiesMixin, Structure):
         """
         return sorted(self._events, key=lambda evt: evt.time)
 
-    @property
+    @cached_property_if_locked
     def events_dict(self):
         """dict: Events and Durations orderd by name."""
         evts = {evt.name: evt for evt in self.events}
@@ -157,6 +156,7 @@ class EventHandler(CachedPropertiesMixin, Structure):
         --------
         events
         remove_event
+        add_event_dependency
         Event
         Event.add_dependency
         add_duration
@@ -276,7 +276,7 @@ class EventHandler(CachedPropertiesMixin, Structure):
         self._durations.remove(dur)
         self.__dict__.pop(duration_name)
 
-    @property
+    @cached_property_if_locked
     def durations(self):
         """List of all durations in the process."""
         return self._durations
@@ -392,29 +392,29 @@ class EventHandler(CachedPropertiesMixin, Structure):
         for indep in independent_events:
             self.events[dependent_event].remove_dependency(indep)
 
-    @property
+    @cached_property_if_locked
     def independent_events(self):
         """list: All events that are not dependent on other events."""
         return list(filter(lambda evt: evt.is_independent, self.events))
 
-    @property
+    @cached_property_if_locked
     def dependent_events(self):
         """list: All events that are dependent on other events."""
         return list(
             filter(lambda evt: evt.is_independent is False, self.events)
         )
 
-    @property
+    @cached_property_if_locked
     def event_parameters(self):
         """list: Event parameters."""
         return list({evt.parameter_path for evt in self.events})
 
-    @property
+    @cached_property_if_locked
     def event_performers(self):
         """list: Event peformers."""
         return list({evt.performer for evt in self.events})
 
-    @property
+    @cached_property_if_locked
     def event_times(self):
         """list: Time of events, sorted by Event time."""
         event_times = list({evt.time for evt in self.events})
@@ -422,7 +422,7 @@ class EventHandler(CachedPropertiesMixin, Structure):
 
         return event_times
 
-    @property
+    @cached_property_if_locked
     def section_times(self):
         """list: Section times.
 
@@ -634,6 +634,9 @@ class EventHandler(CachedPropertiesMixin, Structure):
         events = {evt.name: evt.parameters for evt in self.independent_events}
         parameters.update(events)
 
+        events = {evt.name: evt.parameters for evt in self.dependent_events}
+        parameters.update(events)
+
         durations = {dur.name: dur.parameters for dur in self.durations}
         parameters.update(durations)
 
@@ -654,9 +657,9 @@ class EventHandler(CachedPropertiesMixin, Structure):
                 evt = self.events_dict[evt_name]
             except AttributeError:
                 raise CADETProcessError('Not a valid event')
-            if evt not in self.independent_events + self.durations:
+            if "time" in evt_parameters and evt not in self.independent_events + self.durations:
                 raise CADETProcessError(
-                    f'{str(evt)} is not a valid event'
+                    f'Cannot set "time" for {str(evt)} because it is not an independent event.'
                 )
 
             evt.parameters = evt_parameters
@@ -1286,6 +1289,8 @@ class Event():
                     else:
                         new_slice = np.reshape(new_slice, expected_shape)
 
+                if len(expected_shape) == 0:
+                    new_slice = new_slice.squeeze()
                 new_value[ind] = new_slice
 
             if self.parameter_type is not np.ndarray:

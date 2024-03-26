@@ -479,6 +479,20 @@ class TestFlowSheet(unittest.TestCase):
             self.ssr_flow_sheet.get_flow_rates(), expected_flow_rates
         )
 
+        # Single Cstr
+        expected_flow_rates = {
+            'cstr': {
+                'total_in': [0.0, 0.0, 0.0, 0.0],
+                'total_out': [0.0, 0.0, 0.0, 0.0],
+                'origins': {},
+                'destinations': {}
+            }
+        }
+
+        np.testing.assert_equal(
+            self.single_cstr_flow_sheet.get_flow_rates(), expected_flow_rates
+        )
+
     def test_check_connectivity(self):
         self.assertTrue(self.single_cstr_flow_sheet.check_connections())
         self.assertTrue(self.batch_flow_sheet.check_connections())

@@ -42,7 +42,7 @@ class ParameterBase(Descriptor):
     Tuple
     Float
     String
-    Dict
+    Dictionary
     """
 
     def __init__(
@@ -378,7 +378,7 @@ class Typed(ParameterBase):
     Tuple
     Float
     String
-    Dict
+    Dictionary
     """
 
     def __init__(self, *args, ty=None, **kwargs):
@@ -568,15 +568,8 @@ class List(Typed):
     ty = list
 
 
-class Dict(Typed):
-    """
-    Parameter descriptor constrained to dictionary (`dict`) values.
-
-    Notes
-    -----
-    When integrating with libraries like `addict`, be cautious about potential
-    name collisions with `addict.Dict`.
-    """
+class Dictionary(Typed):
+    """Parameter descriptor constrained to dictionary (`dict`) values."""
 
     ty = dict
 
@@ -1036,10 +1029,10 @@ class Sized(ParameterBase):
             return
 
         size = self.get_size(value)
-        exptected_size = self.get_expected_size(instance)
+        expected_size = self.get_expected_size(instance)
 
-        if size != exptected_size:
-            raise ValueError(f"Expected size {exptected_size}")
+        if size != expected_size:
+            raise ValueError(f"Expected size {expected_size}")
 
     def _prepare(self, instance, value, recursive=False):
         """
@@ -1529,7 +1522,7 @@ class NdPolynomial(SizedNdArray):
             raise ValueError("Can only set single entry if n_entries == 1.")
 
         if isinstance(value, np.ndarray) and value.size == 1:
-            value = float(value)
+            value = float(value.squeeze())
 
         if isinstance(value, (int, float)):
             value = n_entries * [value]
@@ -1650,12 +1643,17 @@ class DependentlyModulated(Sized):
             If the modulo condition of the size does not meet the expected criteria.
         """
         size = self.get_size(value)
-        exptected_size = self.get_expected_size(instance)
+        expected_size = self.get_expected_size(instance)
 
-        size %= exptected_size
+        size %= expected_size
 
         if size != 0:
-            raise ValueError("Size mod exptected size is not 0")
+            raise ValueError(
+                f"The size of the value modulo the expected size is not zero. "
+                f"Size: {size}, Expected Size: {expected_size}"
+            )
+
+    check_size = check_mod_value
 
 
 class DependentlyModulatedUnsignedList(UnsignedList, SizedList, DependentlyModulated):

@@ -62,6 +62,7 @@ class ResultsCache():
                disk=DillDisk,
                disk_min_file_size=2**18,    # 256 kb
                size_limit=2**36,            # 64 GB
+               tag_index=True,
             )
             self.directory = self.cache.directory
         else:
@@ -130,7 +131,7 @@ class ResultsCache():
         if close:
             self.close()
 
-    def prune(self, tag='temp'):
+    def prune(self, tag):
         """Remove tagged entries from cache.
 
         Parameters

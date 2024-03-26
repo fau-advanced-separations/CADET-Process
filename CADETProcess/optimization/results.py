@@ -14,10 +14,11 @@ from cadet import H5
 from CADETProcess import plotting
 from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import (
-    NdArray, String, UnsignedInteger, UnsignedFloat
+    Bool, Dictionary, NdArray, String, UnsignedInteger, UnsignedFloat
 )
 
 from CADETProcess import CADETProcessError
+from CADETProcess.sysinfo import system_information
 from CADETProcess.optimization import Individual, Population, ParetoFront
 
 
@@ -30,12 +31,18 @@ class OptimizationResults(Structure):
         Optimization problem.
     optimizer : OptimizerBase
         Optimizer used to optimize the OptimizationProblem.
+    success : bool
+        True if optimization was successfully terminated. False otherwise.
     exit_flag : int
         Information about the solver termination.
     exit_message : str
         Additional information about the solver status.
     time_elapsed : float
         Execution time of simulation.
+    cpu_time : float
+        CPU run time, taking into account the number of cores used for the optimiation.
+    system_information : dict
+        Information about the system on which the optimization was performed.
     x : list
         Values of optimization variables at optimum.
     f : np.ndarray
@@ -51,9 +58,12 @@ class OptimizationResults(Structure):
         functions.
 
     """
+    success = Bool(default=False)
     exit_flag = UnsignedInteger()
     exit_message = String()
     time_elapsed = UnsignedFloat()
+    cpu_time = UnsignedFloat()
+    system_information = Dictionary()
 
     def __init__(
             self, optimization_problem, optimizer,
@@ -75,6 +85,8 @@ class OptimizationResults(Structure):
             self._meta_fronts = None
 
         self.results_directory = None
+
+        self.system_information = system_information
 
     @property
     def results_directory(self):
@@ -136,42 +148,26 @@ class OptimizationResults(Structure):
         else:
             return self._meta_fronts[-1]
 
-    def update_individual(self, individual):
+    def update(self, new):
         """Update Results.
 
         Parameters
         ----------
-        individual : Individual
-            Latest individual.
+        new : Individual, Population
+            New results
 
         Raises
         ------
         CADETProcessError
-            If individual is not an instance of Individual
+            If new is not an instance of Individual or Population
         """
-        if not isinstance(individual, Individual):
-            raise CADETProcessError("Expected Individual")
-
-        population = Population()
-        population.add_individual(individual)
-        self._populations.append(population)
-        self.population_all.add_individual(individual, ignore_duplicate=True)
-
-    def update_population(self, population):
-        """Update Results.
-
-        Parameters
-        ----------
-        population : Population
-            Current population
-
-        Raises
-        ------
-        CADETProcessError
-            If population is not an instance of Population
-        """
-        if not isinstance(population, Population):
-            raise CADETProcessError("Expected Population")
+        if isinstance(new, Individual):
+            population = Population()
+            population.add_individual(new)
+        elif isinstance(new, Population):
+            population = new
+        else:
+            raise CADETProcessError("Expected Population or Individual")
         self._populations.append(population)
         self.population_all.update(population)
 
@@ -257,6 +253,11 @@ class OptimizationResults(Structure):
         return np.cumsum(n_evals)
 
     @property
+    def f_best_history(self):
+        """np.array: Best objective values per generation."""
+        return np.array([pop.f_best for pop in self.meta_fronts])
+
+    @property
     def f_min_history(self):
         """np.array: Minimum objective values per generation."""
         return np.array([pop.f_min for pop in self.meta_fronts])
@@ -270,6 +271,11 @@ class OptimizationResults(Structure):
     def f_avg_history(self):
         """np.array: Average objective values per generation."""
         return np.array([pop.f_avg for pop in self.meta_fronts])
+
+    @property
+    def g_best_history(self):
+        """np.array: Best nonlinear constraint per generation."""
+        return np.array([pop.g_best for pop in self.meta_fronts])
 
     @property
     def g_min_history(self):
@@ -320,8 +326,13 @@ class OptimizationResults(Structure):
             return np.array([pop.cv_avg for pop in self.meta_fronts])
 
     @property
+    def m_best_history(self):
+        """np.array: Best meta scores per generation."""
+        return np.array([pop.m_best for pop in self.meta_fronts])
+
+    @property
     def m_min_history(self):
-        """np.array: Minimum meta score values per generation."""
+        """np.array: Minimum meta scores per generation."""
         if self.optimization_problem.n_meta_scores == 0:
             return None
         else:
@@ -329,7 +340,7 @@ class OptimizationResults(Structure):
 
     @property
     def m_max_history(self):
-        """np.array: Maximum meta score values per generation."""
+        """np.array: Maximum meta scores per generation."""
         if self.optimization_problem.n_meta_scores == 0:
             return None
         else:
@@ -337,7 +348,7 @@ class OptimizationResults(Structure):
 
     @property
     def m_avg_history(self):
-        """np.array: Average meta score values per generation."""
+        """np.array: Average meta scores per generation."""
         if self.optimization_problem.n_meta_scores == 0:
             return None
         else:
@@ -387,7 +398,8 @@ class OptimizationResults(Structure):
 
             if self.optimization_problem.n_objectives > 1:
                 self.plot_pareto(
-                    show=show, plot_directory=self.plot_directory
+                    show=show, plot_directory=self.plot_directory,
+                    plot_evolution=True, plot_pareto=False,
                 )
 
     def plot_objectives(
@@ -640,15 +652,15 @@ class OptimizationResults(Structure):
 
         if target == 'objectives':
             funcs = self.optimization_problem.objectives
-            values_min = self.f_min_history
+            values_min = self.f_best_history
             values_avg = self.f_avg_history
         elif target == 'nonlinear_constraints':
             funcs = self.optimization_problem.nonlinear_constraints
-            values_min = self.g_min_history
+            values_min = self.g_best_history
             values_avg = self.g_avg_history
         elif target == 'meta_scores':
             funcs = self.optimization_problem.meta_scores
-            values_min = self.m_min_history
+            values_min = self.m_best_history
             values_avg = self.m_avg_history
         else:
             raise CADETProcessError("Unknown target.")
@@ -752,7 +764,7 @@ class OptimizationResults(Structure):
                     f'{plot_directory / figname}.png'
                 )
 
-    def save_results(self):
+    def save_results(self, name):
         if self.results_directory is not None:
             self._update_csv(self.population_last, 'results_all', mode='a')
             self._update_csv(self.population_last, 'results_last', mode='w')
@@ -762,7 +774,7 @@ class OptimizationResults(Structure):
 
             results = H5()
             results.root = Dict(self.to_dict())
-            results.filename = self.results_directory / 'checkpoint.h5'
+            results.filename = self.results_directory / f'{name}.h5'
             results.save()
 
     def to_dict(self):
@@ -774,6 +786,7 @@ class OptimizationResults(Structure):
             Results as a dictionary with populations stored as list of dictionaries.
         """
         data = Dict()
+        data.system_information = self.system_information
         data.optimizer_state = self.optimizer_state
         data.population_all_id = str(self.population_all.id)
         data.populations = {i: pop.to_dict() for i, pop in enumerate(self.populations)}
@@ -784,6 +797,9 @@ class OptimizationResults(Structure):
             data.meta_fronts = {
                 i: front.to_dict() for i, front in enumerate(self.meta_fronts)
             }
+        if self.time_elapsed is not None:
+            data.time_elapsed = self.time_elapsed
+            data.cpu_time = self.cpu_time
 
         return data
 
@@ -800,7 +816,7 @@ class OptimizationResults(Structure):
 
         for pop_dict in data['populations'].values():
             pop = Population.from_dict(pop_dict)
-            self.update_population(pop)
+            self.update(pop)
 
         self._pareto_fronts = [
             ParetoFront.from_dict(d) for d in data['pareto_fronts'].values()

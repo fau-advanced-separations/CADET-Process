@@ -20,6 +20,7 @@ from tests.optimization_problem_fixtures import (
 class EvaluationObject(Structure):
     uninitialized = None
     scalar_param = Float(default=1)
+    scalar_param_2 = Float(default=1)
     list_param = List()
     sized_list_param = SizedList(size=2, default=[1, 2])
     sized_list_param_single = SizedList(size=1, default=1)
@@ -32,6 +33,7 @@ class EvaluationObject(Structure):
     _parameters = [
         'uninitialized',
         'scalar_param',
+        'scalar_param_2',
         'list_param',
         'sized_list_param',
         'sized_list_param_single',
@@ -735,21 +737,19 @@ class Test_OptimizationProblemLinCon(unittest.TestCase):
             self.optimization_problem.add_linear_constraint('var_0', [])
 
     def test_initial_values(self):
-        x0_chebyshev_expected = [[0.2928932, 0.7071068]]
-        x0_chebyshev = self.optimization_problem.create_initial_values(
-            1, method='chebyshev'
+        x0_chebyshev_expected = [1/3, 2/3]
+        x0_chebyshev = self.optimization_problem.get_chebyshev_center(
+            include_dependent_variables=True
         )
         np.testing.assert_almost_equal(x0_chebyshev, x0_chebyshev_expected)
 
         x0_seed_1_expected = [[0.5666524, 0.8499365]]
         x0_seed_1 = self.optimization_problem.create_initial_values(
-            1, method='random', seed=1
+            1, seed=1
         )
         np.testing.assert_almost_equal(x0_seed_1, x0_seed_1_expected)
 
-        x0_seed_1_random = self.optimization_problem.create_initial_values(
-            1, method='random'
-        )
+        x0_seed_1_random = self.optimization_problem.create_initial_values(1)
 
         with self.assertRaises(AssertionError):
             np.testing.assert_almost_equal(x0_seed_1_random, x0_seed_1_expected)
@@ -770,13 +770,11 @@ class Test_OptimizationProblemLinCon(unittest.TestCase):
             [0.5365699848069944, 0.6516012021958184]
         ]
         x0_seed_10 = self.optimization_problem.create_initial_values(
-            10, method='random', seed=1
+            10, seed=1
         )
         np.testing.assert_almost_equal(x0_seed_10, x0_seed_10_expected)
 
-        x0_seed_10_random = self.optimization_problem.create_initial_values(
-            10, method='random'
-        )
+        x0_seed_10_random = self.optimization_problem.create_initial_values(10)
 
         with self.assertRaises(AssertionError):
             np.testing.assert_almost_equal(x0_seed_10_random, x0_seed_10_expected)
@@ -848,41 +846,30 @@ class Test_OptimizationProblemDepVar(unittest.TestCase):
         variables = self.optimization_problem.variable_names
         self.assertEqual(variables_expected, variables)
 
-    def test_initial_values(self):
-        x0_chebyshev_expected = [[0.79289322, 0.20710678, 0.5]]
-        x0_chebyshev = self.optimization_problem.create_initial_values(
-            1, method='chebyshev'
+    def test_initial_values_without_dependencies(self):
+        x0_chebyshev_expected = [2/3, 0.5, 1/3]
+        x0_chebyshev = self.optimization_problem.get_chebyshev_center(
+            include_dependent_variables=False
         )
         np.testing.assert_almost_equal(x0_chebyshev, x0_chebyshev_expected)
 
-        variables_expected = [
-            0.7928932188134523,
-            0.2071067811865475,
-            0.2071067811865475,
-            0.4999999999999999
-        ]
-        variables = self.optimization_problem.get_dependent_values(
-            x0_chebyshev[0, :]
-        )
+        variables_expected = [2/3, 0.5, 0.5, 1/3]
+        variables = self.optimization_problem.get_dependent_values(x0_chebyshev)
         np.testing.assert_almost_equal(variables, variables_expected)
 
-        self.assertTrue(
-            self.optimization_problem.check_linear_constraints(
-                x0_chebyshev[0, :], get_dependent_values=True
-            )
-        )
-        self.assertTrue(
-            self.optimization_problem.check_linear_constraints(variables)
-        )
-
-        x0_seed_1_expected = [[0.7311044, 0.1727515, 0.1822629]]
+        x0_seed_1_expected = [[0.90164487, 0.27971297, 0.70490538]]
         x0_seed_1 = self.optimization_problem.create_initial_values(
-            1, method='random', seed=1
+            1, seed=1, include_dependent_variables=False
         )
         np.testing.assert_almost_equal(x0_seed_1, x0_seed_1_expected)
+        self.assertTrue(
+            self.optimization_problem.check_linear_constraints(
+                x0_seed_1[0], get_dependent_values=True
+            )
+        )
 
         x0_seed_1_random = self.optimization_problem.create_initial_values(
-            1, method='random'
+            1, include_dependent_variables=False
         )
 
         with self.assertRaises(AssertionError):
@@ -892,24 +879,76 @@ class Test_OptimizationProblemDepVar(unittest.TestCase):
             np.testing.assert_almost_equal(x0_seed_1_random, x0_chebyshev_expected)
 
         x0_seed_10_expected = [
-            [0.7311043824888657, 0.1727515432673712, 0.18226293643057073],
-            [0.9836918383919191, 0.8152389217047241, 0.8560016844195478],
-            [0.7358144798470049, 0.2574714423019172, 0.49387609464567295],
-            [0.34919171897183954, 0.05751800197656948, 0.3237260675631758],
-            [0.9265061673265441, 0.4857572549618687, 0.8149444448089398],
-            [0.9065669851023331, 0.1513817591204391, 0.7710992332649812],
-            [0.8864554240066591, 0.4771068979697068, 0.5603893963194555],
-            [0.6845940550232432, 0.2843172686185149, 0.6792904559788712],
-            [0.923735889273789, 0.6890814170651027, 0.7366940211809302],
-            [0.8359314486227345, 0.39493879515319996, 0.8128182754300088]
+            [0.90164487, 0.27971297, 0.70490538],
+            [0.78125338, 0.17275154, 0.54650281],
+            [0.97623563, 0.19106333, 0.79016462],
+            [0.12826546, 0.03476412, 0.05270397],
+            [0.89791146, 0.29062957, 0.7429437 ],
+            [0.8703531 , 0.20575487, 0.68237913],
+            [0.92572799, 0.01653708, 0.33539715],
+            [0.96337056, 0.07106034, 0.86232007],
+            [0.85559046, 0.4824452 , 0.84474955],
+            [0.8588277 , 0.73874869, 0.80355266]
         ]
         x0_seed_10 = self.optimization_problem.create_initial_values(
-            10, method='random', seed=1
+            10, seed=1, include_dependent_variables=False
         )
         np.testing.assert_almost_equal(x0_seed_10, x0_seed_10_expected)
 
         x0_seed_10_random = self.optimization_problem.create_initial_values(
-            10, method='random'
+            10, include_dependent_variables=False
+        )
+
+        with self.assertRaises(AssertionError):
+            np.testing.assert_almost_equal(x0_seed_10_random, x0_seed_10_expected)
+
+    def test_initial_values(self):
+        x0_chebyshev_expected = [2/3, 0.5, 0.5, 1/3]
+        x0_chebyshev = self.optimization_problem.get_chebyshev_center(
+            include_dependent_variables=True
+        )
+        np.testing.assert_almost_equal(x0_chebyshev, x0_chebyshev_expected)
+
+        independent_variables_expected = [2/3, 0.5, 1/3]
+        independent_variables = self.optimization_problem.get_independent_values(x0_chebyshev)
+        np.testing.assert_almost_equal(independent_variables, independent_variables_expected)
+
+        x0_seed_1_expected = [[0.9016449, 0.279713 , 0.279713 , 0.7049054]]
+        x0_seed_1 = self.optimization_problem.create_initial_values(
+            1, seed=1, include_dependent_variables=True
+        )
+        np.testing.assert_almost_equal(x0_seed_1, x0_seed_1_expected)
+        self.assertTrue(self.optimization_problem.check_linear_constraints(x0_seed_1[0]))
+
+        x0_seed_1_random = self.optimization_problem.create_initial_values(
+            1, include_dependent_variables=True
+        )[0]
+
+        with self.assertRaises(AssertionError):
+            np.testing.assert_almost_equal(x0_seed_1_random, x0_seed_1_expected)
+
+        with self.assertRaises(AssertionError):
+            np.testing.assert_almost_equal(x0_seed_1_random, x0_chebyshev_expected)
+
+        x0_seed_10_expected = [
+            [0.90164487, 0.27971297, 0.27971297, 0.70490538],
+            [0.78125338, 0.17275154, 0.17275154, 0.54650281],
+            [0.97623563, 0.19106333, 0.19106333, 0.79016462],
+            [0.12826546, 0.03476412, 0.03476412, 0.05270397],
+            [0.89791146, 0.29062957, 0.29062957, 0.7429437 ],
+            [0.8703531 , 0.20575487, 0.20575487, 0.68237913],
+            [0.92572799, 0.01653708, 0.01653708, 0.33539715],
+            [0.96337056, 0.07106034, 0.07106034, 0.86232007],
+            [0.85559046, 0.4824452 , 0.4824452 , 0.84474955],
+            [0.8588277 , 0.73874869, 0.73874869, 0.80355266]
+        ]
+        x0_seed_10 = self.optimization_problem.create_initial_values(
+            10, seed=1, include_dependent_variables=True
+        )
+        np.testing.assert_almost_equal(x0_seed_10, x0_seed_10_expected)
+
+        x0_seed_10_random = self.optimization_problem.create_initial_values(
+            10, include_dependent_variables=True
         )
 
         with self.assertRaises(AssertionError):
@@ -1210,6 +1249,81 @@ class Test_OptimizationProblemEvaluator(unittest.TestCase):
 
     def test_cache(self):
         pass
+
+
+class Test_MultiEvaluationObjects(unittest.TestCase):
+    def __init__(self, methodName='runTest'):
+        super().__init__(methodName)
+
+    def setUp(self):
+        eval_obj_1 = EvaluationObject(name='foo')
+        eval_obj_2 = EvaluationObject(name='bar')
+
+        # Simple case
+        optimization_problem = OptimizationProblem(
+            'with_evaluator', use_diskcache=False
+        )
+
+        optimization_problem.add_evaluation_object(eval_obj_1)
+        optimization_problem.add_evaluation_object(eval_obj_2)
+
+        optimization_problem.add_variable(
+            name='scalar_eval_obj_1', parameter_path='scalar_param', lb=0, ub=1,
+            evaluation_objects=[eval_obj_1]
+        )
+        optimization_problem.add_variable(
+            name='scalar_eval_obj_2', parameter_path='scalar_param', lb=0, ub=1,
+            evaluation_objects=[eval_obj_2]
+        )
+
+        optimization_problem.add_variable(
+            name='scalar_both_eval_obj', parameter_path='scalar_param_2', lb=0, ub=1,
+        )
+
+
+        def single_obj_1(eval_obj):
+            return 0
+
+        optimization_problem.add_objective(single_obj_1)
+
+
+        def single_obj_2(eval_obj):
+            return 1
+
+        optimization_problem.add_objective(single_obj_2, evaluation_objects=eval_obj_1)
+
+
+        def multi_obj(eval_obj):
+            return [2, 3]
+
+        optimization_problem.add_objective(multi_obj, n_objectives=2)
+
+
+        self.optimization_problem = optimization_problem
+
+    def test_evaluation(self):
+        f_expected = [0, 0, 1, 2, 3, 2, 3]
+        f = self.optimization_problem.evaluate_objectives([1, 1, 1])
+
+        np.testing.assert_allclose(f, f_expected)
+
+    def test_names(self):
+        names_expected = ['single_obj_1', 'single_obj_2', 'multi_obj']
+        names = self.optimization_problem.objective_names
+        self.assertEqual(names, names_expected)
+
+    def test_labels(self):
+        labels_expected = [
+            'foo_single_obj_1',
+            'bar_single_obj_1',
+            'single_obj_2',
+            'foo_multi_obj_0',
+            'bar_multi_obj_0',
+            'foo_multi_obj_1',
+            'bar_multi_obj_1'
+        ]
+        labels = self.optimization_problem.objective_labels
+        self.assertEqual(labels, labels_expected)
 
 
 if __name__ == '__main__':
