@@ -17,14 +17,22 @@ from CADETProcess import SimulationResults
 from CADETProcess.fractionation.fractions import Fraction, FractionPool
 
 
+__all__ = ["Fractionator"]
+
+
 class Fractionator(EventHandler):
     """Class for Chromatogram Fractionation.
 
-    To set Events for starting and ending a fractionation it inherits from the
-    EventHandler class. It defines a ranking list for components as a
-    DependentlySizedUnsignedList with the number of components as dependent
-    size. The time_signal to fractionate is defined. If no ranking is set,
-    every component is equivalently.
+    This class is responsible for setting events for starting and ending fractionation,
+    handling multiple chromatograms, and calculating various performance metrics.
+
+    Attributes
+    ----------
+    name : String
+        Name of the fractionator, defaulting to 'Fractionator'.
+    performance_keys : list
+        Keys for performance metrics including mass, concentration, purity, recovery,
+        productivity, and eluent consumption.
 
     """
 
@@ -135,7 +143,7 @@ class Fractionator(EventHandler):
         """ComponentSystem: The component system of the chromatograms."""
         return self.chromatograms[0].component_system
 
-    def call_by_chrom_name(func):
+    def _call_by_chrom_name(func):
         """Decorator to enable calling functions with chromatogram object or name."""
         @wraps(func)
         def wrapper(self, chrom, *args, **kwargs):
@@ -307,7 +315,7 @@ class Fractionator(EventHandler):
         """
         return self._fractionation_states
 
-    @call_by_chrom_name
+    @_call_by_chrom_name
     def set_fractionation_state(self, chrom, state):
         """Set fractionation states of Chromatogram.
 
@@ -414,7 +422,7 @@ class Fractionator(EventHandler):
         start : float
             start time of the fraction
         start : float
-            start time of the fraction
+            end time of the fraction
 
         Returns
         -------
@@ -422,9 +430,9 @@ class Fractionator(EventHandler):
             Chromatogram fraction
 
         """
-        mass = self.chromatograms[chrom_index].fraction_mass(start, end)
-        volume = self.chromatograms[chrom_index].fraction_volume(start, end)
-        return Fraction(mass, volume)
+        fraction = self.chromatograms[chrom_index].create_fraction(start, end)
+
+        return fraction
 
     def add_fraction(self, fraction, target):
         """Add Fraction to the FractionPool of target component.

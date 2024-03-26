@@ -9,8 +9,9 @@ from scipy.special import expit
 
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import UnsignedInteger
-from CADETProcess.solution import SolutionBase, slice_solution
+from CADETProcess.solution import SolutionIO, slice_solution
 from CADETProcess.metric import MetricBase
+from CADETProcess.reference import ReferenceIO, FractionationReference
 from .shape import pearson, pearson_offset
 from .peaks import find_peaks, find_breakthroughs
 
@@ -24,6 +25,7 @@ __all__ = [
     'Shape',
     'PeakHeight', 'PeakPosition',
     'BreakthroughHeight', 'BreakthroughPosition',
+    'FractionationSSE',
 ]
 
 
@@ -74,7 +76,7 @@ class DifferenceBase(MetricBase):
 
     Parameters
     ----------
-    reference : ReferenceIO
+    reference : ReferenceBase
         Reference used for calculating difference metric.
     components : {str, list}, optional
         Solution components to be considered.
@@ -97,6 +99,8 @@ class DifferenceBase(MetricBase):
         If True, normalize data. The default is False.
     """
 
+    _valid_references = ()
+
     def __init__(
             self,
             reference,
@@ -106,6 +110,7 @@ class DifferenceBase(MetricBase):
             start=None,
             end=None,
             transform=None,
+            only_transforms_array=True,
             resample=True,
             smooth=False,
             normalize=False):
@@ -113,7 +118,7 @@ class DifferenceBase(MetricBase):
 
         Parameters
         ----------
-        reference : ReferenceIO
+        reference : ReferenceBase
             Reference used for calculating difference metric.
         components : {str, list}, optional
             Solution components to be considered.
@@ -128,6 +133,8 @@ class DifferenceBase(MetricBase):
             End time of solution slice to be considerd. The default is None.
         transform : callable, optional
             Function to transform solution. The default is None.
+        only_transforms_array: bool, optional
+            If True, only transform np array of solution object. The default is True.
         resample : bool, optional
             If True, resample data. The default is True.
         smooth : bool, optional
@@ -143,6 +150,7 @@ class DifferenceBase(MetricBase):
         self.start = start
         self.end = end
         self.transform = transform
+        self.only_transforms_array = only_transforms_array
         self.resample = resample
         self.smooth = smooth
         self.normalize = normalize
@@ -165,8 +173,11 @@ class DifferenceBase(MetricBase):
 
     @reference.setter
     def reference(self, reference):
-        if not isinstance(reference, SolutionBase):
-            raise TypeError("Expected SolutionBase")
+        if not isinstance(reference, self._valid_references):
+            raise TypeError(
+                f"Invalid reference type: {type(reference)}. "
+                f"Expected types: {self._valid_references}."
+            )
 
         self._reference = copy.deepcopy(reference)
         if self.resample and not self._reference.is_resampled:
@@ -221,11 +232,12 @@ class DifferenceBase(MetricBase):
         @wraps(func)
         def wrapper(self, solution, *args, **kwargs):
             solution = copy.deepcopy(solution)
-            solution.resample(
-                self._reference.time[0],
-                self._reference.time[-1],
-                len(self._reference.time),
-            )
+            if self.resample:
+                solution.resample(
+                    self._reference.time[0],
+                    self._reference.time[-1],
+                    len(self._reference.time),
+                )
             if self.normalize and not solution.is_normalized:
                 solution.normalize()
             if self.smooth and not solution.is_smoothed:
@@ -241,7 +253,11 @@ class DifferenceBase(MetricBase):
         def wrapper(self, solution, *args, **kwargs):
             if self.transform is not None:
                 solution = copy.deepcopy(solution)
-                solution.solution = self.transform(solution.solution)
+
+                if self.only_transforms_array:
+                    solution.solution = self.transform(solution.solution)
+                else:
+                    solution = self.transform(solution)
 
             value = func(self, solution, *args, **kwargs)
             return value
@@ -321,6 +337,8 @@ def calculate_sse(simulation, reference):
 class SSE(DifferenceBase):
     """Sum of squared errors (SSE) difference metric."""
 
+    _valid_references = (ReferenceIO, SolutionIO)
+
     def _evaluate(self, solution):
         sse = calculate_sse(solution.solution, self.reference.solution)
 
@@ -348,6 +366,8 @@ def calculate_rmse(simulation, reference):
 class RMSE(DifferenceBase):
     """Root mean squared errors (RMSE) difference metric."""
 
+    _valid_references = (SolutionIO, ReferenceIO)
+
     def _evaluate(self, solution):
         rmse = calculate_rmse(solution.solution, self.reference.solution)
 
@@ -356,6 +376,8 @@ class RMSE(DifferenceBase):
 
 class NRMSE(DifferenceBase):
     """Normalized root mean squared errors (RRMSE) difference metric."""
+
+    _valid_references = (SolutionIO, ReferenceIO)
 
     def _evaluate(self, solution):
         rmse = calculate_rmse(solution.solution, self.reference.solution)
@@ -372,6 +394,8 @@ class Norm(DifferenceBase):
     order : int
         The order of the norm.
     """
+
+    _valid_references = (SolutionIO, ReferenceIO)
 
     order = UnsignedInteger()
 
@@ -398,6 +422,8 @@ class L2(Norm):
 class AbsoluteArea(DifferenceBase):
     """Absolute difference in area difference metric."""
 
+    _valid_references = (SolutionIO, ReferenceIO)
+
     def _evaluate(self, solution):
         """np.array: Absolute difference in area compared to reference.
 
@@ -417,6 +443,8 @@ class AbsoluteArea(DifferenceBase):
 
 class RelativeArea(DifferenceBase):
     """Relative difference in area difference metric."""
+
+    _valid_references = (SolutionIO, ReferenceIO)
 
     def _evaluate(self, solution):
         """np.array: Relative difference in area compared to reference.
@@ -461,6 +489,8 @@ class Shape(DifferenceBase):
     Currently, this class only works for single-component systems with one peak.
 
     """
+
+    _valid_references = (SolutionIO, ReferenceIO)
 
     @wraps(DifferenceBase.__init__)
     def __init__(
@@ -614,6 +644,8 @@ class PeakHeight(DifferenceBase):
         Contains the normalization factors for each peak in each component.
     """
 
+    _valid_references = (SolutionIO, ReferenceIO)
+
     @wraps(DifferenceBase.__init__)
     def __init__(
             self, *args,
@@ -706,6 +738,8 @@ class PeakPosition(DifferenceBase):
         Contains the normalization factors for each peak in each component.
     """
 
+    _valid_references = (SolutionIO, ReferenceIO)
+
     @wraps(DifferenceBase.__init__)
     def __init__(self, *args, normalize_metrics=True, normalization_factor=None, **kwargs):
         """Initialize PeakPosition object.
@@ -792,6 +826,8 @@ class BreakthroughHeight(DifferenceBase):
 
     """
 
+    _valid_references = (SolutionIO, ReferenceIO)
+
     @wraps(DifferenceBase.__init__)
     def __init__(self, *args, normalize_metrics=True, **kwargs):
         """Initialize BreakthroughHeight metric.
@@ -842,6 +878,8 @@ class BreakthroughHeight(DifferenceBase):
 
 class BreakthroughPosition(DifferenceBase):
     """Absolute difference in breakthrough curve position difference metric."""
+
+    _valid_references = (SolutionIO, ReferenceIO)
 
     @wraps(DifferenceBase.__init__)
     def __init__(self, *args, normalize_metrics=True, normalization_factor=None, **kwargs):
@@ -904,3 +942,61 @@ class BreakthroughPosition(DifferenceBase):
             ]
 
         return np.abs(score)
+
+
+class FractionationSSE(DifferenceBase):
+    """Fractionation based score using SSE."""
+
+    _valid_references = (FractionationReference)
+
+    @wraps(DifferenceBase.__init__)
+    def __init__(self, *args, normalize_metrics=True, normalization_factor=None, **kwargs):
+        """
+        Initialize the FractionationSSE object.
+
+        Parameters
+        ----------
+        *args :
+            Positional arguments for DifferenceBase.
+        normalize_metrics : bool, optional
+            Whether to normalize the metrics. Default is True.
+        normalization_factor : float, optional
+            Factor to use for normalization.
+            If None, it is set to the maximum of the difference between the reference
+            breakthrough and the start time, and the difference between the end time and
+            the reference breakthrough.
+        **kwargs : dict
+            Keyword arguments passed to the base class constructor.
+
+        """
+        super().__init__(*args, resample=False, only_transforms_array=False, **kwargs)
+
+        if not isinstance(self.reference, FractionationReference):
+            raise TypeError("FractionationSSE can only work with FractionationReference")
+
+        def transform(solution):
+            solution = copy.deepcopy(solution)
+            solution_fractions = [
+                solution.create_fraction(frac.start, frac.end)
+                for frac in self.reference.fractions
+            ]
+
+            solution.time = np.array([(frac.start + frac.end)/2 for frac in solution_fractions])
+            solution.solution = np.array([frac.concentration for frac in solution_fractions])
+
+            return solution
+
+        self.transform = transform
+
+    def _evaluate(self, solution):
+        """np.array: Difference in breakthrough position (time).
+
+        Parameters
+        ----------
+        solution : SolutionIO
+            Concentration profile of simulation.
+
+        """
+        sse = calculate_sse(solution.solution, self.reference.solution)
+
+        return sse
