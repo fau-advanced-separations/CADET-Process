@@ -24,11 +24,14 @@ class Species(Structure):
         The charge of the species. Default is 0.
     molecular_weight : float
         The molecular weight of the species.
+    density : float
+        Density of the species.
 
     """
     name = String()
     charge = Integer(default=0)
     molecular_weight = UnsignedFloat()
+    density = UnsignedFloat()
 
 
 class Component(Structure):
@@ -50,6 +53,8 @@ class Component(Structure):
         Charge of component (including species).
     molecular_weight : list
         Molecular weight of component (including species).
+    density : list
+        Density of component (including species).
 
     See Also
     --------
@@ -60,7 +65,13 @@ class Component(Structure):
     name = String()
 
     def __init__(
-            self, name=None, species=None, charge=None, molecular_weight=None):
+            self,
+            name=None,
+            species=None,
+            charge=None,
+            molecular_weight=None,
+            density=None
+            ):
         """
         Parameters
         ----------
@@ -72,21 +83,25 @@ class Component(Structure):
             Charges of the subspecies.
         molecular_weight : float or list of float or None, optional
             Molecular weights of the subspecies.
+        density : list
+            Density of component (including species).
         """
         self.name = name
         self._species = []
 
         if species is None:
-            self.add_species(name, charge, molecular_weight)
+            self.add_species(name, charge, molecular_weight, density)
         elif isinstance(species, str):
-            self.add_species(species, charge, molecular_weight)
+            self.add_species(species, charge, molecular_weight, density)
         elif isinstance(species, list):
             if charge is None:
                 charge = len(species) * [None]
             if molecular_weight is None:
                 molecular_weight = len(species) * [None]
+            if density is None:
+                density = len(species) * [None]
             for i, spec in enumerate(species):
-                self.add_species(spec, charge[i], molecular_weight[i])
+                self.add_species(spec, charge[i], molecular_weight[i], density[i])
         else:
             raise CADETProcessError("Could not determine number of species")
 
@@ -136,6 +151,11 @@ class Component(Structure):
         """list of float or None: The molecular weights of the subspecies."""
         return [spec.molecular_weight for spec in self.species]
 
+    @property
+    def density(self):
+        """list of float or None: The density of the subspecies."""
+        return [spec.density for spec in self.species]
+
     def __str__(self):
         """String representation of the component."""
         return self.name
@@ -172,6 +192,8 @@ class ComponentSystem(Structure):
         Charges of all components species.
     molecular_weights : list
         Molecular weights of all component species.
+    densities : list
+        Densities of all component species.
 
     See Also
     --------
@@ -182,7 +204,13 @@ class ComponentSystem(Structure):
     name = String()
 
     def __init__(
-            self, components=None, name=None, charges=None, molecular_weights=None):
+            self,
+            components=None,
+            name=None, 
+            charges=None,
+            molecular_weights=None,
+            densities=None
+        ):
         """Initialize the ComponentSystem object.
 
         Parameters
@@ -196,6 +224,8 @@ class ComponentSystem(Structure):
             The charges of each component.
         molecular_weights : list, None
             The molecular weights of each component.
+        densities : list, None
+            The densities of each component.
 
         Raises
         ------
@@ -222,12 +252,15 @@ class ComponentSystem(Structure):
             charges = n_comp * [None]
         if molecular_weights is None:
             molecular_weights = n_comp * [None]
+        if densities is None:
+            densities = n_comp * [None]
 
         for i, comp in enumerate(components):
             self.add_component(
                 comp,
                 charge=charges[i],
                 molecular_weight=molecular_weights[i],
+                density=densities[i]
             )
 
     @property
@@ -378,6 +411,15 @@ class ComponentSystem(Structure):
             molecular_weights += comp.molecular_weight
 
         return molecular_weights
+
+    @property
+    def densities(self):
+        """list: List of species densities."""
+        densities = []
+        for comp in self.components:
+            densities += comp.density
+
+        return densities
 
     def __repr__(self):
         return f'{self.__class__.__name__}({self.names})'
