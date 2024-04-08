@@ -42,6 +42,13 @@ class TestComponents(unittest.TestCase):
             molecular_weight=[1, 0]
         )
 
+        self.component_system_6 = ComponentSystem()
+        self.component_system_6.add_component(
+            'A',
+            species=['A+', 'A-'],
+            density=[1, 0]
+        )
+
     def test_names(self):
         names_expected = ['0', '1']
         names = self.component_system_0.names
@@ -126,6 +133,10 @@ class TestComponents(unittest.TestCase):
         molecular_weights = self.component_system_5.molecular_weights
         np.testing.assert_equal(molecular_weights_expected, molecular_weights)
 
+    def test_densities(self):
+        densities_expected = [1, 0]
+        densities = self.component_system_6.densities
+        np.testing.assert_equal(densities_expected, densities)
 
 if __name__ == '__main__':
     unittest.main()
