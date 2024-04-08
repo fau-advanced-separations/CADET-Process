@@ -127,6 +127,8 @@ class Section(Structure):
 
         return value
 
+    __call__ = value
+
     def coefficients(self, offset=0):
         """Get coefficients at (time) offset.
 
