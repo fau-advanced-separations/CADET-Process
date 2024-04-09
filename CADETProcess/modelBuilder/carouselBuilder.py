@@ -15,7 +15,7 @@ from CADETProcess.dataStructure import Integer, UnsignedInteger, UnsignedFloat
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess.processModel import BindingBaseClass, Linear, Langmuir
 from CADETProcess.processModel import UnitBaseClass, FlowSheet, Process
-from CADETProcess.processModel import Inlet, TubularReactorBase, Cstr, Outlet
+from CADETProcess.processModel import Inlet, TubularReactorBase, TubularReactor, Outlet
 
 from CADETProcess.solution import SolutionBase
 
@@ -78,11 +78,17 @@ class ZoneBaseClass(UnitBaseClass):
         self.flow_direction = flow_direction
         self.initial_state = initial_state
 
-        self._inlet_unit = Cstr(component_system, f'{name}_inlet')
+        self._inlet_unit = TubularReactor(component_system, f'{name}_inlet')
+        self._inlet_unit.discretization.ncol = 1
+        self._inlet_unit.length = 1e-3
+        self._inlet_unit.cross_section_area = self.valve_dead_volume / self._inlet_unit.length
+        self._inlet_unit.axial_dispersion = 1e-9
 
-        self._inlet_unit.V = self.valve_dead_volume
-        self._outlet_unit = Cstr(component_system, f'{name}_outlet')
-        self._outlet_unit.V = self.valve_dead_volume
+        self._outlet_unit = TubularReactor(component_system, f'{name}_outlet')
+        self._outlet_unit.discretization.ncol = 1
+        self._outlet_unit.length = 1e-3
+        self._outlet_unit.cross_section_area = self.valve_dead_volume / self._outlet_unit.length
+        self._outlet_unit.axial_dispersion = 1e-9
 
         super().__init__(component_system, name, *args, **kwargs)
 
