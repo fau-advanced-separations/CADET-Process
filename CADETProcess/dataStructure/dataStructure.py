@@ -1,4 +1,4 @@
-from abc import ABC
+from abc import ABC, ABCMeta
 from collections import OrderedDict
 from inspect import Parameter, Signature
 from functools import wraps
@@ -325,8 +325,13 @@ class StructMeta(type):
         return clsobj
 
 
+
+class AbstractStructMeta(StructMeta, ABCMeta):
+    pass
+
+
 # %% Stucture / ParameterHandler
-class Structure(metaclass=StructMeta):
+class Structure(metaclass=AbstractStructMeta):
     """
     A class representing a structured data entity.
 
@@ -359,17 +364,16 @@ class Structure(metaclass=StructMeta):
         **kwargs
             Keyword arguments representing parameters.
         """
+        bound = self.__signature__.bind_partial(*args, **kwargs)
+        for name, val in bound.arguments.items():
+            setattr(self, name, val)
+
         self._parameters_dict = Dict()
         for param in self._parameters:
             value = getattr(self, param)
             if param in self._optional_parameters and value is None:
                 continue
-
             self._parameters_dict[param] = value
-
-        bound = self.__signature__.bind_partial(*args, **kwargs)
-        for name, val in bound.arguments.items():
-            setattr(self, name, val)
 
     @property
     def parameters(self):
