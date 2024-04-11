@@ -1,5 +1,6 @@
 from copy import deepcopy
 from functools import wraps
+from typing import Any, Optional, NoReturn
 import warnings
 
 import numpy as np
@@ -11,7 +12,8 @@ from CADETProcess import plotting
 from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import Integer, UnsignedInteger, UnsignedFloat
 
-from CADETProcess.processModel import Linear, Langmuir
+from CADETProcess.processModel import ComponentSystem
+from CADETProcess.processModel import BindingBaseClass, Linear, Langmuir
 from CADETProcess.processModel import UnitBaseClass, FlowSheet, Process
 from CADETProcess.processModel import Inlet, TubularReactorBase, Cstr, Outlet
 
@@ -22,81 +24,221 @@ __all__ = [
     'SerialZone',
     'ParallelZone',
     'CarouselBuilder',
+    'SMBBuilder',
     'LinearSMBBuilder',
     'LangmuirSMBBuilder',
 ]
 
 
+class ZoneBaseClass(UnitBaseClass):
+    """Base class for a multi-column zone with configurable columns and flow directions.
+
+    Attributes
+    ----------
+    n_columns : UnsignedInteger
+        The number of columns in the zone.
+    flow_direction : Integer
+        The flow direction in the zone, where 1 indicates normal and -1 indicates
+        reverse flow.
+    valve_dead_volume : UnsignedFloat
+        The dead volume of the valves in the zone.
+    """
+
+    n_columns = UnsignedInteger()
+    flow_direction = Integer(default=1)
+    valve_dead_volume = UnsignedFloat(default=1e-6)
+
+    def __init__(
+            self,
+            component_system: ComponentSystem,
+            name: str,
+            n_columns: int = 1,
+            flow_direction: int = 1,
+            initial_state: list = None,
+            *args,
+            **kwargs
+            ) -> NoReturn:
+        """
+        Initialize a ZoneBaseClass instance.
+
+        Parameters
+        ----------
+        component_system : Any
+            The component system associated with this zone.
+        name : str
+            The name of the zone.
+        n_columns : int, optional
+            Number of columns in the zone.
+        flow_direction : int, optional
+            Flow direction in the zone.
+        initial_state : Any, optional
+            Initial state of the zone.
+        """
+        self.n_columns = n_columns
+        self.flow_direction = flow_direction
+        self.initial_state = initial_state
+
+        self._inlet_unit = Cstr(component_system, f'{name}_inlet')
+
+        self._inlet_unit.V = self.valve_dead_volume
+        self._outlet_unit = Cstr(component_system, f'{name}_outlet')
+        self._outlet_unit.V = self.valve_dead_volume
+
+        super().__init__(component_system, name, *args, **kwargs)
+
+    @property
+    def initial_state(self) -> list[dict[str, list]]:
+        """list: The initial state of the columns in the zone."""
+        return self._initial_state
+
+    @initial_state.setter
+    def initial_state(
+            self,
+            initial_state: list[dict[str, list]] | dict[str, list]
+            ) -> NoReturn:
+        if initial_state is None:
+            self._initial_state = initial_state
+            return
+
+        if not isinstance(initial_state, list):
+            initial_state = self.n_columns * [initial_state]
+
+        if len(initial_state) != self.n_columns:
+            raise CADETProcessError(f"Expected size {self.n_columns}")
+
+        self._initial_state = initial_state
+
+    @property
+    def inlet_unit(self) -> Cstr:
+        """Cstr: The inlet CSTR unit of the zone."""
+        return self._inlet_unit
+
+    @property
+    def outlet_unit(self) -> Cstr:
+        """Cstr: The outlet CSTR unit of the zone."""
+        return self._outlet_unit
+
+
+class SerialZone(ZoneBaseClass):
+    """Zone with columns connected in series."""
+
+    pass
+
+
+class ParallelZone(ZoneBaseClass):
+    """Zone with columns connected in parallel."""
+
+    pass
+
+
 class CarouselBuilder(Structure):
+    """
+    Configurator for multi-column processes.
+
+    Attributes
+    ----------
+    component_system : Any
+        The system of components for which the carousel is configured.
+    name : str
+        Name of the carousel system.
+    switch_time : float
+        Column switch time.
+    """
+
     switch_time = UnsignedFloat()
 
-    def __init__(self, component_system, name):
+    def __init__(self, component_system: ComponentSystem, name: str) -> NoReturn:
+        """
+        Initialize a CarouselBuilder instance.
+
+        Parameters
+        ----------
+        component_system : Any
+            The system of components that will be used in the carousel.
+        name : str
+            The carousel name.
+        """
         self.component_system = component_system
         self.name = name
         self._flow_sheet = FlowSheet(component_system, name)
         self._column = None
 
     @property
-    def flow_sheet(self):
+    def flow_sheet(self) -> FlowSheet:
+        """FlowSheet: The flow sheet instance associated with the carousel."""
         return self._flow_sheet
 
     @property
-    def column(self):
+    def column(self) -> TubularReactorBase:
+        """TubularReactorBase: The column template for all zones."""
         return self._column
 
     @column.setter
-    def column(self, column):
+    def column(self, column: TubularReactorBase) -> NoReturn:
         if not isinstance(column, TubularReactorBase):
-            raise TypeError
+            raise TypeError("Column must be an instance of TubularReactorBase.")
         if self.component_system is not column.component_system:
             raise CADETProcessError('Number of components does not match.')
         self._column = column
 
     @wraps(FlowSheet.add_unit)
     def add_unit(self, *args, **kwargs):
-        """Wrapper around function of auxiliary flow_sheet."""
+        """Wrap FlowSheet.add_unit to add a unit to the flow sheet."""
         self.flow_sheet.add_unit(*args, **kwargs)
 
     @wraps(FlowSheet.add_connection)
     def add_connection(self, *args, **kwargs):
-        """Wrapper around function of auxiliary flow_sheet."""
+        """Wrap FlowSheet.add_connection to add a connection between units."""
         self.flow_sheet.add_connection(*args, **kwargs)
 
     @wraps(FlowSheet.set_output_state)
-    def set_output_state(self, *args, **kwargs):
-        """Wrapper around function of auxiliary flow_sheet."""
+    def set_output_state(self, *args, **kwargs) -> NoReturn:
+        """Wrap FlowSheet.set_output_state to set the output state of a unit."""
         self.flow_sheet.set_output_state(*args, **kwargs)
 
     @property
-    def zones(self):
-        """list: list of all zones in the carousel system."""
+    def zones(self) -> list[ZoneBaseClass]:
+        """
+        Get all zones in the carousel system.
+
+        Returns
+        -------
+        list
+            A list of all zones in the carousel system.
+        """
         return [
-            unit for unit in self.flow_sheet.units
-            if isinstance(unit, ZoneBaseClass)
+            unit for unit in self.flow_sheet.units if isinstance(unit, ZoneBaseClass)
         ]
 
     @property
-    def zone_names(self):
+    def zone_names(self) -> list[str]:
         """list: Zone names."""
         return [zone.name for zone in self.zones]
 
     @property
-    def zones_dict(self):
+    def zones_dict(self) -> dict[str, ZoneBaseClass]:
         """dict: Zone names and objects."""
         return {zone.name: zone for zone in self.zones}
 
     @property
-    def n_zones(self):
-        """int: Number of zones in the Carousel System"""
+    def n_zones(self) -> int:
+        """int: Number of zones in the Carousel System."""
         return len(self.zones)
 
     @property
-    def n_columns(self):
-        """int: Number of columns in the Carousel System"""
+    def n_columns(self) -> int:
+        """int: Number of columns in the Carousel System."""
         return sum([zone.n_columns for zone in self.zones])
 
-    def build_flow_sheet(self):
-        """Build flow_sheet."""
+    def build_flow_sheet(self) -> FlowSheet:
+        """
+        Assemble the flow sheet.
+
+        Returns
+        -------
+        FlowSheet
+            The assembled flow sheet.
+        """
         if self.column is None:
             raise CADETProcessError("No column associated with Carousel.")
 
@@ -108,8 +250,8 @@ class CarouselBuilder(Structure):
 
         return flow_sheet
 
-    def _add_units(self, flow_sheet):
-        """Add units to flow_sheet"""
+    def _add_units(self, flow_sheet: FlowSheet) -> NoReturn:
+        """Add units to flow_sheet."""
         col_index = 0
         for unit in self.flow_sheet.units:
             if not isinstance(unit, ZoneBaseClass):
@@ -134,7 +276,7 @@ class CarouselBuilder(Structure):
                     flow_sheet.add_unit(col)
                     col_index += 1
 
-    def _add_inter_zone_connections(self, flow_sheet):
+    def _add_inter_zone_connections(self, flow_sheet: FlowSheet) -> NoReturn:
         """Add connections between zones."""
         for unit, connections in self.flow_sheet.connections.items():
             if isinstance(unit, ZoneBaseClass):
@@ -152,7 +294,7 @@ class CarouselBuilder(Structure):
             output_state = self.flow_sheet.output_states[zone]
             flow_sheet.set_output_state(zone.outlet_unit, output_state)
 
-    def _add_intra_zone_connections(self, flow_sheet):
+    def _add_intra_zone_connections(self, flow_sheet: FlowSheet) -> NoReturn:
         """Add connections within zones."""
         for zone in self.zones:
             for col_index in range(self.n_columns):
@@ -169,8 +311,15 @@ class CarouselBuilder(Structure):
                 col_dest = flow_sheet[f'column_{0}']
             flow_sheet.add_connection(col_orig, col_dest)
 
-    def build_process(self):
-        """Build process."""
+    def build_process(self) -> Process:
+        """
+        Assemble the process object.
+
+        Returns
+        -------
+        Process
+            The assembled process object.
+        """
         flow_sheet = self.build_flow_sheet()
         process = Process(flow_sheet, self.name)
 
@@ -179,7 +328,7 @@ class CarouselBuilder(Structure):
         return process
 
     @property
-    def cycle_time(self):
+    def cycle_time(self) -> float:
         """float: cycle time of the process."""
         return self.n_columns * self.switch_time
 
@@ -258,7 +407,7 @@ class CarouselBuilder(Structure):
 
                 position_counter += zone.n_columns
 
-    def carousel_state(self, t):
+    def carousel_state(self, t) -> float:
         """int: Carousel state at given time.
 
         Parameters
@@ -320,67 +469,46 @@ class CarouselBuilder(Structure):
         return column_indices
 
 
-class ZoneBaseClass(UnitBaseClass):
-    n_columns = UnsignedInteger()
-    flow_direction = Integer(default=1)
-    valve_dead_volume = UnsignedFloat(default=1e-6)
+class SMBBuilder(CarouselBuilder):
+    """
+    Configurator for 4 Zone SMB systems.
+
+    Attributes
+    ----------
+    binding_model_type : Type[BindingBaseClass]
+        Specifies the type of binding model used in the SMB process.
+    """
+
+    binding_model_type = BindingBaseClass
 
     def __init__(
             self,
-            component_system, name, n_columns=1,
-            flow_direction=1, initial_state=None,
-            *args, **kwargs):
-        self.n_columns = n_columns
-        self.flow_direction = flow_direction
-        self.initial_state = initial_state
+            feed: Inlet,
+            eluent: Inlet,
+            column: TubularReactorBase,
+            name: str = 'SMB'
+            ) -> NoReturn:
+        """
+        Initialize an SMBBuilder instance.
 
-        self._inlet_unit = Cstr(component_system, f'{name}_inlet')
+        Parameters
+        ----------
+        feed : Inlet
+            The feed inlet to the SMB system.
+        eluent : Inlet
+            The eluent inlet to the SMB system.
+        column : TubularReactorBase
+            The column equipment in the SMB system.
+        name : str, optional
+            The name of the SMB setup, by default 'SMB'.
 
-        self._inlet_unit.V = self.valve_dead_volume
-        self._outlet_unit = Cstr(component_system, f'{name}_outlet')
-        self._outlet_unit.V = self.valve_dead_volume
-
-        super().__init__(component_system, name, *args, **kwargs)
-
-    @property
-    def initial_state(self):
-        return self._initial_state
-
-    @initial_state.setter
-    def initial_state(self, initial_state):
-        if initial_state is None:
-            self._initial_state = initial_state
-            return
-
-        if not isinstance(initial_state, list):
-            initial_state = self.n_columns * [initial_state]
-
-        if len(initial_state) != self.n_columns:
-            raise CADETProcessError(f"Expected size {self.n_columns}")
-
-        self._initial_state = initial_state
-
-    @property
-    def inlet_unit(self):
-        return self._inlet_unit
-
-    @property
-    def outlet_unit(self):
-        return self._outlet_unit
-
-
-class SerialZone(ZoneBaseClass):
-    pass
-
-
-class ParallelZone(ZoneBaseClass):
-    pass
-
-
-class SMBBuilder(CarouselBuilder):
-    binding_model_type = None
-
-    def __init__(self, feed, eluent, column, name='SMB'):
+        Raises
+        ------
+        CADETProcessError
+            If component systems of feed, eluent, and column do not match.
+        TypeError
+            If feed, eluent, or column are not of the expected type.
+        """
         component_system = feed.component_system
         if not (component_system is eluent.component_system is column.component_system):
             raise CADETProcessError("ComponentSystems do not match.")
@@ -432,16 +560,22 @@ class SMBBuilder(CarouselBuilder):
         self.add_connection(zone_IV, zone_I)
 
     def _validate_binding_model(self, binding_model):
+        """
+        Validate that the provided binding model matches the required type.
+
+        Parameters
+        ----------
+        binding_model : BindingBaseClass
+            The binding model to be validated.
+
+        Raises
+        ------
+        TypeError
+            If the binding model does not match the expected type.
+        """
         if not isinstance(binding_model, self.binding_model_type):
-            raise TypeError(f'Invalid binding model. Expected {self.binding_model_type}.')
-
-        if binding_model.n_comp != 2:
-            raise CADETProcessError("This only works for 2-Component Systems.")
-
-        if binding_model.is_kinetic:
-            warnings.warn(
-                "Isotherm uses kinetic binding, "
-                "however, triangle theory assumes instant equilibrium."
+            raise TypeError(
+                f'Invalid binding model. Expected {self.binding_model_type}.'
             )
 
     def _get_zone_flow_rates(self, m, switch_time):
@@ -450,10 +584,10 @@ class SMBBuilder(CarouselBuilder):
         Vc = self.column.volume
         et = self.column.total_porosity
 
-        Q_I = Vc*(m1*(1-et)+et)/switch_time   # Flussrate Zone 1
-        Q_II = Vc*(m2*(1-et)+et)/switch_time   # Flussrate Zone 2
-        Q_III = Vc*(m3*(1-et)+et)/switch_time   # Flussrate Zone 3
-        Q_IV = Vc*(m4*(1-et)+et)/switch_time   # Flussrate Zone 4
+        Q_I = Vc*(m1*(1-et)+et)/switch_time     # Flow rate Zone I
+        Q_II = Vc*(m2*(1-et)+et)/switch_time    # Flow rate Zone II
+        Q_III = Vc*(m3*(1-et)+et)/switch_time   # Flow rate Zone III
+        Q_IV = Vc*(m4*(1-et)+et)/switch_time    # Flow rate Zone IV
 
         return [Q_I, Q_II, Q_III, Q_IV]
 
@@ -476,24 +610,125 @@ class SMBBuilder(CarouselBuilder):
 
         return w_r, w_e
 
-    def get_design_parameters(self, binding_model):
-        raise NotImplementedError()
+    def get_design_parameters(
+            self,
+            binding_model: BindingBaseClass,
+            c_feed: np.ndarray,
+            ) -> Any:
+        """
+        Retrieve design parameters based on the binding model.
 
-    def calculate_m_opt(self, *design_parameters):
-        raise NotImplementedError()
+        Parameters
+        ----------
+        binding_model : BindingBaseClass
+            The binding model used to calculate design parameters.
+        c_feed : np.ndarray
+            The feed concentration.
 
-    def apply_safety_factor(self, m_opt, *design_parameters, gamma):
-        raise NotImplementedError()
+        Returns
+        -------
+        Any
+            The design parameters computed from the binding model.
+
+        Raises
+        ------
+        NotImplementedError
+            This method should be implemented by subclasses.
+        """
+        raise NotImplementedError("Subclass must implement this method.")
+
+    def calculate_m_opt(self, *design_parameters: Any) -> list:
+        """
+        Calculate the optimal zone flow rates based on provided design parameters.
+
+        Parameters
+        ----------
+        design_parameters : Any
+            A variable number of parameters defining the design.
+
+        Returns
+        -------
+        list
+            The optimal zone flow rates based on the design parameters.
+
+        Raises
+        ------
+        NotImplementedError
+            This method should be implemented by subclasses.
+        """
+        raise NotImplementedError("Subclass must implement this method.")
+
+    def apply_safety_factor(
+            self,
+            m_opt: list,
+            *design_parameters: Any,
+            gamma: float | list[float]
+            ) -> Any:
+        """
+        Apply a safety factor to the optimal zone flow rates.
+
+        Parameters
+        ----------
+        m_opt : Any
+            The optimal zone flow rates calculated without safety considerations.
+        design_parameters : Any
+            A variable number of parameters defining the design.
+        gamma : float | list[float]
+            The safety factor(s) to apply to the zone flow rates. If float is provided,
+            the same value is applied to all zone flow rates.
+
+        Returns
+        -------
+        list
+            The adjusted zone flow rates after applying the safety factor.
+
+        Raises
+        ------
+        NotImplementedError
+            This method should be implemented by subclasses.
+        """
+        raise NotImplementedError("Subclass must implement this method.")
 
     def triangle_design(
             self,
-            binding_model=None,
-            c_feed=None,
-            switch_time=None,
-            gamma=1,
-            set_values=True,
-            ):
+            binding_model: Optional[BindingBaseClass] = None,
+            c_feed: Optional[np.ndarray] = None,
+            switch_time: Optional[float] = None,
+            gamma: float | list[float] = 1,
+            set_values: bool = True
+            ) -> list[float]:
+        """
+        Design the SMB process according to the triangle theory.
 
+        Parameters
+        ----------
+        binding_model : BindingBaseClass, optional
+            The binding model to be used.
+            If None, uses the binding model from the column attribute.
+        c_feed : np.ndarray, optional
+            Feed concentration matrix.
+            If None, uses current feed concentrations.
+        switch_time : float, optional
+            Switching time for the SMB zones.
+            If None, uses the existing switch_time attribute.
+        gamma : float | list[float]
+            The safety factor(s) to apply to the zone flow rates. If float is provided,
+            the same value is applied to all zone flow rates.
+            The default is 1.
+        set_values : bool, default True
+            If True, sets the calculated values to the process model.
+
+        Returns
+        -------
+        list
+            A list containing the feed flow rate, eluent flow rate, raffinate and
+            extract split ratios.
+
+        Raises
+        ------
+        Warning
+            If binding_model is provided and set_values is True, values cannot be set.
+        """
         if binding_model is None:
             binding_model = self.column.binding_model
         elif set_values is True:
@@ -509,7 +744,11 @@ class SMBBuilder(CarouselBuilder):
 
         design_parameters = self.get_design_parameters(binding_model, c_feed)
         m_opt = self.calculate_m_opt(*design_parameters)
-        m = self.apply_safety_factor(m_opt, *design_parameters, gamma)
+        m = self.apply_safety_factor(
+            m_opt,
+            *design_parameters,
+            gamma=gamma
+        )
 
         if switch_time is None:
             switch_time = self.switch_time
@@ -531,13 +770,42 @@ class SMBBuilder(CarouselBuilder):
 
     def plot_triangle(
             self,
-            binding_model=None,
-            c_feed=None,
-            gamma=1,
-            operating_point=None,
-            fig=None,
-            ax=None,
-            ):
+            binding_model: Optional[BindingBaseClass] = None,
+            c_feed: Optional[np.ndarray] = None,
+            gamma: float | list[float] = 1,
+            fig: Optional[plt.Figure] = None,
+            ax: Optional[plt.Axes] = None
+            ) -> tuple[plt.Figure, plt.Axes]:
+        """
+        Plot the triangle diagram for the SMB process with the operating point marked.
+
+        Parameters
+        ----------
+        binding_model : BindingBaseClass, optional
+            The binding model to use for the plot.
+            If None, uses the column's binding model.
+        c_feed : np.ndarray, optional
+            The feed concentration array.
+            If None, uses the current feed concentration from the flow sheet.
+        gamma : float | list[float]
+            The safety factor(s) to apply to the zone flow rates. If float is provided,
+            the same value is applied to all zone flow rates.
+        fig : plt.Figure, optional
+            The matplotlib figure object. If None, a new figure will be created.
+        ax : plt.Axes, optional
+            The matplotlib axes object.
+            If None, a new axes will be created in the new or specified figure.
+
+        Returns
+        -------
+        tuple[plt.Figure, plt.Axes]
+            The figure and axes objects containing the triangle diagram.
+
+        Notes
+        -----
+        This method uses internal methods to fetch design parameters and calculate
+        optimal zone flow rates, which should be defined in a subclass.
+        """
         if binding_model is None:
             binding_model = self.column.binding_model
         self._validate_binding_model(binding_model)
@@ -548,7 +816,11 @@ class SMBBuilder(CarouselBuilder):
         # Operating Point
         design_parameters = self.get_design_parameters(binding_model, c_feed)
         m_opt = self.calculate_m_opt(*design_parameters)
-        m1, m2, m3, m4 = self.apply_safety_factor(m_opt, *design_parameters, gamma)
+        m1, m2, m3, m4 = self.apply_safety_factor(
+            m_opt,
+            *design_parameters,
+            gamma=gamma
+        )
 
         # Setup figure
         if fig is None:
@@ -561,18 +833,103 @@ class SMBBuilder(CarouselBuilder):
         ax.set_ylabel('$m_{III}$')
 
         # Operating point
-        ax.plot(m2, m3, 'ok')
+        ax.scatter(m2, m3, c='k', marker='x', zorder=3)
+        ax.annotate(
+            'operating point',
+            xy=(m2, m3),
+            xytext=(1.1*m2, 0.9*m3),
+            arrowprops=dict(facecolor='black', shrink=0.01),
+        )
 
         return fig, ax
 
     def _plot_triangle(self, ax, *design_parameters):
+        """
+        Plot a theoretical triangle diagram for SMB processes.
+
+        This method needs to be implemented by subclasses to define the specific way the
+        triangle is visualized based on provided design parameters.
+
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes
+            The matplotlib axes on which the triangle will be plotted.
+        design_parameters : Any
+            Variable-length argument list of design parameters that define the triangle.
+
+        Raises
+        ------
+        NotImplementedError
+            This is a placeholder method and should be implemented in subclasses.
+        """
         raise NotImplementedError()
 
 
 class LinearSMBBuilder(SMBBuilder):
+    """
+    Configure a 4-zone SMB system with linear isotherms.
+
+    Note, this is currently only supported for 2-Component systems.
+
+    Attributes
+    ----------
+    binding_model_type : type
+        Specifies that this builder uses the Linear binding model.
+    """
+
     binding_model_type = Linear
 
-    def get_design_parameters(self, binding_model, c_feed):
+    def _validate_binding_model(self, binding_model):
+        """
+        Validate the binding model for compatibility with Langmuir SMB systems.
+
+        Parameters
+        ----------
+        binding_model : BindingBaseClass
+            The binding model to be validated.
+
+        Raises
+        ------
+        CADETProcessError
+            If the binding model does not contain exactly two components.
+
+        Warns
+        -----
+        RuntimeWarning
+            If the binding model is kinetic, which conflicts with the assumption of
+            instant equilibrium.
+        """
+        super()._validate_binding_model(binding_model)
+
+        if binding_model.n_comp != 2:
+            raise CADETProcessError("This only works for 2-Component Systems.")
+
+        if binding_model.is_kinetic:
+            warnings.warn(
+                "Isotherm uses kinetic binding, "
+                "however, triangle theory assumes instant equilibrium."
+            )
+
+    def get_design_parameters(
+            self,
+            binding_model: BindingBaseClass,
+            c_feed: np.ndarray
+            ) -> tuple[float, float]:
+        """
+        Calculate Henry's constants (H) based on adsorption and desorption rates.
+
+        Parameters
+        ----------
+        binding_model : BindingBaseClass
+            The binding model containing adsorption and desorption rate data.
+        c_feed : np.ndarray
+            The concentration feed.
+
+        Returns
+        -------
+        Tuple[float, float]
+            Henry's constants for the strongly and weakly adsorbing components.
+        """
         k_ads = np.array(binding_model.adsorption_rate)
         k_des = np.array(binding_model.desorption_rate)
         H = k_ads / k_des
@@ -584,7 +941,26 @@ class LinearSMBBuilder(SMBBuilder):
 
         return HA, HB
 
-    def calculate_m_opt(self, HA, HB):
+    def calculate_m_opt(
+            self,
+            HA: float,
+            HB: float
+            ) -> list[float]:
+        """
+        Calculate the optimal flow rates for SMB zones based on Henry's constants.
+
+        Parameters
+        ----------
+        HA : float
+            Henry's constant for strongly binding component.
+        HB : float
+            Henry's constant for weakly binding component.
+
+        Returns
+        -------
+        list[float]
+            List of optimal flow rates for zones 1 to 4, respectively.
+        """
         m1 = HA
         m2 = HB
         m3 = HA
@@ -592,7 +968,36 @@ class LinearSMBBuilder(SMBBuilder):
 
         return [m1, m2, m3, m4]
 
-    def apply_safety_factor(self, m_opt, *design_parameters, gamma=1):
+    def apply_safety_factor(
+            self,
+            m_opt: list[float],
+            *design_parameters: Any,
+            gamma: float | list[float] = 1
+            ) -> list[float]:
+        """
+        Adjust the optimal flow rates by applying safety factors to each zone.
+
+        Parameters
+        ----------
+        m_opt : list[float]
+            A list containing the optimal flow rates for zones 1 to 4.
+        design_parameters : Union[float, List[float]]
+            Additional design parameters that might influence safety factor application.
+        gamma : float | list[float]
+            Safety factors to apply. Can be a single float applied to all zones, or a
+            list of floats for each zone. The default is 1.
+
+        Returns
+        -------
+        list[float]
+            Adjusted flow rates for zones 1 to 4 after applying the safety factors.
+
+        Raises
+        ------
+        ValueError
+            If the product of gamma for zones 2 and 3 is not smaller than the ratio of
+            m3_opt to m2_opt, which is a critical operational constraint.
+        """
         m1_opt, m2_opt, m3_opt, m4_opt = m_opt
 
         if np.isscalar(gamma):
@@ -610,7 +1015,11 @@ class LinearSMBBuilder(SMBBuilder):
 
         return [m1, m2, m3, m4]
 
-    def _plot_triangle(self, ax, HA, HB):
+    def _plot_triangle(
+            self, ax,
+            HA: float,
+            HB: float,
+            ) -> NoReturn:
         """
         Plot SMB triangle for linear isotherm.
 
@@ -623,10 +1032,10 @@ class LinearSMBBuilder(SMBBuilder):
         ----------
         ax : matplotlib.axes.Axes
             Axes to plot on.
-        binding_model : CADETProcess.processModel.BindingBaseClass
-            Binding model to use for plotting.
-        gamma : list or float, optional
-            Safety factor(s) for operating points.
+        HA : float
+            Henry coefficient of strongly binding component.
+        HB : float
+            Henry coefficient of strongly binding component.
 
         """
         # Bounds
@@ -663,9 +1072,71 @@ class LinearSMBBuilder(SMBBuilder):
 
 
 class LangmuirSMBBuilder(SMBBuilder):
+    """
+    Configure a 4-zone SMB system with Langmuir isotherms.
+
+    Note, this is currently only supported for 2-Component systems.
+
+    Attributes
+    ----------
+    binding_model_type : type
+        Specifies that this builder uses the Linear binding model.
+    """
+
     binding_model_type = Langmuir
 
-    def get_design_parameters(self, binding_model, c_feed):
+    def _validate_binding_model(self, binding_model: BindingBaseClass) -> NoReturn:
+        """
+        Validate the binding model for compatibility with Langmuir SMB systems.
+
+        Parameters
+        ----------
+        binding_model : BindingBaseClass
+            The binding model to be validated.
+
+        Raises
+        ------
+        CADETProcessError
+            If the binding model does not contain exactly two components.
+
+        Warns
+        -----
+        RuntimeWarning
+            If the binding model is kinetic, which conflicts with the assumption of
+            instant equilibrium.
+        """
+        super()._validate_binding_model(binding_model)
+
+        if binding_model.n_comp != 2:
+            raise CADETProcessError("This only works for 2-Component Systems.")
+
+        if binding_model.is_kinetic:
+            warnings.warn(
+                "Isotherm uses kinetic binding, "
+                "however, triangle theory assumes instant equilibrium."
+            )
+
+    def get_design_parameters(
+            self,
+            binding_model: BindingBaseClass,
+            c_feed: np.ndarray
+            ) -> tuple[float, float]:
+        """
+        Calculate the optimal flow rates for SMB zones based on the provided parameters.
+
+        Parameters
+        ----------
+        binding_model : BindingBaseClass
+            The binding model parameters.
+        c_feed : np.ndarray
+            The concentration feed matrix.
+
+        Returns
+        -------
+        tuple
+            A tuple containing Henry's constants HA, HB, binding coefficients bA, bB,
+            feed concentrations cFA, cFB, and quadratic nulls wG, wF.
+        """
         k_ads = np.array(binding_model.adsorption_rate)
         k_des = np.array(binding_model.desorption_rate)
         k_eq = k_ads / k_des
@@ -688,7 +1159,44 @@ class LangmuirSMBBuilder(SMBBuilder):
 
         return HA, HB, bA, bB, cFA, cFB, wG, wF
 
-    def calculate_m_opt(self, HA, HB, bA, bB, cFA, cFB, wG, wF):
+    def calculate_m_opt(
+            self,
+            HA: float,
+            HB: float,
+            bA: float,
+            bB: float,
+            cFA: float,
+            cFB: float,
+            wG: float,
+            wF: float
+            ) -> list[float]:
+        """
+        Calculate optimal zone flow rates based on Langmuir isotherm parameters.
+
+        Parameters
+        ----------
+        HA : float
+            Henry's constant for strongly binding component.
+        HB : float
+            Henry's constant for weakly binding component.
+        bA : float
+            Binding coefficient for strongly binding component.
+        bB : float
+            Binding coefficient for weakly binding component.
+        cFA : float
+            Feed concentration for strongly binding component.
+        cFB : float
+            Feed concentration for weakly binding component.
+        wG : float
+            First quadratic null.
+        wF : float
+            Second quadratic null.
+
+        Returns
+        -------
+        list[float]
+            List of optimal flow rates for zones 1 to 4.
+        """
         m1 = HA
         m2 = HB / HA * wG
         m3 = wG * (wF * (HA - HB) + HB * (HB - wF)) / (HB * (HA - wF))
@@ -696,7 +1204,51 @@ class LangmuirSMBBuilder(SMBBuilder):
 
         return [m1, m2, m3, m4]
 
-    def apply_safety_factor(self, m_opt, HA, HB, bA, bB, cFA, cFB, wG, wF, gamma=1):
+    def apply_safety_factor(
+            self,
+            m_opt: list[float],
+            HA: float,
+            HB: float,
+            bA: float,
+            bB: float,
+            cFA: float,
+            cFB: float,
+            wG: float,
+            wF: float,
+            gamma: float | list[float] = 1
+            ) -> list[float]:
+        """
+        Apply a safety factor to the optimal zone flow rates.
+
+        Parameters
+        ----------
+        m_opt : list[float]
+            List of optimal flow rates for zones 1 to 4.
+        HA : float
+            Henry's constant for strongly binding component.
+        HB : float
+            Henry's constant for weakly binding component.
+        bA : float
+            Binding coefficient for strongly binding component.
+        bB : float
+            Binding coefficient for weakly binding component.
+        cFA : float
+            Feed concentration for strongly binding component.
+        cFB : float
+            Feed concentration for weakly binding component.
+        wG : float
+            First quadratic null.
+        wF : float
+            Second quadratic null.
+        gamma : float | list[float]
+            The safety factor(s) to apply to the zone flow rates. If float is provided,
+            the same value is applied to all zone flow rates.
+
+        Returns
+        -------
+        list[float]
+            Adjusted flow rates for zones 1 to 4 after applying the safety factors.
+        """
         m1_opt, m2_opt, m3_opt, m4_opt = m_opt
 
         if np.isscalar(gamma):
@@ -745,6 +1297,22 @@ class LangmuirSMBBuilder(SMBBuilder):
         ----------
         ax : matplotlib.axes.Axes
             Axes to plot on.
+        HA : float
+            Henry's constant for strongly binding component.
+        HB : float
+            Henry's constant for weakly binding component.
+        bA : float
+            Binding coefficient for strongly binding component.
+        bB : float
+            Binding coefficient for weakly binding component.
+        cFA : float
+            Feed concentration for strongly binding component.
+        cFB : float
+            Feed concentration for weakly binding component.
+        wG : float
+            First quadratic null.
+        wF : float
+            Second quadratic null.
         """
         m1, m2, m3, m4 = self.calculate_m_opt(HA, HB, bA, bB, cFA, cFB, wG, wF)
         W = [m2, m3]
