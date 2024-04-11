@@ -566,10 +566,10 @@ class LinearSMBBuilder(SMBBuilder):
         return HA, HB
 
     def calculate_m_opt(self, HA, HB):
-        m1 = HB
+        m1 = HA
         m2 = HB
         m3 = HA
-        m4 = HA
+        m4 = HB
 
         return [m1, m2, m3, m4]
 
