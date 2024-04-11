@@ -432,7 +432,7 @@ class StericMassAction(BindingBaseClass):
 
 
 class AntiLangmuir(BindingBaseClass):
-    """Multi Component Anti-Langmuir adsoprtion isotherm.
+    """Multi Component Anti-Langmuir adsorption isotherm.
 
     Attributes
     ----------
@@ -461,7 +461,7 @@ class AntiLangmuir(BindingBaseClass):
 
 
 class Spreading(BindingBaseClass):
-    """Multi Component Spreading adsoprtion isotherm.
+    """Multi Component Spreading adsorption isotherm.
 
     Attributes
     ----------
@@ -472,7 +472,7 @@ class Spreading(BindingBaseClass):
         Desorption rate constants in state-major ordering.
         Length depends on `n_total_bound`.
     capacity : list of unsigned floats.
-        Maximum adsoprtion capacities in state-major ordering.
+        Maximum adsorption capacities in state-major ordering.
         Length depends on `n_total_bound`.
     exchange_from_1_2 : list of unsigned floats.
         Exchange rates from the first to the second bound state.
@@ -501,7 +501,7 @@ class Spreading(BindingBaseClass):
 
 
 class MobilePhaseModulator(BindingBaseClass):
-    """Mobile Phase Modulator adsoprtion isotherm.
+    """Mobile Phase Modulator adsorption isotherm.
 
     Attributes
     ----------
@@ -537,7 +537,7 @@ class MobilePhaseModulator(BindingBaseClass):
 
 
 class ExtendedMobilePhaseModulator(BindingBaseClass):
-    """Mobile Phase Modulator adsoprtion isotherm.
+    """Mobile Phase Modulator adsorption isotherm.
 
     Attributes
     ----------
@@ -582,7 +582,7 @@ class ExtendedMobilePhaseModulator(BindingBaseClass):
 
 
 class SelfAssociation(BindingBaseClass):
-    """Self Association adsoprtion isotherm.
+    """Self Association adsorption isotherm.
 
     Attributes
     ----------
@@ -630,7 +630,7 @@ class SelfAssociation(BindingBaseClass):
 
 
 class BiStericMassAction(BindingBaseClass):
-    """Bi Steric Mass Action adsoprtion isotherm.
+    """Bi Steric Mass Action adsorption isotherm.
 
     Attributes
     ----------
@@ -690,7 +690,7 @@ class BiStericMassAction(BindingBaseClass):
 
 
 class MultistateStericMassAction(BindingBaseClass):
-    """Multistate Steric Mass Action adsoprtion isotherm.
+    """Multistate Steric Mass Action adsorption isotherm.
 
     Attributes
     ----------
@@ -760,7 +760,7 @@ class MultistateStericMassAction(BindingBaseClass):
 
 
 class SimplifiedMultistateStericMassAction(BindingBaseClass):
-    """Simplified multistate Steric Mass Action adsoprtion isotherm.
+    """Simplified multistate Steric Mass Action adsorption isotherm.
 
     Attributes
     ----------
@@ -1026,7 +1026,7 @@ class GeneralizedIonExchange(BindingBaseClass):
 
 
 class HICConstantWaterActivity(BindingBaseClass):
-    """HIC based on Constant Water Activity adsoprtion isotherm.
+    """HIC based on Constant Water Activity adsorption isotherm.
 
     Attributes
     ----------
