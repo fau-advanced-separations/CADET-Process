@@ -193,7 +193,7 @@ class CarouselBuilder(Structure):
             for i_zone, zone in enumerate(self.zones):
                 col_indices = np.arange(zone.n_columns)
                 col_indices += position_counter
-                col_indices = self.column_index_at_state(
+                col_indices = self.column_indices_at_state(
                     col_indices, carousel_state
                 )
 
@@ -268,23 +268,35 @@ class CarouselBuilder(Structure):
         """
         return int(np.floor((t % self.cycle_time) / self.switch_time))
 
-    def column_index_at_state(self, carousel_position, carousel_state):
-        """int: Unit index of column at given carousel position and state.
+    def column_indices_at_state(
+            self,
+            carousel_positions: np.typing.NDArray[int],
+            carousel_state: int
+            ) -> np.ndarray[int]:
+        """Determine index of column unit at given carousel position and state.
 
         Parameters
         ----------
-        carousel_position : int
-            Column position index (e.g. wash position, elute position).
+        carousel_positions: np.typing.NDArray[np.int_]
+            Carousel position indices (e.g. wash position, elute position).
         carousel_state : int
             Curent state of the carousel system.
-        n_columns : int
-            Total number of columns in system.
 
+        Returns
+        -------
+        np.ndarray[int]
+            Indices of column units at given carousel positions and state.
         """
-        return (carousel_position + carousel_state) % self.n_columns
+        carousel_positions = np.array(carousel_positions, dtype=int)
 
-    def column_index_at_time(self, t, carousel_position):
-        """int: Unit index of column at carousel positin at given time.
+        return (carousel_positions + carousel_state) % self.n_columns
+
+    def column_indices_at_time(
+            self,
+            t: float,
+            carousel_positions: np.typing.NDArray[int],
+            ) -> int:
+        """Determine index of column unit at given carousel position and time.
 
         Parameters
         ----------
@@ -292,13 +304,20 @@ class CarouselBuilder(Structure):
             Time
         carousel_position : int
             Carousel position.
+
+        Returns
+        -------
+        np.ndarray[int]
+            Indices of column units at given carousel positions and time.
         """
+        carousel_positions = np.array(carousel_positions, dtype=int)
+
         carousel_state = self.carousel_state(t)
-        column_index = self.column_index_at_state(
-            carousel_position, carousel_state
+        column_indices = self.column_indices_at_state(
+            carousel_positions, carousel_state
         )
 
-        return column_index
+        return column_indices
 
 
 class ZoneBaseClass(UnitBaseClass):
@@ -843,7 +862,7 @@ class CarouselSolutionBulk(SolutionBase):
             _lines = None
 
         for position, ax in enumerate(axs):
-            col_index = self.builder.column_index_at_time(t, position)
+            col_index = self.builder.column_indices_at_time(t, position)
 
             y = self.solution[f'column_{col_index}'].bulk.solution[t_i, :]
 
