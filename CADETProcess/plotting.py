@@ -13,7 +13,7 @@ General Style
 .. autosummary::
     :toctree: generated/
 
-    set_style
+    set_figure_style
     SecondaryAxis
     Layout
     set_layout
