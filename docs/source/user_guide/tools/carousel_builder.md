@@ -19,6 +19,7 @@ sys.path.append('../../../')
 
 (carousel_tutorial)=
 # Carousel Builder
+
 For many applications, the use of multiple columns can improve process performance when compared with conventional batch elution processes.
 Next to the well known simulated moving bed (**SMB**) many other operating modes exist which extend the use of multiple columns, e.g. **Varicol**, or **PowerFeed** processes and gradient operations {cite}`SchmidtTraub2020`.
 
@@ -27,12 +28,14 @@ After a given time, the column positions are moved to the next position in the c
 In this process, the columns pass through different zones which serve different purposes.
 
 For example, in a classical SMB, four zones are present (see {ref}`Figure below <smb_system>`)
+
 - Zone I: Elution of the strongly adsorbing component
 - Zone II: Elution of the weakly adsorbing component
 - Zone III: Adsorption of the strongly adsorbing component
 - Zone IV : Adsorption of the weakly adsorbing component
 
 Moreover, four in- and outlets are connected to the zones:
+
 - Feed: Inlet containing the components to be separated
 - Eluent: Inlet with elution buffer
 - Extract: Outlet containing the strongly adsorbing component
@@ -42,20 +45,22 @@ To facilitate the configuration of complex SMB, carousel, or other multi column 
 It allows a straight-forward configuration of the zones and returns a fully configured {class}`~CADETProcess.processModel.Process` object including all internal connections, as well as switching events.
 
 Here are some of the features:
+
 - Any number of inlets and outlets or other peripheral units.
 - Any number of zones
 - Any number of columns per zone.
 - Different column connectivity within the zones:
-    * Serial
-    * Parallel
+  - Serial
+  - Parallel
 - Different connectivity between zones:
-    * Directly connected zones
-    * Skip zones
-    * Mix and split in- and outgoing streams
-    * Allow for different flow direction in every zone.
+  - Directly connected zones
+  - Skip zones
+  - Mix and split in- and outgoing streams
+  - Allow for different flow direction in every zone.
 - Any number of side streams
 
 ## SMB Process
+
 To demonstrate the tool, consider a standard SMB process.
 
 ```{figure} ./figures/smb_flow_sheet.svg
@@ -69,37 +74,46 @@ The column is later used as a template for all columns in the system.
 
 ```{code-cell} ipython3
 from CADETProcess.processModel import ComponentSystem
-component_system = ComponentSystem(2)
+from CADETProcess.processModel import Linear
+from CADETProcess.processModel import Inlet, LumpedRateModelWithPores, Outlet
+
+# Component System
+component_system = ComponentSystem(['A', 'B'])
 
 # Binding Model
-from CADETProcess.processModel import Linear
 binding_model = Linear(component_system)
-binding_model.adsorption_rate = [6, 8]
+binding_model.is_kinetic = True
+binding_model.adsorption_rate = [2, 3]
 binding_model.desorption_rate = [1, 1]
 
-from CADETProcess.processModel import LumpedRateModelWithoutPores
-column = LumpedRateModelWithoutPores(component_system, name='master_column')
-column.length = 0.6
-column.diameter = 0.024
-column.axial_dispersion = 4.7e-7
-column.total_porosity = 0.7
-
+# Column
+column = LumpedRateModelWithPores(component_system, name='column')
 column.binding_model = binding_model
+
+column.length = 0.6
+column.diameter = 0.025
+column.bed_porosity = 0.4
+
+column.particle_porosity = 0.7
+column.particle_radius = 5.0e-6
+column.film_diffusion = component_system.n_comp*[1e-5]
+
+column.axial_dispersion = 1e-8
 ```
 
 Now, the {class}`Inlets <CADETProcess.processModel.Inlet>` and {class}`Outlets <CADETProcess.processModel.Outlet>` of the system are configured:
 
 ```{code-cell} ipython3
-from CADETProcess.processModel import Inlet, Outlet
-feed = Inlet(component_system, name='feed')
-feed.c = [10, 10]
-feed.flow_rate = 2e-7
 eluent = Inlet(component_system, name='eluent')
 eluent.c = [0, 0]
-eluent.flow_rate = 6e-7
+eluent.flow_rate = 7e-7
 
-raffinate = Outlet(component_system, name='raffinate')
+feed = Inlet(component_system, name='feed')
+feed.c = [10, 10]
+feed.flow_rate = 4e-7
+
 extract = Outlet(component_system, name='extract')
+raffinate = Outlet(component_system, name='raffinate')
 ```
 
 To allow more complicated systems, **CADET-Process** provides two options for configuring zones, a {class}`~CADETProcess.modelBuilder.SerialZone` and a {class}`~CADETProcess.modelBuilder.ParallelZone`.
@@ -123,11 +137,11 @@ from CADETProcess.modelBuilder import CarouselBuilder
 
 builder = CarouselBuilder(component_system, 'smb')
 builder.column = column
-builder.add_unit(feed)
 builder.add_unit(eluent)
+builder.add_unit(feed)
 
-builder.add_unit(raffinate)
 builder.add_unit(extract)
+builder.add_unit(raffinate)
 
 builder.add_unit(zone_I)
 builder.add_unit(zone_II)
@@ -144,7 +158,7 @@ builder.add_connection(eluent, zone_I)
 
 builder.add_connection(zone_I, extract)
 builder.add_connection(zone_I, zone_II)
-w_e = 0.15
+w_e = 0.14
 builder.set_output_state(zone_I, [w_e, 1-w_e])
 
 builder.add_connection(zone_II, zone_III)
@@ -153,7 +167,7 @@ builder.add_connection(feed, zone_III)
 
 builder.add_connection(zone_III, raffinate)
 builder.add_connection(zone_III, zone_IV)
-w_r = 0.15
+w_r = 0.13
 builder.set_output_state(zone_III, [w_r, 1-w_r])
 
 builder.add_connection(zone_IV, zone_I)
@@ -164,7 +178,7 @@ By calling the {meth}`~CADETProcess.modelBuilder.CarouselBuilder.build_process` 
 It contains the assembled flow sheet with all columns, as well as the events required for simulation.
 
 ```{code-cell} ipython3
-builder.switch_time = 300
+builder.switch_time = 100
 process = builder.build_process()
 ```
 
@@ -200,6 +214,7 @@ _ = simulation_results.solution.zone_III_inlet.outlet.plot()
 ```
 
 ## Carousel System
+
 Here, another multi column system is considered.
 
 ```{figure} ./figures/carousel_flow_sheet.svg
@@ -207,7 +222,9 @@ Here, another multi column system is considered.
 
 Carousel system with 4 zones.
 ```
+
 There exist four zones in this system:
+
 - Wash: 3 columns in series
 - Feed: 3 columns in parallel
 - Dilute: 2 columns in series; reverse flow
