@@ -415,8 +415,8 @@ class Inlet(UnitBaseClass, SourceMixin):
 
     """
 
-    c = NdPolynomial(size=('n_comp', '_n_poly_coeffs'), default=0)
-    flow_rate = Polynomial(size=('_n_poly_coeffs'), default=0)
+    c = NdPolynomial(size=('n_comp', '_n_poly_coeffs'), default=0, unit='$mM$')
+    flow_rate = Polynomial(size=('_n_poly_coeffs'), default=0, unit='$m^3 s^{-1}$')
     _n_poly_coeffs = 4
     _parameters = ['c']
     _section_dependent_parameters = \
@@ -470,9 +470,9 @@ class TubularReactorBase(UnitBaseClass):
 
     """
 
-    length = UnsignedFloat()
-    diameter = UnsignedFloat()
-    axial_dispersion = UnsignedFloat()
+    length = UnsignedFloat(unit='$m$')
+    diameter = UnsignedFloat(unit='$m$')
+    axial_dispersion = UnsignedFloat(unit='$m^2 \cdot s*{-1}$')
     flow_direction = Switch(valid=[-1, 1], default=1)
     _initial_state = UnitBaseClass._initial_state + ['c']
     _parameters = ['length', 'diameter', 'axial_dispersion', 'flow_direction']
