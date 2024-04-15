@@ -38,6 +38,7 @@ class PymooInterface(OptimizerBase):
     cvtol = UnsignedFloat(default=1e-6)
 
     n_max_gen = UnsignedInteger()
+    n_skip = UnsignedInteger(default=0)
 
     x_tol = xtol            # Alias for uniform interface
     f_tol = ftol            # Alias for uniform interface
@@ -45,7 +46,7 @@ class PymooInterface(OptimizerBase):
     n_max_iter = n_max_gen  # Alias for uniform interface
 
     _specific_options = [
-        'seed', 'pop_size', 'xtol', 'ftol', 'cvtol', 'n_max_gen'
+        'seed', 'pop_size', 'xtol', 'ftol', 'cvtol', 'n_max_gen', 'n_skip'
     ]
 
     def run(self, optimization_problem: OptimizationProblem, x0=None):
@@ -120,7 +121,8 @@ class PymooInterface(OptimizerBase):
             cvtol=self.cvtol,
             ftol=self.ftol,
             n_max_gen=n_max_gen,
-            n_max_evals=self.n_max_evals
+            n_max_evals=self.n_max_evals,
+            n_skip=self.n_skip,
         )
 
         algorithm.setup(
