@@ -85,6 +85,7 @@ class CADETProcessRunner(Runner):
         self.optimization_problem = optimization_problem
         self.parallelization_backend = parallelization_backend
 
+    @property
     def staging_required(self) -> bool:
         return False
 
@@ -274,7 +275,6 @@ class AxInterface(OptimizerBase):
             arm_name = f"{trial.index}_{0}"
             trial.add_arm(Arm(parameters=trial_data["input"], name=arm_name))
             trial.run()
-            trial.mark_running()
             trial.mark_completed()
             self._post_processing(trial)
 
@@ -450,8 +450,6 @@ class AxInterface(OptimizerBase):
 
                 trial = self.ax_experiment.new_trial(generator_run=sample_generator)
                 trial.run()
-
-                trial.mark_running()
 
                 trial.mark_completed()
                 self._post_processing(trial)
