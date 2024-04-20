@@ -125,3 +125,4 @@ def __getattr__(name):
                 "To install it, run 'pip install CADET-Process[ax]'"
             )
     raise AttributeError(f"module {__name__} has no attribute {name}")
+from .surrogate import Surrogate
