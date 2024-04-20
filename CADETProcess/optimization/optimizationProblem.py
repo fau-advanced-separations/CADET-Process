@@ -2939,16 +2939,42 @@ class OptimizationProblem(Structure):
     @gets_dependent_values
     def create_individual(
             self,
-            x,
-            f=None,
-            g=None,
-            m=None,
-            x_transformed=None,
-            f_min=None,
-            cv=None,
-            cv_tol=None,
-            m_min=None,
-            ):
+            x: np.ndarray,
+            f: np.ndarray = None,
+            g: np.ndarray | None = None,
+            m: np.ndarray | None = None,
+            f_min: np.ndarray | None = None,
+            cv: np.ndarray | None = None,
+            cv_tol: float = 0.,
+            m_min: np.ndarray | None = None,
+            ) -> Individual:
+        """
+        Create new individual from data.
+
+        Parameters
+        ----------
+        x : np.ndarray
+            Variable values in untransformed space.
+        f : np.ndarray
+            Objective values.
+        g : np.ndarray
+            Nonlinear constraint values.
+        m : np.ndarray
+            Meta score values.
+        f_min : np.ndarray
+            Minimized objective values.
+        cv : np.ndarray
+            Nonlinear constraints violation.
+        cv_tol : float
+            Tolerance for constraints violation.
+        m_min : np.ndarray
+            Minimized meta score values.
+
+        Returns
+        -------
+        Individual
+            The newly created individual.
+        """
         x_indep = self.get_independent_values(x)
         x_transformed = self.transform(x_indep)
 
@@ -2962,6 +2988,84 @@ class OptimizationProblem(Structure):
         )
 
         return ind
+
+    @ensures2d
+    @untransforms
+    @gets_dependent_values
+    def create_population(
+            self,
+            X: np.ndarray,
+            F: np.ndarray = None,
+            G: np.ndarray | None = None,
+            M: np.ndarray | None = None,
+            F_min: np.ndarray | None = None,
+            CV: np.ndarray | None = None,
+            cv_tol: float = 0.,
+            M_min: np.ndarray | None = None,
+            ) -> Population:
+        """
+        Create new population from data.
+
+        Parameters
+        ----------
+        X : np.ndarray
+            Variable values in untransformed space.
+        F : np.ndarray
+            Objective values.
+        G : np.ndarray
+            Nonlinear constraint values.
+        M : np.ndarray
+            Meta score values.
+        F_min : np.ndarray
+            Minimized objective values.
+        CV : np.ndarray
+            Nonlinear constraints violation.
+        cv_tol : float
+            Tolerance for constraints violation.
+        M_min : np.ndarray
+            Minimized meta score values.
+
+        Returns
+        -------
+        Population
+            The newly created population.
+        """
+        if F is None:
+            F = len(X) * [None]
+        else:
+            F = np.array(F, ndmin=2)
+
+        if G is None:
+            G = len(X) * [None]
+        else:
+            G = np.array(G, ndmin=2)
+
+        if M is None:
+            M = len(X) * [None]
+        else:
+            M = np.array(M, ndmin=2)
+
+        if F_min is None:
+            F_min = F
+        else:
+            F_min = np.array(F_min, ndmin=2)
+
+        if CV is None:
+            CV = G
+        else:
+            CV = np.array(CV, ndmin=2)
+
+        if M_min is None:
+            M_min = M
+        else:
+            M_min = np.array(M_min, ndmin=2)
+
+        pop = Population()
+        for x, f, g, m, f_min, cv, m_min in zip(X, F, G, M, F_min, CV, M_min):
+            ind = self.create_individual(x, f, g, m, f_min, cv, cv_tol, m_min)
+            pop.add_individual(ind)
+
+        return pop
 
     @property
     def parameters(self):
