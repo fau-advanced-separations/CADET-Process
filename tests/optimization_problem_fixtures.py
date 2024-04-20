@@ -13,6 +13,7 @@ import numpy as np
 from CADETProcess.optimization import OptimizationProblem, OptimizationResults
 
 __all__ = [
+    'Quadratic',
     'Rosenbrock',
     'LinearConstraintsSooTestProblem',
     'LinearConstraintsSooTestProblem2',
@@ -89,6 +90,41 @@ class TestProblem(OptimizationProblem):
     @property
     def x0(self):
         raise NotImplementedError
+
+class Quadratic(TestProblem):
+    """A n-dimensional quadratic function."""
+    def __init__(self, *args, n_var=1, **kwargs):
+        super().__init__('quadratic', *args, **kwargs)
+
+        for i in range(n_var):
+            self.add_variable(f'var_{i}', lb=-10, ub=10)
+
+        self.add_objective(self.nd_quadratic)
+
+    @staticmethod
+    def nd_quadratic(x):
+        return np.sum(x_i**2 for x_i in x)
+
+    @property
+    def optimal_solution(self):
+        x = np.repeat(0, self.n_variables).reshape(1, self.n_variables)
+        f = 0
+
+        return x, f
+
+    @property
+    def x0(self):
+        return np.repeat(2, self.n_variables)
+
+    def test_if_solved(self, optimization_results: OptimizationResults,
+                       test_kwargs=default_test_kwargs):
+        x_true, f_true = self.optimal_solution
+        x = optimization_results.x
+        f = optimization_results.f
+
+        test_kwargs["err_msg"] = error
+        np.testing.assert_allclose(f, f_true, **test_kwargs)
+        np.testing.assert_allclose(x, x_true, **test_kwargs)
 
 
 class Rosenbrock(TestProblem):
