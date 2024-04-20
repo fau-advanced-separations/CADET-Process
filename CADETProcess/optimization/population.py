@@ -872,7 +872,7 @@ class ParetoFront(Population):
             try:
                 # Do not add if invalid
                 if np.any(np.array(ind_new.cv) > self.cv_tol):
-                    break
+                    continue
             except TypeError:
                 pass
 
