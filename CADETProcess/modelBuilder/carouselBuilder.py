@@ -81,12 +81,15 @@ class ZoneBaseClass(UnitBaseClass):
         self._inlet_unit = TubularReactor(component_system, f'{name}_inlet')
         self._inlet_unit.discretization.ncol = 1
         self._inlet_unit.length = 1e-3
-        self._inlet_unit.cross_section_area = self.valve_dead_volume / self._inlet_unit.length
+        self._inlet_unit.diameter = 1e-3
+        # self._inlet_unit.cross_section_area = self.valve_dead_volume / self._inlet_unit.length
         self._inlet_unit.axial_dispersion = 1e-9
 
         self._outlet_unit = TubularReactor(component_system, f'{name}_outlet')
         self._outlet_unit.discretization.ncol = 1
         self._outlet_unit.length = 1e-3
+        self._outlet_unit.diameter = 1e-3
+        # self._outlet_unit.cross_section_area = self.valve_dead_volume / self._outlet_unit.length
         self._outlet_unit.cross_section_area = self.valve_dead_volume / self._outlet_unit.length
         self._outlet_unit.axial_dispersion = 1e-9
 
@@ -115,12 +118,12 @@ class ZoneBaseClass(UnitBaseClass):
         self._initial_state = initial_state
 
     @property
-    def inlet_unit(self) -> Cstr:
+    def inlet_unit(self) -> TubularReactor:
         """Cstr: The inlet CSTR unit of the zone."""
         return self._inlet_unit
 
     @property
-    def outlet_unit(self) -> Cstr:
+    def outlet_unit(self) -> TubularReactor:
         """Cstr: The outlet CSTR unit of the zone."""
         return self._outlet_unit
 
@@ -584,7 +587,7 @@ class SMBBuilder(CarouselBuilder):
                 f'Invalid binding model. Expected {self.binding_model_type}.'
             )
 
-    def _get_zone_flow_rates(self, m, switch_time):
+    def _get_zone_flow_rates_from_m(self, m, switch_time):
         m1, m2, m3, m4 = m
 
         Vc = self.column.volume
@@ -597,6 +600,19 @@ class SMBBuilder(CarouselBuilder):
 
         return [Q_I, Q_II, Q_III, Q_IV]
 
+    def _get_dimensionless_zone_flow_rates(self, Q_zones, switch_time):
+        Q_I, Q_II, Q_III, Q_IV = Q_zones
+
+        Vc = self.column.volume
+        et = self.column.total_porosity
+
+        m1 = (switch_time * Q_I / Vc - et) / (1 - et)
+        m2 = (switch_time * Q_II / Vc - et) / (1 - et)
+        m3 = (switch_time * Q_III / Vc - et) / (1 - et)
+        m4 = (switch_time * Q_IV / Vc - et) / (1 - et)
+
+        return [m1, m2, m3, m4]
+
     def _get_unit_flow_rates(self, Q_zones):
         Q_I, Q_II, Q_III, Q_IV = Q_zones
 
@@ -606,6 +622,17 @@ class SMBBuilder(CarouselBuilder):
         Q_extract = Q_I - Q_II
 
         return [Q_feed, Q_eluent, Q_raffinate, Q_extract]
+
+    def _get_zone_flow_rates_from_unit_flow_rates(self, Q_units, split_ratios):
+        Q_feed, Q_eluent, Q_raffinate, Q_extract = Q_units
+        w_r, w_e = split_ratios
+
+        Q_I = Q_extract / w_e
+        Q_II = Q_I - Q_extract
+        Q_III = Q_raffinate / w_r
+        Q_IV = Q_I - Q_eluent
+
+        return [Q_I, Q_II, Q_III, Q_IV]
 
     def _get_split_ratios(self, Q_zones, Q_units):
         Q_I, Q_II, Q_III, Q_IV = Q_zones
@@ -761,7 +788,7 @@ class SMBBuilder(CarouselBuilder):
         elif set_values is True:
             self.switch_time = switch_time
 
-        Q_zones = self._get_zone_flow_rates(m, switch_time)
+        Q_zones = self._get_zone_flow_rates_from_m(m, switch_time)
         Q_units = self._get_unit_flow_rates(Q_zones)
         Q_feed, Q_eluent, Q_raffinate, Q_extract = Q_units
         w_r, w_e = self._get_split_ratios(Q_zones, Q_units)
