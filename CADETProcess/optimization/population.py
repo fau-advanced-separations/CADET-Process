@@ -566,25 +566,42 @@ class Population():
 
         return figs, axs
 
-    def setup_pareto(self):
+    def setup_pareto(self, include_meta: bool = False):
         """Set up base figure for plotting the Pareto front.
+
+        Parameters
+        ----------
+        include_meta : bool
+            If True, include meta scores in Pareto plot.
 
         Returns
         -------
         pymoo.visualization.scatter.Scatter
             The base figure object.
         """
-        n = self.dimensions[1]
+        if include_meta:
+            n = self.dimensions[1] + self.dimensions[3]
+            labels = self.objective_labels + self.meta_score_labels
+        else:
+            n = self.dimensions[1]
+            labels = self.objective_labels
         plot = Scatter(
             figsize=(6 * n, 5 * n),
             tight_layout=True,
             plot_3d=False,
-            labels=self.objective_labels,
+            labels=labels,
         )
         return plot
 
     def plot_pareto(
-            self, plot=None, color=None, show=True, plot_directory=None):
+            self,
+            plot=None,
+            include_meta=True,
+            plot_infeasible=True,
+            color_feas='blue',
+            color_infeas='red',
+            show=True,
+            plot_directory=None):
         """Plot pairwise Pareto fronts for each generation in the optimization.
 
         The Pareto front represents the optimal solutions that cannot be improved in one
@@ -596,8 +613,14 @@ class Population():
         ----------
         plot : pymoo.visualization.scatter.Scatter, optional
             Base figure. If None is provided, a new one will be set up.
-        color : str, optional
-            Color for scatter points.
+        include_meta : bool, optional
+            If True, include meta scores in the plot. The default is True.
+        plot_infeasible : bool, optional
+            If True, plot infeasible points. The default is True.
+        color_feas : str, optional
+            The color for the feasible points. The default is 'blue'.
+        color_infeas : str, optional
+            The color for the infeasible points. The default is 'red'.
         show : bool, optional
             If True, display the plot. The default is True.
         plot_directory : str, optional
@@ -609,8 +632,29 @@ class Population():
             The scatter plot object.
         """
         if plot is None:
-            plot = self.setup_pareto()
-        plot.add(self.f, s=10, color=color)
+            plot = self.setup_pareto(include_meta)
+
+        feasible = self.feasible
+        infeasible = self.infeasible
+
+        if include_meta and self.m is not None:
+            if len(feasible) > 0:
+                values_feas = np.hstack((feasible.f, feasible.m))
+            else:
+                values_infeas = np.empty((0, self.n_f + self.n_m))
+            if len(infeasible) > 0:
+                values_infeas = np.hstack((infeasible.f, infeasible.m))
+            else:
+                values_infeas = np.empty((0, self.n_f + self.n_m))
+        else:
+            values_feas = feasible.f
+            values_infeas = infeasible.f
+
+        if len(feasible) > 0:
+            plot.add(values_feas, s=10, color=color_feas)
+
+        if plot_infeasible and len(infeasible) > 0:
+            plot.add(values_infeas, s=10, color=color_infeas)
 
         if plot_directory is not None:
             plot_directory = Path(plot_directory)

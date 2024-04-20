@@ -517,7 +517,8 @@ class OptimizationResults(Structure):
         _plot_directory = None
 
         cNorm = colors.Normalize(vmin=0, vmax=self.n_gen)
-        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cmap_feas)
+        scalarMap_feas = cmx.ScalarMappable(norm=cNorm, cmap=cmap_feas)
+        scalarMap_infeas = cmx.ScalarMappable(norm=cNorm, cmap=cmap_infeas)
 
         if plot_pareto:
             populations = self.pareto_fronts
@@ -535,7 +536,8 @@ class OptimizationResults(Structure):
                 _show = show
             plot = gen.plot_pareto(
                 plot,
-                color=scalarMap.to_rgba(i),
+                color_feas=scalarMap_feas.to_rgba(i),
+                color_infeas=scalarMap_infeas.to_rgba(i),
                 show=_show,
                 plot_directory=_plot_directory
             )
