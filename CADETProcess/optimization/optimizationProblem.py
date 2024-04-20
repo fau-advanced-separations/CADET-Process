@@ -148,6 +148,31 @@ class OptimizationProblem(Structure):
 
         return wrapper
 
+    def get_variable_index(self, variable: str) -> int:
+        """
+        Get the index of optimization variable.
+
+        Parameters
+        ----------
+        variable : str
+            Optimization variable for which the index is desired..
+
+        Raises
+        ------
+        ValueError
+            If the variable does not exist.
+
+        Returns
+        -------
+        int
+            Index of optimization variable.
+
+        """
+        try:
+            return self.variable_names.index(variable)
+        except ValueError:
+            raise ValueError(f"Unknown variable {variable}.")
+
     def ensures2d(func):
         """Make sure population is ndarray with ndmin=2."""
         @wraps(func)
