@@ -32,27 +32,28 @@ def hash_array(array):
 
 
 class Individual(Structure):
-    """Set of variables evaluated during Optimization.
+    """
+    Set of variables evaluated during Optimization.
 
     Attributes
     ----------
-    x : list
+    x : np.ndarray
         Variable values in untransformed space.
-    x_transformed : list
+    x_transformed : np.ndarray
         Independent variable values in transformed space.
-    f : list
+    f : np.ndarray
         Objective values.
-    f_min : list
+    f_min : np.ndarray
         Minimized objective values.
-    g : list
+    g : np.ndarray
         Nonlinear constraint values.
-    cv : list
+    cv : np.ndarray
         Nonlinear constraints violation.
     cv_tol : float
         Tolerance for constraints violation.
-    m : list
+    m : np.ndarray
         Meta score values.
-    m_min : list
+    m_min : np.ndarray
         Minimized meta score values.
 
     See Also
