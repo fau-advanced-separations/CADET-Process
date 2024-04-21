@@ -307,7 +307,7 @@ class AxInterface(OptimizerBase):
 
         # Get nonlinear constraint values
         if op.n_nonlinear_constraints > 0:
-            nonlincon_labels = op.nonlinear_constraint_labels
+            nonlincon_labels = [f"{name}_axidx_{i}" for i, name in enumerate(op.nonlinear_constraint_labels)]
             G_data = data[data['metric_name'].isin(nonlincon_labels)]
             assert np.all(G_data["metric_name"].values.tolist() == np.repeat(nonlincon_labels, len(X)))
             G = G_data["mean"].values.reshape((op.n_nonlinear_constraints, n_ind)).T
