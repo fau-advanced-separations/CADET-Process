@@ -16,6 +16,7 @@ sys.path.append('../../../../')
 
 (optimization_problem_guide)=
 # Optimization Problem
+
 The {class}`~CADETProcess.optimization.OptimizationProblem` class is used to specify optimization variables, objectives and constraints.
 To instantiate a {class}`~CADETProcess.optimization.OptimizationProblem`, a name needs to be passed as argument.
 
@@ -30,6 +31,7 @@ In contrast to using a simple python dictionary, this also allows for multi-core
 
 (optimization_variables_guide)=
 ## Optimization Variables
+
 Any number of variables can be added to the {class}`~CADETProcess.optimization.OptimizationProblem`.
 To add a variable, use the {meth}`~CADETProcess.optimization.OptimizationProblem.add_variable` method.
 The first argument is the name of the variable.
@@ -56,12 +58,13 @@ For more information on how to configure optimization variables of multi-dimensi
 
 (objectives_guide)=
 ## Objectives
+
 Any callable function that takes an input $x$ and returns objectives $f$ can be added to the {class}`~CADETProcess.optimization.OptimizationProblem`.
 Consider a quadratic function which expects a single input and returns a single output:
 
 ```{code-cell} ipython3
 def objective(x):
-	return x**2
+    return x**2
 ```
 
 To add this function as objective, use the {meth}`~CADETProcess.optimization.OptimizationProblem.add_objective` method.
@@ -77,7 +80,6 @@ $$
 f(x,y) = [x^2 + y^2, (x-2)^2 + (y-2)^2]
 $$
 
-
 Either two callables are added as objective
 
 ```{code-cell} ipython3
@@ -92,12 +94,12 @@ optimization_problem.add_variable('y', lb=-10, ub=10)
 import numpy as np
 
 def objective_1(x):
-	return x[0]**2 + x[1]**2
+    return x[0]**2 + x[1]**2
 
 optimization_problem.add_objective(objective_1)
 
 def objective_2(x):
-	return (x[0] - 2)**2 + (x[1] - 2)**2
+    return (x[0] - 2)**2 + (x[1] - 2)**2
 
 optimization_problem.add_objective(objective_2)
 ```
@@ -115,9 +117,9 @@ optimization_problem.add_variable('y', lb=-10, ub=10)
 
 ```{code-cell} ipython3
 def multi_objective(x):
-	f_1 = x[0]**2 + x[1]**2
-	f_2 = (x[0] - 2)**2 + (x[1] - 2)**2
-	return np.hstack((f_1, f_2))
+    f_1 = x[0]**2 + x[1]**2
+    f_2 = (x[0] - 2)**2 + (x[1] - 2)**2
+    return np.hstack((f_1, f_2))
 
 optimization_problem.add_objective(multi_objective, n_objectives=2)
 ```
@@ -136,16 +138,16 @@ The objective(s) can be evaluated with the {meth}`~CADETProcess.optimization.Opt
 optimization_problem.evaluate_objectives([1, 1])
 ```
 
-It is also possible to evaluate multiple sets of input variables at once by passing a 2D array to the {meth}`~CADETProcess.optimization.OptimizationProblem.evaluate_objectives_population` method.
+It is also possible to evaluate multiple sets of input variables at once by passing a 2D array to the {meth}`~CADETProcess.optimization.OptimizationProblem.evaluate_objectives` method.
 
 ```{code-cell} ipython3
-optimization_problem.evaluate_objectives_population([[0, 1], [1, 1], [2, -1]])
+optimization_problem.evaluate_objectives([[0, 1], [1, 1], [2, -1]])
 ```
 
 For more complicated scenarios that require (multiple) preprocessing steps, refer to {ref}`evaluation_toolchains_guide`.
 
-
 ## Linear constraints
+
 Linear constraints are a common way to restrict the feasible region of an optimization problem.
 They are typically defined using linear functions of the optimization:
 
@@ -201,6 +203,7 @@ optimization_problem.check_linear_constraints([0, 0, 0, 0])
 
 (nonlinear_constraints_guide)=
 ## Nonlinear constraints
+
 In addition to linear constraints, nonlinear constraints can be added to the optimization problem.
 To add nonlinear constraints, use the {meth}`~CADETProcess.optimization.OptimizationProblem.add_nonlinear_constraint` method.
 
@@ -257,6 +260,7 @@ optimization_problem.add_nonlinear_constraint(nonlincon, bounds=1)
 ```
 
 Note that {meth}`~CADETProcess.optimization.OptimizationProblem.evaluate_nonlinear_constraints` still returns the same value.
+
 ```{code-cell} ipython3
 optimization_problem.evaluate_nonlinear_constraints([0.5, 0.5])
 ```
@@ -279,6 +283,7 @@ For more complicated scenarios that require (multiple) preprocessing steps, refe
 
 (initial_values_creation_guide)=
 ## Initial Values
+
 Initial values in optimization refer to the starting values of the decision variables for the optimization algorithm.
 These values are typically set by the user and serve as a starting point for the optimization algorithm to begin its search for the optimal solution.
 The choice of initial values can have a significant impact on the success of the optimization, as a poor choice may lead to the algorithm converging to a suboptimal solution or failing to converge at all.
@@ -331,6 +336,7 @@ fig.tight_layout()
 ```
 
 ## Callbacks
+
 A callback function is a user defined function that is called periodically by the optimizer in order to allow the user to query the state of the optimization.
 For example, a simple user callback function might be used to plot results.
 
@@ -342,6 +348,7 @@ For more information on controlling the members of the Pareto front, refer to {r
 ```
 
 The callback signature may include any of the following arguments:
+
 - results : obj
     x or final result of evaluation toolchain.
 - individual : {class}`~CADETProcess.optimization.Individual`, optional

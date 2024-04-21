@@ -105,7 +105,7 @@ class CADETProcessRunner(Runner):
         # Calculate objectives
         # Explore if adding a small amount of noise to the result helps BO
         objective_labels = self.optimization_problem.objective_labels
-        obj_fun = self.optimization_problem.evaluate_objectives_population
+        obj_fun = self.optimization_problem.evaluate_objectives
 
         F = obj_fun(
             X,
@@ -117,7 +117,7 @@ class CADETProcessRunner(Runner):
         # Calculate nonlinear constraints
         # Explore if adding a small amount of noise to the result helps BO
         if self.optimization_problem.n_nonlinear_constraints > 0:
-            nonlincon_cv_fun = self.optimization_problem.evaluate_nonlinear_constraints_violation_population
+            nonlincon_cv_fun = self.optimization_problem.evaluate_nonlinear_constraints_violation
             nonlincon_labels = self.optimization_problem.nonlinear_constraint_labels
 
             CV = nonlincon_cv_fun(
@@ -313,7 +313,7 @@ class AxInterface(OptimizerBase):
             assert np.all(G_data["metric_name"].values.tolist() == np.repeat(nonlincon_labels, len(X)))
             G = G_data["mean"].values.reshape((op.n_nonlinear_constraints, n_ind)).T
 
-            nonlincon_cv_fun = op.evaluate_nonlinear_constraints_violation_population
+            nonlincon_cv_fun = op.evaluate_nonlinear_constraints_violation
             CV = nonlincon_cv_fun(X, untransform=True)
         else:
             G = None

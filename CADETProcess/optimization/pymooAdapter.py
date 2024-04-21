@@ -237,7 +237,7 @@ class PymooProblem(Problem):
     def _evaluate(self, X, out, *args, **kwargs):
         opt = self.optimization_problem
         if opt.n_objectives > 0:
-            F = opt.evaluate_objectives_population(
+            F = opt.evaluate_objectives(
                 X,
                 untransform=True,
                 ensure_minimization=True,
@@ -246,12 +246,12 @@ class PymooProblem(Problem):
             out["F"] = np.array(F)
 
         if opt.n_nonlinear_constraints > 0:
-            G = opt.evaluate_nonlinear_constraints_population(
+            G = opt.evaluate_nonlinear_constraints(
                 X,
                 untransform=True,
                 parallelization_backend=self.parallelization_backend,
             )
-            CV = opt.evaluate_nonlinear_constraints_violation_population(
+            CV = opt.evaluate_nonlinear_constraints_violation(
                 X,
                 untransform=True,
                 parallelization_backend=self.parallelization_backend,

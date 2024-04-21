@@ -1,17 +1,18 @@
-from collections import defaultdict
 import copy
-from functools import wraps
+from functools import partial, wraps
 import inspect
 import math
 from pathlib import Path
 import random
 import shutil
+from typing import NoReturn, Any
 import uuid
 import warnings
 
 from addict import Dict
-import numpy as np
 import hopsy
+import numpy as np
+import numpy.typing as npt
 
 from CADETProcess import CADETProcessError
 from CADETProcess import log
@@ -31,7 +32,9 @@ from CADETProcess.dynamicEvents.section import (
     generate_indices, unravel, get_inhomogeneous_shape, get_full_shape
 )
 
-from CADETProcess.optimization.parallelizationBackend import SequentialBackend
+from CADETProcess.optimization.parallelizationBackend import (
+    ParallelizationBackendBase, SequentialBackend
+)
 from CADETProcess.transform import (
     NoTransform, AutoTransform, NormLinearTransform, NormLogTransform
 )
@@ -149,12 +152,27 @@ class OptimizationProblem(Structure):
         return wrapper
 
     def ensures2d(func):
-        """Make sure population is ndarray with ndmin=2."""
+        """Decorate function to ensure X array is an ndarray with ndmin=2."""
         @wraps(func)
-        def wrapper(self, population, *args, **kwargs):
-            population = np.array(population, ndmin=2)
+        def wrapper(
+                self,
+                X: npt.ArrayLike,
+                *args, **kwargs
+                ) -> Any:
 
-            return func(self, population, *args, **kwargs)
+            # Convert to 2D population
+            X = np.array(X)
+            X_2d = np.array(X, ndmin=2)
+
+            # Call and ensure results are 2D
+            Y = func(self, X_2d, *args, **kwargs)
+            Y_2d = Y.reshape((len(X_2d), -1))
+
+            # Reshape back to original length of X
+            if X.ndim == 1:
+                return Y_2d[0]
+            else:
+                return Y_2d
 
         return wrapper
 
@@ -661,18 +679,74 @@ class OptimizationProblem(Structure):
         for variable, value in zip(self.variables, values):
             variable.set_value(value)
 
-    def _evaluate_individual(self, eval_funs, x, force=False):
-        """Call evaluation function function at point x.
-
-        This function iterates over all functions in eval_funs (e.g. objectives).
-        To parallelize this, use _evaluate_population
+    def _evaluate_population(
+            self,
+            target_functions: list[callable],
+            X: npt.ArrayLike,
+            parallelization_backend: ParallelizationBackendBase | None = None,
+            force: bool = False
+            ) -> np.ndarray:
+        """
+        Evaluate target functions for each individual in population.
 
         Parameters
         ----------
-        eval_funs : list of callables
-            Evaluation function.
-        x : array_like
+        target_functions : list[callable]
+            List of evaluation targets (e.g. objectives).
+        X : npt.ArrayLike
+            Population to be evaluated in untransformed space.
+        parallelization_backend : ParallelizationBackendBase, optional
+            Adapter to backend for parallel evaluation of population.
+            By default, the individuals are evaluated sequentially.
+        force : bool
+            If True, do not use cached results. The default is False.
+
+        Returns
+        -------
+        np.ndarray
+            The results of the target functions.
+
+        Raises
+        ------
+        CADETProcessError
+            If dictcache is used for parallelized evaluation.
+        """
+        if parallelization_backend is None:
+            parallelization_backend = SequentialBackend()
+
+        if not self.cache.use_diskcache and parallelization_backend.n_cores != 1:
+            raise CADETProcessError(
+                "Cannot use dict cache for multiprocessing."
+            )
+
+        def target_wrapper(x):
+            results = self._evaluate_individual(
+                target_functions=target_functions,
+                x=x,
+                force=force,
+            )
+            self.cache.close()
+
+            return results
+
+        results = parallelization_backend.evaluate(target_wrapper, X)
+        return np.array(results, ndmin=2)
+
+    def _evaluate_individual(
+            self,
+            target_functions: list[callable],
+            x: npt.ArrayLike,
+            force=False,
+            ) -> np.ndarray:
+        """
+        Evaluate target functions for set of parameters.
+
+        Parameters
+        ----------
+        x : npt.ArrayLike
             Value of all optimization variables in untransformed space.
+        target_functions: list[callable],
+            Evaluation functions.
         force : bool
             If True, do not use cached results. The default is False.
 
@@ -691,7 +765,7 @@ class OptimizationProblem(Structure):
         x = np.asarray(x)
         results = np.empty((0,))
 
-        for eval_fun in eval_funs:
+        for eval_fun in target_functions:
             try:
                 value = self._evaluate(x, eval_fun, force)
                 results = np.hstack((results, value))
@@ -703,52 +777,6 @@ class OptimizationProblem(Structure):
                 results = np.hstack((results, eval_fun.bad_metrics))
 
         return results
-
-    def _evaluate_population(self, eval_fun, population, force=False, parallelization_backend=None):
-        """Evaluate eval_fun functions for each point x in population.
-
-        Parameters
-        ----------
-        eval_fun : callable
-            Callable to be evaluated.
-        population : list
-            Population.
-        force : bool, optional
-            If True, do not use cached values. The default is False.
-        parallelization_backend : ParallelizationBackendBase, optional
-            Adapter to parallelization backend library for parallel evaluation of population.
-
-        Raises
-        ------
-        CADETProcessError
-            If dictcache is used for parallelized evaluation.
-
-        Returns
-        -------
-        results : np.ndarray
-            Results of the evaluation functions.
-
-        """
-        if parallelization_backend is None:
-            parallelization_backend = SequentialBackend()
-
-        if not self.cache.use_diskcache and parallelization_backend.n_cores != 1:
-            raise CADETProcessError(
-                "Cannot use dict cache for multiprocessing."
-            )
-
-        def eval_fun_wrapper(ind):
-            results = eval_fun(ind, force=force)
-            self.cache.close()
-
-            return results
-
-        if parallelization_backend.n_cores != 1:
-            self.cache.close()
-
-        results = parallelization_backend.evaluate(eval_fun_wrapper, population)
-
-        return np.array(results, ndmin=2)
 
     @untransforms
     def _evaluate(self, x, func, force=False):
@@ -1029,75 +1057,54 @@ class OptimizationProblem(Structure):
         )
         self._objectives.append(objective)
 
+    @ensures2d
     @untransforms
     @ensures_minimization(scores='objectives')
-    def evaluate_objectives(self, x, force=False):
-        """Evaluate objective functions at point x.
+    def evaluate_objectives(
+            self,
+            X: npt.ArrayLike,
+            parallelization_backend: ParallelizationBackendBase | None = None,
+            force: bool = False,
+            ) -> np.ndarray:
+        """
+        Evaluate objective functions for each individual x in population X.
 
         Parameters
         ----------
-        x : array_like
-            Value of the optimization variables in untransformed space.
+        X : npt.ArrayLike
+            Population to be evaluated in untransformed space.
+        parallelization_backend : ParallelizationBackendBase, optional
+            Adapter to backend for parallel evaluation of population.
+            By default, the individuals are evaluated sequentially.
         force : bool
             If True, do not use cached results. The default is False.
 
         Returns
         -------
-        f : np.ndarray
-            Values of the objective functions at point x.
+        np.ndarray
+            The optimization function values.
 
         See Also
         --------
-        add_objective
-        evaluate_objectives_population
-        _call_evaluate_fun
-        _evaluate
-
-        """
-        self.logger.debug(f'Evaluate objectives at {x}.')
-
-        f = self._evaluate_individual(self.objectives, x, force=force)
-
-        return f
-
-    @untransforms
-    @ensures2d
-    @ensures_minimization(scores='objectives')
-    def evaluate_objectives_population(
-            self,
-            population,
-            force=False,
-            parallelization_backend=None
-            ):
-        """Evaluate objective functions for each point x in population.
-
-        Parameters
-        ----------
-        population : list
-            Population.
-        force : bool, optional
-            If True, do not use cached values. The default is False.
-        parallelization_backend : RunnerBase, optional
-            Runner to use for the evaluation of the population in
-            sequential or parallel mode.
-
-        Returns
-        -------
-        results : np.ndarray
-            Objective function values.
-
-        See Also
-        --------
-        add_objective
-        evaluate_objectives
+        add_objectives
+        _evaluate_population
         _evaluate_individual
         _evaluate
         """
-        results = self._evaluate_population(
-            self.evaluate_objectives, population, force, parallelization_backend
+        return self._evaluate_population(
+            target_functions=self.objectives,
+            X=X,
+            parallelization_backend=parallelization_backend,
+            force=force,
         )
 
-        return results
+    def evaluate_objectives_population(self, *args, **kwargs):
+        warnings.warn(
+            'This function is deprecated; use `evaluate_objectives` instead, which now '
+            'directly supports the evaluation of nd arrays.',
+            DeprecationWarning, stacklevel=2
+        )
+        self.evaluate_objectives(*args, *kwargs)
 
     @untransforms
     def objective_jacobian(self, x, ensure_minimization=False, dx=1e-3):
@@ -1285,156 +1292,117 @@ class OptimizationProblem(Structure):
         )
         self._nonlinear_constraints.append(nonlincon)
 
+    @ensures2d
     @untransforms
-    def evaluate_nonlinear_constraints(self, x, force=False):
-        """Evaluate nonlinear constraint functions at point x.
+    def evaluate_nonlinear_constraints(
+            self,
+            X: npt.ArrayLike,
+            parallelization_backend: ParallelizationBackendBase | None = None,
+            force: bool = False,
+            ) -> np.ndarray:
+        """
+        Evaluate nonlinear constraint functions for each individual x in population X.
 
         Parameters
         ----------
-        x : array_like
-            Value of the optimization variables in untransformed space.
+        X : npt.ArrayLike
+            Population to be evaluated in untransformed space.
+        parallelization_backend : ParallelizationBackendBase, optional
+            Adapter to backend for parallel evaluation of population.
+            By default, the individuals are evaluated sequentially.
         force : bool
             If True, do not use cached results. The default is False.
 
         Returns
         -------
-        g : np.ndarray
-            Nonlinear constraint function values.
+        np.ndarray
+            The nonlinear constraint function values.
 
         See Also
         --------
         add_nonlinear_constraint
         evaluate_nonlinear_constraints_violation
-        evaluate_nonlinear_constraints_population
-        _call_evaluate_fun
-        _evaluate
-
-        """
-        self.logger.debug(f'Evaluate nonlinear constraints at {x}.')
-
-        g = self._evaluate_individual(self.nonlinear_constraints, x, force=False)
-
-        return g
-
-    @untransforms
-    @ensures2d
-    def evaluate_nonlinear_constraints_population(self, population, force=False, parallelization_backend=None):
-        """
-        Evaluate nonlinear constraint for each point x in population.
-
-        Parameters
-        ----------
-        population : list
-            Population.
-        force : bool, optional
-            If True, do not use cached values. The default is False.
-        parallelization_backend : RunnerBase, optional
-            Runner to use for the evaluation of the population in
-            sequential or parallel mode.
-
-        Returns
-        -------
-        results : np.ndarray
-            Nonlinear constraints.
-
-        See Also
-        --------
-        add_nonlinear_constraint
-        evaluate_nonlinear_constraints
+        _evaluate_population
         _evaluate_individual
         _evaluate
         """
-        results = self._evaluate_population(
-            self.evaluate_nonlinear_constraints, population, force, parallelization_backend
+        return self._evaluate_population(
+            target_functions=self.nonlinear_constraints,
+            X=X,
+            parallelization_backend=parallelization_backend,
+            force=force,
         )
 
-        return results
+    def evaluate_nonlinear_constraints_population(self, *args, **kwargs):
+        warnings.warn(
+            'This function is deprecated; use `evaluate_nonlinear_constraints` '
+            'instead, which now directly supports the evaluation of nd arrays.',
+            DeprecationWarning, stacklevel=2
+        )
+        self.evaluate_nonlinear_constraints(*args, *kwargs)
 
+    @ensures2d
     @untransforms
-    def evaluate_nonlinear_constraints_violation(self, x, force=False):
-        """Evaluate nonlinear constraints violation at point x.
+    def evaluate_nonlinear_constraints_violation(
+            self,
+            X: npt.ArrayLike,
+            parallelization_backend: ParallelizationBackendBase | None = None,
+            force: bool = False,
+            ) -> np.ndarray:
+        """
+        Evaluate nonlinear constraint function violation for each x in population X.
 
         After evaluating the nonlinear constraint functions, the corresponding
         bounds are subtracted from the results.
 
         Parameters
         ----------
-        x : array_like
-            Value of the optimization variables in untransformed space.
+        X : npt.ArrayLike
+            Population to be evaluated in untransformed space.
+        parallelization_backend : ParallelizationBackendBase, optional
+            Adapter to backend for parallel evaluation of population.
+            By default, the individuals are evaluated sequentially.
         force : bool
             If True, do not use cached results. The default is False.
 
         Returns
         -------
-        cv : np.ndarray
-            Nonlinear constraints violation.
+        np.ndarray
+            The nonlinear constraint violation function values.
 
         See Also
         --------
         add_nonlinear_constraint
         evaluate_nonlinear_constraints
-        evaluate_nonlinear_constraints_population
-        evaluate_nonlinear_constraints_violation_population
-        _call_evaluate_fun
+        _evaluate_population
+        _evaluate_individual
         _evaluate
-
         """
-        self.logger.debug(f'Evaluate nonlinear constraints violation at {x}.')
-
         factors = []
         for constr in self.nonlinear_constraints:
             factor = -1 if constr.comparison_operator == 'ge' else 1
             factors += constr.n_total_metrics * [factor]
 
-        g = self._evaluate_individual(self.nonlinear_constraints, x, force=False)
-        g_transformed = np.multiply(factors, g)
-
-        bounds_transformed = np.multiply(factors, self.nonlinear_constraints_bounds)
-
-        cv = g_transformed - bounds_transformed
-
-        return cv
-
-    @untransforms
-    @ensures2d
-    def evaluate_nonlinear_constraints_violation_population(
-            self, population, force=False, parallelization_backend=None):
-        """
-        Evaluate nonlinear constraints violation for each point x in population.
-
-        After evaluating the nonlinear constraint functions, the corresponding
-        bounds are subtracted from the results.
-
-        Parameters
-        ----------
-        population : list
-            Population.
-        force : bool, optional
-            If True, do not use cached values. The default is False.
-        parallelization_backend : RunnerBase, optional
-            Runner to use for the evaluation of the population in
-            sequential or parallel mode.
-
-        Returns
-        -------
-        results : np.ndarray
-            Nonlinear constraints violation.
-
-        See Also
-        --------
-        add_nonlinear_constraint
-        evaluate_nonlinear_constraints_violation
-        evaluate_nonlinear_constraints
-        evaluate_nonlinear_constraints_population
-        _evaluate_individual
-        _evaluate
-
-        """
-        results = self._evaluate_population(
-            self.evaluate_nonlinear_constraints_violation, population, force, parallelization_backend
+        G = self._evaluate_population(
+            target_functions=self.nonlinear_constraints,
+            X=X,
+            parallelization_backend=parallelization_backend,
+            force=force,
         )
 
-        return results
+        G_transformed = np.multiply(factors, G)
+        bounds_transformed = np.multiply(factors, self.nonlinear_constraints_bounds)
+
+        return G_transformed - bounds_transformed
+
+    def evaluate_nonlinear_constraints_violation_population(self, *args, **kwargs):
+        warnings.warn(
+            'This function is deprecated; use '
+            '`evaluate_nonlinear_constraints_violation` instead, which now directly '
+            'supports the evaluation of nd arrays.',
+            DeprecationWarning, stacklevel=2
+        )
+        self.evaluate_nonlinear_constraints_violation(*args, *kwargs)
 
     @untransforms
     def check_nonlinear_constraints(self, x):
@@ -1598,74 +1566,43 @@ class OptimizationProblem(Structure):
         )
         self._callbacks.append(callback)
 
-    def evaluate_callbacks(self, ind, current_iteration=0, force=False):
-        """Evaluate callback functions at point x.
+    def evaluate_callbacks(
+            self,
+            population: Population | npt.ArrayLike,
+            current_iteration: int = 0,
+            parallelization_backend: ParallelizationBackendBase | None = None,
+            force: bool = False,
+            ) -> NoReturn:
+        """
+        Evaluate callback functions for each individual x in population X.
 
         Parameters
         ----------
-        ind : Individual
-            Individual to be evalauted.
+        population : Population | npt.ArrayLike
+            Population to be evaluated.
+            If a numpy array is passed, a new population will be created, assuming the
+            values are independent values in untransformed space.
         current_iteration : int, optional
             Current iteration step. This value is used to determine whether the
             evaluation of callbacks should be skipped according to their evaluation
             frequency. The default is 0, indicating the callbacks will be evaluated
             regardless of the specified frequency.
+        parallelization_backend : ParallelizationBackendBase, optional
+            Adapter to backend for parallel evaluation of population.
+            By default, the individuals are evaluated sequentially.
         force : bool
             If True, do not use cached results. The default is False.
 
         See Also
         --------
-        evaluate_callbacks_population
-        _evaluate
-
-        """
-        self.logger.debug(f'evaluate callbacks at {ind.x}')
-
-        for callback in self.callbacks:
-            if not (
-                    current_iteration == 'final'
-                    or
-                    current_iteration % callback.frequency == 0):
-                continue
-
-            callback._ind = ind
-            callback._current_iteration = current_iteration
-
-            try:
-                self._evaluate(ind.x_transformed, callback, force, untransform=True)
-            except CADETProcessError:
-                self.logger.warning(
-                    f'Evaluation of {callback} failed at {ind.x}.'
-                )
-
-    def evaluate_callbacks_population(
-            self,
-            population,
-            current_iteration=0,
-            force=False,
-            parallelization_backend=None
-            ):
-        """Evaluate callbacks for each individual ind in population.
-
-        Parameters
-        ----------
-        population : list
-            Population.
-        current_iteration : int, optional
-            Current iteration step. This value is used to determine whether the
-            evaluation of callbacks is skipped according to their evaluation frequency.
-            The default is 0, indicating it will definitely be evaluated.
-        force : bool, optional
-            If True, do not use cached values. The default is False.
-        parallelization_backend : RunnerBase, optional
-            Runner to use for the evaluation of the population in
-            sequential or parallel mode.
-
-        See Also
-        --------
         add_callback
-        evaluate_callbacks
+        _evaluate_population
+        _evaluate_individual
+        _evaluate
         """
+        if isinstance(population, np.ndarray):
+            population = self.create_population(population)
+
         if parallelization_backend is None:
             parallelization_backend = SequentialBackend()
 
@@ -1674,15 +1611,33 @@ class OptimizationProblem(Structure):
                 "Cannot use dict cache for multiprocessing."
             )
 
-        def eval_fun(ind):
-            self.evaluate_callbacks(
-                ind,
-                current_iteration,
-                force=force
-            )
-            self.cache.close()
+        def evaluate_callbacks(ind):
+            for callback in self.callbacks:
+                if not (
+                        current_iteration == 'final'
+                        or
+                        current_iteration % callback.frequency == 0):
+                    continue
 
-        parallelization_backend.evaluate(eval_fun, population)
+                callback._ind = ind
+                callback._current_iteration = current_iteration
+
+                try:
+                    self._evaluate(ind.x_transformed, callback, force, untransform=True)
+                except CADETProcessError:
+                    self.logger.warning(
+                        f'Evaluation of {callback} failed at {ind.x}.'
+                    )
+
+        parallelization_backend.evaluate(evaluate_callbacks, population)
+
+    def evaluate_callbacks_population(self, *args, **kwargs):
+        warnings.warn(
+            'This function is deprecated; use `evaluate_callbacks` instead, which now '
+            'directly supports the evaluation of nd arrays.',
+            DeprecationWarning, stacklevel=2
+        )
+        self.evaluate_callbacks(*args, *kwargs)
 
     @property
     def meta_scores(self):
@@ -1793,68 +1748,54 @@ class OptimizationProblem(Structure):
         )
         self._meta_scores.append(meta_score)
 
+    @ensures2d
     @untransforms
     @ensures_minimization(scores='meta_scores')
-    def evaluate_meta_scores(self, x, force=False):
-        """Evaluate meta functions at point x.
+    def evaluate_meta_scores(
+            self,
+            X: npt.ArrayLike,
+            parallelization_backend: ParallelizationBackendBase | None = None,
+            force: bool = False,
+            ) -> np.ndarray:
+        """
+        Evaluate meta scores for each individual x in population X.
 
         Parameters
         ----------
-        x : array_like
-            Value of the optimization variables in untransformed space.
+        X : npt.ArrayLike
+            Population to be evaluated in untransformed space.
+        parallelization_backend : ParallelizationBackendBase, optional
+            Adapter to backend for parallel evaluation of population.
+            By default, the individuals are evaluated sequentially.
         force : bool
             If True, do not use cached results. The default is False.
 
         Returns
         -------
-        m : np.ndarray
-            Meta scores.
+        np.ndarray
+            The meta scores.
 
         See Also
         --------
         add_meta_score
-        evaluate_nonlinear_constraints_population
-        _call_evaluate_fun
-        _evaluate
-        """
-        self.logger.debug(f'Evaluate meta functions at {x}.')
-
-        m = self._evaluate_individual(self.meta_scores, x, force=force)
-
-        return m
-
-    @untransforms
-    @ensures2d
-    @ensures_minimization(scores='meta_scores')
-    def evaluate_meta_scores_population(self, population, force=False, parallelization_backend=None):
-        """Evaluate meta score functions for each point x in population.
-
-        Parameters
-        ----------
-        population : list
-            Population.
-        force : bool, optional
-            If True, do not use cached values. The default is False.
-        parallelization_backend : RunnerBase, optional
-            Runner to use for the evaluation of the population in
-            sequential or parallel mode.
-        Returns
-        -------
-        results : np.ndarray
-            Meta scores.
-
-        See Also
-        --------
-        add_meta_score
-        evaluate_meta_scores
+        _evaluate_population
         _evaluate_individual
         _evaluate
         """
-        results = self._evaluate_population(
-            self.evaluate_meta_scores, population, force, parallelization_backend
+        return self._evaluate_population(
+            target_functions=self.meta_scores,
+            X=X,
+            parallelization_backend=parallelization_backend,
+            force=force,
         )
 
-        return results
+    def evaluate_meta_scores_population(self, *args, **kwargs):
+        warnings.warn(
+            'This function is deprecated; use `evaluate_meta_scores` instead, which now '
+            'directly supports the evaluation of nd arrays.',
+            DeprecationWarning, stacklevel=2
+        )
+        self.evaluate_meta_scores(*args, *kwargs)
 
     @property
     def multi_criteria_decision_functions(self):
@@ -1912,13 +1853,17 @@ class OptimizationProblem(Structure):
         meta_score = MultiCriteriaDecisionFunction(decision_function, name)
         self._multi_criteria_decision_functions.append(meta_score)
 
-    def evaluate_multi_criteria_decision_functions(self, pareto_population):
-        """Evaluate evaluate multi criteria decision functions.
+    def evaluate_multi_criteria_decision_functions(
+            self,
+            pareto_population: Population,
+            ) -> np.ndarray:
+        """
+        Evaluate evaluate multi criteria decision functions.
 
         Parameters
         ----------
         pareto_population : Population
-            Pareto optimal solution
+            Pareto optimal solution.
 
         Returns
         -------
@@ -1927,7 +1872,6 @@ class OptimizationProblem(Structure):
 
         See Also
         --------
-        add_multi_criteria_decision_function
         add_multi_criteria_decision_function
         """
         self.logger.debug('Evaluate multi criteria decision functions.')
@@ -2638,12 +2582,13 @@ class OptimizationProblem(Structure):
 
         return transform.reshape(x_independent.shape)
 
-    def untransform(self, x_transformed):
+    @ensures2d
+    def untransform(self, x_transformed: npt.ArrayLike) -> np.ndarray:
         """Untransform the optimization variables from transformed parameter space.
 
         Parameters
         ----------
-        x_transformed : list
+        x_transformed : npt.ArrayLike
             Optimization variables in transformed parameter space.
 
         Returns
@@ -2999,40 +2944,39 @@ class OptimizationProblem(Structure):
 
         return ind
 
-    @ensures2d
     @untransforms
     @gets_dependent_values
     def create_population(
             self,
-            X: np.ndarray,
-            F: np.ndarray = None,
-            G: np.ndarray | None = None,
-            M: np.ndarray | None = None,
-            F_min: np.ndarray | None = None,
-            CV: np.ndarray | None = None,
+            X: npt.ArrayLike,
+            F: npt.ArrayLike = None,
+            G: npt.ArrayLike | None = None,
+            M: npt.ArrayLike | None = None,
+            F_min: npt.ArrayLike | None = None,
+            CV: npt.ArrayLike | None = None,
             cv_tol: float = 0.,
-            M_min: np.ndarray | None = None,
+            M_min: npt.ArrayLike | None = None,
             ) -> Population:
         """
         Create new population from data.
 
         Parameters
         ----------
-        X : np.ndarray
+        X : npt.ArrayLike
             Variable values in untransformed space.
-        F : np.ndarray
+        F : npt.ArrayLike
             Objective values.
-        G : np.ndarray
+        G : npt.ArrayLike
             Nonlinear constraint values.
-        M : np.ndarray
+        M : npt.ArrayLike
             Meta score values.
-        F_min : np.ndarray
+        F_min : npt.ArrayLike
             Minimized objective values.
-        CV : np.ndarray
+        CV : npt.ArrayLike
             Nonlinear constraints violation.
         cv_tol : float
             Tolerance for constraints violation.
-        M_min : np.ndarray
+        M_min : npt.ArrayLike
             Minimized meta score values.
 
         Returns
@@ -3040,6 +2984,8 @@ class OptimizationProblem(Structure):
         Population
             The newly created population.
         """
+        X = np.array(X, ndmin=2)
+
         if F is None:
             F = len(X) * [None]
         else:
