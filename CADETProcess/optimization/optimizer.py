@@ -429,7 +429,7 @@ class OptimizerBase(Structure):
         CV = np.array(CV, ndmin=2)
 
         if self.optimization_problem.n_meta_scores > 0:
-            M_min = self.optimization_problem.evaluate_meta_scores_population(
+            M_min = self.optimization_problem.evaluate_meta_scores(
                 X_transformed,
                 untransform=True,
                 ensure_minimization=True,
@@ -511,7 +511,7 @@ class OptimizerBase(Structure):
             callback.cleanup(_callbacks_dir, current_generation)
             callback._callbacks_dir = _callbacks_dir
 
-        self.optimization_problem.evaluate_callbacks_population(
+        self.optimization_problem.evaluate_callbacks(
             self.results.meta_front,
             current_generation,
             parallelization_backend=self.parallelization_backend,

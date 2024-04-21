@@ -1304,6 +1304,10 @@ class Test_MultiEvaluationObjects(unittest.TestCase):
     def test_evaluation(self):
         f_expected = [0, 0, 1, 2, 3, 2, 3]
         f = self.optimization_problem.evaluate_objectives([1, 1, 1])
+        np.testing.assert_allclose(f, f_expected)
+
+        f_expected = [[0, 0, 1, 2, 3, 2, 3], [0, 0, 1, 2, 3, 2, 3]]
+        f = self.optimization_problem.evaluate_objectives([[1, 1, 1], [1, 1, 1]])
 
         np.testing.assert_allclose(f, f_expected)
 
