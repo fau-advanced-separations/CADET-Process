@@ -30,8 +30,8 @@ from tests.optimization_problem_fixtures import (
 # =========================
 
 SOO_TEST_KWARGS = {
-    "atol": 0.05, # allows absolute 0.05 deviation (low values) of solution or
-    "rtol": 0.1,  # 0.1 alows 10% deviation of true solution
+    "atol": 0.05,   # allows absolute 0.05 deviation (low values) of solution or
+    "rtol": 0.1,    # 0.1 alows 10% deviation of true solution
 }
 
 MOO_TEST_KWARGS = {
@@ -59,10 +59,12 @@ NON_DEFAULT_PARAMETERS = [
         {"pop_size": 300, "n_max_gen": 50}),
 ]
 
+
 def skip_if_combination_excluded(optimizer, problem):
     for o, p, r in EXCLUDE_COMBINATIONS:
         if isinstance(optimizer, o) and isinstance(problem, p):
             pytest.skip(reason=r)
+
 
 def set_non_default_parameters(optimizer, problem):
     for o, p, params in NON_DEFAULT_PARAMETERS:
@@ -91,17 +93,18 @@ class U_NSGA3(U_NSGA3):
 
 
 class GPEI(GPEI):
-    n_init_evals=40
-    early_stopping_improvement_bar=1e-4
-    early_stopping_improvement_window=10
-    n_max_evals=50
+    n_init_evals = 40
+    early_stopping_improvement_bar = 1e-4
+    early_stopping_improvement_window = 10
+    n_max_evals = 50
 
 
 class NEHVI(NEHVI):
-    n_init_evals=50
-    early_stopping_improvement_bar=1e-4
-    early_stopping_improvement_window=10
-    n_max_evals=60
+    n_init_evals = 50
+    early_stopping_improvement_bar = 1e-4
+    early_stopping_improvement_window = 10
+    n_max_evals = 60
+
 
 # =========================
 #   Test problem factory
@@ -129,6 +132,7 @@ class NEHVI(NEHVI):
 def optimization_problem(request):
     return request.param()
 
+
 @pytest.fixture(params=[
     SLSQP,
     TrustConstr,
@@ -138,6 +142,7 @@ def optimization_problem(request):
 ])
 def optimizer(request):
     return request.param()
+
 
 # =========================
 #          Tests
@@ -175,6 +180,7 @@ def test_from_initial_values(optimization_problem: TestProblem, optimizer: Optim
         else:
             optimization_problem.test_if_solved(results, MOO_TEST_KWARGS)
 
+
 class AbortingCallback:
     """A callback that raises an exception after a specified number of calls."""
 
@@ -193,6 +199,7 @@ class AbortingCallback:
         if self.abort and self.n_calls >= self.n_max_evals:
             raise RuntimeError("Max number of evaluations reached. Aborting!")
         self.n_calls += 1
+
 
 def test_resume_from_checkpoint(
         optimization_problem: TestProblem, optimizer: OptimizerBase
