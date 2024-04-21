@@ -1,14 +1,12 @@
 # v0.7.0
 
 **CADET-Process** v0.7.0 is the culmination of 10 months of hard work.
-It contains many new features, numerous bug-fixes, improved test coverage and better
-documentation.
+It contains many new features, numerous bug-fixes, improved test coverage and better documentation.
 There have been a number of deprecations and API changes in this release, which are documented below.
-All users are encouraged to upgrade to this release, as there are a large number of bug-fixes and
-optimizations.
-Before upgrading, we recommend that users check that their own code does not use deprecated CADET-Process functionality (to do so, run your code with ``python -Wd`` and check for ``DeprecationWarning`` s).
+All users are encouraged to upgrade to this release, as there are a large number of bug-fixes and optimizations.
+Before upgrading, we recommend that users check that their own code does not use deprecated **CADET-Process** functionality (to do so, run your code with ``python -Wd`` and check for ``DeprecationWarning``).
 
-This release requires Python 3.8+
+This release requires Python 3.10+
 
 ## Highlights and new features of this release
 
