@@ -8,7 +8,8 @@ from CADETProcess.optimization import (
     SLSQP,
     U_NSGA3,
     GPEI,
-    NEHVI
+    NEHVI,
+    qNParEGO
 )
 
 
@@ -106,6 +107,12 @@ class NEHVI(NEHVI):
     n_max_evals = 60
 
 
+class qNParEGO(qNParEGO):
+    n_init_evals = 50
+    early_stopping_improvement_bar = 1e-4
+    early_stopping_improvement_window = 10
+    n_max_evals = 60
+
 # =========================
 #   Test problem factory
 # =========================
@@ -139,6 +146,7 @@ def optimization_problem(request):
     U_NSGA3,
     GPEI,
     NEHVI,
+    qNParEGO
 ])
 def optimizer(request):
     return request.param()

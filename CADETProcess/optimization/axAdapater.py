@@ -15,6 +15,7 @@ from ax import (
 from ax.global_stopping.strategies.improvement import ImprovementGlobalStoppingStrategy
 from ax.core.metric import MetricFetchResult, MetricFetchE
 from ax.core.base_trial import BaseTrial
+from ax.models.torch.botorch_defaults import get_qLogNEI
 from ax.models.torch.botorch_modular.surrogate import Surrogate
 from ax.utils.common.result import Err, Ok
 from ax.service.utils.report_utils import exp_to_df
@@ -32,9 +33,10 @@ from CADETProcess.optimization.parallelizationBackend import (
     ParallelizationBackendBase
 )
 __all__ = [
-    'GPEI',
-    'BotorchModular',
-    'NEHVI',
+    "GPEI",
+    "BotorchModular",
+    "NEHVI",
+    "qNParEGO",
 ]
 
 
@@ -54,7 +56,6 @@ class CADETProcessMetric(Metric):
             trial_results = trial.run_metadata
             records = []
             for arm_name, arm in trial.arms_by_name.items():
-
                 results_dict = {
                     "trial_index": trial.index,
                     "arm_name": arm_name,
@@ -549,4 +550,36 @@ class NEHVI(MultiObjectiveAxInterface):
         return Models.MOO(
             experiment=self.ax_experiment,
             data=self.ax_experiment.fetch_data()
+        )
+
+
+class qNParEGO(MultiObjectiveAxInterface):
+    """
+    Multi objective Bayesian optimization algorithm with the qNParEGO acquisition function.
+    ParEGO transforms the MOO problem into a single objective problem by applying a randomly weighted augmented
+    Chebyshev scalarization to the objectives, and maximizing the expected improvement of that scalarized
+    quantity (Knowles, 2006). Recently, Daulton et al. (2020) used a multi-output Gaussian process and compositional
+    Monte Carlo objective to extend ParEGO to the batch setting (qParEGO), which proved to be a strong baseline for
+    MOBO. Additionally, the authors proposed a noisy variant (qNParEGO), but the empirical evaluation of qNParEGO
+    was limited. [Daulton et al. 2021 "Parallel Bayesian Optimization of Multiple Noisy Objectives with Expected
+    Hypervolume Improvement"]
+    """
+    supports_single_objective = False
+
+    def __repr__(self):
+        smn = 'FixedNoiseGP'
+        afn = 'qNParEGO'
+
+        return f'{smn}+{afn}'
+
+    def train_model(self):
+        return Models.MOO(
+            experiment=self.ax_experiment,
+            data=self.ax_experiment.fetch_data(),
+            acqf_constructor=get_qLogNEI,
+            default_model_gen_options={
+                "acquisition_function_kwargs": {
+                    "chebyshev_scalarization": True,
+                }
+            },
         )
