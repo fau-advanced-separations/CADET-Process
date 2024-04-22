@@ -1598,15 +1598,18 @@ class OptimizationProblem(Structure):
         )
         self._callbacks.append(callback)
 
-    def evaluate_callbacks(self, ind, current_iteration=1, force=False):
+    def evaluate_callbacks(self, ind, current_iteration=0, force=False):
         """Evaluate callback functions at point x.
 
         Parameters
         ----------
         ind : Individual
             Individual to be evalauted.
-        current_iteration : int
-            Current iteration to determine if callback should be evaluated.
+        current_iteration : int, optional
+            Current iteration step. This value is used to determine whether the
+            evaluation of callbacks should be skipped according to their evaluation
+            frequency. The default is 0, indicating the callbacks will be evaluated
+            regardless of the specified frequency.
         force : bool
             If True, do not use cached results. The default is False.
 
@@ -1636,15 +1639,22 @@ class OptimizationProblem(Structure):
                 )
 
     def evaluate_callbacks_population(
-            self, population, current_iteration, force=False, parallelization_backend=None):
+            self,
+            population,
+            current_iteration=0,
+            force=False,
+            parallelization_backend=None
+            ):
         """Evaluate callbacks for each individual ind in population.
 
         Parameters
         ----------
         population : list
             Population.
-        current_iteration : int
-            Current iteration step.
+        current_iteration : int, optional
+            Current iteration step. This value is used to determine whether the
+            evaluation of callbacks is skipped according to their evaluation frequency.
+            The default is 0, indicating it will definitely be evaluated.
         force : bool, optional
             If True, do not use cached values. The default is False.
         parallelization_backend : RunnerBase, optional
