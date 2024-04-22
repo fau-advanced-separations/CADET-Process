@@ -107,14 +107,14 @@ from .pymooAdapter import NSGA2, U_NSGA3
 import importlib
 
 try:
-   from .axAdapater import BotorchModular, GPEI, NEHVI
+   from .axAdapater import BotorchModular, GPEI, NEHVI, qNParEGO
    ax_imported = True
 except ImportError:
    ax_imported = False
 
 
 def __getattr__(name):
-    if name in ('BotorchModular', 'GPEI', 'NEHVI'):
+    if name in ("BotorchModular", "GPEI", "NEHVI", "qNParEGO"):
         if ax_imported:
             module = importlib.import_module("axAdapter", package=__name__)
             return getattr(module, name)
