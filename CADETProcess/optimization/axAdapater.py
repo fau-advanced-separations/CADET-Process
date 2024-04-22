@@ -297,6 +297,7 @@ class AxInterface(OptimizerBase):
         # DONE: Update for multi-processing. If n_cores > 1: len(arms) > 1 (oder @Flo?)
         X = np.array([list(arm.parameters.values()) for arm in trial.arms])
         objective_labels = [f"{obj_name}_axidx_{i}" for i, obj_name in enumerate(op.objective_labels)]
+        nonlincon_labels = [f"{obj_name}_axidx_{i}" for i, obj_name in enumerate(op.nonlinear_constraint_labels)]
 
         n_ind = len(X)
 
@@ -307,7 +308,6 @@ class AxInterface(OptimizerBase):
 
         # Get nonlinear constraint values
         if op.n_nonlinear_constraints > 0:
-            nonlincon_labels = [f"{name}_axidx_{i}" for i, name in enumerate(op.nonlinear_constraint_labels)]
             G_data = data[data['metric_name'].isin(nonlincon_labels)]
             assert np.all(G_data["metric_name"].values.tolist() == np.repeat(nonlincon_labels, len(X)))
             G = G_data["mean"].values.reshape((op.n_nonlinear_constraints, n_ind)).T
