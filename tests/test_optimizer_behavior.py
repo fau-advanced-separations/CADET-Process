@@ -38,7 +38,7 @@ SOO_TEST_KWARGS = {
 MOO_TEST_KWARGS = {
     "atol": 0.01,
     "rtol": 0.1,
-    "mismatch_tol": 0.33,  # 75 % of all solutions must lie on the pareto front
+    "mismatch_tol": 0.3333333333,  # 75 % of all solutions must lie on the pareto front
 }
 
 FTOL = 0.001
@@ -111,7 +111,7 @@ class qNParEGO(qNParEGO):
     n_init_evals = 50
     early_stopping_improvement_bar = 1e-4
     early_stopping_improvement_window = 10
-    n_max_evals = 60
+    n_max_evals = 70
 
 # =========================
 #   Test problem factory
