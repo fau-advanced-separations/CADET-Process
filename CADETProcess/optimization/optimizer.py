@@ -505,6 +505,7 @@ class OptimizerBase(Structure):
         for callback in self.optimization_problem.callbacks:
             if self.optimization_problem.n_callbacks > 1:
                 _callbacks_dir = callbacks_dir / str(callback)
+                _callbacks_dir.mkdir(exist_ok=True, parents=True)
             else:
                 _callbacks_dir = callbacks_dir
 
