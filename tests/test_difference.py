@@ -298,9 +298,11 @@ class TestShape(unittest.TestCase):
         difference = Shape(
             self.reference,
             use_derivative=False,
-            components=['A']
+            components=['A'],
+            normalize_metrics=False,
+            include_height=False,
         )
-        metrics_expected = [0, 0, 0]
+        metrics_expected = [0, 0]
         metrics = difference.evaluate(self.reference)
         np.testing.assert_almost_equal(metrics, metrics_expected)
 
@@ -309,9 +311,22 @@ class TestShape(unittest.TestCase):
             self.reference_switched,
             use_derivative=False,
             components=['A'],
-            normalize_metrics=False
+            normalize_metrics=False,
+            include_height=False,
         )
-        metrics_expected = [5.5511151e-16, 10, 0.0000000e+00]
+        metrics_expected = [5.5511151e-16, 10]
+        metrics = difference.evaluate(self.reference)
+        np.testing.assert_almost_equal(metrics, metrics_expected)
+
+        # Compare with other Gauss Peak, include height
+        difference = Shape(
+            self.reference_switched,
+            use_derivative=False,
+            components=['A'],
+            normalize_metrics=False,
+            include_height=True,
+        )
+        metrics_expected = [5.5511151e-16, 10, 0]
         metrics = difference.evaluate(self.reference)
         np.testing.assert_almost_equal(metrics, metrics_expected)
 
@@ -320,9 +335,10 @@ class TestShape(unittest.TestCase):
             self.reference_switched,
             use_derivative=False,
             components=['A'],
-            normalize_metrics=True
+            normalize_metrics=True,
+            include_height=False,
         )
-        metrics_expected = [0, 4.6211716e-01, 0]
+        metrics_expected = [0, 4.6211716e-01]
         metrics = difference.evaluate(self.reference)
         np.testing.assert_almost_equal(metrics, metrics_expected)
 
@@ -331,7 +347,20 @@ class TestShape(unittest.TestCase):
             self.reference_switched,
             use_derivative=True,
             components=['A'],
-            normalize_metrics=False
+            normalize_metrics=False,
+            include_height=False,
+        )
+        metrics_expected = [0, 10, 0, ]
+        metrics = difference.evaluate(self.reference)
+        np.testing.assert_almost_equal(metrics, metrics_expected)
+
+        # Compare with other Gauss Peak, include derivative and height
+        difference = Shape(
+            self.reference_switched,
+            use_derivative=True,
+            components=['A'],
+            normalize_metrics=False,
+            include_height=True,
         )
         metrics_expected = [0, 10, 0, 0, 0, 0]
         metrics = difference.evaluate(self.reference)
@@ -342,16 +371,17 @@ class TestShape(unittest.TestCase):
             self.reference_switched,
             use_derivative=True,
             components=['A'],
-            normalize_metrics=True
+            normalize_metrics=True,
+            include_height=False,
         )
-        metrics_expected = [0, 4.6211716e-01, 0, 0, 0, 0]
+        metrics_expected = [0, 4.6211716e-01, 0]
         metrics = difference.evaluate(self.reference)
         np.testing.assert_almost_equal(metrics, metrics_expected)
 
         # Multi-component, currently not implemented
         with self.assertRaises(CADETProcessError):
             difference = Shape(self.reference, use_derivative=False)
-            metrics_expected = [0, 0, 0]
+            metrics_expected = [0, 0]
         with self.assertRaises(CADETProcessError):
             difference = Shape(self.reference_single)
             metrics = difference.evaluate(self.reference)
