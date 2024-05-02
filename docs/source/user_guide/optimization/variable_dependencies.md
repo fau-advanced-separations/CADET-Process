@@ -28,9 +28,6 @@ With linear combinations, variables are combined using weights or coefficients, 
 For example, consider a process where the same parameter is used in multiple unit operations.
 To reduce the number of variables that the optimizer needs to consider, it is possible to add a single variable, which is then set on both evaluation objects in pre-processing.
 In other cases, the ratio between model parameters may be essential for the optimization problem.
-For instance, consider the equilibrium constant $k_{eq} = k_a / k_d$ for an adsorption process with adsorption rate $k_a$ and desorption rate $k_d$.
-Instead of exposing both $k_a$ and $k_d$ to the optimizer, it is usually beneficial to expose $k_a$ and $k_{eq}$.
-This way, the values for the equilibrium and the kinetics of the reaction can be found independently.
 
 
 ```{figure} ./figures/transform_dependency.svg
@@ -61,3 +58,65 @@ optimization_problem.add_variable_dependency('var_2', ['var_0', 'var_1'], transf
 ```
 
 Note that generally bounds and linear constraints can still be specified independently for all variables.
+
+## Adsorption rates example
+
+For instance, consider an adsorption proces with an adsorption rate $k_a$ and a desorption rate $k_d$.
+Both influence the strength of the interaction as well as the dynamics of the interaction.
+By using the transformation $k_{eq} = k_a / k_d$ to calculate the equilibrium constant and $k_{kin} = 1 / k_d$ to calculate the kinetics constant, the values for the equilibrium and the kinetics of the reaction can be identified independently.
+First, the dependent variables $k_a$ and $k_d$ must be added as they are implemented in the underlying model.
+
+```{code-cell} ipython3
+optimization_problem.add_variable(
+    name='adsorption_rate',
+    parameter_path='flow_sheet.column.binding_model.adsorption_rate',
+    lb=1e-3, ub=1e3,
+    transform='auto',
+    indices=[1]  # modify only the protein (component index 1) parameter
+)
+
+optimization_problem.add_variable(
+    name='desorption_rate',
+    parameter_path='flow_sheet.column.binding_model.desorption_rate',
+    lb=1e-3, ub=1e3,
+    transform='auto',
+    indices=[1]
+)
+```
+
+Then, the independent variables $k_{eq}$ and $k_{kin}$ are added. To ensure, that CADET-Process does not try to write
+these variables into the CADET-Core model, where they do not have a place, `evaluation_objects` is set to `None`.
+
+```{code-cell} ipython3
+optimization_problem.add_variable(
+    name='equilibrium_constant',
+    evaluation_objects=None,
+    lb=1e-4, ub=1e3,
+    transform='auto',
+    indices=[1]
+)
+
+optimization_problem.add_variable(
+    name='kinetic_constant',
+    evaluation_objects=None,
+    lb=1e-4, ub=1e3,
+    transform='auto',
+    indices=[1]
+)
+```
+
+Lasty, the dependency between the variables is added with the `.add_variable_dependency()` method.
+
+```{code-cell} ipython3
+optimization_problem.add_variable_dependency(
+    dependent_variable="desorption_rate",
+    independent_variables=["kinetic_constant", ],
+    transform=lambda k_kin: 1 / k_kin
+)
+
+optimization_problem.add_variable_dependency(
+    dependent_variable="adsorption_rate",
+    independent_variables=["kinetic_constant", "equilibrium_constant"],
+    transform=lambda k_kin, k_eq: k_eq / k_kin
+)
+```

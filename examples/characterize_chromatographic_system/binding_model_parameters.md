@@ -247,11 +247,47 @@ if __name__ == '__main__':
     )
 
     optimization_problem.add_variable(
+        name='desorption_rate',
+        parameter_path='flow_sheet.column.binding_model.desorption_rate',
+        lb=1e-3, ub=1e3,
+        transform='auto',
+        indices=[1]  # modify only the protein (component index 1) parameter
+    )
+
+    optimization_problem.add_variable(
+        name='equilibrium_constant',
+        evaluation_objects=None,
+        lb=1e-4, ub=1e3,
+        transform='auto',
+        indices=[1]  # modify only the protein (component index 1) parameter
+    )
+
+    optimization_problem.add_variable(
+        name='kinetic_constant',
+        evaluation_objects=None,
+        lb=1e-4, ub=1e3,
+        transform='auto',
+        indices=[1]  # modify only the protein (component index 1) parameter
+    )
+
+    optimization_problem.add_variable(
         name='characteristic_charge',
         parameter_path='flow_sheet.column.binding_model.characteristic_charge',
         lb=1, ub=50,
         transform='auto',
         indices=[1]  # modify only the protein (component index 1) parameter
+    )
+
+    optimization_problem.add_variable_dependency(
+        dependent_variable="desorption_rate",
+        independent_variables=["kinetic_constant", ],
+        transform=lambda k_kin: 1 / k_kin
+    )
+
+    optimization_problem.add_variable_dependency(
+        dependent_variable="adsorption_rate",
+        independent_variables=["kinetic_constant", "equilibrium_constant"],
+        transform=lambda k_kin, k_eq: k_eq / k_kin
     )
 
 
@@ -265,6 +301,11 @@ if __name__ == '__main__':
 
 
     optimization_problem.add_callback(callback, requires=[simulator])
+
+    print(optimization_problem.variable_names)
+    x0 = [1, 1, 1e-2, 1e-3, 10]
+    ind = optimization_problem.create_individual(x0)
+    optimization_problem.evaluate_callbacks(ind)
 ```
 
 ```{note}
