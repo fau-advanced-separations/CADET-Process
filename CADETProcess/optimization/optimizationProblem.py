@@ -3929,6 +3929,7 @@ class Callback(Structure):
             callbacks_dir = Path(callbacks_dir)
             callbacks_dir.mkdir(exist_ok=True, parents=True)
         self.callbacks_dir = callbacks_dir
+        self._callbacks_dir = callbacks_dir
 
         self.keep_progress = keep_progress
 
@@ -3982,7 +3983,8 @@ class Callback(Structure):
                 callbacks_dir = self.callbacks_dir
             else:
                 callbacks_dir = self._callbacks_dir
-            kwargs['callbacks_dir'] = callbacks_dir
+            if callbacks_dir is not None:
+                kwargs['callbacks_dir'] = callbacks_dir
 
         self.callback(request, *args, **kwargs)
 
