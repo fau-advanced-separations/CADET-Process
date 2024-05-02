@@ -1,0 +1,7 @@
+name: cadet-process-docs
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - cadet>=4.4.0
+  - pip
