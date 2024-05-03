@@ -1,6 +1,78 @@
 [build-system]
 requires = [
-    "setuptools>=42",
+    "setuptools>=69",
     "wheel"
 ]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "CADET-Process"
+dynamic = ["version"]
+authors = [
+    { name = "Johannes Schmölder", email = "j.schmoelder@fz-juelich.de" },
+]
+description = "A Framework for Modelling and Optimizing Advanced Chromatographic Processes"
+readme = "README.md"
+requires-python = ">=3.10"
+keywords = ["process modeling", "process optimization", "chromatography"]
+license = { text = "GPLv3" }
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Intended Audience :: Science/Research",
+]
+dependencies = [
+    "addict==2.3",
+    "cadet-python>=0.14",
+    "corner>=2.2.1",
+    "diskcache>=5.4.0",
+    "hopsy>=1.4.0",
+    "joblib>=1.3.0",
+    "numpy>=1.21",
+    "matplotlib>=3.4",
+    "numba>=0.55.1",
+    "pathos>=0.2.8",
+    "psutil>=5.9.8",
+    "pymoo>=0.6",
+    "scipy>=1.11",
+]
+
+[project.optional-dependencies]
+testing = [
+    "certifi", # tries to prevent certificate problems on windows
+    "pytest",
+    "pre-commit", # system tests run pre-commit
+    "ax-platform>=0.3.5",
+]
+docs = [
+    "myst-nb>=0.17.1",
+    "numpydoc>=1.5.0",
+    "sphinx>=5.3.0",
+    "sphinxcontrib-bibtex>=2.5.0",
+    "sphinx_book_theme>=1.0.0",
+    "sphinx_copybutton>=0.5.1",
+    "sphinx-sitemap>=2.5.0",
+]
+
+ax = [
+    "ax-platform>=0.3.5",
+]
+
+[project.urls]
+homepage = "https://github.com/fau-advanced-separations/CADET-Process"
+documentation = "https://cadet-process.readthedocs.io"
+"Bug Tracker" = "https://github.com/fau-advanced-separations/CADET-Process/issues"
+
+
+[tool.setuptools.dynamic]
+version = { attr = "CADETProcess.__version__" }
+
+[tool.ruff]
+src = ["CADETProcess"]
+line-length = 88
+
+[tool.pytest.ini_options]
+testpaths = [
+    "tests",
+]
