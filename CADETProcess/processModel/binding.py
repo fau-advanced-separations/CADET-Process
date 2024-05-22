@@ -442,7 +442,7 @@ class AntiLangmuir(BindingBaseClass):
         Desorption rate constants. Length depends on `n_comp`.
     capacity : list of unsigned floats.
         Maximum adsorption capacities. Length depends on `n_comp`.
-    antilangmuir : list of unsigned floats, optional.
+    antilangmuir : list of unsigned floats.
         Anti-Langmuir coefficients. Length depends on `n_comp`.
 
     """
