@@ -460,8 +460,7 @@ class Cadet(SimulatorBase):
         cadet = CadetAPI()
         # Because the initialization in __init__ isn't guaranteed to be called in multiprocessing
         #  situations, ensure that the cadet_path has actually been set.
-        if not hasattr(cadet, "cadet_path"):
-            cadet.cadet_path = self.cadet_path
+        cadet.cadet_path = self.cadet_path
         return cadet
 
     def save_to_h5(self, process, file_path):
