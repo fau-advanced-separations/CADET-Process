@@ -10,7 +10,7 @@ from CADETProcess.dataStructure import (
     Bool, String,
     RangedInteger, UnsignedInteger, UnsignedFloat, SizedList,
     SizedRangedIntegerList, SizedUnsignedIntegerList,
-    SizedUnsignedList,
+    SizedUnsignedList, SizedRangedList,
     DependentlyModulatedUnsignedList
 )
 
@@ -442,15 +442,16 @@ class AntiLangmuir(BindingBaseClass):
         Desorption rate constants. Length depends on `n_comp`.
     capacity : list of unsigned floats.
         Maximum adsorption capacities. Length depends on `n_comp`.
-    antilangmuir : list of unsigned floats, optional.
-        Anti-Langmuir coefficients. Length depends on `n_comp`.
+    antilangmuir : list of floats, optional.
+        Anti-Langmuir coefficients. Must range between -1 and 1.
+        Length depends on `n_comp`.
 
     """
 
     adsorption_rate = SizedUnsignedList(size='n_comp')
     desorption_rate = SizedUnsignedList(size='n_comp')
     capacity = SizedUnsignedList(size='n_comp')
-    antilangmuir = SizedUnsignedList(size='n_comp')
+    antilangmuir = SizedRangedList(size='n_comp', lb=-1, ub=1)
 
     _parameters = [
         'adsorption_rate',
