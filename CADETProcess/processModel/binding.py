@@ -442,7 +442,7 @@ class AntiLangmuir(BindingBaseClass):
         Desorption rate constants. Length depends on `n_comp`.
     capacity : list of unsigned floats.
         Maximum adsorption capacities. Length depends on `n_comp`.
-    antilangmuir : list of unsigned floats.
+    antilangmuir : list of {-1, 1}.
         Anti-Langmuir coefficients. Length depends on `n_comp`.
 
     """
@@ -450,7 +450,7 @@ class AntiLangmuir(BindingBaseClass):
     adsorption_rate = SizedUnsignedList(size='n_comp')
     desorption_rate = SizedUnsignedList(size='n_comp')
     capacity = SizedUnsignedList(size='n_comp')
-    antilangmuir = SizedUnsignedList(size='n_comp')
+    antilangmuir = SizedList(size='n_comp')
 
     _parameters = [
         'adsorption_rate',
