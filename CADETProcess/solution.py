@@ -513,7 +513,7 @@ class SolutionIO(SolutionBase):
         return mass
 
     def fraction_volume(self, start=None, end=None):
-        """Volume of a fraction interval
+        """Volume of a fraction interval.
 
         Parameters
         ----------
