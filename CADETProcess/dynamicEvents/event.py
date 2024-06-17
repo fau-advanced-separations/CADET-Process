@@ -6,6 +6,7 @@ from addict import Dict
 import numpy as np
 from matplotlib.axes import Axes
 
+
 from CADETProcess import CADETProcessError
 
 from CADETProcess.dataStructure import Structure, frozen_attributes
@@ -772,7 +773,7 @@ class EventHandler(CachedPropertiesMixin, Structure):
 
         return flag
 
-    def plot_events(self, use_minutes: bool = True) -> list[Axes]:
+    def plot_events(self, x_axis_in_minutes: bool = True) -> list[Axes]:
         """
         Plot parameter state as a function of time.
 
@@ -782,38 +783,40 @@ class EventHandler(CachedPropertiesMixin, Structure):
 
         Parameters
         ----------
-        use_minutes: bool, optional
-            Option to use x-aches (time) in minutes, default is set to True.
+        x_axis_in_minutes: bool, optional
+            If True, the x-axis will be plotted using minutes. The default is True.
 
         Returns
         -------
-        list of matplotlib.Axes
-            List of axes objects, each containing a plot of the parameter state.
+        list[Axes]
+            List of Axes objects, each containing a plot of the parameter state.
 
         Notes
         -----
         The time is divided into 1001 linearly spaced points between 0 and the cycle
         time for the evaluation of the parameter state.
         """
-        time = np.linspace(0, self.cycle_time, 1001)
+        time_s = np.linspace(0, self.cycle_time, 1001)
 
-        if use_minutes:
-            time = time / 60
+        time_ax = time_s
+        if x_axis_in_minutes:
+            time_ax = time_ax / 60
+
         axs: list[Axes] = []
 
         for parameter, tl in self.parameter_timelines.items():
             fig, ax = plotting.setup_figure()
 
-            y = tl.value(time)
+            y = tl.value(time_s)
 
             layout = plotting.Layout()
             layout.title = str(parameter)
             layout.x_label = "$time~/~s$"
-            if use_minutes:
+            if x_axis_in_minutes:
                 layout.x_label = "$time~/~min$"
             layout.y_label = '$state$'
 
-            ax.plot(time, y)
+            ax.plot(time_ax, y)
 
             plotting.set_layout(ax, layout)
 

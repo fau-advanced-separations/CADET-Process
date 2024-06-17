@@ -271,24 +271,24 @@ class Comparator(Structure):
 
     def plot_comparison(
             self,
-            simulation_results: list[SimulationResults],
+            simulation_results: SimulationResults,
             axs: Axes | list[Axes] | None = None,
             figs: Figure | list[Figure] | None = None,
             file_name: str | None = None,
             show: bool = True,
             plot_individual: bool = False,
-            use_minutes: bool = True,
+            x_axis_in_minutes: bool = True,
             ) -> tuple[list[Figure], list[Axes]]:
         """
         Plot the comparison of the simulation results with the reference data.
 
         Parameters
         ----------
-        simulation_results : list of SimulationResults
-            List of simulation results to compare to reference data.
-        axs : list of AxesSubplot, optional
+        simulation_results : SimulationResults
+            Simulation results to compare to reference data.
+        axs : list of Axes, optional
             List of subplot axes to use for plotting the metrics.
-        figs : list of Figure, optional
+        figs : list of Figures, optional
             List of figures to use for plotting the metrics.
         file_name : str, optional
             Name of the file to save the figure to.
@@ -296,8 +296,8 @@ class Comparator(Structure):
             If True, displays the figure(s) on the screen.
         plot_individual : bool, optional
             If True, generates a separate figure for each metric.
-        use_minutes : bool, optional
-            Option to use x-aches (time) in minutes, default is set to True.
+        x_axis_in_minutes: bool, optional
+            If True, the x-axis will be plotted using minutes. The default is True.
 
         Returns
         -------
@@ -331,7 +331,7 @@ class Comparator(Structure):
                 'label': 'reference',
             }
             ref_time = metric.reference.time
-            if use_minutes:
+            if x_axis_in_minutes:
                 ref_time = ref_time / 60
 
             plotting.add_overlay(ax, metric.reference.solution, ref_time, **plot_args)
