@@ -279,15 +279,6 @@ class Cadet(SimulatorBase):
         if dll_path.is_file():
             self.cadet_dll_path = dll_path.as_posix()
 
-        if platform.system() != 'Windows':
-            try:
-                cadet_lib_path = cadet_root / 'lib'
-                if cadet_lib_path.as_posix() not in os.environ['LD_LIBRARY_PATH']:
-                    os.environ['LD_LIBRARY_PATH'] += \
-                        os.pathsep + cadet_lib_path.as_posix()
-            except KeyError:
-                os.environ['LD_LIBRARY_PATH'] = cadet_lib_path.as_posix()
-
     def check_cadet(self):
         """
         Check if CADET installation can run a basic LWE example.
