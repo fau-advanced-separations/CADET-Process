@@ -22,6 +22,7 @@ This module provides functionality for transforming data.
 from abc import ABC, abstractmethod, abstractproperty
 
 import numpy as np
+from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
 
 from CADETProcess import plotting
@@ -239,7 +240,7 @@ class TransformBase(ABC):
 
         Parameters
         ----------
-        ax : matplotlib.axes.Axes
+        ax : Axes
             The axes object to plot on.
         use_log_scale : bool, optional
             If True, use a logarithmic scale for the x-axis.

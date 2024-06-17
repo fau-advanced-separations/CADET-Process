@@ -230,8 +230,8 @@ class Fractionator(EventHandler):
     def plot_fraction_signal(
             self,
             chromatogram: SolutionIO | None = None,
-            use_minutes: bool = True,
-            ax: Axes = None,
+            x_axis_in_minutes: bool = True,
+            ax: Axes | None = None,
             *args,
             **kwargs,
             ) -> Axes:
@@ -241,9 +241,9 @@ class Fractionator(EventHandler):
         ----------
         chromatogram : SolutionIO, optional
             Chromatogram to be plotted. If None, the first one is plotted.
-        ax : Axes
-            Axes to plot on.
-        use_minutes: bool, optional
+        ax : Axes, optional
+            Axes to plot on. If None, a new figure is created.
+        x_axis_in_minutes: bool, optional
             Option to use x-aches (time) in minutes, default is set to True.
 
         Returns
@@ -268,18 +268,20 @@ class Fractionator(EventHandler):
 
         try:
             start = kwargs['start']
-            if use_minutes:
+            if x_axis_in_minutes:
                 start = start / 60
         except KeyError:
             start = 0
         try:
             end = kwargs['end']
-            if use_minutes:
+            if x_axis_in_minutes:
                 end = end / 60
         except KeyError:
             end = np.max(chromatogram.time)
 
-        _,  ax = chromatogram.plot(show=False, ax=ax, *args, **kwargs)
+        _, ax = chromatogram.plot(
+            show=False, ax=ax, x_axis_in_minutes=x_axis_in_minutes, *args, **kwargs
+        )
 
         y_max = 1.1*np.max(chromatogram.solution)
 
@@ -296,7 +298,7 @@ class Fractionator(EventHandler):
             sec_start = sec.start
             sec_end = sec.end
 
-            if use_minutes:
+            if x_axis_in_minutes:
                 sec_start = sec_start / 60
                 sec_end = sec_end / 60
 

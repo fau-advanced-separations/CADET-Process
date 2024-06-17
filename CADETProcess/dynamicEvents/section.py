@@ -6,7 +6,6 @@ from numpy import VisibleDeprecationWarning
 import scipy
 from matplotlib.axes import Axes
 
-
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import NdPolynomial
@@ -407,15 +406,15 @@ class TimeLine():
         return self.section_times[-1]
 
     @plotting.create_and_save_figure
-    def plot(self, ax, use_minutes: bool = True) -> Axes:
+    def plot(self, ax, x_axis_in_minutes: bool = True) -> Axes:
         """Plot the state of the timeline over time.
 
         Parameters
         ----------
         ax : Axes
             The axes to plot on.
-        use_minutes : bool, optional
-            Option to use x-aches (time) in minutes, default is set to True.
+        x_axis_in_minutes: bool, optional
+            If True, the x-axis will be plotted using minutes. The default is True.
 
         Returns
         -------
@@ -427,7 +426,7 @@ class TimeLine():
         time = np.linspace(start, end, 1001)
         y = self.value(time)
 
-        if use_minutes:
+        if x_axis_in_minutes:
             time = time / 60
             start = start / 60
             end = end / 60
@@ -435,7 +434,9 @@ class TimeLine():
         ax.plot(time, y)
 
         layout = plotting.Layout()
-        layout.x_label = '$time~/~min$'
+        layout.x_label = '$time~/~s$'
+        if x_axis_in_minutes:
+            layout.x_label = '$time~/~min$'
         layout.y_label = '$state$'
         layout.x_lim = (start, end)
         layout.y_lim = (np.min(y), 1.1*np.max(y))

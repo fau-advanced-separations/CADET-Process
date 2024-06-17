@@ -30,6 +30,7 @@ Method to slice a Solution:
 import copy
 
 import numpy as np
+from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
 from scipy.interpolate import PchipInterpolator
 from scipy import integrate
@@ -536,32 +537,38 @@ class SolutionIO(SolutionBase):
     @plotting.create_and_save_figure
     def plot(
             self,
-            start=None,
-            end=None,
-            components=None,
-            layout=None,
-            y_max=None,
-            ax=None,
+            start: float | None = None,
+            end: float | None = None,
+            components: list[str] | None = None,
+            layout: plotting.Layout | None = None,
+            y_max: float | None = None,
+            x_axis_in_minutes: bool = True,
+            ax: Axes | None = None,
             *args,
             **kwargs,
-            ):
+            ) -> Axes:
         """Plot the entire time_signal for each component.
 
         Parameters
         ----------
         start : float, optional
-            Start time for plotting. The default is 0.
+            Start time for plotting in seconds. If None is provided, the first data
+            point will be used as the start time. The default is None.
         end : float, optional
-            End time for plotting.
-        components : list, optional.
+            End time for plotting in seconds. If None is provided, the last data point
+            will be used as the end time. The default is None.
+        components : list of str, optional
             List of components to be plotted. If None, all components are plotted.
-        layout : plotting.Layout
-            Plot layout options.
+            The default is None.
+        layout : plotting.Layout, optional
+            Plot layout options. The default is None.
         y_max : float, optional
-            Maximum value of y axis.
-            If None, value is automatically deferred from solution.
-        ax : Axes
-            Axes to plot on.
+            Maximum value of the y-axis. If None, the value is automatically
+            determined from the data. The default is None.
+        x_axis_in_minutes : bool, optional
+            If True, the x-axis will be plotted using minutes. The default is True.
+        ax : Axes, optional
+            Axes to plot on. If None, a new figure is created.
 
         Returns
         -------
@@ -583,16 +590,20 @@ class SolutionIO(SolutionBase):
             coordinates={'time': [start, end]}
         )
 
-        x = solution.time / 60
+        x = solution.time
+        if x_axis_in_minutes:
+            x = x / 60
+            if start is not None:
+                start = start / 60
+            if end is not None:
+                end = end / 60
 
         if layout is None:
             layout = plotting.Layout()
-            layout.x_label = '$time~/~min$'
+            layout.x_label = '$time~/~s$'
+            if x_axis_in_minutes:
+                layout.x_label = '$time~/~min$'
             layout.y_label = '$c~/~mM$'
-            if start is not None:
-                start /= 60
-            if end is not None:
-                end /= 60
             layout.x_lim = (start, end)
         if y_max is not None:
             layout.y_lim = (None, y_max)
@@ -604,24 +615,29 @@ class SolutionIO(SolutionBase):
     @plotting.create_and_save_figure
     def plot_purity(
             self,
-            start=None,
-            end=None,
-            components=None,
-            layout=None,
-            y_max=None,
-            plot_components_purity=True,
-            plot_species_purity=False,
-            alpha=1, hide_labels=False,
-            show_legend=True,
-            ax=None):
+            start: float | None = None,
+            end: float | None = None,
+            components: list[str] | None = None,
+            layout: plotting.Layout | None = None,
+            y_max: float | None = None,
+            x_axis_in_minutes: bool = True,
+            plot_components_purity: bool = True,
+            plot_species_purity: bool = False,
+            alpha: float = 1,
+            hide_labels: bool = False,
+            show_legend: bool = True,
+            ax: Axes | None = None,
+            ) -> Axes:
         """Plot local purity for each component of the concentration profile.
 
         Parameters
         ----------
         start : float, optional
-            Start time for plotting. The default is 0.
+            Start time for plotting in seconds. If None is provided, the first data
+            point will be used as the start time. The default is None.
         end : float, optional
-            End time for plotting.
+            End time for plotting in seconds. If None is provided, the last data point
+            will be used as the end time. The default is None.
         components : list, optional.
             List of components to be plotted. If None, all components are plotted.
             Note that if components are excluded, they will also not be considered in
@@ -631,6 +647,8 @@ class SolutionIO(SolutionBase):
         y_max : float, optional
             Maximum value of y axis.
             If None, value is automatically deferred from solution.
+        x_axis_in_minutes : bool, optional
+            If True, the x-axis will be plotted using minutes. The default is True.
         plot_components_purity : bool, optional
             If True, plot purity of total component concentration. The default is True.
         plot_species_purity : bool, optional
@@ -673,11 +691,19 @@ class SolutionIO(SolutionBase):
                 "Purity undefined for systems with less than 2 components."
             )
 
-        x = solution.time / 60
+        x = solution.time
+        if x_axis_in_minutes:
+            x = x / 60
+            if start is not None:
+                start = start / 60
+            if end is not None:
+                end = end / 60
 
         if layout is None:
             layout = plotting.Layout()
-            layout.x_label = r'$time~/~min$'
+            layout.x_label = '$time~/~s$'
+            if x_axis_in_minutes:
+                layout.x_label = '$time~/~min$'
             layout.y_label = r'$Purity ~/~\%$'
             if start is not None:
                 start /= 60
@@ -787,23 +813,26 @@ class SolutionBulk(SolutionBase):
     @plotting.create_and_save_figure
     def plot(
             self,
-            start=None,
-            end=None,
-            components=None,
-            layout=None,
-            y_max=None,
-            ax=None,
+            start: float | None = None,
+            end: float | None = None,
+            components: list[str] | None = None,
+            layout: plotting.Layout | None = None,
+            y_max: float | None = None,
+            x_axis_in_minutes: bool = True,
+            ax: Axes | None = None,
             *args,
             **kwargs,
-            ):
+            ) -> Axes:
         """Plot the entire time_signal for each component.
 
         Parameters
         ----------
         start : float, optional
-            Start time for plotting. The default is 0.
+            Start time for plotting in seconds. If None is provided, the first data
+            point will be used as the start time. The default is None.
         end : float, optional
-            End time for plotting.
+            End time for plotting in seconds. If None is provided, the last data point
+            will be used as the end time. The default is None.
         components : list, optional.
             List of components to be plotted. If None, all components are plotted.
         layout : plotting.Layout
@@ -811,6 +840,8 @@ class SolutionBulk(SolutionBase):
         y_max : float, optional
             Maximum value of y axis.
             If None, value is automatically deferred from solution.
+        x_axis_in_minutes : bool, optional
+            If True, the x-axis will be plotted using minutes. The default is True.
         ax : Axes
             Axes to plot on.
 
@@ -845,16 +876,20 @@ class SolutionBulk(SolutionBase):
             coordinates={'time': [start, end]}
         )
 
-        x = solution.time / 60
+        x = solution.time
+        if x_axis_in_minutes:
+            x = x / 60
+            if start is not None:
+                start = start / 60
+            if end is not None:
+                end = end / 60
 
         if layout is None:
             layout = plotting.Layout()
-            layout.x_label = '$time~/~min$'
+            layout.x_label = '$time~/~s$'
+            if x_axis_in_minutes:
+                layout.x_label = '$time~/~min$'
             layout.y_label = '$c~/~mM$'
-            if start is not None:
-                start /= 60
-            if end is not None:
-                end /= 60
             layout.x_lim = (start, end)
             if y_max is not None:
                 layout.y_lim = (None, y_max)
@@ -878,7 +913,7 @@ class SolutionBulk(SolutionBase):
         Parameters
         ----------
         t : float
-            Time for plotting
+            Time for plotting in seconds.
             If t == -1, the final solution is plotted.
         components : list, optional.
             List of components to be plotted. If None, all components are plotted.
@@ -923,7 +958,7 @@ class SolutionBulk(SolutionBase):
     @plotting.create_and_save_figure
     def plot_at_position(
             self,
-            z,
+            z: float,
             components=None,
             layout=None,
             ax=None,
@@ -963,11 +998,21 @@ class SolutionBulk(SolutionBase):
             coordinates={'axial_coordinates': [z, z]},
         )
 
+        x = self.time
+        if x_axis_in_minutes:
+            x = x / 60
+            if start is not None:
+                start = start / 60
+            if end is not None:
+                end = end / 60
+
         x = self.time / 60
 
         if layout is None:
             layout = plotting.Layout()
-            layout.x_label = '$time~/~min$'
+            layout.x_label = '$time~/~s$'
+            if x_axis_in_minutes:
+                layout.x_label = '$time~/~min$'
             layout.y_label = '$c~/~mM$'
 
         ax = _plot_solution_1D(ax, x, solution, layout, *args, **kwargs)
@@ -1212,23 +1257,26 @@ class SolutionSolid(SolutionBase):
     @plotting.create_and_save_figure
     def plot(
             self,
-            start=None,
-            end=None,
-            components=None,
-            layout=None,
-            y_max=None,
-            ax=None,
+            start: float | None = None,
+            end: float | None = None,
+            components: list[str] | None = None,
+            layout: plotting.Layout | None = None,
+            y_max: float | None = None,
+            x_axis_in_minutes: bool = True,
+            ax: Axes | None = None,
             *args,
             **kwargs,
-            ):
-        """Plot the entire time_signal for each component.
+            ) -> Axes:
+        """Plot the entire solid phase solution for each component.
 
         Parameters
         ----------
         start : float, optional
-            Start time for plotting. The default is 0.
+            Start time for plotting in seconds. If None is provided, the first data
+            point will be used as the start time. The default is None.
         end : float, optional
-            End time for plotting.
+            End time for plotting in seconds. If None is provided, the last data point
+            will be used as the end time. The default is None.
         components : list, optional.
             List of components to be plotted. If None, all components are plotted.
         layout : plotting.Layout
@@ -1236,6 +1284,8 @@ class SolutionSolid(SolutionBase):
         y_max : float, optional
             Maximum value of y axis.
             If None, value is automatically deferred from solution.
+        x_axis_in_minutes : bool, optional
+            If True, the x-axis will be plotted using minutes. The default is True.
         ax : Axes
             Axes to plot on.
 
@@ -1268,16 +1318,20 @@ class SolutionSolid(SolutionBase):
             coordinates={'time': [start, end]}
         )
 
-        x = solution.time / 60
+        x = solution.time
+        if x_axis_in_minutes:
+            x = x / 60
+            if start is not None:
+                start = start / 60
+            if end is not None:
+                end = end / 60
 
         if layout is None:
             layout = plotting.Layout()
-            layout.x_label = '$time~/~min$'
+            layout.x_label = '$time~/~s$'
+            if x_axis_in_minutes:
+                layout.x_label = '$time~/~min$'
             layout.y_label = '$c~/~mM$'
-            if start is not None:
-                start /= 60
-            if end is not None:
-                end /= 60
             layout.x_lim = (start, end)
         if y_max is not None:
             layout.y_lim = (None, y_max)
@@ -1288,24 +1342,26 @@ class SolutionSolid(SolutionBase):
 
     def _plot_1D(
             self,
-            t,
-            components=None,
-            layout=None,
-            ax=None,
+            t: float,
+            components: list[str] | None = None,
+            layout: plotting.Layout | None = None,
+            ax: Axes | None = None,
             *args,
             **kwargs,
-            ):
+            ) -> Axes:
         """Plot bulk solution over space at given time.
 
         Parameters
         ----------
         t : float
-            Time for plotting
+            Time for plotting, in seconds.
             If t == -1, the final solution is plotted.
-        components : list, optional.
+        components : list, optional
             List of components to be plotted. If None, all components are plotted.
-        layout : plotting.Layout
-            Plot layout options.
+            The default is None.
+        layout : plotting.Layout, optional
+            Plot layout options. If None, a new instance is created.
+            The default is None.
         ax : Axes
             Axes to plot on.
 
@@ -1406,35 +1462,54 @@ class SolutionVolume(SolutionBase):
         return (self.nt, 1)
 
     @plotting.create_and_save_figure
-    def plot(self, start=None, end=None, ax=None, update_layout=True, **kwargs):
-        """Plot the whole time_signal for each component.
+    def plot(
+            self,
+            start: float | None = None,
+            end: float | None = None,
+            x_axis_in_minutes: bool = True,
+            ax: Axes | None = None,
+            update_layout: bool = True,
+            **kwargs
+            ) -> Axes:
+        """Plot the unit operation's volume over time.
 
         Parameters
         ----------
-        start : float
-            start time for plotting
-        end : float
-            end time for plotting
+        start : float, optional
+            Start time for plotting in seconds. If None is provided, the first data
+            point will be used as the start time. The default is None.
+        end : float, optional
+            End time for plotting in seconds. If None is provided, the last data point
+            will be used as the end time. The The default is None.
+        x_axis_in_minutes : bool, optional
+            If True, the x-axis will be plotted using minutes. The default is True.
         ax : Axes
             Axes to plot on.
+        update_layout : bool, optional
+            If True, update the figure's layout. The default is True.
 
         See Also
         --------
         CADETProcess.plot
         """
-        x = self.time / 60
+        x = self.time
+        if x_axis_in_minutes:
+            x = x / 60
+            if start is not None:
+                start = start / 60
+            if end is not None:
+                end = end / 60
+
         y = self.solution * 1000
 
         y_min = np.min(y)
         y_max = 1.1 * np.max(y)
 
         layout = plotting.Layout()
-        layout.x_label = '$time~/~min$'
+        layout.x_label = '$time~/~s$'
+        if x_axis_in_minutes:
+            layout.x_label = '$time~/~min$'
         layout.y_label = '$V~/~L$'
-        if start is not None:
-            start /= 60
-        if end is not None:
-            end /= 60
         layout.x_lim = (start, end)
         layout.y_lim = (y_min, y_max)
         ax.plot(x, y, **kwargs)
