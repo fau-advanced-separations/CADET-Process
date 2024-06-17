@@ -105,9 +105,6 @@ class DGMixin(DiscretizationParametersBase):
 class LRMDiscretizationFV(DiscretizationParametersBase):
     """Discretization parameters of the FV version of the LRM.
 
-    This class stores parameters for the Lax-Richtmyer-Morton (LRM) flux-based
-    finite volume discretization.
-
     Attributes
     ----------
     ncol : UnsignedInteger, optional
