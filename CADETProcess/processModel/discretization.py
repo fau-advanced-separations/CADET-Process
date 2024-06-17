@@ -12,7 +12,7 @@ class for all other classes in this module and defines some common parameters.
 Specific parameters for each scheme are defined as attributes of each class.
 
 """
-from CADETProcess.dataStructure import Structure
+from CADETProcess.dataStructure import Structure, frozen_attributes
 from CADETProcess.dataStructure import (
     Constant, Bool, Switch,
     RangedInteger, UnsignedInteger, UnsignedFloat,
@@ -30,6 +30,7 @@ __all__ = [
 ]
 
 
+@frozen_attributes
 class DiscretizationParametersBase(Structure):
     """Base class for storing discretization parameters.
 
@@ -493,6 +494,7 @@ class GRMDiscretizationDG(DGMixin):
         return self.par_nelem * (self.par_polydeg + 1)
 
 
+@frozen_attributes
 class WenoParameters(Structure):
     """Discretization parameters for the WENO scheme.
 
@@ -528,6 +530,7 @@ class WenoParameters(Structure):
     _parameters = ['boundary_model', 'weno_eps', 'weno_order']
 
 
+@frozen_attributes
 class ConsistencySolverParameters(Structure):
     """A class for defining the consistency solver parameters for Cadet.
 
