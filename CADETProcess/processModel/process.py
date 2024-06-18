@@ -568,16 +568,16 @@ class Process(EventHandler):
         if max(time) > self.cycle_time:
             raise ValueError('Inlet profile exceeds cycle time')
 
-        if components == -1:
+        if components is None:
+            if c.shape[1] != self.n_comp:
+                raise CADETProcessError('Number of components does not match')
+            components = self.component_system.species
+        elif components == -1:
             # Assume same profile for all components.
             if c.ndim > 1:
                 raise ValueError('Expected single concentration profile')
-
             c = np.column_stack([c]*self.n_comp)
             components = self.component_system.species
-        elif components is None and c.shape[1] != self.n_comp:
-            # Else, c must be given for all components.
-            raise CADETProcessError('Number of components does not match')
 
         if not isinstance(components, list):
             components = [components]
