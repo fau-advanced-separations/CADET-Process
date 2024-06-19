@@ -552,11 +552,8 @@ class Process(EventHandler):
         TypeError
             If the specified `unit` is not an Inlet unit operation.
         ValueError
-            If the time values in `time` exceed the cycle time of the Process or
-            if `c` has an invalid shape.
-        CADETProcessError
-            If the number of components in `c` does not match the number of
-            components in the Process.
+            If the time values in `time` exceed the cycle time of the Process.
+            If `c` has an invalid shape.
 
         """
         if isinstance(unit, str):
@@ -566,16 +563,16 @@ class Process(EventHandler):
             raise TypeError('Expected Inlet')
 
         if max(time) > self.cycle_time:
-            raise ValueError('Inlet profile exceeds cycle time')
+            raise ValueError('Inlet profile exceeds cycle time.')
 
         if components is None:
             if c.shape[1] != self.n_comp:
-                raise CADETProcessError('Number of components does not match')
+                raise ValueError(f'Expected shape ({len(time), self.n_comp}) for concentration array. Got {c.shape}.')
             components = self.component_system.species
         elif components == -1:
             # Assume same profile for all components.
             if c.ndim > 1:
-                raise ValueError('Expected single concentration profile')
+                raise ValueError('Expected single concentration profile.')
             c = np.column_stack([c]*self.n_comp)
             components = self.component_system.species
 
