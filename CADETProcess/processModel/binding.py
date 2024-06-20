@@ -39,6 +39,7 @@ __all__ = [
     'GeneralizedIonExchange',
     'HICConstantWaterActivity',
     'HICWaterOnHydrophobicSurfaces',
+    'MultiComponentColloidal',
 ]
 
 
@@ -1102,4 +1103,97 @@ class HICWaterOnHydrophobicSurfaces(BindingBaseClass):
         'capacity',
         'beta_0',
         'beta_1',
+    ]
+
+
+class MultiComponentColloidal(BindingBaseClass):
+    """Colloidal isotherm from Xu and Lenhoff 2009.
+
+    Attributes
+    ----------
+    phase_ratio : unsigned float.
+        Phase ratio.
+    kappa_exponential : unsigned float.
+        Screening term exponential factor.
+    kappa_factor : unsigned float.
+        Screening term factor.
+    kappa_constant : unsigned float.
+        Screening term constant.
+    coordination_number : unsigned integer.
+        Coordination number.
+    logkeq_ph_exponent : list of unsigned floats.
+        Equilibrium constant factor exponent term for pH. Size depends on `n_comp`.
+    logkeq_power_exponent : list of unsigned floats.
+        Equilibrium constant power exponent term for salt. Size depends on `n_comp`.
+    logkeq_power_factor : list of unsigned floats.
+        Equilibrium constant power factor term for salt. Size depends on `n_comp`.
+    logkeq_exponent_factor : list of unsigned floats.
+        Equilibrium constant exponent factor term for salt. Size depends on `n_comp`.
+    logkeq_exponent_multiplier : list of unsigned floats.
+        Equilibrium constant exponent multiplier term for salt. Size depends on `n_comp`.
+    bpp_ph_exponent : list of unsigned floats..
+        BPP constant exponent factor term for pH. Size depends on `n_comp`.
+    bpp_power_exponent : list of unsigned floats.
+        Bpp constant power exponent term for salt. Size depends on `n_comp`.
+    bpp_power_factor : list of unsigned floats.
+        Bpp constant power factor term for salt. Size depends on `n_comp`.
+    bpp_exponent_factor  : list of unsigned floats.
+        Bpp constant exponent factor term for salt. Size depends on `n_comp`.
+    bpp_exponent_multiplier : list of unsigned floats.
+        Bpp constant exponent multiplier term for salt. Size depends on `n_comp`.
+    protein_radius : list of unsigned floats.
+        Protein radius. Size depends on `n_comp`.
+    kinetic_rate_constant : list of unsigned floats.
+        Adsorption kinetics. Size depends on `n_comp`.
+    linear_threshold : unsigned float.
+        Linear threshold.
+    use_ph : Boolean.
+        Include pH or not.
+
+    """
+
+    bound_states = SizedUnsignedIntegerList(
+        size=('n_binding_sites', 'n_comp'), default=1
+    )
+
+    phase_ratio = UnsignedFloat()
+    kappa_exponential = UnsignedFloat()
+    kappa_factor = UnsignedFloat()
+    kappa_constant = UnsignedFloat()
+    coordination_number = UnsignedInteger()
+    logkeq_ph_exponent = SizedList(size='n_comp')
+    logkeq_power_exponent = SizedList(size='n_comp')
+    logkeq_power_factor = SizedList(size='n_comp')
+    logkeq_exponent_factor = SizedList(size='n_comp')
+    logkeq_exponent_multiplier = SizedList(size='n_comp')
+    bpp_ph_exponent = SizedList(size='n_comp')
+    bpp_power_exponent = SizedList(size='n_comp')
+    bpp_power_factor = SizedList(size='n_comp')
+    bpp_exponent_factor = SizedList(size='n_comp')
+    bpp_exponent_multiplier = SizedList(size='n_comp')
+    protein_radius = SizedList(size='n_comp')
+    kinetic_rate_constant = SizedList(size='n_comp')
+    linear_threshold = UnsignedFloat(default=1e-8)
+    use_ph = Bool(default=False)
+
+    _parameters = [
+        'phase_ratio',
+        'kappa_exponential',
+        'kappa_factor',
+        'kappa_constant',
+        'coordination_number',
+        'logkeq_ph_exponent',
+        'logkeq_power_exponent',
+        'logkeq_power_factor',
+        'logkeq_exponent_factor',
+        'logkeq_exponent_multiplier',
+        'bpp_ph_exponent',
+        'bpp_power_exponent',
+        'bpp_power_factor',
+        'bpp_exponent_factor',
+        'bpp_exponent_multiplier',
+        'protein_radius',
+        'kinetic_rate_constant',
+        'linear_threshold',
+        'use_ph',
     ]
