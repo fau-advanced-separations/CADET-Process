@@ -1644,6 +1644,31 @@ adsorption_parameters_map = {
             'HICWHS_BETA1': 'beta_1',
         },
     },
+    'MultiComponentColloidal': {
+        'name': 'MULTI_COMPONENT_COLLOIDAL',
+        'parameters': {
+            'IS_KINETIC': 'is_kinetic',
+            'COL_PHI': 'phase_ratio',
+            'COL_KAPPA_EXP': 'kappa_exponential',
+            'COL_KAPPA_FACT': 'kappa_factor',
+            'COL_KAPPA_CONST': 'kappa_constant',
+            'COL_CORDNUM': 'coordination_number',
+            'COL_LOGKEQ_PH_EXP': 'logkeq_ph_exponent',           
+            'COL_LOGKEQ_SALT_POWEXP': 'logkeq_power_exponent',
+            'COL_LOGKEQ_SALT_POWFACT': 'logkeq_power_factor',
+            'COL_LOGKEQ_SALT_EXPFACT': 'logkeq_exponent_factor',
+            'COL_LOGKEQ_SALT_EXPARGMULT': 'logkeq_exponent_multiplier',
+            'COL_BPP_PH_EXP': 'bpp_ph_exponent',
+            'COL_BPP_SALT_POWEXP': 'bpp_power_exponent',
+            'COL_BPP_SALT_POWFACT': 'bpp_power_factor',
+            'COL_BPP_SALT_EXPFACT': 'bpp_exponent_factor',
+            'COL_BPP_SALT_EXPARGMULT': 'bpp_exponent_multiplier',
+            'COL_RADIUS': 'protein_radius',
+            'COL_KKIN': 'kinetic_rate_constant',
+            'COL_LINEAR_THRESHOLD': 'linear_threshold',
+            'COL_USE_PH': 'use_ph',
+        },
+    },
 }
 
 inv_adsorption_parameters_map = {
