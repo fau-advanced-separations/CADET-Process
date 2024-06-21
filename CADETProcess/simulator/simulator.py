@@ -136,10 +136,12 @@ class SimulatorBase(Structure):
 
         """
         time = self.get_solution_time(process)
-        solution_times = np.array([])
-        for i in range(self.n_cycles):
+
+        solution_times = time
+
+        for i in range(1, self.n_cycles):
             solution_times = np.append(
-                solution_times, (i)*time[-1] + time
+                solution_times, (i)*time[-1] + time[1:]
             )
         solution_times = np.round(solution_times, self.sig_fig)
 
