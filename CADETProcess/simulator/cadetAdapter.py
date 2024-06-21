@@ -563,9 +563,9 @@ class Cadet(SimulatorBase):
                 flow_in = process.flow_rate_timelines[unit.name].total_in
                 flow_out = process.flow_rate_timelines[unit.name].total_out
 
+                start = 0
                 for cycle in range(self.n_cycles):
-                    start = cycle * len(time)
-                    end = (cycle + 1) * len(time)
+                    end = start + len(time)
 
                     if 'solution_inlet' in unit_solution.keys():
                         sol_inlet = unit_solution.solution_inlet[start:end, :]
@@ -631,6 +631,7 @@ class Cadet(SimulatorBase):
                                 sol_volume
                             )
                         )
+                    start = end - 1
 
             solution = Dict(solution)
 
