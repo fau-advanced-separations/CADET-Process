@@ -551,6 +551,35 @@ class TestFlowSheet(unittest.TestCase):
                     'outlet': 0.9,
                 }
             )
+    
+    def test_add_connection_error(self):
+        """
+        Test for all raised exceptions of add_connections. 
+        """
+        inlet = self.ssr_flow_sheet['eluent']
+        column = self.ssr_flow_sheet['column']
+        outlet = self.ssr_flow_sheet['outlet']
+        external_unit = Cstr(self.component_system, name='external_unit')
+
+        # Inlet can't be a destination
+        with self.assertRaises(CADETProcessError):
+            self.ssr_flow_sheet.add_connection(column, inlet)
+
+        # Outlet can't be an origin
+        with self.assertRaises(CADETProcessError):
+            self.ssr_flow_sheet.add_connection(outlet, column)
+
+        # Destination not part of flow_sheet
+        with self.assertRaises(CADETProcessError):
+            self.ssr_flow_sheet.add_connection(inlet, external_unit)
+
+        # Origin not part of flow_sheet
+        with self.assertRaises(CADETProcessError):
+            self.ssr_flow_sheet.add_connection(external_unit, outlet)
+
+        # Connection already exists
+        with self.assertRaises(CADETProcessError):
+            self.ssr_flow_sheet.add_connection(inlet, column)
 
     def test_add_connection_error(self):
         """
