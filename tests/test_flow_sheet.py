@@ -551,6 +551,31 @@ class TestFlowSheet(unittest.TestCase):
                     'outlet': 0.9,
                 }
             )
+    
+    def test_add_connection_error(self):
+        
+        inlet = self.ssr_flow_sheet['eluent']
+        column = self.ssr_flow_sheet['column']
+        outlet = self.ssr_flow_sheet['outlet']
+        outerunit = Cstr(self.component_system, name='outerunit')
+
+        with self.assertRaises(CADETProcessError):
+            self.ssr_flow_sheet.add_connection(column, inlet)
+
+        with self.assertRaises(CADETProcessError):
+            self.ssr_flow_sheet.add_connection(outlet, column)
+
+        with self.assertRaises(CADETProcessError):
+            self.ssr_flow_sheet.add_connection(outlet, inlet)
+
+        with self.assertRaises(CADETProcessError):
+            self.ssr_flow_sheet.add_connection(inlet, outerunit)
+
+        with self.assertRaises(CADETProcessError):
+            self.ssr_flow_sheet.add_connection(outerunit, outlet)
+
+        with self.assertRaises(CADETProcessError):
+            self.ssr_flow_sheet.add_connection(inlet, column)
 
 
 class TestCstrFlowRate(unittest.TestCase):
