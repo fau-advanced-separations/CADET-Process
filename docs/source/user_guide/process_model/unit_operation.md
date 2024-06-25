@@ -16,6 +16,7 @@ sys.path.append('../../../../')
 
 (unit_operation_guide)=
 # Unit Operation Models
+
 A {class}`UnitOperation <CADETProcess.processModel.UnitBaseClass>` is a class that represents the physico-chemical behavior of an apparatus and holds its model parameters.
 For an overview of all unit operation models currently available in **CADET-Process**, refer to {mod}`~CADETProcess.processModel`.
 Each unit operation model can be associated with binding models that describe the interaction of components with the surface of a chromatographic stationary phase.
@@ -41,6 +42,7 @@ unit = Cstr(component_system, 'tank')
 ```
 
 All parameters are stored in the {attr}`~CADETProcess.processModel.UnitBaseModel.parameters` attribute.
+
 ```{code-cell} ipython3
 print(unit.parameters)
 ```
@@ -91,7 +93,6 @@ print(inlet.flow_rate)
 
 Or, specify all polynomial coefficients:
 
-
 ```{code-cell} ipython3
 inlet.flow_rate = [0, 1, 2, 3]
 print(inlet.flow_rate)
@@ -107,7 +108,6 @@ print(inlet.c)
 ```
 
 Specify constant term for each component:
-
 
 ```{code-cell} ipython3
 inlet.c = [1, 2]
@@ -133,7 +133,8 @@ Since these parameters are mostly used in dynamic process models, they are usual
 For an example, refer to {ref}`SSR process <lwe_example>`.
 
 (discretization_guide)=
-### Discretization
+## Discretization
+
 Some of the unit operations need to be spatially discretized.
 The discretization parameters are stored in a {class}`DiscretizationParametersBase` class.
 For example, consider a {class}`~CADETProcess.processModel.LumpedRateModelWithoutPores`.
@@ -156,6 +157,7 @@ print(lrm_discretization_fv.parameters)
 ```
 
 Notable parameters are:
+
 - {attr}`~CADETProcess.processModel.LRMDiscretizationFV.ncol`: Number of axial column discretization cells. Default is 100.
 - {attr}`~CADETProcess.processModel.LRMDiscretizationFV.weno_parameters`: Discretization parameters for the WENO scheme
 - {attr}`~CADETProcess.processModel.LRMDiscretizationFV.consistency_solver`: Consistency solver parameters for Cadet.
@@ -186,6 +188,7 @@ print(lrm_dg.discretization)
 
 (solution_recorder_guide)=
 ## Solution Recorder
+
 To store the solution of a unit operation, a solution recorder needs to be configured.
 In this recorder, a flag can be set to store different partitions (e.g. inlet, outlet, bulk, etc.) of the solution of that unit operation.
 Consider the {attr}`~CADETProcess.processModel.LumpedRateModelWithoutPores.solution_recorder` of a {class}`~CADETProcess.processModel.LumpedRateModelWithoutPores`.
