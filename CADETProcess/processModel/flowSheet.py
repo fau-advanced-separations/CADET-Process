@@ -344,8 +344,13 @@ class FlowSheet(Structure):
         """
         if origin not in self._units:
             raise CADETProcessError('Origin not in flow sheet')
+        if isinstance(origin, Outlet):
+            raise CADETProcessError("Outlet unit cannot have outgoing stream.")
+
         if destination not in self._units:
             raise CADETProcessError('Destination not in flow sheet')
+        if isinstance(destination, Inlet):
+            raise CADETProcessError("Inlet unit cannot have ingoing stream.")
 
         if destination in self.connections[origin].destinations:
             raise CADETProcessError('Connection already exists')
