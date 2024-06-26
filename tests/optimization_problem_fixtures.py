@@ -153,10 +153,20 @@ class Rosenbrock(TestProblem):
 
 
 class LinearConstraintsSooTestProblem(TestProblem):
-    def __init__(self, transform=None, has_evaluator=False, *args, **kwargs):
+    def __init__(
+            self,
+            transform=None,
+            has_evaluator=False,
+            precision=None,
+            *args,
+            **kwargs
+            ):
         self.test_abs_tol = 0.1
         super().__init__('linear_constraints_single_objective', *args, **kwargs)
-        self.setup_variables(transform=transform)
+        self.setup_variables(
+            transform=transform,
+            precision=precision
+        )
         self.setup_linear_constraints()
         if has_evaluator:
             eval_fun = lambda x: x
@@ -168,10 +178,29 @@ class LinearConstraintsSooTestProblem(TestProblem):
         else:
             self.add_objective(self._objective_function)
 
-    def setup_variables(self, transform):
-        self.add_variable('var_0', lb=-2, ub=2, transform=transform)
-        self.add_variable('var_1', lb=-2, ub=2, transform=transform)
-        self.add_variable('var_2', lb=0, ub=2, transform="log")
+    def setup_variables(self, transform, precision):
+        self.add_variable(
+            'var_0',
+            lb=-2,
+            ub=2,
+            transform=transform,
+            precision=precision,
+        )
+        self.add_variable(
+            'var_1',
+            lb=-2,
+            ub=2,
+            transform=transform,
+            precision=precision,
+        )
+        self.add_variable(
+            'var_2',
+            lb=0,
+            ub=2,
+            transform="log",
+            precision=precision,
+        )
+
     def setup_linear_constraints(self):
         self.add_linear_constraint(['var_0', 'var_1'], [-1, -0.5], 0)
 
@@ -318,6 +347,7 @@ class LinearConstraintsSooTestProblem2(TestProblem):
     def optimal_solution(self):
         x = np.array([-5.0, 5.0, 0.0]).reshape(1, self.n_variables)
         f = -15.0
+
         return x, f
 
     def test_if_solved(self, optimization_results: OptimizationResults,
@@ -346,10 +376,10 @@ class LinearEqualityConstraintsSooTestProblem(TestProblem):
         self.setup_linear_constraints()
         self.add_objective(self._objective_function)
 
-    def setup_variables(self: OptimizationProblem, transform=None):
-        self.add_variable('var_0', lb=-5, ub=5, transform=transform)
-        self.add_variable('var_1', lb=-5, ub=5, transform=transform)
-        self.add_variable('var_2', lb=-5, ub=5, transform=transform)
+    def setup_variables(self: OptimizationProblem, transform=None, precision=None):
+        self.add_variable('var_0', lb=-5, ub=5, transform=transform, precision=precision)
+        self.add_variable('var_1', lb=-5, ub=5, transform=transform, precision=precision)
+        self.add_variable('var_2', lb=-5, ub=5, transform=transform, precision=precision)
 
     def setup_linear_constraints(self):
         self.add_linear_equality_constraint(
@@ -411,6 +441,7 @@ class NonlinearLinearConstraintsSooTestProblem(TestProblem):
     def x0(self):
         return [-0.5, 1.5]
 
+    @property
     def optimal_solution(self):
         x = np.array([-1, 2]).reshape(1, self.n_variables)
         f = -3
@@ -419,7 +450,7 @@ class NonlinearLinearConstraintsSooTestProblem(TestProblem):
 
     def test_if_solved(self, optimization_results: OptimizationResults,
                        test_kwargs=default_test_kwargs):
-        x_true, f_true = self.optimal_solution()
+        x_true, f_true = self.optimal_solution
         x = optimization_results.x
         f = optimization_results.f
 

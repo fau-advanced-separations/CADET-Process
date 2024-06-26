@@ -2605,7 +2605,7 @@ class OptimizationProblem(Structure):
 
         for i, ind in enumerate(x_transformed_2d):
             untransform[i, :] = [
-                var.untransform_fun(value)
+                var.untransform_fun(value, var.precision)
                 for value, var in zip(ind, self.independent_variables)
             ]
 
@@ -3483,11 +3483,11 @@ class OptimizationVariable:
     def transform(self):
         return self._transform
 
-    def transform_fun(self, x):
-        return self._transform.transform(x)
+    def transform_fun(self, x, *args, **kwargs):
+        return self._transform.transform(x, *args, **kwargs)
 
-    def untransform_fun(self, x):
-        return self._transform.untransform(x)
+    def untransform_fun(self, x, *args, **kwargs):
+        return self._transform.untransform(x, *args, **kwargs)
 
     def add_dependency(self, dependencies, transform):
         """Add dependency of Variable on other Variables.
