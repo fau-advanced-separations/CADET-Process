@@ -7,7 +7,13 @@ from scipy import optimize
 from scipy.optimize import OptimizeWarning
 
 from CADETProcess import CADETProcessError
-from CADETProcess.dataStructure import Bool, Switch, UnsignedFloat, UnsignedInteger
+from CADETProcess.dataStructure import (
+    Bool,
+    Float,
+    Switch,
+    UnsignedFloat,
+    UnsignedInteger,
+)
 from CADETProcess.optimization import OptimizationProblem, OptimizerBase
 
 
@@ -39,6 +45,7 @@ class SciPyInterface(OptimizerBase):
     See Also
     --------
     COBYLA
+    COBYQA
     TrustConstr
     NelderMead
     SLSQP
@@ -71,6 +78,7 @@ class SciPyInterface(OptimizerBase):
         See Also
         --------
         COBYLA
+        COBYQA
         TrustConstr
         NelderMead
         SLSQP
@@ -139,8 +147,8 @@ class SciPyInterface(OptimizerBase):
             x0 = self.results.population_last.x[0, :]
             self.n_evals = self.results.n_evals
             options["maxiter"] = self.maxiter - self.n_evals
-            if str(self) == "COBYLA":
-                options["maxiter"] -= 1
+            if str(self) in ["COBYLA", "COBYQA"]:
+                options['maxiter'] -= 1
 
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=OptimizeWarning)
@@ -506,6 +514,76 @@ class COBYLA(SciPyInterface):
     n_max_iter = maxiter        # Alias for uniform interface
 
     _specific_options = ["rhobeg", "tol", "maxiter", "disp", "catol"]
+
+
+class COBYQA(SciPyInterface):
+    """Wrapper for the COBYQA optimization method from the scipy optimization suite.
+
+    It defines the solver options in the 'options' variable as a dictionary.
+
+    Supports:
+        - Linear constraints
+        - Linear equality constraints
+        - Nonlinear constraints
+        - Bounds
+
+    Parameters
+    ----------
+    disp : bool, default False
+        Set to True to print information about the optimization procedure.
+    maxfev : int
+        Maximum number of function evaluations.
+        The default is None.
+    maxiter : int
+        Maximum number of iterations.
+        The default is None.
+    f_target : float
+        Target value for the objective function.The optimization procedure is
+        terminated when the objective function value of a feasible point (see
+        `feasibility_tol` below) is less than or equal to this target.
+        The default is `-np.inf`
+    feasibility_tol : float
+        Absolute tolerance for the constraint violation.
+        The default is 1e-8
+    initial_tr_radius : float
+        Initial trust-region radius. Typically, this value should be in the order of one
+        tenth of the greatest expected change to the variables.
+        The default is 1.0
+    final_tr_radius : float
+        Final trust-region radius. It should indicate the accuracy required in the final
+        values of the variables. If provided, this option overrides the value of `tol`
+        in the `minimize` function.
+        The default is 1e-6
+    """
+
+    supports_linear_constraints = True
+    supports_linear_equality_constraints = True
+    supports_nonlinear_constraints = True
+    supports_bounds = True
+
+    disp = Bool(default=False)
+
+    maxfev = UnsignedInteger()
+    maxiter = UnsignedInteger()
+    f_target = Float(default=-np.inf)
+    feasibility_tol = UnsignedFloat(default=1e-8)
+    initial_tr_radius = UnsignedFloat(default=1.0)
+    final_tr_radius = UnsignedFloat(default=1e-6)
+
+    x_tol = final_tr_radius             # Alias for uniform interface
+    cv_nonlincon_tol = feasibility_tol  # Alias for uniform interface
+    n_max_evals = maxfev                # Alias for uniform interface
+    n_max_iter = maxiter                # Alias for uniform interface
+
+    _specific_options = [
+        "disp",
+        "maxfev",
+        "maxiter",
+        "f_target",
+        "feasibility_tol",
+        "initial_tr_radius",
+        "final_tr_radius",
+    ]
 
 
 class NelderMead(SciPyInterface):
