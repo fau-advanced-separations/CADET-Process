@@ -331,7 +331,7 @@ class OptimizationProblem(Structure):
     def add_variable(
             self, name, evaluation_objects=-1, parameter_path=None,
             lb=-math.inf, ub=math.inf, transform=None, indices=None,
-            pre_processing=None):
+            precision=None, pre_processing=None):
         """Add optimization variable to the OptimizationProblem.
 
         The function encapsulates the creation of OptimizationVariable objects
@@ -358,6 +358,9 @@ class OptimizationProblem(Structure):
         indices : int  or tuple, optional
             Indices for variables that modify entries of a parameter array.
             If None, variable is assumed to be index independent.
+        precision : int, optional
+            Number of significant figures to which variable can be rounded.
+            If None, variable is not rounded. The default is None.
         pre_processing : callable, optional
             Additional step to process the value before setting it. This function must
             accept a single argument (the value) and return the processed value.
@@ -401,6 +404,7 @@ class OptimizationProblem(Structure):
             name, evaluation_objects, parameter_path,
             lb=lb, ub=ub, transform=transform,
             indices=indices,
+            precision=precision,
             pre_processing=pre_processing,
         )
 
