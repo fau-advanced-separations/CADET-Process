@@ -79,6 +79,8 @@ class ResultsCache():
             The value corresponding to the key.
         tag : str, optional
             Tag to associate with result. The default is None.
+        close : bool, optional
+            If True, database will be closed after operation. The default is True.
         """
         if self.use_diskcache:
             self.cache.set(key, value, tag=tag, expire=None)
@@ -91,12 +93,15 @@ class ResultsCache():
             self.close()
 
     def get(self, key, close=True):
-        """Get entry from cache.
+        """
+        Get entry from cache.
 
         Parameters
         ----------
         key : hashable
             The key to retrieve the results for.
+        close : bool, optional
+            If True, database will be closed after operation. The default is True.
 
         Returns
         -------
@@ -111,15 +116,15 @@ class ResultsCache():
         return value
 
     def delete(self, key, close=True):
-        """Remove entry from cache.
+        """
+        Remove entry from cache.
 
         Parameters
         ----------
         key : hashable
             The key to retrieve the results for.
-        value : object
-            The value corresponding to the key.
-
+        close : bool, optional
+            If True, database will be closed after operation. The default is True.
         """
         if self.use_diskcache:
             found = self.cache.delete(key)
@@ -131,13 +136,16 @@ class ResultsCache():
         if close:
             self.close()
 
-    def prune(self, tag):
-        """Remove tagged entries from cache.
+    def prune(self, tag, close=True):
+        """
+        Remove tagged entries from cache.
 
         Parameters
         ----------
-        tag : str, optional
-            Tag to be removed. The default is 'temp'.
+        tag : str
+            Tag to be removed.
+        close : bool, optional
+            If True, database will be closed after operation. The default is True.
         """
         if self.use_diskcache:
             self.cache.evict(tag)
@@ -150,7 +158,8 @@ class ResultsCache():
                 except KeyError:
                     pass
 
-        self.close()
+        if close:
+            self.close()
 
     def close(self):
         """Close cache."""

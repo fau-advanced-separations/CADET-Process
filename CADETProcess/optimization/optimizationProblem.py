@@ -2645,9 +2645,19 @@ class OptimizationProblem(Structure):
         if reinit:
             self.setup_cache()
 
-    def prune_cache(self, tag=None):
-        """Prune cache with (intermediate) results."""
-        self.cache.prune(tag)
+    def prune_cache(self, tag=None, close=True):
+        """
+        Prune cache with (intermediate) results.
+
+        Parameters
+        ----------
+        tag : str
+            Tag to be removed. The default is 'temp'.
+        close : bool, optional
+            If True, database will be closed after operation. The default is True.
+
+        """
+        self.cache.prune(tag, close)
 
     def create_hopsy_problem(
             self,

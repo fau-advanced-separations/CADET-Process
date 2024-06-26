@@ -588,15 +588,16 @@ class OptimizerBase(Structure):
         for x in population.x:
             x_key = x.tobytes()
             if x not in self.results.meta_front.x:
-                self.optimization_problem.prune_cache(x_key)
+                self.optimization_problem.prune_cache(x_key, close=False)
             else:
                 self._current_cache_entries.append(x_key)
+
 
         # Remove old meta front entries from cache that were replaced by better ones
         for x_key in self._current_cache_entries:
             x = np.frombuffer(x_key)
             if not np.all(np.isin(x, self.results.meta_front.x)):
-                self.optimization_problem.prune_cache(x_key)
+                self.optimization_problem.prune_cache(x_key, close=False)
                 self._current_cache_entries.remove(x_key)
 
         self._log_results(current_generation)
