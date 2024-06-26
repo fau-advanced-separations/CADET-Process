@@ -4,12 +4,14 @@ import pytest
 
 from CADETProcess.optimization import (
     OptimizerBase,
+    COBYLA,
     TrustConstr,
+    NelderMead,
     SLSQP,
     U_NSGA3,
     GPEI,
     NEHVI,
-    qNParEGO
+    qNParEGO,
 )
 
 
@@ -23,14 +25,14 @@ from tests.optimization_problem_fixtures import (
     NonlinearLinearConstraintsSooTestProblem,
     LinearConstraintsMooTestProblem,
     LinearNonlinearConstraintsMooTestProblem,
-    NonlinearConstraintsMooTestProblem
+    NonlinearConstraintsMooTestProblem,
 )
 
 # %% Optimizer Setup
 
 SOO_TEST_KWARGS = {
-    "atol": 0.05,   # allows absolute 0.05 deviation (low values) of solution or
-    "rtol": 0.1,    # 0.1 alows 10% deviation of true solution
+    "atol": 0.05,  # allows absolute 0.05 deviation (low values) of solution or
+    "rtol": 0.1,  # 0.1 alows 10% deviation of true solution
 }
 
 MOO_TEST_KWARGS = {
@@ -47,7 +49,7 @@ EXCLUDE_COMBINATIONS = [
     (
         U_NSGA3,
         LinearEqualityConstraintsSooTestProblem,
-        "See also: https://jugit.fz-juelich.de/IBG-1/ModSim/hopsy/-/issues/152"
+        "See also: https://jugit.fz-juelich.de/IBG-1/ModSim/hopsy/-/issues/152",
     ),
     (GPEI, Rosenbrock, "cannot solve problem with enough accuracy fast enough-"),
 ]
@@ -74,9 +76,20 @@ def set_non_default_parameters(optimizer, problem):
                 setattr(optimizer, pk, pv)
 
 
+class COBYLA(COBYLA):
+    f_tol = F_TOL
+    x_tol = X_TOL
+    cv_tol = CV_TOL
+
+
 class TrustConstr(TrustConstr):
     x_tol = X_TOL
     cv_tol = CV_TOL
+
+
+class NelderMead(NelderMead):
+    f_tol = F_TOL
+    x_tol = X_TOL
 
 
 class SLSQP(SLSQP):
@@ -114,37 +127,42 @@ class qNParEGO(qNParEGO):
 
 # %% Test problem factory
 
-@pytest.fixture(params=[
-    # single objective problems
-    Rosenbrock,
-    LinearConstraintsSooTestProblem,
-    LinearConstraintsSooTestProblem2,
-    NonlinearConstraintsSooTestProblem,
-    LinearEqualityConstraintsSooTestProblem,
-    NonlinearLinearConstraintsSooTestProblem,
 
-    # multi objective problems
-    LinearConstraintsMooTestProblem,
-    NonlinearConstraintsMooTestProblem,
-    LinearNonlinearConstraintsMooTestProblem,
-
-    # transformed problems
-    partial(LinearConstraintsSooTestProblem, transform="linear"),
-    partial(LinearEqualityConstraintsSooTestProblem, transform="linear"),
-    partial(NonlinearLinearConstraintsSooTestProblem, transform="linear"),
-])
+@pytest.fixture(
+    params=[
+        # single objective problems
+        Rosenbrock,
+        LinearConstraintsSooTestProblem,
+        LinearConstraintsSooTestProblem2,
+        NonlinearConstraintsSooTestProblem,
+        LinearEqualityConstraintsSooTestProblem,
+        NonlinearLinearConstraintsSooTestProblem,
+        # multi objective problems
+        LinearConstraintsMooTestProblem,
+        NonlinearConstraintsMooTestProblem,
+        LinearNonlinearConstraintsMooTestProblem,
+        # transformed problems
+        partial(LinearConstraintsSooTestProblem, transform="linear"),
+        partial(LinearEqualityConstraintsSooTestProblem, transform="linear"),
+        partial(NonlinearLinearConstraintsSooTestProblem, transform="linear"),
+    ]
+)
 def optimization_problem(request):
     return request.param(use_diskcache=False)
 
 
-@pytest.fixture(params=[
-    SLSQP,
-    TrustConstr,
-    U_NSGA3,
-    GPEI,
-    NEHVI,
-    qNParEGO
-])
+@pytest.fixture(
+    params=[
+        COBYLA,
+        TrustConstr,
+        NelderMead,
+        SLSQP,
+        U_NSGA3,
+        GPEI,
+        NEHVI,
+        qNParEGO
+    ]
+)
 def optimizer(request):
     optimizer = request.param()
     optimizer.progress_freqency = None
@@ -152,6 +170,7 @@ def optimizer(request):
 
 
 # %% Tests
+
 
 def test_convergence(optimization_problem: TestProblem, optimizer: OptimizerBase):
     # only test problems that the optimizer can handle. The rest of the tests
@@ -169,7 +188,9 @@ def test_convergence(optimization_problem: TestProblem, optimizer: OptimizerBase
             optimization_problem.test_if_solved(results, MOO_TEST_KWARGS)
 
 
-def test_from_initial_values(optimization_problem: TestProblem, optimizer: OptimizerBase):
+def test_from_initial_values(
+    optimization_problem: TestProblem, optimizer: OptimizerBase
+):
 
     if optimizer.check_optimization_problem(optimization_problem):
         skip_if_combination_excluded(optimizer, optimization_problem)
@@ -207,8 +228,8 @@ class AbortingCallback:
 
 
 def test_resume_from_checkpoint(
-        optimization_problem: TestProblem, optimizer: OptimizerBase
-    ):
+    optimization_problem: TestProblem, optimizer: OptimizerBase
+):
     pytest.skip()
 
     # TODO: Do we need to run this for all problems?
