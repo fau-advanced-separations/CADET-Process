@@ -712,19 +712,21 @@ class Test_OptimizationProblemLinCon(unittest.TestCase):
         self.optimization_problem.add_linear_constraint(
             ['var_0', 'var_1'], [3, 3], 1
         )
+        self.optimization_problem.add_linear_constraint(['var_0', 'var_1'], 4)
 
         A_expected = np.array([
             [1., -1.],
             [1., 0.],
             [1., 1.],
             [2., 2.],
-            [3., 3.]
+            [3., 3.],
+            [4., 4.],
         ])
 
         A = self.optimization_problem.A
         np.testing.assert_almost_equal(A, A_expected)
 
-        b_expected = np.array([0, 0, 0, 0, 1])
+        b_expected = np.array([0, 0, 0, 0, 1, 0])
         b = self.optimization_problem.b
         np.testing.assert_almost_equal(b, b_expected)
 
@@ -735,6 +737,8 @@ class Test_OptimizationProblemLinCon(unittest.TestCase):
         # Incorrect shape
         with self.assertRaises(CADETProcessError):
             self.optimization_problem.add_linear_constraint('var_0', [])
+
+
 
     def test_initial_values(self):
         x0_chebyshev_expected = [1/3, 2/3]
