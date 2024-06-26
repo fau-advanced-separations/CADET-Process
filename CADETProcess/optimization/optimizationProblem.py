@@ -2551,7 +2551,7 @@ class OptimizationProblem(Structure):
         flag = True
 
         lhs = self.evaluate_linear_equality_constraints(x)
-        if np.any(np.abs(lhs) >= self.eps_eq):
+        if np.any(np.abs(lhs) > self.eps_eq):
             flag = False
 
         return flag
