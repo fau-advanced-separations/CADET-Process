@@ -38,6 +38,7 @@ class SciPyInterface(OptimizerBase):
     See Also
     --------
     COBYLA
+    COBYQA
     TrustConstr
     NelderMead
     SLSQP
@@ -78,6 +79,7 @@ class SciPyInterface(OptimizerBase):
             raise CADETProcessError("Can only handle single objective.")
 
         def objective_function(x):
+            optimization_problem.check_bounds(x)
             return optimization_problem.evaluate_objectives(
                 x, untransform=True, ensure_minimization=True,
             )[0]
@@ -124,7 +126,7 @@ class SciPyInterface(OptimizerBase):
             x0 = self.results.population_last.x[0, :]
             self.n_evals = self.results.n_evals
             options['maxiter'] = self.maxiter - self.n_evals
-            if str(self) == 'COBYLA':
+            if str(self) in ['COBYLA', 'COBYQA']:
                 options['maxiter'] -= 1
 
         with warnings.catch_warnings():
@@ -411,6 +413,51 @@ class TrustConstr(SciPyInterface):
 
 class COBYLA(SciPyInterface):
     """Wrapper for the COBYLA optimization method from the scipy optimization suite.
+
+    It defines the solver options in the 'options' variable as a dictionary.
+
+    Supports:
+        - Linear constraints
+        - Linear equality constraints
+        - Nonlinear constraints
+
+    Parameters
+    ----------
+    rhobeg : float, default 1
+        Reasonable initial changes to the variables.
+    tol : float, default 0.0002
+        Final accuracy in the optimization (not precisely guaranteed).
+        This is a lower bound on the size of the trust region.
+    disp : bool, default False
+        Set to True to print convergence messages.
+        If False, verbosity is ignored and set to 0.
+    maxiter : int, default 10000
+        Maximum number of function evaluations.
+    catol : float, default 2e-4
+        Absolute tolerance for constraint violations.
+
+    """
+    supports_linear_constraints = True
+    supports_linear_equality_constraints = True
+    supports_nonlinear_constraints = True
+    supports_bounds = True
+
+    rhobeg = UnsignedFloat(default=1)
+    tol = UnsignedFloat(default=0.0002)
+    maxiter = UnsignedInteger(default=10000)
+    disp = Bool(default=False)
+    catol = UnsignedFloat(default=0.0002)
+
+    f_tol = tol             # Alias for uniform interface
+    cv_tol = catol          # Alias for uniform interface
+    n_max_evals = maxiter   # Alias for uniform interface
+    n_max_iter = maxiter    # Alias for uniform interface
+
+    _specific_options = ['rhobeg', 'tol', 'maxiter', 'disp', 'catol']
+
+
+class COBYQA(SciPyInterface):
+    """Wrapper for the COBYQA optimization method from the scipy optimization suite.
 
     It defines the solver options in the 'options' variable as a dictionary.
 

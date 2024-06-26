@@ -5,6 +5,7 @@ import pytest
 from CADETProcess.optimization import (
     OptimizerBase,
     COBYLA,
+    COBYQA,
     TrustConstr,
     NelderMead,
     SLSQP,
@@ -82,6 +83,12 @@ class COBYLA(COBYLA):
     cv_tol = CV_TOL
 
 
+class COBYQA(COBYQA):
+    f_tol = F_TOL
+    x_tol = X_TOL
+    cv_tol = CV_TOL
+
+
 class TrustConstr(TrustConstr):
     x_tol = X_TOL
     cv_tol = CV_TOL
@@ -154,13 +161,14 @@ def optimization_problem(request):
 @pytest.fixture(
     params=[
         COBYLA,
+        COBYQA,
         TrustConstr,
         NelderMead,
         SLSQP,
         U_NSGA3,
         GPEI,
         NEHVI,
-        qNParEGO
+        qNParEGO,
     ]
 )
 def optimizer(request):
