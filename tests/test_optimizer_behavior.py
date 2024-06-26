@@ -26,9 +26,7 @@ from tests.optimization_problem_fixtures import (
     NonlinearConstraintsMooTestProblem
 )
 
-# =========================
-#   Test-Optimizer Setup
-# =========================
+# %% Optimizer Setup
 
 SOO_TEST_KWARGS = {
     "atol": 0.05,   # allows absolute 0.05 deviation (low values) of solution or
@@ -112,9 +110,8 @@ class qNParEGO(qNParEGO):
     early_stopping_improvement_window = 10
     n_max_evals = 70
 
-# =========================
-#   Test problem factory
-# =========================
+
+# %% Test problem factory
 
 @pytest.fixture(params=[
     # single objective problems
@@ -151,9 +148,7 @@ def optimizer(request):
     return request.param()
 
 
-# =========================
-#          Tests
-# =========================
+# %% Tests
 
 def test_convergence(optimization_problem: TestProblem, optimizer: OptimizerBase):
     # only test problems that the optimizer can handle. The rest of the tests
