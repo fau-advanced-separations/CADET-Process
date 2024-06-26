@@ -5,7 +5,9 @@ TODO:
 
 """
 from functools import partial
+from typing import NoReturn
 import warnings
+
 import numpy as np
 
 from CADETProcess.optimization import OptimizationProblem, OptimizationResults
@@ -31,45 +33,47 @@ default_test_kwargs = {
     "err_msg": error
 }
 
+
 def allow_test_failure_percentage(
         test_function,
         test_kwargs,
         mismatch_tol=0.0
-    ):
-        """When two arrays are compared, allow a certain fraction of the comparisons
-        to fail. This behaviour is explicitly accepted in convergence tests of
-        multi-objective tests. The reason behind it is that building the pareto
-        front takes time and removing dominated solutions from the frontier can
-        take a long time. Hence accepting a certain fraction of dominated-solutions
-        is acceptable, when the majority points lies on the pareto front.
+        ):
+    """When two arrays are compared, allow a certain fraction of the comparisons
+    to fail. This behaviour is explicitly accepted in convergence tests of
+    multi-objective tests. The reason behind it is that building the pareto
+    front takes time and removing dominated solutions from the frontier can
+    take a long time. Hence accepting a certain fraction of dominated-solutions
+    is acceptable, when the majority points lies on the pareto front.
 
-        While of course for full convergence checks the mismatch tolerance should
-        be reduced to zero, for normal testing the fraction can be raised to
-        say 0.25. This value can be adapted for easy or difficult cases.
-        """
-        assert 0.0 <= mismatch_tol <= 1.0, "mismatch_tol must be between 0 and 1."
-        try:
-            test_function(**test_kwargs)
-        except AssertionError as e:
-            msg = e.args[0].split("\n")
-            lnum, mismatch_line = [(i, l) for i, l in enumerate(msg)
-                                   if "Mismatched elements:" in l][0]
-            mismatch_percent = float(mismatch_line.split("(")[1].split("%")[0])
-            if mismatch_percent / 100 > mismatch_tol:
-                err_line = (
-                     "---> " + mismatch_line +
-                     f" exceeded tolerance ({mismatch_percent}% > {mismatch_tol * 100}%)"
-                )
-                msg[lnum] = err_line
-                raise AssertionError("\n".join(msg))
-            else:
-                warn_line = (
-                    mismatch_line +
-                    f" below tolerance ({mismatch_percent}% <= {mismatch_tol * 100}%)"
-                )
-                warnings.warn(
-                     f"Equality test passed with {warn_line}"
-                )
+    While of course for full convergence checks the mismatch tolerance should
+    be reduced to zero, for normal testing the fraction can be raised to
+    say 0.25. This value can be adapted for easy or difficult cases.
+    """
+    assert 0.0 <= mismatch_tol <= 1.0, "mismatch_tol must be between 0 and 1."
+    try:
+        test_function(**test_kwargs)
+    except AssertionError as e:
+        msg = e.args[0].split("\n")
+        lnum, mismatch_line = [(i, l) for i, l in enumerate(msg)
+                               if "Mismatched elements:" in l][0]
+        mismatch_percent = float(mismatch_line.split("(")[1].split("%")[0])
+        if mismatch_percent / 100 > mismatch_tol:
+            err_line = (
+                 "---> " + mismatch_line +
+                 f" exceeded tolerance ({mismatch_percent}% > {mismatch_tol * 100}%)"
+            )
+            msg[lnum] = err_line
+            raise AssertionError("\n".join(msg))
+        else:
+            warn_line = (
+                mismatch_line +
+                f" below tolerance ({mismatch_percent}% <= {mismatch_tol * 100}%)"
+            )
+            warnings.warn(
+                 f"Equality test passed with {warn_line}"
+            )
+
 
 class TestProblem(OptimizationProblem):
     @property
@@ -134,8 +138,11 @@ class Rosenbrock(TestProblem):
     def x0(self):
         return np.repeat(0.9, self.n_variables)
 
-    def test_if_solved(self, optimization_results: OptimizationResults,
-                       test_kwargs=default_test_kwargs):
+    def test_if_solved(
+            self,
+            optimization_results: OptimizationResults,
+            test_kwargs=default_test_kwargs
+            ) -> NoReturn:
         x_true, f_true = self.optimal_solution
         x = optimization_results.x
         f = optimization_results.f
@@ -143,7 +150,6 @@ class Rosenbrock(TestProblem):
         test_kwargs["err_msg"] = error
         np.testing.assert_allclose(f, f_true, **test_kwargs)
         np.testing.assert_allclose(x, x_true, **test_kwargs)
-
 
 
 class LinearConstraintsSooTestProblem(TestProblem):
@@ -166,6 +172,7 @@ class LinearConstraintsSooTestProblem(TestProblem):
         self.add_variable('var_0', lb=-2, ub=2, transform=transform)
         self.add_variable('var_1', lb=-2, ub=2, transform=transform)
         self.add_variable('var_2', lb=0, ub=2, transform="log")
+
     def setup_linear_constraints(self):
         self.add_linear_constraint(['var_0', 'var_1'], [-1, -0.5], 0)
 
@@ -199,7 +206,6 @@ class LinearConstraintsSooTestProblem(TestProblem):
         test_kwargs["err_msg"] = error
         np.testing.assert_allclose(f, f_true, **test_kwargs)
         np.testing.assert_allclose(x, x_true, **test_kwargs)
-
 
 
 class NonlinearConstraintsSooTestProblem(TestProblem):
@@ -313,10 +319,13 @@ class LinearConstraintsSooTestProblem2(TestProblem):
     def optimal_solution(self):
         x = np.array([-5.0, 5.0, 0.0]).reshape(1, self.n_variables)
         f = -15.0
+
         return x, f
 
-    def test_if_solved(self, optimization_results: OptimizationResults,
-                       test_kwargs=default_test_kwargs):
+    def test_if_solved(
+            self, optimization_results: OptimizationResults,
+            test_kwargs=default_test_kwargs
+            ):
         x_true, f_true = self.optimal_solution
         x = optimization_results.x
         f = optimization_results.f
@@ -326,15 +335,12 @@ class LinearConstraintsSooTestProblem2(TestProblem):
         np.testing.assert_allclose(x, x_true, **test_kwargs)
 
 
-
-
-
 class LinearEqualityConstraintsSooTestProblem(TestProblem):
     def __init__(
             self,
             transform=None,
             *args, **kwargs
-        ):
+            ):
         super().__init__(
             "linear_equality_constraints_single_objective",
             *args, **kwargs
@@ -368,8 +374,10 @@ class LinearEqualityConstraintsSooTestProblem(TestProblem):
 
         return x.reshape(1, self.n_variables), f
 
-    def test_if_solved(self, optimization_results: OptimizationResults,
-                       test_kwargs=default_test_kwargs):
+    def test_if_solved(
+            self, optimization_results: OptimizationResults,
+            test_kwargs=default_test_kwargs
+            ):
         x_true, f_true = self.optimal_solution
         x = optimization_results.x
         f = optimization_results.f
@@ -501,8 +509,10 @@ class LinearConstraintsMooTestProblem(TestProblem):
 
         return X, F
 
-    def test_if_solved(self, optimization_results: OptimizationResults,
-                       test_kwargs=default_test_kwargs):
+    def test_if_solved(
+            self, optimization_results: OptimizationResults,
+            test_kwargs=default_test_kwargs
+            ) -> NoReturn:
         X = optimization_results.x
 
         x1, x2 = X.T
@@ -581,7 +591,6 @@ class LinearNonlinearConstraintsMooTestProblem(TestProblem):
         """
         return np.where(x1 <= 2, 2 - x1, 0)
 
-
     @property
     def x0(self):
         return [1.6, 1.4]
@@ -596,8 +605,10 @@ class LinearNonlinearConstraintsMooTestProblem(TestProblem):
 
         return X, F
 
-    def test_if_solved(self, optimization_results: OptimizationResults,
-                       test_kwargs=default_test_kwargs):
+    def test_if_solved(
+            self, optimization_results: OptimizationResults,
+            test_kwargs=default_test_kwargs
+            ):
         X = optimization_results.x
 
         x1, x2 = X.T
@@ -668,8 +679,11 @@ class NonlinearConstraintsMooTestProblem(TestProblem):
 
         return X, F     # G ???
 
-    def test_if_solved(self, optimization_results: OptimizationResults,
-                       test_kwargs=default_test_kwargs):
+    def test_if_solved(
+            self,
+            optimization_results: OptimizationResults,
+            test_kwargs=default_test_kwargs
+            ) -> NoReturn:
         X = optimization_results.x_transformed
         x1, x2 = X.T
 
