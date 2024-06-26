@@ -41,9 +41,9 @@ MOO_TEST_KWARGS = {
     "mismatch_tol": 0.3333333333,  # 75 % of all solutions must lie on the pareto front
 }
 
-FTOL = 0.001
-XTOL = 0.001
-GTOL = 0.0001
+F_TOL = 0.001
+X_TOL = 0.001
+CV_TOL = 0.0001
 
 EXCLUDE_COMBINATIONS = [
     (GPEI, Rosenbrock,
@@ -76,19 +76,18 @@ def set_non_default_parameters(optimizer, problem):
 
 
 class TrustConstr(TrustConstr):
-    ftol = FTOL
-    xtol = XTOL
-    gtol = GTOL
+    x_tol = X_TOL
+    cv_tol = CV_TOL
 
 
 class SLSQP(SLSQP):
-    ftol = FTOL
+    x_tol = X_TOL
 
 
 class U_NSGA3(U_NSGA3):
-    ftol = FTOL
-    xtol = XTOL
-    cvtol = GTOL
+    f_tol = F_TOL
+    x_tol = X_TOL
+    cv_tol = CV_TOL
     pop_size = 100
     n_max_gen = 20  # before used 100 generations --> this did not improve the fit
 
