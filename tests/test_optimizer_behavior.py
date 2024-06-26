@@ -133,7 +133,7 @@ class qNParEGO(qNParEGO):
     partial(NonlinearLinearConstraintsSooTestProblem, transform="linear"),
 ])
 def optimization_problem(request):
-    return request.param()
+    return request.param(use_diskcache=False)
 
 
 @pytest.fixture(params=[
