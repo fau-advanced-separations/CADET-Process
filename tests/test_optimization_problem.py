@@ -608,8 +608,8 @@ def dummy_meta_score(f):
 
 
 def setup_optimization_problem(
-        n_vars=2, n_obj=1, n_lincon=0, n_nonlincon=0, n_meta=0,
-        bounds=None, obj_fun=None, nonlincon_fun=None, lincons=None,
+        n_vars=2, n_obj=1, n_lincon=0, n_lineqcon=0, n_nonlincon=0, n_meta=0,
+        bounds=None, obj_fun=None, nonlincon_fun=None, lincons=None, lineqcons=None,
         use_diskcache=False,
         ):
     optimization_problem = OptimizationProblem('simple', use_diskcache=use_diskcache)
@@ -634,6 +634,15 @@ def setup_optimization_problem(
         for opt_vars, lhs, b in lincons:
             optimization_problem.add_linear_constraint(opt_vars, lhs, b)
 
+    if n_lineqcon > 0:
+        if lineqcons is None:
+            lineqcons = [
+                ([f'var_{i_var}', f'var_{i_var+1}'], [1, -1], 0)
+                for i_var in range(n_lineqcon)
+            ]
+        for opt_vars, lhs, beq in lineqcons:
+            optimization_problem.add_linear_equality_constraint(opt_vars, lhs, beq)
+
     if obj_fun is None:
         obj_fun = setup_dummy_eval_fun(n_obj)
 
@@ -651,6 +660,7 @@ def setup_optimization_problem(
             labels=[f'g_{i}' for i in range(n_nonlincon)],
             bounds=0.5
         )
+
 
     if n_meta > 0:
         optimization_problem.add_meta_score(dummy_meta_score)
@@ -738,7 +748,40 @@ class Test_OptimizationProblemLinCon(unittest.TestCase):
         with self.assertRaises(CADETProcessError):
             self.optimization_problem.add_linear_constraint('var_0', [])
 
+    def test_add_linear_equality_constraints(self):
+        self.optimization_problem.add_linear_equality_constraint('var_0')
+        self.optimization_problem.add_linear_equality_constraint(['var_0', 'var_1'])
 
+        self.optimization_problem.add_linear_equality_constraint(
+            ['var_0', 'var_1'], [2, 2]
+        )
+        self.optimization_problem.add_linear_equality_constraint(
+            ['var_0', 'var_1'], [3, 3], 1
+        )
+        self.optimization_problem.add_linear_equality_constraint(['var_0', 'var_1'], 4)
+
+        Aeq_expected = np.array([
+            [1., 0.],
+            [1., 1.],
+            [2., 2.],
+            [3., 3.],
+            [4., 4.],
+        ])
+
+        Aeq = self.optimization_problem.Aeq
+        np.testing.assert_almost_equal(Aeq, Aeq_expected)
+
+        beq_expected = np.array([0, 0, 0, 1, 0])
+        beq = self.optimization_problem.beq
+        np.testing.assert_almost_equal(beq, beq_expected)
+
+        # Variable does not exist
+        with self.assertRaises(CADETProcessError):
+            self.optimization_problem.add_linear_equality_constraint('inexistent')
+
+        # Incorrect shape
+        with self.assertRaises(CADETProcessError):
+            self.optimization_problem.add_linear_equality_constraint('var_0', [])
 
     def test_initial_values(self):
         x0_chebyshev_expected = [1/3, 2/3]
