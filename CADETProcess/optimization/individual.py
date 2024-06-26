@@ -5,7 +5,7 @@ import numpy as np
 
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import Structure
-from CADETProcess.dataStructure import Float, Vector
+from CADETProcess.dataStructure import Bool, Float, Vector
 
 
 def hash_array(array):
@@ -41,6 +41,10 @@ class Individual(Structure):
         Variable values in untransformed space.
     x_transformed : np.ndarray
         Independent variable values in transformed space.
+    violates_bounds : bool
+        True, if x is outside bounds.
+    violates_linear_constraints : bool
+        True, if x is outside bounds.
     f : np.ndarray
         Objective values.
     f_min : np.ndarray
@@ -63,6 +67,8 @@ class Individual(Structure):
 
     x = Vector()
     x_transformed = Vector()
+    violates_bounds = Bool()
+    violates_linear_constraints = Bool()
     f = Vector()
     f_min = Vector()
     g = Vector()
@@ -78,6 +84,8 @@ class Individual(Structure):
             g=None,
             m=None,
             x_transformed=None,
+            violates_bounds=None,
+            violates_linear_constraints=None,
             f_min=None,
             cv=None,
             cv_tol=0,
@@ -92,6 +100,9 @@ class Individual(Structure):
             x_transformed = x
             independent_variable_names = variable_names
         self.x_transformed = x_transformed
+
+        self.violates_bounds = violates_bounds
+        self.violates_linear_constraints = violates_linear_constraints
 
         self.f = f
         if f_min is None:
@@ -142,10 +153,18 @@ class Individual(Structure):
     @property
     def is_feasible(self):
         """bool: Return False if any constraint is not met. True otherwise."""
+        flag = True
+
+        if self.violates_bounds:
+            flag = False
+
+        if self.violates_linear_constraints:
+            flag = False
+
         if self.cv is not None and np.any(np.array(self.cv) > self.cv_tol):
-            return False
-        else:
-            return True
+            flag = False
+
+        return flag
 
     @property
     def n_x(self):

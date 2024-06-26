@@ -449,8 +449,12 @@ class OptimizerBase(Structure):
             x = self.optimization_problem.get_dependent_values(
                 x_transformed, untransform=True
             )
+            violates_bounds = not self.optimization_problem.check_bounds(x)
+            violates_linear_constraints = not self.optimization_problem.check_linear_constraints(x)
             ind = Individual(
-                x, f, g, m, x_transformed, f_min, cv, self.cv_tol, m_min,
+                x, f, g, m,
+                x_transformed, violates_bounds, violates_linear_constraints,
+                f_min, cv, self.cv_tol, m_min,
                 self.optimization_problem.independent_variable_names,
                 self.optimization_problem.objective_labels,
                 self.optimization_problem.nonlinear_constraint_labels,
