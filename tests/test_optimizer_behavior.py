@@ -4,6 +4,7 @@ import pytest
 
 from CADETProcess.optimization import (
     OptimizerBase,
+    COBYQA,
     TrustConstr,
     COBYLA,
     NelderMead,
@@ -78,6 +79,12 @@ def set_non_default_parameters(optimizer, problem):
             # override default parameters of the optimizer
             for pk, pv in params.items():
                 setattr(optimizer, pk, pv)
+
+
+class COBYQA(COBYQA):
+    f_tol = F_TOL
+    x_tol = X_TOL
+    cv_tol = CV_NONLINCON_TOL
 
 
 class TrustConstr(TrustConstr):
@@ -161,6 +168,7 @@ def optimization_problem(request):
 
 @pytest.fixture(
     params=[
+        COBYQA,
         TrustConstr,
         COBYLA,
         SLSQP,
