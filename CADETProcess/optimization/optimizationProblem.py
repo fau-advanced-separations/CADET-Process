@@ -2160,7 +2160,7 @@ class OptimizationProblem(Structure):
 
     @property
     def b(self):
-        """list: Vector form of linear constraints.
+        """np.ndarray: Vector form of linear constraints.
 
         See Also
         --------
@@ -2437,7 +2437,7 @@ class OptimizationProblem(Structure):
 
     @property
     def beq(self):
-        """list: Vector form of linear equality constraints.
+        """np.ndarray: Vector form of linear equality constraints.
 
         See Also
         --------
@@ -2446,10 +2446,9 @@ class OptimizationProblem(Structure):
         remove_linear_equality_constraint
 
         """
-        beq = np.zeros((len(self.linear_equality_constraints),))
-        beq = [lineqcon['beq'] for lineqcon in self.linear_equality_constraints]
+        beq = [lincon['beq'] for lincon in self.linear_equality_constraints]
 
-        return beq
+        return np.array(beq)
 
     @property
     def beq_transformed(self):
