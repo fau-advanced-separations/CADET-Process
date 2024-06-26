@@ -44,18 +44,19 @@ X_TOL = 0.001
 CV_TOL = 0.0001
 
 EXCLUDE_COMBINATIONS = [
-    (GPEI, Rosenbrock,
-        "cannot solve problem with enough accuracy fast enough-"),
-    (U_NSGA3, LinearEqualityConstraintsSooTestProblem,
-        "HopsyProblem: operands could not be broadcast together with shapes (2,) (3,)"),
+    (
+        U_NSGA3,
+        LinearEqualityConstraintsSooTestProblem,
+        "See also: https://jugit.fz-juelich.de/IBG-1/ModSim/hopsy/-/issues/152"
+    ),
+    (GPEI, Rosenbrock, "cannot solve problem with enough accuracy fast enough-"),
 ]
 
 # this helps to test optimizers for hard problems
 NON_DEFAULT_PARAMETERS = [
-    (NEHVI, LinearConstraintsMooTestProblem,
-        {"n_init_evals": 20, "n_max_evals": 40}),
-    (U_NSGA3, NonlinearConstraintsMooTestProblem,
-        {"pop_size": 300, "n_max_gen": 50}),
+    (NEHVI, LinearConstraintsMooTestProblem, {"n_init_evals": 20, "n_max_evals": 40}),
+    (U_NSGA3, NonlinearConstraintsMooTestProblem, {"pop_size": 300, "n_max_gen": 20}),
+    (U_NSGA3, Rosenbrock, {"pop_size": 300, "n_max_gen": 20}),
 ]
 
 
