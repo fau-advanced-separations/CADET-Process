@@ -55,7 +55,8 @@ EXCLUDE_COMBINATIONS = [
 # this helps to test optimizers for hard problems
 NON_DEFAULT_PARAMETERS = [
     (NEHVI, LinearConstraintsMooTestProblem, {"n_init_evals": 20, "n_max_evals": 40}),
-    (U_NSGA3, NonlinearConstraintsMooTestProblem, {"pop_size": 300, "n_max_gen": 50}),
+    (U_NSGA3, NonlinearConstraintsMooTestProblem, {"pop_size": 300, "n_max_gen": 40}),
+    (U_NSGA3, Rosenbrock, {"pop_size": 300, "n_max_gen": 20}),
 ]
 
 
