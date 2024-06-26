@@ -457,6 +457,9 @@ class COBYLA(SciPyInterface):
 class NelderMead(SciPyInterface):
     """Wrapper for the Nelder-Mead optimization method from the scipy optimization suite.
 
+    Supports:
+        - Bounds.
+
     It defines the solver options in the 'options' variable as a dictionary.
 
     Parameters
@@ -477,6 +480,7 @@ class NelderMead(SciPyInterface):
     disp : Bool, optional
         Set to True to print convergence messages.
     """
+    supports_bounds = True
 
     maxiter = UnsignedInteger(default=1000)
     initial_simplex = None
