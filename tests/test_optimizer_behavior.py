@@ -149,7 +149,9 @@ def optimization_problem(request):
     ]
 )
 def optimizer(request):
-    return request.param()
+    optimizer = request.param()
+    optimizer.progress_freqency = None
+    return optimizer
 
 
 # %% Tests

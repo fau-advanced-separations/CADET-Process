@@ -85,7 +85,7 @@ class OptimizerBase(Structure):
 
     ignore_linear_constraints_config = False
 
-    progress_frequency = RangedInteger(lb=1, default=1)
+    progress_frequency = RangedInteger(lb=1)
 
     x_tol = UnsignedFloat()
     f_tol = UnsignedFloat()
@@ -577,7 +577,8 @@ class OptimizerBase(Structure):
         if meta_front is not None:
             self.results.update_meta(meta_front)
 
-        if current_generation % self.progress_frequency == 0:
+        if self.progress_frequency is not None \
+                and current_generation % self.progress_frequency == 0:
             self.results.plot_figures(show=False)
 
         self._evaluate_callbacks(current_generation)
