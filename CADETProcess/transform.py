@@ -186,7 +186,7 @@ class TransformBase(ABC):
         """
         pass
 
-    def untransform(self, x):
+    def untransform(self, x, precision=None):
         """Transform the output parameter space to the input parameter space.
 
         Applies the transformation function _untransform to x after performing output
@@ -197,23 +197,31 @@ class TransformBase(ABC):
         ----------
         x : {float, array}
             Output parameter values.
+        precision : int, optional
+            Number of significant figures to which variable can be rounded.
+            If None, variable is not rounded. The default is None.
 
         Returns
         -------
         {float, array}
             Transformed parameter values.
         """
+        x_ = float(np.format_float_positional(x, precision=precision, fractional=False))
+
         if (
                 not self.allow_extended_output and
-                not np.all((self.lb <= x) * (x <= self.ub))):
+                not np.all((self.lb <= x_) * (x_ <= self.ub))):
             raise ValueError("Value exceeds output bounds.")
-        x = self._untransform(x)
+
+        x_ = self._untransform(x_)
+        x_ = float(np.format_float_positional(x_, precision=precision, fractional=False))
+
         if (
                 not self.allow_extended_input and
-                not np.all((self.lb_input <= x) * (x <= self.ub_input))):
+                not np.all((self.lb_input <= x_) * (x_ <= self.ub_input))):
             raise ValueError("Value exceeds input bounds.")
 
-        return x
+        return x_
 
     @abstractmethod
     def _untransform(self, x):
