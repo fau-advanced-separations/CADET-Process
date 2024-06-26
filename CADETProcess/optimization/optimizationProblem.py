@@ -2325,7 +2325,7 @@ class OptimizationProblem(Structure):
             raise CADETProcessError('Variable not in variables.')
 
         if np.isscalar(lhs):
-            lhs = len(opt_vars) * [1]
+            lhs = lhs * np.ones(len(opt_vars))
 
         if len(lhs) != len(opt_vars):
             raise CADETProcessError(
