@@ -446,7 +446,7 @@ class COBYLA(SciPyInterface):
     disp = Bool(default=False)
     catol = UnsignedFloat(default=0.0002)
 
-    f_tol = tol             # Alias for uniform interface
+    x_tol = tol             # Alias for uniform interface
     cv_tol = catol          # Alias for uniform interface
     n_max_evals = maxiter   # Alias for uniform interface
     n_max_iter = maxiter    # Alias for uniform interface
