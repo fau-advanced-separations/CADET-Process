@@ -409,6 +409,7 @@ class NonlinearLinearConstraintsSooTestProblem(TestProblem):
     def x0(self):
         return [-0.5, 1.5]
 
+    @property
     def optimal_solution(self):
         x = np.array([-1, 2]).reshape(1, self.n_variables)
         f = -3
@@ -417,7 +418,7 @@ class NonlinearLinearConstraintsSooTestProblem(TestProblem):
 
     def test_if_solved(self, optimization_results: OptimizationResults,
                        test_kwargs=default_test_kwargs):
-        x_true, f_true = self.optimal_solution()
+        x_true, f_true = self.optimal_solution
         x = optimization_results.x
         f = optimization_results.f
 
