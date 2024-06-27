@@ -1,7 +1,7 @@
 import warnings
 
 from scipy import optimize
-from scipy.optimize import OptimizeWarning
+from scipy.optimize import OptimizeWarning, OptimizeResult
 import numpy as np
 
 from CADETProcess import CADETProcessError
@@ -80,35 +80,21 @@ class SciPyInterface(OptimizerBase):
                 x, untransform=True, ensure_minimization=True,
             )[0]
 
-        def callback_function(x, state=None):
-            """Internal callback to report progress after evaluation.
-
-            Notes
-            -----
-            Currently, this evaluates all functions again. This should not be a problem
-            since objectives and constraints are automatically cached.
-
-            Unfortunately, only `trust-constr` returns a `state` which contains the
-            current best point. Hence, the internal pareto front is used.
-            """
+        def callback(intermediate_result: OptimizeResult):
+            """Internal callback to report progress after evaluation."""
             self.n_evals += 1
 
-            x = x.tolist()
-            f = optimization_problem.evaluate_objectives(
-                x,
-                untransform=True,
-                ensure_minimization=True,
-            )
+            x_transformed = intermediate_result.x
+            f = intermediate_result.fun
+
             g = optimization_problem.evaluate_nonlinear_constraints(
-                x, untransform=True
+                x_transformed, untransform=True
             )
-            cv = optimization_problem.evaluate_nonlinear_constraints_violation(
-                x, untransform=True
+            cv_nonlincon = optimization_problem.evaluate_nonlinear_constraints_violation(
+                x_transformed, untransform=True
             )
 
-            self.run_post_processing(x, f, g, cv, self.n_evals)
-
-            return False
+            self.run_post_processing(x_transformed, f, g, cv_nonlincon, self.n_evals)
 
         if x0 is None:
             x0 = optimization_problem.create_initial_values(
@@ -137,7 +123,7 @@ class SciPyInterface(OptimizerBase):
                 constraints=self.get_constraint_objects(optimization_problem),
                 bounds=self.get_bounds(optimization_problem),
                 options=options,
-                callback=callback_function,
+                callback=callback,
             )
 
         self.results.success = bool(scipy_results.success)
