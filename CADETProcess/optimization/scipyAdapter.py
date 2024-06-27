@@ -37,11 +37,9 @@ class SciPyInterface(OptimizerBase):
 
     See Also
     --------
-    COBYLA
     COBYQA
     TrustConstr
     NelderMead
-    SLSQP
     CADETProcess.optimization.OptimizationProblem.evaluate_objectives
     options
     scipy.optimize.minimize
@@ -64,11 +62,9 @@ class SciPyInterface(OptimizerBase):
 
         See Also
         --------
-        COBYLA
         COBYQA
         TrustConstr
         NelderMead
-        SLSQP
         CADETProcess.optimization.OptimizationProblem.evaluate_objectives
         options
         scipy.optimize.minimize
@@ -126,7 +122,7 @@ class SciPyInterface(OptimizerBase):
             x0 = self.results.population_last.x[0, :]
             self.n_evals = self.results.n_evals
             options['maxiter'] = self.maxiter - self.n_evals
-            if str(self) in ['COBYLA', 'COBYQA']:
+            if str(self) == 'COBYQA':
                 options['maxiter'] -= 1
 
         with warnings.catch_warnings():
@@ -411,51 +407,6 @@ class TrustConstr(SciPyInterface):
         return 'trust-constr'
 
 
-class COBYLA(SciPyInterface):
-    """Wrapper for the COBYLA optimization method from the scipy optimization suite.
-
-    It defines the solver options in the 'options' variable as a dictionary.
-
-    Supports:
-        - Linear constraints
-        - Linear equality constraints
-        - Nonlinear constraints
-
-    Parameters
-    ----------
-    rhobeg : float, default 1
-        Reasonable initial changes to the variables.
-    tol : float, default 0.0002
-        Final accuracy in the optimization (not precisely guaranteed).
-        This is a lower bound on the size of the trust region.
-    disp : bool, default False
-        Set to True to print convergence messages.
-        If False, verbosity is ignored and set to 0.
-    maxiter : int, default 10000
-        Maximum number of function evaluations.
-    catol : float, default 2e-4
-        Absolute tolerance for constraint violations.
-
-    """
-    supports_linear_constraints = True
-    supports_linear_equality_constraints = True
-    supports_nonlinear_constraints = True
-    supports_bounds = True
-
-    rhobeg = UnsignedFloat(default=1)
-    tol = UnsignedFloat(default=0.0002)
-    maxiter = UnsignedInteger(default=10000)
-    disp = Bool(default=False)
-    catol = UnsignedFloat(default=0.0002)
-
-    x_tol = tol                 # Alias for uniform interface
-    cv_nonlincon_tol = catol    # Alias for uniform interface
-    n_max_evals = maxiter       # Alias for uniform interface
-    n_max_iter = maxiter        # Alias for uniform interface
-
-    _specific_options = ['rhobeg', 'tol', 'maxiter', 'disp', 'catol']
-
-
 class COBYQA(SciPyInterface):
     """Wrapper for the COBYQA optimization method from the scipy optimization suite.
 
@@ -572,52 +523,3 @@ class NelderMead(SciPyInterface):
 
     def __str__(self):
         return 'Nelder-Mead'
-
-
-class SLSQP(SciPyInterface):
-    """Wrapper for the SLSQP optimization method from the scipy optimization suite.
-
-    It defines the solver options in the 'options' variable as a dictionary.
-
-    Supports:
-        - Linear constraints
-        - Linear equality constraints
-        - Nonlinear constraints
-        - Bounds
-
-    Parameters
-    ----------
-    ftol : float, default 1e-2
-        Precision goal for the value of f in the stopping criterion.
-    eps : float, default 1e-6
-        Step size used for numerical approximation of the Jacobian.
-    disp : bool, default False
-        Set to True to print convergence messages.
-        If False, verbosity is ignored and set to 0.
-    maxiter : int, default 1000
-        Maximum number of iterations.
-    iprint: int, optional
-        The verbosity of fmin_slsqp :
-            iprint <= 0 : Silent operation
-            iprint == 1 : Print summary upon completion (default)
-            iprint >= 2 : Print status of each iterate and summary
-    """
-
-    supports_linear_constraints = True
-    supports_linear_equality_constraints = True
-    supports_nonlinear_constraints = True
-    supports_bounds = True
-
-    ftol = UnsignedFloat(default=1e-2)
-    eps = UnsignedFloat(default=1e-6)
-    disp = Bool(default=False)
-    maxiter = UnsignedInteger(default=1000)
-    iprint = UnsignedInteger(ub=2, default=1)
-
-    f_tol = ftol            # Alias for uniform interface
-    n_max_evals = maxiter   # Alias for uniform interface
-    n_max_iter = maxiter    # Alias for uniform interface
-
-    _specific_options = [
-        'ftol', 'eps', 'disp', 'maxiter', 'finite_diff_rel_step', 'iprint'
-    ]

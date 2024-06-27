@@ -35,10 +35,8 @@ Scipy
    :toctree: generated/
 
    TrustConstr
-   COBYLA
    COBYQA
    NelderMead
-   SLSQP
 
 Pymoo
 -----
@@ -102,7 +100,7 @@ from .results import *
 from .optimizationProblem import *
 from .parallelizationBackend import *
 from .optimizer import *
-from .scipyAdapter import COBYLA, COBYQA, TrustConstr, NelderMead, SLSQP
+from .scipyAdapter import COBYQA, TrustConstr, NelderMead
 from .pymooAdapter import NSGA2, U_NSGA3
 
 import importlib
