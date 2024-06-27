@@ -6,9 +6,7 @@ from CADETProcess.optimization import (
     OptimizerBase,
     COBYQA,
     TrustConstr,
-    COBYLA,
     NelderMead,
-    SLSQP,
     U_NSGA3,
     GPEI,
     NEHVI,
@@ -92,19 +90,9 @@ class TrustConstr(TrustConstr):
     cv_nonlincon_tol = CV_NONLINCON_TOL
 
 
-class COBYLA(COBYLA):
-    x_tol = X_TOL
-    cv_nonlincon_tol = CV_NONLINCON_TOL
-
-
 class NelderMead(NelderMead):
     x_tol = X_TOL
     f_tol = F_TOL
-
-
-class SLSQP(SLSQP):
-    x_tol = X_TOL
-    cv_lincon_tol = CV_LINCON_TOL
 
 
 class U_NSGA3(U_NSGA3):
@@ -170,8 +158,6 @@ def optimization_problem(request):
     params=[
         COBYQA,
         TrustConstr,
-        COBYLA,
-        SLSQP,
         NelderMead,
         U_NSGA3,
         GPEI,
