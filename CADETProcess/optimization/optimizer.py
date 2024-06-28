@@ -410,7 +410,12 @@ class OptimizerBase(Structure):
             x0 = np.array(x0)
 
         for x in x0:
-            if not optimization_problem.check_individual(x, get_dependent_values=True):
+            if not optimization_problem.check_individual(
+                    x,
+                    get_dependent_values=True,
+                    check_nonlinear_constraints=False,
+                    silent=True,
+                    ):
                 flag = False
                 break
 

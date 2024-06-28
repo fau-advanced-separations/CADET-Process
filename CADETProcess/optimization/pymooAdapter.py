@@ -272,7 +272,11 @@ class RepairIndividuals(Repair):
         X_new = None
         for i, ind in enumerate(X):
             if not self.optimization_problem.check_individual(
-                    ind, untransform=True, get_dependent_values=True):
+                    ind,
+                    untransform=True,
+                    get_dependent_values=True,
+                    check_nonlinear_constraints=False,
+                    ):
                 if X_new is None:
                     X_new = self.optimization_problem.create_initial_values(
                         len(X), include_dependent_variables=False

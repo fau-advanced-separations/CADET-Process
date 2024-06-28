@@ -2930,7 +2930,8 @@ class OptimizationProblem(Structure):
 
             ind = self.get_dependent_values(ind)
 
-            if not self.check_individual(ind, silent=True):
+            if not self.check_individual(
+                    ind, check_nonlinear_constraints=False, silent=True):
                 continue
 
             if not include_dependent_variables:
@@ -3181,18 +3182,29 @@ class OptimizationProblem(Structure):
 
     @untransforms
     @gets_dependent_values
-    def check_individual(self, x, silent=False):
+    def check_individual(
+            self,
+            x: npt.ArrayLike,
+            check_nonlinear_constraints=False,
+            silent: bool = False,
+            ) -> bool:
         """Check if individual is valid.
 
         Parameters
         ----------
         x : array_like
             Value of the optimization variables in untransformed space.
+        check_nonlinear_constraints : bool, optional
+            if True, also check nonlinear constraints. The default is True.
+            Note, depending on the nonlinear constraints, this can be an expensive
+            operations.
+        silent : bool, optional
+            if True, suppress warnings. The default is False.
 
         Returns
         -------
         bool
-            True if the individual is valid correctly, False otherwise.
+            True if the individual is valid, False otherwise.
 
         """
         flag = True
@@ -3201,14 +3213,24 @@ class OptimizationProblem(Structure):
             if not silent:
                 warnings.warn("Individual does not satisfy bounds.")
             flag = False
+
         if not self.check_linear_constraints(x):
             if not silent:
                 warnings.warn("Individual does not satisfy linear constraints.")
             flag = False
+
         if not self.check_linear_equality_constraints(x):
             if not silent:
-                warnings.warn("Individual does not satisfy linear equality constraints.")
+                warnings.warn(
+                    "Individual does not satisfy linear equality constraints."
+                )
             flag = False
+
+        if check_nonlinear_constraints:
+            if not self.check_nonlinear_constraints(x):
+                flag = False
+                if not silent:
+                    warnings.warn("Individual does not satisfy nonlinear constraints.")
 
         return flag
 
