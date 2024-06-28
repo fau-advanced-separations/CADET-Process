@@ -398,7 +398,7 @@ class TrustConstr(SciPyInterface):
     disp = Bool(default=False)
 
     x_tol = xtol            # Alias for uniform interface
-    cv_tol = gtol           # Alias for uniform interface
+    cv_nonlincon_tol = gtol # Alias for uniform interface
     n_max_evals = maxiter   # Alias for uniform interface
     n_max_iter = maxiter    # Alias for uniform interface
 
@@ -449,10 +449,10 @@ class COBYLA(SciPyInterface):
     disp = Bool(default=False)
     catol = UnsignedFloat(default=0.0002)
 
-    x_tol = tol             # Alias for uniform interface
-    cv_tol = catol          # Alias for uniform interface
-    n_max_evals = maxiter   # Alias for uniform interface
-    n_max_iter = maxiter    # Alias for uniform interface
+    x_tol = tol                 # Alias for uniform interface
+    cv_nonlincon_tol = catol    # Alias for uniform interface
+    n_max_evals = maxiter       # Alias for uniform interface
+    n_max_iter = maxiter        # Alias for uniform interface
 
     _specific_options = ['rhobeg', 'tol', 'maxiter', 'disp', 'catol']
 

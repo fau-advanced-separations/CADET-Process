@@ -3035,12 +3035,11 @@ class OptimizationProblem(Structure):
     def create_individual(
             self,
             x: np.ndarray,
-            f: np.ndarray = None,
-            g: np.ndarray | None = None,
-            m: np.ndarray | None = None,
+            f: np.ndarray | None = None,
             f_min: np.ndarray | None = None,
-            cv: np.ndarray | None = None,
-            cv_tol: float = 0.,
+            g: np.ndarray | None = None,
+            cv_nonlincon: np.ndarray | None = None,
+            m: np.ndarray | None = None,
             m_min: np.ndarray | None = None,
             ) -> Individual:
         """
@@ -3052,16 +3051,14 @@ class OptimizationProblem(Structure):
             Variable values in untransformed space.
         f : np.ndarray
             Objective values.
-        g : np.ndarray
-            Nonlinear constraint values.
-        m : np.ndarray
-            Meta score values.
         f_min : np.ndarray
             Minimized objective values.
-        cv : np.ndarray
+        g : np.ndarray
+            Nonlinear constraint values.
+        cv_nonlincon : np.ndarray
             Nonlinear constraints violation.
-        cv_tol : float
-            Tolerance for constraints violation.
+        m : np.ndarray
+            Meta score values.
         m_min : np.ndarray
             Minimized meta score values.
 
@@ -3073,13 +3070,27 @@ class OptimizationProblem(Structure):
         x_indep = self.get_independent_values(x)
         x_transformed = self.transform(x_indep)
 
+        cv_bounds = self.evaluate_bounds(x)
+        cv_lincon = self.evaluate_linear_constraints(x)
+        cv_lineqcon = np.abs(self.evaluate_linear_equality_constraints(x))
+
         ind = Individual(
-            x, f, g, m, x_transformed, f_min, cv, cv_tol, m_min,
-            self.independent_variable_names,
-            self.objective_labels,
-            self.nonlinear_constraint_labels,
-            self.meta_score_labels,
-            self.variable_names,
+            x=x,
+            x_transformed=x_transformed,
+            cv_bounds=cv_bounds,
+            cv_lincon=cv_lincon,
+            cv_lineqcon=cv_lineqcon,
+            f=f,
+            f_min=f_min,
+            g=g,
+            cv_nonlincon=cv_nonlincon,
+            m=m,
+            m_min=m_min,
+            independent_variable_names=self.independent_variable_names,
+            objective_labels=self.objective_labels,
+            nonlinear_constraint_labels=self.nonlinear_constraint_labels,
+            meta_score_labels=self.meta_score_labels,
+            variable_names=self.variable_names,
         )
 
         return ind
@@ -3090,11 +3101,10 @@ class OptimizationProblem(Structure):
             self,
             X: npt.ArrayLike,
             F: npt.ArrayLike = None,
-            G: npt.ArrayLike | None = None,
-            M: npt.ArrayLike | None = None,
             F_min: npt.ArrayLike | None = None,
-            CV: npt.ArrayLike | None = None,
-            cv_tol: float = 0.,
+            G: npt.ArrayLike | None = None,
+            CV_nonlincon: npt.ArrayLike | None = None,
+            M: npt.ArrayLike | None = None,
             M_min: npt.ArrayLike | None = None,
             ) -> Population:
         """
@@ -3106,16 +3116,14 @@ class OptimizationProblem(Structure):
             Variable values in untransformed space.
         F : npt.ArrayLike
             Objective values.
-        G : npt.ArrayLike
-            Nonlinear constraint values.
-        M : npt.ArrayLike
-            Meta score values.
         F_min : npt.ArrayLike
             Minimized objective values.
-        CV : npt.ArrayLike
+        G : npt.ArrayLike
+            Nonlinear constraint values.
+        CV_nonlincon : npt.ArrayLike
             Nonlinear constraints violation.
-        cv_tol : float
-            Tolerance for constraints violation.
+        M : npt.ArrayLike
+            Meta score values.
         M_min : npt.ArrayLike
             Minimized meta score values.
 
@@ -3131,25 +3139,25 @@ class OptimizationProblem(Structure):
         else:
             F = np.array(F, ndmin=2)
 
-        if G is None:
-            G = len(X) * [None]
-        else:
-            G = np.array(G, ndmin=2)
-
-        if M is None:
-            M = len(X) * [None]
-        else:
-            M = np.array(M, ndmin=2)
-
         if F_min is None:
             F_min = F
         else:
             F_min = np.array(F_min, ndmin=2)
 
-        if CV is None:
-            CV = G
+        if G is None:
+            G = len(X) * [None]
         else:
-            CV = np.array(CV, ndmin=2)
+            G = np.array(G, ndmin=2)
+
+        if CV_nonlincon is None:
+            CV_nonlincon = G
+        else:
+            CV_nonlincon = np.array(CV_nonlincon, ndmin=2)
+
+        if M is None:
+            M = len(X) * [None]
+        else:
+            M = np.array(M, ndmin=2)
 
         if M_min is None:
             M_min = M
@@ -3157,8 +3165,20 @@ class OptimizationProblem(Structure):
             M_min = np.array(M_min, ndmin=2)
 
         pop = Population()
-        for x, f, g, m, f_min, cv, m_min in zip(X, F, G, M, F_min, CV, M_min):
-            ind = self.create_individual(x, f, g, m, f_min, cv, cv_tol, m_min)
+        for (
+            x, f, f_min, g, cv_nonlincon, m, m_min
+        ) in zip(
+            X, F, F_min, G, CV_nonlincon, M, M_min
+        ):
+            ind = self.create_individual(
+                x,
+                f=f,
+                f_min=f_min,
+                g=g,
+                cv_nonlincon=cv_nonlincon,
+                m=m,
+                m_min=m_min,
+            )
             pop.add_individual(ind)
 
         return pop
