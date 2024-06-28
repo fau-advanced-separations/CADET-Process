@@ -110,7 +110,7 @@ class OptimizerBase(Structure):
 
     def optimize(
             self,
-            optimization_problem,
+            optimization_problem: OptimizationProblem,
             x0=None,
             save_results=True,
             results_directory=None,
@@ -404,7 +404,8 @@ class OptimizerBase(Structure):
         if n_dependent_variables > 0 and x0.shape[1] == n_variables:
             x0 = [optimization_problem.get_independent_values(ind) for ind in x0]
             warnings.warn(
-                "x0 contains dependent values. Will recompute dependencies for consistency."
+                "x0 contains dependent values. "
+                "Will recompute dependencies for consistency."
             )
             x0 = np.array(x0)
 

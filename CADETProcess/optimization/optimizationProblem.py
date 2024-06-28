@@ -279,17 +279,17 @@ class OptimizationProblem(Structure):
         return len(self.variables)
 
     @property
-    def independent_variables(self):
+    def independent_variables(self) -> list["OptimizationVariable"]:
         """list: Independent OptimizationVaribles."""
         return list(filter(lambda var: var.is_independent, self.variables))
 
     @property
-    def independent_variable_names(self):
+    def independent_variable_names(self) -> list[str]:
         """list: Independent optimization variable names."""
         return [var.name for var in self.independent_variables]
 
     @property
-    def n_independent_variables(self):
+    def n_independent_variables(self) -> int:
         """int: Number of independent optimization variables."""
         return len(self.independent_variables)
 

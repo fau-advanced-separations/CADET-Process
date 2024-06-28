@@ -1,5 +1,7 @@
 import csv
+import os
 from pathlib import Path
+from typing import Literal
 import warnings
 
 from addict import Dict
@@ -89,11 +91,11 @@ class OptimizationResults(Structure):
         self.system_information = system_information
 
     @property
-    def results_directory(self):
+    def results_directory(self) -> Path:
         return self._results_directory
 
     @results_directory.setter
-    def results_directory(self, results_directory):
+    def results_directory(self, results_directory: str | os.PathLike):
         if results_directory is not None:
             results_directory = Path(results_directory)
             self.plot_directory = Path(results_directory / 'figures')
@@ -104,7 +106,7 @@ class OptimizationResults(Structure):
         self._results_directory = results_directory
 
     @property
-    def is_finished(self):
+    def is_finished(self) -> bool:
         if self.exit_flag is None:
             return False
         else:
@@ -115,40 +117,40 @@ class OptimizationResults(Structure):
         return self._optimizer_state
 
     @property
-    def populations(self):
+    def populations(self) -> list[Population]:
         return self._populations
 
     @property
-    def population_last(self):
+    def population_last(self) -> Population:
         return self.populations[-1]
 
     @property
-    def population_all(self):
+    def population_all(self) -> Population:
         return self._population_all
 
     @property
-    def pareto_fronts(self):
+    def pareto_fronts(self) -> list[ParetoFront]:
         return self._pareto_fronts
 
     @property
-    def pareto_front(self):
+    def pareto_front(self) -> ParetoFront:
         return self._pareto_fronts[-1]
 
     @property
-    def meta_fronts(self):
+    def meta_fronts(self) -> list[Population]:
         if self._meta_fronts is None:
             return self.pareto_fronts
         else:
             return self._meta_fronts
 
     @property
-    def meta_front(self):
+    def meta_front(self) -> Population:
         if self._meta_fronts is None:
             return self.pareto_front
         else:
             return self._meta_fronts[-1]
 
-    def update(self, new):
+    def update(self, new: Individual | Population):
         """Update Results.
 
         Parameters
@@ -171,7 +173,7 @@ class OptimizationResults(Structure):
         self._populations.append(population)
         self.population_all.update(population)
 
-    def update_pareto(self, pareto_new=None):
+    def update_pareto(self, pareto_new: Population | None = None):
         """Update pareto front with new population.
 
         Parameters
@@ -194,7 +196,7 @@ class OptimizationResults(Structure):
             pareto_front.remove_similar()
         self._pareto_fronts.append(pareto_front)
 
-    def update_meta(self, meta_front):
+    def update_meta(self, meta_front: Population):
         """Update meta front with new population.
 
         Parameters
@@ -207,33 +209,33 @@ class OptimizationResults(Structure):
         self._meta_fronts.append(meta_front)
 
     @property
-    def n_evals(self):
+    def n_evals(self) -> int:
         """int: Number of evaluations."""
         return sum([len(pop) for pop in self.populations])
 
     @property
-    def n_gen(self):
+    def n_gen(self) -> int:
         """int: Number of generations."""
         return len(self.populations)
 
     @property
-    def x(self):
-        """np.array: Optimal points."""
+    def x(self) -> np.ndarray:
+        """np.array: Optimal points in untransformed space."""
         return self.meta_front.x
 
     @property
-    def x_transformed(self):
-        """np.array: Optimal points."""
+    def x_transformed(self) -> np.ndarray:
+        """np.array: Optimal points in transformed space."""
         return self.meta_front.x_transformed
 
     @property
-    def f(self):
-        """np.array: Optimal objective values."""
+    def f(self) -> np.ndarray:
+        """np.array: Objective function values of optimal points."""
         return self.meta_front.f
 
     @property
-    def g(self):
-        """np.array: Optimal nonlinear constraint values."""
+    def g(self) -> np.ndarray:
+        """np.array: Nonlinear constraint function values of optimal points."""
         return self.meta_front.g
 
     @property
@@ -242,43 +244,43 @@ class OptimizationResults(Structure):
         return self.meta_front.cv
 
     @property
-    def m(self):
-        """np.array: Optimal meta score values."""
+    def m(self) -> np.ndarray:
+        """np.array: Meta scores of optimal points."""
         return self.meta_front.m
 
     @property
-    def n_evals_history(self):
+    def n_evals_history(self) -> np.ndarray:
         """int: Number of evaluations per generation."""
         n_evals = [len(pop) for pop in self.populations]
         return np.cumsum(n_evals)
 
     @property
-    def f_best_history(self):
+    def f_best_history(self) -> np.ndarray:
         """np.array: Best objective values per generation."""
         return np.array([pop.f_best for pop in self.meta_fronts])
 
     @property
-    def f_min_history(self):
+    def f_min_history(self) -> np.ndarray:
         """np.array: Minimum objective values per generation."""
         return np.array([pop.f_min for pop in self.meta_fronts])
 
     @property
-    def f_max_history(self):
+    def f_max_history(self) -> np.ndarray:
         """np.array: Maximum objective values per generation."""
         return np.array([pop.f_max for pop in self.meta_fronts])
 
     @property
-    def f_avg_history(self):
+    def f_avg_history(self) -> np.ndarray:
         """np.array: Average objective values per generation."""
         return np.array([pop.f_avg for pop in self.meta_fronts])
 
     @property
-    def g_best_history(self):
+    def g_best_history(self) -> np.ndarray:
         """np.array: Best nonlinear constraint per generation."""
         return np.array([pop.g_best for pop in self.meta_fronts])
 
     @property
-    def g_min_history(self):
+    def g_min_history(self) -> np.ndarray:
         """np.array: Minimum nonlinear constraint values per generation."""
         if self.optimization_problem.n_nonlinear_constraints == 0:
             return None
@@ -286,7 +288,7 @@ class OptimizationResults(Structure):
             return np.array([pop.g_min for pop in self.meta_fronts])
 
     @property
-    def g_max_history(self):
+    def g_max_history(self) -> np.ndarray:
         """np.array: Maximum nonlinear constraint values per generation."""
         if self.optimization_problem.n_nonlinear_constraints == 0:
             return None
@@ -294,7 +296,7 @@ class OptimizationResults(Structure):
             return np.array([pop.g_max for pop in self.meta_fronts])
 
     @property
-    def g_avg_history(self):
+    def g_avg_history(self) -> np.ndarray:
         """np.array: Average nonlinear constraint values per generation."""
         if self.optimization_problem.n_nonlinear_constraints == 0:
             return None
@@ -326,12 +328,12 @@ class OptimizationResults(Structure):
             return np.array([pop.cv_avg for pop in self.meta_fronts])
 
     @property
-    def m_best_history(self):
+    def m_best_history(self) -> np.ndarray:
         """np.array: Best meta scores per generation."""
         return np.array([pop.m_best for pop in self.meta_fronts])
 
     @property
-    def m_min_history(self):
+    def m_min_history(self) -> np.ndarray:
         """np.array: Minimum meta scores per generation."""
         if self.optimization_problem.n_meta_scores == 0:
             return None
@@ -339,7 +341,7 @@ class OptimizationResults(Structure):
             return np.array([pop.m_min for pop in self.meta_fronts])
 
     @property
-    def m_max_history(self):
+    def m_max_history(self) -> np.ndarray:
         """np.array: Maximum meta scores per generation."""
         if self.optimization_problem.n_meta_scores == 0:
             return None
@@ -347,7 +349,7 @@ class OptimizationResults(Structure):
             return np.array([pop.m_max for pop in self.meta_fronts])
 
     @property
-    def m_avg_history(self):
+    def m_avg_history(self) -> np.ndarray:
         """np.array: Average meta scores per generation."""
         if self.optimization_problem.n_meta_scores == 0:
             return None
@@ -766,7 +768,15 @@ class OptimizationResults(Structure):
                     f'{plot_directory / figname}.png'
                 )
 
-    def save_results(self, name):
+    def save_results(self, file_name: str):
+        """
+        Save results to H5 file.
+
+        Parameters
+        ----------
+        file_name : str
+            Results file name without file extension.
+        """
         if self.results_directory is not None:
             self._update_csv(self.population_last, 'results_all', mode='a')
             self._update_csv(self.population_last, 'results_last', mode='w')
@@ -776,10 +786,10 @@ class OptimizationResults(Structure):
 
             results = H5()
             results.root = Dict(self.to_dict())
-            results.filename = self.results_directory / f'{name}.h5'
+            results.filename = self.results_directory / f'{file_name}.h5'
             results.save()
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         """Convert Results to a dictionary.
 
         Returns
@@ -805,7 +815,7 @@ class OptimizationResults(Structure):
 
         return data
 
-    def update_from_dict(self, data):
+    def update_from_dict(self, data: dict):
         """Update internal state from dictionary.
 
         Parameters
@@ -836,13 +846,14 @@ class OptimizationResults(Structure):
         if self.optimization_problem.n_meta_scores > 0:
             self._setup_csv('results_meta')
 
-    def _setup_csv(self, file_name):
-        """Create csv file for optimization results.
+    def _setup_csv(self, file_name: str):
+        """
+        Create csv file for optimization results.
 
         Parameters
         ----------
-        file_name : {str, Path}
-            Path to save results.
+        file_name : str
+            Results file name without file extension.
         """
         header = [
             "id",
@@ -862,15 +873,21 @@ class OptimizationResults(Structure):
             writer = csv.writer(csvfile, delimiter=",")
             writer.writerow(header)
 
-    def _update_csv(self, population, file_name, mode='a'):
-        """Update csv file with latest population.
+    def _update_csv(
+            self,
+            population: Population,
+            file_name: str,
+            mode: Literal["w", "b"],
+            ):
+        """
+        Update csv file with latest population.
 
         Parameters
         ----------
         population : Population
             latest Population.
-        file_name : {str, Path}
-            Path to save results.
+        file_name : str
+            Results file name without file extension.
         mode : {'a', 'w'}
             a: append to existing file.
             w: Create new csv.
