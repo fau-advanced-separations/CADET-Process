@@ -573,13 +573,14 @@ class OptimizationProblem(Structure):
         vars = [self.variables_dict[indep] for indep in independent_variables]
         var.add_dependency(vars, transform)
 
+    @ensures2d
     @untransforms
-    def get_dependent_values(self, x):
+    def get_dependent_values(self, X_independent: npt.ArrayLike) -> np.ndarray:
         """Determine values of dependent optimization variables.
 
         Parameters
         ----------
-        x : array_like
+        X_independent : array_like
             Value of the optimization variables in untransformed space.
 
         Raises
@@ -589,32 +590,37 @@ class OptimizationProblem(Structure):
 
         Returns
         -------
-        x : np.ndarray
+        np.ndarray
             Value of all optimization variables in untransformed space.
 
         """
-        if len(x) != self.n_independent_variables:
+        if X_independent.shape[1] != self.n_independent_variables:
             raise CADETProcessError(
-                f'Expected {self.n_independent_variables} value(s)'
+                f'Expected {self.n_independent_variables} value(s).'
             )
 
-        variables = self.independent_variables
+        variable_values = np.zeros((len(X_independent), self.n_variables))
+        independent_variables = self.independent_variables
 
-        for variable, value in zip(variables, x):
-            value = np.format_float_positional(
-                value, precision=variable.precision, fractional=False
-            )
-            variable.value = float(value)
+        for i, x in enumerate(X_independent):
+            for indep_variable, indep_value in zip(independent_variables, x):
+                indep_value = np.format_float_positional(
+                    indep_value, precision=indep_variable.precision, fractional=False
+                )
+                indep_variable.value = float(indep_value)
 
-        return self.variable_values
+            variable_values[i, :] = self.variable_values
 
+        return variable_values
+
+    @ensures2d
     @untransforms
-    def get_independent_values(self, x):
+    def get_independent_values(self, X: npt.ArrayLike) -> np.ndarray:
         """Remove dependent values from x.
 
         Parameters
         ----------
-        x : array_like
+        X : array_like
             Value of all optimization variables.
             Works for transformed and untransformed space.
 
@@ -629,18 +635,23 @@ class OptimizationProblem(Structure):
             Values of all independent optimization variables.
 
         """
-        if len(x) != self.n_variables:
+        if X.shape[1] != self.n_variables:
             raise CADETProcessError(
-                f'Expected {self.n_variables} value(s), got {len(x)}'
+                f'Expected {self.n_variables} value(s).'
             )
 
-        x_independent = []
+        independent_values = np.zeros((len(X), self.n_independent_variables))
+        variables = self.variables
 
-        for variable, value in zip(self.variables, x):
-            if variable.is_independent:
-                x_independent.append(value)
+        for i, x in enumerate(X):
+            x_independent = []
+            for variable, value in zip(variables, x):
+                if variable.is_independent:
+                    x_independent.append(value)
 
-        return np.array(x_independent)
+            independent_values[i, :] = np.array(x_independent)
+
+        return independent_values
 
     @untransforms
     def set_variables(self, x, evaluation_objects=-1):
@@ -2589,12 +2600,13 @@ class OptimizationProblem(Structure):
 
         return flag
 
-    def transform(self, x_independent):
-        """Transform the independent optimization variables from untransformed parameter space.
+    @ensures2d
+    def transform(self, X_independent: npt.ArrayLike) -> np.ndarray:
+        """Transform independent optimization variables from untransformed parameter space.
 
         Parameters
         ----------
-        x_independent : list
+        x_independent : np.ndarray
             Value of the independent optimization variables in untransformed space.
 
         Returns
@@ -2602,25 +2614,23 @@ class OptimizationProblem(Structure):
         np.ndarray
             Optimization variables in transformed parameter space.
         """
-        x_independent = np.array(x_independent)
-        x_2d = np.array(x_independent, ndmin=2)
-        transform = np.zeros(x_2d.shape)
+        transform = np.zeros(X_independent.shape)
 
-        for i, ind in enumerate(x_2d):
+        for i, ind in enumerate(X_independent):
             transform[i, :] = [
                 var.transform_fun(value)
                 for value, var in zip(ind, self.independent_variables)
             ]
 
-        return transform.reshape(x_independent.shape)
+        return transform
 
     @ensures2d
-    def untransform(self, x_transformed: npt.ArrayLike) -> np.ndarray:
+    def untransform(self, X_transformed: npt.ArrayLike) -> np.ndarray:
         """Untransform the optimization variables from transformed parameter space.
 
         Parameters
         ----------
-        x_transformed : npt.ArrayLike
+        X_transformed : npt.ArrayLike
             Optimization variables in transformed parameter space.
 
         Returns
@@ -2628,17 +2638,15 @@ class OptimizationProblem(Structure):
         np.ndarray
             Optimization variables in untransformed parameter space.
         """
-        x_transformed = np.array(x_transformed)
-        x_transformed_2d = np.array(x_transformed, ndmin=2)
-        untransform = np.zeros(x_transformed_2d.shape)
+        untransform = np.zeros(X_transformed.shape)
 
-        for i, ind in enumerate(x_transformed_2d):
+        for i, ind in enumerate(X_transformed):
             untransform[i, :] = [
                 var.untransform_fun(value)
                 for value, var in zip(ind, self.independent_variables)
             ]
 
-        return untransform.reshape(x_transformed.shape)
+        return untransform
 
     @property
     def cached_steps(self):
