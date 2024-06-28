@@ -36,15 +36,16 @@ class Population():
             Identifier for the population. If None, a random UUID will be generated.
         """
         self._individuals = {}
+
         if id is None:
             self.id = uuid.uuid4()
         else:
             if isinstance(id, bytes):
-                id = id.decode(encoding='utf=8')
+                id = id.decode(encoding="utf=8")
             self.id = uuid.UUID(id)
 
     @property
-    def feasible(self):
+    def feasible(self) -> "Population":
         """Population: Population containing only feasible individuals."""
         pop = Population()
         pop._individuals = {ind.id: ind for ind in self.individuals if ind.is_feasible}
@@ -52,7 +53,7 @@ class Population():
         return pop
 
     @property
-    def infeasible(self):
+    def infeasible(self) -> "Population":
         """Population: Population containing only infeasible individuals."""
         pop = Population()
         pop._individuals = {
@@ -62,27 +63,27 @@ class Population():
         return pop
 
     @property
-    def n_x(self):
+    def n_x(self) -> int:
         """int: Number of optimization variables."""
         return self.individuals[0].n_x
 
     @property
-    def n_f(self):
+    def n_f(self) -> int:
         """int: Number of objective metrics."""
         return self.individuals[0].n_f
 
     @property
-    def n_g(self):
+    def n_g(self) -> int:
         """int: Number of nonlinear constraint metrics."""
         return self.individuals[0].n_g
 
     @property
-    def n_m(self):
+    def n_m(self) -> int:
         """int: Number of meta scores."""
         return self.individuals[0].n_m
 
     @property
-    def dimensions(self):
+    def dimensions(self) -> tuple[int]:
         """tuple: Individual dimensions (n_x, n_f, n_g, n_m)"""
         if self.n_individuals == 0:
             return None
@@ -90,28 +91,30 @@ class Population():
         return self.individuals[0].dimensions
 
     @property
-    def objectives_minimization_factors(self):
+    def objectives_minimization_factors(self) -> np.ndarray:
+        """np.ndarray: Array indicating objectives transformed to minimization."""
         return self.individuals[0].objectives_minimization_factors
 
     @property
-    def meta_scores_minimization_factors(self):
+    def meta_scores_minimization_factors(self) -> np.ndarray:
+        """np.ndarray: Array indicating meta sorces transformed to minimization."""
         return self.individuals[0].meta_scores_minimization_factors
 
     @property
-    def variable_names(self):
+    def variable_names(self) -> list[str]:
         """list: Names of the optimization variables."""
         if self.individuals[0].variable_names is None:
-            return [f'x_{i}' for i in range(self.n_x)]
+            return [f"x_{i}" for i in range(self.n_x)]
         else:
             return self.individuals[0].variable_names
 
     @property
-    def independent_variable_names(self):
+    def independent_variable_names(self) -> list[str]:
         """list: Names of the independent variables."""
         return self.individuals[0].independent_variable_names
 
     @property
-    def objective_labels(self):
+    def objective_labels(self) -> list[str]:
         """list: Labels of the objective metrics."""
         return self.individuals[0].objective_labels
 
@@ -121,11 +124,15 @@ class Population():
         return self.individuals[0].contraint_labels
 
     @property
-    def meta_score_labels(self):
+    def meta_score_labels(self) -> list[str]:
         """list: Labels of the meta scores."""
         return self.individuals[0].meta_score_labels
 
-    def add_individual(self, individual, ignore_duplicate=True):
+    def add_individual(
+        self,
+        individual: Individual,
+        ignore_duplicate: bool | None = True,
+    ):
         """Add individual to population.
 
         Parameters
@@ -147,8 +154,7 @@ class Population():
         if not isinstance(individual, Individual):
             raise TypeError("Expected Individual")
 
-        if self.dimensions is not None \
-                and individual.dimensions != self.dimensions:
+        if self.dimensions is not None and individual.dimensions != self.dimensions:
             raise CADETProcessError("Individual does not match dimensions.")
 
         if individual in self:
@@ -225,82 +231,82 @@ class Population():
                     pass
 
     @property
-    def individuals(self):
+    def individuals(self) -> list[Individual]:
         """list: All individuals."""
         return list(self._individuals.values())
 
     @property
-    def n_individuals(self):
+    def n_individuals(self) -> int:
         """int: Number of indivuals."""
         return len(self.individuals)
 
     @property
-    def x(self):
+    def x(self) -> np.ndarray:
         """np.array: All evaluated points."""
         return np.array([ind.x for ind in self.individuals])
 
     @property
-    def x_transformed(self):
+    def x_transformed(self) -> np.ndarray:
         """np.array: All evaluated points in independent transformed space."""
         return np.array([ind.x_transformed for ind in self.individuals])
 
     @property
-    def f(self):
+    def f(self) -> np.ndarray:
         """np.array: All evaluated objective function values."""
         return np.array([ind.f for ind in self.individuals])
 
     @property
-    def f_minimized(self):
+    def f_minimized(self) -> np.ndarray:
         """np.array: All evaluated objective function values, transformed to be minimized."""
         return np.array([ind.f_min for ind in self.individuals])
 
     @property
-    def f_best(self):
+    def f_best(self) -> np.ndarray:
         """np.array: Best objective values."""
         f_best = np.min(self.f_minimized, axis=0)
         return np.multiply(self.objectives_minimization_factors, f_best)
 
     @property
-    def f_min(self):
+    def f_min(self) -> np.ndarray:
         """np.array: Minimum objective values."""
         return np.min(self.f, axis=0)
 
     @property
-    def f_max(self):
+    def f_max(self) -> np.ndarray:
         """np.array: Maximum objective values."""
         return np.max(self.f, axis=0)
 
     @property
-    def f_avg(self):
+    def f_avg(self) -> np.ndarray:
         """np.array: Average objective values."""
         return np.mean(self.f, axis=0)
 
     @property
-    def g(self):
+    def g(self) -> np.ndarray:
         """np.array: All evaluated nonlinear constraint function values."""
         if self.dimensions[2] > 0:
             return np.array([ind.g for ind in self.individuals])
 
     @property
-    def g_best(self):
+    def g_best(self) -> np.ndarray:
         """np.array: Best nonlinear constraint values."""
         indices = np.argmin(self.cv, axis=0)
         return [self.g[ind, i] for i, ind in enumerate(indices)]
 
     @property
-    def g_min(self):
+    def g_min(self) -> np.ndarray:
         """np.array: Minimum nonlinear constraint values."""
         if self.dimensions[2] > 0:
             return np.min(self.g, axis=0)
 
     @property
-    def g_max(self):
+    def g_max(self) -> np.ndarray:
         """np.array: Maximum nonlinear constraint values."""
         if self.dimensions[2] > 0:
             return np.max(self.g, axis=0)
 
     @property
-    def g_avg(self):
+    def g_avg(self) -> np.ndarray:
         """np.array: Average nonlinear constraint values."""
         if self.dimensions[2] > 0:
             return np.mean(self.g, axis=0)
@@ -330,44 +336,44 @@ class Population():
             return np.mean(self.cv, axis=0)
 
     @property
-    def m(self):
+    def m(self) -> np.ndarray:
         """np.array: All evaluated meta scores."""
         if self.dimensions[3] > 0:
             return np.array([ind.m for ind in self.individuals])
 
     @property
-    def m_minimized(self):
+    def m_minimized(self) -> np.ndarray:
         """np.array: All evaluated meta scores, transformed to be minimized."""
         if self.dimensions[3] > 0:
             return np.array([ind.m_min for ind in self.individuals])
 
     @property
-    def m_best(self):
+    def m_best(self) -> np.ndarray:
         """np.array: Best meta scores."""
         if self.dimensions[3] > 0:
             m_best = np.min(self.m_minimized, axis=0)
             return np.multiply(self.meta_scores_minimization_factors, m_best)
 
     @property
-    def m_min(self):
+    def m_min(self) -> np.ndarray:
         """np.array: Minimum meta scores."""
         if self.dimensions[3] > 0:
             return np.min(self.m, axis=0)
 
     @property
-    def m_max(self):
+    def m_max(self) -> np.ndarray:
         """np.array: Maximum meta scores."""
         if self.dimensions[3] > 0:
             return np.max(self.m, axis=0)
 
     @property
-    def m_avg(self):
+    def m_avg(self) -> np.ndarray:
         """np.array: Average meta scores."""
         if self.dimensions[3] > 0:
             return np.mean(self.m, axis=0)
 
     @property
-    def is_feasilbe(self):
+    def is_feasilbe(self) -> bool:
         """np.array: False if any constraint is not met. True otherwise."""
         return np.array([ind.is_feasible for ind in self.individuals])
 
@@ -399,14 +405,14 @@ class Population():
         space_fig_all, space_axs_all = plt.subplots(
             nrows=m,
             ncols=n,
-            figsize=(n*8 + 2, m*8 + 2),
+            figsize=(n * 8 + 2, m * 8 + 2),
             squeeze=False,
         )
         plt.close(space_fig_all)
 
         space_figs_ind = []
         space_axs_ind = []
-        for i in range(m*n):
+        for i in range(m * n):
             fig, ax = plt.subplots()
             space_figs_ind.append(fig)
             space_axs_ind.append(ax)
@@ -468,7 +474,7 @@ class Population():
             figs = [figs]
 
         layout = plotting.Layout()
-        layout.y_label = '$f~/~-$'
+        layout.y_label = "$f~/~-$"
 
         variables = self.variable_names
         feasible = self.feasible
@@ -507,7 +513,9 @@ class Population():
 
                 if len(infeasible) > 0 and plot_infeasible:
                     v_metric_infeas = values_infeas[:, i_metric]
-                    ax.scatter(x_var_infeas, v_metric_infeas, alpha=0.5, color=color_infeas)
+                    ax.scatter(
+                        x_var_infeas, v_metric_infeas, alpha=0.5, color=color_infeas
+                    )
 
                 points = np.vstack([col.get_offsets() for col in ax.collections])
 
@@ -518,21 +526,18 @@ class Population():
                 layout.x_label = var
                 if autoscale and np.min(x_all) > 0:
                     if np.max(x_all) / np.min(x_all[x_all > 0]) > 100.0:
-                        ax.set_xscale('log')
+                        ax.set_xscale("log")
                         layout.x_label = f"$log_{{10}}$({var})"
 
                 y_min = np.nanmin(v_all)
                 y_max = np.nanmax(v_all)
-                y_lim = (
-                    min(0.9*y_min, y_min - 0.01*(y_max-y_min)),
-                    1.1*y_max
-                )
+                y_lim = (min(0.9 * y_min, y_min - 0.01 * (y_max - y_min)), 1.1 * y_max)
                 layout.y_label = label
                 if autoscale and np.min(v_all) > 0:
                     if np.max(v_all) / np.min(v_all[v_all > 0]) > 100.0:
-                        ax.set_yscale('log')
+                        ax.set_yscale("log")
                         layout.y_label = f"$log_{{10}}$({label})"
-                        y_lim = (y_min/2, y_max*2)
+                        y_lim = (y_min / 2, y_max * 2)
                 if y_min != y_max:
                     layout.y_lim = y_lim
 
@@ -556,13 +561,9 @@ class Population():
             plot_directory = Path(plot_directory)
             if plot_individual:
                 for i, fig in enumerate(figs):
-                    fig.savefig(
-                        f'{plot_directory / "objectives"}_{i}.png'
-                    )
+                    fig.savefig(f'{plot_directory / "objectives"}_{i}.png')
             else:
-                figs[0].savefig(
-                    f'{plot_directory / "objectives"}.png'
-                )
+                figs[0].savefig(f'{plot_directory / "objectives"}.png')
 
         return figs, axs
 
@@ -598,10 +599,11 @@ class Population():
             plot=None,
             include_meta=True,
             plot_infeasible=True,
-            color_feas='blue',
-            color_infeas='red',
+            color_feas="blue",
+            color_infeas="red",
             show=True,
-            plot_directory=None):
+            plot_directory=None,
+            ):
         """Plot pairwise Pareto fronts for each generation in the optimization.
 
         The Pareto front represents the optimal solutions that cannot be improved in one
@@ -709,7 +711,7 @@ class Population():
             use_math_text=True,
             quiet=True,
         )
-        fig_size = 6*len(labels)
+        fig_size = 6 * len(labels)
         fig.set_size_inches((fig_size, fig_size))
         fig.tight_layout()
 
@@ -812,11 +814,11 @@ class Population():
         Population
             The Population created from the data.
         """
-        id = data['id']
+        id = data["id"]
         if isinstance(id, bytes):
-            id = id.decode(encoding='utf=8')
+            id = id.decode(encoding="utf=8")
         population = cls(id)
-        for individual_data in data['individuals'].values():
+        for individual_data in data["individuals"].values():
             individual = Individual.from_dict(individual_data)
             population.add_individual(individual)
         return population
@@ -887,15 +889,15 @@ class ParetoFront(Population):
 
         return any(significant)
 
-    def update_population(self, population):
+    def update_population(self, population: Population):
         """Update the Pareto front with new population.
 
         If any individual in the pareto front is dominated, it is removed.
 
         Parameters
         ----------
-        population : list
-            Individuals to update the pareto front with.
+        population : Population
+            Population to update the pareto front with.
 
         Returns
         -------
@@ -998,7 +1000,7 @@ class ParetoFront(Population):
         """
         front = super().to_dict()
         if self.similarity_tol is not None:
-            front['similarity_tol'] = self.similarity_tol
+            front["similarity_tol"] = self.similarity_tol
         front['cv_tol'] = self.cv_tol
 
         return front
@@ -1017,8 +1019,12 @@ class ParetoFront(Population):
         ParetoFront
             ParetoFront created from data.
         """
-        front = cls(data['similarity_tol'], data['cv_tol'], data['id'])
-        for individual_data in data['individuals'].values():
+        front = cls(
+            cv_tol=data["cv_tol"],
+            similarity_tol=data["similarity_tol"],
+            id=data["id"]
+        )
+        for individual_data in data["individuals"].values():
             individual = Individual.from_dict(individual_data)
             front.add_individual(individual)
 
