@@ -28,39 +28,39 @@ class TestPopulation(unittest.TestCase):
     def setUp(self):
         x = [1, 2]
         f = [-1]
-        self.individual_1 = Individual(x, f)
+        self.individual_1 = Individual(x, f=f)
 
         x = [2, 3]
         f = [-2]
-        self.individual_2 = Individual(x, f)
+        self.individual_2 = Individual(x, f=f)
 
         x = [1.001, 2]
         f = [-1.001]
-        self.individual_similar = Individual(x, f)
+        self.individual_similar = Individual(x, f=f)
 
         x = [1, 2]
         f = [-1, -2]
-        self.individual_multi_1 = Individual(x, f)
+        self.individual_multi_1 = Individual(x, f=f)
 
         x = [1.001, 2]
         f = [-1.001, -2]
-        self.individual_multi_2 = Individual(x, f)
+        self.individual_multi_2 = Individual(x, f=f)
 
         x = [1, 2]
         f = [-1]
         g = [3]
-        self.individual_constr_1 = Individual(x, f, g)
+        self.individual_constr_1 = Individual(x, f=f, g=g)
 
         x = [2, 3]
         f = [-2]
         g = [0]
-        self.individual_constr_2 = Individual(x, f, g)
+        self.individual_constr_2 = Individual(x, f=f, g=g)
 
         x = [2, 3]
         f = [-2, -2]
         g = [0]
         m = [-4]
-        self.individual_multi_meta_1 = Individual(x, f, m=m)
+        self.individual_multi_meta_1 = Individual(x, f=f, m=m)
 
         self.population = Population()
         self.population.add_individual(self.individual_1)
@@ -138,7 +138,7 @@ class TestPopulation(unittest.TestCase):
                 self.individual_1, ignore_duplicate=False
             )
 
-        new_individual = Individual([9, 10], [3], [-1])
+        new_individual = Individual([9, 10], f=[3], g=[-1])
         with self.assertRaises(CADETProcessError):
             self.population.add_individual(new_individual)
 

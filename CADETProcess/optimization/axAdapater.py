@@ -331,7 +331,7 @@ class AxInterface(OptimizerBase):
             X_transformed=X,
             F_minimized=F,
             G=G,
-            CV=CV,
+            CV_nonlincon=CV,
             current_generation=self.ax_experiment.num_trials,
             X_opt_transformed=None,
         )
