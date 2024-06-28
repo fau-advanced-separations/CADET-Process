@@ -1971,6 +1971,39 @@ class OptimizationProblem(Structure):
 
     @untransforms
     @gets_dependent_values
+    def evaluate_bounds(self, x):
+        """Calculate bound violation.
+
+        Parameters
+        ----------
+        x : array_like
+            Value of the optimization variables in untransformed space.
+
+        Returns
+        -------
+        constraints: np.ndarray
+            Value of the linear constraints at point x
+
+        See Also
+        --------
+        check_bounds
+        lower_bounds
+        upper_bounds
+
+        """
+        # Calculate the residuals for lower bounds
+        lower_residual = np.maximum(0, self.lower_bounds - x)
+
+        # Calculate the residuals for upper bounds
+        upper_residual = np.maximum(0, x - self.upper_bounds)
+
+        # Combine the residuals
+        residual = lower_residual + upper_residual
+
+        return residual
+
+    @untransforms
+    @gets_dependent_values
     def check_bounds(self, x):
         """Check if all bound constraints are kept.
 
