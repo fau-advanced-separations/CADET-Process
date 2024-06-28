@@ -43,7 +43,7 @@ MOO_TEST_KWARGS = {
 
 F_TOL = 0.001
 X_TOL = 0.001
-CV_TOL = 0.0001
+CV_NONLINCON_TOL = 0.0001
 
 EXCLUDE_COMBINATIONS = [
     (
@@ -78,12 +78,12 @@ def set_non_default_parameters(optimizer, problem):
 
 class TrustConstr(TrustConstr):
     x_tol = X_TOL
-    cv_tol = CV_TOL
+    cv_nonlincon_tol = CV_NONLINCON_TOL
 
 
 class COBYLA(COBYLA):
     x_tol = X_TOL
-    cv_tol = CV_TOL
+    cv_nonlincon_tol = CV_NONLINCON_TOL
 
 
 class NelderMead(NelderMead):
@@ -98,7 +98,7 @@ class SLSQP(SLSQP):
 class U_NSGA3(U_NSGA3):
     f_tol = F_TOL
     x_tol = X_TOL
-    cv_tol = CV_TOL
+    cv_nonlincon_tol = CV_NONLINCON_TOL
     pop_size = 100
     n_max_gen = 20  # before used 100 generations --> this did not improve the fit
 

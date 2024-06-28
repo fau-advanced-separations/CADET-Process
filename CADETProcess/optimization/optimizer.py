@@ -54,8 +54,8 @@ class OptimizerBase(Structure):
     progress_frequency : int
         Number of generations after which the optimizer reports progress.
         The default is 1.
-    cv_tol : float
-        Tolerance for constraint violation.
+    cv_nonlincon_tol : float
+        Tolerance for nonlinear constraint violation.
         The default is 1e-6.
     similarity_tol : UnsignedFloat, optional
         Tolerance for individuals to be considered similar.
@@ -89,7 +89,7 @@ class OptimizerBase(Structure):
 
     x_tol = UnsignedFloat()
     f_tol = UnsignedFloat()
-    cv_tol = UnsignedFloat(default=0)
+    cv_nonlincon_tol = UnsignedFloat(default=0)
 
     n_max_iter = UnsignedInteger(default=100000)
     n_max_evals = UnsignedInteger(default=100000)
@@ -99,7 +99,7 @@ class OptimizerBase(Structure):
 
     _general_options = [
         'progress_frequency',
-        'x_tol', 'f_tol', 'cv_tol', 'similarity_tol',
+        'x_tol', 'f_tol', 'cv_nonlincon_tol', 'similarity_tol',
         'n_max_iter', 'n_max_evals',
     ]
 
@@ -188,7 +188,6 @@ class OptimizerBase(Structure):
             optimization_problem=optimization_problem,
             optimizer=self,
             similarity_tol=self.similarity_tol,
-            cv_tol=self.cv_tol,
         )
 
         if save_results:
@@ -421,13 +420,13 @@ class OptimizerBase(Structure):
 
         return flag, x0
 
-    def _create_population(self, X_transformed, F, F_min, G, CV):
+    def _create_population(self, X_transformed, F, F_min, G, CV_nonlincon):
         """Create new population from current generation for post procesing."""
         X_transformed = np.array(X_transformed, ndmin=2)
         F = np.array(F, ndmin=2)
         F_min = np.array(F_min, ndmin=2)
         G = np.array(G, ndmin=2)
-        CV = np.array(CV, ndmin=2)
+        CV_nonlincon = np.array(CV_nonlincon, ndmin=2)
 
         if self.optimization_problem.n_meta_scores > 0:
             M_min = self.optimization_problem.evaluate_meta_scores(
@@ -436,29 +435,29 @@ class OptimizerBase(Structure):
                 ensure_minimization=True,
                 parallelization_backend=self.parallelization_backend,
             )
-            M = self.optimization_problem.transform_maximization(M_min, scores='meta_scores')
+            M = self.optimization_problem.transform_maximization(
+                M_min, scores='meta_scores'
+            )
         else:
-            M_min = len(X_transformed)*[None]
-            M = len(X_transformed)*[None]
+            M_min = None
+            M = None
 
         if self.optimization_problem.n_nonlinear_constraints == 0:
-            G = len(X_transformed)*[None]
-            CV = len(X_transformed)*[None]
+            G = None
+            CV_nonlincon = None
 
-        population = Population()
-        for x_transformed, f, f_min, g, cv, m, m_min in zip(X_transformed, F, F_min, G, CV, M, M_min):
-            x = self.optimization_problem.get_dependent_values(
-                x_transformed, untransform=True
-            )
-            ind = Individual(
-                x, f, g, m, x_transformed, f_min, cv, self.cv_tol, m_min,
-                self.optimization_problem.independent_variable_names,
-                self.optimization_problem.objective_labels,
-                self.optimization_problem.nonlinear_constraint_labels,
-                self.optimization_problem.meta_score_labels,
-                self.optimization_problem.variable_names,
-            )
-            population.add_individual(ind)
+        X = self.optimization_problem.get_dependent_values(
+            X_transformed, untransform=True
+        )
+        population = self.optimization_problem.create_population(
+            X,
+            F=F,
+            F_min=F_min,
+            G=G,
+            CV_nonlincon=CV_nonlincon,
+            M=M,
+            M_min=M_min,
+        )
 
         return population
 
@@ -527,7 +526,7 @@ class OptimizerBase(Structure):
             message = f'x: {ind.x}, f: {ind.f}'
 
             if self.optimization_problem.n_nonlinear_constraints > 0:
-                message += f', g: {ind.g}'
+                message += f', cv: {ind.cv_nonlincon}'
 
             if self.optimization_problem.n_meta_scores > 0:
                 message += f', m: {ind.m}'
@@ -538,7 +537,7 @@ class OptimizerBase(Structure):
             X_transformed,
             F_minimized,
             G,
-            CV,
+            CV_nonlincon,
             current_generation,
             X_opt_transformed=None
             ):
@@ -558,7 +557,7 @@ class OptimizerBase(Structure):
             This assumes that all objective function values are minimized.
         G : list
             Nonlinear constraint function values of generation.
-        CV : list
+        CV_nonlincon : list
             Nonlinear constraints violation of of generation.
         current_generation : int
             Current generation.
@@ -567,8 +566,12 @@ class OptimizerBase(Structure):
             If None, internal pareto front is used to determine best values.
 
         """
-        F = self.optimization_problem.transform_maximization(F_minimized, scores='objectives')
-        population = self._create_population(X_transformed, F, F_minimized, G, CV)
+        F = self.optimization_problem.transform_maximization(
+            F_minimized, scores='objectives'
+        )
+        population = self._create_population(
+            X_transformed, F, F_minimized, G, CV_nonlincon
+        )
         self.results.update(population)
 
         pareto_front = self._create_pareto_front(X_opt_transformed)
@@ -593,7 +596,6 @@ class OptimizerBase(Structure):
                 self.optimization_problem.prune_cache(x_key, close=False)
             else:
                 self._current_cache_entries.append(x_key)
-
 
         # Remove old meta front entries from cache that were replaced by better ones
         for x_key in self._current_cache_entries:

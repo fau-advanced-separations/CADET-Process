@@ -68,8 +68,11 @@ class OptimizationResults(Structure):
     system_information = Dictionary()
 
     def __init__(
-            self, optimization_problem, optimizer,
-            similarity_tol=0, cv_tol=1e-6):
+            self,
+            optimization_problem,
+            optimizer,
+            similarity_tol: float = 0,
+            ):
         self.optimization_problem = optimization_problem
         self.optimizer = optimizer
 
@@ -78,7 +81,6 @@ class OptimizationResults(Structure):
         self._population_all = Population()
         self._populations = []
         self._similarity_tol = similarity_tol
-        self._cv_tol = cv_tol
         self._pareto_fronts = []
 
         if optimization_problem.n_multi_criteria_decision_functions > 0:
@@ -182,7 +184,7 @@ class OptimizationResults(Structure):
             New pareto front. If None, update existing front with latest population.
         """
         pareto_front = ParetoFront(
-            similarity_tol=self._similarity_tol, cv_tol=self._cv_tol
+            similarity_tol=self._similarity_tol
         )
 
         if pareto_new is not None:
@@ -229,6 +231,21 @@ class OptimizationResults(Structure):
         return self.meta_front.x_transformed
 
     @property
+    def cv_bounds(self) -> np.ndarray:
+        """np.array: Bound constraint violation of optimal points."""
+        return self.meta_front.cv_bounds
+
+    @property
+    def cv_lincon(self) -> np.ndarray:
+        """np.array: Linear constraint violation of optimal points."""
+        return self.meta_front.cv_lincon
+
+    @property
+    def cv_lineqcon(self) -> np.ndarray:
+        """np.array: Linear equality constraint violation of optimal points."""
+        return self.meta_front.cv_lineqcon
+
+    @property
     def f(self) -> np.ndarray:
         """np.array: Objective function values of optimal points."""
         return self.meta_front.f
@@ -239,9 +256,9 @@ class OptimizationResults(Structure):
         return self.meta_front.g
 
     @property
-    def cv(self):
-        """np.array: Optimal nonlinear constraint violations."""
-        return self.meta_front.cv
+    def cv_nonlincon(self) -> np.ndarray:
+        """np.array: Nonlinear constraint violation values of optimal points."""
+        return self.meta_front.cv_nonlincon
 
     @property
     def m(self) -> np.ndarray:
@@ -304,28 +321,28 @@ class OptimizationResults(Structure):
             return np.array([pop.g_avg for pop in self.meta_fronts])
 
     @property
-    def cv_min_history(self):
+    def cv_nonlincon_min_history(self) -> np.ndarray:
         """np.array: Minimum nonlinear constraint violation values per generation."""
         if self.optimization_problem.n_nonlinear_constraints == 0:
             return None
         else:
-            return np.array([pop.cv_min for pop in self.meta_fronts])
+            return np.array([pop.cv_nonlincon_min for pop in self.meta_fronts])
 
     @property
-    def cv_max_history(self):
+    def cv_nonlincon_max_history(self) -> np.ndarray:
         """np.array: Maximum nonlinear constraint violation values per generation."""
         if self.optimization_problem.n_nonlinear_constraints == 0:
             return None
         else:
-            return np.array([pop.cv_max for pop in self.meta_fronts])
+            return np.array([pop.cv_nonlincon_max for pop in self.meta_fronts])
 
     @property
-    def cv_avg_history(self):
+    def cv_nonlincon_avg_history(self) -> np.ndarray:
         """np.array: Average nonlinear constraint violation values per generation."""
         if self.optimization_problem.n_nonlinear_constraints == 0:
             return None
         else:
-            return np.array([pop.cv_avg for pop in self.meta_fronts])
+            return np.array([pop.cv_nonlincon_avg for pop in self.meta_fronts])
 
     @property
     def m_best_history(self) -> np.ndarray:

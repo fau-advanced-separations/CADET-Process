@@ -21,7 +21,7 @@ def setup_individual(n_vars=2, n_obj=1, n_nonlin=0, n_meta=0, rng=None):
     else:
         m = None
 
-    return Individual(x, f, g, m)
+    return Individual(x, f=f, g=g, m=m)
 
 
 class TestHashArray(unittest.TestCase):
@@ -75,7 +75,7 @@ class TestIndividual(unittest.TestCase):
         f = [-1]
         g = [2]
         m = [1]
-        self.individual_constr_meta = Individual(x, f, g, cv=g, m=m)
+        self.individual_constr_meta = Individual(x, f, g, cv_nonlincon=g, m=m)
 
     def test_dimensions(self):
         dimensions_expected = (2, 1, 0, 0)
@@ -145,7 +145,7 @@ class TestIndividual(unittest.TestCase):
 
         # Missing: Test for labels.
         # self.assertEqual(data['objective_labels'], self.individual_1.objective_labels)
-        # self.assertEqual(data['contraint_labels'], self.individual_1.contraint_labels)
+        # self.assertEqual(data['nonlinear_constraint_labels'], self.individual_1.nonlinear_constraint_labels)
         # self.assertEqual(data['meta_score_labels'], elf.individual_1.meta_score_labels)
 
     def test_from_dict(self):
@@ -170,7 +170,7 @@ class TestIndividual(unittest.TestCase):
             test_individual.objective_labels, self.individual_1.objective_labels
         )
         self.assertEqual(
-            test_individual.contraint_labels, self.individual_1.contraint_labels
+            test_individual.nonlinear_constraint_labels, self.individual_1.nonlinear_constraint_labels
         )
         self.assertEqual(
             test_individual.meta_score_labels, self.individual_1.meta_score_labels
