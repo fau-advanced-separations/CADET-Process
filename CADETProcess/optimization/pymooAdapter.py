@@ -40,10 +40,10 @@ class PymooInterface(OptimizerBase):
     n_max_gen = UnsignedInteger()
     n_skip = UnsignedInteger(default=0)
 
-    x_tol = xtol            # Alias for uniform interface
-    f_tol = ftol            # Alias for uniform interface
-    cv_tol = cvtol          # Alias for uniform interface
-    n_max_iter = n_max_gen  # Alias for uniform interface
+    x_tol = xtol                # Alias for uniform interface
+    f_tol = ftol                # Alias for uniform interface
+    cv_nonlincon_tol = cvtol    # Alias for uniform interface
+    n_max_iter = n_max_gen      # Alias for uniform interface
 
     _specific_options = [
         'seed', 'pop_size', 'xtol', 'ftol', 'cvtol', 'n_max_gen', 'n_skip'
@@ -111,7 +111,7 @@ class PymooInterface(OptimizerBase):
             ref_dirs=ref_dirs,
             pop_size=pop_size,
             sampling=pop,
-            repair=RepairIndividuals(optimization_problem),
+            repair=RepairIndividuals(self, optimization_problem),
         )
 
         n_max_gen = self.get_max_number_of_generations(optimization_problem)
@@ -266,7 +266,8 @@ class PymooProblem(Problem):
 
 
 class RepairIndividuals(Repair):
-    def __init__(self, optimization_problem, *args, **kwargs):
+    def __init__(self, optimizer, optimization_problem, *args, **kwargs):
+        self.optimizer = optimizer
         self.optimization_problem = optimization_problem
         super().__init__(*args, **kwargs)
 
@@ -278,6 +279,9 @@ class RepairIndividuals(Repair):
                     ind,
                     untransform=True,
                     get_dependent_values=True,
+                    cv_bounds_tol=self.optimizer.cv_bounds_tol,
+                    cv_lincon_tol=self.optimizer.cv_lincon_tol,
+                    cv_lineqcon_tol=self.optimizer.cv_lineqcon_tol,
                     check_nonlinear_constraints=False,
                     ):
                 if X_new is None:

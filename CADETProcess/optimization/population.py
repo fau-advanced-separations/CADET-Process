@@ -119,9 +119,9 @@ class Population():
         return self.individuals[0].objective_labels
 
     @property
-    def contraint_labels(self):
+    def nonlinear_constraint_labels(self) -> list[str]:
         """list: Labels of the nonlinear constraint metrics."""
-        return self.individuals[0].contraint_labels
+        return self.individuals[0].nonlinear_constraint_labels
 
     @property
     def meta_score_labels(self) -> list[str]:
@@ -251,6 +251,21 @@ class Population():
         return np.array([ind.x_transformed for ind in self.individuals])
 
     @property
+    def cv_bounds(self) -> np.ndarray:
+        """np.array: All evaluated bound constraint violations."""
+        return np.array([ind.cv_bounds for ind in self.individuals])
+
+    @property
+    def cv_lincon(self) -> np.ndarray:
+        """np.array: All evaluated linear constraint violations."""
+        return np.array([ind.cv_lincon for ind in self.individuals])
+
+    @property
+    def cv_lineqcon(self) -> np.ndarray:
+        """np.array: All evaluated linear equality constraint violations."""
+        return np.array([ind.cv_lineqcon for ind in self.individuals])
+
+    @property
     def f(self) -> np.ndarray:
         """np.array: All evaluated objective function values."""
         return np.array([ind.f for ind in self.individuals])
@@ -290,7 +305,7 @@ class Population():
     @property
     def g_best(self) -> np.ndarray:
         """np.array: Best nonlinear constraint values."""
-        indices = np.argmin(self.cv, axis=0)
+        indices = np.argmin(self.cv_nonlincon, axis=0)
         return [self.g[ind, i] for i, ind in enumerate(indices)]
 
     @property
@@ -312,28 +327,28 @@ class Population():
             return np.mean(self.g, axis=0)
 
     @property
-    def cv(self):
-        """np.array: All evaluated nonlinear constraint function values."""
+    def cv_nonlincon(self) -> np.ndarray:
+        """np.array: All evaluated nonlinear constraint violation values."""
         if self.dimensions[2] > 0:
-            return np.array([ind.cv for ind in self.individuals])
+            return np.array([ind.cv_nonlincon for ind in self.individuals])
 
     @property
-    def cv_min(self):
+    def cv_nonlincon_min(self) -> np.ndarray:
         """np.array: Minimum nonlinear constraint violation values."""
         if self.dimensions[2] > 0:
-            return np.min(self.cv, axis=0)
+            return np.min(self.cv_nonlincon, axis=0)
 
     @property
-    def cv_max(self):
+    def cv_nonlincon_max(self) -> np.ndarray:
         """np.array: Maximum nonlinearconstraint violation values."""
         if self.dimensions[2] > 0:
-            return np.max(self.cv, axis=0)
+            return np.max(self.cv_nonlincon, axis=0)
 
     @property
-    def cv_avg(self):
+    def cv_nonlincon_avg(self) -> np.ndarray:
         """np.array: Average nonlinear constraint violation values."""
         if self.dimensions[2] > 0:
-            return np.mean(self.cv, axis=0)
+            return np.mean(self.cv_nonlincon, axis=0)
 
     @property
     def m(self) -> np.ndarray:
@@ -825,69 +840,9 @@ class Population():
 
 
 class ParetoFront(Population):
-    def __init__(self, similarity_tol=1e-1, cv_tol=1e-6, *args, **kwargs):
+    def __init__(self, similarity_tol=1e-1, *args, **kwargs):
         self.similarity_tol = similarity_tol
-        self.cv_tol = cv_tol
         super().__init__(*args, **kwargs)
-
-    def update_individual(self, individual):
-        """Update the Pareto front with new individual.
-
-        If any individual in the pareto front is dominated, it is removed.
-
-        Parameters
-        ----------
-        individual : Individual
-            Individual to update the pareto front with.
-
-        Returns
-        -------
-        significant_improvement : bool
-            True if pareto front has improved significantly. False otherwise.
-        """
-        significant = []
-
-        is_dominated = False
-        dominates_one = False
-        to_remove = []
-
-        try:
-            if np.any(np.array(individual.g) > self.cv_tol):
-                return False
-        except TypeError:
-            pass
-
-        for i, ind_pareto in enumerate(self):
-            if not dominates_one and ind_pareto.dominates(individual):
-                is_dominated = True
-                break
-            elif individual.dominates(ind_pareto):
-                dominates_one = True
-                to_remove.append(ind_pareto)
-                significant.append(
-                    not individual.is_similar(ind_pareto, self.similarity_tol)
-                )
-
-        for i in reversed(to_remove):
-            self.remove_individual(i)
-
-        if not is_dominated:
-            if len(self) == 0:
-                significant.append(True)
-            elif sum(self.dimensions[1:]) > 1:
-                if len(significant) == 0 \
-                        or (len(significant) and any(significant)):
-                    significant.append(True)
-
-            self.add_individual(individual)
-
-        if len(self) == 0:
-            self.add_individual(individual)
-
-        if self.similarity_tol != 0:
-            self.remove_similar()
-
-        return any(significant)
 
     def update_population(self, population: Population):
         """Update the Pareto front with new population.
@@ -915,24 +870,29 @@ class ParetoFront(Population):
             has_twin = False
             to_remove = []
 
-            try:
-                # Do not add if invalid
-                if np.any(np.array(ind_new.cv) > self.cv_tol):
-                    continue
-            except TypeError:
-                pass
+            if not ind_new.is_feasible:
+                continue
 
             for i, ind_pareto in enumerate(self):
                 # Do not add if is dominated
                 if not dominates_one and ind_pareto.dominates(ind_new):
                     is_dominated = True
                     break
+
+                # Remove existing if infeasible
+                elif not ind_pareto.is_feasible:
+                    dominates_one = True
+                    to_remove.append(ind_pareto)
+                    significant.append(True)
+
+                # Remove existing if new dominates
                 elif ind_new.dominates(ind_pareto):
-                    # Remove existing if new dominates
                     dominates_one = True
                     to_remove.append(ind_pareto)
                     if not ind_new.is_similar(ind_pareto, self.similarity_tol):
                         significant.append(True)
+
+                # Ignore similar individuals
                 elif ind_new.is_similar(ind_pareto, self.similarity_tol):
                     has_twin = True
                     break
@@ -951,10 +911,29 @@ class ParetoFront(Population):
 
         if len(self) == 0:
             # Use least inveasible individuals.
-            indices = np.argmin(population.cv, axis=0)
+            indices = np.argmin(population.cv_bounds, axis=0)
             for index in indices:
                 ind_new = population.individuals[index]
                 self.add_individual(ind_new)
+
+            indices = np.argmin(population.cv_lincon, axis=0)
+            for index in indices:
+                ind_new = population.individuals[index]
+                self.add_individual(ind_new)
+
+            indices = np.argmin(population.cv_lineqcon, axis=0)
+            for index in indices:
+                ind_new = population.individuals[index]
+                self.add_individual(ind_new)
+
+            if self.n_g > 0:
+                indices = np.argmin(population.cv_nonlincon, axis=0)
+                for index in indices:
+                    ind_new = population.individuals[index]
+                    self.add_individual(ind_new)
+
+        elif len(self) > 1:
+            self.remove_infeasible()
 
         if self.similarity_tol is not None:
             self.remove_similar()
@@ -964,11 +943,8 @@ class ParetoFront(Population):
     def remove_infeasible(self):
         """Remove infeasible individuals from pareto front."""
         for ind in self.individuals.copy():
-            try:
-                if np.any(np.array(ind.cv) > self.cv_tol):
-                    self.remove_individual(ind)
-            except TypeError:
-                pass
+            if not ind.is_feasible:
+                self.remove_individual(ind)
 
     def remove_dominated(self):
         """Remove dominated individuals from pareto front."""
@@ -1001,7 +977,6 @@ class ParetoFront(Population):
         front = super().to_dict()
         if self.similarity_tol is not None:
             front["similarity_tol"] = self.similarity_tol
-        front['cv_tol'] = self.cv_tol
 
         return front
 
@@ -1020,7 +995,6 @@ class ParetoFront(Population):
             ParetoFront created from data.
         """
         front = cls(
-            cv_tol=data["cv_tol"],
             similarity_tol=data["similarity_tol"],
             id=data["id"]
         )
