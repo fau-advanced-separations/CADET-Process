@@ -2058,7 +2058,7 @@ class OptimizationProblem(Structure):
         """int: Number of linear inequality constraints."""
         return len(self.linear_constraints)
 
-    def add_linear_constraint(self, opt_vars, lhs=1.0, b=0.0):
+    def add_linear_constraint(self, opt_vars, lhs=1.0, b=0.0, eps=0.0):
         """Add linear inequality constraints.
 
         Parameters
@@ -2070,6 +2070,8 @@ class OptimizationProblem(Structure):
             If scalar, same coefficient is used for all variables.
         b : float, optional
             Constraint of inequality constraint. The default is zero.
+        eps : float, optional
+            Tolerance to relax linear constraints.
 
         Raises
         ------
@@ -2102,6 +2104,7 @@ class OptimizationProblem(Structure):
         lincon['opt_vars'] = opt_vars
         lincon['lhs'] = lhs
         lincon['b'] = float(b)
+        lincon['eps'] = float(eps)
 
         self._linear_constraints.append(lincon)
 
@@ -2262,6 +2265,18 @@ class OptimizationProblem(Structure):
 
         return b_t
 
+    @property
+    def eps_lin(self):
+        """np.array: Relaxation tolerance for linear constraints.
+
+        See Also
+        --------
+        add_linear_constraint
+        """
+        return np.array([
+            lincon['eps'] for lincon in self.linear_constraints
+        ])
+
     @untransforms
     @gets_dependent_values
     def evaluate_linear_constraints(self, x):
@@ -2313,7 +2328,8 @@ class OptimizationProblem(Structure):
         """
         flag = True
 
-        if np.any(self.evaluate_linear_constraints(x) > 0):
+        lhs = self.evaluate_linear_constraints(x)
+        if np.any(lhs > self.eps_lin):
             flag = False
 
         return flag
@@ -2348,6 +2364,8 @@ class OptimizationProblem(Structure):
             If scalar, same coefficient is used for all variables.
         b : float, optional
             Constraint of inequality constraint. The default is zero.
+        eps : float, optional
+            Tolerance to relax linear equality constraints.
 
         Raises
         ------
