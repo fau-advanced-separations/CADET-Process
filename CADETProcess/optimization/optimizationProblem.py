@@ -2380,7 +2380,7 @@ class OptimizationProblem(Structure):
         lineqcon['opt_vars'] = opt_vars
         lineqcon['lhs'] = lhs
         lineqcon['beq'] = beq
-        lineqcon['eps_eq'] = float(eps)
+        lineqcon['eps'] = float(eps)
 
         self._linear_equality_constraints.append(lineqcon)
 
@@ -2539,7 +2539,7 @@ class OptimizationProblem(Structure):
         return beq_t
 
     @property
-    def eps_eq(self):
+    def eps_lineq(self):
         """np.array: Relaxation tolerance for linear equality constraints.
 
         See Also
@@ -2547,7 +2547,7 @@ class OptimizationProblem(Structure):
         add_linear_inequality_constraint
         """
         return np.array([
-            lineqcon['eps_eq'] for lineqcon in self.linear_equality_constraints
+            lineqcon['eps'] for lineqcon in self.linear_equality_constraints
         ])
 
     @untransforms
@@ -2595,7 +2595,7 @@ class OptimizationProblem(Structure):
         flag = True
 
         lhs = self.evaluate_linear_equality_constraints(x)
-        if np.any(np.abs(lhs) > self.eps_eq):
+        if np.any(np.abs(lhs) > self.eps_lineq):
             flag = False
 
         return flag

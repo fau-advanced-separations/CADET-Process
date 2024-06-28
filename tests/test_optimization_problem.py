@@ -1142,7 +1142,7 @@ class Test_OptimizationProblemConstraintTransforms(unittest.TestCase):
         evaluate_constraints = lambda x: Aeq.dot(x) - beq
 
         lhs = np.array(list(map(evaluate_constraints, X)))
-        rhs = problem.eps_eq
+        rhs = problem.eps_lineq
         CV = np.all(np.abs(lhs) <= rhs, axis=1)
 
         return CV
