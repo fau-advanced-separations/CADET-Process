@@ -230,8 +230,8 @@ class SciPyInterface(OptimizerBase):
         if optimization_problem.n_linear_equality_constraints == 0:
             return None
 
-        lb = optimization_problem.beq_transformed - optimization_problem.eps_eq
-        ub = optimization_problem.beq_transformed + optimization_problem.eps_eq
+        lb = optimization_problem.beq_transformed - optimization_problem.eps_lineq
+        ub = optimization_problem.beq_transformed + optimization_problem.eps_lineq
 
         return optimize.LinearConstraint(
             optimization_problem.Aeq_independent_transformed, lb, ub,
