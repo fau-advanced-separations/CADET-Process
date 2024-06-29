@@ -1,12 +1,12 @@
 import warnings
 
 from scipy import optimize
-from scipy.optimize import OptimizeWarning
+from scipy.optimize import OptimizeWarning, OptimizeResult
 import numpy as np
 
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import (
-    Bool, Switch, UnsignedInteger, UnsignedFloat
+    Bool, Switch, Float, UnsignedInteger, UnsignedFloat
 )
 from CADETProcess.optimization import OptimizerBase, OptimizationProblem
 
@@ -37,10 +37,9 @@ class SciPyInterface(OptimizerBase):
 
     See Also
     --------
-    COBYLA
+    COBYQA
     TrustConstr
     NelderMead
-    SLSQP
     CADETProcess.optimization.OptimizationProblem.evaluate_objectives
     options
     scipy.optimize.minimize
@@ -63,10 +62,9 @@ class SciPyInterface(OptimizerBase):
 
         See Also
         --------
-        COBYLA
+        COBYQA
         TrustConstr
         NelderMead
-        SLSQP
         CADETProcess.optimization.OptimizationProblem.evaluate_objectives
         options
         scipy.optimize.minimize
@@ -82,35 +80,21 @@ class SciPyInterface(OptimizerBase):
                 x, untransform=True, ensure_minimization=True,
             )[0]
 
-        def callback_function(x, state=None):
-            """Internal callback to report progress after evaluation.
-
-            Notes
-            -----
-            Currently, this evaluates all functions again. This should not be a problem
-            since objectives and constraints are automatically cached.
-
-            Unfortunately, only `trust-constr` returns a `state` which contains the
-            current best point. Hence, the internal pareto front is used.
-            """
+        def callback(intermediate_result: OptimizeResult):
+            """Internal callback to report progress after evaluation."""
             self.n_evals += 1
 
-            x = x.tolist()
-            f = optimization_problem.evaluate_objectives(
-                x,
-                untransform=True,
-                ensure_minimization=True,
-            )
+            x_transformed = intermediate_result.x
+            f = intermediate_result.fun
+
             g = optimization_problem.evaluate_nonlinear_constraints(
-                x, untransform=True
+                x_transformed, untransform=True
             )
-            cv = optimization_problem.evaluate_nonlinear_constraints_violation(
-                x, untransform=True
+            cv_nonlincon = optimization_problem.evaluate_nonlinear_constraints_violation(
+                x_transformed, untransform=True
             )
 
-            self.run_post_processing(x, f, g, cv, self.n_evals)
-
-            return False
+            self.run_post_processing(x_transformed, f, g, cv_nonlincon, self.n_evals)
 
         if x0 is None:
             x0 = optimization_problem.create_initial_values(
@@ -124,7 +108,7 @@ class SciPyInterface(OptimizerBase):
             x0 = self.results.population_last.x[0, :]
             self.n_evals = self.results.n_evals
             options['maxiter'] = self.maxiter - self.n_evals
-            if str(self) == 'COBYLA':
+            if str(self) == 'COBYQA':
                 options['maxiter'] -= 1
 
         with warnings.catch_warnings():
@@ -139,7 +123,7 @@ class SciPyInterface(OptimizerBase):
                 constraints=self.get_constraint_objects(optimization_problem),
                 bounds=self.get_bounds(optimization_problem),
                 options=options,
-                callback=callback_function,
+                callback=callback,
             )
 
         self.results.success = bool(scipy_results.success)
@@ -409,8 +393,8 @@ class TrustConstr(SciPyInterface):
         return 'trust-constr'
 
 
-class COBYLA(SciPyInterface):
-    """Wrapper for the COBYLA optimization method from the scipy optimization suite.
+class COBYQA(SciPyInterface):
+    """Wrapper for the COBYQA optimization method from the scipy optimization suite.
 
     It defines the solver options in the 'options' variable as a dictionary.
 
@@ -418,40 +402,65 @@ class COBYLA(SciPyInterface):
         - Linear constraints
         - Linear equality constraints
         - Nonlinear constraints
+        - Bounds
 
     Parameters
     ----------
-    rhobeg : float, default 1
-        Reasonable initial changes to the variables.
-    tol : float, default 0.0002
-        Final accuracy in the optimization (not precisely guaranteed).
-        This is a lower bound on the size of the trust region.
     disp : bool, default False
-        Set to True to print convergence messages.
-        If False, verbosity is ignored and set to 0.
-    maxiter : int, default 10000
+        Set to True to print information about the optimization procedure.
+    maxfev : int
         Maximum number of function evaluations.
-    catol : float, default 2e-4
-        Absolute tolerance for constraint violations.
-
+        The default is None.
+    maxiter : int
+        Maximum number of iterations.
+        The default is None.
+    f_target : float
+        Target value for the objective function.The optimization procedure is
+        terminated when the objective function value of a feasible point (see
+        `feasibility_tol` below) is less than or equal to this target.
+        The default is `-np.inf`
+    feasibility_tol : float
+        Absolute tolerance for the constraint violation.
+        The default is 1e-8
+    initial_tr_radius : float
+        Initial trust-region radius. Typically, this value should be in the order of one
+        tenth of the greatest expected change to the variables.
+        The default is 1.0
+    final_tr_radius : float
+        Final trust-region radius. It should indicate the accuracy required in the final
+        values of the variables. If provided, this option overrides the value of `tol`
+        in the `minimize` function.
+        The default is 1e-6
     """
+
     supports_linear_constraints = True
     supports_linear_equality_constraints = True
     supports_nonlinear_constraints = True
     supports_bounds = True
 
-    rhobeg = UnsignedFloat(default=1)
-    tol = UnsignedFloat(default=0.0002)
-    maxiter = UnsignedInteger(default=10000)
     disp = Bool(default=False)
-    catol = UnsignedFloat(default=0.0002)
 
-    x_tol = tol                 # Alias for uniform interface
-    cv_nonlincon_tol = catol    # Alias for uniform interface
-    n_max_evals = maxiter       # Alias for uniform interface
-    n_max_iter = maxiter        # Alias for uniform interface
+    maxfev = UnsignedInteger()
+    maxiter = UnsignedInteger()
+    f_target = Float(default=-np.inf)
+    feasibility_tol = UnsignedFloat(default=1e-8)
+    initial_tr_radius = UnsignedFloat(default=1.0)
+    final_tr_radius = UnsignedFloat(default=1e-6)
 
-    _specific_options = ['rhobeg', 'tol', 'maxiter', 'disp', 'catol']
+    x_tol = final_tr_radius             # Alias for uniform interface
+    cv_nonlincon_tol = feasibility_tol  # Alias for uniform interface
+    n_max_evals = maxfev                # Alias for uniform interface
+    n_max_iter = maxiter                # Alias for uniform interface
+
+    _specific_options = [
+        'disp',
+        'maxfev',
+        'maxiter',
+        'f_target',
+        'feasibility_tol',
+        'initial_tr_radius',
+        'final_tr_radius',
+    ]
 
 
 class NelderMead(SciPyInterface):
@@ -500,52 +509,3 @@ class NelderMead(SciPyInterface):
 
     def __str__(self):
         return 'Nelder-Mead'
-
-
-class SLSQP(SciPyInterface):
-    """Wrapper for the SLSQP optimization method from the scipy optimization suite.
-
-    It defines the solver options in the 'options' variable as a dictionary.
-
-    Supports:
-        - Linear constraints
-        - Linear equality constraints
-        - Nonlinear constraints
-        - Bounds
-
-    Parameters
-    ----------
-    ftol : float, default 1e-2
-        Precision goal for the value of f in the stopping criterion.
-    eps : float, default 1e-6
-        Step size used for numerical approximation of the Jacobian.
-    disp : bool, default False
-        Set to True to print convergence messages.
-        If False, verbosity is ignored and set to 0.
-    maxiter : int, default 1000
-        Maximum number of iterations.
-    iprint: int, optional
-        The verbosity of fmin_slsqp :
-            iprint <= 0 : Silent operation
-            iprint == 1 : Print summary upon completion (default)
-            iprint >= 2 : Print status of each iterate and summary
-    """
-
-    supports_linear_constraints = True
-    supports_linear_equality_constraints = True
-    supports_nonlinear_constraints = True
-    supports_bounds = True
-
-    ftol = UnsignedFloat(default=1e-2)
-    eps = UnsignedFloat(default=1e-6)
-    disp = Bool(default=False)
-    maxiter = UnsignedInteger(default=1000)
-    iprint = UnsignedInteger(ub=2, default=1)
-
-    f_tol = ftol            # Alias for uniform interface
-    n_max_evals = maxiter   # Alias for uniform interface
-    n_max_iter = maxiter    # Alias for uniform interface
-
-    _specific_options = [
-        'ftol', 'eps', 'disp', 'maxiter', 'finite_diff_rel_step', 'iprint'
-    ]

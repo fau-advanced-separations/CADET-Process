@@ -7,7 +7,7 @@ from CADETProcess import CADETProcessError
 from CADETProcess import SimulationResults
 from CADETProcess.fractionation import Fractionator
 from CADETProcess.optimization import OptimizerBase, OptimizationProblem
-from CADETProcess.optimization import COBYLA
+from CADETProcess.optimization import COBYQA
 from CADETProcess.performance import Mass, Purity
 
 
@@ -48,13 +48,13 @@ class FractionationOptimizer():
         ----------
         optimizer: OptimizerBase, optional
             Optimizer for optimizing the fractionation times.
-            If no value is specified, a default COBYLA optimizer will be used.
+            If no value is specified, COBYQA is used by default.
         log_level: {'WARNING', 'INFO', 'DEBUG', 'ERROR'}
             Log level for the fractionation optimization process.
             The default is 'WARNING'.
         """
         if optimizer is None:
-            optimizer = COBYLA()
+            optimizer = COBYQA()
             optimizer.tol = 1e-3
             optimizer.catol = 5e-3
             optimizer.rhobeg = 1e-4
@@ -294,7 +294,8 @@ class FractionationOptimizer():
             The default is 1.
         obj_fun : function, optional
             Objective function used for OptimizationProblem.
-            If COBYLA is used, must return single objective.
+            Must return single objective if optimizer does not support multiple
+            objectives.
             If is None, the mass of all components is maximized.
         n_objectives : int, optional
             Number of objectives returned by obj_fun. The default is 1.
