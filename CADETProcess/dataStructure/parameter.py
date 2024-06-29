@@ -508,7 +508,7 @@ class Bool(Typed):
         Union[bool, Any]
             Boolean equivalent if value is 0 or 1; otherwise, the original value.
         """
-        if isinstance(value, int) and value in [0, 1]:
+        if isinstance(value, (int, np.bool_)) and value in [0, 1]:
             value = bool(value)
         return value
 
