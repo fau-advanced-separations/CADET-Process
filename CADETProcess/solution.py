@@ -959,9 +959,12 @@ class SolutionBulk(SolutionBase):
     def plot_at_position(
             self,
             z: float,
-            components=None,
-            layout=None,
-            ax=None,
+            start: float | None = None,
+            end: float | None = None,
+            components: list[str] | None = None,
+            layout: plotting.Layout | None = None,
+            x_axis_in_minutes: bool = True,
+            ax: Axes | None = None,
             *args,
             **kwargs,
             ):
@@ -971,10 +974,19 @@ class SolutionBulk(SolutionBase):
         ----------
         z : float
             Position for plotting.
+        start : float, optional
+            Start time for plotting in seconds. If None is provided, the first data
+            point will be used as the start time. The default is None.
+        end : float, optional
+            End time for plotting in seconds. If None is provided, the last data point
+            will be used as the end time. The default is None.
         components : list, optional.
             List of components to be plotted. If None, all components are plotted.
         layout : plotting.Layout
             Plot layout options.
+            If None, value is automatically deferred from solution.
+        x_axis_in_minutes : bool, optional
+            If True, the x-axis will be plotted using minutes. The default is True.
         ax : Axes
             Axes to plot on.
 
