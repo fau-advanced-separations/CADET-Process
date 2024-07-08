@@ -76,7 +76,7 @@ def pear_corr(cr):
 @numba.njit(fastmath=True)
 def pearsonr_mat(x, Y, times):
     """High performance implementation of the pearson correlation.
-    This is to simulatneously evaluate the pearson correleation between a
+    This is to simultaneously evaluate the pearson correlation between a
     vector and a matrix. Scipy can only evaluate vector/vector.
     """
     r = np.zeros(Y.shape[0])
@@ -90,14 +90,16 @@ def pearsonr_mat(x, Y, times):
         r_num = np.dot(xm, ym)
         r_y_den = np.linalg.norm(ym)
 
-        if r_y_den == 0.0:
+        denominator = r_x_den * r_y_den
+
+        if denominator == 0.0:
             r[i] = -1.0
         else:
             min_fun = 0
             for j in range(x.shape[0]):
                 min_fun += min(x[j], Y[i, j])
 
-            r[i] = min(max(r_num/(r_x_den*r_y_den), -1.0), 1.0) * min_fun
+            r[i] = min(max(r_num/denominator, -1.0), 1.0) * min_fun
     return r
 
 
