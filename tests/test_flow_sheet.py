@@ -5,9 +5,44 @@ import numpy as np
 from CADETProcess import CADETProcessError
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess.processModel import (
-    Inlet, Cstr, LumpedRateModelWithoutPores, Outlet
+    Inlet, Cstr, MCT, LumpedRateModelWithoutPores, Outlet
 )
 from CADETProcess.processModel import FlowSheet
+
+
+def assert_almost_equal_dict(
+                dict_actual, dict_expected, decimal=7, verbose=True):
+            """Helper function to assert nested dicts are (almost) equal.
+
+            Because of floating point calculations, it is necessary to use
+            `np.assert_almost_equal` to check the flow rates. However, this does not
+            work well with nested dicts which is why this helper function was written.
+
+            Parameters
+            ----------
+            dict_actual : dict
+                The object to check.
+            dict_expected : dict
+                The expected object.
+            decimal : int, optional
+                Desired precision, default is 7.
+            err_msg : str, optional
+                The error message to be printed in case of failure.
+            verbose : bool, optional
+                If True, the conflicting values are appended to the error message.
+
+            """
+            for key in dict_actual:
+                if isinstance(dict_actual[key], dict):
+                    assert_almost_equal_dict(dict_actual[key], dict_expected[key])
+
+                else:
+                    np.testing.assert_almost_equal(
+                        dict_actual[key], dict_expected[key],
+                        decimal=decimal,
+                        err_msg=f'Dicts are not equal in key {key}.',
+                        verbose=verbose
+                    )
 
 
 def setup_single_cstr_flow_sheet(component_system=None):
@@ -172,24 +207,149 @@ class TestFlowSheet(unittest.TestCase):
         outlet = self.ssr_flow_sheet['outlet']
         expected_connections = {
             feed: {
-                'origins': [],
-                'destinations': [cstr],
+                'origins': None,
+                'destinations': {
+                    None: {
+                        cstr:[None],
+                    },
+                },
             },
             eluent: {
-                'origins': [],
-                'destinations': [column],
+                'origins': None,
+                'destinations': {
+                    None: {
+                        column:[None],
+                    },
+                },
             },
+
             cstr: {
-                'origins': [feed, column],
-                'destinations': [column],
+                'origins': {
+                    None: {
+                        feed:[None],
+                        column:[None],
+                    },
+                },
+                'destinations': {
+                    None: {
+                        column:[None],
+                    },
+                },
             },
+
             column: {
-                'origins': [cstr, eluent],
-                'destinations': [cstr, outlet],
+                'origins': {
+                    None: {
+                        cstr:[None],
+                        eluent:[None],
+                    },
+                },
+                'destinations': {
+                    None: {
+                        cstr:[None],
+                        outlet:[None],
+                    },
+                },
             },
+
             outlet: {
-                'origins': [column],
-                'destinations': [],
+                'origins':{
+                    None: {
+                        column:[None],
+                    },
+                },
+
+                'destinations': None,
+            },
+        }
+
+        self.assertDictEqual(
+            self.ssr_flow_sheet.connections, expected_connections
+        )
+
+        self.assertTrue(self.ssr_flow_sheet.connection_exists(feed, cstr))
+        self.assertTrue(self.ssr_flow_sheet.connection_exists(eluent, column))
+        self.assertTrue(self.ssr_flow_sheet.connection_exists(column, outlet))
+
+        self.assertFalse(self.ssr_flow_sheet.connection_exists(feed, eluent))
+
+    def test_name_decorator(self):
+        feed = Inlet(self.component_system, name='feed')
+        eluent = Inlet(self.component_system, name='eluent')
+        cstr = Cstr(self.component_system, name='cstr')
+        column = LumpedRateModelWithoutPores(
+            self.component_system, name='column'
+        )
+        outlet = Outlet(self.component_system, name='outlet')
+
+        flow_sheet = FlowSheet(self.component_system)
+
+        flow_sheet.add_unit(feed)
+        flow_sheet.add_unit(eluent)
+        flow_sheet.add_unit(cstr)
+        flow_sheet.add_unit(column)
+        flow_sheet.add_unit(outlet)
+
+        flow_sheet.add_connection('feed', 'cstr')
+        flow_sheet.add_connection(cstr, column)
+        flow_sheet.add_connection(eluent, 'column')
+        flow_sheet.add_connection(column, cstr)
+        flow_sheet.add_connection('column', outlet)
+        expected_connections = {
+            feed: {
+                'origins': None,
+                'destinations': {
+                    0: {
+                        cstr:[0],
+                    },
+                },
+            },
+            eluent: {
+                'origins': None,
+                'destinations': {
+                    0: {
+                        column:[0],
+                    },
+                },
+            },
+
+            cstr: {
+                'origins': {
+                    0: {
+                        feed:[0],
+                        column:[0],
+                    },
+                },
+                'destinations': {
+                    0: {
+                        column:[0],
+                    },
+                },
+            },
+
+            column: {
+                'origins': {
+                    0: {
+                        cstr:[0],
+                        eluent:[0],
+                    },
+                },
+                'destinations': {
+                    0: {
+                        cstr:[0],
+                        outlet:[0],
+                    },
+                },
+            },
+
+            outlet: {
+                'origins':{
+                    0: {
+                        column:[0],
+                    },
+                },
+
+                'destinations': None,
             },
         }
 
@@ -228,27 +388,61 @@ class TestFlowSheet(unittest.TestCase):
 
         expected_connections = {
             feed: {
-                'origins': [],
-                'destinations': [cstr],
+                'origins': None,
+                'destinations': {
+                    None: {
+                        cstr:[None],
+                    },
+                },
             },
             eluent: {
-                'origins': [],
-                'destinations': [column],
+                'origins': None,
+                'destinations': {
+                    None: {
+                        column:[None],
+                    },
+                },
             },
+
             cstr: {
-                'origins': [feed, column],
-                'destinations': [column],
+                'origins': {
+                    None: {
+                        feed:[None],
+                        column:[None],
+                    },
+                },
+                'destinations': {
+                    None: {
+                        column:[None],
+                    },
+                },
             },
+
             column: {
-                'origins': [cstr, eluent],
-                'destinations': [cstr, outlet],
+                'origins': {
+                    None: {
+                        cstr:[None],
+                        eluent:[None],
+                    },
+                },
+                'destinations': {
+                    None: {
+                        outlet:[None],
+                        cstr:[None],
+                    },
+                },
             },
+
             outlet: {
-                'origins': [column],
-                'destinations': [],
+                'origins':{
+                    None: {
+                        column:[None],
+                    },
+                },
+
+                'destinations': None,
             },
         }
-
         self.assertDictEqual(flow_sheet.connections, expected_connections)
 
         # Connection already exists
@@ -272,45 +466,94 @@ class TestFlowSheet(unittest.TestCase):
 
         expected_flow_rates = {
             'feed': {
-                'total_out': (0, 0, 0, 0),
+                'total_out':{
+                    None: (0, 0, 0, 0),
+                    },
+
                 'destinations': {
-                    'cstr': (0, 0, 0, 0),
+                    None: {
+                        'cstr': {
+                            None: (0, 0, 0, 0),
+                        },
+                    },
                 },
             },
             'eluent': {
-                'total_out': (0, 0, 0, 0),
+                'total_out': {
+                    None: (0, 0, 0, 0),
+                    },
                 'destinations': {
-                    'column': (0, 0, 0, 0),
+                    None: {
+                        'column': {
+                            None: (0, 0, 0, 0),
+                        },
+                    },
                 },
             },
             'cstr': {
-                'total_in': (0.0, 0, 0, 0),
-                'total_out': (1.0, 0, 0, 0),
+                'total_in': {
+                    None: (0, 0, 0, 0),
+                    },
+                'total_out': {
+                    None: (1.0, 0, 0, 0),
+                    },
                 'origins': {
-                    'feed': (0, 0, 0, 0),
-                    'column': (0, 0, 0, 0),
+                    None: {
+                        'feed': {
+                            None: (0, 0, 0, 0),
+                        },
+                        'column': {
+                            None: (0, 0, 0, 0),
+                        },
+                    },
                 },
                 'destinations': {
-                    'column': (1.0, 0, 0, 0),
+                    None: {
+                        'column': {
+                            None: (1.0, 0, 0, 0),
+                        },
+                    }
                 },
             },
             'column': {
-                'total_in': (1.0, 0, 0, 0),
-                'total_out': (1.0, 0, 0, 0),
+                'total_in': {
+                    None: (1.0, 0, 0, 0),
+                },
+                'total_out': {
+                    None: (1.0, 0, 0, 0),
+                },
                 'origins': {
-                    'cstr': (1.0, 0, 0, 0),
-                    'eluent': (0, 0, 0, 0),
+                    None: {
+                        'cstr': {
+                            None: (1.0, 0, 0, 0),
+                        },
+                        'eluent': {
+                            None: (0, 0, 0, 0),
+                        },
+                    },
                 },
                 'destinations': {
-                    'cstr': (0, 0, 0, 0),
-                    'outlet': (1.0, 0, 0, 0),
+                    None: {
+                        'cstr': {
+                            None: (0, 0, 0, 0),
+                        },
+                        'outlet': {
+                            None: (1.0, 0, 0, 0),
+                        },
+                    },
                 },
             },
             'outlet': {
                 'origins': {
-                    'column': (1.0, 0, 0, 0),
+                    None: {
+                        'column': {
+                            None: (1.0, 0, 0, 0),
+                        },
+                    },
                 },
-                'total_in': (1.0, 0, 0, 0),
+                'total_in': {
+                    None: (1.0, 0, 0, 0),
+                    },
                 },
         }
 
@@ -326,46 +569,94 @@ class TestFlowSheet(unittest.TestCase):
 
         expected_flow_rates = {
             'feed': {
-                'total_out': (1, 0, 0, 0),
+                'total_out': {
+                    None: (1, 0, 0, 0),
+                    },
                 'destinations': {
-                    'cstr': (1, 0, 0, 0),
+                    None: {
+                        'cstr': {
+                            None: (1, 0, 0, 0),
+                        },
+                    }
                 },
             },
             'eluent': {
-                'total_out': (1, 0, 0, 0),
+                'total_out': {
+                    None: (1, 0, 0, 0)
+                    },
                 'destinations': {
-                    'column': (1, 0, 0, 0),
+                    None: {
+                        'column': {
+                            None: (1, 0, 0, 0),
+                        },
+                    },
                 },
             },
             'cstr': {
-                'total_in': (1.0, 0, 0, 0),
-                'total_out': (0.0, 0, 0, 0),
+                'total_in': {
+                    None: (1.0, 0, 0, 0),
+                    },
+                'total_out': {
+                    None: (0.0, 0, 0, 0),
+                    },
                 'origins': {
-                    'feed': (1, 0, 0, 0),
-                    'column': (0, 0, 0, 0),
+                    None: {
+                        'feed': {
+                            None: (1, 0, 0, 0),
+                        },
+                        'column': {
+                            None: (0, 0, 0, 0),
+                        },
+                    },
                 },
                 'destinations': {
-                    'column': (0.0, 0, 0, 0),
+                    None: {
+                        'column': {
+                            None: (0.0, 0, 0, 0),
+                        },
+                    },
                 },
             },
             'column': {
-                'total_in': (1.0, 0, 0, 0),
-                'total_out': (1.0, 0, 0, 0),
+                'total_in': {
+                    None: (1.0, 0, 0, 0),
+                },
+                'total_out': {
+                    None: (1.0, 0, 0, 0),
+                },
                 'origins': {
-                    'cstr': (0, 0, 0, 0),
-                    'eluent': (1, 0, 0, 0),
+                    None: {
+                        'cstr': {
+                            None: (0, 0, 0, 0),
+                        },
+                        'eluent': {
+                            None: (1, 0, 0, 0),
+                        },
+                    },
                 },
                 'destinations': {
-                    'cstr': (0, 0, 0, 0),
-                    'outlet': (1.0, 0, 0, 0),
+                    None: {
+                        'cstr': {
+                            None: (0, 0, 0, 0),
+                        },
+                        'outlet': {
+                            None: (1.0, 0, 0, 0),
+                        },
+                    },
                 },
             },
             'outlet': {
                 'origins': {
-                    'column': (1.0, 0, 0, 0),
+                    None: {
+                        'column':{
+                            None: (1.0, 0, 0, 0),
+                        },
+                    },
                 },
-                'total_in': (1.0, 0, 0, 0),
+                'total_in': {
+                    None: (1.0, 0, 0, 0),
                 },
+            },
         }
         np.testing.assert_equal(
             self.ssr_flow_sheet.get_flow_rates(), expected_flow_rates
@@ -379,45 +670,93 @@ class TestFlowSheet(unittest.TestCase):
 
         expected_flow_rates = {
             'feed': {
-                'total_out': (0, 0, 0, 0),
+                'total_out': {
+                    None: (0, 0, 0, 0),
+                    },
                 'destinations': {
-                    'cstr': (0, 0, 0, 0),
+                    None: {
+                        'cstr': {
+                            None: (0, 0, 0, 0),
+                        },
+                    },
                 },
             },
             'eluent': {
-                'total_out': (1, 0, 0, 0),
+                'total_out': {
+                    None: (1, 0, 0, 0),
+                    },
                 'destinations': {
-                    'column': (1, 0, 0, 0),
+                    None: {
+                        'column': {
+                            None: (1, 0, 0, 0),
+                        },
+                    },
                 },
             },
             'cstr': {
-                'total_in': (0.0, 0, 0, 0),
-                'total_out': (0.0, 0, 0, 0),
+                'total_in': {
+                    None: (0, 0, 0, 0),
+                    },
+                'total_out': {
+                    None: (0, 0, 0, 0),
+                    },
                 'origins': {
-                    'feed': (0, 0, 0, 0),
-                    'column': (0, 0, 0, 0),
+                    None: {
+                        'feed': {
+                            None: (0, 0, 0, 0),
+                        },
+                        'column': {
+                            None: (0, 0, 0, 0),
+                        },
+                    },
                 },
                 'destinations': {
-                    'column': (0.0, 0, 0, 0),
+                    None: {
+                        'column': {
+                            None: (0.0, 0, 0, 0),
+                        },
+                    },
                 },
             },
             'column': {
-                'total_in': (1.0, 0, 0, 0),
-                'total_out': (1.0, 0, 0, 0),
+                'total_in': {
+                    None: (1.0, 0, 0, 0),
+                    },
+                'total_out': {
+                    None: (1.0, 0, 0, 0),
+                    },
                 'origins': {
-                    'cstr': (0, 0, 0, 0),
-                    'eluent': (1, 0, 0, 0),
+                    None: {
+                        'cstr': {
+                            None: (0, 0, 0, 0),
+                        },
+                        'eluent': {
+                            None: (1, 0, 0, 0),
+                        },
+                    },
                 },
                 'destinations': {
-                    'cstr': (0, 0, 0, 0),
-                    'outlet': (1.0, 0, 0, 0),
+                    None: {
+                        'cstr': {
+                            None: (0, 0, 0, 0),
+                        },
+                        'outlet': {
+                            None: (1.0, 0, 0, 0),
+                        },
+                    },
                 },
             },
             'outlet': {
                 'origins': {
-                    'column': (1.0, 0, 0, 0),
+                    None: {
+                        'column': {
+                            None: (1.0, 0, 0, 0),
+                        },
+                    },
                 },
-                'total_in': (1.0, 0, 0, 0),
+                'total_in': {
+                    None: (1.0, 0, 0, 0),
+                    },
                 },
         }
 
@@ -433,46 +772,94 @@ class TestFlowSheet(unittest.TestCase):
 
         expected_flow_rates = {
             'feed': {
-                'total_out': (0, 0, 0, 0),
+                'total_out': {
+                    None: (0, 0, 0, 0),
+                    },
                 'destinations': {
-                    'cstr': (0, 0, 0, 0),
+                    None: {
+                        'cstr': {
+                            None: (0, 0, 0, 0),
+                        },
+                    },
                 },
             },
             'eluent': {
-                'total_out': (1, 0, 0, 0),
+                'total_out': {
+                    None: (1, 0, 0, 0),
+                },
                 'destinations': {
-                    'column': (1, 0, 0, 0),
+                    None: {
+                        'column': {
+                            None: (1, 0, 0, 0),
+                        },
+                    },
                 },
             },
             'cstr': {
-                'total_in': (1.0, 0, 0, 0),
-                'total_out': (0.0, 0, 0, 0),
+                'total_in': {
+                    None: (1.0, 0, 0, 0),
+                },
+                'total_out': {
+                    None: (0.0, 0, 0, 0),
+                },
                 'origins': {
-                    'feed': (0, 0, 0, 0),
-                    'column': (1, 0, 0, 0),
+                    None: {
+                        'feed': {
+                            None: (0, 0, 0, 0),
+                        },
+                        'column': {
+                            None: (1, 0, 0, 0),
+                        },
+                    },
                 },
                 'destinations': {
-                    'column': (0.0, 0, 0, 0),
+                    None: {
+                        'column': {
+                            None: (0.0, 0, 0, 0),
+                        },
+                    },
                 },
             },
             'column': {
-                'total_in': (1.0, 0, 0, 0),
-                'total_out': (1.0, 0, 0, 0),
+                'total_in': {
+                    None: (1.0, 0, 0, 0),
+                },
+                'total_out': {
+                    None: (1.0, 0, 0, 0),
+                },
                 'origins': {
-                    'cstr': (0, 0, 0, 0),
-                    'eluent': (1, 0, 0, 0),
+                    None: {
+                        'cstr': {
+                            None: (0, 0, 0, 0),
+                        },
+                        'eluent': {
+                            None: (1, 0, 0, 0),
+                        },
+                    },
                 },
                 'destinations': {
-                    'cstr': (1, 0, 0, 0),
-                    'outlet': (0.0, 0, 0, 0),
+                    None: {
+                        'cstr': {
+                            None: (1, 0, 0, 0),
+                        },
+                        'outlet': {
+                            None: (0.0, 0, 0, 0),
+                        },
+                    },
                 },
             },
             'outlet': {
                 'origins': {
-                    'column': (0, 0, 0, 0),
+                    None: {
+                        'column': {
+                            None: (0, 0, 0, 0),
+                        },
+                    },
                 },
-                'total_in': (0, 0, 0, 0),
+                'total_in': {
+                    None: (0.0, 0, 0, 0),
                 },
+            },
         }
 
         np.testing.assert_equal(
@@ -482,8 +869,12 @@ class TestFlowSheet(unittest.TestCase):
         # Single Cstr
         expected_flow_rates = {
             'cstr': {
-                'total_in': [0.0, 0.0, 0.0, 0.0],
-                'total_out': [0.0, 0.0, 0.0, 0.0],
+                'total_in': {
+                    None:[0.0, 0.0, 0.0, 0.0],
+                    },
+                'total_out': {
+                    None:[0.0, 0.0, 0.0, 0.0]
+                    },
                 'origins': {},
                 'destinations': {}
             }
@@ -507,34 +898,40 @@ class TestFlowSheet(unittest.TestCase):
     def test_output_state(self):
         column = self.ssr_flow_sheet.column
 
+        output_state_expected = {None: [1, 0]}
+        output_state = self.ssr_flow_sheet._output_states[column]
+        np.testing.assert_equal(output_state, output_state_expected)
+
         output_state_expected = [1, 0]
         output_state = self.ssr_flow_sheet.output_states[column]
         np.testing.assert_equal(output_state, output_state_expected)
 
         self.ssr_flow_sheet.set_output_state(column, [0,  1])
-        output_state_expected = [0, 1]
-        output_state = self.ssr_flow_sheet.output_states[column]
+        output_state_expected = {None: [0, 1]}
+        output_state = self.ssr_flow_sheet._output_states[column]
         np.testing.assert_equal(output_state, output_state_expected)
 
         self.ssr_flow_sheet.set_output_state(column, 0)
-        output_state_expected = [1, 0]
-        output_state = self.ssr_flow_sheet.output_states[column]
+        output_state_expected = {None: [1, 0]}
+        output_state = self.ssr_flow_sheet._output_states[column]
         np.testing.assert_equal(output_state, output_state_expected)
 
         self.ssr_flow_sheet.set_output_state(column, [0.5, 0.5])
-        output_state_expected = [0.5, 0.5]
-        output_state = self.ssr_flow_sheet.output_states[column]
+        output_state_expected = {None: [0.5, 0.5]}
+        output_state = self.ssr_flow_sheet._output_states[column]
         np.testing.assert_equal(output_state, output_state_expected)
 
         self.ssr_flow_sheet.set_output_state(
             column,
             {
                 'cstr': 0.1,
-                'outlet': 0.9,
+                'outlet': {
+                    None: 0.9,
+                }
             }
         )
-        output_state_expected = [0.1, 0.9]
-        output_state = self.ssr_flow_sheet.output_states[column]
+        output_state_expected = {None: [0.1, 0.9]}
+        output_state = self.ssr_flow_sheet._output_states[column]
         np.testing.assert_equal(output_state, output_state_expected)
 
         with self.assertRaises(TypeError):
@@ -548,38 +945,11 @@ class TestFlowSheet(unittest.TestCase):
                 column,
                 {
                     'column': 0.1,
-                    'outlet': 0.9,
+                    'outlet': {
+                        0: 0.9,
+                    }
                 }
             )
-    
-    def test_add_connection_error(self):
-        """
-        Test for all raised exceptions of add_connections. 
-        """
-        inlet = self.ssr_flow_sheet['eluent']
-        column = self.ssr_flow_sheet['column']
-        outlet = self.ssr_flow_sheet['outlet']
-        external_unit = Cstr(self.component_system, name='external_unit')
-
-        # Inlet can't be a destination
-        with self.assertRaises(CADETProcessError):
-            self.ssr_flow_sheet.add_connection(column, inlet)
-
-        # Outlet can't be an origin
-        with self.assertRaises(CADETProcessError):
-            self.ssr_flow_sheet.add_connection(outlet, column)
-
-        # Destination not part of flow_sheet
-        with self.assertRaises(CADETProcessError):
-            self.ssr_flow_sheet.add_connection(inlet, external_unit)
-
-        # Origin not part of flow_sheet
-        with self.assertRaises(CADETProcessError):
-            self.ssr_flow_sheet.add_connection(external_unit, outlet)
-
-        # Connection already exists
-        with self.assertRaises(CADETProcessError):
-            self.ssr_flow_sheet.add_connection(inlet, column)
 
     def test_add_connection_error(self):
         """
@@ -609,6 +979,9 @@ class TestFlowSheet(unittest.TestCase):
         # Connection already exists
         with self.assertRaises(CADETProcessError):
             self.ssr_flow_sheet.add_connection(inlet, column)
+
+        with self.assertRaisesRegex(CADETProcessError, "not a port of"):
+            self.ssr_flow_sheet.set_output_state(column, [0.5,0.5], 'channel_5')
 
 
 class TestCstrFlowRate(unittest.TestCase):
@@ -648,11 +1021,11 @@ class TestCstrFlowRate(unittest.TestCase):
 
         flow_rates = self.flow_sheet.get_flow_rates()
 
-        cstr_in = flow_rates['cstr']['total_in']
+        cstr_in = flow_rates['cstr']['total_in'][None]
         cstr_in_expected = [1., 0., 0., 0.]
         np.testing.assert_almost_equal(cstr_in, cstr_in_expected)
 
-        cstr_out = flow_rates['cstr']['total_out']
+        cstr_out = flow_rates['cstr']['total_out'][None]
         cstr_out_expected = [1., 0., 0., 0.]
         np.testing.assert_almost_equal(cstr_out, cstr_out_expected)
 
@@ -661,11 +1034,11 @@ class TestCstrFlowRate(unittest.TestCase):
 
         flow_rates = self.flow_sheet.get_flow_rates()
 
-        cstr_in = flow_rates['cstr']['total_in']
+        cstr_in = flow_rates['cstr']['total_in'][None]
         cstr_in_expected = [1., 1., 0., 0.]
         np.testing.assert_almost_equal(cstr_in, cstr_in_expected)
 
-        cstr_out = flow_rates['cstr']['total_out']
+        cstr_out = flow_rates['cstr']['total_out'][None]
         cstr_out_expected = [1., 1., 0., 0.]
         np.testing.assert_almost_equal(cstr_out, cstr_out_expected)
 
@@ -674,11 +1047,11 @@ class TestCstrFlowRate(unittest.TestCase):
 
         flow_rates = self.flow_sheet.get_flow_rates()
 
-        cstr_in = flow_rates['cstr']['total_in']
+        cstr_in = flow_rates['cstr']['total_in'][None]
         cstr_in_expected = [0., 0., 0., 0.]
         np.testing.assert_almost_equal(cstr_in, cstr_in_expected)
 
-        cstr_out = flow_rates['cstr']['total_out']
+        cstr_out = flow_rates['cstr']['total_out'][None]
         cstr_out_expected = [0., 0., 0., 0.]
         np.testing.assert_almost_equal(cstr_out, cstr_out_expected)
 
@@ -687,11 +1060,11 @@ class TestCstrFlowRate(unittest.TestCase):
 
         flow_rates = self.flow_sheet.get_flow_rates()
 
-        cstr_in = flow_rates['cstr']['total_in']
+        cstr_in = flow_rates['cstr']['total_in'][None]
         cstr_in_expected = [0., 0., 0., 0.]
         np.testing.assert_almost_equal(cstr_in, cstr_in_expected)
 
-        cstr_out = flow_rates['cstr']['total_out']
+        cstr_out = flow_rates['cstr']['total_out'][None]
         cstr_out_expected = [0., 0., 0., 0.]
         np.testing.assert_almost_equal(cstr_out, cstr_out_expected)
 
@@ -701,11 +1074,11 @@ class TestCstrFlowRate(unittest.TestCase):
 
         flow_rates = self.flow_sheet.get_flow_rates()
 
-        cstr_in = flow_rates['cstr']['total_in']
+        cstr_in = flow_rates['cstr']['total_in'][None]
         cstr_in_expected = [1., 0., 0., 0.]
         np.testing.assert_almost_equal(cstr_in, cstr_in_expected)
 
-        cstr_out = flow_rates['cstr']['total_out']
+        cstr_out = flow_rates['cstr']['total_out'][None]
         cstr_out_expected = [0., 0., 0., 0.]
         np.testing.assert_almost_equal(cstr_out, cstr_out_expected)
 
@@ -718,13 +1091,471 @@ class TestCstrFlowRate(unittest.TestCase):
 
         flow_rates = self.flow_sheet.get_flow_rates(state)
 
-        cstr_in = flow_rates['cstr']['total_in']
+        cstr_in = flow_rates['cstr']['total_in'][None]
         cstr_in_expected = [1., 1., 0., 0.]
         np.testing.assert_almost_equal(cstr_in, cstr_in_expected)
 
-        cstr_out = flow_rates['cstr']['total_out']
+        cstr_out = flow_rates['cstr']['total_out'][None]
         cstr_out_expected = [2., 2., 0., 0.]
         np.testing.assert_almost_equal(cstr_out, cstr_out_expected)
+
+class TestPorts(unittest.TestCase):
+    def __init__(self, methodName='runTest'):
+        super().__init__(methodName)
+
+    def setUp(self):
+        self.setup_mct_flow_sheet()
+
+        self.setup_ccc_flow_sheet()
+
+    def setup_mct_flow_sheet(self):
+        self.component_system = ComponentSystem(1)
+
+        mct_flow_sheet = FlowSheet(self.component_system)
+
+        inlet = Inlet(self.component_system, name='inlet')
+        mct_3c = MCT(self.component_system,nchannel=3, name='mct_3c')
+        mct_2c1 = MCT(self.component_system,nchannel=2, name='mct_2c1')
+        mct_2c2 = MCT(self.component_system,nchannel=2, name='mct_2c2')
+        outlet1 = Outlet(self.component_system, name='outlet1')
+        outlet2 = Outlet(self.component_system, name='outlet2')
+
+        mct_flow_sheet.add_unit(inlet)
+        mct_flow_sheet.add_unit(mct_3c)
+        mct_flow_sheet.add_unit(mct_2c1)
+        mct_flow_sheet.add_unit(mct_2c2)
+        mct_flow_sheet.add_unit(outlet1)
+        mct_flow_sheet.add_unit(outlet2)
+
+        mct_flow_sheet.add_connection(inlet, mct_3c, destination_port='channel_0')
+        mct_flow_sheet.add_connection(mct_3c, mct_2c1, origin_port='channel_0', destination_port='channel_0')
+        mct_flow_sheet.add_connection(mct_3c, mct_2c1, origin_port='channel_0', destination_port='channel_1')
+        mct_flow_sheet.add_connection(mct_3c, mct_2c2, origin_port='channel_1', destination_port='channel_0')
+        mct_flow_sheet.add_connection(mct_2c1, outlet1, origin_port='channel_0')
+        mct_flow_sheet.add_connection(mct_2c1, outlet1, origin_port='channel_1')
+        mct_flow_sheet.add_connection(mct_2c2, outlet2, origin_port='channel_0')
+
+
+        self.mct_flow_sheet = mct_flow_sheet
+
+    def setup_ccc_flow_sheet(self):
+        self.component_system = ComponentSystem(1)
+
+        ccc_flow_sheet = FlowSheet(self.component_system)
+
+        inlet = Inlet(self.component_system, name='inlet')
+        ccc1 = MCT(self.component_system,nchannel=2, name='ccc1')
+        ccc2 = MCT(self.component_system,nchannel=2, name='ccc2')
+        ccc3 = MCT(self.component_system,nchannel=2, name='ccc3')
+        outlet = Outlet(self.component_system, name='outlet')
+
+        ccc_flow_sheet.add_unit(inlet)
+        ccc_flow_sheet.add_unit(ccc1)
+        ccc_flow_sheet.add_unit(ccc2)
+        ccc_flow_sheet.add_unit(ccc3)
+        ccc_flow_sheet.add_unit(outlet)
+
+        ccc_flow_sheet.add_connection(inlet, ccc1, destination_port='channel_0')
+        ccc_flow_sheet.add_connection(ccc1, ccc2, origin_port='channel_0', destination_port='channel_0')
+        ccc_flow_sheet.add_connection(ccc2, ccc3, origin_port='channel_0', destination_port='channel_0')
+        ccc_flow_sheet.add_connection(ccc3, outlet, origin_port='channel_0')
+
+
+        self.ccc_flow_sheet = ccc_flow_sheet
+
+    def test_mct_connections(self):
+        inlet = self.mct_flow_sheet['inlet']
+        mct_3c = self.mct_flow_sheet['mct_3c']
+        mct_2c1 = self.mct_flow_sheet['mct_2c1']
+        mct_2c2 = self.mct_flow_sheet['mct_2c2']
+        outlet1 = self.mct_flow_sheet['outlet1']
+        outlet2 = self.mct_flow_sheet['outlet2']
+
+        expected_connections = {
+            inlet: {
+                'origins': None,
+                'destinations': {
+                    None: {
+                        mct_3c: ['channel_0'],
+                    },
+                },
+            },
+            mct_3c: {
+                'origins': {
+                    'channel_0': {
+                        inlet: [None],
+                    },
+                    'channel_1': {
+
+                    },
+                    'channel_2': {
+
+                    },
+                },
+                'destinations': {
+                    'channel_0': {
+                        mct_2c1: ['channel_0', 'channel_1'],
+                    },
+                    'channel_1': {
+                        mct_2c2: ['channel_0'],
+                    },
+                    'channel_2': {
+
+                    },
+                },
+            },
+
+            mct_2c1: {
+                'origins': {
+                    'channel_0': {
+                        mct_3c:['channel_0'],
+                    },
+
+                    'channel_1': {
+                        mct_3c:['channel_0'],
+                    },
+                },
+                'destinations': {
+                    'channel_0': {
+                        outlet1: [None],
+                    },
+                    'channel_1': {
+                        outlet1: [None],
+                    },
+                },
+            },
+
+            mct_2c2: {
+                'origins': {
+                    'channel_0': {
+                        mct_3c:['channel_1'],
+                    },
+                    'channel_1': {
+
+                    },
+                },
+
+                'destinations': {
+                    'channel_0': {
+                        outlet2: [None],
+                    },
+                    'channel_1': {
+
+                    },
+                },
+            },
+
+            outlet1: {
+                'origins':{
+                    None: {
+                        mct_2c1:['channel_0','channel_1'],
+                    },
+                },
+
+                'destinations': None,
+            },
+
+            outlet2: {
+                'origins':{
+                    None: {
+                        mct_2c2:['channel_0'],
+                    },
+                },
+
+                'destinations': None,
+            },
+        }
+
+        self.assertDictEqual(
+            self.mct_flow_sheet.connections, expected_connections
+        )
+
+        self.assertTrue(self.mct_flow_sheet.connection_exists(inlet, mct_3c, destination_port='channel_0'))
+        self.assertTrue(self.mct_flow_sheet.connection_exists(mct_3c, mct_2c1, 'channel_0', 'channel_0'))
+        self.assertTrue(self.mct_flow_sheet.connection_exists(mct_3c, mct_2c1, 'channel_0', 'channel_1'))
+        self.assertTrue(self.mct_flow_sheet.connection_exists(mct_3c, mct_2c2, 'channel_1', 'channel_0'))
+        self.assertTrue(self.mct_flow_sheet.connection_exists(mct_2c1, outlet1, 'channel_0'))
+        self.assertTrue(self.mct_flow_sheet.connection_exists(mct_2c1, outlet1, 'channel_1'))
+        self.assertTrue(self.mct_flow_sheet.connection_exists(mct_2c2, outlet2, 'channel_0'))
+
+        self.assertFalse(self.mct_flow_sheet.connection_exists(mct_2c2, outlet2, 'channel_1'))
+        self.assertFalse(self.mct_flow_sheet.connection_exists(inlet, mct_2c1, destination_port='channel_0'))
+
+    def test_ccc_connections(self):
+        inlet = self.ccc_flow_sheet['inlet']
+        ccc1 = self.ccc_flow_sheet['ccc1']
+        ccc2 = self.ccc_flow_sheet['ccc2']
+        ccc3 = self.ccc_flow_sheet['ccc3']
+        outlet = self.ccc_flow_sheet['outlet']
+
+        expected_connections = {
+            inlet: {
+                'origins': None,
+                'destinations': {
+                    None: {
+                        ccc1: ['channel_0'],
+                    },
+                },
+            },
+            ccc1: {
+                'origins': {
+                    'channel_0': {
+                        inlet: [None],
+                    },
+                    'channel_1': {
+
+                    }
+                },
+                'destinations': {
+                    'channel_0': {
+                        ccc2: ['channel_0'],
+                    },
+                    'channel_1': {
+
+                    }
+                },
+            },
+
+            ccc2: {
+                'origins': {
+                    'channel_0': {
+                        ccc1: ['channel_0'],
+                    },
+                    'channel_1': {
+
+                    }
+                },
+                'destinations': {
+                    'channel_0': {
+                        ccc3: ['channel_0'],
+                    },
+                    'channel_1': {
+
+                    }
+                },
+            },
+
+            ccc3: {
+                'origins': {
+                    'channel_0': {
+                        ccc2: ['channel_0'],
+                    },
+                    'channel_1': {
+
+                    }
+                },
+                'destinations': {
+                    'channel_0': {
+                        outlet: [None],
+                    },
+                    'channel_1': {
+
+                    }
+                },
+            },
+
+            outlet: {
+                'origins':{
+                    None: {
+                        ccc3:['channel_0'],
+                    },
+                },
+
+                'destinations': None,
+            },
+        }
+
+        self.assertDictEqual(
+            self.ccc_flow_sheet.connections, expected_connections
+        )
+
+        self.assertTrue(self.ccc_flow_sheet.connection_exists(inlet, ccc1, destination_port='channel_0'))
+        self.assertTrue(self.ccc_flow_sheet.connection_exists(ccc1, ccc2, 'channel_0', 'channel_0'))
+        self.assertTrue(self.ccc_flow_sheet.connection_exists(ccc2, ccc3, 'channel_0', 'channel_0'))
+        self.assertTrue(self.ccc_flow_sheet.connection_exists(ccc3, outlet, 'channel_0'))
+
+        self.assertFalse(self.ccc_flow_sheet.connection_exists(inlet, outlet))
+
+    def test_mct_flow_rate_calculation(self):
+
+        mct_flow_sheet = self.mct_flow_sheet
+
+        mct_flow_sheet.inlet.flow_rate = 1
+
+        inlet = self.mct_flow_sheet['inlet']
+        mct_3c = self.mct_flow_sheet['mct_3c']
+        mct_2c1 = self.mct_flow_sheet['mct_2c1']
+        mct_2c2 = self.mct_flow_sheet['mct_2c2']
+
+#        mct_flow_sheet.set_output_state(mct_3c, [0.5, 0.5], 0)
+
+        expected_flow = {
+            'inlet': {
+                'total_out': {
+                    None: (1,0,0,0)
+                },
+                'destinations': {
+                    None: {
+                        'mct_3c': {
+                            'channel_0': (1,0,0,0)
+                        }
+                    }
+                }
+            },
+            'mct_3c': {
+                'total_in': {
+                    'channel_0': (1,0,0,0),
+                    'channel_1': (0,0,0,0),
+                    'channel_2': (0,0,0,0)
+                },
+                'origins': {
+                    'channel_0': {
+                        'inlet':{
+                            None: (1,0,0,0)
+                        }
+                    }
+                },
+                'total_out': {
+                    'channel_0': (1,0,0,0),
+                    'channel_1': (0,0,0,0),
+                    'channel_2': (0,0,0,0)
+                },
+                'destinations': {
+                    'channel_0': {
+                        'mct_2c1': {
+                            'channel_0': (1,0,0,0),
+                            'channel_1': (0,0,0,0)
+                        }
+                    },
+                    'channel_1': {
+                        'mct_2c2': {
+                            'channel_0': (0,0,0,0)
+                        }
+                    }
+                }
+            },
+            'mct_2c1': {
+                'total_in': {
+                    'channel_0': (1,0,0,0),
+                    'channel_1': (0,0,0,0)
+                },
+                'origins': {
+                    'channel_0': {
+                        'mct_3c': {
+                            'channel_0': (1,0,0,0)
+                        }
+                    },
+                    'channel_1': {
+                        'mct_3c': {
+                            'channel_0': (0,0,0,0)
+                        }
+                    }
+                },
+                'total_out': {
+                    'channel_0': (1,0,0,0),
+                    'channel_1': (0,0,0,0)
+                },
+                'destinations': {
+                    'channel_0': {
+                        'outlet1': {
+                            None: (1,0,0,0)
+                        }
+                    },
+                    'channel_1': {
+                        'outlet1': {
+                            None: (0,0,0,0)
+                        }
+                    }
+                }
+            },
+
+            'mct_2c2': {
+                'total_in': {
+                    'channel_0': (0,0,0,0),
+                    'channel_1': (0,0,0,0)
+                },
+                'origins': {
+                    'channel_0': {
+                        'mct_3c': {
+                            'channel_1': (0,0,0,0)
+                        }
+                    },
+                },
+                'total_out': {
+                    'channel_0': (0,0,0,0),
+                    'channel_1': (0,0,0,0)
+                },
+                'destinations': {
+                    'channel_0': {
+                        'outlet2': {
+                            None: (0,0,0,0)
+                        }
+                    }
+                }
+            },
+            'outlet1': {
+                'total_in': {
+                    None: (1,0,0,0)
+                },
+                'origins': {
+                    None: {
+                        'mct_2c1': {
+                            'channel_0': (1,0,0,0),
+                            'channel_1': (0,0,0,0)
+                        }
+                    }
+                }
+            },
+            'outlet2': {
+                'total_in': {
+                    None: (0,0,0,0)
+                },
+                'origins': {
+                    None: {
+                        'mct_2c2': {
+                            'channel_0': (0,0,0,0)
+                        }
+                    }
+                }
+            }
+        }
+
+
+        flow_rates = mct_flow_sheet.get_flow_rates()
+
+
+        assert_almost_equal_dict(flow_rates, expected_flow)
+
+
+
+    def test_port_add_connection(self):
+
+        inlet = self.mct_flow_sheet['inlet']
+        mct_3c = self.mct_flow_sheet['mct_3c']
+        mct_2c2 = self.mct_flow_sheet['mct_2c2']
+        outlet1 = self.mct_flow_sheet['outlet1']
+
+        with self.assertRaises(CADETProcessError):
+            self.mct_flow_sheet.add_connection(inlet, mct_3c, origin_port=0, destination_port=5)
+
+        with self.assertRaises(CADETProcessError):
+            self.mct_flow_sheet.add_connection(inlet, mct_3c, origin_port=5, destination_port=0)
+
+        with self.assertRaises(CADETProcessError):
+            self.mct_flow_sheet.add_connection(mct_2c2, outlet1, origin_port=0, destination_port=5)
+
+    def test_set_output_state(self):
+
+        mct_3c = self.mct_flow_sheet['mct_3c']
+
+        with self.assertRaises(CADETProcessError):
+            self.mct_flow_sheet.set_output_state(mct_3c, [0.5,0.5])
+
+        with self.assertRaises(CADETProcessError):
+            self.mct_flow_sheet.set_output_state(mct_3c, [0.5,0.5], 'channel_5')
+
+        with self.assertRaises(CADETProcessError):
+            self.mct_flow_sheet.set_output_state(mct_3c, {'mct_2c1': {'channel_0': 0.5 , 'channel_5': 0.5}}, 'channel_0')
 
 
 class TestFlowRateMatrix(unittest.TestCase):
@@ -769,83 +1600,98 @@ class TestFlowRateMatrix(unittest.TestCase):
 
         expected_flow_rates = {
             'inlet': {
-                'total_out': (1, 0, 0, 0),
+                'total_out': {
+                    None: (1, 0, 0, 0),
+                },
                 'destinations': {
-                    'cstr1': (0.3, 0, 0, 0),
-                    'cstr2': (0.7, 0, 0, 0),
+                    None: {
+                        'cstr1': {
+                            None: (0.3, 0, 0, 0),
+                        },
+                        'cstr2': {
+                            None: (0.7, 0, 0, 0),
+                        },
+                    },
                 },
             },
             'cstr1': {
-                'total_in': (0.65, 0, 0, 0),
-                'total_out': (0.65, 0, 0, 0),
+                'total_in': {
+                    None: (0.65, 0, 0, 0),
+                },
+                'total_out': {
+                    None: (0.65, 0, 0, 0),
+                },
                 'origins': {
-                    'inlet': (0.3, 0, 0, 0),
-                    'cstr2': (0.35, 0, 0, 0),
+                    None: {
+                        'inlet': {
+                            None: (0.3, 0, 0, 0),
+                        },
+                        'cstr2': {
+                            None: (0.35, 0, 0, 0),
+                        },
+                    }
                 },
                 'destinations': {
-                    'outlet1': (0.65, 0, 0, 0),
+                    None: {
+                        'outlet1': {
+                            None: (0.65, 0, 0, 0),
+                        },
+                    },
                 },
             },
             'cstr2': {
-                'total_in': (0.7, 0, 0, 0),
-                'total_out': (0.7, 0, 0, 0),
+                'total_in': {
+                    None: (0.7, 0, 0, 0),
+                },
+                'total_out': {
+                    None: (0.7, 0, 0, 0),
+                },
                 'origins': {
-                    'inlet': (0.7, 0, 0, 0),
+                    None: {
+                        'inlet': {
+                            None: (0.7, 0, 0, 0),
+                        },
+                    }
                 },
                 'destinations': {
-                    'cstr1': (0.35, 0, 0, 0),
-                    'outlet2': (0.35, 0, 0, 0),
+                    None: {
+                        'cstr1': {
+                            None: (0.35, 0, 0, 0),
+                        },
+                        'outlet2': {
+                            None: (0.35, 0, 0, 0),
+                        },
+                    },
                 },
             },
             'outlet1': {
                 'origins': {
-                    'cstr1': (0.65, 0, 0, 0),
+                    None: {
+                        'cstr1': {
+                            None: (0.65, 0, 0, 0),
+                        },
+                    },
                 },
-                'total_in': (0.65, 0, 0, 0),
+                'total_in': {
+                    None: (0.65, 0, 0, 0),
+                },
             },
 
             'outlet2': {
                 'origins': {
-                    'cstr2': (0.35, 0, 0, 0),
+                    None: {
+                        'cstr2': {
+                            None: (0.35, 0, 0, 0),
+                        },
+                    }
                 },
-                'total_in': (0.35, 0, 0, 0),
-                }
+                'total_in': {
+                    None: (0.35, 0, 0, 0),
+                },
+            }
         }
 
         calc_flow_rate = self.flow_sheet.get_flow_rates()
-
-        def assert_almost_equal_dict(
-                dict_actual, dict_expected, decimal=7, verbose=True):
-            """Helper function to assert nested dicts are (almost) equal.
-
-            Because of floating point calculations, it is necessary to use
-            `np.assert_almost_equal` to check the flow rates. However, this does not
-            work well with nested dicts which is why this helper function was written.
-
-            Parameters
-            ----------
-            dict_actual : dict
-                The object to check.
-            dict_expected : dict
-                The expected object.
-            decimal : int, optional
-                Desired precision, default is 7.
-            err_msg : str, optional
-                The error message to be printed in case of failure.
-            verbose : bool, optional
-                If True, the conflicting values are appended to the error message.
-
-            """
-            for key in dict_actual:
-                if isinstance(dict_actual[key], dict):
-                    assert_almost_equal_dict(dict_actual[key], dict_expected[key])
-                else:
-                    np.testing.assert_almost_equal(
-                        dict_actual[key], dict_expected[key],
-                        decimal=decimal,
-                        err_msg=f'Dicts are not equal in key {key}.',
-                        verbose=verbose
-                    )
 
         assert_almost_equal_dict(calc_flow_rate, expected_flow_rates)
 
@@ -882,29 +1728,57 @@ class TestFlowRateSelfMatrix(unittest.TestCase):
 
         expected_flow_rates = {
             'inlet': {
-                'total_out': (1, 0, 0, 0),
+                'total_out': {
+                    None: (1, 0, 0, 0),
+                },
                 'destinations': {
-                    'cstr': (1, 0, 0, 0)
+                    None: {
+                        'cstr': {
+                            None: (1, 0, 0, 0),
+                        },
+                    },
                 },
             },
             'cstr': {
-                'total_in': (2, 0, 0, 0),
-                'total_out': (2, 0, 0, 0),
+                'total_in': {
+                    None: (2, 0, 0, 0),
+                },
+                'total_out': {
+                    None: (2, 0, 0, 0),
+                },
                 'origins': {
-                    'inlet': (1, 0, 0, 0),
-                    'cstr': (1, 0, 0, 0),
+                    None: {
+                        'inlet': {
+                            None: (1, 0, 0, 0),
+                        },
+                        'cstr': {
+                            None: (1, 0, 0, 0),
+                        },
+                    },
                 },
                 'destinations': {
-                    'outlet': (1, 0, 0, 0),
-                    'cstr': (1, 0, 0, 0)
+                    None: {
+                        'outlet': {
+                            None: (1, 0, 0, 0),
+                        },
+                        'cstr': {
+                            None: (1, 0, 0, 0),
+                        },
+                    },
                 },
             },
             'outlet': {
-                'total_in': (1, 0, 0, 0),
+                'total_in': {
+                    None: (1, 0, 0, 0),
+                },
                 'origins': {
-                    'cstr': (1, 0, 0, 0)
-                }
-            }
+                    None: {
+                        'cstr': {
+                            None: (1, 0, 0, 0),
+                        },
+                    },
+                },
+            },
         }
         calc_flow_rate = self.flow_sheet.get_flow_rates()
         np.testing.assert_equal(calc_flow_rate, expected_flow_rates)
@@ -962,37 +1836,73 @@ class TestSingularFlowMatrix(unittest.TestCase):
         # Solvable because both disconnected circles have their own flow rates
         expected_flow_rates = {
             'inlet': {
-                'total_out': (1, 0, 0, 0),
+                'total_out': {
+                    None: (1, 0, 0, 0),
+                },
                 'destinations': {
-                    'outlet': (1, 0, 0, 0)
+                    None: {
+                        'outlet': {
+                            None: (1, 0, 0, 0),
+                        },
+                    },
                 },
             },
             'cstr1': {
-                'total_in': (1, 0, 0, 0),
-                'total_out': (1, 0, 0, 0),
+                'total_in': {
+                    None: (1, 0, 0, 0),
+                },
+                'total_out': {
+                    None: (1, 0, 0, 0),
+                },
                 'origins': {
-                    'cstr2': (1, 0, 0, 0),
+                    None: {
+                        'cstr2': {
+                            None: (1, 0, 0, 0),
+                        },
+                    },
                 },
                 'destinations': {
-                    'cstr2': (1, 0, 0, 0)
+                    None: {
+                        'cstr2': {
+                            None: (1, 0, 0, 0)
+                        },
+                    },
                 },
             },
             'cstr2': {
-                'total_in': (1, 0, 0, 0),
-                'total_out': (1, 0, 0, 0),
+                'total_in': {
+                    None: (1, 0, 0, 0),
+                },
+                'total_out': {
+                    None: (1, 0, 0, 0),
+                },
                 'origins': {
-                    'cstr1': (1, 0, 0, 0),
+                    None: {
+                        'cstr1': {
+                            None: (1, 0, 0, 0),
+                        },
+                    },
                 },
                 'destinations': {
-                    'cstr1': (1, 0, 0, 0)
+                    None: {
+                        'cstr1': {
+                            None: (1, 0, 0, 0),
+                        },
+                    },
                 },
             },
             'outlet': {
-                'total_in': (1, 0, 0, 0),
+                'total_in': {
+                    None: (1, 0, 0, 0),
+                },
                 'origins': {
-                    'inlet': (1, 0, 0, 0)
-                }
-            }
+                    None: {
+                        'inlet': {
+                            None: (1, 0, 0, 0),
+                        },
+                    },
+                },
+            },
         }
 
         flow_sheet = self.flow_sheet
