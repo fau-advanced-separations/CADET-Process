@@ -552,74 +552,107 @@ class Cadet(SimulatorBase):
         try:
             solution = Dict()
             for unit in process.flow_sheet.units:
+
                 solution[unit.name] = defaultdict(list)
+
+                port_flag = unit.has_ports
+
+                if port_flag:
+                    solution[unit.name]['inlet'] = defaultdict(list)
+                    solution[unit.name]['outlet'] = defaultdict(list)
+
                 unit_index = self.get_unit_index(process, unit)
                 unit_solution = cadet.root.output.solution[unit_index]
+
                 unit_coordinates = \
                     cadet.root.output.coordinates[unit_index].copy()
                 particle_coordinates = \
                     unit_coordinates.pop('particle_coordinates_000', None)
 
-                flow_in = process.flow_rate_timelines[unit.name].total_in
-                flow_out = process.flow_rate_timelines[unit.name].total_out
 
-                start = 0
-                for cycle in range(self.n_cycles):
-                    end = start + len(time)
+                for port in unit.ports:
 
-                    if 'solution_inlet' in unit_solution.keys():
-                        sol_inlet = unit_solution.solution_inlet[start:end, :]
-                        solution[unit.name]['inlet'].append(
-                            SolutionIO(
-                                unit.name,
-                                unit.component_system, time, sol_inlet,
-                                flow_in
+                    port_index = self.get_port_index(process.flow_sheet, unit, port)
+
+
+                    flow_in = process.flow_rate_timelines[unit.name].total_in[port]
+                    flow_out = process.flow_rate_timelines[unit.name].total_out[port]
+
+                    start = 0
+                    for cycle in range(self.n_cycles):
+                        end = start + len(time)
+
+                        if f'solution_inlet_port_{port_index:03d}' in unit_solution.keys():
+                            sol_inlet = unit_solution[f'solution_inlet_port_{port_index:03d}'][start:end,]
+                            if port_flag:
+                                solution[unit.name]['inlet'][port].append(
+                                    SolutionIO(
+                                        unit.name,
+                                        unit.component_system, time, sol_inlet,
+                                        flow_in
+                                    )
+                                )
+                            else:
+                                solution[unit.name]['inlet'].append(
+                                    SolutionIO(
+                                        unit.name,
+                                        unit.component_system, time, sol_inlet,
+                                        flow_in
+                                    )
+                                )
+
+                        if f'solution_outlet_port_{port_index:03d}' in unit_solution.keys():
+                            sol_outlet = unit_solution[f'solution_outlet_port_{port_index:03d}'][start:end, :]
+                            if port_flag:
+                                solution[unit.name]['outlet'][port].append(
+                                    SolutionIO(
+                                        unit.name,
+                                        unit.component_system, time, sol_outlet,
+                                        flow_out
+                                    )
+                                )
+                            else:
+                                solution[unit.name]['outlet'].append(
+                                    SolutionIO(
+                                        unit.name,
+                                        unit.component_system, time, sol_outlet,
+                                        flow_out
+                                    )
+                                )
+
+                        if 'solution_bulk' in unit_solution.keys():
+                                sol_bulk = unit_solution.solution_bulk[start:end,:]
+                                solution[unit.name]['bulk'].append(
+                                    SolutionBulk(
+                                        unit.name,
+                                        unit.component_system, time, sol_bulk,
+                                        **unit_coordinates
+                                    )
+                                )
+
+                        if 'solution_particle' in unit_solution.keys():
+                            sol_particle = unit_solution.solution_particle[start:end, :]
+                            solution[unit.name]['particle'].append(
+                                SolutionParticle(
+                                    unit.name,
+                                    unit.component_system, time, sol_particle,
+                                    **unit_coordinates,
+                                    particle_coordinates=particle_coordinates
+                                )
                             )
-                        )
 
-                    if 'solution_outlet' in unit_solution.keys():
-                        sol_outlet = unit_solution.solution_outlet[start:end, :]
-                        solution[unit.name]['outlet'].append(
-                            SolutionIO(
-                                unit.name,
-                                unit.component_system, time, sol_outlet,
-                                flow_out
+                        if 'solution_solid' in unit_solution.keys():
+                            sol_solid = unit_solution.solution_solid[start:end, :]
+                            solution[unit.name]['solid'].append(
+                                SolutionSolid(
+                                    unit.name,
+                                    unit.component_system,
+                                    unit.binding_model.bound_states,
+                                    time, sol_solid,
+                                    **unit_coordinates,
+                                    particle_coordinates=particle_coordinates
+                                )
                             )
-                        )
-
-                    if 'solution_bulk' in unit_solution.keys():
-                        sol_bulk = unit_solution.solution_bulk[start:end, :]
-                        solution[unit.name]['bulk'].append(
-                            SolutionBulk(
-                                unit.name,
-                                unit.component_system, time, sol_bulk,
-                                **unit_coordinates
-                            )
-                        )
-
-                    if 'solution_particle' in unit_solution.keys():
-                        sol_particle = unit_solution.solution_particle[start:end, :]
-                        solution[unit.name]['particle'].append(
-                            SolutionParticle(
-                                unit.name,
-                                unit.component_system, time, sol_particle,
-                                **unit_coordinates,
-                                particle_coordinates=particle_coordinates
-                            )
-                        )
-
-                    if 'solution_solid' in unit_solution.keys():
-                        sol_solid = unit_solution.solution_solid[start:end, :]
-                        solution[unit.name]['solid'].append(
-                            SolutionSolid(
-                                unit.name,
-                                unit.component_system,
-                                unit.binding_model.bound_states,
-                                time, sol_solid,
-                                **unit_coordinates,
-                                particle_coordinates=particle_coordinates
-                            )
-                        )
 
                     if 'solution_volume' in unit_solution.keys():
                         sol_volume = unit_solution.solution_volume[start:end, :]
@@ -786,6 +819,8 @@ class Cadet(SimulatorBase):
         else:
             model_connections['CONNECTIONS_INCLUDE_DYNAMIC_FLOW'] = 1
 
+        model_connections['CONNECTIONS_INCLUDE_PORTS'] = 1
+
         index = 0
 
         section_states = process.flow_rate_section_states
@@ -828,21 +863,29 @@ class Cadet(SimulatorBase):
         for origin, unit_flow_rates in flow_rates.items():
             origin = flow_sheet[origin]
             origin_index = flow_sheet.get_unit_index(origin)
-            for dest, flow_rate in unit_flow_rates.destinations.items():
-                destination = flow_sheet[dest]
-                destination_index = flow_sheet.get_unit_index(destination)
-                if np.any(flow_rate):
-                    table[enum] = []
-                    table[enum].append(int(origin_index))
-                    table[enum].append(int(destination_index))
-                    table[enum].append(-1)
-                    table[enum].append(-1)
-                    Q = flow_rate.tolist()
-                    if self._force_constant_flow_rate:
-                        table[enum] += [Q[0]]
-                    else:
-                        table[enum] += Q
-                    enum += 1
+            for origin_port, dest_dict in unit_flow_rates.destinations.items():
+                for dest in dest_dict:
+                    for dest_port, flow_rate in dest_dict[dest].items():
+                        destination = flow_sheet[dest]
+                        destination_index = flow_sheet.get_unit_index(destination)
+                        if np.any(flow_rate):
+
+                            origin_port_red = flow_sheet.get_port_index(origin, origin_port)
+                            dest_port_red = flow_sheet.get_port_index(destination, dest_port)
+
+                            table[enum] = []
+                            table[enum].append(int(origin_index))
+                            table[enum].append(int(destination_index))
+                            table[enum].append(int(origin_port_red))
+                            table[enum].append(int(dest_port_red))
+                            table[enum].append(-1)
+                            table[enum].append(-1)
+                            Q = flow_rate.tolist()
+                            if self._force_constant_flow_rate:
+                                table[enum] += [Q[0]]
+                            else:
+                                table[enum] += Q
+                            enum += 1
 
         ls = []
         for connection in table.values():
@@ -868,6 +911,24 @@ class Cadet(SimulatorBase):
         """
         index = process.flow_sheet.get_unit_index(unit)
         return f'unit_{index:03d}'
+
+    def get_port_index(self, flow_sheet, unit, port):
+        """Helper function for getting port index in CADET format xxx.
+
+        Parameters
+        ----------
+        port : string
+            Indexed port
+        unit : UnitOperation
+            port of unit
+        Returns
+        -------
+        port_index : index
+            Return the port_index in CADET format xxx
+
+        """
+
+        return flow_sheet.get_port_index(unit, port)
 
     def get_model_units(self, process):
         """Config branches for all units /input/model/unit_000 ... unit_xxx.
@@ -1327,6 +1388,19 @@ unit_parameters_map = {
             'POROSITY': 'porosity',
             'FLOWRATE_FILTER': 'flow_rate_filter',
         },
+    },
+    'MCT': {
+        'name': 'MULTI_CHANNEL_TRANSPORT',
+        'parameters': {
+            'NCOMP': 'n_comp',
+            'INIT_C': 'c',
+            'COL_DISPERSION': 'axial_dispersion',
+            'COL_LENGTH': 'length',
+            'NCHANNEL': 'nchannel',
+            'CHANNEL_CROSS_SECTION_AREAS': 'channel_cross_section_areas',
+            'EXCHANGE_MATRIX': 'exchange_matrix',
+            'VELOCITY': 'flow_direction',
+         },
     },
     'Inlet': {
         'name': 'INLET',
@@ -1850,17 +1924,22 @@ class SolverTimeIntegratorParameters(Structure):
 
 
 class ReturnParameters(Structure):
-    """Solution writer for system."""
+    """
+    Solution writer for system.
+
+    Add more descriptions here!11einseflf!
+    """
 
     write_solution_times = Bool(default=True)
     write_solution_last = Bool(default=True)
     write_sens_last = Bool(default=True)
     split_components_data = Bool(default=False)
-    split_ports_data = Bool(default=False)
+    split_ports_data = Bool(default=True)
+    single_as_multi_port = Bool(default=True)
 
     _parameters = [
         'write_solution_times', 'write_solution_last', 'write_sens_last',
-        'split_components_data', 'split_ports_data'
+        'split_components_data', 'split_ports_data', 'single_as_multi_port',
     ]
 
 
