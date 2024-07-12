@@ -1,5 +1,6 @@
 from functools import wraps
 from warnings import warn
+from collections import defaultdict
 
 import numpy as np
 from addict import Dict
@@ -176,6 +177,32 @@ class FlowSheet(Structure):
 
         return self.units.index(unit)
 
+    def get_port_index(self, unit, port):
+        """Return the port index of a unit
+
+        Parameters
+        ----------
+        unit : UnitBaseClass
+            UnitBaseClass object of wich port index is to be returned
+        port : string
+            Name of port which index is to be returned
+        Raises
+        ------
+        CADETProcessError
+            If unit or port is not in the current flow sheet.
+        Returns
+        -------
+        port_index : int
+            Returns the port index of the port of the unit_operation.
+        """
+        if unit not in self.units:
+            raise CADETProcessError('Unit not in flow sheet')
+
+
+        port_index = unit.ports.index(port)
+
+        return port_index
+
     @property
     def inlets(self):
         """list: All Inlets in the system."""
@@ -237,11 +264,24 @@ class FlowSheet(Structure):
             raise CADETProcessError('Component systems do not match.')
 
         self._units.append(unit)
-        self._connections[unit] = Dict({
-            'origins': [],
-            'destinations': [],
-        })
-        self._output_states[unit] = []
+
+
+        for port in unit.ports:
+
+            if isinstance(unit, Inlet):
+                self._connections[unit]['origins'] = None
+                self._connections[unit]['destinations'][port] = defaultdict(list)
+
+            elif isinstance(unit, Outlet):
+                self._connections[unit]['origins'][port] = defaultdict(list)
+                self._connections[unit]['destinations'] = None
+
+            else:
+                self._connections[unit]['origins'][port] = defaultdict(list)
+                self._connections[unit]['destinations'][port] = defaultdict(list)
+
+
+        self._output_states[unit] = Dict()
         self._flow_rates[unit] = []
 
         super().__setattr__(unit.name, unit)
@@ -292,13 +332,24 @@ class FlowSheet(Structure):
         if unit is self.product_outlets:
             self.remove_product_outlet(unit)
 
-        origins = self.connections[unit].origins.copy()
-        for origin in origins:
-            self.remove_connection(origin, unit)
+        origins = []
+        destinations = []
 
-        destinations = self.connections[unit].destinations.copy()
+        if self._connections[unit]['origins'] is not None:
+            origins = [origin for ports in self._connections[unit]['origins'] for origin in self._connections[unit]['origins'][ports]]
+
+        if self._connections[unit]['destinations'] is not None:
+            destinations = [destination for ports in self._connections[unit]['destinations'] for destination in self._connections[unit]['destinations'][ports]].copy()
+
+        for origin in origins:
+            for origin_port in self._connections[unit]['origins']:
+                for unit_port in self._connections[unit]['origins'][origin_port][origin]:
+                    self.remove_connection(origin, unit, origin_port, unit_port)
+
         for destination in destinations:
-            self.remove_connection(unit, destination)
+            for destination_port in self._connections[unit]['destinations']:
+                for unit_port in self._connections[unit]['destinations'][destination_port][destination]:
+                    self.remove_connection(unit, destination, unit_port, destination_port)
 
         self._units.remove(unit)
         self._connections.pop(unit)
@@ -319,7 +370,8 @@ class FlowSheet(Structure):
 
     @origin_destination_name_decorator
     @update_parameters_decorator
-    def add_connection(self, origin, destination):
+    def add_connection(
+            self, origin, destination, origin_port=None, destination_port=None):
         """Add connection between units 'origin' and 'destination'.
 
         Parameters
@@ -328,6 +380,10 @@ class FlowSheet(Structure):
             UnitBaseClass from which the connection originates.
         destination : UnitBaseClass
             UnitBaseClass where the connection terminates.
+        origin_port : str
+            Port from which connection originates.
+        destination_port : str
+            Port where connection terminates.
 
         Raises
         ------
@@ -352,17 +408,43 @@ class FlowSheet(Structure):
         if isinstance(destination, Inlet):
             raise CADETProcessError("Inlet unit cannot have ingoing stream.")
 
-        if destination in self.connections[origin].destinations:
-            raise CADETProcessError('Connection already exists')
 
-        self._connections[origin].destinations.append(destination)
-        self._connections[destination].origins.append(origin)
+        if origin.has_ports and origin_port is None:
+            raise CADETProcessError('Missing `origin_port`')
+        if not origin.has_ports and origin_port is not None:
+            raise CADETProcessError(f'Origin unit does not support ports.')
+        if origin.has_ports and origin_port not in origin.ports:
+            raise CADETProcessError(f'Origin port "{origin_port}" not found in ports: {origin.ports}.')
+        if origin_port in self._connections[destination]['origins'][destination_port][origin]:
+            raise CADETProcessError("Connection already exists")
 
-        self.set_output_state(origin, 0)
+
+
+        if destination.has_ports and destination_port is None:
+            raise CADETProcessError('Missing `destination_port`')
+        if not destination.has_ports and destination_port is not None:
+            raise CADETProcessError('Destination unit does not support ports.')
+        if destination.has_ports and destination_port not in destination.ports:
+            raise CADETProcessError(f'destination port "{destination_port}" not found in ports: {destination.ports}.')
+
+        if destination_port in self._connections[origin]['destinations'][origin_port][destination]:
+            raise CADETProcessError("Connection already exists")
+
+
+        if not destination.has_ports:
+            destination_port = destination.ports[0]
+        if not origin.has_ports:
+            origin_port = origin.ports[0]
+
+        self._connections[destination]['origins'][destination_port][origin].append(origin_port)
+        self._connections[origin]['destinations'][origin_port][destination].append(destination_port)
+
+        self.set_output_state(origin, 0, origin_port)
+
 
     @origin_destination_name_decorator
     @update_parameters_decorator
-    def remove_connection(self, origin, destination):
+    def remove_connection( self, origin, destination, origin_port=None, destination_port=None):
         """Remove connection between units 'origin' and 'destination'.
 
         Parameters
@@ -371,6 +453,10 @@ class FlowSheet(Structure):
             UnitBaseClass from which the connection originates.
         destination : UnitBaseClass
             UnitBaseClass where the connection terminates.
+        origin_port : int
+            Port from which connection originates.
+        destination_port : int
+            Port where connection terminates.
 
         Raises
         ------
@@ -386,17 +472,31 @@ class FlowSheet(Structure):
         """
         if origin not in self._units:
             raise CADETProcessError('Origin not in flow sheet')
+        if origin.has_ports and origin_port is None:
+            raise CADETProcessError('Missing `origin_port`')
+
+        if origin_port not in origin.ports:
+            raise CADETProcessError(f'Origin port {origin_port} not in Unit {origin.name}.')
+
         if destination not in self._units:
             raise CADETProcessError('Destination not in flow sheet')
+        if destination.has_ports and origin_port is None:
+            raise CADETProcessError('Missing `destination_port`')
+
+        if destination_port not in destination.ports:
+            raise CADETProcessError(f'Origin port {destination_port} not in Unit {destination.name}.')
 
         try:
-            self._connections[origin].destinations.remove(destination)
-            self._connections[destination].origins.remove(origin)
+
+            self._connections[destination]['origins'][destination_port].pop(origin)
+            self._connections[origin]['destinations'][origin_port].pop(destination)
         except KeyError:
             raise CADETProcessError('Connection does not exist.')
 
+
+
     @origin_destination_name_decorator
-    def connection_exists(self, origin, destination):
+    def connection_exists(self, origin, destination, origin_port=None, destination_port=None):
         """bool: check if connection exists in flow sheet.
 
         Parameters
@@ -407,8 +507,22 @@ class FlowSheet(Structure):
             UnitBaseClass where the connection terminates.
 
         """
-        if destination in self._connections[origin].destinations \
-                and origin in self._connections[destination].origins:
+        if origin.has_ports and not origin_port:
+            raise CADETProcessError(f'Origin port needs to be specified for unit operation with ports {origin.name}.')
+
+        if destination.has_ports and not destination_port:
+            raise CADETProcessError(f'Destination port needs to be specified for unit operation with ports {destination.name}.')
+
+        if origin_port not in origin.ports:
+            raise CADETProcessError(f'{origin.name} does not have port {origin_port}')
+
+        if destination_port not in destination.ports:
+            raise CADETProcessError(f'{destination.name} does not have port {destination_port}')
+
+        if destination in self._connections[origin].destinations[origin_port]\
+                and destination_port in self._connections[origin].destinations[origin_port][destination]\
+                and origin in self._connections[destination].origins[destination_port]\
+                and origin_port in self._connections[destination].origins[destination_port][origin]:
             return True
 
         return False
@@ -432,14 +546,14 @@ class FlowSheet(Structure):
         flag = True
         for unit, connections in self.connections.items():
             if isinstance(unit, Inlet):
-                if len(connections.origins) != 0:
+                if connections.origins != None:
                     flag = False
                     warn("Inlet unit cannot have ingoing stream.")
                 if len(connections.destinations) == 0:
                     flag = False
                     warn(f" Unit '{unit.name}' does not have outgoing stream.")
             elif isinstance(unit, Outlet):
-                if len(connections.destinations) != 0:
+                if connections.destinations != None:
                     flag = False
                     warn("Outlet unit cannot have outgoing stream.")
                 if len(connections.origins) == 0:
@@ -450,10 +564,10 @@ class FlowSheet(Structure):
                     flag = False
                     warn("Cstr cannot have flow rate without outgoing stream.")
             else:
-                if len(connections.origins) == 0:
+                if all(len(port_list) == 0 for port_list in connections.origins.values()):
                     flag = False
                     warn(f"Unit '{unit.name}' does not have ingoing stream.")
-                if len(connections.destinations) == 0:
+                if all(len(port_list) == 0 for port_list in connections.destinations.values()):
                     flag = False
                     warn(f" Unit '{unit.name}' does not have outgoing stream.")
 
@@ -487,11 +601,20 @@ class FlowSheet(Structure):
 
     @property
     def output_states(self):
-        return self._output_states
+
+        output_states_dict = self._output_states.copy()
+
+        for unit, ports in output_states_dict.items():
+            for port in ports:
+                if port == None:
+                    output_states_dict[unit] = output_states_dict[unit][port]
+
+
+        return output_states_dict
 
     @unit_name_decorator
     @update_parameters_decorator
-    def set_output_state(self, unit, state):
+    def set_output_state(self, unit, state, port=None):
         """Set split ratio of outgoing streams for UnitOperation.
 
         Parameters
@@ -500,6 +623,8 @@ class FlowSheet(Structure):
             UnitOperation of flowsheet.
         state : int or list of floats or dict
             new output state of the unit.
+        port : int
+            Port for which to set the output state.
 
         Raises
         ------
@@ -508,12 +633,40 @@ class FlowSheet(Structure):
             If state is integer and the state >= the state_length.
             If the length of the states is unequal the state_length.
             If the sum of the states is not equal to 1.
-
+            If port exceeds the number of ports
         """
+        def get_port_index(unit_connection_dict, destination, destination_port):
+            """helper function to classify the index of a connection for your outputstate
+
+            Parameters
+            ----------
+
+            unit_connection_dict : Defaultdict
+                contains dict with connected units and their respective ports
+            destination : UnitBaseClass
+                destination object
+            destination_port : int
+                destination Port
+
+            """
+
+            ret_index = 0
+            for unit_destination in unit_connection_dict:
+                if unit_destination is destination:
+                    ret_index+=unit_connection_dict[unit_destination].index(destination_port)
+                    break
+                ret_index+=len(unit_connection_dict[unit_destination])
+            return ret_index
+
+
         if unit not in self._units:
             raise CADETProcessError('Unit not in flow sheet')
 
-        state_length = len(self.connections[unit].destinations)
+        if port not in unit.ports:
+            raise CADETProcessError(f'Port {port} is not a port of Unit {unit.name}')
+
+
+        state_length = sum([len(self._connections[unit].destinations[port][unit_name]) for unit_name in self._connections[unit].destinations[port]])
 
         if state_length == 0:
             output_state = []
@@ -529,18 +682,34 @@ class FlowSheet(Structure):
             output_state = [0.0] * state_length
             for dest, value in state.items():
                 try:
-                    assert self.connection_exists(unit, dest)
-                except AssertionError:
-                    raise CADETProcessError(f'{unit} does not connect to {dest}.')
-                dest = self[dest]
-                index = self.connections[unit].destinations.index(dest)
-                output_state[index] = value
+                    for destination_port, output_value in value.items():
+                        try:
+                            assert self.connection_exists(unit, dest, port, destination_port)
+                        except AssertionError:
+                            raise CADETProcessError(f'{unit} on port {port} does not connect to {dest} on port {destination_port}.')
+                        inner_dest = self[dest]
+                        index = get_port_index(self._connections[unit].destinations[port], inner_dest, destination_port)
+                        output_state[index] = output_value
+                except AttributeError:
+                    destination_port = None
+                    try:
+                        assert self.connection_exists(unit, dest, port, destination_port)
+                    except AssertionError:
+                        raise CADETProcessError(f'{unit} on port {port} does not connect to {dest} on port {destination_port}.')
+                    dest = self[dest]
+                    index = get_port_index(self.connections[unit].destinations[port], dest, destination_port)
+                    output_state[index] = value
 
-        elif isinstance(state, list):
+        elif isinstance(state, (list)):
             if len(state) != state_length:
                 raise CADETProcessError(f'Expected length {state_length}.')
 
             output_state = state
+        elif isinstance(state, np.ndarray):
+            if len(state) != state_length:
+                raise CADETProcessError(f'Expected length {state_length}.')
+
+            output_state = list(state)
 
         else:
             raise TypeError("Output state must be integer, list or dict.")
@@ -548,18 +717,21 @@ class FlowSheet(Structure):
         if state_length != 0 and not np.isclose(sum(output_state), 1):
             raise CADETProcessError('Sum of fractions must be 1')
 
-        self._output_states[unit] = output_state
+        self._output_states[unit][port] = output_state
 
-    def get_flow_rates(self, state=None):
-        """
-        Calculate the volumetric flow rate for all connections in the process.
+    def get_flow_rates(self, state=None, eps=5.9e16):
+        """Calculate flow rate for all connections.
+
+        Optionally, an additional output state can be passed to update the
+        current output states.
 
         Parameters
         ----------
         state : Dict, optional
             Updated flow rates and output states for process sections.
             Default is None.
-
+        eps : float, optional
+            eps as an upper boarder for condition of flow_rate calculation
         Returns
         -------
         Dict
@@ -590,43 +762,74 @@ class FlowSheet(Structure):
         Forum discussion on flow rate calculation:
         https://forum.cadet-web.de/t/improving-the-flowrate-calculation/795
         """
+        port_index_list = []
+        port_number = 0
+
+        for unit in self.units:
+            for port in unit.ports:
+                port_index_list.append((unit, port))
+                port_number += 1
+
         flow_rates = {
             unit.name: unit.flow_rate
             for unit in (self.inlets + self.cstrs)
             if unit.flow_rate is not None
         }
 
-        output_states = self.output_states
+        output_states = self._output_states
 
         if state is not None:
             for param, value in state.items():
                 param = param.split('.')
-                unit_name = param[1]
                 param_name = param[-1]
                 if param_name == 'flow_rate':
+                    unit_name = param[1]
                     flow_rates[unit_name] = value[0]
-                elif unit_name == 'output_states':
-                    unit = self.units_dict[param_name]
-                    output_states[unit] = list(value.ravel())
-
-        n_units = self.number_of_units
+                elif param[1] == 'output_states':
+                    unit_name = param[2]
+                    unit = self.units_dict[unit_name]
+                    if unit.has_ports:
+                        port = param[2]
+                    else:
+                        port = None
+                    output_states[unit][port] = list(value.ravel())
 
         # Setup matrix with output states.
-        w_out = np.zeros((n_units, n_units))
+        w_out = np.zeros((port_number, port_number))
 
         for unit in self.units:
-            unit_index = self.get_unit_index(unit)
+
             if unit.name in flow_rates:
+                unit_index = port_index_list.index((unit, None))
                 w_out[unit_index, unit_index] = 1
             else:
-                for origin in self.connections[unit]['origins']:
-                    o_index = self.get_unit_index(origin)
-                    local_d_index = self.connections[origin].destinations.index(unit)
-                    w_out[unit_index, o_index] = output_states[origin][local_d_index]
-                w_out[unit_index, unit_index] += -1
+
+                for port in self._connections[unit]['origins']:
+
+                    port_index = port_index_list.index((unit, port))
+
+                    for origin_unit in self._connections[unit]['origins'][port]:
+
+                        for origin_port in self._connections[unit]['origins'][port][origin_unit]:
+
+                            o_index = port_index_list.index((origin_unit, origin_port))
+
+                            local_d_index = 0
+
+                            for inner_unit in self._connections[origin_unit]['destinations'][origin_port]:
+                                if inner_unit == unit:
+                                    break
+                                local_d_index += len(list(self._connections[origin_unit]['destinations'][origin_port][inner_unit]))
+
+                            local_d_index += self._connections[origin_unit]['destinations'][origin_port][unit].index(port)
+
+                            if output_states[origin_unit][origin_port][local_d_index]:
+                                w_out[port_index, o_index] = output_states[origin_unit][origin_port][local_d_index]
+
+                    w_out[port_index, port_index] += -1
 
         # Check for a singular matrix before the loop
-        if np.linalg.cond(w_out) == np.inf:
+        if np.linalg.cond(w_out) > eps:
             raise CADETProcessError(
                 "Flow sheet connectivity matrix is singular, which may be due to "
                 "unconnected units or missing flow rates. Please ensure all units are "
@@ -634,7 +837,7 @@ class FlowSheet(Structure):
             )
 
         # Solve system of equations for each polynomial coefficient
-        total_flow_rate_coefficents = np.zeros((4, n_units))
+        total_flow_rate_coefficents = np.zeros((4, port_number))
         for i in range(4):
             if len(flow_rates) == 0:
                 continue
@@ -643,10 +846,10 @@ class FlowSheet(Structure):
             if not np.any(coeffs):
                 continue
 
-            Q_vec = np.zeros(n_units)
+            Q_vec = np.zeros(port_number)
             for unit_name in flow_rates:
-                unit_index = self.get_unit_index(self.units_dict[unit_name])
-                Q_vec[unit_index] = flow_rates[unit_name][i]
+                port_index = port_index_list.index((self.units_dict[unit_name], None))
+                Q_vec[port_index] = flow_rates[unit_name][i]
             try:
                 total_flow_rate_coefficents[i, :] = np.linalg.solve(w_out, Q_vec)
             except np.linalg.LinAlgError:
@@ -656,50 +859,103 @@ class FlowSheet(Structure):
                 )
 
         # w_out_help is the same as w_out but it contains the origin flow for every unit
-        w_out_help = np.zeros((n_units, n_units))
+        w_out_help = np.zeros((port_number, port_number))
 
-        for unit in self.connections:
-            unit_index = self.get_unit_index(unit)
-            for origin in self.connections[unit]['origins']:
-                o_index = self.get_unit_index(origin)
-                local_d_index = self.connections[origin].destinations.index(unit)
-                w_out_help[unit_index, o_index] = output_states[origin][local_d_index]
+
+        for unit in self.units:
+            if self._connections[unit]['origins']:
+                for port in self._connections[unit]['origins']:
+
+                    port_index = port_index_list.index((unit, port))
+
+                    for origin_unit in self._connections[unit]['origins'][port]:
+
+                        for origin_port in self._connections[unit]['origins'][port][origin_unit]:
+                            o_index = port_index_list.index((origin_unit, origin_port))
+
+                            local_d_index = 0
+
+                            for inner_unit in self._connections[origin_unit]['destinations'][origin_port]:
+                                if inner_unit == unit:
+                                    break
+                                local_d_index += len(list(self._connections[origin_unit]['destinations'][origin_port][inner_unit]))
+
+                            local_d_index += self._connections[origin_unit]['destinations'][origin_port][unit].index(port)
+
+                            if not output_states[origin_unit][origin_port][local_d_index]:
+                                w_out_help[port_index, o_index] = 0
+                            else :
+                                w_out_help[port_index, o_index] = output_states[origin_unit][origin_port][local_d_index]
 
         # Calculate total_in as a matrix in "one" step rather than iterating manually.
         total_in_matrix = w_out_help @ total_flow_rate_coefficents.T
 
         # Generate output dict
         return_flow_rates = Dict()
-        for index, unit in enumerate(self.units):
+        for unit in self.units:
             unit_solution_dict = Dict()
 
             if not isinstance(unit, Inlet):
-                unit_solution_dict['total_in'] = list(total_in_matrix[index])
+
+                unit_solution_dict['total_in'] = Dict()
+
+                for unit_port in unit.ports:
+
+                    index = port_index_list.index((unit, unit_port))
+                    unit_solution_dict['total_in'][unit_port] = list(total_in_matrix[index])
 
             if not isinstance(unit, Outlet):
-                unit_solution_dict['total_out'] = list(total_flow_rate_coefficents[:, index])
+
+                unit_solution_dict['total_out'] = Dict()
+
+                for unit_port in unit.ports:
+
+                    index = port_index_list.index((unit, unit_port))
+                    unit_solution_dict['total_out'][unit_port] = list(total_flow_rate_coefficents[:, index])
+
 
             if not isinstance(unit, Inlet):
-                unit_solution_dict['origins'] = Dict(
-                    {
-                        origin.name: list(
-                            total_flow_rate_coefficents[:, self.get_unit_index(origin)]
-                            * w_out_help[index, self.get_unit_index(origin)]
-                        )
-                        for origin in self.connections[unit].origins
-                    }
-                )
+                unit_solution_dict['origins'] = Dict()
+
+                for unit_port in self._connections[unit]['origins']:
+
+                    if self._connections[unit]['origins'][unit_port]:
+
+                        unit_solution_dict['origins'][unit_port] = Dict()
+
+                        for origin_unit in self._connections[unit]['origins'][unit_port]:
+
+                            unit_solution_dict['origins'][unit_port][origin_unit.name] = Dict()
+
+                            for origin_port in self._connections[unit]['origins'][unit_port][origin_unit]:
+                                origin_port_index = port_index_list.index((origin_unit, origin_port))
+                                unit_port_index = port_index_list.index((unit, unit_port))
+                                flow_list = list(
+                                        total_flow_rate_coefficents[:, origin_port_index]
+                                        * w_out_help[unit_port_index, origin_port_index])
+                                unit_solution_dict['origins'][unit_port][origin_unit.name][origin_port] = flow_list
 
             if not isinstance(unit, Outlet):
-                unit_solution_dict['destinations'] = Dict(
-                    {
-                        destination.name: list(
-                            total_flow_rate_coefficents[:, index]
-                            * w_out_help[self.get_unit_index(destination), index]
-                        )
-                        for destination in self.connections[unit].destinations
-                    }
-                )
+
+                unit_solution_dict['destinations'] = Dict()
+
+                for unit_port in self._connections[unit]['destinations']:
+
+                    if self._connections[unit]['destinations'][unit_port]:
+
+                        unit_solution_dict['destinations'][unit_port] = Dict()
+
+                        for destination_unit in self._connections[unit]['destinations'][unit_port]:
+
+                            unit_solution_dict['destinations'][unit_port][destination_unit.name] = Dict()
+
+                            for destination_port in self._connections[unit]['destinations'][unit_port][destination_unit]:
+                                destination_port_index = port_index_list.index((destination_unit, destination_port))
+                                unit_port_index = port_index_list.index((unit, unit_port))
+                                flow_list = list(
+                                        total_flow_rate_coefficents[:, unit_port_index]
+                                        * w_out_help[destination_port_index, unit_port_index])
+                                unit_solution_dict['destinations'][unit_port][destination_unit.name][destination_port] = flow_list
 
             return_flow_rates[unit.name] = unit_solution_dict
 
@@ -871,7 +1127,12 @@ class FlowSheet(Structure):
             output_states = parameters.pop('output_states')
             for unit, state in output_states.items():
                 unit = self.units_dict[unit]
-                self.set_output_state(unit, state)
+                # Hier, if unit.has_ports: iterate.
+                if not unit.has_ports:
+                    self.set_output_state(unit, state)
+                else:
+                    for port_i, state_i in state.items():
+                        self.set_output_state(unit, state_i, port_i)
         except KeyError:
             pass
 
