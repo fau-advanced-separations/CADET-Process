@@ -7,10 +7,10 @@ from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import frozen_attributes
 from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import (
-    Constant, UnsignedFloat,
+    Constant, UnsignedFloat, UnsignedInteger,
     String, Switch,
     SizedUnsignedList,
-    Polynomial, NdPolynomial, SizedList
+    Polynomial, NdPolynomial, SizedList, SizedNdArray
 )
 
 from .componentSystem import ComponentSystem
@@ -20,12 +20,14 @@ from .discretization import (
     DiscretizationParametersBase, NoDiscretization,
     LRMDiscretizationFV, LRMDiscretizationDG,
     LRMPDiscretizationFV, LRMPDiscretizationDG,
-    GRMDiscretizationFV, GRMDiscretizationDG
+    GRMDiscretizationFV, GRMDiscretizationDG,
+    MCTDiscretizationFV,
 )
 
 from .solutionRecorder import (
     IORecorder,
-    TubularReactorRecorder, LRMRecorder, LRMPRecorder, GRMRecorder, CSTRRecorder
+    TubularReactorRecorder, LRMRecorder, LRMPRecorder, GRMRecorder, CSTRRecorder,
+    MCTRecorder,
 )
 
 
@@ -41,6 +43,7 @@ __all__ = [
     'LumpedRateModelWithoutPores',
     'LumpedRateModelWithPores',
     'GeneralRateModel',
+    'MCT'
 ]
 
 
@@ -61,6 +64,8 @@ class UnitBaseClass(Structure):
         list of parameter names.
     name : String
         name of the unit operation.
+    has_ports : bool
+        flag if unit has ports. The default is False.
     binding_model : BindingBaseClass
         binding behavior of the unit. Defaults to NoBinding.
     solution_recorder : IORecorder
@@ -79,23 +84,48 @@ class UnitBaseClass(Structure):
     _section_dependent_parameters = []
     _initial_state = []
 
+    has_ports = False
     supports_binding = False
     supports_bulk_reaction = False
     supports_particle_reaction = False
     discretization_schemes = ()
 
-    def __init__(self, component_system, name, *args, **kwargs):
+    def __init__(
+            self,
+            component_system,
+            name,
+            *args,
+            binding_model=None,
+            bulk_reaction_model=None,
+            particle_reaction_model=None,
+            discretization=None,
+            solution_recorder=None,
+            **kwargs
+            ):
         self.name = name
         self.component_system = component_system
 
-        self.binding_model = NoBinding()
+        if binding_model is None:
+            binding_model = NoBinding()
+        self.binding_model = binding_model
 
-        self.bulk_reaction_model = NoReaction()
-        self.particle_reaction_model = NoReaction()
+        if bulk_reaction_model is None:
+            bulk_reaction_model = NoReaction()
+        self.bulk_reaction_model = bulk_reaction_model
 
-        self.discretization = NoDiscretization()
+        if particle_reaction_model is None:
+            particle_reaction_model = NoReaction()
+        self.particle_reaction_model = particle_reaction_model
 
-        self.solution_recorder = IORecorder()
+        if discretization is None:
+            discretization = NoDiscretization()
+        self.discretization = discretization
+
+        if solution_recorder is None:
+            solution_recorder = IORecorder()
+        self.solution_recorder = solution_recorder
+
+
 
         super().__init__(*args, **kwargs)
 
@@ -133,6 +163,14 @@ class UnitBaseClass(Structure):
     @property
     def n_comp(self):
         return self.component_system.n_comp
+
+    @property
+    def ports(self):
+        return [None]
+
+    @property
+    def n_ports(self):
+        return 1
 
     @property
     def parameters(self):
@@ -714,14 +752,17 @@ class TubularReactor(TubularReactorBase):
     _parameters = ['c']
 
     def __init__(self, *args, discretization_scheme='FV', **kwargs):
-        super().__init__(*args, **kwargs)
-
         if discretization_scheme == 'FV':
-            self.discretization = LRMDiscretizationFV()
+            discretization = LRMDiscretizationFV()
         elif discretization_scheme == 'DG':
-            self.discretization = LRMDiscretizationDG()
+            discretization = LRMDiscretizationDG()
 
-        self.solution_recorder = TubularReactorRecorder()
+        super().__init__(
+            *args,
+            discretization=discretization,
+            solution_recorder=TubularReactorRecorder(),
+            **kwargs
+            )
 
 
 class LumpedRateModelWithoutPores(TubularReactorBase):
@@ -1161,3 +1202,105 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         self._q = q
 
         self.parameters['q'] = q
+
+
+class MCT(UnitBaseClass):
+    """Parameters for multi-channel transportmodel.
+
+    Parameters
+    ----------
+    length : UnsignedFloat
+        Length of column.
+    channel_cross_section_areas : List of unsinged floats. Lenght depends on nchannel.
+        Diameter of column.
+    axial_dispersion : UnsignedFloat
+        Dispersion rate of components in axial direction.
+    flow_direction : Switch
+        If 1: Forward flow.
+        If -1: Backwards flow.
+    c : List of unsigned floats. Length depends n_comp or n_comp*nchannel.
+        Initial concentration for components.
+    exchange_matrix : List of unsigned floats. Lenght depends on nchannel.
+    solution_recorder : MCTRecorder
+        Solution recorder for the unit operation.
+    n_channel : int number of channels
+    """
+    has_ports = True
+    supports_bulk_reaction = True
+
+    discretization_schemes = (MCTDiscretizationFV)
+
+    length = UnsignedFloat()
+    channel_cross_section_areas = SizedList(size='nchannel')
+    axial_dispersion = UnsignedFloat()
+    flow_direction = Switch(valid=[-1, 1], default=1)
+    nchannel = UnsignedInteger()
+
+    exchange_matrix = SizedNdArray(size=('nchannel', 'nchannel','n_comp'))
+
+    _parameters = [
+        'length',
+        'channel_cross_section_areas',
+        'axial_dispersion',
+        'flow_direction',
+        'exchange_matrix',
+        'nchannel'
+    ]
+    _section_dependent_parameters = \
+        UnitBaseClass._section_dependent_parameters + \
+        ['axial_dispersion', 'flow_direction']
+
+    _section_dependent_parameters = \
+        UnitBaseClass._section_dependent_parameters + \
+        []
+
+    c = SizedNdArray(size=('n_comp', 'nchannel'), default=0)
+    _initial_state = ['c']
+    _parameters = _parameters + _initial_state
+
+    def __init__(self, *args, nchannel, **kwargs):
+        discretization = MCTDiscretizationFV()
+        self._nchannel = nchannel
+        super().__init__(
+            *args,
+            discretization=discretization,
+            solution_recorder=MCTRecorder(),
+            **kwargs
+        )
+
+    @property
+    def nchannel(self):
+        return self._nchannel
+
+    @nchannel.setter
+    def nchannel(self, nchannel):
+        self._nchannel = nchannel
+
+    @property
+    def ports(self):
+        return [f"channel_{i}" for i in range(self.nchannel)]
+
+    @property
+    def n_ports(self):
+        return self.nchannel
+
+    @property
+    def volume(self):
+        """float: Combined Volumes of all channels.
+
+        See Also
+        --------
+        channel_cross_section_areas
+
+        """
+        return sum(self.channel_cross_section_areas) * self.length
+
+    @property
+    def volume_liquid(self):
+        """float: Volume of the liquid phase. Equals the volume, since there is no solid phase."""
+        return self.volume
+
+    @property
+    def volume_solid(self):
+        """float: Volume of the solid phase. Equals zero, since there is no solid phase."""
+        return 0
