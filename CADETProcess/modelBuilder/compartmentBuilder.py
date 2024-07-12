@@ -290,14 +290,19 @@ class CompartmentBuilder(metaclass=StructMeta):
         flow_rates = self.flow_sheet.get_flow_rates()
 
         for comp in self._real_compartments:
-            if not np.all(
-                    np.isclose(
-                        flow_rates[comp.name].total_in,
-                        flow_rates[comp.name].total_out
-                    )):
-                raise CADETProcessError(
-                    f"Unbalanced flow rate for compartment '{comp.name}'."
-                )
+            for port in flow_rates[comp.name].total_in:
+                if not np.all(
+                        np.isclose(
+                            flow_rates[comp.name].total_in[port],
+                            flow_rates[comp.name].total_out[port]
+                        )):
+                    if comp.n_ports == 1:
+                        msg = comp.name
+                    else:
+                        msg = f"{comp.name} at Port {port}"
+                    raise CADETProcessError(
+                        f"Unbalanced flow rate for compartment '{msg}'."
+                    )
 
 
 class CompartmentModel(Cstr):
