@@ -142,16 +142,32 @@ class SimulationResults(Structure):
 
         solution = Dict()
         for unit, solutions in self.solution_cycles.items():
-            for sol, cycles in solutions.items():
-                solution[unit][sol] = copy.deepcopy(cycles[0])
-                solution_complete = cycles[0].solution_original
-                for i in range(1, self.n_cycles):
-                    solution_complete = np.vstack((
-                        solution_complete, cycles[i].solution_original[1:]
-                    ))
-                solution[unit][sol].time_original = time_complete
-                solution[unit][sol].solution_original = solution_complete
-                solution[unit][sol].reset()
+
+            for sol, ports_cycles in solutions.items():
+                if isinstance(ports_cycles, Dict):
+                    ports = ports_cycles
+                    for port, cycles in ports.items():
+                        solution[unit][sol][port] = copy.deepcopy(cycles[0])
+                        solution_complete = cycles[0].solution_original
+                        for i in range(1, self.n_cycles):
+                            solution_complete = np.vstack((
+                                solution_complete, cycles[i].solution_original[1:]
+                            ))
+                        solution[unit][sol][port].time_original = time_complete
+                        solution[unit][sol][port].solution_original = solution_complete
+                        solution[unit][sol][port].reset()
+                else:
+                    cycles = ports_cycles
+                    solution[unit][sol] = copy.deepcopy(cycles[0])
+                    solution_complete = cycles[0].solution_original
+                    for i in range(1, self.n_cycles):
+                        solution_complete = np.vstack((
+                            solution_complete, cycles[i].solution_original[1:]
+                        ))
+                    solution[unit][sol].time_original = time_complete
+                    solution[unit][sol].solution_original = solution_complete
+                    solution[unit][sol].reset()
+
 
         self._solution = solution
 
