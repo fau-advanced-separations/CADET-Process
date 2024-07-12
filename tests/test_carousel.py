@@ -526,19 +526,19 @@ class Test_Carousel(unittest.TestCase):
         column_0 = process.flow_rate_timelines['column_0']
         column_1 = process.flow_rate_timelines['column_1']
 
-        flow_rate = serial_inlet.total_in.value(0)
+        flow_rate = serial_inlet.total_in[None].value(0)
         flow_rate_expected = 2e-7
         np.testing.assert_almost_equal(flow_rate, flow_rate_expected)
 
-        flow_rate = serial_outlet.total_in.value(0)
+        flow_rate = serial_outlet.total_in[None].value(0)
         flow_rate_expected = 2e-7
         np.testing.assert_almost_equal(flow_rate, flow_rate_expected)
 
-        flow_rate = column_0.total_in.value(0)
+        flow_rate = column_0.total_in[None].value(0)
         flow_rate_expected = 2e-7
         np.testing.assert_almost_equal(flow_rate, flow_rate_expected)
 
-        flow_rate = column_1.total_in.value(0)
+        flow_rate = column_1.total_in[None].value(0)
         flow_rate_expected = 2e-7
         np.testing.assert_almost_equal(flow_rate, flow_rate_expected)
 
@@ -550,19 +550,19 @@ class Test_Carousel(unittest.TestCase):
         column_0 = process.flow_rate_timelines['column_0']
         column_1 = process.flow_rate_timelines['column_1']
 
-        flow_rate = parallel_inlet.total_in.value(0)
+        flow_rate = parallel_inlet.total_in[None].value(0)
         flow_rate_expected = 2e-7
         np.testing.assert_almost_equal(flow_rate, flow_rate_expected)
 
-        flow_rate = parallel_inlet.total_in.value(0)
+        flow_rate = parallel_inlet.total_in[None].value(0)
         flow_rate_expected = 2e-7
         np.testing.assert_almost_equal(flow_rate, flow_rate_expected)
 
-        flow_rate = column_0 .total_in.value(0)
+        flow_rate = column_0 .total_in[None].value(0)
         flow_rate_expected = 1e-7
         np.testing.assert_almost_equal(flow_rate, flow_rate_expected)
 
-        flow_rate = column_1.total_in.value(0)
+        flow_rate = column_1.total_in[None].value(0)
         flow_rate_expected = 1e-7
         np.testing.assert_almost_equal(flow_rate, flow_rate_expected)
 
@@ -575,31 +575,31 @@ class Test_Carousel(unittest.TestCase):
         column_0 = process.flow_rate_timelines['column_0']
         column_2 = process.flow_rate_timelines['column_2']
 
-        flow_rate = serial_inlet.total_in.value(0)
+        flow_rate = serial_inlet.total_in[None].value(0)
         flow_rate_expected = 2e-7
         np.testing.assert_almost_equal(flow_rate, flow_rate_expected)
 
-        flow_rate = parallel_inlet.total_in.value(0)
+        flow_rate = parallel_inlet.total_in[None].value(0)
         flow_rate_expected = 3e-7
         np.testing.assert_almost_equal(flow_rate, flow_rate_expected)
 
         # Initial state
         t = 0
-        flow_rate = column_0.total_in.value(t)
+        flow_rate = column_0.total_in[None].value(t)
         flow_rate_expected = 2e-7
         np.testing.assert_almost_equal(flow_rate, flow_rate_expected)
 
-        flow_rate = column_2.total_in.value(t)
+        flow_rate = column_2.total_in[None].value(t)
         flow_rate_expected = 1.5e-7
         np.testing.assert_almost_equal(flow_rate, flow_rate_expected)
 
         # First position
         t = builder.switch_time
-        flow_rate = column_0.total_in.value(t)
+        flow_rate = column_0.total_in[None].value(t)
         flow_rate_expected = 1.5e-7
         np.testing.assert_almost_equal(flow_rate, flow_rate_expected)
 
-        flow_rate = column_2.total_in.value(t)
+        flow_rate = column_2.total_in[None].value(t)
         flow_rate_expected = 2e-7
         np.testing.assert_almost_equal(flow_rate, flow_rate_expected)
 

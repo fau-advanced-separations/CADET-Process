@@ -283,12 +283,12 @@ class CarouselBuilder(Structure):
                 origin = unit.outlet_unit
             else:
                 origin = unit
+            if connections.destinations:
+                for destination in connections.destinations[None]:
+                    if isinstance(destination, ZoneBaseClass):
+                        destination = destination.inlet_unit
 
-            for destination in connections.destinations:
-                if isinstance(destination, ZoneBaseClass):
-                    destination = destination.inlet_unit
-
-                flow_sheet.add_connection(origin, destination)
+                    flow_sheet.add_connection(origin, destination)
 
         for zone in self.zones:
             output_state = self.flow_sheet.output_states[zone]
