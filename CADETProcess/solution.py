@@ -787,9 +787,6 @@ class SolutionBulk(SolutionBase):
         self.time_original = time
 
         self.axial_coordinates = axial_coordinates
-        # Account for dimension reduction in case of only one cell (e.g. LRMP)
-        if radial_coordinates is not None and len(radial_coordinates) == 1:
-            radial_coordinates = None
         self.radial_coordinates = radial_coordinates
 
         self.solution_original = solution
