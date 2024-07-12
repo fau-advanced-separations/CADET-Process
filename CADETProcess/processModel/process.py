@@ -90,7 +90,7 @@ class Process(EventHandler):
 
         feed_all = np.zeros((self.n_comp,))
         for feed in self.flow_sheet.feed_inlets:
-            feed_flow_rate_time_line = flow_rate_timelines[feed.name].total_out
+            feed_flow_rate_time_line = flow_rate_timelines[feed.name].total_out[None]
             feed_signal_param = f'flow_sheet.{feed.name}.c'
             if feed_signal_param in self.parameter_timelines:
                 tl = self.parameter_timelines[feed_signal_param]
@@ -122,7 +122,7 @@ class Process(EventHandler):
 
         V_all = 0
         for eluent in self.flow_sheet.eluent_inlets:
-            eluent_time_line = flow_rate_timelines[eluent.name]['total_out']
+            eluent_time_line = flow_rate_timelines[eluent.name]['total_out'][None]
             V_eluent = eluent_time_line.integral().squeeze()
             V_all += V_eluent
 
@@ -140,10 +140,10 @@ class Process(EventHandler):
         """dict: TimeLine of flow_rate for all unit_operations."""
         flow_rate_timelines = {
             unit.name: {
-                'total_in': TimeLine(),
-                'origins': defaultdict(TimeLine),
-                'total_out': TimeLine(),
-                'destinations': defaultdict(TimeLine)
+                'total_in': defaultdict(TimeLine),
+                'origins': defaultdict( lambda: defaultdict( lambda: defaultdict(TimeLine))),
+                'total_out': defaultdict(TimeLine),
+                'destinations': defaultdict( lambda: defaultdict( lambda: defaultdict(TimeLine))),
                 }
             for unit in self.flow_sheet.units
         }
@@ -160,40 +160,55 @@ class Process(EventHandler):
 
             flow_rates = self.flow_sheet.get_flow_rates(state)
 
-            for unit, flow_rate in flow_rates.items():
+            for unit, flow_rate_dict in flow_rates.items():
                 unit_flow_rates = flow_rate_timelines[unit]
 
                 # If inlet, also use outlet for total_in
+
                 if isinstance(self.flow_sheet[unit], Inlet):
-                    section = Section(
-                        start, end, flow_rate.total_out, is_polynomial=True
-                    )
+                    for port in flow_rate_dict['total_out']:
+                        section = Section(
+                            start, end, flow_rate_dict.total_out[port], is_polynomial=True
+                        )
+                        unit_flow_rates['total_in'][port].add_section(section)
                 else:
-                    section = Section(
-                        start, end, flow_rate.total_in, is_polynomial=True
-                    )
-                unit_flow_rates['total_in'].add_section(section)
-                for orig, flow_rate_orig in flow_rate.origins.items():
-                    section = Section(
-                        start, end, flow_rate_orig, is_polynomial=True
-                    )
-                    unit_flow_rates['origins'][orig].add_section(section)
+                    for port in flow_rate_dict['total_in']:
+                        section = Section(
+                            start, end, flow_rate_dict.total_in[port], is_polynomial=True
+                        )
+                        unit_flow_rates['total_in'][port].add_section(section)
+
+                for port in flow_rate_dict.origins:
+
+                    for orig, origin_port_dict in flow_rate_dict.origins[port].items():
+                        for orig_port, flow_rate_orig in origin_port_dict.items():
+                            section = Section(
+                                start, end, flow_rate_orig, is_polynomial=True
+                            )
+                            unit_flow_rates['origins'][port][orig][orig_port].add_section(section)
 
                 # If outlet, also use inlet for total_out
+
                 if isinstance(self.flow_sheet[unit], Outlet):
-                    section = Section(
-                        start, end, flow_rate.total_in, is_polynomial=True
-                    )
+                    for port in flow_rate_dict['total_in']:
+                        section = Section(
+                            start, end, flow_rate_dict.total_in[port], is_polynomial=True
+                        )
+                        unit_flow_rates['total_out'][port].add_section(section)
                 else:
-                    section = Section(
-                        start, end, flow_rate.total_out, is_polynomial=True
-                    )
-                unit_flow_rates['total_out'].add_section(section)
-                for dest, flow_rate_dest in flow_rate.destinations.items():
-                    section = Section(
-                        start, end, flow_rate_dest, is_polynomial=True
-                    )
-                    unit_flow_rates['destinations'][dest].add_section(section)
+                    for port in flow_rate_dict['total_out']:
+                        section = Section(
+                            start, end, flow_rate_dict.total_out[port], is_polynomial=True
+                        )
+                        unit_flow_rates['total_out'][port].add_section(section)
+
+                for port in flow_rate_dict.destinations:
+                    for dest, dest_port_dict in flow_rate_dict.destinations[port].items():
+                        for dest_port, flow_rate_dest in dest_port_dict.items():
+                            section = Section(
+                                start, end, flow_rate_dest, is_polynomial=True
+                            )
+                            unit_flow_rates['destinations'][port][dest][dest_port].add_section(section)
 
         return Dict(flow_rate_timelines)
 
@@ -203,10 +218,10 @@ class Process(EventHandler):
         section_states = {
             time: {
                 unit.name: {
-                    'total_in': [],
-                    'origins': defaultdict(dict),
-                    'total_out': [],
-                    'destinations': defaultdict(dict),
+                    'total_in': defaultdict(list),
+                    'origins': defaultdict( lambda: defaultdict( lambda: defaultdict(list))),
+                    'total_out': defaultdict(list),
+                    'destinations': defaultdict( lambda: defaultdict( lambda: defaultdict(list))),
                 } for unit in self.flow_sheet.units
             } for time in self.section_times[0:-1]
         }
@@ -214,26 +229,35 @@ class Process(EventHandler):
         for sec_time in self.section_times[0:-1]:
             for unit, unit_flow_rates in self.flow_rate_timelines.items():
                 if isinstance(self.flow_sheet[unit], Inlet):
-                    section_states[sec_time][unit]['total_in'] \
-                        = unit_flow_rates['total_out'].coefficients(sec_time)
+                    for port in unit_flow_rates['total_out']:
+                        section_states[sec_time][unit]['total_in'][port] \
+                            = unit_flow_rates['total_out'][port].coefficients(sec_time)
                 else:
-                    section_states[sec_time][unit]['total_in'] \
-                        = unit_flow_rates['total_in'].coefficients(sec_time)
+                    for port in unit_flow_rates['total_in']:
+                        section_states[sec_time][unit]['total_in'][port] \
+                            = unit_flow_rates['total_in'][port].coefficients(sec_time)
 
-                    for orig, tl in unit_flow_rates.origins.items():
-                        section_states[sec_time][unit]['origins'][orig] \
-                            = tl.coefficients(sec_time)
+                    for port, orig_dict in unit_flow_rates.origins.items():
+                        for origin in orig_dict:
+                            for origin_port, tl in orig_dict[origin].items():
+                                section_states[sec_time][unit]['origins'][port][origin][origin_port]\
+                                    = tl.coefficients(sec_time)
+
 
                 if isinstance(self.flow_sheet[unit], Outlet):
-                    section_states[sec_time][unit]['total_out'] \
-                        = unit_flow_rates['total_in'].coefficients(sec_time)
+                    for port in unit_flow_rates['total_in']:
+                        section_states[sec_time][unit]['total_out'][port] \
+                            = unit_flow_rates['total_in'][port].coefficients(sec_time)
                 else:
-                    section_states[sec_time][unit]['total_out'] \
-                        = unit_flow_rates['total_out'].coefficients(sec_time)
+                    for port in unit_flow_rates['total_out']:
+                        section_states[sec_time][unit]['total_out'][port] \
+                            = unit_flow_rates['total_out'][port].coefficients(sec_time)
 
-                    for dest, tl in unit_flow_rates.destinations.items():
-                        section_states[sec_time][unit]['destinations'][dest] \
-                            = tl.coefficients(sec_time)
+                    for port, dest_dict in unit_flow_rates.destinations.items():
+                        for dest in dest_dict:
+                            for dest_port, tl in dest_dict[dest].items():
+                                section_states[sec_time][unit]['destinations'][port][dest][dest_port] \
+                                    = tl.coefficients(sec_time)
 
         return Dict(section_states)
 
@@ -685,11 +709,13 @@ class Process(EventHandler):
             if cstr.flow_rate is None:
                 continue
             V_0 = cstr.V
-            V_in = self.flow_rate_timelines[cstr.name].total_in.integral()
-            V_out = self.flow_rate_timelines[cstr.name].total_out.integral()
-            if V_0 + V_in - V_out < 0:
-                flag = False
-                warn(f'CSTR {cstr.name} runs empty during process.')
+            unit_index = self.flow_sheet.get_unit_index(cstr)
+            for port in self.flow_sheet.units[unit_index].ports:
+                V_in = self.flow_rate_timelines[cstr.name].total_in[port].integral()
+                V_out = self.flow_rate_timelines[cstr.name].total_out[port].integral()
+                if V_0 + V_in - V_out < 0:
+                    flag = False
+                    warn(f'CSTR {cstr.name} runs empty on port {port} during process.')
 
         return flag
 
