@@ -420,15 +420,16 @@ class AxInterface(OptimizerBase):
             self._create_manual_trial(x0_init_transformed)
             print(exp_to_df(self.ax_experiment))
 
-        n_iter = self.results.n_gen
-        n_evals = self.results.n_evals
+        self.n_iter = self.results.n_gen
+        self.n_evals = self.results.n_evals
+        global_stopping_message = None
 
         with manual_seed(seed=self.seed):
-            while not (n_evals >= self.n_max_evals or n_iter >= self.n_max_iter):
+            while not (self.n_evals >= self.n_max_evals or self.n_iter >= self.n_max_iter):
                 # Reinitialize GP+EI model at each step with updated data.
                 modelbridge = self.train_model()
 
-                print(f"Running optimization trial {n_evals + 1}/{self.n_max_evals}...")
+                print(f"Running optimization trial {self.n_evals + 1}/{self.n_max_evals}...")
 
                 # samples can be accessed here by sample_generator.arms:
                 sample_generator = modelbridge.gen(n=1)
@@ -455,8 +456,8 @@ class AxInterface(OptimizerBase):
                 trial.mark_completed()
                 self._post_processing(trial)
 
-                n_iter += 1
-                n_evals += len(trial.arms)
+                self.n_iter += 1
+                self.n_evals += len(trial.arms)
 
         print(exp_to_df(self.ax_experiment))
 
