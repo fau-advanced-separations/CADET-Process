@@ -2,7 +2,7 @@ import itertools
 import warnings
 
 import numpy as np
-from numpy import VisibleDeprecationWarning
+from numpy.exceptions import VisibleDeprecationWarning
 import scipy
 from matplotlib.axes import Axes
 
