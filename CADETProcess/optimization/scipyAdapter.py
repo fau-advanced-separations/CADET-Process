@@ -79,7 +79,7 @@ class SciPyInterface(OptimizerBase):
 
         def objective_function(x):
             return optimization_problem.evaluate_objectives(
-                x, untransform=True, ensure_minimization=True,
+                x, untransform=True, get_dependent_values=True, ensure_minimization=True,
             )[0]
 
         def callback_function(x, state=None):
@@ -99,13 +99,14 @@ class SciPyInterface(OptimizerBase):
             f = optimization_problem.evaluate_objectives(
                 x,
                 untransform=True,
+                get_dependent_values=True,
                 ensure_minimization=True,
             )
             g = optimization_problem.evaluate_nonlinear_constraints(
-                x, untransform=True
+                x, untransform=True, get_dependent_values=True,
             )
             cv = optimization_problem.evaluate_nonlinear_constraints_violation(
-                x, untransform=True
+                x, untransform=True, get_dependent_values=True,
             )
 
             self.run_post_processing(x, f, g, cv, self.n_evals)
@@ -275,7 +276,9 @@ class SciPyInterface(OptimizerBase):
             in the main loop.
             """
             constr = optimize.NonlinearConstraint(
-                lambda x: opt.evaluate_nonlinear_constraints_violation(x, untransform=True)[i],
+                lambda x: opt.evaluate_nonlinear_constraints_violation(
+                    x, untransform=True, get_dependent_values=True,
+                )[i],
                 lb=-np.inf, ub=0,
                 finite_diff_rel_step=self.finite_diff_rel_step,
                 keep_feasible=True

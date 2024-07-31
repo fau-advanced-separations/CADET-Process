@@ -240,6 +240,7 @@ class PymooProblem(Problem):
             F = opt.evaluate_objectives(
                 X,
                 untransform=True,
+                get_dependent_values=True,
                 ensure_minimization=True,
                 parallelization_backend=self.parallelization_backend,
             )
@@ -249,11 +250,13 @@ class PymooProblem(Problem):
             G = opt.evaluate_nonlinear_constraints(
                 X,
                 untransform=True,
+                get_dependent_values=True,
                 parallelization_backend=self.parallelization_backend,
             )
             CV = opt.evaluate_nonlinear_constraints_violation(
                 X,
                 untransform=True,
+                get_dependent_values=True,
                 parallelization_backend=self.parallelization_backend,
             )
             out["G"] = np.array(CV)
