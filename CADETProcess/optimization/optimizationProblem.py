@@ -152,7 +152,7 @@ class OptimizationProblem(Structure):
         return wrapper
 
     def ensures2d(func):
-        """Decorate function to ensure X array is an ndarray with ndmin=2."""
+        """Ensure X array is an ndarray with ndmin=2."""
         @wraps(func)
         def wrapper(
                 self,
@@ -654,6 +654,7 @@ class OptimizationProblem(Structure):
         return independent_values
 
     @untransforms
+    @gets_dependent_values
     def set_variables(self, x, evaluation_objects=-1):
         """Set the values from the x-vector to the EvaluationObjects.
 
@@ -685,9 +686,7 @@ class OptimizationProblem(Structure):
         evaluate
 
         """
-        values = self.get_dependent_values(x)
-
-        for variable, value in zip(self.variables, values):
+        for variable, value in zip(self.variables, x):
             variable.set_value(value)
 
     def _evaluate_population(
@@ -789,7 +788,6 @@ class OptimizationProblem(Structure):
 
         return results
 
-    @untransforms
     def _evaluate(self, x, func, force=False):
         """Iterate over all evaluation objects and evaluate at x.
 
@@ -797,6 +795,7 @@ class OptimizationProblem(Structure):
         ----------
         x : array_like
             Value of the optimization variables in untransformed space.
+            Must include all variables, including the dependent variables.
         func : Evaluator or Objective, or Nonlinear Constraint, or Callback
             Evaluation function.
         force : bool
@@ -1070,6 +1069,7 @@ class OptimizationProblem(Structure):
 
     @ensures2d
     @untransforms
+    @gets_dependent_values
     @ensures_minimization(scores='objectives')
     def evaluate_objectives(
             self,
@@ -1118,6 +1118,7 @@ class OptimizationProblem(Structure):
         self.evaluate_objectives(*args, *kwargs)
 
     @untransforms
+    @gets_dependent_values
     def objective_jacobian(self, x, ensure_minimization=False, dx=1e-3):
         """Compute jacobian of objective functions using finite differences.
 
@@ -1305,6 +1306,7 @@ class OptimizationProblem(Structure):
 
     @ensures2d
     @untransforms
+    @gets_dependent_values
     def evaluate_nonlinear_constraints(
             self,
             X: npt.ArrayLike,
@@ -1354,6 +1356,7 @@ class OptimizationProblem(Structure):
 
     @ensures2d
     @untransforms
+    @gets_dependent_values
     def evaluate_nonlinear_constraints_violation(
             self,
             X: npt.ArrayLike,
@@ -1416,6 +1419,7 @@ class OptimizationProblem(Structure):
         self.evaluate_nonlinear_constraints_violation(*args, *kwargs)
 
     @untransforms
+    @gets_dependent_values
     def check_nonlinear_constraints(self, x):
         """Check if all nonlinear constraints are met.
 
@@ -1438,6 +1442,7 @@ class OptimizationProblem(Structure):
         return True
 
     @untransforms
+    @gets_dependent_values
     def nonlinear_constraint_jacobian(self, x, dx=1e-3):
         """Compute jacobian of the nonlinear constraints at point x.
 
@@ -1634,7 +1639,7 @@ class OptimizationProblem(Structure):
                 callback._current_iteration = current_iteration
 
                 try:
-                    self._evaluate(ind.x_transformed, callback, force, untransform=True)
+                    self._evaluate(ind.x, callback, force)
                 except CADETProcessError as e:
                     self.logger.warning(
                         f'Evaluation of {callback} failed at {ind.x} with Error "{e}".'
@@ -1760,6 +1765,7 @@ class OptimizationProblem(Structure):
 
     @ensures2d
     @untransforms
+    @gets_dependent_values
     @ensures_minimization(scores='meta_scores')
     def evaluate_meta_scores(
             self,
@@ -2606,7 +2612,7 @@ class OptimizationProblem(Structure):
         Parameters
         ----------
         x_independent : np.ndarray
-            Value of the independent optimization variables in untransformed space.
+            Independent optimization variables in untransformed space.
 
         Returns
         -------
@@ -2630,7 +2636,7 @@ class OptimizationProblem(Structure):
         Parameters
         ----------
         X_transformed : npt.ArrayLike
-            Optimization variables in transformed parameter space.
+            Independent optimization variables in transformed parameter space.
 
         Returns
         -------

@@ -110,6 +110,7 @@ class CADETProcessRunner(Runner):
         F = obj_fun(
             X,
             untransform=True,
+            get_dependent_values=True,
             ensure_minimization=True,
             parallelization_backend=self.parallelization_backend
         )
@@ -123,6 +124,7 @@ class CADETProcessRunner(Runner):
             CV = nonlincon_cv_fun(
                 X,
                 untransform=True,
+                get_dependent_values=True,
                 parallelization_backend=self.parallelization_backend
             )
 
@@ -314,7 +316,7 @@ class AxInterface(OptimizerBase):
             G = G_data["mean"].values.reshape((op.n_nonlinear_constraints, n_ind)).T
 
             nonlincon_cv_fun = op.evaluate_nonlinear_constraints_violation
-            CV = nonlincon_cv_fun(X, untransform=True)
+            CV = nonlincon_cv_fun(X, untransform=True, get_dependent_values=True)
         else:
             G = None
             CV = None
