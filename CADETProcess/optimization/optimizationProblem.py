@@ -131,30 +131,30 @@ class OptimizationProblem(Structure):
     def untransforms(func):
         """Untransform population or individual before calling function."""
         @wraps(func)
-        def wrapper(self, x, *args, untransform=False, **kwargs):
+        def wrapper_untransforms(self, x, *args, untransform=False, **kwargs):
             x = np.array(x, ndmin=1)
             if untransform:
                 x = self.untransform(x)
 
             return func(self, x, *args, **kwargs)
 
-        return wrapper
+        return wrapper_untransforms
 
     def gets_dependent_values(func):
         """Get dependent values of individual before calling function."""
         @wraps(func)
-        def wrapper(self, x, *args, get_dependent_values=False, **kwargs):
+        def wrapper_gets_dependent_values(self, x, *args, get_dependent_values=False, **kwargs):
             if get_dependent_values:
                 x = self.get_dependent_values(x)
 
             return func(self, x, *args, **kwargs)
 
-        return wrapper
+        return wrapper_gets_dependent_values
 
     def ensures2d(func):
         """Ensure X array is an ndarray with ndmin=2."""
         @wraps(func)
-        def wrapper(
+        def wrapper_ensures2d(
                 self,
                 X: npt.ArrayLike,
                 *args, **kwargs
@@ -174,13 +174,13 @@ class OptimizationProblem(Structure):
             else:
                 return Y_2d
 
-        return wrapper
+        return wrapper_ensures2d
 
     def ensures_minimization(scores):
         """Convert maximization problems to minimization problems."""
         def wrap(func):
             @wraps(func)
-            def wrapper(self, *args, ensure_minimization=False, **kwargs):
+            def wrapper_ensures_minimization(self, *args, ensure_minimization=False, **kwargs):
                 s = func(self, *args, **kwargs)
 
                 if ensure_minimization:
@@ -188,7 +188,7 @@ class OptimizationProblem(Structure):
 
                 return s
 
-            return wrapper
+            return wrapper_ensures_minimization
         return wrap
 
     def transform_maximization(self, s, scores):
