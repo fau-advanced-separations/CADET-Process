@@ -11,7 +11,7 @@ from CADETProcess.dataStructure import (
     Structure, Float, List, SizedList, SizedNdArray, Polynomial, NdPolynomial
 )
 from CADETProcess.optimization import OptimizationProblem
-from optimization_problem_fixtures import (
+from tests.optimization_problem_fixtures import (
     LinearConstraintsSooTestProblem2,
     LinearEqualityConstraintsSooTestProblem
 )
@@ -330,7 +330,7 @@ class Test_OptimizationVariable(unittest.TestCase):
             )
 
 
-from test_events import TestHandler
+from tests.test_events import TestHandler
 class Test_OptimizationVariableEvents(unittest.TestCase):
 
     def __init__(self, methodName='runTest'):

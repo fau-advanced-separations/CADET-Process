@@ -5,8 +5,8 @@ import numpy as np
 from CADETProcess.optimization import OptimizationResults
 from CADETProcess.optimization import U_NSGA3
 
-from test_population import setup_population
-from test_optimization_problem import setup_optimization_problem
+from tests.test_population import setup_population
+from tests.test_optimization_problem import setup_optimization_problem
 
 
 def setup_optimization_results(
