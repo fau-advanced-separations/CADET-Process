@@ -16,7 +16,7 @@ from CADETProcess.processModel import Process
 from CADETProcess.simulator import Cadet
 
 
-from test_cadet_adapter import found_cadet
+from tests.test_cadet_adapter import found_cadet
 
 
 def setup_process(unit_type):

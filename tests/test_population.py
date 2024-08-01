@@ -4,7 +4,7 @@ import numpy as np
 
 from CADETProcess import CADETProcessError
 from CADETProcess.optimization import Individual, Population, ParetoFront
-from test_individual import setup_individual
+from tests.test_individual import setup_individual
 enable_plot = False
 
 
