@@ -546,7 +546,7 @@ class SolutionIO(SolutionBase):
             ax: Axes | None = None,
             *args,
             **kwargs,
-            ) -> Axes:
+    ) -> Axes:
         """Plot the entire time_signal for each component.
 
         Parameters
@@ -627,7 +627,7 @@ class SolutionIO(SolutionBase):
             hide_labels: bool = False,
             show_legend: bool = True,
             ax: Axes | None = None,
-            ) -> Axes:
+    ) -> Axes:
         """Plot local purity for each component of the concentration profile.
 
         Parameters
@@ -781,10 +781,17 @@ class SolutionBulk(SolutionBase):
             component_system,
             time, solution,
             axial_coordinates=None, radial_coordinates=None
-            ):
+    ):
         self.name = name
         self.component_system_original = component_system
         self.time_original = time
+
+        # Account for dimension reduction in case of only one cell (e.g. LRMP)
+        if radial_coordinates is not None and len(radial_coordinates) == 1:
+            radial_coordinates = None
+
+        if axial_coordinates is not None and len(axial_coordinates) == 1:
+            axial_coordinates = None
 
         self.axial_coordinates = axial_coordinates
         self.radial_coordinates = radial_coordinates
@@ -819,7 +826,7 @@ class SolutionBulk(SolutionBase):
             ax: Axes | None = None,
             *args,
             **kwargs,
-            ) -> Axes:
+    ) -> Axes:
         """Plot the entire time_signal for each component.
 
         Parameters
@@ -904,7 +911,7 @@ class SolutionBulk(SolutionBase):
             ax=None,
             *args,
             **kwargs,
-            ):
+    ):
         """Plot bulk solution over space at given time.
 
         Parameters
@@ -964,7 +971,7 @@ class SolutionBulk(SolutionBase):
             ax: Axes | None = None,
             *args,
             **kwargs,
-            ):
+    ):
         """Plot bulk solution over time at given position.
 
         Parameters
@@ -1053,16 +1060,23 @@ class SolutionParticle(SolutionBase):
             axial_coordinates=None,
             radial_coordinates=None,
             particle_coordinates=None
-            ):
+    ):
+
+        if axial_coordinates is not None and len(axial_coordinates) == 1:
+            axial_coordinates = None
 
         self.axial_coordinates = axial_coordinates
         # Account for dimension reduction in case of only one cell (e.g. LRMP)
+
         if radial_coordinates is not None and len(radial_coordinates) == 1:
             radial_coordinates = None
+
         self.radial_coordinates = radial_coordinates
         # Account for dimension reduction in case of only one cell (e.g. CSTR)
+
         if particle_coordinates is not None and len(particle_coordinates) == 1:
             particle_coordinates = None
+
         self.particle_coordinates = particle_coordinates
 
         super().__init__(name, component_system, time, solution)
@@ -1095,7 +1109,7 @@ class SolutionParticle(SolutionBase):
             ax=None,
             *args,
             **kwargs,
-            ):
+    ):
         """Plot bulk solution over space at given time.
 
         Parameters
@@ -1142,7 +1156,6 @@ class SolutionParticle(SolutionBase):
         plotting.add_text(ax, f'time = {t:.2f} s')
 
         return ax
-
 
     def _plot_2D(self, t, comp, vmax, ax=None):
         x = self.axial_coordinates
@@ -1225,6 +1238,8 @@ class SolutionSolid(SolutionBase):
 
         self.bound_states = bound_states
 
+        if axial_coordinates is not None and len(axial_coordinates) == 1:
+            axial_coordinates = None
         self.axial_coordinates = axial_coordinates
         # Account for dimension reduction in case of only one cell (e.g. LRMP)
         if radial_coordinates is not None and len(radial_coordinates) == 1:
@@ -1275,7 +1290,7 @@ class SolutionSolid(SolutionBase):
             ax: Axes | None = None,
             *args,
             **kwargs,
-            ) -> Axes:
+    ) -> Axes:
         """Plot the entire solid phase solution for each component.
 
         Parameters
@@ -1357,7 +1372,7 @@ class SolutionSolid(SolutionBase):
             ax: Axes | None = None,
             *args,
             **kwargs,
-            ) -> Axes:
+    ) -> Axes:
         """Plot bulk solution over space at given time.
 
         Parameters
@@ -1479,7 +1494,7 @@ class SolutionVolume(SolutionBase):
             ax: Axes | None = None,
             update_layout: bool = True,
             **kwargs
-            ) -> Axes:
+    ) -> Axes:
         """Plot the unit operation's volume over time.
 
         Parameters
@@ -1541,7 +1556,7 @@ def _plot_solution_1D(
         secondary_axis=None, secondary_layout=None,
         show_legend=True,
         update_layout=True,
-        ):
+):
 
     sol = solution.solution
     c_total_comp = solution.total_concentration_components
@@ -1676,9 +1691,9 @@ class InterpolatedSignal():
         if len(signal.shape) == 1:
             signal = np.array(signal, ndmin=2).transpose()
         self._solutions = [
-                PchipInterpolator(time, signal[:, comp])
-                for comp in range(signal.shape[1])
-                ]
+            PchipInterpolator(time, signal[:, comp])
+            for comp in range(signal.shape[1])
+        ]
         self._derivatives = [signal.derivative() for signal in self._solutions]
         self._antiderivatives = [signal.antiderivative() for signal in self._solutions]
 
