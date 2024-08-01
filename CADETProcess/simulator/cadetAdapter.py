@@ -1,3 +1,4 @@
+from CADETProcess.dataStructure import Structure, ParameterWrapper
 from collections import defaultdict
 from functools import wraps
 import os
@@ -9,6 +10,7 @@ from subprocess import TimeoutExpired
 import time
 import tempfile
 import warnings
+import re
 
 from addict import Dict
 import numpy as np
@@ -447,6 +449,45 @@ class Cadet(SimulatorBase):
 
         return results
 
+    def get_cadet_version(self) -> tuple[str, str]:
+        """
+        Get version and branch name of the currently instanced CADET build.
+
+        Returns
+        -------
+        tuple[str, str]
+            The CADET version as x.x.x and the branch name.
+
+        Raises
+        ------
+        ValueError
+            If version and branch name cannot be found in the output string.
+        RuntimeError
+            If any unhandled event during running the subprocess occurs.
+        """
+        try:
+            result = subprocess.run(
+                [self.cadet_path, '--version'],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            version_output = result.stdout.strip()
+
+            version_match = re.search(
+                r'cadet-cli version ([\d.]+) \(([^)]+)\)', version_output
+            )
+
+            if version_match:
+                cadet_version = version_match.group(1)
+                branch_name = version_match.group(2)
+                return cadet_version, branch_name
+            else:
+                raise ValueError("CADET version or branch name missing from output.")
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"Command execution failed: {e}")
+
     def get_new_cadet_instance(self):
         cadet = CadetAPI()
         # Because the initialization in __init__ isn't guaranteed to be called in multiprocessing
@@ -569,11 +610,9 @@ class Cadet(SimulatorBase):
                 particle_coordinates = \
                     unit_coordinates.pop('particle_coordinates_000', None)
 
-
                 for port in unit.ports:
 
                     port_index = self.get_port_index(process.flow_sheet, unit, port)
-
 
                     flow_in = process.flow_rate_timelines[unit.name].total_in[port]
                     flow_out = process.flow_rate_timelines[unit.name].total_out[port]
@@ -621,14 +660,14 @@ class Cadet(SimulatorBase):
                                 )
 
                         if 'solution_bulk' in unit_solution.keys():
-                                sol_bulk = unit_solution.solution_bulk[start:end,:]
-                                solution[unit.name]['bulk'].append(
-                                    SolutionBulk(
-                                        unit.name,
-                                        unit.component_system, time, sol_bulk,
-                                        **unit_coordinates
-                                    )
+                            sol_bulk = unit_solution.solution_bulk[start:end, :]
+                            solution[unit.name]['bulk'].append(
+                                SolutionBulk(
+                                    unit.name,
+                                    unit.component_system, time, sol_bulk,
+                                    **unit_coordinates
                                 )
+                            )
 
                         if 'solution_particle' in unit_solution.keys():
                             sol_particle = unit_solution.solution_particle[start:end, :]
@@ -870,8 +909,10 @@ class Cadet(SimulatorBase):
                         destination_index = flow_sheet.get_unit_index(destination)
                         if np.any(flow_rate):
 
-                            origin_port_red = flow_sheet.get_port_index(origin, origin_port)
-                            dest_port_red = flow_sheet.get_port_index(destination, dest_port)
+                            origin_port_red = flow_sheet.get_port_index(
+                                origin, origin_port)
+                            dest_port_red = flow_sheet.get_port_index(
+                                destination, dest_port)
 
                             table[enum] = []
                             table[enum].append(int(origin_index))
@@ -1259,7 +1300,6 @@ class Cadet(SimulatorBase):
         return 'CADET'
 
 
-from CADETProcess.dataStructure import Structure, ParameterWrapper
 class ModelSolverParameters(Structure):
     """Converter for model solver parameters from CADETProcess to CADET.
 
@@ -1373,7 +1413,7 @@ unit_parameters_map = {
             'COL_LENGTH': 'length',
             'CROSS_SECTION_AREA': 'cross_section_area',
             'VELOCITY': 'flow_direction',
-            },
+        },
         'fixed': {
             'TOTAL_POROSITY': 1,
         },
@@ -1400,7 +1440,7 @@ unit_parameters_map = {
             'CHANNEL_CROSS_SECTION_AREAS': 'channel_cross_section_areas',
             'EXCHANGE_MATRIX': 'exchange_matrix',
             'VELOCITY': 'flow_direction',
-         },
+        },
     },
     'Inlet': {
         'name': 'INLET',
@@ -1750,7 +1790,7 @@ reaction_parameters_map = {
             'mal_exponents_bulk_bwd': 'exponents_bwd',
             'mal_kfwd_bulk': 'k_fwd',
             'mal_kbwd_bulk': 'k_bwd',
-            }
+        }
     },
     'MassActionLawParticle': {
         'name': 'MASS_ACTION_LAW',
