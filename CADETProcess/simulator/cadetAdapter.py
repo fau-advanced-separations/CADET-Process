@@ -9,6 +9,7 @@ from subprocess import TimeoutExpired
 import time
 import tempfile
 import warnings
+import re
 
 from addict import Dict
 import numpy as np
@@ -446,6 +447,45 @@ class Cadet(SimulatorBase):
             )
 
         return results
+
+    def get_cadet_version(self) -> tuple[str, str]:
+        """
+        Get version and branch name of the currently instanced CADET build.
+
+        Returns
+        -------
+        tuple[str, str]
+            The CADET version as x.x.x and the branch name.
+
+        Raises
+        ------
+        ValueError
+            If version and branch name cannot be found in the output string.
+        RuntimeError
+            If any unhandled event during running the subprocess occurs.
+        """
+        try:
+            result = subprocess.run(
+                [self.cadet_path, '--version'],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            version_output = result.stdout.strip()
+
+            version_match = re.search(
+                r'cadet-cli version ([\d.]+) \(([^)]+)\)', version_output
+            )
+
+            if version_match:
+                cadet_version = version_match.group(1)
+                branch_name = version_match.group(2)
+                return cadet_version, branch_name
+            else:
+                raise ValueError("CADET version or branch name missing from output.")
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"Command execution failed: {e}")
 
     def get_new_cadet_instance(self):
         cadet = CadetAPI()
