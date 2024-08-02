@@ -518,6 +518,8 @@ class MobilePhaseModulator(BindingBaseClass):
     hydrophobicity : list of unsigned floats.
         Parameters describing the hydrophobicity (HIC).
         Length depends on `n_comp`.
+    linear_threshold : UnsignedFloat
+        Concentration of c0 at which to switch to linear model approximation.
     """
 
     adsorption_rate = SizedUnsignedList(size='n_comp')
@@ -527,6 +529,7 @@ class MobilePhaseModulator(BindingBaseClass):
     beta = ion_exchange_characteristic
     hydrophobicity = SizedUnsignedList(size='n_comp')
     gamma = hydrophobicity
+    linear_threshold = UnsignedFloat(default=1e-8)
 
     _parameters = [
         'adsorption_rate',
@@ -534,6 +537,7 @@ class MobilePhaseModulator(BindingBaseClass):
         'capacity',
         'ion_exchange_characteristic',
         'hydrophobicity',
+        'linear_threshold',
     ]
 
 
