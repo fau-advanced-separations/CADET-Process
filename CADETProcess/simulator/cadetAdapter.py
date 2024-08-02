@@ -1453,7 +1453,8 @@ adsorption_parameters_map = {
             'MPM_KD': 'desorption_rate',
             'MPM_QMAX': 'capacity',
             'MPM_BETA': 'ion_exchange_characteristic',
-            'MPM_GAMMA': 'hydrophobicity'
+            'MPM_GAMMA': 'hydrophobicity',
+            'MPM_LINEAR_THRESHOLD': 'linear_threshold',
         },
     },
     'ExtendedMobilePhaseModulator': {
