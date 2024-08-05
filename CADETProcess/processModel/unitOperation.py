@@ -464,7 +464,7 @@ class TubularReactorBase(UnitBaseClass):
     def cross_section_area(self, cross_section_area):
         self.diameter = (4*cross_section_area/math.pi)**0.5
 
-    def set_diameter_from_interstitial_velicity(self, Q, u0):
+    def set_diameter_from_interstitial_velocity(self, Q, u0):
         """Set diamter from flow rate and interstitial velocity.
 
         In literature, often only the interstitial velocity is given.
@@ -862,7 +862,7 @@ class LumpedRateModelWithPores(TubularReactorBase):
         """
         return self.bed_porosity * self.cross_section_area
 
-    def set_diameter_from_interstitial_velicity(self, Q, u0):
+    def set_diameter_from_interstitial_velocity(self, Q, u0):
         """Set diamter from flow rate and interstitial velocity.
 
         In literature, often only the interstitial velocity is given.
@@ -995,7 +995,7 @@ class GeneralRateModel(TubularReactorBase):
         """
         return self.bed_porosity * self.cross_section_area
 
-    def set_diameter_from_interstitial_velicity(self, Q, u0):
+    def set_diameter_from_interstitial_velocity(self, Q, u0):
         """Set diamter from flow rate and interstitial velocity.
 
         In literature, often only the interstitial velocity is given.
