@@ -16,7 +16,7 @@ from CADETProcess.dataStructure import (
 )
 
 from .componentSystem import ComponentSystem
-from .binding import BindingBaseClass, NoBinding
+from .binding import BindingBaseClass, NoBinding, MultiComponentColloidal
 from .reaction import BulkReactionBase, ParticleReactionBase, NoReaction
 from .discretization import (
     DiscretizationParametersBase, NoDiscretization,
@@ -1004,7 +1004,27 @@ class GeneralRateModel(ChromatographicColumnBase):
     pore_diffusion : List of unsigned floats. Length depends on n_comp.
         Diffusion rate for components in pore volume.
     surface_diffusion : List of unsigned floats. Length depends on n_comp.
-        Diffusion rate for components in adsrobed state.
+        Diffusion rate for components in adsorbed state.
+    surface_diffusion_dependence : Switch.
+        Parameter dependence of surface diffusion.
+        Must be one of {'NONE', 'LIQUID_SALT_EXPONENTIAL', 'LIQUID_SALT_POWER',
+        'LIQUID_SALT_COLLOIDAL_AFFINITY'}.
+    surface_diffusion_exponent_factor : List of unsigned floats.
+        Length depends on n_comp.
+        Factor in exponential law surface diffusion relation.
+    surface_diffusion_exponent_multiplier : List of floats.
+        Length depends on n_comp.
+        Multiplier in exponential law surface diffusion relation.
+    surface_diffusion_power_factor : List of unsigned floats. Length depends on n_comp.
+        Factor in power law surface diffusion relation.
+    surface_diffusion_power_exponent : List of floats. Length depends on n_comp.
+        Exponent in power law surface diffusion relation.
+    surface_diffusion_logkeq_factor : List of floats. Length depends on n_comp.
+        Factor in colloidal affinity law surface diffusion relation.
+    surface_diffusion_logkeq_exponent : List of floats. Length depends on n_comp.
+        Exponent in colloidal affinity law surface diffusion relation.
+    surface_diffusion_logkeq_constant : List of floats. Length depends on n_comp.
+        Constant in colloidal affinity law surface diffusion relation.
     c : List of unsigned floats. Length depends on n_comp
         Initial concentration of the reactor.
     cp : List of unsigned floats. Length depends on n_comp
@@ -1027,14 +1047,40 @@ class GeneralRateModel(ChromatographicColumnBase):
     pore_accessibility = SizedUnsignedList(ub=1, size='n_comp', default=1)
     pore_diffusion = SizedUnsignedList(size='n_comp')
     _surface_diffusion = SizedUnsignedList(size='n_bound_states')
+    _surface_diffusion_dependence = Switch(
+        valid=[
+            'NONE',
+            'LIQUID_SALT_EXPONENTIAL',
+            'LIQUID_SALT_POWER',
+            'LIQUID_SALT_COLLOIDAL_AFFINITY',
+        ],
+        default='NONE'
+    )
+    _surface_diffusion_exponent_factor = SizedUnsignedList(size='n_bound_states')
+    _surface_diffusion_exponent_multiplier = SizedList(size='n_bound_states')
+    _surface_diffusion_power_factor = SizedUnsignedList(size='n_bound_states')
+    _surface_diffusion_power_exponent = SizedList(size='n_bound_states')
+    _surface_diffusion_logkeq_factor = SizedList(size='n_bound_states')
+    _surface_diffusion_logkeq_exponent = SizedList(size='n_bound_states')
+    _surface_diffusion_logkeq_constant = SizedList(size='n_bound_states')
     _parameters = [
         'bed_porosity', 'particle_porosity', 'particle_radius',
         'film_diffusion', 'pore_accessibility',
-        'pore_diffusion', 'surface_diffusion'
+        'pore_diffusion', 'surface_diffusion',
+        'surface_diffusion_dependence',
+        'surface_diffusion_exponent_factor', 'surface_diffusion_exponent_multiplier',
+        'surface_diffusion_power_factor', 'surface_diffusion_power_exponent',
+        'surface_diffusion_logkeq_factor', 'surface_diffusion_logkeq_exponent',
+        'surface_diffusion_logkeq_constant'
     ]
     _section_dependent_parameters = \
         TubularReactorBase._section_dependent_parameters + \
-        ['film_diffusion', 'pore_accessibility', 'pore_diffusion', 'surface_diffusion']
+        ['film_diffusion', 'pore_accessibility', 'pore_diffusion', 'surface_diffusion',
+         'surface_diffusion_dependence', 'surface_diffusion_exponent_factor',
+         'surface_diffusion_exponent_multiplier', 'surface_diffusion_power_factor',
+         'surface_diffusion_power_exponent', 'surface_diffusion_logkeq_factor',
+         'surface_diffusion_logkeq_exponent', 'surface_diffusion_logkeq_constant'
+         ]
 
     _cp = SizedUnsignedList(size='n_comp')
     _q = SizedUnsignedList(size='n_bound_states', default=0)
@@ -1130,6 +1176,135 @@ class GeneralRateModel(ChromatographicColumnBase):
         self._surface_diffusion = surface_diffusion
 
         self.parameters['_surface_diffusion'] = surface_diffusion
+
+    @property
+    def surface_diffusion_dependence(self):
+        return self._surface_diffusion_dependence
+
+    @surface_diffusion_dependence.setter
+    def surface_diffusion_dependence(self, surface_diffusion_dependence):
+        if isinstance(self.binding_model, NoBinding):
+            raise CADETProcessError(
+                "Cannot set surface diffusion dependence without binding model."
+            )
+        if (
+                surface_diffusion_dependence == 'LIQUID_SALT_COLLOIDAL_AFFINITY'
+                and
+                not isinstance(self.binding_model, MultiComponentColloidal)
+                ):
+            raise CADETProcessError(
+                "Can only set surface diffusion dependence to "
+                "`LIQUID_SALT_COLLOIDAL_AFFINITY` if binding model is "
+                "`MultiComponentColloidal`."
+            )
+        self._surface_diffusion_dependence = surface_diffusion_dependence
+
+        self.parameters['surface_diffusion_dependence'] = surface_diffusion_dependence
+
+    @property
+    def surface_diffusion_exponent_factor(self):
+        return self._surface_diffusion_exponent_factor
+
+    @surface_diffusion_exponent_factor.setter
+    def surface_diffusion_exponent_factor(self, surface_diffusion_exponent_factor):
+        if self._surface_diffusion_dependence != 'LIQUID_SALT_EXPONENTIAL':
+            raise CADETProcessError(
+                "Cannot set surface_diffusion_exponent_factor if "
+                "`surface_diffusion_dependence` is not `LIQUID_SALT_EXPONENTIAL`."
+            )
+        self._surface_diffusion_exponent_factor = surface_diffusion_exponent_factor
+
+        self.parameters['surface_diffusion_exponent_factor'] = surface_diffusion_exponent_factor
+
+    @property
+    def surface_diffusion_exponent_multiplier(self):
+        return self._surface_diffusion_exponent_multiplier
+
+    @surface_diffusion_exponent_multiplier.setter
+    def surface_diffusion_exponent_multiplier(self, surface_diffusion_exponent_multiplier):
+        if self._surface_diffusion_dependence != 'LIQUID_SALT_EXPONENTIAL':
+            raise CADETProcessError(
+                "Cannot set `surface_diffusion_exponent_multiplier` if "
+                "`surface_diffusion_dependence` is not `LIQUID_SALT_EXPONENTIAL`."
+            )
+        self._surface_diffusion_exponent_multiplier = surface_diffusion_exponent_multiplier
+
+        self.parameters['surface_diffusion_exponent_multiplier'] = surface_diffusion_exponent_multiplier
+
+    @property
+    def surface_diffusion_power_factor(self):
+        return self._surface_diffusion_power_factor
+
+    @surface_diffusion_power_factor.setter
+    def surface_diffusion_power_factor(self, surface_diffusion_power_factor):
+        if self._surface_diffusion_dependence != 'LIQUID_SALT_POWER':
+            raise CADETProcessError(
+                "Cannot set `surface_diffusion_power_factor` if "
+                "`surface_diffusion_dependence` is not 'LIQUID_SALT_POWER'."
+            )
+        self._surface_diffusion_power_factor = surface_diffusion_power_factor
+
+        self.parameters['surface_diffusion_power_factor'] = surface_diffusion_power_factor
+
+    @property
+    def surface_diffusion_power_exponent(self):
+        return self._surface_diffusion_power_exponent
+
+    @surface_diffusion_power_exponent.setter
+    def surface_diffusion_power_exponent(self, surface_diffusion_power_exponent):
+        if self._surface_diffusion_dependence != 'LIQUID_SALT_POWER':
+            raise CADETProcessError(
+                "Cannot set `surface_diffusion_power_exponent` if "
+                "`surface_diffusion_dependence` is not `LIQUID_SALT_POWER`."
+            )
+        self._surface_diffusion_power_exponent = surface_diffusion_power_exponent
+
+        self.parameters['surface_diffusion_power_exponent'] = surface_diffusion_power_exponent
+
+    @property
+    def surface_diffusion_logkeq_factor(self):
+        return self._surface_diffusion_logkeq_factor
+
+    @surface_diffusion_logkeq_factor.setter
+    def surface_diffusion_logkeq_factor(self, surface_diffusion_logkeq_factor):
+        if self._surface_diffusion_dependence != 'LIQUID_SALT_COLLOIDAL_AFFINITY':
+            raise CADETProcessError(
+                "Cannot set `surface_diffusion_logkeq_factor` if "
+                "`surface_diffusion_dependence` is not `LIQUID_SALT_COLLOIDAL_AFFINITY`."
+            )
+        self._surface_diffusion_logkeq_factor = surface_diffusion_logkeq_factor
+
+        self.parameters['surface_diffusion_logkeq_factor'] = surface_diffusion_logkeq_factor
+
+    @property
+    def surface_diffusion_logkeq_exponent(self):
+        return self._surface_diffusion_logkeq_exponent
+
+    @surface_diffusion_logkeq_exponent.setter
+    def surface_diffusion_logkeq_exponent(self, surface_diffusion_logkeq_exponent):
+        if self._surface_diffusion_dependence != 'LIQUID_SALT_COLLOIDAL_AFFINITY':
+            raise CADETProcessError(
+                "Cannot set `surface_diffusion_logkeq_exponent` if "
+                "`surface_diffusion_dependence` is not `LIQUID_SALT_COLLOIDAL_AFFINITY`."
+            )
+        self._surface_diffusion_logkeq_exponent = surface_diffusion_logkeq_exponent
+
+        self.parameters['surface_diffusion_logkeq_exponent'] = surface_diffusion_logkeq_exponent
+
+    @property
+    def surface_diffusion_logkeq_constant(self):
+        return self._surface_diffusion_logkeq_constant
+
+    @surface_diffusion_logkeq_constant.setter
+    def surface_diffusion_logkeq_constant(self, surface_diffusion_logkeq_constant):
+        if self._surface_diffusion_dependence != 'LIQUID_SALT_COLLOIDAL_AFFINITY':
+            raise CADETProcessError(
+                "Cannot set `surface_diffusion_logkeq_constant` if "
+                "`surface_diffusion_dependence` is not `LIQUID_SALT_COLLOIDAL_AFFINITY`."
+            )
+        self._surface_diffusion_logkeq_constant = surface_diffusion_logkeq_constant
+
+        self.parameters['surface_diffusion_logkeq_constant'] = surface_diffusion_logkeq_constant
 
 
 class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
