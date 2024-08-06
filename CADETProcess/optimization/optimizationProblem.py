@@ -1635,11 +1635,10 @@ class OptimizationProblem(Structure):
 
                 try:
                     self._evaluate(ind.x_transformed, callback, force, untransform=True)
-                except CADETProcessError:
+                except CADETProcessError as e:
                     self.logger.warning(
-                        f'Evaluation of {callback} failed at {ind.x}.'
+                        f'Evaluation of {callback} failed at {ind.x} with Error "{e}".'
                     )
-
         parallelization_backend.evaluate(evaluate_callbacks, population)
 
     def evaluate_callbacks_population(self, *args, **kwargs):
