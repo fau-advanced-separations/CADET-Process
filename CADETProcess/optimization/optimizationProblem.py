@@ -5,7 +5,7 @@ import math
 from pathlib import Path
 import random
 import shutil
-from typing import NoReturn, Any
+from typing import Any, Optional, NoReturn
 import uuid
 import warnings
 
@@ -1420,13 +1420,20 @@ class OptimizationProblem(Structure):
 
     @untransforms
     @gets_dependent_values
-    def check_nonlinear_constraints(self, x):
+    def check_nonlinear_constraints(
+            self,
+            x: npt.ArrayLike,
+            cv_nonlincon_tol: Optional[float | np.ndarray] = 0.0
+            ) -> bool:
         """Check if all nonlinear constraints are met.
 
         Parameters
         ----------
-        x : array_like
+        x : npt.ArrayLike
             Value of the optimization variables in untransformed space.
+        cv_nonlincon_tol : float or np.ndarray, optional
+            Tolerance for checking the nonlinear constraints. If a scalar is provided,
+            the same value is used for all constraints. Default is 0.0.
 
         Returns
         -------
@@ -1434,10 +1441,23 @@ class OptimizationProblem(Structure):
             True if all nonlinear constraints violation are smaller or equal to zero,
             False otherwise.
 
+        Raises
+        ------
+        ValueError
+            If length of `cv_nonlincon_tol` does not match the number of constraints.
         """
         cv = np.array(self.evaluate_nonlinear_constraints_violation(x))
 
-        if np.any(cv > 0):
+        if np.isscalar(cv_nonlincon_tol):
+            cv_nonlincon_tol = np.repeat(cv_nonlincon_tol, self.n_nonlinear_constraints)
+
+        if len(cv_nonlincon_tol) != self.n_nonlinear_constraints:
+            raise ValueError(
+                f"Length of `cv_nonlincon_tol` ({len(cv_nonlincon_tol)}) does not "
+                f"match number of constraints ({self.n_nonlinear_constraints})."
+            )
+
+        if np.any(cv > cv_nonlincon_tol):
             return False
         return True
 
@@ -2020,27 +2040,48 @@ class OptimizationProblem(Structure):
 
     @untransforms
     @gets_dependent_values
-    def check_bounds(self, x):
+    def check_bounds(
+            self,
+            x: npt.ArrayLike,
+            cv_bounds_tol: Optional[float | np.ndarray] = 0.0
+            ) -> bool:
         """Check if all bound constraints are kept.
 
         Parameters
         ----------
-        x : array_like
+        x : npt.ArrayLike
             Value of the optimization variables in untransformed space.
+        cv_bounds_tol : float or np.ndarray, optional
+            Tolerance for checking the bound constraints. If a scalar is provided,
+            the same value is used for all variables. Default is 0.0.
 
         Returns
         -------
-        flag : Bool
-            True, if all values are within the bounds. False otherwise.
+        flag : bool
+            True if all nonlinear constraints violation are smaller or equal to zero,
+            False otherwise.
 
+        Raises
+        ------
+        ValueError
+            If length of `cv_bounds_tol` does not match the number of variables.
         """
         flag = True
 
         values = np.array(x, ndmin=1)
 
-        if np.any(np.less(values, self.lower_bounds)):
+        if np.isscalar(cv_bounds_tol):
+            cv_bounds_tol = np.repeat(cv_bounds_tol, self.n_variables)
+
+        if len(cv_bounds_tol) != self.n_variables:
+            raise ValueError(
+                f"Length of `cv_bounds_tol` ({len(cv_bounds_tol)}) does not match "
+                f"number of variables ({self.n_variables})."
+            )
+
+        if np.any(np.less(values, self.lower_bounds - cv_bounds_tol)):
             flag = False
-        if np.any(np.greater(values, self.upper_bounds)):
+        if np.any(np.greater(values, self.upper_bounds + cv_bounds_tol)):
             flag = False
 
         return flag
@@ -2295,18 +2336,30 @@ class OptimizationProblem(Structure):
 
     @untransforms
     @gets_dependent_values
-    def check_linear_constraints(self, x):
+    def check_linear_constraints(
+            self,
+            x: npt.ArrayLike,
+            cv_lincon_tol: Optional[float | np.ndarray] = 0.0
+            ) -> bool:
         """Check if linear inequality constraints are met at point x.
 
         Parameters
         ----------
-        x : array_like
+        x : npt.ArrayLike
             Value of the optimization variables in untransformed space.
+        cv_lincon_tol : float or np.ndarray, optional
+            Tolerance for checking the linear constraints. If a scalar is provided,
+            the same value is used for all constraints. Default is 0.0.
 
         Returns
         -------
         flag : bool
             True if linear inequality constraints are met. False otherwise.
+
+        Raises
+        ------
+        ValueError
+            If the length of `cv_lincon_tol` does not match the number of constraints.
 
         See Also
         --------
@@ -2314,11 +2367,21 @@ class OptimizationProblem(Structure):
         evaluate_linear_constraints
         A
         b
-
         """
         flag = True
 
-        if np.any(self.evaluate_linear_constraints(x) > 0):
+        linear_constraints_values = self.evaluate_linear_constraints(x)
+
+        if np.isscalar(cv_lincon_tol):
+            cv_lincon_tol = np.repeat(cv_lincon_tol, self.n_linear_constraints)
+
+        if len(cv_lincon_tol) != self.n_linear_constraints:
+            raise ValueError(
+                f"Length of `cv_lincon_tol` ({len(cv_lincon_tol)}) does not match "
+                f"number of constraints ({self.n_linear_constraints})."
+            )
+
+        if np.any(linear_constraints_values > cv_lincon_tol):
             flag = False
 
         return flag
@@ -2583,24 +2646,45 @@ class OptimizationProblem(Structure):
 
     @untransforms
     @gets_dependent_values
-    def check_linear_equality_constraints(self, x):
+    def check_linear_equality_constraints(
+            self,
+            x: npt.ArrayLike,
+            cv_lineq_tol: Optional[float | np.ndarray] = 0.0
+            ) -> bool:
         """Check if linear equality constraints are met at point x.
 
         Parameters
         ----------
-        x : array_like
+        x : npt.ArrayLike
             Value of the optimization variables in untransformed space.
+        cv_lineq_tol : float or np.ndarray, optional
+            Tolerance for checking linear equality constraints. If a scalar is provided,
+            the same value is used for all constraints. Default is 0.0.
 
         Returns
         -------
         flag : bool
             True if linear equality constraints are met. False otherwise.
 
+        Raises
+        ------
+        ValueError
+            If length of `cv_lineq_tol` does not match the number of constraints.
         """
         flag = True
 
         lhs = self.evaluate_linear_equality_constraints(x)
-        if np.any(np.abs(lhs) > self.eps_lineq):
+
+        if np.isscalar(cv_lineq_tol):
+            cv_lineq_tol = np.repeat(cv_lineq_tol, len(lhs))
+
+        if len(cv_lineq_tol) != self.n_linear_equality_constraints:
+            raise ValueError(
+                f"Length of `cv_lineq_tol` ({len(cv_lineq_tol)}) does not match "
+                f"number of constraints ({self.n_linear_equality_constraints})."
+            )
+
+        if np.any(np.abs(lhs) > self.eps_lineq - cv_lineq_tol):
             flag = False
 
         return flag
@@ -3190,41 +3274,53 @@ class OptimizationProblem(Structure):
     def check_individual(
             self,
             x: npt.ArrayLike,
-            check_nonlinear_constraints=False,
+            cv_bounds_tol: Optional[float | np.ndarray] = 0.0,
+            cv_lincon_tol: Optional[float | np.ndarray] = 0.0,
+            cv_lineqcon_tol: Optional[float | np.ndarray] = 0.0,
+            check_nonlinear_constraints: bool = False,
+            cv_nonlincon_tol: Optional[float | np.ndarray] = 0.0,
             silent: bool = False,
             ) -> bool:
-        """Check if individual is valid.
+        """
+        Check if individual is valid.
 
         Parameters
         ----------
-        x : array_like
+        x : npt.ArrayLike
             Value of the optimization variables in untransformed space.
+        cv_bounds_tol : float or np.ndarray, optional
+            Tolerance for checking the bound constraints. Default is 0.0.
+        cv_lincon_tol : float or np.ndarray, optional
+            Tolerance for checking the linear inequality constraints. Default is 0.0.
+        cv_lineqcon_tol : float or np.ndarray, optional
+            Tolerance for checking the linear equality constraints. Default is 0.0.
         check_nonlinear_constraints : bool, optional
-            if True, also check nonlinear constraints. The default is True.
-            Note, depending on the nonlinear constraints, this can be an expensive
-            operations.
+            If True, also check nonlinear constraints. Note that depending on the
+            nonlinear constraints, this can be an expensive operation.
+            The default is False.
+        cv_nonlincon_tol : float or np.ndarray, optional
+            Tolerance for checking the nonlinear constraints. Default is 0.0.
         silent : bool, optional
-            if True, suppress warnings. The default is False.
+            If True, suppress warnings. The default is False.
 
         Returns
         -------
         bool
             True if the individual is valid, False otherwise.
-
         """
         flag = True
 
-        if not self.check_bounds(x):
+        if not self.check_bounds(x, cv_bounds_tol):
             if not silent:
                 warnings.warn("Individual does not satisfy bounds.")
             flag = False
 
-        if not self.check_linear_constraints(x):
+        if not self.check_linear_constraints(x, cv_lincon_tol):
             if not silent:
                 warnings.warn("Individual does not satisfy linear constraints.")
             flag = False
 
-        if not self.check_linear_equality_constraints(x):
+        if not self.check_linear_equality_constraints(x, cv_lineqcon_tol):
             if not silent:
                 warnings.warn(
                     "Individual does not satisfy linear equality constraints."
@@ -3232,7 +3328,7 @@ class OptimizationProblem(Structure):
             flag = False
 
         if check_nonlinear_constraints:
-            if not self.check_nonlinear_constraints(x):
+            if not self.check_nonlinear_constraints(x, cv_nonlincon_tol):
                 flag = False
                 if not silent:
                     warnings.warn("Individual does not satisfy nonlinear constraints.")
