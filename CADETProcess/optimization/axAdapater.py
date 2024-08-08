@@ -25,6 +25,7 @@ from botorch.acquisition.analytic import (
     LogExpectedImprovement
 )
 
+from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import UnsignedInteger, Typed, Float
 from CADETProcess.optimization.optimizationProblem import OptimizationProblem
 from CADETProcess.optimization import OptimizerBase
@@ -424,6 +425,14 @@ class AxInterface(OptimizerBase):
 
         n_iter = self.results.n_gen
         n_evals = self.results.n_evals
+
+        global_stopping_message = None
+
+        if n_evals >= self.n_max_evals:
+            raise CADETProcessError(
+                f"Initial number of evaluations exceeds `n_max_evals` "
+                f"({self.n_max_evals})."
+            )
 
         with manual_seed(seed=self.seed):
             while not (n_evals >= self.n_max_evals or n_iter >= self.n_max_iter):
