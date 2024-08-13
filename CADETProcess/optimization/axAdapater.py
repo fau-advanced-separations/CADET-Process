@@ -1,5 +1,7 @@
-from typing import Union, Dict, Any
+from collections import defaultdict
+from typing import Union, Dict, Any, Iterable, Set, Callable
 import warnings
+from logging import Logger
 
 import pandas as pd
 import numpy as np
@@ -14,24 +16,36 @@ from ax import (
 
 from ax.global_stopping.strategies.improvement import ImprovementGlobalStoppingStrategy
 from ax.core.metric import MetricFetchResult, MetricFetchE
-from ax.core.base_trial import BaseTrial
+from ax.core.base_trial import BaseTrial, TrialStatus
+from ax.core.batch_trial import BatchTrial
 from ax.models.torch.botorch_defaults import get_qLogNEI
 from ax.models.torch.botorch_modular.surrogate import Surrogate
 from ax.utils.common.result import Err, Ok
 from ax.service.utils.report_utils import exp_to_df
+from ax.service.utils.scheduler_options import TrialType
+from ax.modelbridge.dispatch_utils import (
+    calculate_num_initialization_trials,
+    choose_generation_strategy
+)
+from ax.utils.common.logger import get_logger
+
 from botorch.utils.sampling import manual_seed
 from botorch.models.gp_regression import FixedNoiseGP
 from botorch.acquisition.analytic import (
     LogExpectedImprovement
 )
 
-from CADETProcess.dataStructure import UnsignedInteger, Typed, Float
+from CADETProcess.dataStructure import UnsignedInteger, Typed, Float, Bool
 from CADETProcess.optimization.optimizationProblem import OptimizationProblem
 from CADETProcess.optimization import OptimizerBase
 from CADETProcess.optimization.parallelizationBackend import (
     SequentialBackend,
     ParallelizationBackendBase
 )
+
+logger: Logger = get_logger(__name__)
+
+
 __all__ = [
     "GPEI",
     "BotorchModular",
@@ -78,20 +92,42 @@ class CADETProcessMetric(Metric):
 
 
 class CADETProcessRunner(Runner):
+    """The way Ax intends the use of the components, a runner should dispatch
+    or launch the evaluation of a trial. This can be scheduled on a remote or
+    launched
+    """
     def __init__(
             self,
             optimization_problem: OptimizationProblem,
-            parallelization_backend: ParallelizationBackendBase
+            parallelization_backend: ParallelizationBackendBase,
+            post_processing: Callable,
     ) -> None:
         self.optimization_problem = optimization_problem
         self.parallelization_backend = parallelization_backend
+        self.post_processing = post_processing
 
     @property
     def staging_required(self) -> bool:
         return False
 
-    def run(self, trial: BaseTrial) -> Dict[str, Any]:
+    def poll_trial_status(
+        self, trials: Iterable[BaseTrial]
+    ) -> Dict[TrialStatus, Set[int]]:
+        """
+        This just returns that all trials have been completed, because the runner
+        directly runs the experiment. If the runner itself launches a job
+        that may not be finished after the run method call has been completed,
+        this needs to query whether the evaluations have been terminated
+        https://ax.dev/api/_modules/ax/runners/synthetic.html#SyntheticRunner
+        """
+        return {TrialStatus.COMPLETED: {t.index for t in trials}}
+
+    def run(self, trial: Union[BaseTrial,BatchTrial]) -> Dict[str, Any]:
         # Get X from arms.
+        logger.info(
+            f"Running {type(trial).__name__} with {len(trial.arms)} arms "+
+            f"With the {self.parallelization_backend}"
+        )
         X = []
         for arm in trial.arms:
             x = np.array(list(arm.parameters.values()))
@@ -107,6 +143,8 @@ class CADETProcessRunner(Runner):
         objective_labels = self.optimization_problem.objective_labels
         obj_fun = self.optimization_problem.evaluate_objectives
 
+        # If I understand runners, correctly, this could be a dispatched
+        # call to a remote instance.
         F = obj_fun(
             X,
             untransform=True,
@@ -114,11 +152,15 @@ class CADETProcessRunner(Runner):
             parallelization_backend=self.parallelization_backend
         )
 
+
         # Calculate nonlinear constraints
         # Explore if adding a small amount of noise to the result helps BO
         if self.optimization_problem.n_nonlinear_constraints > 0:
             nonlincon_cv_fun = self.optimization_problem.evaluate_nonlinear_constraints_violation
             nonlincon_labels = self.optimization_problem.nonlinear_constraint_labels
+
+
+            G = None
 
             CV = nonlincon_cv_fun(
                 X,
@@ -126,11 +168,34 @@ class CADETProcessRunner(Runner):
                 parallelization_backend=self.parallelization_backend
             )
 
+            raise NotImplementedError(
+                "Are CV the violations or the constraint functions?"+
+                "This must be modified in the post_processing call" +
+                "And potentially in the get_metadata function"
+            )
+
         else:
+            G = None
             CV = None
             nonlincon_labels = None
 
+        for x, f in zip(X, F):
+            logger.info(f"CADET-Process results: x={x}, f={f}")
+        # TODO: Are there conditions where we should mark a trial as failed
+        #       This will not be considered in the surrogate model fitting
+
+        logger.info(f"CADET-Process post-processing results")
+        # self._post_processing(trial, trial_metadata)
+        self.post_processing(
+            X_transformed=X,
+            F_minimized=F,
+            G=G,
+            CV=CV,
+            current_generation=trial.index,
+            X_opt_transformed=None,
+        )
         # Update trial information with results.
+        # this would normally be retrieved differently I think
         trial_metadata = self.get_metadata(
             trial, F, objective_labels, CV, nonlincon_labels
         )
@@ -171,11 +236,13 @@ class AxInterface(OptimizerBase):
     early_stopping_improvement_bar = Float(default=1e-10)
     n_init_evals = UnsignedInteger(default=10)
     n_max_evals = UnsignedInteger(default=100)
+    batch_trials = Bool(default=False)
     seed = UnsignedInteger(default=12345)
 
     _specific_options = [
         'n_init_evals',
-        'n_max_evals,'
+        'n_max_evals',
+        'batch_trials',
         'seed',
         'early_stopping_improvement_window',
         'early_stopping_improvement_bar',
@@ -263,75 +330,70 @@ class AxInterface(OptimizerBase):
         nonlincon_labels = self.optimization_problem.nonlinear_constraint_labels
         return CADETProcessRunner.get_metadata(trial, F, objective_labels, G, nonlincon_labels)
 
-    def _create_manual_trial(self, X):
+    def _restore_trials_from_checkoint(self):
+        for pop in self.results.populations:
+            X, F, G = pop.x, pop.f, pop.g
+            raise NotImplementedError(
+                "This seems not right. Currently all trials are evaluated again "+
+                "to add the data."
+            )
+            trial = self._create_manual_trial(X)
+            trial.mark_running(no_runner_required=True)
+
+            trial_data = self._create_manual_data(trial, F, G)
+            trial.run_metadata.update(trial_data)
+            trial.mark_completed()
+
+    def _create_manual_trial(self, x):
         """Create trial from pre-evaluated data."""
         variables = self.optimization_problem.independent_variable_names
 
-        for i, x in enumerate(X):
-            trial = self.ax_experiment.new_trial()
-            trial_data = {
-                "input": {var: x_i for var, x_i in zip(variables, x)},
-            }
+        # for i, x in enumerate(X):
+        trial = self.ax_experiment.new_trial()
+        trial_data = {
+            "input": {var: x_i for var, x_i in zip(variables, x)},
+        }
 
-            arm_name = f"{trial.index}_{0}"
-            trial.add_arm(Arm(parameters=trial_data["input"], name=arm_name))
-            trial.run()
-            trial.mark_completed()
-            self._post_processing(trial)
+        arm_name = f"{trial.index}_{0}"
+        trial.add_arm(Arm(parameters=trial_data["input"], name=arm_name))
+        trial.run()
+        trial.mark_completed()
 
-            # When returning to batch trials, the Arms can be initialized here
-            # and then collectively returned. See commit history
+        return trial
 
-    def _post_processing(self, trial):
-        """
-        ax holds the data of the model in a dataframe
-        an experiment consists of trials which consist of arms
-        in a sequential experiment, each trial only has one arm.
-        Arms are evaluated. These hold the parameters.
-        """
-        op = self.optimization_problem
+    def _create_initial_trials(self, x0):
+        if x0 is not None:
 
-        # get the trial level data as a dataframe
-        trial_data = self.ax_experiment.fetch_trials_data([trial.index])
-        data = trial_data.df
+            X0_init = np.array(x0, ndmin=2)
 
-        # DONE: Update for multi-processing. If n_cores > 1: len(arms) > 1 (oder @Flo?)
-        X = np.array([list(arm.parameters.values()) for arm in trial.arms])
-        objective_labels = [f"{obj_name}_axidx_{i}" for i, obj_name in enumerate(op.objective_labels)]
+            if len(X0_init) < self.n_init_evals:
+                warnings.warn(
+                    "Initial population smaller than popsize. "+
+                    "Creating missing entries."
+                )
+                n_remaining = self.n_init_evals - len(X0_init)
+                X0_remaining = self.optimization_problem.create_initial_values(
+                    n_remaining, seed=self.seed, include_dependent_variables=False
+                )
+                X0_init = np.vstack((X0_init, X0_remaining))
+            elif len(X0_init) > self.n_init_evals:
+                warnings.warn("Initial population larger than popsize. Omitting overhead.")
+                X0_init = X0_init[0:self.n_init_evals]
 
-        n_ind = len(X)
-
-        # Get objective values
-        F_data = data[data['metric_name'].isin(objective_labels)]
-        assert np.all(F_data["metric_name"].values == np.repeat(objective_labels, len(X)).astype(object))
-        F = F_data["mean"].values.reshape((op.n_objectives, n_ind)).T
-
-        # Get nonlinear constraint values
-        if op.n_nonlinear_constraints > 0:
-            nonlincon_labels = [f"{name}_axidx_{i}" for i, name in enumerate(op.nonlinear_constraint_labels)]
-            G_data = data[data['metric_name'].isin(nonlincon_labels)]
-            assert np.all(G_data["metric_name"].values.tolist() == np.repeat(nonlincon_labels, len(X)))
-            G = G_data["mean"].values.reshape((op.n_nonlinear_constraints, n_ind)).T
-
-            nonlincon_cv_fun = op.evaluate_nonlinear_constraints_violation
-            CV = nonlincon_cv_fun(X, untransform=True)
         else:
-            G = None
-            CV = None
+            # Create initial samples if they are not provided
+            X0_init = self.optimization_problem.create_initial_values(
+                n_samples=self.n_init_evals,
+                include_dependent_variables=False,
+                seed=self.seed + 5641,
+            )
 
-        # Ideally, the current optimum w.r.t. single and multi objective can be
-        # obtained at this point and passed to run_post_processing.
-        # with X_opt_transformed. Implementation is pending.
-        # See: https://github.com/fau-advanced-separations/CADET-Process/issues/53
+        X0_init_transformed = np.array(self.optimization_problem.transform(X0_init))
 
-        self.run_post_processing(
-            X_transformed=X,
-            F_minimized=F,
-            G=G,
-            CV=CV,
-            current_generation=self.ax_experiment.num_trials,
-            X_opt_transformed=None,
-        )
+        for x0_init in X0_init_transformed:
+            self._create_manual_trial(x0_init)
+
+        print(exp_to_df(self.ax_experiment))
 
     def _setup_model(self):
         """constructs a pre-instantiated `Model` class that specifies the
@@ -358,7 +420,8 @@ class AxInterface(OptimizerBase):
 
         runner = CADETProcessRunner(
             optimization_problem=self.optimization_problem,
-            parallelization_backend=SequentialBackend()
+            parallelization_backend=SequentialBackend(),
+            post_processing=self.run_post_processing
         )
 
         self.global_stopping_strategy = ImprovementGlobalStoppingStrategy(
@@ -375,95 +438,68 @@ class AxInterface(OptimizerBase):
             runner=runner,
         )
 
-        # Internal storage for tracking data
-        self._data = self.ax_experiment.fetch_data()
+        suggested_init_trials = calculate_num_initialization_trials(
+            num_tunable_parameters=len(search_space.tunable_parameters),
+            num_trials=self.n_max_evals,
+            use_batch_trials=self.batch_trials
+        )
+        if suggested_init_trials < self.n_init_evals:
+            warnings.warn(
+                f"The number of initial evaluations (trials) "+
+                f"n_init_evals={self.n_init_evals} to start the Bayesian "+
+                "optimization algorithm is lower than the suggested number "+
+                f"of initialization trials ({suggested_init_trials})."
+            )
+
+        # this could be interesting. This can also be manually defined with the
+        # GenerationStrategy, which is a list of steps to be taken [Sobol, BO]
+        # Here for instance the automated
+        gs = choose_generation_strategy(
+            search_space=search_space,
+            optimization_config=optimization_config,
+            num_trials=self.n_max_evals,
+            num_initialization_trials=self.n_init_evals,
+            use_batch_trials=self.batch_trials,
+            # reduce the number of trials by the number of init evals that is
+            # computed
+            num_completed_initialization_trials=self.n_init_evals,
+            max_parallelism_cap=1,
+        )
+
+        from ax.service.scheduler import Scheduler, SchedulerOptions
+        # https://pytorch.org/tutorials/intermediate/ax_multiobjective_nas_tutorial.html#configuring-the-scheduler
+        scheduler = Scheduler(
+            experiment=self.ax_experiment,
+            generation_strategy=gs,
+            options=SchedulerOptions(
+                trial_type=TrialType.BATCH_TRIAL if self.batch_trials else TrialType.TRIAL,
+                batch_size=3,
+                total_trials=self.n_max_evals,
+
+                # TODO: What is max_pending_trials responsible for (this was taken from the tutorial)
+                max_pending_trials=4
+            ),
+        )
 
         # Restore previous results from checkpoint
         if len(self.results.populations) > 0:
-            for pop in self.results.populations:
-                X, F, G = pop.x, pop.f, pop.g
-                trial = self._create_manual_trial(X)
-                trial.mark_running(no_runner_required=True)
-
-                trial_data = self._create_manual_data(trial, F, G)
-                trial.run_metadata.update(trial_data)
-                trial.mark_completed()
+            self._restore_trials_from_checkoint()
 
         else:
-            if x0 is not None:
+            self._create_initial_trials(x0=x0)
 
-                x0_init = np.array(x0, ndmin=2)
 
-                if len(x0_init) < self.n_init_evals:
-                    warnings.warn(
-                        "Initial population smaller than popsize. "
-                        "Creating missing entries."
-                    )
-                    n_remaining = self.n_init_evals - len(x0_init)
-                    x0_remaining = optimization_problem.create_initial_values(
-                        n_remaining, seed=self.seed, include_dependent_variables=False
-                    )
-                    x0_init = np.vstack((x0_init, x0_remaining))
-                elif len(x0_init) > self.n_init_evals:
-                    warnings.warn("Initial population larger than popsize. Omitting overhead.")
-                    x0_init = x0_init[0:self.n_init_evals]
+        # Internal storage for tracking data
+        self._data = self.ax_experiment.fetch_data()
 
-            else:
-                # Create initial samples if they are not provided
-                x0_init = self.optimization_problem.create_initial_values(
-                    n_samples=self.n_init_evals,
-                    include_dependent_variables=False,
-                    seed=self.seed + 5641,
-                )
 
-            x0_init_transformed = np.array(optimization_problem.transform(x0_init))
-            self._create_manual_trial(x0_init_transformed)
-            print(exp_to_df(self.ax_experiment))
-
-        self.n_iter = self.results.n_gen
-        self.n_evals = self.results.n_evals
-        global_stopping_message = None
-
-        with manual_seed(seed=self.seed):
-            while not (self.n_evals >= self.n_max_evals or self.n_iter >= self.n_max_iter):
-                # Reinitialize GP+EI model at each step with updated data.
-                modelbridge = self.train_model()
-
-                print(f"Running optimization trial {self.n_evals + 1}/{self.n_max_evals}...")
-
-                # samples can be accessed here by sample_generator.arms:
-                sample_generator = modelbridge.gen(n=1)
-
-                # A staging phase can be implemented here if needed.
-                # See: https://github.com/fau-advanced-separations/CADET-Process/issues/53
-
-                # The strategy itself will check if enough trials have already been
-                # completed.
-                (
-                    stop_optimization,
-                    global_stopping_message,
-                ) = self.global_stopping_strategy.should_stop_optimization(
-                    experiment=self.ax_experiment
-                )
-
-                if stop_optimization:
-                    print(global_stopping_message)
-                    break
-
-                trial = self.ax_experiment.new_trial(generator_run=sample_generator)
-                trial.run()
-
-                trial.mark_completed()
-                self._post_processing(trial)
-
-                self.n_iter += 1
-                self.n_evals += len(trial.arms)
+        result = scheduler.run_all_trials()
 
         print(exp_to_df(self.ax_experiment))
 
         self.results.success = True
         self.results.exit_flag = 0
-        self.results.exit_message = global_stopping_message
+        # self.results.exit_message = global_stopping_message
 
 
 class SingleObjectiveAxInterface(AxInterface):
