@@ -1,3 +1,4 @@
+from CADETProcess.dataStructure import Structure, ParameterWrapper
 from collections import defaultdict
 from functools import wraps
 import os
@@ -1333,7 +1334,6 @@ class Cadet(SimulatorBase):
         return 'CADET'
 
 
-from CADETProcess.dataStructure import Structure, ParameterWrapper
 class ModelSolverParameters(Structure):
     """Converter for model solver parameters from CADETProcess to CADET.
 
@@ -1447,7 +1447,7 @@ unit_parameters_map = {
             'COL_LENGTH': 'length',
             'CROSS_SECTION_AREA': 'cross_section_area',
             'VELOCITY': 'flow_direction',
-            },
+        },
         'fixed': {
             'TOTAL_POROSITY': 1,
         },
@@ -1474,7 +1474,7 @@ unit_parameters_map = {
             'CHANNEL_CROSS_SECTION_AREAS': 'channel_cross_section_areas',
             'EXCHANGE_MATRIX': 'exchange_matrix',
             'VELOCITY': 'flow_direction',
-         },
+        },
     },
     'Inlet': {
         'name': 'INLET',
@@ -1849,7 +1849,7 @@ reaction_parameters_map = {
             'mal_exponents_bulk_bwd': 'exponents_bwd',
             'mal_kfwd_bulk': 'k_fwd',
             'mal_kbwd_bulk': 'k_bwd',
-            }
+        }
     },
     'MassActionLawParticle': {
         'name': 'MASS_ACTION_LAW',
