@@ -42,20 +42,19 @@ class Test_Adapter(unittest.TestCase):
     @unittest.skipIf(found_cadet is False, "Skip if CADET is not installed.")
     def test_install_path(self):
         simulator = Cadet()
-        self.assertEqual(cli_path, simulator.cadet_cli_path)
+        self.assertEqual(cli_path, simulator.get_new_cadet_instance().cadet_cli_path)
 
-        with self.assertWarns(UserWarning):
-            simulator.install_path = cli_path
-        self.assertEqual(cli_path, simulator.cadet_cli_path)
+        simulator.install_path = cli_path
+        self.assertEqual(cli_path, simulator.get_new_cadet_instance().cadet_cli_path)
 
         simulator.install_path = cli_path.parent.parent
-        self.assertEqual(cli_path, simulator.cadet_cli_path)
+        self.assertEqual(cli_path, simulator.get_new_cadet_instance().cadet_cli_path)
 
         simulator = Cadet(install_path)
-        self.assertEqual(cli_path, simulator.cadet_cli_path)
+        self.assertEqual(cli_path, simulator.get_new_cadet_instance().cadet_cli_path)
 
         with self.assertRaises(FileNotFoundError):
-            simulator = Cadet('foo/bar')
+            simulator = Cadet('foo/bar').get_new_cadet_instance()
 
     @unittest.skipIf(found_cadet is False, "Skip if CADET is not installed.")
     def test_check_cadet(self):
@@ -65,7 +64,8 @@ class Test_Adapter(unittest.TestCase):
 
         file_name = simulator.get_tempfile_name()
         cwd = simulator.temp_dir
-        sim = simulator.create_lwe(cwd / file_name)
+        sim = simulator.get_new_cadet_instance()
+        sim.create_lwe(cwd / file_name)
         sim.run()
 
     @unittest.skipIf(found_cadet is False, "Skip if CADET is not installed.")
@@ -74,7 +74,8 @@ class Test_Adapter(unittest.TestCase):
 
         file_name = simulator.get_tempfile_name()
         cwd = simulator.temp_dir
-        sim = simulator.create_lwe(cwd / file_name)
+        sim = simulator.get_new_cadet_instance()
+        sim.create_lwe(cwd / file_name)
         sim.run()
 
     def tearDown(self):

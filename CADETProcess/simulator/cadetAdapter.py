@@ -94,13 +94,8 @@ class Cadet(SimulatorBase):
     def __init__(self, install_path=None, temp_dir=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.cadet_root = None
-        self.cadet_cli_path = None
-        self.cadet_create_lwe_path = None
-        self.cadet_dll_path = None
-
         if install_path is None:
-            self.autodetect_cadet()
+            self.install_path = CadetAPI.autodetect_cadet()
         else:
             self.install_path = install_path
 
@@ -144,143 +139,6 @@ class Cadet(SimulatorBase):
 
         return wrapper
 
-    def autodetect_cadet(self):
-        """
-        Autodetect installation CADET based on operating system and API usage.
-
-        Returns
-        -------
-        cadet_root : Path
-            Installation path of the CADET program.
-        """
-        executable = 'cadet-cli'
-        if platform.system() == 'Windows':
-            executable += '.exe'
-
-        # Searching for the executable in system path
-        path = shutil.which(executable)
-
-        if path is None:
-            raise FileNotFoundError(
-                "Could not autodetect CADET installation. Please provide path."
-            )
-        else:
-            self.logger.info(f"Found CADET executable at {path}")
-
-        cli_path = Path(path)
-
-        cadet_root = None
-        if cli_path is not None:
-            cadet_root = cli_path.parent.parent
-            self.install_path = cadet_root
-
-        return cadet_root
-
-    @property
-    def cadet_path(self):
-        if self.use_dll and self.found_dll:
-            return self.cadet_cll_path
-        return self.cadet_cli_path
-
-    @property
-    def found_dll(self):
-        flag = False
-        if self.cadet_dll_path is not None:
-            flag = True
-        return flag
-
-    @property
-    def install_path(self):
-        """str: Path to the installation of CADET.
-
-        This can either be the root directory of the installation or the path to the
-        executable file 'cadet-cli'. If a file path is provided, the root directory will
-        be inferred.
-
-        Raises
-        ------
-        FileNotFoundError
-            If CADET cannot be found at the specified path.
-
-        Warnings
-        --------
-        If the specified install_path is not the root of the CADET installation, it will
-        be inferred from the file path.
-
-        See Also
-        --------
-        check_cadet
-        """
-        return self._install_path
-
-    @install_path.setter
-    def install_path(self, install_path):
-        """
-        Set the installation path of CADET.
-
-        Parameters
-        ----------
-        install_path : str or Path
-            Path to the root of the CADET installation.
-            It should either be the root directory of the installation or the path
-            to the executable file 'cadet-cli'.
-            If a file path is provided, the root directory will be inferred.
-        """
-        if install_path is None:
-            self._install_path = None
-            self.cadet_cli_path = None
-            self.cadet_dll_path = None
-            self.cadet_create_lwe_path = None
-
-            return
-
-        install_path = Path(install_path)
-
-        if install_path.is_file():
-            cadet_root = install_path.parent.parent
-            warnings.warn(
-                "The specified install_path is not the root of the CADET installation. "
-                "It has been inferred from the file path."
-            )
-        else:
-            cadet_root = install_path
-
-        self._install_path = cadet_root
-
-        cli_executable = 'cadet-cli'
-        lwe_executable = 'createLWE'
-
-        if platform.system() == 'Windows':
-            cli_executable += '.exe'
-            lwe_executable += '.exe'
-
-        cadet_cli_path = cadet_root / 'bin' / cli_executable
-        if cadet_cli_path.is_file():
-            self.cadet_cli_path = cadet_cli_path
-        else:
-            raise FileNotFoundError(
-                "CADET could not be found. Please check the path"
-            )
-
-        cadet_create_lwe_path = cadet_root / 'bin' / lwe_executable
-        if cadet_create_lwe_path.is_file():
-            self.cadet_create_lwe_path = cadet_create_lwe_path.as_posix()
-
-        if platform.system() == 'Windows':
-            dll_path = cadet_root / 'bin' / 'cadet.dll'
-            dll_debug_path = cadet_root / 'bin' / 'cadet_d.dll'
-        else:
-            dll_path = cadet_root / 'lib' / 'lib_cadet.so'
-            dll_debug_path = cadet_root / 'lib' / 'lib_cadet_d.so'
-
-        # Look for debug dll if dll is not found.
-        if not dll_path.is_file() and dll_debug_path.is_file():
-            dll_path = dll_debug_path
-
-        # Look for debug dll if dll is not found.
-        if dll_path.is_file():
-            self.cadet_dll_path = dll_path.as_posix()
-
     def check_cadet(self):
         """
         Check if CADET installation can run a basic LWE example.
@@ -304,70 +162,21 @@ class Cadet(SimulatorBase):
         """
         lwe_hdf5_path = Path(self.temp_dir) / 'LWE.h5'
 
-        cadet_model = self.create_lwe(lwe_hdf5_path)
+        cadet_model = self.get_new_cadet_instance()
 
-        data = cadet_model.run()
+        cadet_model.create_lwe(lwe_hdf5_path)
+
+        cadet_model.run()
         os.remove(lwe_hdf5_path)
 
-        if data.returncode == 0:
-            flag = True
-            print("Test simulation completed successfully")
-        else:
-            flag = False
-            raise CADETProcessError(f"Simulation failed with {data}")
+        print("Test simulation completed successfully")
 
-        return flag
+        return True
 
     def get_tempfile_name(self):
         f = next(tempfile._get_candidate_names())
         return self.temp_dir / f'{f}.h5'
 
-    def create_lwe(self, file_path=None):
-        """Create basic LWE example.
-
-        Parameters
-        ----------
-        file_path : Path, optional
-            Path to store HDF5 file. If None, temporary file will be created and
-            deleted after simulation.
-
-        Returns
-        -------
-
-        """
-        if file_path is None:
-            file_name = self.get_tempfile_name().as_posix()
-            cwd = self.temp_dir.as_posix()
-        else:
-            file_path = Path(file_path).absolute()
-            file_name = file_path.name
-            cwd = file_path.parent.as_posix()
-
-        ret = subprocess.run(
-            [self.cadet_create_lwe_path, '-o', file_name],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            cwd=cwd
-        )
-        if ret.returncode != 0:
-            if ret.stdout:
-                print('Output', ret.stdout.decode('utf-8'))
-            if ret.stderr:
-                print('Errors', ret.stderr.decode('utf-8'))
-            raise CADETProcessError(
-                "Failure: Creation of test simulation ran into problems"
-            )
-
-        cadet_model = self.get_new_cadet_instance()
-
-        cadet_model.filename = file_path.as_posix()
-
-        cadet_model.load()
-
-        if file_path is None:
-            os.remove(file_path)
-
-        return cadet_model
 
     @locks_process
     def run(self, process, cadet=None, file_path=None):
@@ -412,7 +221,7 @@ class Cadet(SimulatorBase):
 
         cadet.root = self.get_process_config(process)
 
-        if cadet.is_file:
+        if not self.use_dll:
             if file_path is None:
                 cadet.filename = self.get_tempfile_name()
             else:
@@ -429,13 +238,13 @@ class Cadet(SimulatorBase):
             if file_path is None:
                 os.remove(cadet.filename)
 
-        if return_information.returncode != 0:
+        if return_information.return_code != 0:
             self.logger.error(
                 f'Simulation of {process.name} '
                 f'with parameters {process.config} failed.'
             )
             raise CADETProcessError(
-                f'CADET Error: Simulation failed with {return_information.stderr}'
+                f'CADET Error: Simulation failed with {return_information.error_message}'
             ) from None
 
         try:
@@ -467,7 +276,7 @@ class Cadet(SimulatorBase):
         """
         try:
             result = subprocess.run(
-                [self.cadet_path, '--version'],
+                [self.get_new_cadet_instance().cadet_cli_path, '--version'],
                 check=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -489,10 +298,7 @@ class Cadet(SimulatorBase):
             raise RuntimeError(f"Command execution failed: {e}")
 
     def get_new_cadet_instance(self):
-        cadet = CadetAPI()
-        # Because the initialization in __init__ isn't guaranteed to be called in multiprocessing
-        #  situations, ensure that the cadet_path has actually been set.
-        cadet.cadet_path = self.cadet_path
+        cadet = CadetAPI(install_path=self.install_path, use_dll=self.use_dll)
         return cadet
 
     def save_to_h5(self, process, file_path):
@@ -515,6 +321,10 @@ class Cadet(SimulatorBase):
         cadet.load()
 
         return cadet
+
+    @wraps(CadetAPI.create_lwe)
+    def create_lwe(self, *args, **kwargs):
+        return self.get_new_cadet_instance().create_lwe(*args, **kwargs)
 
     @locks_process
     def get_process_config(self, process):
@@ -568,7 +378,7 @@ class Cadet(SimulatorBase):
             Cadet object with simulation results.
         time_elapsed : float
             Time of simulation.
-        return_information: str
+        return_information: ReturnInformation
             CADET-cli return information.
 
         Returns
@@ -587,8 +397,8 @@ class Cadet(SimulatorBase):
             exit_flag = None
             exit_message = None
         else:
-            exit_flag = return_information.returncode
-            exit_message = return_information.stderr.decode()
+            exit_flag = return_information.return_code
+            exit_message = return_information.error_message
 
         try:
             solution = Dict()
