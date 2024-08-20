@@ -236,7 +236,7 @@ class AxInterface(OptimizerBase):
     early_stopping_improvement_bar = Float(default=1e-10)
     n_init_evals = UnsignedInteger(default=10)
     n_max_evals = UnsignedInteger(default=100)
-    batch_trials = Bool(default=False)
+    batch_size = UnsignedInteger(default=1)
     seed = UnsignedInteger(default=12345)
 
     _specific_options = [
@@ -441,7 +441,7 @@ class AxInterface(OptimizerBase):
         suggested_init_trials = calculate_num_initialization_trials(
             num_tunable_parameters=len(search_space.tunable_parameters),
             num_trials=self.n_max_evals,
-            use_batch_trials=self.batch_trials
+            use_batch_trials=True if self.batch_size > 1 else False
         )
         if suggested_init_trials < self.n_init_evals:
             warnings.warn(
@@ -459,7 +459,7 @@ class AxInterface(OptimizerBase):
             optimization_config=optimization_config,
             num_trials=self.n_max_evals,
             num_initialization_trials=self.n_init_evals,
-            use_batch_trials=self.batch_trials,
+            use_batch_trials=True if self.batch_size > 1 else False,
             # reduce the number of trials by the number of init evals that is
             # computed
             num_completed_initialization_trials=self.n_init_evals,
@@ -472,10 +472,10 @@ class AxInterface(OptimizerBase):
             experiment=self.ax_experiment,
             generation_strategy=gs,
             options=SchedulerOptions(
-                trial_type=TrialType.BATCH_TRIAL if self.batch_trials else TrialType.TRIAL,
-                batch_size=3,
+                trial_type=TrialType.BATCH_TRIAL if self.batch_size > 1 else TrialType.TRIAL,
+                batch_size=self.batch_size,
                 total_trials=self.n_max_evals,
-
+                global_stopping_strategy=self.global_stopping_strategy,
                 # TODO: What is max_pending_trials responsible for (this was taken from the tutorial)
                 max_pending_trials=4
             ),
