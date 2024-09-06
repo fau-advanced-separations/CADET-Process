@@ -1207,10 +1207,11 @@ class GeneralRateModel(ChromatographicColumnBase):
 
     @surface_diffusion_exponent_factor.setter
     def surface_diffusion_exponent_factor(self, surface_diffusion_exponent_factor):
-        if self._surface_diffusion_dependence != 'LIQUID_SALT_EXPONENTIAL':
+        if self._surface_diffusion_dependence not in ('LIQUID_SALT_EXPONENTIAL', 'LIQUID_SALT_COLLOIDAL_AFFINITY'):
             raise CADETProcessError(
                 "Cannot set surface_diffusion_exponent_factor if "
-                "`surface_diffusion_dependence` is not `LIQUID_SALT_EXPONENTIAL`."
+                "`surface_diffusion_dependence` is not `LIQUID_SALT_EXPONENTIAL` "
+                "or 'LIQUID_SALT_COLLOIDAL_AFFINITY'."
             )
         self._surface_diffusion_exponent_factor = surface_diffusion_exponent_factor
 
@@ -1222,10 +1223,11 @@ class GeneralRateModel(ChromatographicColumnBase):
 
     @surface_diffusion_exponent_multiplier.setter
     def surface_diffusion_exponent_multiplier(self, surface_diffusion_exponent_multiplier):
-        if self._surface_diffusion_dependence != 'LIQUID_SALT_EXPONENTIAL':
+        if self._surface_diffusion_dependence not in ('LIQUID_SALT_EXPONENTIAL', 'LIQUID_SALT_COLLOIDAL_AFFINITY'):
             raise CADETProcessError(
                 "Cannot set `surface_diffusion_exponent_multiplier` if "
-                "`surface_diffusion_dependence` is not `LIQUID_SALT_EXPONENTIAL`."
+                "`surface_diffusion_dependence` is not `LIQUID_SALT_EXPONENTIAL` "
+                "or 'LIQUID_SALT_COLLOIDAL_AFFINITY'."
             )
         self._surface_diffusion_exponent_multiplier = surface_diffusion_exponent_multiplier
 
@@ -1237,10 +1239,11 @@ class GeneralRateModel(ChromatographicColumnBase):
 
     @surface_diffusion_power_factor.setter
     def surface_diffusion_power_factor(self, surface_diffusion_power_factor):
-        if self._surface_diffusion_dependence != 'LIQUID_SALT_POWER':
+        if self._surface_diffusion_dependence not in ('LIQUID_SALT_POWER', 'LIQUID_SALT_COLLOIDAL_AFFINITY'):
             raise CADETProcessError(
                 "Cannot set `surface_diffusion_power_factor` if "
-                "`surface_diffusion_dependence` is not 'LIQUID_SALT_POWER'."
+                "`surface_diffusion_dependence` is not 'LIQUID_SALT_POWER' "
+                "or 'LIQUID_SALT_COLLOIDAL_AFFINITY'."
             )
         self._surface_diffusion_power_factor = surface_diffusion_power_factor
 
@@ -1252,10 +1255,11 @@ class GeneralRateModel(ChromatographicColumnBase):
 
     @surface_diffusion_power_exponent.setter
     def surface_diffusion_power_exponent(self, surface_diffusion_power_exponent):
-        if self._surface_diffusion_dependence != 'LIQUID_SALT_POWER':
+        if self._surface_diffusion_dependence not in ('LIQUID_SALT_POWER', 'LIQUID_SALT_COLLOIDAL_AFFINITY'):
             raise CADETProcessError(
                 "Cannot set `surface_diffusion_power_exponent` if "
-                "`surface_diffusion_dependence` is not `LIQUID_SALT_POWER`."
+                "`surface_diffusion_dependence` is not `LIQUID_SALT_POWER` "
+                "or 'LIQUID_SALT_COLLOIDAL_AFFINITY'."
             )
         self._surface_diffusion_power_exponent = surface_diffusion_power_exponent
 
