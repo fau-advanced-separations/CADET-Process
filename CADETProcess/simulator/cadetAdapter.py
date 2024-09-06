@@ -1210,6 +1210,7 @@ unit_parameters_map = {
             'PORE_ACCESSIBILITY': 'pore_accessibility',
             'PAR_DIFFUSION': 'pore_diffusion',
             'PAR_SURFDIFFUSION': 'surface_diffusion',
+            'PAR_SURFDIFFUSION_DEP': 'surface_diffusion_dependence',
             'PAR_SURFDIFFUSION_EXPFACTOR': 'surface_diffusion_exponent_factor',
             'PAR_SURFDIFFUSION_EXPARGMULT': 'surface_diffusion_exponent_multiplier',
             'PAR_SURFDIFFUSION_POWFACTOR': 'surface_diffusion_power_factor',
