@@ -693,17 +693,17 @@ class Cadet(SimulatorBase):
                                 )
                             )
 
-                    if 'solution_volume' in unit_solution.keys():
-                        sol_volume = unit_solution.solution_volume[start:end, :]
-                        solution[unit.name]['volume'].append(
-                            SolutionVolume(
-                                unit.name,
-                                unit.component_system,
-                                time,
-                                sol_volume
+                        if 'solution_volume' in unit_solution.keys():
+                            sol_volume = unit_solution.solution_volume[start:end, :]
+                            solution[unit.name]['volume'].append(
+                                SolutionVolume(
+                                    unit.name,
+                                    unit.component_system,
+                                    time,
+                                    sol_volume
+                                )
                             )
-                        )
-                    start = end - 1
+                        start = end - 1
 
             solution = Dict(solution)
 
