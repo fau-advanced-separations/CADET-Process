@@ -446,6 +446,9 @@ class SolutionIO(SolutionBase):
             Mass of all components in the fraction
 
         """
+        if start is None:
+            start = self.time[0]
+
         if end is None:
             end = self.cycle_time
 
@@ -468,6 +471,12 @@ class SolutionIO(SolutionBase):
             Fraction
 
         """
+        if start is None:
+            start = self.time[0]
+
+        if end is None:
+            end = self.cycle_time
+
         from CADETProcess.fractionation import Fraction
         mass = self.fraction_mass(start, end)
         volume = self.fraction_volume(start, end)
@@ -490,6 +499,9 @@ class SolutionIO(SolutionBase):
             Mass of all components in the fraction
 
         """
+        if start is None:
+            start = self.time[0]
+
         if end is None:
             end = self.cycle_time
 
@@ -529,6 +541,9 @@ class SolutionIO(SolutionBase):
             Volume of the fraction
 
         """
+        if start is None:
+            start = self.time[0]
+
         if end is None:
             end = self.cycle_time
 
