@@ -1175,7 +1175,7 @@ class GeneralRateModel(ChromatographicColumnBase):
             )
         self._surface_diffusion = surface_diffusion
 
-        self.parameters['_surface_diffusion'] = surface_diffusion
+        self.parameters['surface_diffusion'] = surface_diffusion
 
     @property
     def surface_diffusion_dependence(self):
