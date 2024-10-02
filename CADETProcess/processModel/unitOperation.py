@@ -1124,7 +1124,7 @@ class GeneralRateModel(ChromatographicColumnBase):
             )
         self._surface_diffusion = surface_diffusion
 
-        self.parameters['_surface_diffusion'] = surface_diffusion
+        self.parameters['surface_diffusion'] = surface_diffusion
 
 
 class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
