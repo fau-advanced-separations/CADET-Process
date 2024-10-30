@@ -1,21 +1,18 @@
-from abc import abstractmethod
 import math
 import warnings
+from abc import abstractmethod
 
 from CADETProcess import CADETProcessError
-
-from CADETProcess.dataStructure import frozen_attributes
-from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import (
     Constant, UnsignedFloat, UnsignedInteger,
     String, Switch,
     SizedUnsignedList,
     Polynomial, NdPolynomial, SizedList, SizedNdArray
 )
-
-from .componentSystem import ComponentSystem
+from CADETProcess.dataStructure import Structure
+from CADETProcess.dataStructure import frozen_attributes
 from .binding import BindingBaseClass, NoBinding
-from .reaction import BulkReactionBase, ParticleReactionBase, NoReaction
+from .componentSystem import ComponentSystem
 from .discretization import (
     DiscretizationParametersBase, NoDiscretization,
     LRMDiscretizationFV, LRMDiscretizationDG,
@@ -23,13 +20,12 @@ from .discretization import (
     GRMDiscretizationFV, GRMDiscretizationDG,
     MCTDiscretizationFV,
 )
-
+from .reaction import BulkReactionBase, ParticleReactionBase, NoReaction
 from .solutionRecorder import (
     IORecorder,
     TubularReactorRecorder, LRMRecorder, LRMPRecorder, GRMRecorder, CSTRRecorder,
     MCTRecorder,
 )
-
 
 __all__ = [
     'UnitBaseClass',
@@ -101,7 +97,7 @@ class UnitBaseClass(Structure):
             discretization=None,
             solution_recorder=None,
             **kwargs
-            ):
+    ):
         self.name = name
         self.component_system = component_system
 
@@ -124,8 +120,6 @@ class UnitBaseClass(Structure):
         if solution_recorder is None:
             solution_recorder = IORecorder()
         self.solution_recorder = solution_recorder
-
-
 
         super().__init__(*args, **kwargs)
 
@@ -496,11 +490,11 @@ class TubularReactorBase(UnitBaseClass):
 
         """
         if self.diameter is not None:
-            return math.pi/4 * self.diameter**2
+            return math.pi / 4 * self.diameter ** 2
 
     @cross_section_area.setter
     def cross_section_area(self, cross_section_area):
-        self.diameter = (4*cross_section_area/math.pi)**0.5
+        self.diameter = (4 * cross_section_area / math.pi) ** 0.5
 
     def set_diameter_from_interstitial_velocity(self, Q, u0):
         """Set diamter from flow rate and interstitial velocity.
@@ -522,7 +516,7 @@ class TubularReactorBase(UnitBaseClass):
             Needs to be overwritten depending on the model porosities!
 
         """
-        self.cross_section_area = Q/(u0*self.total_porosity)
+        self.cross_section_area = Q / (u0 * self.total_porosity)
 
     @property
     def cross_section_area_interstitial(self):
@@ -632,7 +626,7 @@ class TubularReactorBase(UnitBaseClass):
         calculate_superficial_velocity
 
         """
-        return self.length/self.calculate_interstitial_rt(flow_rate)
+        return self.length / self.calculate_interstitial_rt(flow_rate)
 
     def calculate_superficial_velocity(self, flow_rate):
         """Calculate superficial flow velocity of a volume element in an empty column.
@@ -762,7 +756,7 @@ class TubularReactor(TubularReactorBase):
             discretization=discretization,
             solution_recorder=TubularReactorRecorder(),
             **kwargs
-            )
+        )
 
 
 class LumpedRateModelWithoutPores(TubularReactorBase):
@@ -923,7 +917,7 @@ class LumpedRateModelWithPores(TubularReactorBase):
             Overwrites parent method.
 
         """
-        self.cross_section_area = Q/(u0*self.bed_porosity)
+        self.cross_section_area = Q / (u0 * self.bed_porosity)
 
     @property
     def cp(self):
@@ -1056,7 +1050,7 @@ class GeneralRateModel(TubularReactorBase):
             Overwrites parent method.
 
         """
-        self.cross_section_area = Q/(u0*self.bed_porosity)
+        self.cross_section_area = Q / (u0 * self.bed_porosity)
 
     @property
     def cp(self):
@@ -1111,6 +1105,10 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         Initial volume of the reactor.
     porosity : UnsignedFloat between 0 and 1.
         Total porosity of the Cstr.
+    initial_liquid_volume : UnsignedFloat above 0.
+        Initial liquid volume of the reactor.
+    const_solid_volume : UnsignedFloat above or equal 0.
+        Initial and constant solid volume of the reactor.
     flow_rate_filter: float
         Flow rate of pure liquid without components to reduce volume.
     solution_recorder : CSTRRecorder
@@ -1126,9 +1124,8 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     supports_bulk_reaction = True
     supports_particle_reaction = False
 
-    porosity = UnsignedFloat(ub=1, default=1)
     flow_rate_filter = UnsignedFloat(default=0)
-    _parameters = ['porosity', 'flow_rate_filter']
+    _parameters = ['const_solid_volume', 'flow_rate_filter']
 
     _section_dependent_parameters = \
         UnitBaseClass._section_dependent_parameters + \
@@ -1137,8 +1134,10 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
 
     c = SizedList(size='n_comp', default=0)
     _q = SizedUnsignedList(size='n_bound_states', default=0)
-    V = UnsignedFloat()
-    _initial_state = ['c', 'q', 'V']
+    init_liquid_volume = UnsignedFloat()
+    const_solid_volume = UnsignedFloat()
+    _V = UnsignedFloat()
+    _initial_state = ['c', 'q', 'init_liquid_volume']
     _parameters = _parameters + _initial_state
 
     def __init__(self, *args, **kwargs):
@@ -1157,19 +1156,50 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         return required_parameters
 
     @property
+    def porosity(self):
+        if self.const_solid_volume is None or self.init_liquid_volume is None:
+            return None
+        return self.init_liquid_volume / (self.init_liquid_volume + self.const_solid_volume)
+
+    @porosity.setter
+    def porosity(self, porosity):
+        warnings.warn(
+            "Field POROSITY is only supported for backwards compatibility, but the implementation of the CSTR has "
+            "changed, please refer to the documentation. The POROSITY will be used to compute the "
+            "constant solid volume from the total volume V."
+        )
+        if self.V is None:
+            raise RuntimeError("Please set the volume first before setting a porosity.")
+        self.const_solid_volume = self.V * (1 - porosity)
+        self.init_liquid_volume = self.V * porosity
+
+    @property
+    def V(self):
+        return self._V
+
+    @V.setter
+    def V(self, V):
+        warnings.warn(
+            "The field V is only supported for backwards compatibility. Please set initial_liquid_volume and "
+            "const_solid_volume"
+        )
+        self.init_liquid_volume = V
+        self._V = V
+
+    @property
     def volume(self):
         """float: Alias for volume."""
-        return self.V
+        return self.const_solid_volume + self.init_liquid_volume
 
     @property
     def volume_liquid(self):
         """float: Volume of the liquid phase."""
-        return self.porosity * self.V
+        return self.init_liquid_volume
 
     @property
     def volume_solid(self):
         """float: Volume of the solid phase."""
-        return (1 - self.porosity) * self.V
+        return self.const_solid_volume
 
     def calculate_interstitial_rt(self, flow_rate):
         """Calculate mean residence time of a (non adsorbing) volume element.
@@ -1236,7 +1266,7 @@ class MCT(UnitBaseClass):
     flow_direction = Switch(valid=[-1, 1], default=1)
     nchannel = UnsignedInteger()
 
-    exchange_matrix = SizedNdArray(size=('nchannel', 'nchannel','n_comp'))
+    exchange_matrix = SizedNdArray(size=('nchannel', 'nchannel', 'n_comp'))
 
     _parameters = [
         'length',

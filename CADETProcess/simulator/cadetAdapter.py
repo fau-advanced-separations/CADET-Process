@@ -1456,11 +1456,11 @@ unit_parameters_map = {
         'name': 'CSTR',
         'parameters': {
             'NCOMP': 'n_comp',
-            'INIT_VOLUME': 'V',
             'INIT_C': 'c',
             'INIT_Q': 'q',
-            'POROSITY': 'porosity',
             'FLOWRATE_FILTER': 'flow_rate_filter',
+            'CONST_SOLID_VOLUME': 'const_solid_volume',
+            'INIT_LIQUID_VOLUME': 'init_liquid_volume',
         },
     },
     'MCT': {

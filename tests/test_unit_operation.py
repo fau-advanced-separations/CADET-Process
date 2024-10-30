@@ -8,7 +8,6 @@ import unittest
 
 import numpy as np
 
-from CADETProcess import CADETProcessError
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess.processModel import (
     Inlet, Cstr,
@@ -25,6 +24,8 @@ volume = cross_section_area * length
 bed_porosity = 0.3
 particle_porosity = 0.6
 total_porosity = bed_porosity + (1 - bed_porosity) * particle_porosity
+const_solid_volume = volume * (1 - total_porosity)
+init_liquid_volume = volume * total_porosity
 
 axial_dispersion = 4.7e-7
 
@@ -53,8 +54,11 @@ class Test_Unit_Operation(unittest.TestCase):
     def create_cstr(self):
         cstr = Cstr(self.component_system, name='test')
 
-        cstr.porosity = total_porosity
-        cstr.V = volume
+        # cstr.V = volume
+        # cstr.porosity = total_porosity
+
+        cstr.const_solid_volume = const_solid_volume
+        cstr.init_liquid_volume = init_liquid_volume
 
         cstr.flow_rate = 1
 
@@ -217,11 +221,11 @@ class Test_Unit_Operation(unittest.TestCase):
         cstr = self.create_cstr()
         parameters_expected = {
                 'flow_rate': np.array([1, 0, 0, 0]),
-                'porosity': total_porosity,
+                'init_liquid_volume': init_liquid_volume,
                 'flow_rate_filter': 0,
                 'c': [0, 0],
                 'q': [],
-                'V': volume,
+                'const_solid_volume': const_solid_volume,
         }
 
         np.testing.assert_equal(parameters_expected, cstr.parameters)
@@ -241,7 +245,7 @@ class Test_Unit_Operation(unittest.TestCase):
             poly_parameters, cstr.polynomial_parameters
         )
 
-        self.assertEqual(cstr.required_parameters, ['V'])
+        self.assertEqual(cstr.required_parameters, ['const_solid_volume', 'init_liquid_volume'])
 
 
     def test_MCT(self):
