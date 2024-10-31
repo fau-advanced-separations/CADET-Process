@@ -1489,6 +1489,85 @@ class SolutionSolid(SolutionBase):
         return ax
 
 
+    @plotting.create_and_save_figure
+    def plot_at_position(
+            self,
+            z: float,
+            start: float | None = None,
+            end: float | None = None,
+            components: list[str] | None = None,
+            layout: plotting.Layout | None = None,
+            x_axis_in_minutes: bool = True,
+            ax: Axes | None = None,
+            *args,
+            **kwargs,
+            ):
+        """Plot bulk solution over time at given position.
+
+        Parameters
+        ----------
+        z : float
+            Position for plotting.
+        start : float, optional
+            Start time for plotting in seconds. If None is provided, the first data
+            point will be used as the start time. The default is None.
+        end : float, optional
+            End time for plotting in seconds. If None is provided, the last data point
+            will be used as the end time. The default is None.
+        components : list, optional.
+            List of components to be plotted. If None, all components are plotted.
+        layout : plotting.Layout
+            Plot layout options.
+            If None, value is automatically deferred from solution.
+        x_axis_in_minutes : bool, optional
+            If True, the x-axis will be plotted using minutes. The default is True.
+        ax : Axes
+            Axes to plot on.
+
+        Returns
+        -------
+        ax : Axes
+            Axes object with concentration profile.
+
+        See Also
+        --------
+        _plot_solution_1D
+        slice_solution
+        plot_at_position
+        plotlib
+        """
+        solution = slice_solution(
+            self,
+            components=components,
+            use_total_concentration=False,
+            use_total_concentration_components=False,
+            coordinates={'axial_coordinates': [z, z]},
+        )
+
+        x = self.time
+        if x_axis_in_minutes:
+            x = x / 60
+            if start is not None:
+                start = start / 60
+            if end is not None:
+                end = end / 60
+
+        x = self.time / 60
+
+        if layout is None:
+            layout = plotting.Layout()
+            layout.x_label = '$time~/~s$'
+            if x_axis_in_minutes:
+                layout.x_label = '$time~/~min$'
+            layout.y_label = '$c~/~mM$'
+
+        ax = _plot_solution_1D(ax, x, solution, layout, *args, **kwargs)
+
+        plotting.add_text(ax, f'z = {z:.2f} m')
+
+        return ax
+
+
 class SolutionVolume(SolutionBase):
     """Volume solution (of e.g. CSTR)."""
 
