@@ -30,7 +30,7 @@ from ax.modelbridge.dispatch_utils import (
 from ax.utils.common.logger import get_logger
 
 from botorch.utils.sampling import manual_seed
-from botorch.models.gp_regression import FixedNoiseGP
+from botorch.models.gp_regression import SingleTaskGP
 from botorch.acquisition.analytic import (
     LogExpectedImprovement
 )
@@ -547,7 +547,7 @@ class BotorchModular(SingleObjectiveAxInterface):
     surrogate_model: Model class
     """
     acquisition_fn = Typed(ty=type, default=LogExpectedImprovement)
-    surrogate_model = Typed(ty=type, default=FixedNoiseGP)
+    surrogate_model = Typed(ty=type, default=SingleTaskGP)
 
     _specific_options = [
         'acquisition_fn', 'surrogate_model'
