@@ -4,7 +4,7 @@ import numpy
 
 from CADETProcess.processModel import ComponentSystem, binding, BindingBaseClass
 from CADETProcess.processModel import (
-    Langmuir, BiLangmuir, MultistateStericMassAction, StericMassAction
+    Langmuir, BiLangmuir, MultistateStericMassAction, StericMassAction, MobilePhaseModulator
 )
 from CADETProcess.simulator.cadetAdapter import adsorption_parameters_map
 
@@ -50,6 +50,16 @@ class Test_Binding(unittest.TestCase):
         binding_model.reference_liquid_phase_conc = 200
         binding_model.reference_solid_phase_conc = 100
         self.sma = binding_model
+
+        binding_model = MobilePhaseModulator(component_system, name='test')
+
+        binding_model.adsorption_rate = [0.02, 0.03]
+        binding_model.desorption_rate = [1, 1]
+        binding_model.capacity = [100, 100]
+        binding_model.ion_exchange_characteristic = [1.4, 1.7]
+        binding_model.hydrophobicity = [1.4, 1.7]
+        binding_model.linear_threshold = 1e-8
+        self.mobile_phase_modulator = binding_model
 
     def test_sma_reference_concentration_transformations(self):
         adsorption_rate = numpy.array(self.sma.adsorption_rate)
