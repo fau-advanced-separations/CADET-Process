@@ -178,7 +178,7 @@ class AxInterface(OptimizerBase):
 
     _specific_options = [
         'n_init_evals',
-        'n_max_evals,'
+        'n_max_evals',
         'seed',
         'early_stopping_improvement_window',
         'early_stopping_improvement_bar',
