@@ -716,9 +716,9 @@ class SolutionIO(SolutionBase):
 
         if layout is None:
             layout = plotting.Layout()
-            layout.x_label = '$time~/~s$'
+            layout.x_label = r'$time~/~s$'
             if x_axis_in_minutes:
-                layout.x_label = '$time~/~min$'
+                layout.x_label = r'$time~/~min$'
             layout.y_label = r'$Purity ~/~\%$'
             if start is not None:
                 start /= 60

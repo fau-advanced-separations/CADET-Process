@@ -22,7 +22,7 @@ root_dir = Path('../../../../').resolve()
 sys.path.append(root_dir.as_posix())
 ```
 
-## The Yamamoto method
+# The Yamamoto method
 
 This example demonstrates how to estimate SMA binding parameters based on multiple gradient elution chromatograms
 using the Yamamoto method.
