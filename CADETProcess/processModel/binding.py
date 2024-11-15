@@ -342,7 +342,7 @@ class FreundlichLDF(BindingBaseClass):
 
 
 class StericMassAction(BindingBaseClass):
-    """Parameters for Steric Mass Action Law binding model.
+    r"""Parameters for Steric Mass Action Law binding model.
 
     Attributes
     ----------
@@ -587,7 +587,7 @@ class ExtendedMobilePhaseModulator(BindingBaseClass):
 
 
 class SelfAssociation(BindingBaseClass):
-    """Self Association adsorption isotherm.
+    r"""Self Association adsorption isotherm.
 
     Attributes
     ----------
@@ -695,7 +695,7 @@ class BiStericMassAction(BindingBaseClass):
 
 
 class MultistateStericMassAction(BindingBaseClass):
-    """Multistate Steric Mass Action adsorption isotherm.
+    r"""Multistate Steric Mass Action adsorption isotherm.
 
     Attributes
     ----------
@@ -894,7 +894,7 @@ class Saska(BindingBaseClass):
 
 
 class GeneralizedIonExchange(BindingBaseClass):
-    """Generalized Ion Exchange isotherm model.
+    r"""Generalized Ion Exchange isotherm model.
 
     Attributes
     ----------
