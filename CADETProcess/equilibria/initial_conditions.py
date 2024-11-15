@@ -52,8 +52,8 @@ def simulate_solid_equilibria(
 
     if unit_model == 'cstr':
         unit = Cstr(component_system, 'cstr')
-        unit.porosity = 0.5
-        unit.V = 1e-6
+        unit.init_liquid_volume = 5e-7
+        unit.const_solid_volume = 5e-7
 
         Q = 1e-6
         cycle_time = np.round(1000*unit.volume/Q)

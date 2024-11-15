@@ -28,8 +28,10 @@ def setup_process(unit_type):
 
     if unit_type == 'cstr':
         cstr = Cstr(component_system, 'reaction_unit')
-        cstr.V = 1e-3
-        cstr.porosity = 0.7
+        total_volume = 1e-3
+        total_porosity = 0.7
+        cstr.init_liquid_volume = total_porosity * total_volume
+        cstr.const_solid_volume = (1 - total_porosity) * total_volume
 
         unit = cstr
     elif unit_type == 'pfr':

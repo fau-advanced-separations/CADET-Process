@@ -708,7 +708,7 @@ class Process(EventHandler):
         for cstr in self.flow_sheet.cstrs:
             if cstr.flow_rate is None:
                 continue
-            V_0 = cstr.V
+            V_0 = cstr.init_liquid_volume
             unit_index = self.flow_sheet.get_unit_index(cstr)
             for port in self.flow_sheet.units[unit_index].ports:
                 V_in = self.flow_rate_timelines[cstr.name].total_in[port].integral()

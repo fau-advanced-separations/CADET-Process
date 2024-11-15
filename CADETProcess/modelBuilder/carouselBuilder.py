@@ -80,9 +80,9 @@ class ZoneBaseClass(UnitBaseClass):
 
         self._inlet_unit = Cstr(component_system, f'{name}_inlet')
 
-        self._inlet_unit.V = self.valve_dead_volume
+        self._inlet_unit.init_liquid_volume = self.valve_dead_volume
         self._outlet_unit = Cstr(component_system, f'{name}_outlet')
-        self._outlet_unit.V = self.valve_dead_volume
+        self._outlet_unit.init_liquid_volume = self.valve_dead_volume
 
         super().__init__(component_system, name, *args, **kwargs)
 
