@@ -342,7 +342,7 @@ class FreundlichLDF(BindingBaseClass):
 
 
 class StericMassAction(BindingBaseClass):
-    """Parameters for Steric Mass Action Law binding model.
+    r"""Parameters for Steric Mass Action Law binding model.
 
     Attributes
     ----------
@@ -890,7 +890,7 @@ class Saska(BindingBaseClass):
 
 
 class GeneralizedIonExchange(BindingBaseClass):
-    """Generalized Ion Exchange isotherm model.
+    r"""Generalized Ion Exchange isotherm model.
 
     Attributes
     ----------

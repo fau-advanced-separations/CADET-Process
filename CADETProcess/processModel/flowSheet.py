@@ -720,7 +720,7 @@ class FlowSheet(Structure):
         self._output_states[unit][port] = output_state
 
     def get_flow_rates(self, state=None, eps=5.9e16):
-        """Calculate flow rate for all connections.
+        r"""Calculate flow rate for all connections.
 
         Optionally, an additional output state can be passed to update the
         current output states.
