@@ -118,8 +118,11 @@ def configure_cstr(component_system: ComponentSystem, **kwargs) -> Cstr:
         The configured CSTR.
     """
     cstr = Cstr(component_system, name='Cstr')
-    cstr.V = 1e-3
-    cstr.porosity = 0.37 + (1.0 - 0.37) * 0.75
+
+    total_volume = 1e-3
+    total_porosity = 0.37 + (1.0 - 0.37) * 0.75
+    cstr.init_liquid_volume = total_porosity * total_volume
+    cstr.const_solid_volume = (1 - total_porosity) * total_volume
 
     configure_solution_recorder(cstr, **kwargs)
     configure_steric_mass_action(cstr, component_system, **kwargs)

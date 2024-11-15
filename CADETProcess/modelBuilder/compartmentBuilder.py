@@ -157,7 +157,7 @@ class CompartmentBuilder(metaclass=StructMeta):
                 unit = Outlet(self.component_system, name)
             else:
                 unit = Cstr(self.component_system, name)
-                unit.V = vol
+                unit.init_liquid_volume = vol
 
             self.flow_sheet.add_unit(unit)
 

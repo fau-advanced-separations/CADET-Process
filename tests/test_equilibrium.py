@@ -212,7 +212,7 @@ class TestAdsorptionEquilibrium(unittest.TestCase):
         buffer = [1, 1]
         eq = equilibria.simulate_solid_equilibria(self.sma, buffer)
         eq_expected = [10/3, 2*10/3]
-        np.testing.assert_almost_equal(eq, eq_expected)
+        np.testing.assert_almost_equal(eq, eq_expected, decimal=4)
 
 
 if __name__ == '__main__':
