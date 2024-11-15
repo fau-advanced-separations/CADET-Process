@@ -878,8 +878,8 @@ class LumpedRateModelWithPores(ChromatographicColumnBase):
         Initial concntration of the bound phase.
     solution_recorder : LRMPRecorder
         Solution recorder for the unit operation.
-
     """
+
     supports_binding = True
     supports_bulk_reaction = True
     supports_particle_reaction = True
