@@ -19,6 +19,13 @@ class TestBatchElutionOptimizationSingleObjective(unittest.TestCase):
     def setUp(self):
         self.tearDown()
 
+        if not (
+                test_batch_elution_single_objective_single_core
+                or
+                test_batch_elution_single_objective_multi_core
+        ):
+            return
+
         settings.working_directory = './test_batch'
         settings.temp_dir = './test_batch/tmp'
 
@@ -34,6 +41,8 @@ class TestBatchElutionOptimizationSingleObjective(unittest.TestCase):
         shutil.rmtree('./test_batch', ignore_errors=True)
         shutil.rmtree('./diskcache_batch_elution_single', ignore_errors=True)
         shutil.rmtree('./tmp', ignore_errors=True)
+
+        settings.working_directory = None
 
     def test_single_core(self):
         if not test_batch_elution_single_objective_single_core:
@@ -80,6 +89,9 @@ class TestBatchElutionOptimizationMultiObjective(unittest.TestCase):
     def setUp(self):
         self.tearDown()
 
+        if not test_batch_elution_multi_objective:
+            return
+
         settings.working_directory = './test_batch'
         settings.temp_dir = './test_batch/tmp'
 
@@ -95,6 +107,8 @@ class TestBatchElutionOptimizationMultiObjective(unittest.TestCase):
         shutil.rmtree('./test_batch', ignore_errors=True)
         shutil.rmtree('./diskcache_batch_elution_multi', ignore_errors=True)
         shutil.rmtree('./tmp', ignore_errors=True)
+
+        settings.working_directory = None
 
     @unittest.skipIf(__name__ != "__main__", "Only run test if test is run as __main__")
     def test_optimization(self):
@@ -125,6 +139,9 @@ class TestFitColumnParameters(unittest.TestCase):
     def setUp(self):
         self.tearDown()
 
+        if not test_fit_column_parameters:
+            return
+
         settings.working_directory = './test_fit_column_parameters'
         settings.temp_dir = './test_fit_column_parameters/tmp'
 
@@ -145,6 +162,8 @@ class TestFitColumnParameters(unittest.TestCase):
         shutil.rmtree('./tmp', ignore_errors=True)
 
         shutil.rmtree('./experimental_data/', ignore_errors=True)
+
+        settings.working_directory = None
 
     def test_optimization(self):
         if not test_fit_column_parameters:

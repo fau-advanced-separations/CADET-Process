@@ -680,6 +680,10 @@ class Test_OptimizationProblemSimple(unittest.TestCase):
 
         self.optimization_problem = optimization_problem
 
+    def tearDown(self):
+        shutil.rmtree('./results_simple', ignore_errors=True)
+        settings.working_directory = None
+
     def test_variable_names(self):
         names_expected = ['var_0', 'var_1']
         names = self.optimization_problem.variable_names
