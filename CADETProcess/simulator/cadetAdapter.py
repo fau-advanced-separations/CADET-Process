@@ -91,13 +91,15 @@ class Cadet(SimulatorBase):
     use_dll = Bool(default=False)
     _force_constant_flow_rate = False
 
-    def __init__(self, install_path=None, temp_dir=None, *args, **kwargs):
+    def __init__(self, install_path=None, temp_dir=None, docker_container=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         if install_path is None:
             self.install_path = CadetAPI.autodetect_cadet()
         else:
             self.install_path = install_path
+
+        self.docker_container = docker_container
 
         self.model_solver_parameters = ModelSolverParameters()
         self.solver_parameters = SolverParameters()
@@ -298,7 +300,7 @@ class Cadet(SimulatorBase):
             raise RuntimeError(f"Command execution failed: {e}")
 
     def get_new_cadet_instance(self):
-        cadet = CadetAPI(install_path=self.install_path, use_dll=self.use_dll)
+        cadet = CadetAPI(install_path=self.install_path, use_dll=self.use_dll, docker_container=self.docker_container)
         return cadet
 
     def save_to_h5(self, process, file_path):
