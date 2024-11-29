@@ -64,8 +64,8 @@ homepage = "https://github.com/fau-advanced-separations/CADET-Process"
 documentation = "https://cadet-process.readthedocs.io"
 "Bug Tracker" = "https://github.com/fau-advanced-separations/CADET-Process/issues"
 
-[tool.setuptools]
-packages = ["CADETProcess"]
+[tool.setuptools.packages]
+find = {}
 
 [tool.setuptools.dynamic]
 version = { attr = "CADETProcess.__version__" }
