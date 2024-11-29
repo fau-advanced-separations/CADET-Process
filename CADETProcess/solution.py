@@ -801,11 +801,7 @@ class SolutionBulk(SolutionBase):
         self.component_system_original = component_system
         self.time_original = time
 
-        if axial_coordinates is not None and len(axial_coordinates) == 1:
-            axial_coordinates = None
-
         self.axial_coordinates = axial_coordinates
-
         self.radial_coordinates = radial_coordinates
 
         self.solution_original = solution
@@ -1074,21 +1070,8 @@ class SolutionParticle(SolutionBase):
             particle_coordinates=None
             ):
 
-        if axial_coordinates is not None and len(axial_coordinates) == 1:
-            axial_coordinates = None
-
         self.axial_coordinates = axial_coordinates
-        # Account for dimension reduction in case of only one cell (e.g. LRMP)
-
-        if radial_coordinates is not None and len(radial_coordinates) == 1:
-            radial_coordinates = None
-
         self.radial_coordinates = radial_coordinates
-        # Account for dimension reduction in case of only one cell (e.g. CSTR)
-
-        if particle_coordinates is not None and len(particle_coordinates) == 1:
-            particle_coordinates = None
-
         self.particle_coordinates = particle_coordinates
 
         super().__init__(name, component_system, time, solution)
@@ -1109,6 +1092,7 @@ class SolutionParticle(SolutionBase):
 
     @property
     def npar(self):
+        """int: Number of particle discretization points."""
         if self.particle_coordinates is None:
             return
         return len(self.particle_coordinates)
@@ -1250,16 +1234,8 @@ class SolutionSolid(SolutionBase):
 
         self.bound_states = bound_states
 
-        if axial_coordinates is not None and len(axial_coordinates) == 1:
-            axial_coordinates = None
         self.axial_coordinates = axial_coordinates
-        # Account for dimension reduction in case of only one cell (e.g. LRMP)
-        if radial_coordinates is not None and len(radial_coordinates) == 1:
-            radial_coordinates = None
         self.radial_coordinates = radial_coordinates
-        # Account for dimension reduction in case of only one cell (e.g. CSTR)
-        if particle_coordinates is not None and len(particle_coordinates) == 1:
-            particle_coordinates = None
         self.particle_coordinates = particle_coordinates
 
         super().__init__(name, component_system, time, solution)
@@ -1286,6 +1262,7 @@ class SolutionSolid(SolutionBase):
 
     @property
     def npar(self):
+        """int: Number of particle discretization points."""
         if self.particle_coordinates is None:
             return
         return len(self.particle_coordinates)
