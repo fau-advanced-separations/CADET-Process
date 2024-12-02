@@ -156,7 +156,7 @@ def configure_general_rate_model(component_system: ComponentSystem, **kwargs) ->
 
     configure_solution_recorder(grm, **kwargs)
     configure_discretization(grm, **kwargs)
-    configure_particles(grm, **kwargs)
+    configure_particles(grm)
     configure_steric_mass_action(grm, component_system, **kwargs)
     configure_film_diffusion(grm, component_system.n_comp)
     configure_flow_direction(grm, **kwargs)
@@ -253,7 +253,7 @@ def configure_lumped_rate_model_with_pores(component_system: ComponentSystem, **
 
     configure_solution_recorder(lrmp, **kwargs)
     configure_discretization(lrmp, **kwargs)
-    configure_particles(lrmp, **kwargs)
+    configure_particles(lrmp)
     configure_steric_mass_action(lrmp, component_system, **kwargs)
     configure_film_diffusion(lrmp, component_system.n_comp)
     configure_flow_direction(lrmp, **kwargs)
