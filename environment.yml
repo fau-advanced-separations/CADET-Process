@@ -2,6 +2,6 @@ name: cadet-process
 channels:
   - conda-forge
 dependencies:
-  - python>=3.10.*
-  - cadet
+  - python>=3.12.*
+  - cadet>5.0.2
   - pip
