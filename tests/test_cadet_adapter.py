@@ -62,13 +62,19 @@ class Test_Adapter(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree('./tmp', ignore_errors=True)
 
+process_simulator = Cadet()
+cadet_version, branch_name = process_simulator.get_cadet_version()
 
-unit_types = [
-    'Cstr', 'GeneralRateModel', 'TubularReactor',
-    'LumpedRateModelWithoutPores', 'LumpedRateModelWithPores', 'MCT'
-]
-
-install_path = "/home/jo/code/CADET-Core/install/interface/bin/cadet-cli"
+if cadet_version < '5.0.0' and branch_name == 'GITDIR-NOTFOUND branch':
+    unit_types = [
+        'Cstr', 'GeneralRateModel', 'TubularReactor',
+        'LumpedRateModelWithoutPores', 'LumpedRateModelWithPores'
+    ]
+else:
+    unit_types = [
+        'Cstr', 'GeneralRateModel', 'TubularReactor',
+        'LumpedRateModelWithoutPores', 'LumpedRateModelWithPores', 'MCT'
+    ]
 
 def run_simulation(
         process: Process,
@@ -81,8 +87,6 @@ def run_simulation(
     ----------
     process : Process
         The process to simulate.
-    install_path : str, optional
-        The path to the CADET installation.
 
     Returns
     -------
@@ -126,9 +130,8 @@ def simulation_results(request: pytest.FixtureRequest):
     """
     unit_type = request.param
     process = create_lwe(unit_type)
-    simulation_results = run_simulation(process, install_path)
+    simulation_results = run_simulation(process)
     return simulation_results
-
 
 @pytest.mark.parametrize("process", unit_types, indirect=True)
 class TestProcessWithLWE:
@@ -147,7 +150,7 @@ class TestProcessWithLWE:
         dict
             The configuration of the process.
         """
-        process_simulator = Cadet(install_path)
+        process_simulator = Cadet()
         process_config = process_simulator.get_process_config(process).input
         return process_config
 
