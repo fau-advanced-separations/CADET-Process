@@ -1472,7 +1472,7 @@ class SolutionVolume(SolutionBase):
     @property
     def solution_shape(self):
         """tuple: (Expected) shape of the solution"""
-        return (self.nt, 1)
+        return (self.nt, )
 
     @plotting.create_and_save_figure
     def plot(
