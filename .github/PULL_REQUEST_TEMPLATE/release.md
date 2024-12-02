@@ -3,7 +3,8 @@ This is a checklist for a new release.
 It assumes a - [ ] Push and open PR (base onto `master`). Also push tag: `git push origin --tag`
 
 - [ ] Create new branch `vX.Y.Z` from `dev`
-- [ ] Bump version in `CADETProcess/__init__.py` and `.zenodo.json`
+- [ ] Bump version in `CADETProcess/__init__.py`
+- [ ] Bump version in `.zenodo.json` and update authors
 - [ ] Add release notes in `docs/source/release_notes/vX.Y.Z.md`
   - [ ] General description
   - [ ] Deprecations / other changes
