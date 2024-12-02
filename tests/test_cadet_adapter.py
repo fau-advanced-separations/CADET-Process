@@ -17,21 +17,19 @@ from CADETProcess.simulator import Cadet
 from CADETProcess.processModel.discretization import NoDiscretization
 
 
-def detect_cadet():
-    """TODO: Consider moving to Cadet module."""
-    executable = 'cadet-cli'
-    if platform.system() == 'Windows':
-        executable += '.exe'
-    cli_path = Path(shutil.which(executable))
-
-    found_cadet = False
-    if cli_path.is_file():
+def detect_cadet(install_path: Optional[Path] = None):
+    try:
+        simulator = Cadet(install_path)
         found_cadet = True
-    install_path = cli_path.parent.parent
-    return found_cadet, cli_path, install_path
+        install_path = simulator.install_path
+    except FileNotFoundError:
+        found_cadet = False
+
+    return found_cadet, install_path
 
 
-found_cadet, cli_path, install_path = detect_cadet()
+install_path = None
+found_cadet, install_path = detect_cadet()
 
 
 class Test_Adapter(unittest.TestCase):
@@ -40,25 +38,8 @@ class Test_Adapter(unittest.TestCase):
         super().__init__(methodName)
 
     @unittest.skipIf(found_cadet is False, "Skip if CADET is not installed.")
-    def test_install_path(self):
-        simulator = Cadet()
-        self.assertEqual(cli_path, simulator.get_new_cadet_instance().cadet_cli_path)
-
-        simulator.install_path = cli_path
-        self.assertEqual(cli_path, simulator.get_new_cadet_instance().cadet_cli_path)
-
-        simulator.install_path = cli_path.parent.parent
-        self.assertEqual(cli_path, simulator.get_new_cadet_instance().cadet_cli_path)
-
-        simulator = Cadet(install_path)
-        self.assertEqual(cli_path, simulator.get_new_cadet_instance().cadet_cli_path)
-
-        with self.assertRaises(FileNotFoundError):
-            simulator = Cadet('foo/bar').get_new_cadet_instance()
-
-    @unittest.skipIf(found_cadet is False, "Skip if CADET is not installed.")
     def test_check_cadet(self):
-        simulator = Cadet()
+        simulator = Cadet(install_path)
 
         self.assertTrue(simulator.check_cadet())
 
@@ -70,7 +51,7 @@ class Test_Adapter(unittest.TestCase):
 
     @unittest.skipIf(found_cadet is False, "Skip if CADET is not installed.")
     def test_create_lwe(self):
-        simulator = Cadet()
+        simulator = Cadet(install_path)
 
         file_name = simulator.get_tempfile_name()
         cwd = simulator.temp_dir
@@ -111,7 +92,7 @@ def run_simulation(
     ----------
     process : Process
         The process to simulate.
-    cadet_install_path : str, optional
+    install_path : str, optional
         The path to the CADET installation.
 
     Returns
@@ -167,7 +148,7 @@ def simulation_results(request: pytest.FixtureRequest):
     """
     unit_type = request.param
     process = create_lwe(unit_type)
-    simulation_results = run_simulation(process, install_path=cadet_install_path)
+    simulation_results = run_simulation(process, install_path)
     return simulation_results
 
 
@@ -188,7 +169,7 @@ class TestProcessWithLWE:
         dict
             The configuration of the process.
         """
-        process_simulator = Cadet(install_path=cadet_install_path)
+        process_simulator = Cadet(install_path)
         process_config = process_simulator.get_process_config(process).input
         return process_config
 
