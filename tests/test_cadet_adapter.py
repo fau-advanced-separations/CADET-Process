@@ -63,22 +63,10 @@ class Test_Adapter(unittest.TestCase):
         shutil.rmtree('./tmp', ignore_errors=True)
 
 
-# TODO: Update when MCT is included in CADET-Python
-# Include path to latest CADET-Core version here to test the MCT
-cadet_install_path = None
-process_simulator = Cadet(install_path=cadet_install_path)
-cadet_version, branch_name = process_simulator.get_cadet_version()
-
-if cadet_version < '5.0.0' and branch_name == 'GITDIR-NOTFOUND branch':
-    unit_types = [
-        'Cstr', 'GeneralRateModel', 'TubularReactor',
-        'LumpedRateModelWithoutPores', 'LumpedRateModelWithPores'
-    ]
-else:
-    unit_types = [
-        'Cstr', 'GeneralRateModel', 'TubularReactor',
-        'LumpedRateModelWithoutPores', 'LumpedRateModelWithPores', 'MCT'
-    ]
+unit_types = [
+    'Cstr', 'GeneralRateModel', 'TubularReactor',
+    'LumpedRateModelWithoutPores', 'LumpedRateModelWithPores', 'MCT'
+]
 
 
 def run_simulation(
@@ -107,17 +95,6 @@ def run_simulation(
     """
     try:
         process_simulator = Cadet(install_path)
-
-        cadet_version, branch_name = process_simulator.get_cadet_version()
-        if cadet_version < '5.0.0' and branch_name == 'GITDIR-NOTFOUND branch':
-            warnings.warn(
-                f"Your current CADET-Core version ({cadet_version}) does not "
-                "support all unit operations of this CADET-Process version. "
-                "Please update to the latest CADET-Core version from "
-                "https://github.com/cadet/CADET-Core for full compatibility.",
-                UserWarning
-            )
-
         simulation_results = process_simulator.simulate(process)
 
         if not simulation_results.exit_flag == 0:
@@ -269,8 +246,8 @@ class TestProcessWithLWE:
         assert unit_config.UNIT_TYPE == 'CSTR'
         assert unit_config.INIT_Q == n_comp * [0]
         assert unit_config.INIT_C == n_comp * [0]
-        assert unit_config.INIT_VOLUME == 0.001
-        assert unit_config.POROSITY == 0.8425
+        assert unit_config.INIT_LIQUID_VOLUME == 0.0008425
+        assert unit_config.CONST_SOLID_VOLUME == 0.00015749999999999998
         assert unit_config.FLOWRATE_FILTER == 0.0
         assert unit_config.nbound == [1, 1, 1, 1]
 
