@@ -134,7 +134,7 @@ class Component(Structure):
     @property
     def molecular_weight(self):
         """list of float or None: The molecular weights of the subspecies."""
-        return [spec.molecular_weight for spec in self.molecular_weight]
+        return [spec.molecular_weight for spec in self.species]
 
     def __str__(self):
         """String representation of the component."""
@@ -168,9 +168,9 @@ class ComponentSystem(Structure):
         Names of all components.
     species : list
         Names of all component species.
-    charge : list
+    charges : list
         Charges of all components species.
-    molecular_weight : list
+    molecular_weights : list
         Molecular weights of all component species.
 
     See Also
