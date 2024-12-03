@@ -68,7 +68,7 @@ jobs:
 
       - name: Test
         run: |
-          python -m unittest discover -s tests
+          pytest tests -m "not slow" --durations=0
 
       - name: Install pypa/build
         run: |
