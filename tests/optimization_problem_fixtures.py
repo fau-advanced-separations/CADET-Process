@@ -76,6 +76,9 @@ def allow_test_failure_percentage(
 
 
 class TestProblem(OptimizationProblem):
+    # To prevent Pytest interpreting this class as test:
+    __test__ = False
+
     @property
     def optimal_solution(self):
         """Must return X, F, and if it has, G."""
