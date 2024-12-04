@@ -33,7 +33,7 @@ for Backend in _parallel_backends:
 
 backends = [SequentialBackend] + parallel_backends
 
-found_cadet, cli_path, install_path = detect_cadet()
+found_cadet, install_path = detect_cadet()
 
 n_cores = 2
 cpu_count = multiprocessing.cpu_count()
