@@ -235,7 +235,7 @@ class Cadet(SimulatorBase):
         except TimeoutExpired:
             raise CADETProcessError('Simulator timed out') from None
         finally:
-            if file_path is None:
+            if not self.use_dll and file_path is None:
                 os.remove(cadet.filename)
 
         if return_information.return_code != 0:
