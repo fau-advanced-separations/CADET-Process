@@ -21,8 +21,8 @@ jobs:
         os: [ubuntu-latest]
         python-version: ["3.10", "3.11", "3.12"]
         include:
-          # - os: windows-latest
-          #   python-version: "3.12"
+          - os: windows-latest
+            python-version: "3.12"
           - os: macos-13
             python-version: "3.12"
 
@@ -41,9 +41,8 @@ jobs:
         uses: conda-incubator/setup-miniconda@v3
         with:
           miniforge-version: latest
-          use-mamba: true
           activate-environment: cadet-process
-          channels: conda-forge,
+          channels: conda-forge
 
       - name: Cache conda
         uses: actions/cache@v4
@@ -53,18 +52,19 @@ jobs:
         with:
           path: ${{ env.CONDA }}/envs
           key: ${{ matrix.os }}-python_${{ matrix.python-version }}-${{ steps.get-date.outputs.today }}-${{ hashFiles(env.CONDA_FILE) }}-${{ env.CACHE_NUMBER }}
+        id: cache
 
       - name: Update environment
         run: |
-          mamba install "setuptools>=69" "pip>=24"
-          mamba install python=${{ matrix.python-version }}
+          conda install "setuptools>=69" "pip>=24"
+          conda install python=${{ matrix.python-version }}
           echo "python=${{ matrix.python-version }}.*" > $CONDA_PREFIX/conda-meta/pinned
-          mamba env update -n cadet-process -f ${{ env.CONDA_FILE }}
+          conda env update -n cadet-process -f ${{ env.CONDA_FILE }}
         if: steps.cache.outputs.cache-hit != 'true'
 
       - name: Install
         run: |
-          pip install -e ./[testing]
+          conda run pip install -e ./[testing]
 
       - name: Test
         run: |
@@ -72,12 +72,12 @@ jobs:
 
       - name: Install pypa/build
         run: |
-          python -m pip install build --user
+          conda run python -m pip install build --user
 
       - name: Build binary wheel and source tarball
         run: |
-          python -m build --sdist --wheel --outdir dist/ .
+          conda run python -m build --sdist --wheel --outdir dist/ .
 
       - name: Test Wheel install and import
         run: |
-          python -c "import CADETProcess; print(CADETProcess.__version__)"
+          conda run python -c "import CADETProcess; print(CADETProcess.__version__)"
