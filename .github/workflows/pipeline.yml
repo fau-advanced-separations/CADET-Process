@@ -43,7 +43,7 @@ jobs:
           miniforge-version: latest
           use-mamba: true
           activate-environment: cadet-process
-          channels: conda-forge,
+          channels: conda-forge
 
       - name: Cache conda
         uses: actions/cache@v4
@@ -53,6 +53,7 @@ jobs:
         with:
           path: ${{ env.CONDA }}/envs
           key: ${{ matrix.os }}-python_${{ matrix.python-version }}-${{ steps.get-date.outputs.today }}-${{ hashFiles(env.CONDA_FILE) }}-${{ env.CACHE_NUMBER }}
+        id: cache
 
       - name: Update environment
         run: |
@@ -64,20 +65,20 @@ jobs:
 
       - name: Install
         run: |
-          pip install -e ./[testing]
+          mamba run pip install -e ./[testing]
 
       - name: Test
         run: |
-          python -m unittest discover -s tests
+          mamba run python -m unittest discover -s tests
 
       - name: Install pypa/build
         run: |
-          python -m pip install build --user
+          mamba run python -m pip install build --user
 
       - name: Build binary wheel and source tarball
         run: |
-          python -m build --sdist --wheel --outdir dist/ .
+          mamba run python -m build --sdist --wheel --outdir dist/ .
 
       - name: Test Wheel install and import
         run: |
-          python -c "import CADETProcess; print(CADETProcess.__version__)"
+          mamba run python -c "import CADETProcess; print(CADETProcess.__version__)"
