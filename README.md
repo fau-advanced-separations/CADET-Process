@@ -45,7 +45,7 @@ pip install CADET-Process
 ```
 
 To use **CADET-Process**, make sure, that **CADET** is also installed.
-This can for example be done using [conda](https://docs.conda.io/en/latest/):
+This can for example be done using [conda](https://github.com/conda-forge/miniforge):
 
 ```
 conda install -c conda-forge cadet
