@@ -155,6 +155,7 @@ def simulation_results(request: pytest.FixtureRequest):
     return simulation_results
 
 @pytest.mark.parametrize("process", test_cases, indirect=True)
+@pytest.mark.slow
 class TestProcessWithLWE:
 
     def return_process_config(self, process: Process) -> dict:

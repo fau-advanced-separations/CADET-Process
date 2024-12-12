@@ -178,7 +178,7 @@ def optimizer(request):
 
 
 # %% Tests
-
+@pytest.mark.slow
 def test_convergence(optimization_problem: TestProblem, optimizer: OptimizerBase):
     # only test problems that the optimizer can handle. The rest of the tests
     # will be marked as passed
@@ -194,7 +194,7 @@ def test_convergence(optimization_problem: TestProblem, optimizer: OptimizerBase
         else:
             optimization_problem.test_if_solved(results, MOO_TEST_KWARGS)
 
-
+@pytest.mark.slow
 def test_from_initial_values(
     optimization_problem: TestProblem, optimizer: OptimizerBase
 ):
@@ -233,7 +233,7 @@ class AbortingCallback:
             raise RuntimeError("Max number of evaluations reached. Aborting!")
         self.n_calls += 1
 
-
+@pytest.mark.slow
 def test_resume_from_checkpoint(
     optimization_problem: TestProblem, optimizer: OptimizerBase
 ):
