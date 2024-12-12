@@ -42,7 +42,6 @@ dependencies = [
 testing = [
     "certifi", # tries to prevent certificate problems on windows
     "pytest",
-    "coverage",
     "pre-commit", # system tests run pre-commit
     "ax-platform >=0.3.5"
 ]
