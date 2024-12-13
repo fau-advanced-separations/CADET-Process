@@ -3,5 +3,5 @@ channels:
   - conda-forge
 dependencies:
   - python=3.12
-  - cadet>=5.0.2
+  - cadet>=5.0.3
   - pip
