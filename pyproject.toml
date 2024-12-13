@@ -24,7 +24,7 @@ classifiers = [
 ]
 dependencies = [
     "addict==2.3",
-    "cadet-python>=1.0",
+    "cadet-python>=1.0.4",
     "corner>=2.2.1",
     "diskcache>=5.4.0",
     "hopsy>=1.4.0",
