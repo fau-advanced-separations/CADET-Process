@@ -368,12 +368,12 @@ class FractionationOptimizer():
         opt, x0 = self._setup_optimization_problem(
             frac,
             purity_required,
-            allow_empty_fractions,
-            ranking,
-            obj_fun,
-            n_objectives,
-            bad_metrics,
-            minimize,
+            allow_empty_fractions=allow_empty_fractions,
+            ranking=ranking,
+            obj_fun=obj_fun,
+            n_objectives=n_objectives,
+            minimize=minimize,
+            bad_metrics=bad_metrics,
         )
 
         # Lock to enable caching
