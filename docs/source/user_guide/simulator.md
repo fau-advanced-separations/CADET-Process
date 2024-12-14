@@ -17,7 +17,9 @@ sys.path.append('../../../')
 ```
 
 (simulation_guide)=
+
 # Process Simulation
+
 To simulate a {class}`~CADETProcess.processModel.Process`, a simulator needs to be configured.
 The simulator translates the {class}`~CADETProcess.processModel.Process` configuration into the API of the corresponding external simulator.
 As of now, only **CADET** has been adapted but in principle, other simulators can be also implemented.
@@ -30,6 +32,7 @@ mamba install -c conda-forge cadet
 For more information on **CADET**, refer to the {ref}`CADET Documentation <cadet:contents>`
 
 ## Instantiate Simulator
+
 First, {class}`~CADETProcess.simulator.Cadet` needs to be imported.
 If no path is specified in the constructor, **CADET-Process** will try to autodetect the **CADET** installation.
 
@@ -51,9 +54,11 @@ process_simulator.check_cadet()
 ```
 
 ## Simulator Parameters
+
 For all simulator parameters, reasonable default values are provided but there might be cases where those might need to be changed.
 
 ### Time Stepping
+
 **CADET** uses adaptive time stepping.
 That is, the time step size is dynamically adjusted based on the rate of change of the variables being simulated.
 This balances the tradoff between simulation accuracy and computational efficiency by reducing the time step size when the error estimate is larger than a specified tolerance and increasing it when the error estimate is smaller.
@@ -76,6 +81,7 @@ Most notably, {attr}`~CADETProcess.simulator.SolverTimeIntegratorParameters.abst
 For more information, see {class}`~CADETProcess.simulator.SolverTimeIntegratorParameters` and refer to the {ref}`CADET Documentation<cadet:FFSolverTime>`.
 
 ### Solver Parameters
+
 The {class}`~CADETProcess.simulator.SolverParameters` stores general parameters of the solver.
 
 ```{code-cell} ipython3
@@ -86,6 +92,7 @@ Most notably, {attr}`~CADETProcess.simulator.SolverParameters.nthreads` defines 
 For more information, see also {ref}`CADET Documentation<cadet:solver>`.
 
 ### Model Solver Parameters
+
 The {class}`~CADETProcess.simulator.ModelSolverParameters` stores general parameters of the model solver.
 
 ```{code-cell} ipython3
@@ -95,6 +102,7 @@ print(process_simulator.solver_parameters)
 For more information, see also {ref}`CADET Documentation<cadet:FFModelSystem>`.
 
 ## Simulate Processes
+
 To run the simulation, pass the {class}`~CADETProcess.processModel.Process` as an argument to the {meth}`~CADETProcess.simulator.Cadet.simulate` method.
 For this example, consider a simple {ref}`batch-elution example<batch_elution_example>`.
 
@@ -110,16 +118,20 @@ simulation_results = process_simulator.simulate(process)
 ```
 
 Sometimes simulations can take a long time to finish.
-To limit their runtime, add a `timeout` argument with the maximum simulation time in seconds.
+To limit their runtime, set the `timeout` attribute of the simulator.
 
 ```
-simulation_results = process_simulator.simulate(process, timeout=300)
+process_simulator.timeout = 300
+simulation_results = process_simulator.simulate(process)
 ```
 
 (simulation_results_guide)=
+
 ## Simulation Results
+
 The {class}`~CADETProcess.simulationResults.SimulationResults` object contains the results of the simulation.
 This includes:
+
 - `exit_code`: Information about the solver termination.
 - `exit_message`: Additional information about the solver status.
 - `time_elapsed`: Execution time of simulation.
@@ -171,12 +183,15 @@ print(simulation_results.sensitivity['column.total_porosity'].column.keys())
 ```
 
 Here, the `outlet` entry again is a {class}`~CADETProcess.solution.SolutionIO` which can be plotted.
+
 ```{code-cell} ipython3
 _ = simulation_results.sensitivity['column.total_porosity'].column.outlet.plot()
 ```
 
 (stationarity_guide)=
+
 ## Cyclic Stationarity
+
 Preparative chromatographic separations are operated in a repetitive fashion.
 In particular processes that incorporate the recycling of streams, like steady-state-recycling (SSR) or simulated moving bed (SMB), have a distinct startup behavior that takes multiple cycles until a periodic steady state is reached.
 But also in conventional batch chromatography several cycles are needed to attain stationarity in optimized situations where there is a cycle-to-cycle overlap of the elution profiles of consecutive injections.
@@ -204,6 +219,7 @@ simulation_results = process_simulator.simulate(process)
 _ = simulation_results.solution.column.outlet.plot()
 
 ```
+
 However, it is hard to anticipate, when steady state is reached.
 To automatically simulate until stationarity is reached, a {class}`~CADETProcess.stationarity.StationarityEvaluator` needs to be configured.
 
@@ -253,6 +269,7 @@ _ = simulation_results.solution.column.outlet.plot()
 ```
 
 The number of cycles is stored in the simulation results.
+
 ```{code-cell} ipython3
 print(simulation_results.n_cycles)
 ```
