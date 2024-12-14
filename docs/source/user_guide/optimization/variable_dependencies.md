@@ -15,7 +15,9 @@ sys.path.append('../../../../')
 ```
 
 (variable_dependencies_guide)=
+
 # Variable Dependencies
+
 In many optimization problems, a large number of variables must be considered simultaneously, leading to high complexity.
 For more advanced problems, reducing the degrees of freedom can greatly simplify the optimization process and lead to faster convergence and better results.
 One way to achieve this is to define dependencies between individual variables.
@@ -28,7 +30,6 @@ With linear combinations, variables are combined using weights or coefficients, 
 For example, consider a process where the same parameter is used in multiple unit operations.
 To reduce the number of variables that the optimizer needs to consider, it is possible to add a single variable, which is then set on both evaluation objects in pre-processing.
 In other cases, the ratio between model parameters may be essential for the optimization problem.
-
 
 ```{figure} ./figures/transform_dependency.svg
 :name: transform_dependency
@@ -65,6 +66,14 @@ For instance, consider an adsorption proces with an adsorption rate $k_a$ and a 
 Both influence the strength of the interaction as well as the dynamics of the interaction.
 By using the transformation $k_{eq} = k_a / k_d$ to calculate the equilibrium constant and $k_{kin} = 1 / k_d$ to calculate the kinetics constant, the values for the equilibrium and the kinetics of the reaction can be identified independently.
 First, the dependent variables $k_a$ and $k_d$ must be added as they are implemented in the underlying model.
+
+```{code-cell} ipython3
+:tags: [remove-cell]
+
+from examples.load_wash_elute.lwe_flow_rate import process
+optimization_problem = OptimizationProblem('adsorption_rate_demo')
+optimization_problem.add_evaluation_object(process)
+```
 
 ```{code-cell} ipython3
 optimization_problem.add_variable(
@@ -118,5 +127,39 @@ optimization_problem.add_variable_dependency(
     dependent_variable="adsorption_rate",
     independent_variables=["kinetic_constant", "equilibrium_constant"],
     transform=lambda k_kin, k_eq: k_eq / k_kin
+)
+```
+
+```python
+from CADETProcess.optimization import OptimizationProblem
+optimization_problem = OptimizationProblem('transform_demo')
+
+optimization_problem.add_variable('var_0')
+optimization_problem.add_variable('var_1')
+optimization_problem.add_variable('var_2')
+```
+
+```python
+def transform_fun(var_0, var_1):
+    return var_0/var_1
+
+optimization_problem.add_variable_dependency('var_2', ['var_0', 'var_1'], transform=transform_fun)
+```
+
+```python
+optimization_problem.add_variable(
+    name='adsorption_rate',
+    parameter_path='flow_sheet.column.binding_model.adsorption_rate',
+    lb=1e-3, ub=1e3,
+    transform='auto',
+    indices=[1]  # modify only the protein (component index 1) parameter
+)
+
+optimization_problem.add_variable(
+    name='desorption_rate',
+    parameter_path='flow_sheet.column.binding_model.desorption_rate',
+    lb=1e-3, ub=1e3,
+    transform='auto',
+    indices=[1]
 )
 ```
