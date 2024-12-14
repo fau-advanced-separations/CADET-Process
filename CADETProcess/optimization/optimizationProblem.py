@@ -1604,7 +1604,7 @@ class OptimizationProblem(Structure):
 
     def evaluate_callbacks(
             self,
-            population: Population | npt.ArrayLike,
+            population: Population | Individual | npt.ArrayLike,
             current_iteration: int = 0,
             parallelization_backend: ParallelizationBackendBase | None = None,
             force: bool = False,
@@ -1614,8 +1614,9 @@ class OptimizationProblem(Structure):
 
         Parameters
         ----------
-        population : Population | npt.ArrayLike
+        population : Population | Individual | npt.ArrayLike
             Population to be evaluated.
+            If an Individual is passed, a new population will be created.
             If a numpy array is passed, a new population will be created, assuming the
             values are independent values in untransformed space.
         current_iteration : int, optional
@@ -1636,7 +1637,11 @@ class OptimizationProblem(Structure):
         _evaluate_individual
         _evaluate
         """
-        if isinstance(population, np.ndarray):
+        if isinstance(population, Individual):
+            ind = population
+            population = Population()
+            population.add_individual(ind)
+        elif isinstance(population, (list, np.ndarray)):
             population = self.create_population(population)
 
         if parallelization_backend is None:
