@@ -589,15 +589,19 @@ class Process(EventHandler):
         if max(time) > self.cycle_time:
             raise ValueError('Inlet profile exceeds cycle time.')
 
+        # Handle components and concentration shape
         if components is None:
             if c.shape[1] != self.n_comp:
-                raise ValueError(f'Expected shape ({len(time), self.n_comp}) for concentration array. Got {c.shape}.')
+                raise ValueError(
+                    f'Expected shape ({len(time), self.n_comp}) for concentration array'
+                    f'. Got {c.shape}.'
+                )
             components = self.component_system.species
         elif components == -1:
-            # Assume same profile for all components.
+            # Assume same profile for all components
             if c.ndim > 1:
                 raise ValueError('Expected single concentration profile.')
-            c = np.column_stack([c]*self.n_comp)
+            c = np.column_stack([c] * self.n_comp)
             components = self.component_system.species
 
         if not isinstance(components, list):
@@ -607,18 +611,41 @@ class Process(EventHandler):
         if len(indices) == 1 and c.ndim == 1:
             c = np.array(c, ndmin=2).T
 
+        # Process each component's profile
         for i, comp in enumerate(indices):
-            tck = interpolate.splrep(time, c[:, i], s=s)
+            # Extract the concentration profile for the current component
+            profile = c[:, i]
+
+            # Normalize the profile
+            min_val = np.min(profile)
+            max_val = np.max(profile)
+            range_val = max_val - min_val
+
+            if range_val == 0:
+                warn(
+                    f'Component {comp} has no variation in concentration; '
+                    'scaling will be skipped.'
+                )
+                range_val = 1  # Avoid division by zero, effectively skipping scaling
+
+            normalized_profile = (profile - min_val) / range_val
+
+            # Fit the spline on the normalized profile
+            tck = interpolate.splrep(time, normalized_profile, s=s)
             ppoly = interpolate.PPoly.from_spline(tck)
 
-            for i, (t, sec) in enumerate(zip(ppoly.x, ppoly.c.T)):
-                if i < 3:
+            # Add events with properly unscaled coefficients
+            for j, (t, sec) in enumerate(zip(ppoly.x, ppoly.c.T)):
+                if j < 3:
                     continue
-                elif i > len(ppoly.x) - 5:
+                elif j > len(ppoly.x) - 5:
                     continue
-                evt = self.add_event(
-                    f'{unit}_inlet_{comp}_{i-3}', f'flow_sheet.{unit}.c',
-                    np.flip(sec), t, comp
+                # Scale the coefficients and adjust the constant term
+                scaled_sec = sec * range_val
+                scaled_sec[-1] += min_val  # Adjust the constant term for shifting
+                self.add_event(
+                    f'{unit}_inlet_{comp}_{j-3}', f'flow_sheet.{unit}.c',
+                    np.flip(scaled_sec), t, comp
                 )
 
     def add_flow_rate_profile(self, unit, time, flow_rate, s=1e-6):
@@ -652,17 +679,39 @@ class Process(EventHandler):
         if max(time) > self.cycle_time:
             raise ValueError('Inlet profile exceeds cycle time')
 
-        tck = interpolate.splrep(time, flow_rate, s=s)
+        # Compute min and max for scaling
+        min_val = np.min(flow_rate)
+        max_val = np.max(flow_rate)
+        range_val = max_val - min_val
+
+        if range_val == 0:
+            warn(
+                f'Component {comp} has no variation in concentration; '
+                'scaling will be skipped.'
+            )
+            range_val = 1  # Avoid division by zero, effectively skipping scaling
+
+        # Normalize flow_rate to [0, 1]
+        normalized_flow_rate = (flow_rate - min_val) / range_val
+
+        # Fit the spline with normalized flow_rate
+        tck = interpolate.splrep(time, normalized_flow_rate, s=s)
         ppoly = interpolate.PPoly.from_spline(tck)
 
+        # Add events with unscaled coefficients
         for i, (t, sec) in enumerate(zip(ppoly.x, ppoly.c.T)):
             if i < 3:
                 continue
             elif i > len(ppoly.x) - 5:
                 continue
-            evt = self.add_event(
+
+            # Unscale all coefficients
+            unscaled_sec = sec * range_val
+            # Adjust the constant term (last coefficient in the array) for shifting
+            unscaled_sec[-1] += min_val
+            self.add_event(
                 f'{unit}_flow_rate_{i-3}', f'flow_sheet.{unit}.flow_rate',
-                np.flip(sec), t
+                np.flip(unscaled_sec), t
             )
 
     def check_config(self):
