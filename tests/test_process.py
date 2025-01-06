@@ -7,9 +7,6 @@ from examples.batch_elution.process import process
 
 class Test_process(unittest.TestCase):
 
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
-
     def create_process(self):
         return copy.deepcopy(process)
 

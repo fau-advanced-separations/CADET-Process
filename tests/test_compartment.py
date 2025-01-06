@@ -9,9 +9,6 @@ from CADETProcess.modelBuilder import CompartmentBuilder
 
 class Test_CompartmentBuilder(unittest.TestCase):
 
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
-
     def setUp(self):
         self.component_system = ComponentSystem(2)
 

@@ -32,9 +32,6 @@ class TestHashArray(unittest.TestCase):
 
 
 class TestIndividual(unittest.TestCase):
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
-
     def setUp(self):
         x = [1, 2]
         f = [-1]

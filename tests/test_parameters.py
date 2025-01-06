@@ -18,9 +18,6 @@ from CADETProcess.dataStructure import (
 
 class TestDescription(unittest.TestCase):
 
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
-
     def setUp(self):
         class Model(Structure):
             param_with_description = Integer(description='foo')
@@ -36,8 +33,6 @@ class TestDescription(unittest.TestCase):
 
 
 class TestParameterDictionaries(unittest.TestCase):
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
 
     def setUp(self):
         class Model(Structure):
@@ -91,9 +86,6 @@ class TestParameterDictionaries(unittest.TestCase):
 
 class TestConstant(unittest.TestCase):
 
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
-
     def setUp(self):
         class Model(Structure):
             const_int = Constant(value=0)
@@ -120,9 +112,6 @@ class TestConstant(unittest.TestCase):
 
 class TestSwitch(unittest.TestCase):
 
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
-
     def setUp(self):
         class Model(Structure):
             switch = Switch(valid=['foo', 'bar'], default='foo')
@@ -145,9 +134,6 @@ class TestSwitch(unittest.TestCase):
 
 
 class TestTyped(unittest.TestCase):
-
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
 
     def setUp(self):
         class Model(Structure):
@@ -197,9 +183,6 @@ class TestTyped(unittest.TestCase):
 
 class TestCallable(unittest.TestCase):
 
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
-
     def setUp(self):
         def default_method(x):
             return x
@@ -228,9 +211,6 @@ class TestCallable(unittest.TestCase):
 
 
 class TestRanged(unittest.TestCase):
-
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
 
     def setUp(self):
         class Model(Structure):
@@ -263,9 +243,6 @@ class TestRanged(unittest.TestCase):
 
 
 class TestSizedUnified(unittest.TestCase):
-
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
 
     def setUp(self):
         class Model(Structure):
@@ -343,9 +320,6 @@ class TestSizedUnified(unittest.TestCase):
 
 class TestSizedDependent(unittest.TestCase):
     """Previous test methods for dependently sized parameters."""
-
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
 
     def setUp(self):
         class Model(Structure):
@@ -447,9 +421,6 @@ class TestSizedDependent(unittest.TestCase):
 
 
 class TestPolynomial(unittest.TestCase):
-
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
 
     def setUp(self):
         class Model(Structure):
@@ -579,9 +550,6 @@ class TestPolynomial(unittest.TestCase):
 
 
 class TestModulated(unittest.TestCase):
-
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
 
     def setUp(self):
         class Model(Structure):

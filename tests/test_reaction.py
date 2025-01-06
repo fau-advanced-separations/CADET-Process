@@ -13,9 +13,6 @@ from CADETProcess.processModel import MassActionLaw, MassActionLawParticle
 
 class Test_Reaction(unittest.TestCase):
 
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
-
     def create_simple_bulk_reaction(self, is_kinetic=True, k_fwd_min=100):
         # 0: NH4+(aq) <=> NH3(aq) + H+(aq)
         component_system = ComponentSystem()

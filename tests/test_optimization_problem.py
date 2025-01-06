@@ -112,10 +112,6 @@ from CADETProcess import CADETProcessError
 
 
 class Test_OptimizationVariable(unittest.TestCase):
-
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
-
     def setUp(self):
         self.evaluation_object = EvaluationObject()
 
@@ -330,14 +326,10 @@ class Test_OptimizationVariable(unittest.TestCase):
             )
 
 
-from tests.test_events import TestHandler
+from tests.test_events import HandlerFixture
 class Test_OptimizationVariableEvents(unittest.TestCase):
-
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
-
     def setUp(self):
-        evaluation_object = TestHandler()
+        evaluation_object = HandlerFixture()
 
         evt = evaluation_object.add_event(
             'single_index_1D', 'performer.array_1d', 1, indices=0, time=1
@@ -571,7 +563,7 @@ class Test_OptimizationVariableEvents(unittest.TestCase):
 
     def test_multi_eval_obj(self):
         """Test setting indexed variables for multiple evaluation objects."""
-        evaluation_object_2 = TestHandler()
+        evaluation_object_2 = HandlerFixture()
 
         evt = evaluation_object_2.add_event(
             'multi_index_ND', 'performer.ndarray',
@@ -669,9 +661,6 @@ def setup_optimization_problem(
 
 
 class Test_OptimizationProblemSimple(unittest.TestCase):
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
-
     def setUp(self):
         optimization_problem = OptimizationProblem('simple', use_diskcache=False)
 
@@ -708,9 +697,6 @@ class Test_OptimizationProblemSimple(unittest.TestCase):
 
 
 class Test_OptimizationProblemLinCon(unittest.TestCase):
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
-
     def setUp(self):
         optimization_problem = setup_optimization_problem(
             n_lincon=1, use_diskcache=False
@@ -832,9 +818,6 @@ class Test_OptimizationProblemLinCon(unittest.TestCase):
 
 
 class Test_OptimizationProblemDepVar(unittest.TestCase):
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
-
     def setUp(self):
         optimization_problem = OptimizationProblem('simple', use_diskcache=False)
 
@@ -1007,9 +990,6 @@ class Test_OptimizationProblemDepVar(unittest.TestCase):
 
 
 class Test_OptimizationProblemJacobian(unittest.TestCase):
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
-
     def setUp(self):
         def single_obj_single_var(x):
             return x[0]**2
@@ -1095,9 +1075,6 @@ class Test_OptimizationProblemConstraintTransforms(unittest.TestCase):
     tests if `A_transformed` and `b_transformed` properties are correctly
     computed.
     """
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
-
     def setup(self):
         settings.working_directory = './test_problem'
 
@@ -1229,9 +1206,6 @@ class Test_OptimizationProblemEvaluator(unittest.TestCase):
 
     """
 
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
-
     def setUp(self):
         eval_obj = EvaluationObject()
 
@@ -1309,9 +1283,6 @@ class Test_OptimizationProblemEvaluator(unittest.TestCase):
 
 
 class Test_MultiEvaluationObjects(unittest.TestCase):
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
-
     def setUp(self):
         eval_obj_1 = EvaluationObject(name='foo')
         eval_obj_2 = EvaluationObject(name='bar')

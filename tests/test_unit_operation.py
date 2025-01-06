@@ -41,9 +41,6 @@ flow_direction = 1
 
 class Test_Unit_Operation(unittest.TestCase):
 
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
-
     def setUp(self):
         self.component_system = ComponentSystem(2)
 

@@ -22,8 +22,6 @@ def setup_population(n_ind, n_vars, n_obj, n_nonlin=0, n_meta=0, rng=None):
 
 
 class TestPopulation(unittest.TestCase):
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
 
     def setUp(self):
         x = [1, 2]
@@ -238,8 +236,6 @@ class TestPopulation(unittest.TestCase):
 
 
 class TestPareto(unittest.TestCase):
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
 
     def setUp(self):
         front = ParetoFront(3)
