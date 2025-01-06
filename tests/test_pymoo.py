@@ -8,8 +8,6 @@ from tests.test_optimization_problem import setup_optimization_problem
 
 
 class Test_OptimizationProblemSimple(unittest.TestCase):
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
 
     def tearDown(self):
         shutil.rmtree('./results_simple', ignore_errors=True)

@@ -6,9 +6,6 @@ import CADETProcess
 
 class Test_Fractions(unittest.TestCase):
 
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
-
     def create_fractions(self):
         m_0 = np.array([0, 0])
         frac0 = CADETProcess.fractionation.Fraction(m_0, 1)

@@ -6,8 +6,6 @@ from CADETProcess.transform import (
 
 
 class Test_Transform(unittest.TestCase):
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
 
     def test_input_range(self):
         transform = NormLinearTransform(0, 100)

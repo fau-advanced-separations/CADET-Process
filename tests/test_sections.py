@@ -7,8 +7,6 @@ from CADETProcess.dynamicEvents import Section, TimeLine, MultiTimeLine
 
 
 class TestGenerateIndices(unittest.TestCase):
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
 
     def test_generate_indices(self):
         shape = (3, 3)
@@ -41,8 +39,6 @@ class TestGenerateIndices(unittest.TestCase):
 
 
 class TestSection(unittest.TestCase):
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
 
     def setUp(self):
         self.constant_section_single = Section(0, 1, 1)
@@ -108,8 +104,6 @@ class TestSection(unittest.TestCase):
 
 
 class TestTimeLine(unittest.TestCase):
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
 
     def create_timeline_constant_single(self):
         """Piecewise constant sections with single entry."""
@@ -277,8 +271,6 @@ class TestTimeLine(unittest.TestCase):
 
 
 class TestMultiTimeLine(unittest.TestCase):
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
 
     def create_timeline_constant_multi(self):
         """Piecewise constant sections with multiple entries managed by MultiTimeline."""

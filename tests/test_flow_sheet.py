@@ -161,9 +161,6 @@ def setup_ssr_flow_sheet(component_system=None):
 class TestFlowSheet(unittest.TestCase):
     """Test general functionatlity of `FlowSheet` class."""
 
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
-
     def setUp(self):
         self.component_system = ComponentSystem(2)
 
@@ -995,9 +992,6 @@ class TestCstrFlowRate(unittest.TestCase):
     is set, it has properties similar to an `Inlet`.
     """
 
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
-
     def setUp(self):
         self.component_system = ComponentSystem(2)
 
@@ -1100,8 +1094,6 @@ class TestCstrFlowRate(unittest.TestCase):
         np.testing.assert_almost_equal(cstr_out, cstr_out_expected)
 
 class TestPorts(unittest.TestCase):
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
 
     def setUp(self):
         self.setup_mct_flow_sheet()
@@ -1561,9 +1553,6 @@ class TestPorts(unittest.TestCase):
 class TestFlowRateMatrix(unittest.TestCase):
     """Test calculation of flow rates with another simple testcase by @daklauss"""
 
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
-
     def setUp(self):
         self.component_system = ComponentSystem(1)
 
@@ -1698,8 +1687,6 @@ class TestFlowRateMatrix(unittest.TestCase):
 
 class TestFlowRateSelfMatrix(unittest.TestCase):
     """Test special case where one unit is connected to itself."""
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
 
     def setUp(self):
         self.component_system = ComponentSystem(1)
@@ -1793,9 +1780,6 @@ class TestSingularFlowMatrix(unittest.TestCase):
     other but not with the other units.
 
     """
-
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
 
     def setUp(self):
 

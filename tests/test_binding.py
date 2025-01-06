@@ -11,9 +11,6 @@ from CADETProcess.simulator.cadetAdapter import adsorption_parameters_map
 
 class Test_Binding(unittest.TestCase):
 
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
-
     def setUp(self):
 
         component_system = ComponentSystem(2)

@@ -42,9 +42,6 @@ cpu_count = multiprocessing.cpu_count()
 class TestParallelizationBackend(unittest.TestCase):
     """Test initializing parallelization backends and n_cores attribute."""
 
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
-
     def test_n_cores(self):
         with self.assertRaises(ValueError):
             sequential_backend = SequentialBackend(n_cores=n_cores)
@@ -88,9 +85,6 @@ class TestParallelEvaluation(unittest.TestCase):
     Since initializing CADET in parallel can be an issue, this is also tested.
 
     """
-
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
 
     def tearDown(self):
         shutil.rmtree('./tmp', ignore_errors=True)
@@ -139,9 +133,6 @@ class TestOptimizerParallelizationBackend(unittest.TestCase):
     Consider moving this to Optimizer tests.
 
     """
-
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
 
     def tearDown(self):
         settings.working_directory = None

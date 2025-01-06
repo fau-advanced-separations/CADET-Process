@@ -32,9 +32,6 @@ def setup_optimization_results(
 
 
 class TestOptimizationResults(unittest.TestCase):
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
-
     def setUp(self):
         self.optimization_results = setup_optimization_results()
 
