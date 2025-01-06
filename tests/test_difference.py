@@ -40,8 +40,6 @@ q_const = np.ones(time.shape)
 
 from CADETProcess.comparison import SSE
 class TestSSE(unittest.TestCase):
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
 
     def test_metric(self):
         # Compare with itself
@@ -76,8 +74,6 @@ class TestSSE(unittest.TestCase):
 
 from CADETProcess.comparison import NRMSE
 class TestNRMSE(unittest.TestCase):
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
 
     def test_metric(self):
         # Compare with itself
@@ -112,8 +108,6 @@ class TestNRMSE(unittest.TestCase):
 
 from CADETProcess.comparison import PeakHeight
 class TestPeakHeight(unittest.TestCase):
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
 
     def setUp(self):
         # 2 Components, gaussian peaks, constant flow
@@ -202,8 +196,6 @@ class TestPeakHeight(unittest.TestCase):
 
 from CADETProcess.comparison import PeakPosition
 class TestPeakPosition(unittest.TestCase):
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
 
     def setUp(self):
         # 2 Components, gaussian peaks, constant flow
@@ -275,8 +267,6 @@ class TestPeakPosition(unittest.TestCase):
 
 from CADETProcess.comparison import Shape
 class TestShape(unittest.TestCase):
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
 
     def setUp(self):
         # 2 Components, gaussian peaks, constant flow
@@ -396,8 +386,6 @@ from CADETProcess.comparison import FractionationSSE
 
 
 class TestFractionation(unittest.TestCase):
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
 
     def setUp(self):
         fraction_1 = Fraction(

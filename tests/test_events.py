@@ -11,7 +11,7 @@
 Notes
 -----
 Since the EventHandler defines an interface, that requires the
-implementation of some methods, a TestHandler class is defined.
+implementation of some methods, a HandlerFixture class is defined.
 
 Maybe this is too complicated, just use Process instead?
 """
@@ -31,7 +31,8 @@ from CADETProcess.dataStructure import (
 plot = True
 
 
-class TestPerformer(Structure):
+class PerformerFixture(Structure):
+
     n_entries = 4
     n_coeff = 4
 
@@ -79,10 +80,11 @@ class TestPerformer(Structure):
         return parameters
 
 
-class TestHandler(CADETProcess.dynamicEvents.EventHandler):
+class HandlerFixture(CADETProcess.dynamicEvents.EventHandler):
+
     def __init__(self):
         self.name = None
-        self.performer = TestPerformer()
+        self.performer = PerformerFixture()
         super().__init__()
 
     @property
@@ -100,7 +102,7 @@ class TestHandler(CADETProcess.dynamicEvents.EventHandler):
         except KeyError:
             pass
 
-        super(TestHandler, self.__class__).parameters.fset(self, parameters)
+        super(HandlerFixture, self.__class__).parameters.fset(self, parameters)
 
     @property
     def section_dependent_parameters(self):
@@ -117,11 +119,8 @@ class TestHandler(CADETProcess.dynamicEvents.EventHandler):
 
 class Test_Events(unittest.TestCase):
 
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
-
     def setup_event_handler(self, add_events=False):
-        event_handler = TestHandler()
+        event_handler = HandlerFixture()
         event_handler.cycle_time = 20
 
         if add_events:

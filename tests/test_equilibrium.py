@@ -10,8 +10,6 @@ from CADETProcess import equilibria
 
 
 class TestReactionEquilibrium(unittest.TestCase):
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
 
     def setUp(self):
         component_system = ComponentSystem(2)
@@ -171,8 +169,6 @@ class TestReactionEquilibrium(unittest.TestCase):
 
 
 class TestAdsorptionEquilibrium(unittest.TestCase):
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
 
     def setUp(self):
         component_system_mono = ComponentSystem()

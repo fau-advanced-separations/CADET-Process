@@ -91,8 +91,6 @@ q_linear.add_section(Section(45, 100, [0, 0, 0, 0], is_polynomial=True))
 
 
 class TestSolution(unittest.TestCase):
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
 
     def setUp(self):
         # 2 Components, constant concentration, constant flow
@@ -427,8 +425,6 @@ class TestSolution(unittest.TestCase):
 
 
 class TestSliceSolution(unittest.TestCase):
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
 
     def setUp(self):
         # 2 Components, gaussian peaks, constant flow
@@ -541,9 +537,6 @@ class TestSliceSolution(unittest.TestCase):
 
 
 class TestPlot(unittest.TestCase):
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
-
     def setUp(self):
         # 2 Components, gaussian peaks, constant flow
         self.solution_species = SolutionIO(

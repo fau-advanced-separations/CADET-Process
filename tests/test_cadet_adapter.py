@@ -35,9 +35,6 @@ found_cadet, install_path = detect_cadet()
 
 class Test_Adapter(unittest.TestCase):
 
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
-
     @unittest.skipIf(found_cadet is False, "Skip if CADET is not installed.")
     def test_check_cadet(self):
         simulator = Cadet(install_path)

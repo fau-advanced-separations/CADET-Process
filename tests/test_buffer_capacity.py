@@ -11,9 +11,6 @@ enable_plot = False
 
 class TestBufferCapacity(unittest.TestCase):
 
-    def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
-
     def setUp(self):
         self.components_simple = ComponentSystem(2, charges=[1, 2])
 
