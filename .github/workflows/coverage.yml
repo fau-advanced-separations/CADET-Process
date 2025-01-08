@@ -1,0 +1,76 @@
+name: coverage
+
+on:
+  push:
+    branches:
+      - master
+      - dev
+      - 144-monitor-test-coverage
+  workflow_dispatch:
+      inputs:
+        slow:
+          type: boolean
+          description: Run with slow tests
+          default: false
+
+jobs:
+  coverage-job:
+    runs-on: ${{ matrix.os }}
+
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ["3.12"]
+
+    env:
+      CONDA_FILE: environment.yml
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get Date
+        id: get-date
+        run: echo "today=$(/bin/date -u '+%Y%m%d')" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Setup Conda Environment
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
+          use-mamba: true
+          activate-environment: cadet-process
+          channels: conda-forge,
+
+      - name: Cache conda
+        uses: actions/cache@v4
+        env:
+          # Increase this value to reset cache if environment.yml has not changed
+          CACHE_NUMBER: 0
+        with:
+          path: ${{ env.CONDA }}/envs
+          key: ${{ matrix.os }}-python_${{ matrix.python-version }}-${{ steps.get-date.outputs.today }}-${{ hashFiles(env.CONDA_FILE) }}-${{ env.CACHE_NUMBER }}
+
+      - name: Update environment
+        run: |
+          mamba install "setuptools>=69" "pip>=24"
+          mamba install python=${{ matrix.python-version }}
+          echo "python=${{ matrix.python-version }}.*" > $CONDA_PREFIX/conda-meta/pinned
+          mamba env update -n cadet-process -f ${{ env.CONDA_FILE }}
+        if: steps.cache.outputs.cache-hit != 'true'
+
+      - name: Install
+        run: |
+          pip install -e ./[testing,coverage]
+
+        # Push event doesn't have input context => inputs.notslows is empty => false
+      - name: Coverage Run
+        run: |
+          if [ ${{ github.event.inputs.slow }} ]; then
+            pytest --cov=./CADETProcess --cov=./tests --cov-report term-missing tests
+          else
+            pytest -m "not slow" --cov=./CADETProcess --cov=./tests --cov-report term-missing tests
+          fi
