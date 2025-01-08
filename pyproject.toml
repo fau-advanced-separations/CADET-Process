@@ -57,6 +57,10 @@ docs = [
 ax = [
     "ax-platform >=0.3.5"
 ]
+coverage = [
+    "coverage",
+    "pytest-cov",
+]
 
 [project.urls]
 homepage = "https://github.com/fau-advanced-separations/CADET-Process"
