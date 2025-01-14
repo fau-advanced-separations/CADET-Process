@@ -179,7 +179,7 @@ class Cadet(SimulatorBase):
 
 
     @locks_process
-    def run(self, process, cadet=None, file_path=None):
+    def _run(self, process, cadet=None, file_path=None):
         """Interface to the solver run function.
 
         The configuration is extracted from the process object and then saved

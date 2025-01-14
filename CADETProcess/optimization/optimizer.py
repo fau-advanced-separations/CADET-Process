@@ -262,15 +262,15 @@ class OptimizerBase(Structure):
             if not flag:
                 raise ValueError("x0 contains invalid entries.")
 
-        log.log_time('Optimization', self.logger.level)(self.run)
-        log.log_results('Optimization', self.logger.level)(self.run)
-        log.log_exceptions('Optimization', self.logger.level)(self.run)
+        log.log_time('Optimization', self.logger.level)(self._run)
+        log.log_results('Optimization', self.logger.level)(self._run)
+        log.log_exceptions('Optimization', self.logger.level)(self._run)
 
         backend = plt.get_backend()
         plt.switch_backend('agg')
 
         start = time.time()
-        self.run(self.optimization_problem, x0, *args, **kwargs)
+        self._run(self.optimization_problem, x0, *args, **kwargs)
         time_elapsed = time.time() - start
 
         self.results.time_elapsed = time_elapsed
@@ -292,7 +292,7 @@ class OptimizerBase(Structure):
         return self.results
 
     @abstractmethod
-    def run(optimization_problem, x0=None, *args, **kwargs):
+    def _run(optimization_problem, x0=None, *args, **kwargs):
         """Abstract Method for solving an optimization problem.
 
         Parameters
