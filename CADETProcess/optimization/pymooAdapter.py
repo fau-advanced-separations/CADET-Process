@@ -49,7 +49,7 @@ class PymooInterface(OptimizerBase):
         'seed', 'pop_size', 'xtol', 'ftol', 'cvtol', 'n_max_gen', 'n_skip'
     ]
 
-    def run(self, optimization_problem: OptimizationProblem, x0=None):
+    def _run(self, optimization_problem: OptimizationProblem, x0=None):
         """Solve optimization problem using functional pymoo implementation.
 
         Parameters

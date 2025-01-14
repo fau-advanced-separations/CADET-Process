@@ -305,7 +305,7 @@ class SimulatorBase(Structure):
         if previous_results is not None:
             self.set_state_from_results(process, previous_results)
 
-        return self.run(process, **kwargs)
+        return self._run(process, **kwargs)
 
         self.n_cycles = n_cyc_orig
 
@@ -362,7 +362,7 @@ class SimulatorBase(Structure):
             if results is not None:
                 self.set_state_from_results(process, results)
 
-            new_results = self.run(process, **kwargs)
+            new_results = self._run(process, **kwargs)
 
             if results is None:
                 results = new_results
@@ -414,7 +414,7 @@ class SimulatorBase(Structure):
         return process
 
     @abstractmethod
-    def run(process, **kwargs):
+    def _run(process, **kwargs):
         """Abstract method for running a simulation.
 
         Parameters

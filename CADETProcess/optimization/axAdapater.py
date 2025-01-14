@@ -349,7 +349,7 @@ class AxInterface(OptimizerBase):
         """
         raise NotImplementedError
 
-    def run(self, optimization_problem, x0):
+    def _run(self, optimization_problem, x0):
 
         search_space = self._setup_searchspace(self.optimization_problem)
         objectives = self._setup_objectives()
