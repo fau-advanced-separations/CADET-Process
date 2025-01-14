@@ -515,7 +515,7 @@ class MobilePhaseModulator(BindingBaseClass):
     ion_exchange_characteristic : list of unsigned floats.
         Parameters describing the ion-exchange characteristics (IEX).
         Length depends on `n_comp`.
-    hydrophobicity : list of unsigned floats.
+    hydrophobicity : list of floats.
         Parameters describing the hydrophobicity (HIC).
         Length depends on `n_comp`.
     linear_threshold : UnsignedFloat
@@ -527,7 +527,7 @@ class MobilePhaseModulator(BindingBaseClass):
     capacity = SizedUnsignedList(size='n_comp')
     ion_exchange_characteristic = SizedUnsignedList(size='n_comp')
     beta = ion_exchange_characteristic
-    hydrophobicity = SizedUnsignedList(size='n_comp')
+    hydrophobicity = SizedList(size='n_comp')
     gamma = hydrophobicity
     linear_threshold = UnsignedFloat(default=1e-8)
 
@@ -555,7 +555,7 @@ class ExtendedMobilePhaseModulator(BindingBaseClass):
     ion_exchange_characteristic : list of unsigned floats.
         Parameters describing the ion-exchange characteristics (IEX).
         Length depends on `n_comp`.
-    hydrophobicity : list of unsigned floats.
+    hydrophobicity : list of floats.
         Parameters describing the hydrophobicity (HIC).
         Length depends on `n_comp`.
     component_mode : list of unsigned integers.
@@ -572,7 +572,7 @@ class ExtendedMobilePhaseModulator(BindingBaseClass):
     capacity = SizedUnsignedList(size='n_comp')
     ion_exchange_characteristic = SizedUnsignedList(size='n_comp')
     beta = ion_exchange_characteristic
-    hydrophobicity = SizedUnsignedList(size='n_comp')
+    hydrophobicity = SizedList(size='n_comp')
     gamma = hydrophobicity
     component_mode = SizedUnsignedIntegerList(size='n_comp', ub=2)
 
