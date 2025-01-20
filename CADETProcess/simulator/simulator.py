@@ -55,7 +55,9 @@ class SimulatorBase(Structure):
     n_cycles_max = UnsignedInteger(default=100)
     raise_exception_on_max_cycles = Bool(default=False)
 
-    def __init__(self, stationarity_evaluator=None):
+    def __init__(self, stationarity_evaluator=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
         self.logger = get_logger('Simulation')
 
         if stationarity_evaluator is None:

@@ -91,7 +91,12 @@ class Cadet(SimulatorBase):
     use_dll = Bool(default=False)
     _force_constant_flow_rate = False
 
-    def __init__(self, install_path=None, temp_dir=None, *args, **kwargs):
+    def __init__(
+            self,
+            install_path=None,
+            temp_dir=None,
+            *args, **kwargs
+            ):
         super().__init__(*args, **kwargs)
 
         if install_path is None:
