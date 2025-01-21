@@ -566,9 +566,9 @@ class AutoTransform(TransformBase):
             The transformed output value(s).
         """
         if self.use_log:
-            return self.log.transform(x)
+            return self.log._transform(x)
         else:
-            return self.linear.transform(x)
+            return self.linear._transform(x)
 
     def _untransform(self, x):
         """Untransforms the output value to input value.
@@ -584,6 +584,6 @@ class AutoTransform(TransformBase):
             The untransformed output value(s).
         """
         if self.use_log:
-            return self.log.untransform(x)
+            return self.log._untransform(x)
         else:
-            return self.linear.untransform(x)
+            return self.linear._untransform(x)
