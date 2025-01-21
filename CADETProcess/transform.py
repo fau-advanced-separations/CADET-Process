@@ -26,6 +26,7 @@ from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
 
 from CADETProcess import plotting
+from CADETProcess.numerics import round_to_significant_digits
 
 
 class TransformBase(ABC):
@@ -186,7 +187,7 @@ class TransformBase(ABC):
         """
         pass
 
-    def untransform(self, x, precision=None):
+    def untransform(self, x, significant_digits=None):
         """Transform the output parameter space to the input parameter space.
 
         Applies the transformation function _untransform to x after performing output
@@ -197,7 +198,7 @@ class TransformBase(ABC):
         ----------
         x : {float, array}
             Output parameter values.
-        precision : int, optional
+        significant_digits : int, optional
             Number of significant figures to which variable can be rounded.
             If None, variable is not rounded. The default is None.
 
@@ -206,7 +207,7 @@ class TransformBase(ABC):
         {float, array}
             Transformed parameter values.
         """
-        x_ = float(np.format_float_positional(x, precision=precision, fractional=False))
+        x_ = round_to_significant_digits(x, digits=significant_digits)
 
         if (
                 not self.allow_extended_output and
@@ -214,7 +215,7 @@ class TransformBase(ABC):
             raise ValueError("Value exceeds output bounds.")
 
         x_ = self._untransform(x_)
-        x_ = float(np.format_float_positional(x_, precision=precision, fractional=False))
+        x_ = round_to_significant_digits(x_, digits=significant_digits)
 
         if (
                 not self.allow_extended_input and

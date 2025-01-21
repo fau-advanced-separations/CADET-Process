@@ -160,7 +160,7 @@ class LinearConstraintsSooTestProblem(TestProblem):
             self,
             transform=None,
             has_evaluator=False,
-            precision=None,
+            significant_digits=None,
             *args,
             **kwargs
             ):
@@ -168,7 +168,7 @@ class LinearConstraintsSooTestProblem(TestProblem):
         super().__init__('linear_constraints_single_objective', *args, **kwargs)
         self.setup_variables(
             transform=transform,
-            precision=precision
+            significant_digits=significant_digits
         )
         self.setup_linear_constraints()
         if has_evaluator:
@@ -181,27 +181,27 @@ class LinearConstraintsSooTestProblem(TestProblem):
         else:
             self.add_objective(self._objective_function)
 
-    def setup_variables(self, transform, precision=None):
+    def setup_variables(self, transform, significant_digits=None):
         self.add_variable(
             'var_0',
             lb=-2,
             ub=2,
             transform=transform,
-            precision=precision,
+            significant_digits=significant_digits,
         )
         self.add_variable(
             'var_1',
             lb=-2,
             ub=2,
             transform=transform,
-            precision=precision,
+            significant_digits=significant_digits,
         )
         self.add_variable(
             'var_2',
             lb=0,
             ub=2,
             transform="log",
-            precision=precision,
+            significant_digits=significant_digits,
         )
 
     def setup_linear_constraints(self):
@@ -381,10 +381,23 @@ class LinearEqualityConstraintsSooTestProblem(TestProblem):
         self.setup_linear_constraints()
         self.add_objective(self._objective_function)
 
-    def setup_variables(self: OptimizationProblem, transform=None, precision=None):
-        self.add_variable('var_0', lb=-5, ub=5, transform=transform, precision=precision)
-        self.add_variable('var_1', lb=-5, ub=5, transform=transform, precision=precision)
-        self.add_variable('var_2', lb=-5, ub=5, transform=transform, precision=precision)
+    def setup_variables(
+            self: OptimizationProblem,
+            transform=None,
+            significant_digits=None
+            ):
+        self.add_variable(
+            'var_0', lb=-5, ub=5,
+            transform=transform, significant_digits=significant_digits
+        )
+        self.add_variable(
+            'var_1', lb=-5, ub=5,
+            transform=transform, significant_digits=significant_digits
+        )
+        self.add_variable(
+            'var_2', lb=-5, ub=5,
+            transform=transform, significant_digits=significant_digits
+        )
 
     def setup_linear_constraints(self):
         self.add_linear_equality_constraint(

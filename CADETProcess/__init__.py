@@ -22,6 +22,7 @@ from .settings import Settings
 settings = Settings()
 
 from . import sysinfo
+from . import numerics
 from . import dataStructure
 from . import transform
 from . import plotting
