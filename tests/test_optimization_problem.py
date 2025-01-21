@@ -162,6 +162,28 @@ class Test_OptimizationVariable(unittest.TestCase):
                 indices=2
             )
 
+    def test_significant_digits(self):
+        var_no_precision = OptimizationVariable(
+            'not_rounded_variable',
+            evaluation_objects=[self.evaluation_object],
+            parameter_path='scalar_param',
+            significant_digits=None
+        )
+        var_no_precision.value = 1.1234
+        np.testing.assert_equal(var_no_precision.value, 1.1234)
+        np.testing.assert_equal(self.evaluation_object.scalar_param, 1.1234)
+
+        var_with_precision = OptimizationVariable(
+            'rounded_variable',
+            evaluation_objects=[self.evaluation_object],
+            parameter_path='scalar_param',
+            significant_digits=2
+        )
+        var_with_precision.value = 1.1234
+        np.testing.assert_equal(var_with_precision.value, 1.1)
+        np.testing.assert_equal(self.evaluation_object.scalar_param, 1.1)
+
+
     def test_sized_list_single(self):
         """
         Extra test for array with single entry.

@@ -13,6 +13,7 @@ from CADETProcess.dataStructure import Structure, String
 from CADETProcess.dataStructure import get_nested_value
 from CADETProcess.solution import SolutionBase
 from CADETProcess.comparison import DifferenceBase
+from CADETProcess.numerics import round_to_significant_digits
 
 
 class Comparator(Structure):
@@ -338,12 +339,7 @@ class Comparator(Structure):
             ax.legend(loc=1)
 
             m = metric.evaluate(solution_sliced, slice=False)
-            m = [
-                np.format_float_scientific(
-                    n, precision=2,
-                )
-                for n in m
-            ]
+            m = round_to_significant_digits(m, digits=2)
 
             text = f"{metric}: "
             if metric.n_metrics > 1:
@@ -356,7 +352,7 @@ class Comparator(Structure):
                 except AttributeError:
                     text += f"{m}"
             else:
-                text += m[0]
+                text += str(m[0])
 
             plotting.add_text(ax, text, fontsize=14)
 

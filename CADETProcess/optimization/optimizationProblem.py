@@ -40,6 +40,7 @@ from CADETProcess.transform import (
 )
 
 from CADETProcess.metric import MetricBase
+from CADETProcess.numerics import round_to_significant_digits
 from CADETProcess.optimization import Individual, Population
 from CADETProcess.optimization import ResultsCache
 
@@ -331,7 +332,7 @@ class OptimizationProblem(Structure):
     def add_variable(
             self, name, evaluation_objects=-1, parameter_path=None,
             lb=-math.inf, ub=math.inf, transform=None, indices=None,
-            precision=None, pre_processing=None):
+            significant_digits=None, pre_processing=None):
         """Add optimization variable to the OptimizationProblem.
 
         The function encapsulates the creation of OptimizationVariable objects
@@ -358,7 +359,7 @@ class OptimizationProblem(Structure):
         indices : int  or tuple, optional
             Indices for variables that modify entries of a parameter array.
             If None, variable is assumed to be index independent.
-        precision : int, optional
+        significant_digits : int, optional
             Number of significant figures to which variable can be rounded.
             If None, variable is not rounded. The default is None.
         pre_processing : callable, optional
@@ -404,7 +405,7 @@ class OptimizationProblem(Structure):
             name, evaluation_objects, parameter_path,
             lb=lb, ub=ub, transform=transform,
             indices=indices,
-            precision=precision,
+            significant_digits=significant_digits,
             pre_processing=pre_processing,
         )
 
@@ -608,9 +609,6 @@ class OptimizationProblem(Structure):
 
         for i, x in enumerate(X_independent):
             for indep_variable, indep_value in zip(independent_variables, x):
-                indep_value = np.format_float_positional(
-                    indep_value, precision=indep_variable.precision, fractional=False
-                )
                 indep_variable.value = float(indep_value)
 
             variable_values[i, :] = self.variable_values
@@ -2740,7 +2738,7 @@ class OptimizationProblem(Structure):
 
         for i, ind in enumerate(X_transformed):
             untransform[i, :] = [
-                var.untransform_fun(value, var.precision)
+                var.untransform_fun(value, significant_digits=var.significant_digits)
                 for value, var in zip(ind, self.independent_variables)
             ]
 
@@ -3020,9 +3018,9 @@ class OptimizationProblem(Structure):
             ind = []
             for i_var, var in enumerate(self.independent_variables):
                 ind.append(
-                    float(np.format_float_positional(
+                    float(round_to_significant_digits(
                         independent_values[i, i_var],
-                        precision=var.precision, fractional=False
+                        digits=var.significant_digits,
                     ))
                 )
 
@@ -3392,7 +3390,7 @@ class OptimizationVariable:
     indices : int, or slice
         Indices for variables that modify an entry of a parameter array.
         If None, variable is assumed to be index independent.
-    precision : int, optional
+    significant_digits : int, optional
         Number of significant figures to which variable can be rounded.
         If None, variable is not rounded. The default is None.
     pre_processing : callable, optional
@@ -3409,7 +3407,7 @@ class OptimizationVariable:
 
     def __init__(
         self, name, evaluation_objects=None, parameter_path=None,
-        lb=-math.inf, ub=math.inf, transform=None, indices=None, precision=None,
+        lb=-math.inf, ub=math.inf, transform=None, indices=None, significant_digits=None,
         pre_processing=None
     ):
         self.name = name
@@ -3446,7 +3444,7 @@ class OptimizationVariable:
                 raise ValueError("Unknown transform")
 
         self._transform = transform
-        self.precision = precision
+        self.significant_digits = significant_digits
 
         self._dependencies = []
         self._dependency_transform = None
@@ -3729,7 +3727,9 @@ class OptimizationVariable:
             return self._value
         else:
             dependencies = [dep.value for dep in self.dependencies]
-            return self.dependency_transform(*dependencies)
+            value = self.dependency_transform(*dependencies)
+            value = round_to_significant_digits(value, self.significant_digits)
+            return value
 
     @value.setter
     def value(self, value):
@@ -3738,17 +3738,21 @@ class OptimizationVariable:
 
         self.set_value(value)
 
-        self._value = value
-
     def set_value(self, value):
         """Set value to evaluation_objects."""
         if not np.isscalar(value):
             raise TypeError("Expected scalar value")
 
+        value = round_to_significant_digits(
+            value, digits=self.significant_digits,
+        )
+
         if value < self.lb:
             raise ValueError("Exceeds lower bound")
         if value > self.ub:
             raise ValueError("Exceeds upper bound")
+
+        self._value = value
 
         if self.evaluation_objects is None:
             return
@@ -3808,9 +3812,9 @@ class OptimizationVariable:
                     new_value = parameter_type(new_value.tolist())
 
             # Set the value:
-            self._set_value(eval_obj, new_value)
+            self._set_value_in_evaluation_object(eval_obj, new_value)
 
-    def _set_value(self, evaluation_object, value):
+    def _set_value_in_evaluation_object(self, evaluation_object, value):
         """Set the value to the evaluation object."""
         if self.pre_processing is not None:
             value = self.pre_processing(value)
