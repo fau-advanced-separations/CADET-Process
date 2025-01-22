@@ -11,7 +11,6 @@ import warnings
 import numpy as np
 
 from CADETProcess.optimization import OptimizationProblem, OptimizationResults
-from CADETProcess.transform import NormLinearTransform, NormLogTransform
 
 __all__ = [
     'Rosenbrock',
