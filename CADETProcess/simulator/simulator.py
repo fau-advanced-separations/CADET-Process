@@ -250,6 +250,13 @@ class SimulatorBase(Structure):
         if not process.check_config():
             raise CADETProcessError("Process is not configured correctly.")
 
+        if self.n_cycles_max < self.n_cycles_min:
+            effective_max_cycles = np.ceil(self.n_cycles_max / self.n_cycles_min) * self.n_cycles_min
+            self.logger.warning("n_cycles_max is set lower than n_cycles_min "
+                                f"({self.n_cycles_max} vs {self.n_cycles_min}). "
+                                f"This will cause simulations to run in batches of {self.n_cycles_min} cycles until "
+                                f"{effective_max_cycles} are reached.")
+
         if not self.evaluate_stationarity:
             results = self.simulate_n_cycles(
                 process, self.n_cycles, previous_results, **kwargs
