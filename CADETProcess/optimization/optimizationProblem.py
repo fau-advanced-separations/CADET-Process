@@ -36,7 +36,7 @@ from CADETProcess.optimization.parallelizationBackend import (
     ParallelizationBackendBase, SequentialBackend
 )
 from CADETProcess.transform import (
-    NoTransform, AutoTransform, NormLinearTransform, NormLogTransform
+    NullTransformer, AutoTransformer, NormLinearTransformer, NormLogTransformer
 )
 
 from CADETProcess.metric import MetricBase
@@ -1944,7 +1944,7 @@ class OptimizationProblem(Structure):
         upper_bounds
 
         """
-        return [var.transform.lb for var in self.variables]
+        return [var.transformer.lb for var in self.variables]
 
     @property
     def lower_bounds_independent(self):
@@ -1966,7 +1966,7 @@ class OptimizationProblem(Structure):
         upper_bounds
 
         """
-        return [var.transform.lb for var in self.independent_variables]
+        return [var.transformer.lb for var in self.independent_variables]
 
     @property
     def upper_bounds(self):
@@ -1988,7 +1988,7 @@ class OptimizationProblem(Structure):
         upper_bounds
 
         """
-        return [var._transform.ub for var in self.variables]
+        return [var.transformer.ub for var in self.variables]
 
     @property
     def upper_bounds_independent(self):
@@ -2010,7 +2010,7 @@ class OptimizationProblem(Structure):
         upper_bounds
 
         """
-        return [var._transform.ub for var in self.independent_variables]
+        return [var.transformer.ub for var in self.independent_variables]
 
     @untransforms
     @gets_dependent_values
@@ -2211,8 +2211,8 @@ class OptimizationProblem(Structure):
         A_t = self.A.copy()
         for a in A_t:
             for j, v in enumerate(self.variables):
-                t = v.transform
-                if isinstance(t, NoTransform):
+                t = v.transformer
+                if isinstance(t, NullTransformer):
                     continue
 
                 if a[j] != 0 and not t.is_linear:
@@ -2291,8 +2291,8 @@ class OptimizationProblem(Structure):
         A_t = self.A.copy()
         for i, a in enumerate(A_t):
             for j, v in enumerate(self.variables):
-                t = v.transform
-                if isinstance(t, NoTransform):
+                t = v.transformer
+                if isinstance(t, NullTransformer):
                     continue
 
                 if a[j] != 0 and not t.is_linear:
@@ -2510,8 +2510,8 @@ class OptimizationProblem(Structure):
         Aeq_t = self.Aeq.copy()
         for aeq in Aeq_t:
             for j, v in enumerate(self.variables):
-                t = v.transform
-                if isinstance(t, NoTransform):
+                t = v.transformer
+                if isinstance(t, NullTransformer):
                     continue
 
                 if aeq[j] != 0 and not t.is_linear:
@@ -2589,8 +2589,8 @@ class OptimizationProblem(Structure):
         Aeq_t = self.Aeq.copy()
         for i, aeq in enumerate(Aeq_t):
             for j, v in enumerate(self.variables):
-                t = v.transform
-                if isinstance(t, NoTransform):
+                t = v.transformer
+                if isinstance(t, NullTransformer):
                     continue
 
                 if aeq[j] != 0 and not t.is_linear:
@@ -2714,7 +2714,7 @@ class OptimizationProblem(Structure):
 
         for i, ind in enumerate(X_independent):
             transform[i, :] = [
-                var.transform_fun(value)
+                var.transform(value)
                 for value, var in zip(ind, self.independent_variables)
             ]
 
@@ -2738,7 +2738,7 @@ class OptimizationProblem(Structure):
 
         for i, ind in enumerate(X_transformed):
             untransform[i, :] = [
-                var.untransform_fun(value, significant_digits=var.significant_digits)
+                var.untransform(value, significant_digits=var.significant_digits)
                 for value, var in zip(ind, self.independent_variables)
             ]
 
@@ -2836,11 +2836,11 @@ class OptimizationProblem(Structure):
 
         for i, var in enumerate(variables):
             if (
-                    isinstance(var._transform, NormLogTransform)
+                    isinstance(var.transformer, NormLogTransformer)
                     or
                     (
-                        isinstance(var._transform, AutoTransform) and
-                        var._transform.use_log
+                        isinstance(var.transformer, AutoTransformer) and
+                        var.transformer.use_log
                     )
             ):
                 log_space_indices.append(i)
@@ -3221,7 +3221,7 @@ class OptimizationProblem(Structure):
         for constr in self.linear_constraints + self.linear_equality_constraints:
             opt_vars = [self.variables_dict[key] for key in constr["opt_vars"]]
             for var in opt_vars:
-                if not var.transform.is_linear:
+                if not var.transformer.is_linear:
                     flag = False
                     warnings.warn(
                         f"'{var.name}' uses non-linear transform and is used in "
@@ -3385,7 +3385,7 @@ class OptimizationVariable:
         Lower bound of the variable.
     ub : float
         Upper bound of the variable.
-    transform : TransformBase
+    transformer : TransformerBase
         Transformation function for parameter normalization.
     indices : int, or slice
         Indices for variables that modify an entry of a parameter array.
@@ -3430,20 +3430,20 @@ class OptimizationVariable:
         self.ub = ub
 
         if transform is None:
-            transform = NoTransform(lb, ub)
+            transformer = NullTransformer(lb, ub)
         else:
             if np.isinf(lb) or np.isinf(ub):
                 raise CADETProcessError("Transform requires bound constraints.")
             if transform == 'auto':
-                transform = AutoTransform(lb, ub)
+                transformer = AutoTransformer(lb, ub)
             elif transform == 'linear':
-                transform = NormLinearTransform(lb, ub)
+                transformer = NormLinearTransformer(lb, ub)
             elif transform == 'log':
-                transform = NormLogTransform(lb, ub)
+                transformer = NormLogTransformer(lb, ub)
             else:
                 raise ValueError("Unknown transform")
 
-        self._transform = transform
+        self._transformer = transformer
         self.significant_digits = significant_digits
 
         self._dependencies = []
@@ -3667,14 +3667,49 @@ class OptimizationVariable:
             return 0
 
     @property
-    def transform(self):
-        return self._transform
+    def transformer(self) -> "TransformerBase":
+        """TransformerBase: The variable transformer instance."""
+        return self._transformer
 
-    def transform_fun(self, x, *args, **kwargs):
-        return self._transform.transform(x, *args, **kwargs)
+    def transform(self, x: float, *args: Any, **kwargs: Any) -> float:
+        """
+        Apply the transformation to the input.
 
-    def untransform_fun(self, x, *args, **kwargs):
-        return self._transform.untransform(x, *args, **kwargs)
+        Parameters
+        ----------
+        x : float
+            The input data to be transformed.
+        *args : Any
+            Additional positional arguments passed to the transformer's `transform` method.
+        **kwargs : Any
+            Additional keyword arguments passed to the transformer's `transform` method.
+
+        Returns
+        -------
+        float
+            The transformed data.
+        """
+        return self.transformer.transform(x, *args, **kwargs)
+
+    def untransform(self, x: float, *args: Any, **kwargs: Any) -> float:
+        """
+        Apply the inverse transformation to the input.
+
+        Parameters
+        ----------
+        x : float
+            The input data to be untransformed.
+        *args : Any
+            Additional positional arguments passed to the transformer's `untransform` method.
+        **kwargs : Any
+            Additional keyword arguments passed to the transformer's `untransform` method.
+
+        Returns
+        -------
+        float
+            The untransformed data.
+        """
+        return self.transformer.untransform(x, *args, **kwargs)
 
     def add_dependency(self, dependencies, transform):
         """Add dependency of Variable on other Variables.
@@ -3829,7 +3864,7 @@ class OptimizationVariable:
     @property
     def transformed_bounds(self):
         """list: Transformed bounds of the parameter."""
-        return [self.transform_fun(self.lb), self.transform_fun(self.ub)]
+        return [self.transform(self.lb), self.transform(self.ub)]
 
     def __repr__(self):
         if self.evaluation_objects is not None:
