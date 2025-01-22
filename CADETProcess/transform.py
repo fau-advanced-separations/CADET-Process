@@ -140,7 +140,7 @@ class TransformerBase(ABC):
         """
         pass
 
-    def transform(self, x):
+    def transform(self, x, significant_digits=None):
         """Transform the input parameter space to the output parameter space.
 
         Applies the transformation function _transform to x after performing input
@@ -151,23 +151,33 @@ class TransformerBase(ABC):
         ----------
         x : {float, array}
             Input parameter values.
+        significant_digits : int, optional
+            Number of significant figures to which variable can be rounded.
+            If None, variable is not rounded. The default is None.
 
         Returns
         -------
         {float, array}
             Transformed parameter values.
         """
+        x_round = round_to_significant_digits(x, digits=significant_digits)
+
         if (
                 not self.allow_extended_input and
-                not np.all((self.lb_input <= x) * (x <= self.ub_input))):
+                not np.all((self.lb_input <= x_round) * (x_round <= self.ub_input))
+        ):
             raise ValueError("Value exceeds input bounds.")
-        x = self._transform(x)
+
+        x_trans = self._transform(x_round)
+        x_trans_round = round_to_significant_digits(x_trans, digits=significant_digits)
+
         if (
                 not self.allow_extended_output and
-                not np.all((self.lb <= x) * (x <= self.ub))):
+                not np.all((self.lb <= x_trans_round) * (x_trans_round <= self.ub))
+        ):
             raise ValueError("Value exceeds output bounds.")
 
-        return x
+        return x_trans_round
 
     @abstractmethod
     def _transform(self, x):
@@ -187,7 +197,7 @@ class TransformerBase(ABC):
         """
         pass
 
-    def untransform(self, x, significant_digits=None):
+    def untransform(self, x_transformed, significant_digits=None):
         """Transform the output parameter space to the input parameter space.
 
         Applies the transformation function _untransform to x after performing output
@@ -196,7 +206,7 @@ class TransformerBase(ABC):
 
         Parameters
         ----------
-        x : {float, array}
+        x_transformed : {float, array}
             Output parameter values.
         significant_digits : int, optional
             Number of significant figures to which variable can be rounded.
@@ -207,22 +217,25 @@ class TransformerBase(ABC):
         {float, array}
             Transformed parameter values.
         """
-        x_ = round_to_significant_digits(x, digits=significant_digits)
+        x_round = round_to_significant_digits(x_transformed, digits=significant_digits)
 
         if (
                 not self.allow_extended_output and
-                not np.all((self.lb <= x_) * (x_ <= self.ub))):
+                not np.all((self.lb <= x_round) * (x_round <= self.ub))
+                ):
             raise ValueError("Value exceeds output bounds.")
 
-        x_ = self._untransform(x_)
-        x_ = round_to_significant_digits(x_, digits=significant_digits)
+        x_untrans = self._untransform(x_round)
+        x_untrans_round = round_to_significant_digits(x_untrans, digits=significant_digits)
 
         if (
                 not self.allow_extended_input and
-                not np.all((self.lb_input <= x_) * (x_ <= self.ub_input))):
+                not np.all((self.lb_input <= x_untrans_round) * (x_untrans_round <= self.ub_input))
+                ):
             raise ValueError("Value exceeds input bounds.")
 
-        return x_
+        return x_untrans_round
+
 
     @abstractmethod
     def _untransform(self, x):
