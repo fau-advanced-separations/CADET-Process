@@ -11,11 +11,11 @@ This module provides functionality for transforming data.
 .. autosummary::
     :toctree: generated/
 
-    TransformBase
-    NoTransform
-    NormLinearTransform
-    NormLogTransform
-    AutoTransform
+    TransformerBase
+    NullTransformer
+    NormLinearTransformer
+    NormLogTransformer
+    AutoTransformer
 
 """
 
@@ -29,7 +29,7 @@ from CADETProcess import plotting
 from CADETProcess.numerics import round_to_significant_digits
 
 
-class TransformBase(ABC):
+class TransformerBase(ABC):
     """
     Base class for parameter transformation.
 
@@ -65,11 +65,11 @@ class TransformBase(ABC):
 
     Examples
     --------
-    >>> class MyTransform(TransformBase):
+    >>> class MyTransformer(TransformerBase):
     ...     def transform(self, x):
     ...         return x ** 2
     ...
-    >>> t = MyTransform(lb_input=0, ub_input=10, lb=-100, ub=100)
+    >>> t = MyTransformer(lb_input=0, ub_input=10, lb=-100, ub=100)
     >>> t.transform(3)
     9
 
@@ -79,7 +79,7 @@ class TransformBase(ABC):
             self,
             lb_input=-np.inf, ub_input=np.inf,
             allow_extended_input=False, allow_extended_output=False):
-        """Initialize TransformBase
+        """Initialize TransformerBase
 
         Parameters
         ----------
@@ -275,14 +275,14 @@ class TransformBase(ABC):
         return self.__class__.__name__
 
 
-class NoTransform(TransformBase):
+class NullTransformer(TransformerBase):
     """A class that implements no transformation.
 
     Returns the input values without any transformation.
 
     See Also
     --------
-    TransformBase : The base class for parameter transformation.
+    TransformerBase : The base class for parameter transformation.
     """
 
     @property
@@ -330,7 +330,7 @@ class NoTransform(TransformBase):
         return x
 
 
-class NormLinearTransform(TransformBase):
+class NormLinearTransformer(TransformerBase):
     """A class that implements a normalized linear transformation.
 
     Transforms the input value to the range [0, 1] by normalizing it using
@@ -338,7 +338,7 @@ class NormLinearTransform(TransformBase):
 
     See Also
     --------
-    TransformBase : The base class for parameter transformation.
+    TransformerBase : The base class for parameter transformation.
 
     """
 
@@ -387,7 +387,7 @@ class NormLinearTransform(TransformBase):
         return (self.ub_input - self.lb_input) * x + self.lb_input
 
 
-class NormLogTransform(TransformBase):
+class NormLogTransformer(TransformerBase):
     """A class that implements a normalized logarithmic transformation.
 
     Transforms the input value to the range [0, 1] using a logarithmic
@@ -395,7 +395,7 @@ class NormLogTransform(TransformBase):
 
     See Also
     --------
-    TransformBase : The base class for parameter transformation.
+    TransformerBase : The base class for parameter transformation.
 
     """
 
@@ -457,43 +457,43 @@ class NormLogTransform(TransformBase):
                 self.lb_input * np.exp(x * np.log(self.ub_input/self.lb_input))
 
 
-class AutoTransform(TransformBase):
+class AutoTransformer(TransformerBase):
     """A class that implements an automatic parameter transformation.
 
     Transforms the input value to the range [0, 1] using either
-    the :class:`NormLinearTransform` or the :class:`NormLogTransform`
+    the :class:`NormLinearTransformer` or the :class:`NormLogTransformer`
     based on the input parameter space.
 
     Attributes
     ----------
-    linear : :class:`NormLinearTransform`
+    linear : :class:`NormLinearTransformer`
         Instance of the linear normalization transform.
-    log : :class:`NormLogTransform`
+    log : :class:`NormLogTransformer`
         Instance of the logarithmic normalization transform.
 
     See Also
     --------
-    TransformBase
-    NormLinearTransform
-    NormLogTransform
+    TransformerBase
+    NormLinearTransformer
+    NormLogTransformer
 
     """
 
     def __init__(self, *args, threshold=1000, **kwargs):
-        """Initialize an AutoTransform object.
+        """Initialize an AutoTransformer object.
 
         Parameters
         ----------
         *args : tuple
-            Arguments for the :class:`TransformBase` class.
+            Arguments for the :class:`TransformerBase` class.
         threshold : int, optional
             The maximum threshold to switch from linear to logarithmic
             transformation. The default is 1000.
         **kwargs : dict
-            Keyword arguments for the :class:`TransformBase` class.
+            Keyword arguments for the :class:`TransformerBase` class.
         """
-        self.linear = NormLinearTransform()
-        self.log = NormLogTransform()
+        self.linear = NormLinearTransformer()
+        self.log = NormLogTransformer()
 
         super().__init__(*args, **kwargs)
         self.threshold = threshold

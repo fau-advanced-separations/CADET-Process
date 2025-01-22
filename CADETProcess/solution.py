@@ -282,7 +282,7 @@ class SolutionIO(SolutionBase):
         self._dm_dt_interpolated = None
 
     def update_transform(self):
-        self.transform = transform.NormLinearTransform(
+        self.transform = transform.NormLinearTransformer(
             np.min(self.solution, axis=0),
             np.max(self.solution, axis=0),
             allow_extended_input=True,
