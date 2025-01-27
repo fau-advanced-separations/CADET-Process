@@ -104,10 +104,6 @@ class Reaction(Structure):
         self.component_system = component_system
         super().__init__()
 
-        self.stoich = np.zeros((self.n_comp,))
-        for i, c in zip(indices, coefficients):
-            self.stoich[i] = c
-
         self.is_kinetic = is_kinetic
         if not is_kinetic:
             k_fwd, k_bwd = scale_to_rapid_equilibrium(k_fwd, k_fwd_min)
