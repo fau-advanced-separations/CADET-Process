@@ -49,19 +49,19 @@ class Descriptor(ABC):
 
 
 class Aggregator():
-    """Descriptor aggregating parameters from instance container with other instances."""
+    """Descriptor aggregating parameters from iterable container of other objects."""
 
     def __init__(self, parameter_name, container, *args, **kwargs):
         """
-        Initialize the Aggregator descriptor.
+        Initialize the Aggregator.
 
         Parameters
         ----------
         parameter_name : str
             Name of the parameter to be aggregated.
         container : str
-            Name of the attribute in the instance that contains the other instances
-            from which parameters will be aggregated.
+            Name of the iterable attribute in the instance that contains the other
+            objects from which parameters will be aggregated.
         *args : tuple, optional
             Additional positional arguments.
         **kwargs : dict, optional
@@ -98,7 +98,7 @@ class Aggregator():
         return container
 
     def _n_instances(self, instance):
-        return len(self._get_parameter_values_from_container(instance))
+        return len(self._container_obj(instance))
 
     def _get_parameter_values_from_container(self, instance):
         container = self._container_obj(instance)
@@ -131,6 +131,7 @@ class Aggregator():
         value = self._get_parameter_values_from_container(instance)
 
         if value is not None:
+            value = self._prepare(instance, value, recursive=True)
             self._check(instance, value, recursive=True)
 
         return value
@@ -143,8 +144,9 @@ class Aggregator():
         ----------
         instance : Any
             Instance to set the descriptor value for.
-        value : Any
-            Value to set.
+        value : Iterable
+            Value to set. Note, this assumes that each element of the value maps to
+            each element of the container.
         """
         if value is not None:
             value = self._prepare(instance, value, recursive=True)
@@ -152,8 +154,8 @@ class Aggregator():
 
         container = self._container_obj(instance)
 
-        for i, el in enumerate(container):
-            setattr(el, self.parameter_name, value[i])
+        for el, el_value in zip(container, value):
+            setattr(el, self.parameter_name, el_value)
 
     def _prepare(self, instance, value, recursive=False):
         """
@@ -185,12 +187,21 @@ class Aggregator():
         ----------
         instance : Any
             Instance to retrieve the descriptor value for.
-        value : Any
-            Value to check.
+        value : Iterable
+            Value to set. Note, this assumes that each element of the value maps to
+            each element of the container.
         recursive : bool, optional
             If True, perform the check recursively. Defaults to False.
 
         """
+        container = self._container_obj(instance)
+
+        if len(value) != len(container):
+            raise ValueError(
+                "Unexpected length. "
+                f"Expected {len(container)} entries, got {len(value)}."
+            )
+
         return
 
 

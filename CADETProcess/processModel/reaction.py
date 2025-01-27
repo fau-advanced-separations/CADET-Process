@@ -50,7 +50,7 @@ class Reaction(Structure):
         The equilibrium constant for the reaction.
     """
     is_kinetic = Bool(default=True)
-    stoich = SizedNdArray(size='n_comp', default=0)
+    stoich = SizedNdArray(size='n_comp')
     k_fwd = UnsignedFloat()
     k_bwd = UnsignedFloat()
     k_fwd_min = UnsignedFloat(default=100)
@@ -492,9 +492,9 @@ class MassActionLaw(BulkReactionBase):
 
     k_fwd = Aggregator('k_fwd', 'reactions')
     k_bwd = Aggregator('k_bwd', 'reactions')
-    stoich = SizedAggregator('stoich', 'reactions')
-    exponents_fwd = SizedAggregator('exponents_fwd', 'reactions')
-    exponents_bwd = SizedAggregator('exponents_bwd', 'reactions')
+    stoich = SizedAggregator('stoich', 'reactions', transpose=True)
+    exponents_fwd = SizedAggregator('exponents_fwd', 'reactions', transpose=True)
+    exponents_bwd = SizedAggregator('exponents_bwd', 'reactions', transpose=True)
 
     _parameters = ['stoich', 'exponents_fwd', 'exponents_bwd', 'k_fwd', 'k_bwd']
 
@@ -545,38 +545,50 @@ class MassActionLawParticle(ParticleReactionBase):
         mapping={
             CrossPhaseReaction: 'stoich_liquid',
             None: 'stoich'
-        }
+        },
+        transpose=True,
     )
     k_fwd_liquid = Aggregator('k_fwd', 'liquid_reactions')
     k_bwd_liquid = Aggregator('k_bwd', 'liquid_reactions')
-    exponents_fwd_liquid = SizedAggregator('exponents_fwd', 'liquid_reactions')
-    exponents_bwd_liquid = SizedAggregator('exponents_bwd', 'liquid_reactions')
+    exponents_fwd_liquid = SizedAggregator(
+        'exponents_fwd', 'liquid_reactions', transpose=True
+    )
+    exponents_bwd_liquid = SizedAggregator(
+        'exponents_bwd', 'liquid_reactions', transpose=True
+    )
 
     stoich_solid = SizedClassDependentAggregator(
         'stoich_solid', 'solid_reactions',
         mapping={
             CrossPhaseReaction: 'stoich_solid',
             None: 'stoich'
-        }
+        },
+        transpose=True
     )
     k_fwd_solid = Aggregator('k_fwd', 'solid_reactions')
     k_bwd_solid = Aggregator('k_bwd', 'solid_reactions')
-    exponents_fwd_solid = SizedAggregator('exponents_fwd', 'solid_reactions')
-    exponents_bwd_solid = SizedAggregator('exponents_bwd', 'solid_reactions')
+    exponents_fwd_solid = SizedAggregator(
+        'exponents_fwd', 'solid_reactions', transpose=True
+    )
+    exponents_bwd_solid = SizedAggregator(
+        'exponents_bwd', 'solid_reactions', transpose=True
+    )
 
     exponents_fwd_liquid_modsolid = SizedClassDependentAggregator(
         'exponents_fwd_liquid_modsolid', 'liquid_reactions',
         mapping={
             CrossPhaseReaction: 'exponents_fwd_liquid_modsolid',
             None: None
-        }
+        },
+        transpose=True,
     )
     exponents_bwd_liquid_modsolid = SizedClassDependentAggregator(
         'exponents_bwd_liquid_modsolid', 'liquid_reactions',
         mapping={
             CrossPhaseReaction: 'exponents_bwd_liquid_modsolid',
             None: None
-        }
+        },
+        transpose=True,
     )
 
     exponents_fwd_solid_modliquid = SizedClassDependentAggregator(
@@ -584,14 +596,16 @@ class MassActionLawParticle(ParticleReactionBase):
         mapping={
             CrossPhaseReaction: 'exponents_fwd_solid_modliquid',
             None: None
-        }
+        },
+        transpose=True,
     )
     exponents_bwd_solid_modliquid = SizedClassDependentAggregator(
         'exponents_bwd_solid_modliquid', 'solid_reactions',
         mapping={
             CrossPhaseReaction: 'exponents_bwd_solid_modliquid',
             None: None
-        }
+        },
+        transpose=True,
     )
 
     _parameters = [
