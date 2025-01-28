@@ -1180,7 +1180,6 @@ class SizedNdArray(NdArray, Sized):
         ValueError
             If the value cannot be cast to a NumPy array with the expected shape.
         """
-        # if not isinstance(value, self.ty):
         if isinstance(value, (int, float)):
             try:
                 expected_size = self.get_expected_size(instance)
@@ -1615,6 +1614,7 @@ class Polynomial(NdPolynomial):
 
 
 # %% Modulated Parameters
+
 class DependentlyModulated(Sized):
     """
     Mixin for checking parameter shapes based on other instance attributes.
