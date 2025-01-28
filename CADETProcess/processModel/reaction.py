@@ -503,10 +503,12 @@ class MassActionLaw(BulkReactionBase):
         super().__init__(*args, **kwargs)
 
     @wraps(Reaction.__init__)
-    def add_reaction(self, *args, **kwargs):
+    def add_reaction(self, *args, **kwargs) -> Reaction:
         """Add reaction to ReactionSystem."""
         r = Reaction(self.component_system, *args, **kwargs)
         self._reactions.append(r)
+
+        return r
 
     @property
     def reactions(self):
