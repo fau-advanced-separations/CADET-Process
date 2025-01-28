@@ -545,8 +545,11 @@ class Float(Typed):
             Float equivalent if value is an integer or numpy number;
             otherwise, the original value.
         """
-        if isinstance(value, (int, np.number)):
-            value = float(value)
+        try:
+            value = float(np.array(value).squeeze())
+        except ValueError:
+            raise TypeError("Cannot cast value to float.")
+
         return value
 
 
@@ -1182,7 +1185,7 @@ class SizedNdArray(NdArray, Sized):
         ValueError
             If the value cannot be cast to a NumPy array with the expected shape.
         """
-        if isinstance(value, (int, float)):
+        if np.array(value).squeeze().ndim == 0:
             try:
                 expected_size = self.get_expected_size(instance)
             except ValueError:
@@ -1192,9 +1195,10 @@ class SizedNdArray(NdArray, Sized):
                 value = value * np.ones(expected_size)
         else:
             try:
-                self.check_size(instance, np.array(value))
+                value_array = np.array(value)
             except ValueError:
-                raise ValueError("Cannot cast value from given value.")
+                raise TypeError("Cannot cast value from given value.")
+            self.check_size(instance, value_array)
 
         if recursive:
             value = super()._prepare(instance, value, recursive)
