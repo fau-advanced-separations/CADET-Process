@@ -1025,11 +1025,13 @@ class Sized(ParameterBase):
         ValueError
             If the value's size does not match the expected size.
         """
-        if np.array(value).size == 1:
-            return
-
         size = self.get_size(value)
-        expected_size = self.get_expected_size(instance)
+        try:
+            expected_size = self.get_expected_size(instance)
+        except ValueError:
+            if np.array(value).squeeze().ndim == 0:
+                return
+            raise
 
         if size != expected_size:
             raise ValueError(f"Expected size {expected_size}")
