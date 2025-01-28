@@ -232,7 +232,6 @@ class StructMeta(type):
     Descriptor : Class that represents the descriptors this metaclass operates on.
     Parameters : Base class for model parameters with e.g. type or bound constraints.
 
-
     Methods
     -------
     __prepare__(name, bases) -> OrderedDict
