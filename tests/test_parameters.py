@@ -5,7 +5,7 @@ import numpy as np
 from CADETProcess.dataStructure import (
     Structure,
     Constant, Switch,
-    Typed, Integer, String, List,
+    Typed, Integer, Float, String, List,
     Callable,
     RangedFloat, UnsignedInteger,
     SizedList, SizedNdArray,
@@ -13,6 +13,7 @@ from CADETProcess.dataStructure import (
     Polynomial, NdPolynomial,
     Vector, Matrix,
     DependentlyModulatedUnsignedList,
+    Aggregator, SizedAggregator, SizedClassDependentAggregator,
 )
 
 
@@ -590,6 +591,116 @@ class TestDimensionalized(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             self.model.matrix = [1, 2]
+
+
+class TestAggregator(unittest.TestCase):
+    def setUp(self):
+        class DummyInstance(Structure):
+            float_param = Float(default=1.0)
+            sized_param = SizedNdArray(size=4)
+            sized_param_transposed = SizedNdArray(size=2)
+
+        class Model(Structure):
+            aggregator = Aggregator('float_param', 'container')
+            sized_aggregator = SizedAggregator('sized_param', 'container')
+            transposed_sized_aggregator = SizedAggregator(
+                'sized_param_transposed', 'container', transpose=True
+            )
+
+            def __init__(self):
+                self.container = [
+                    DummyInstance(
+                        float_param=i,
+                        sized_param=[float(i*j) for j in range(4)],
+                        sized_param_transposed=[float(i*j) for j in range(2)]
+                    )
+                    for i in range(3)
+                ]
+
+        self.model = Model()
+
+    def test_value(self):
+        # Aggregator
+        self.assertAlmostEqual(self.model.aggregator, [0.0, 1.0, 2.0])
+
+        new_value = [1, 2, 3]
+        self.model.aggregator = new_value
+
+        self.assertAlmostEqual(self.model.aggregator, new_value)
+        for con, val in zip(self.model.container, new_value):
+            self.assertAlmostEqual(con.float_param, val)
+
+        # Test setting incorrect types or dimensions:
+        with self.assertRaises((ValueError, TypeError)):
+            self.model.aggregator = 3
+
+        # Test setting slices and indexes
+        self.model.aggregator[0] = 3.0
+        self.assertAlmostEqual(self.model.aggregator[0], 3.0)
+
+        # SizedAggregator
+        np.testing.assert_almost_equal(
+            self.model.sized_aggregator,
+            [
+                [0, 0, 0, 0],
+                [0, 1, 2, 3],
+                [0, 2, 4, 6],
+            ]
+        )
+
+        new_value = [
+                [1., 2., 3., 4.],
+                [2., 3., 4., 5.],
+                [3., 4., 5., 6.],
+        ]
+        self.model.sized_aggregator = new_value
+
+        np.testing.assert_almost_equal(self.model.sized_aggregator, new_value)
+        for con, val in zip(self.model.container, new_value):
+            np.testing.assert_almost_equal(con.sized_param, val)
+
+        # Test setting incorrect types or dimensions:
+        with self.assertRaises((ValueError, TypeError)):
+            self.model.sized_aggregator = 3
+
+        with self.assertRaises((ValueError, TypeError)):
+            self.model.sized_aggregator = [1., 2., 3., 4.]
+
+        with self.assertRaises(IndexError):
+            self.model.sized_aggregator[3] = 3.0
+
+        # Test setting slices and indexes
+        new_value = [
+                [1.5, 2.5, 3.5, 4.5],
+                [2.5, 3.5, 4.5, 5.5],
+                [3.5, 4.5, 5.5, 6.5],
+        ]
+
+        self.model.sized_aggregator[0] = new_value[0]
+        np.testing.assert_almost_equal(self.model.sized_aggregator[0], new_value[0])
+
+        self.model.sized_aggregator[0, 0] = 7.5
+        np.testing.assert_almost_equal(self.model.sized_aggregator[0, 0], 7.5)
+
+        # Transposed SizedAggregator
+        np.testing.assert_almost_equal(
+            self.model.transposed_sized_aggregator,
+            [
+               [0, 0, 0],
+               [0, 1, 2]
+            ]
+        )
+        new_value = [
+               [1, 2, 3],
+               [2, 3, 4]
+        ]
+        self.model.transposed_sized_aggregator = new_value
+
+        np.testing.assert_almost_equal(
+            self.model.transposed_sized_aggregator, new_value
+        )
+        for con, val in zip(self.model.container, np.array(new_value).T):
+            np.testing.assert_almost_equal(con.sized_param_transposed, val)
 
 
 if __name__ == '__main__':
