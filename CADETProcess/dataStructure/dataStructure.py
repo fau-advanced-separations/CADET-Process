@@ -48,6 +48,81 @@ class Descriptor(ABC):
         del instance.__dict__[self.name]
 
 
+class ProxyList(list):
+    """A proxy list that dynamically updates attributes of container elements."""
+
+    def __init__(self, aggregator, instance):
+        values = aggregator._get_values_from_container(instance)
+
+        if values is None:
+            values = []  # Ensure we have a valid default
+
+        self.aggregator = aggregator
+        self.instance = instance
+
+        super().__init__(values)
+
+    def _get_values_from_aggregator(self):
+        """Fetch the latest values from the aggregator."""
+        return self.aggregator._get_values_from_container(
+            self.instance, check=True
+        )
+
+    def __getitem__(self, index):
+        """Retrieve an item from the aggregated parameter list (live view)."""
+        return self._get_values_from_aggregator()[index]
+
+    def __setitem__(self, index, value):
+        """
+        Modify an individual element in the aggregated parameter list.
+        Ensures changes propagate to the underlying objects.
+        """
+        current_value = self._get_values_from_aggregator()
+        current_value[index] = value
+        self.aggregator.__set__(self.instance, current_value)
+        super().__setitem__(index, value)  # Update the proxy list as well
+
+    def __iter__(self):
+        """Iterate over aggregated values."""
+        return iter(self._get_values_from_aggregator())
+
+    def __len__(self):
+        """Return the length of the container."""
+        return len(self._get_values_from_aggregator())
+
+    def __repr__(self):
+        """String representation for debugging."""
+        return f"ProxyList({self._get_values_from_aggregator().__repr__()})"
+
+    def __eq__(self, other):
+        """Equality comparison."""
+        return list(self._get_values_from_aggregator()) == other
+
+    def append(self, value):
+        """Prevent appending to the proxy list."""
+        raise NotImplementedError("Appending elements is not allowed.")
+
+    def extend(self, values):
+        """Prevent extending the proxy list."""
+        raise NotImplementedError("Extending elements is not allowed.")
+
+    def insert(self, index, value):
+        """Prevent inserting into the proxy list."""
+        raise NotImplementedError("Inserting elements is not allowed.")
+
+    def pop(self, index=-1):
+        """Prevent removing elements."""
+        raise NotImplementedError("Popping elements is not allowed.")
+
+    def remove(self, value):
+        """Prevent removing elements."""
+        raise NotImplementedError("Removing elements is not allowed.")
+
+    def clear(self):
+        """Prevent clearing elements."""
+        raise NotImplementedError("Clearing elements is not allowed.")
+
+
 class Aggregator():
     """Descriptor aggregating parameters from iterable container of other objects."""
 
@@ -100,12 +175,14 @@ class Aggregator():
     def _n_instances(self, instance):
         return len(self._container_obj(instance))
 
-    def _get_parameter_values_from_container(self, instance):
+    def _get_values_from_container(self, instance, check=False):
         container = self._container_obj(instance)
+
         value = [getattr(el, self.parameter_name) for el in container]
 
-        if len(value) == 0:
-            return
+        if check:
+            value = self._prepare(instance, value, recursive=True)
+            self._check(instance, value, recursive=True)
 
         return value
 
@@ -128,13 +205,7 @@ class Aggregator():
         if instance is None:
             return self
 
-        value = self._get_parameter_values_from_container(instance)
-
-        if value is not None:
-            value = self._prepare(instance, value, recursive=True)
-            self._check(instance, value, recursive=True)
-
-        return value
+        return ProxyList(self, instance)
 
     def __set__(self, instance, value):
         """
