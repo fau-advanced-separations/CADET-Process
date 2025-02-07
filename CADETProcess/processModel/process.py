@@ -1,6 +1,7 @@
 from collections import defaultdict
-from warnings import warn
 from dataclasses import dataclass
+from warnings import warn
+from typing import Literal, Optional
 
 from addict import Dict
 import numpy as np
@@ -549,7 +550,15 @@ class Process(EventHandler):
         self.parameters = config['parameters']
         self.initial_state = config['initial_state']
 
-    def add_concentration_profile(self, unit, time, c, components=None, s=1e-6):
+    def add_concentration_profile(
+            self,
+            unit: str,
+            time: np.ndarray,
+            c: np.ndarray,
+            components: Optional[list[str]] = None,
+            s: float = 1e-6,
+            interpolation_method: Literal['cubic', 'pchip', None] = 'pchip'
+            ) -> None:
         """Add concentration profile to Process.
 
         Parameters
@@ -557,19 +566,24 @@ class Process(EventHandler):
         unit : str
             The name of the inlet unit operation.
         time : np.ndarray
-            An array containing the time values of the concentration profile.
+            1D array containing the time values of the concentration profile.
         c : np.ndarray
-            An array containing the concentration profile with shape
-            (len(time), n_comp), where n_comp is the number of components specified with
-            the `components` argument.
-        components : list, optional.
+            2D array containing the concentration profile with shape
+            (len(time), n_comp), where n_comp is the number of components
+            specified in the `components` argument.
+        components : list[str] | None, optional
             Component species for which the concentration profile shall be added.
             If `None`, the profile is expected to have shape (len(time), n_comp).
             If `-1`, the same (1D) profile is added to all components.
-            The default is `None`.
+            Default is `None`.
         s : float, optional
-            A smoothing factor used to generate the spline representation of the
-            concentration profile. The default is 1e-6.
+            Smoothing factor used to generate the spline representation of the
+            concentration profile. Default is `1e-6`.
+        interpolation_method : Literal["linear", "cubic", "pchip", None], optional
+            The interpolation method to use. Options:
+            - `"cubic"` : Cubic spline interpolation.
+            - `"pchip"` : Piecewise cubic Hermite interpolation (default).
+            - `None` : No interpolation, use raw time data.
 
         Raises
         ------
@@ -578,7 +592,7 @@ class Process(EventHandler):
         ValueError
             If the time values in `time` exceed the cycle time of the Process.
             If `c` has an invalid shape.
-
+            If `interpolation_method` is unknown.
         """
         if isinstance(unit, str):
             unit = self.flow_sheet[unit]
@@ -611,9 +625,28 @@ class Process(EventHandler):
         if len(indices) == 1 and c.ndim == 1:
             c = np.array(c, ndmin=2).T
 
+        # Determine the interpolation method
+        if interpolation_method is None:
+            time_interp = time
+        else:
+            time_interp = np.linspace(0, max(time), max(1001, len(time)))
+
+            match interpolation_method:
+                case None:
+                    pass
+                case 'cubic':
+                    interpolator = interpolate.CubicSpline(time, c)
+                case 'pchip':
+                    interpolator = interpolate.PchipInterpolator(time, c)
+                case _:
+                    raise ValueError(
+                        f"Unknown `interpolation_method`: {interpolation_method}."
+                    )
+
+            c = interpolator(time_interp)
+
         # Process each component's profile
         for i, comp in enumerate(indices):
-            # Extract the concentration profile for the current component
             profile = c[:, i]
 
             # Normalize the profile
@@ -626,21 +659,19 @@ class Process(EventHandler):
                     f'Component {comp} has no variation in concentration; '
                     'scaling will be skipped.'
                 )
-                range_val = 1  # Avoid division by zero, effectively skipping scaling
+                range_val = 1  # Avoid division by zero
 
             normalized_profile = (profile - min_val) / range_val
 
             # Fit the spline on the normalized profile
-            tck = interpolate.splrep(time, normalized_profile, s=s)
+            tck = interpolate.splrep(time_interp, normalized_profile, s=s)
             ppoly = interpolate.PPoly.from_spline(tck)
 
             # Add events with properly unscaled coefficients
             for j, (t, sec) in enumerate(zip(ppoly.x, ppoly.c.T)):
-                if j < 3:
+                if j < 3 or j > len(ppoly.x) - 5:
                     continue
-                elif j > len(ppoly.x) - 5:
-                    continue
-                # Scale the coefficients and adjust the constant term
+                # Scale coefficients and adjust the constant term
                 scaled_sec = sec * range_val
                 scaled_sec[-1] += min_val  # Adjust the constant term for shifting
                 self.add_event(
@@ -648,7 +679,14 @@ class Process(EventHandler):
                     np.flip(scaled_sec), t, comp
                 )
 
-    def add_flow_rate_profile(self, unit, time, flow_rate, s=1e-6):
+    def add_flow_rate_profile(
+            self,
+            unit: str,
+            time: np.ndarray,
+            flow_rate: np.ndarray,
+            s: float = 1e-6,
+            interpolation_method: Literal["cubic", "pchip", None] = "pchip"
+            ) -> None:
         """Add flow rate profile to a SourceMixin unit operation.
 
         Parameters
@@ -656,12 +694,17 @@ class Process(EventHandler):
         unit : str
             The name of the SourceMixin unit operation.
         time : np.ndarray
-            An array containing the time values of the flow rate profile.
+            1D array containing the time values of the flow rate profile.
         flow_rate : np.ndarray
-            An array containing the flow rate profile.
+            1D array containing the flow rate values over time.
         s : float, optional
-            A smoothing factor used to generate the spline representation of the
-            flow rate profile. The default is 1e-6.
+            Smoothing factor used to generate the spline representation of the flow rate profile.
+            Default is `1e-6`.
+        interpolation_method : Literal["linear", "cubic", "pchip", None], optional
+            The interpolation method to use. Options:
+            - `"cubic"` : Cubic spline interpolation.
+            - `"pchip"` : Piecewise cubic Hermite interpolation (default).
+            - `None` : No interpolation, use raw time data.
 
         Raises
         ------
@@ -674,10 +717,10 @@ class Process(EventHandler):
             unit = self.flow_sheet[unit]
 
         if unit not in self.flow_sheet.inlets + self.flow_sheet.cstrs:
-            raise TypeError('Expected SourceMixin.')
+            raise TypeError("Expected SourceMixin.")
 
         if max(time) > self.cycle_time:
-            raise ValueError('Inlet profile exceeds cycle time')
+            raise ValueError("Inlet profile exceeds cycle time.")
 
         # Compute min and max for scaling
         min_val = np.min(flow_rate)
@@ -686,31 +729,51 @@ class Process(EventHandler):
 
         if range_val == 0:
             warn(
-                f'Component {comp} has no variation in concentration; '
-                'scaling will be skipped.'
+                "Flow rate has no variation; scaling will be skipped."
             )
             range_val = 1  # Avoid division by zero, effectively skipping scaling
 
         # Normalize flow_rate to [0, 1]
         normalized_flow_rate = (flow_rate - min_val) / range_val
 
-        # Fit the spline with normalized flow_rate
-        tck = interpolate.splrep(time, normalized_flow_rate, s=s)
+        # Determine interpolation method
+        if interpolation_method is None:
+            time_interp = time
+            interpolated_flow_rate = normalized_flow_rate
+        else:
+            time_interp = np.linspace(0, max(time), max(1001, len(time)))
+            match interpolation_method:
+
+                case "cubic":
+                    interpolator = interpolate.CubicSpline(
+                        time, normalized_flow_rate
+                    )
+                case "pchip":
+                    interpolator = interpolate.PchipInterpolator(
+                        time, normalized_flow_rate
+                    )
+                case _:
+                    raise ValueError(
+                        f"Unknown `interpolation_method`: {interpolation_method}."
+                    )
+
+            interpolated_flow_rate = interpolator(time_interp)
+
+        # Fit the spline with the interpolated normalized flow rate
+        tck = interpolate.splrep(time_interp, interpolated_flow_rate, s=s)
         ppoly = interpolate.PPoly.from_spline(tck)
 
         # Add events with unscaled coefficients
         for i, (t, sec) in enumerate(zip(ppoly.x, ppoly.c.T)):
-            if i < 3:
-                continue
-            elif i > len(ppoly.x) - 5:
+            if i < 3 or i > len(ppoly.x) - 5:
                 continue
 
             # Unscale all coefficients
             unscaled_sec = sec * range_val
-            # Adjust the constant term (last coefficient in the array) for shifting
-            unscaled_sec[-1] += min_val
+            unscaled_sec[-1] += min_val  # Adjust the constant term for shifting
+
             self.add_event(
-                f'{unit}_flow_rate_{i-3}', f'flow_sheet.{unit}.flow_rate',
+                f"{unit}_flow_rate_{i-3}", f"flow_sheet.{unit}.flow_rate",
                 np.flip(unscaled_sec), t
             )
 
