@@ -1388,8 +1388,13 @@ class CarouselSolutionBulk(SolutionBase):
         return self.simulation_results.solution.column_0.bulk.time
 
     def plot_at_time(
-            self, t, overlay=None, y_min=None, y_max=None,
-            ax=None, lines=None):
+            self,
+            t,
+            overlay=None,
+            y_min=None,
+            y_max=None,
+            ax=None,
+            lines=None):
         """Plot bulk solution over space at given time.
 
         Parameters
@@ -1403,7 +1408,6 @@ class CarouselSolutionBulk(SolutionBase):
         --------
         CADETProcess.plotting
         """
-
         n_cols = self.builder.n_columns
         if ax is None:
             fig, axs = plt.subplots(
@@ -1441,8 +1445,8 @@ class CarouselSolutionBulk(SolutionBase):
                 for comp in range(self.n_comp):
                     lines[position][comp].set_ydata(y[..., comp])
             else:
-                l = ax.plot(x, y)
-                _lines.append(l)
+                line = ax.plot(x, y)
+                _lines.append(line)
 
             zone = self.builder.zones[zone_counter]
 
