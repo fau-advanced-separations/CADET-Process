@@ -12,6 +12,8 @@ from diskcache.core import (
 )
 
 
+__all__ = ["DillDisk"]
+
 class DillDisk(diskcache.Disk):
     """Cache key and value serialization for SQLite database and files."""
 

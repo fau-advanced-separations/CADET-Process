@@ -2,14 +2,11 @@ from CADETProcess.dataStructure import Structure, ParameterWrapper
 from collections import defaultdict
 from functools import wraps
 import os
-import platform
 from pathlib import Path
-import shutil
 import subprocess
 from subprocess import TimeoutExpired
 import time
 import tempfile
-import warnings
 import re
 
 from addict import Dict
@@ -29,7 +26,7 @@ from CADETProcess.solution import (
 )
 from CADETProcess.processModel import NoBinding, BindingBaseClass
 from CADETProcess.processModel import NoReaction, ReactionBaseClass
-from CADETProcess.processModel import NoDiscretization, DGMixin
+from CADETProcess.processModel import NoDiscretization
 from CADETProcess.processModel import (
     UnitBaseClass, Inlet, Cstr, TubularReactor, LumpedRateModelWithoutPores
 )

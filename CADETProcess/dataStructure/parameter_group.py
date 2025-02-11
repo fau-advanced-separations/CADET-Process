@@ -1,6 +1,4 @@
 from CADETProcess import CADETProcessError
-from CADETProcess.dataStructure import Structure
-from CADETProcess.dataStructure import frozen_attributes
 
 
 class ParameterWrapper():
