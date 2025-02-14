@@ -1753,13 +1753,13 @@ class InterpolatedSignal():
 
         """
         return np.array([
-            self._solutions[comp].integral(start, end)
-            for comp in range(len(self._solutions))
+            comp.integral(start, end)
+            for comp in self._solutions
         ])
 
     def __call__(self, t):
         return np.array([
-            self._solutions[comp](t) for comp in range(len(self._solutions))
+            comp(t) for comp in self._solutions
         ]).transpose()
 
 
