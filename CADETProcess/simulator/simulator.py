@@ -51,7 +51,8 @@ class SimulatorBase(Structure):
 
     n_cycles = UnsignedInteger(default=1)
     evaluate_stationarity = Bool(default=False)
-    n_cycles_min = UnsignedInteger(default=5)
+    n_cycles_min = UnsignedInteger(default=1)
+    n_cycles_batch = UnsignedInteger(default=5)
     n_cycles_max = UnsignedInteger(default=100)
     raise_exception_on_max_cycles = Bool(default=False)
 
@@ -252,6 +253,10 @@ class SimulatorBase(Structure):
             raise ValueError("n_cycles_max is set lower than n_cycles_min "
                              f"({self.n_cycles_max} vs {self.n_cycles_min}). ")
 
+        # If "max" is below "batch", reduce "batch" to "max" to only run "max" cycles.
+        if self.n_cycles_max < self.n_cycles_batch:
+            self.n_cycles_batch = self.n_cycles_max
+
         if not self.evaluate_stationarity:
             results = self.simulate_n_cycles(
                 process, self.n_cycles, previous_results, **kwargs
@@ -353,7 +358,7 @@ class SimulatorBase(Structure):
             raise TypeError('Expected Process')
 
         n_cyc_orig = self.n_cycles
-        self.n_cycles = self.n_cycles_min
+        self.n_cycles = max(self.n_cycles_min, self.n_cycles_batch)
 
         if results is not None:
             n_cyc = results.n_cycles
@@ -361,7 +366,7 @@ class SimulatorBase(Structure):
             n_cyc = 0
 
         while True:
-            n_cyc += self.n_cycles_min
+            n_cyc += self.n_cycles_batch
 
             if results is not None:
                 self.set_state_from_results(process, results)
