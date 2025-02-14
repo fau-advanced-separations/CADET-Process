@@ -3792,16 +3792,18 @@ class OptimizationVariable:
         if self.evaluation_objects is None:
             return
 
+        indicies = self.indices
+
         for i_eval, eval_obj in enumerate(self.evaluation_objects):
             is_polynomial = self._is_polynomial(eval_obj)
 
             if (
-                    self.indices[i_eval] is None
+                    indicies[i_eval] is None
                     or
                     self._indices[i_eval] is None and is_polynomial):
                 new_value = value
             else:
-                eval_ind = self.indices[i_eval]
+                eval_ind = indicies[i_eval]
                 parameter_shape = self._get_parameter_shape(eval_obj)
                 current_value = self._current_value(eval_obj)
 
