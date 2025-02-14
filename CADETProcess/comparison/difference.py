@@ -1,7 +1,6 @@
 from abc import abstractmethod
 import copy
 from functools import wraps
-from warnings import warn
 
 import numpy as np
 from scipy.integrate import simpson
@@ -27,14 +26,6 @@ __all__ = [
     'BreakthroughHeight', 'BreakthroughPosition',
     'FractionationSSE',
 ]
-
-
-def squishify(*args, **kwargs):
-    warn(
-        'This function is deprecated, use sigmoid_distance.',
-        DeprecationWarning, stacklevel=2
-    )
-    return sigmoid_distance(*args, **kwargs)
 
 
 def sigmoid_distance(measurement, target, normalization=1):
