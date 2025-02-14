@@ -495,8 +495,9 @@ class Shape(DifferenceBase):
     @wraps(DifferenceBase.__init__)
     def __init__(
             self, *args,
-            use_derivative=True, normalize_metrics=True, normalization_factor=None,
-            include_height=True,
+            use_derivative=True,
+            normalize_metrics=True,
+            normalization_factor=None,
             **kwargs):
         """Initialize Shape metric.
 
@@ -514,10 +515,6 @@ class Shape(DifferenceBase):
         normalization_factor : float, optional
             Normalization factor used by the sigmoid function.
             Default is None, which sets it to 1/10 of the simulation time.
-        include_height : bool, optional
-            If True, also return a metric for the height difference.
-            If `use_derivative` is also true, also return height differences
-            for the derivatives.
         **kwargs : dict
             Keyword arguments passed to the base class constructor.
 
@@ -531,13 +528,6 @@ class Shape(DifferenceBase):
                 raise CADETProcessError(
                     "Shape currently only supports single component."
                 )
-
-        self.include_height = include_height
-        if include_height:
-            warn("Peak height will be removed from the Shape difference metric.", DeprecationWarning)
-            self.peak_height = PeakHeight(
-                *args, normalize=False, normalize_metrics=normalize_metrics, **kwargs
-            )
 
         self.use_derivative = use_derivative
         if use_derivative:
@@ -555,17 +545,6 @@ class Shape(DifferenceBase):
                 coordinates={'time': (self.start, self.end)}
             )
 
-            self.peak_der_min = PeakHeight(
-                self.reference_der, *args[1:], normalize=False,
-                find_minima=True, normalize_metrics=normalize_metrics,
-                **kwargs
-            )
-            self.peak_der_max = PeakHeight(
-                self.reference_der, *args[1:], normalize=False,
-                find_minima=False, normalize_metrics=normalize_metrics,
-                **kwargs
-            )
-
         self.normalize_metrics = normalize_metrics
         if normalization_factor is None:
             normalization_factor = self.reference.time[-1]/10
@@ -575,29 +554,16 @@ class Shape(DifferenceBase):
     def n_metrics(self):
         n_metrics = 2
 
-        if self.include_height:
-            n_metrics += 1
-
         if self.use_derivative:
             n_metrics += 1
-
-            if self.include_height:
-                n_metrics += 2
 
         return n_metrics
 
     @property
     def labels(self):
         labels = ['Pearson Correleation', 'Time offset']
-        if self.include_height:
-            labels += ["Peak Height"]
         if self.use_derivative:
             labels += ['Pearson Correlation Derivative']
-            if self.include_height:
-                labels += [
-                    'Peak Minimum Derivative',
-                    'Peak Maximum Derivative'
-                ]
         return labels
 
     def _evaluate(self, solution):
@@ -615,9 +581,6 @@ class Shape(DifferenceBase):
             solution.solution_interpolated.solutions[0],
         )
 
-        if self.include_height:
-            peak_height = self.peak_height(solution, slice=False)
-
         if self.normalize_metrics:
             offset = sigmoid_distance(
                 offset_original, target=0, normalization=self.normalization_factor
@@ -626,10 +589,7 @@ class Shape(DifferenceBase):
             offset = np.abs(offset_original)
 
         if not self.use_derivative:
-            if self.include_height:
-                return np.array([corr, offset, peak_height[0]])
-            elif not self.include_height:
-                return np.array([corr, offset])
+            return np.array([corr, offset])
 
         solution_der = solution.derivative
         solution_der_sliced = self.slice_and_transform(solution_der)
@@ -641,23 +601,12 @@ class Shape(DifferenceBase):
             offset_original,
         )
 
-        der_min = self.peak_der_min(solution_der_sliced, slice=False)
-        der_max = self.peak_der_max(solution_der_sliced, slice=False)
-
-        if self.include_height:
-            return np.array(
-                [
-                    corr, offset, peak_height[0],
-                    corr_der, der_min[0], der_max[0]
-                ]
-            )
-        elif not self.include_height:
-            return np.array(
-                [
-                    corr, offset,
-                    corr_der,
-                ]
-            )
+        return np.array(
+            [
+                corr, offset,
+                corr_der,
+            ]
+        )
 
 
 class PeakHeight(DifferenceBase):
