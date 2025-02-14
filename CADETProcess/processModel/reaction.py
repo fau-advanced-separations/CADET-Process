@@ -1,15 +1,19 @@
-from addict import Dict
 from functools import wraps
+import warnings
+
+from addict import Dict
 import numpy as np
 
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import (
-    Aggregator, SizedAggregator, SizedClassDependentAggregator
+    Aggregator, SizedAggregator, SizedClassDependentAggregator,
 )
 from CADETProcess.dataStructure import (
     Bool, String, SizedList, SizedNdArray, UnsignedInteger, UnsignedFloat
 )
+
+from CADETProcess.dataStructure import deprecated_alias
 
 from .componentSystem import ComponentSystem
 
@@ -66,9 +70,9 @@ class Reaction(Structure):
         'exponents_fwd',
         'exponents_bwd',
     ]
-
+    @deprecated_alias(indices='components')
     def __init__(
-            self, component_system, indices, coefficients,
+            self, component_system, components, coefficients,
             k_fwd, k_bwd=1, is_kinetic=True, k_fwd_min=100,
             exponents_fwd=None, exponents_bwd=None):
         """Initialize individual Mass Action Law Reaction.
@@ -77,10 +81,10 @@ class Reaction(Structure):
         ----------
         component_system : ComponentSystem
             Component system of the reaction.
-        indices : list of int
-            Component indices.
+        components : list of int or strings
+            Component names of the components involved in the reaction.
         coefficients : np.ndarray
-            Stoichiometric coefficients in the same order of component indices.
+            Stoichiometric coefficients in the same order of components .
         k_fwd : float
             Forward reaction rate.
         k_bwd : float, optional
@@ -92,11 +96,11 @@ class Reaction(Structure):
             Minimum value of foward reaction rate in case of rapid equilbrium.
             The default is 100.
         exponents_fwd : list of float, optional
-            Concentration exponents of the components in order of indices for
+            Concentration exponents of the components in order of components for
             forward reaction. If None is given, values are inferred from the
             stoichiometric coefficients. The default is None.
         exponents_bwd : list of float, optional
-            Concentration exponents of the components in order of indices for
+            Concentration exponents of the components in order of components for
             backward reaction. If None is given, values are inferred from the
             stoichiometric coefficients. The default is None.
 
@@ -110,6 +114,16 @@ class Reaction(Structure):
 
         self.k_fwd = k_fwd
         self.k_bwd = k_bwd
+
+        if isinstance(components[0], str):
+            indices = [component_system.species.index(i) for i in components]
+        else:
+            warnings.warn(
+                "Component are expected to be specified by name. "
+                "This will be deprecated in future versions.",
+                DeprecationWarning, stacklevel=2
+            )
+            indices = components
 
         self.stoich = np.zeros((self.n_comp,))
         for i, c in zip(indices, coefficients):
@@ -245,9 +259,9 @@ class CrossPhaseReaction(Structure):
         'exponents_bwd_liquid_modsolid',
         'exponents_bwd_solid_modliquid',
     ]
-
+    @deprecated_alias(indices='components')
     def __init__(
-            self, component_system, indices, coefficients, phases,
+            self, component_system, components, coefficients, phases,
             k_fwd, k_bwd=1, is_kinetic=True, k_fwd_min=100,
             exponents_fwd_liquid=None, exponents_bwd_liquid=None,
             exponents_fwd_solid=None, exponents_bwd_solid=None):
@@ -257,8 +271,8 @@ class CrossPhaseReaction(Structure):
         ----------
         component_system : ComponentSystem
             Component system of the reaction.
-        indices : list
-            Component indices.
+        components : list of int or strings
+            Component names of the components involved in the reaction.
         coefficients : list
             Stoichiometric coefficients in the same order of component indices.
         phases : list
@@ -302,6 +316,16 @@ class CrossPhaseReaction(Structure):
         self.exponents_bwd_solid_modliquid = np.zeros((self.n_comp,))
         self.exponents_fwd_liquid_modsolid = np.zeros((self.n_comp,))
         self.exponents_bwd_liquid_modsolid = np.zeros((self.n_comp,))
+
+        if isinstance(components[0], str):
+            indices = [component_system.species.index(i) for i in components]
+        else:
+            warnings.warn(
+                "Component are expected to be specified by name. "
+                "This will be deprecated in future versions.",
+                DeprecationWarning, stacklevel=2
+            )
+            indices = components
 
         if phases is None:
             phases = [0 for n in indices]

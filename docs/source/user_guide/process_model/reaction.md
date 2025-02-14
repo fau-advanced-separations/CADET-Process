@@ -48,8 +48,8 @@ component_system = ComponentSystem(['A', 'B'])
 To instantiate it, pass the {class}`~CADETProcess.processModel.ComponentSystem`.
 Then, add the reaction using the {meth}`~CADETProcess.processModel.MassActionLaw.add_reaction` method.
 The following arguments are expected:
-- indices: The indices of the components that take part in the reaction (useful for bigger systems)
-- stoichiometric coefficients in the order of the indices
+- components: The components names that take part in the reaction (useful for bigger systems)
+- stoichiometric coefficients in the order of components
 - forward reaction rate
 - backward reaction rate
 
@@ -57,7 +57,7 @@ The following arguments are expected:
 from CADETProcess.processModel import MassActionLaw
 reaction_system = MassActionLaw(component_system)
 reaction_system.add_reaction(
-    indices=[0,1],
+    components=['A', 'B'],
     coefficients=[-1, 1],
     k_fwd=0.1,
     k_bwd=0
@@ -88,7 +88,7 @@ $$
 ```{code-cell} ipython3
 reaction_system = MassActionLaw(component_system)
 reaction_system.add_reaction(
-    indices=[0,1],
+    components=['A', 'B'],
     coefficients=[-2, 1],
     k_fwd=0.2,
     k_bwd=0.1
