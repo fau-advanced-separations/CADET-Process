@@ -22,13 +22,13 @@ class Test_Reaction(unittest.TestCase):
         )
         reaction_model = MassActionLaw(component_system, 'simple')
         reaction_model.add_reaction(
-            [1, 2, 0], [-1, 1, 1], 10**(-9.2)*1e3,
+            ['NH4+', 'NH3', 'H+'], [-1, 1, 1], 10**(-9.2)*1e3,
             is_kinetic=is_kinetic, k_fwd_min=k_fwd_min
         )
         return reaction_model
 
     def create_complex_bulk_reaction(self, is_kinetic=True, k_fwd_min=1):
-        # Reactions
+        # All Reactions
         # 0: NH4+(aq) <=> NH3(aq) + H+(aq)
         # 1: Lys2+(aq) <=> Lys+(aq) + H+(aq)
         # 2: Lys+(aq) <=> Lys(aq) + H+(aq)
@@ -52,32 +52,39 @@ class Test_Reaction(unittest.TestCase):
             charge=[2, 1, 0, -1]
         )
         reaction_model = MassActionLaw(component_system, 'complex')
+        # 0: NH4+(aq) <=> NH3(aq) + H+(aq)
         reaction_model.add_reaction(
-            [1, 2, 0], [-1, 1, 1], 10**(-9.2)*1e3,
+            ['NH4+','NH3', 'H+'], [-1, 1, 1], 10**(-9.2)*1e3,
             is_kinetic=is_kinetic, k_fwd_min=k_fwd_min
         )
+        # 1: Lys2+(aq) <=> Lys+(aq) + H+(aq)
         reaction_model.add_reaction(
-            [3, 4, 0], [-1, 1, 1], 10**(-2.20)*1e3,
+            ['Lys2+', 'Lys+', 'H+'], [-1, 1, 1], 10**(-2.20)*1e3,
             is_kinetic=is_kinetic, k_fwd_min=k_fwd_min
         )
+        # 2: Lys+(aq) <=> Lys(aq) + H+(aq)
         reaction_model.add_reaction(
-            [4, 5, 0], [-1, 1, 1], 10**(-8.90)*1e3,
+            ['Lys+', 'Lys', 'H+'], [-1, 1, 1], 10**(-8.90)*1e3,
             is_kinetic=is_kinetic, k_fwd_min=k_fwd_min
         )
+        # 3: Lys(aq) <=> Lys-(aq) + H+(aq)
         reaction_model.add_reaction(
-            [5, 6, 0], [-1, 1, 1], 10**(-10.28)*1e3,
+            ['Lys', 'Lys-', 'H+'], [-1, 1, 1], 10**(-10.28)*1e3,
             is_kinetic=is_kinetic, k_fwd_min=k_fwd_min
         )
+        # 4: Arg2+ <=> Arg+ + H+
         reaction_model.add_reaction(
-            [7, 8, 0], [-1, 1, 1], 10**(-2.18)*1e3,
+            ['Arg2+', 'Arg+', 'H+'], [-1, 1, 1], 10**(-2.18)*1e3,
             is_kinetic=is_kinetic, k_fwd_min=k_fwd_min
         )
+        # 5: Arg+ <=> Arg + H+
         reaction_model.add_reaction(
-            [8, 9, 0], [-1, 1, 1], 10**(-9.09)*1e3,
+            ['Arg+', 'Arg', 'H+'], [-1, 1, 1], 10**(-9.09)*1e3,
             is_kinetic=is_kinetic, k_fwd_min=k_fwd_min
         )
+        # 6: Arg <=> Arg- + H+
         reaction_model.add_reaction(
-            [9, 10, 0], [-1, 1, 1], 10**(-13.2)*1e3,
+            ['Arg', 'Arg-', 'H+'], [-1, 1, 1], 10**(-13.2)*1e3,
             is_kinetic=is_kinetic, k_fwd_min=k_fwd_min
         )
 
@@ -155,51 +162,51 @@ class Test_Reaction(unittest.TestCase):
 
         # Pore Liquid
         # 0: NH4+(aq) <=> NH3(aq) + H+(aq)
+        reaction_model.add_liquid_reaction(
+            ['NH4+', 'NH3', 'H+'], [-1, 1, 1], 10**(-9.2)*1e3, is_kinetic=False
+        )
         # 1: Lys2+(aq) <=> Lys+(aq) + H+(aq)
+        reaction_model.add_liquid_reaction(
+            ['Lys2+', 'Lys+', 'H+'], [-1, 1, 1], 10**(-2.20)*1e3, is_kinetic=False
+        )
         # 2: Lys+(aq) <=> Lys(aq) + H+(aq)
+        reaction_model.add_liquid_reaction(
+            ['Lys+', 'Lys', 'H+'], [-1, 1, 1], 10**(-8.90)*1e3, is_kinetic=False
+        )
         # 3: Lys(aq) <=> Lys-(aq) + H+(aq)
         reaction_model.add_liquid_reaction(
-            [0, 1, -1], [-1, 1, 1], 10**(-9.2)*1e3, is_kinetic=False
-        )
-        reaction_model.add_liquid_reaction(
-            [2, 3, -1], [-1, 1, 1], 10**(-2.20)*1e3, is_kinetic=False
-        )
-        reaction_model.add_liquid_reaction(
-            [3, 4, -1], [-1, 1, 1], 10**(-8.90)*1e3, is_kinetic=False
-        )
-        reaction_model.add_liquid_reaction(
-            [4, 5, -1], [-1, 1, 1], 10**(-10.28)*1e3, is_kinetic=False
+            ['Lys', 'Lys-', 'H+'], [-1, 1, 1], 10**(-10.28)*1e3, is_kinetic=False
         )
 
         # Adsorption
         k_fwd_min_ads = 100
         # 0: NH4+(aq) + H+(s) <=> NH4+(s) + H+(aq)
+        reaction_model.add_cross_phase_reaction(
+            ['NH4+', 'H+', 'NH4+', 'H+'], [-1, -1, 1, 1], [0, 1, 1, 0], 1/1.5,
+            k_fwd_min=k_fwd_min_ads
+        )
         # 1: NH4+(s) <=> NH3(aq) + H+(s)
         reaction_model.add_cross_phase_reaction(
-            [0, -1, 0, -1], [-1, -1, 1, 1], [0, 1, 1, 0], 1/1.5,
-            k_fwd_min=k_fwd_min_ads
-        )
-        reaction_model.add_cross_phase_reaction(
-            [0, 1, -1], [-1, 1, 1], [1, 0, 1], 1.5, k_fwd_min=k_fwd_min_ads
+            ['NH4+', 'NH3', 'H+'], [-1, 1, 1], [1, 0, 1], 1.5, k_fwd_min=k_fwd_min_ads
         )
         # 2: Lys2+(aq) + 2H+(s) <=> Lys2+(s) + 2H+(aq)
-        # 3: Lys2+(s) <=> Lys+(aq) + H+(s)
         reaction_model.add_cross_phase_reaction(
-            [2, -1, 2, -1], [-1, -2, 1, 2], [0, 1, 1, 0], 1/5,
+            ['Lys2+', 'H+', 'Lys2+', 'H+'], [-1, -2, 1, 2], [0, 1, 1, 0], 1/5,
             k_fwd_min=k_fwd_min_ads
         )
+        # 3: Lys2+(s) <=> Lys+(aq) + H+(s)
         reaction_model.add_cross_phase_reaction(
-            [2, 3, -1], [-1, 1, 1], [1, 0, 1], 5,
+            ['Lys2+', 'Lys+', 'H+'], [-1, 1, 1], [1, 0, 1], 5,
             k_fwd_min=k_fwd_min_ads
         )
         # 4: Lys+(aq) + H+(s) <=> Lys+(s) + H+(aq)
-        # 5: Lys+(s) <=> Lys(aq) + H+(s)
         reaction_model.add_cross_phase_reaction(
-            [3, -1, 3, -1], [-1, -1, 1, 1], [0, 1, 1, 0], 1/0.75,
+            ['Lys+', 'H+', 'Lys+', 'H+'], [-1, -1, 1, 1], [0, 1, 1, 0], 1/0.75,
             k_fwd_min=k_fwd_min_ads
         )
+        # 5: Lys+(s) <=> Lys(aq) + H+(s)
         reaction_model.add_cross_phase_reaction(
-            [3, 4, -1], [-1, 1, 1], [1, 0, 1], 0.75,
+            ['Lys+', 'Lys', 'H+'], [-1, 1, 1], [1, 0, 1], 0.75,
             k_fwd_min=k_fwd_min_ads
         )
 
