@@ -945,23 +945,25 @@ class Event():
     @property
     def parameter_shape(self):
         """tuple: Shape of the parameter array."""
-        if isinstance(self.parameter_descriptor, (Float, Integer, Bool)):
+        param_descriptor = self.parameter_descriptor
+        if isinstance(param_descriptor, (Float, Integer, Bool)):
             return ()
 
-        if isinstance(self.parameter_descriptor, Sized):
-            shape = self.parameter_descriptor.get_expected_size(self.performer_obj)
+        if isinstance(param_descriptor, Sized):
+            shape = param_descriptor.get_expected_size(self.performer_obj)
             if not isinstance(shape, tuple):
                 shape = (shape, )
 
             return shape
 
-        if self.current_value is None:
+        cur_value = self.current_value
+        if cur_value is None:
             raise CADETProcessError(
                 "Parameter is not initialized. "
                 "Cannot determine parameter shape."
             )
 
-        return np.array(self.current_value).shape
+        return np.array(cur_value).shape
 
     @property
     def is_sized(self):
@@ -999,13 +1001,15 @@ class Event():
 
         List of tuples for each entry. If parameter is scalar, None
         """
-        if len(self.parameter_shape) == 0:
+        param_shape = self.parameter_shape
+        
+        if len(param_shape) == 0:
             return
 
-        indices = generate_indices(self.parameter_shape, self._indices)
+        indices = generate_indices(param_shape, self._indices)
 
         # Check if all indices unique:
-        full_indices = unravel(self.parameter_shape, indices)
+        full_indices = unravel(param_shape, indices)
         duplicates = [
             index for index in set(full_indices) if full_indices.count(index) > 1
         ]
@@ -1260,6 +1264,7 @@ class Event():
             If the length of the state does not match the length of the indices.
         """
         state = self._state
+        indices = self.indices
 
         # Get new (full) parameter value
         if self._indices is None:
@@ -1277,12 +1282,12 @@ class Event():
             # Ensure state is 2D for indices that contain slices
             state = self._ensure_2D_for_slices(state)
 
-            if len(state) != len(self.indices):
+            if len(state) != len(indices):
                 raise ValueError(
                     f"Expected {len(self.indices)} entries for state. Got {len(state)}"
                 )
 
-            for i, ind in enumerate(self.indices):
+            for i, ind in enumerate(indices):
                 expected_shape = new_value[ind].shape
                 if self.is_polynomial and len(self.parameter_shape) > 1 and len(ind) == 1:
                     new_slice = self.parameter_descriptor.fill_values(
@@ -1308,10 +1313,10 @@ class Event():
         self.set_value(new_value)
         new_value = self.current_value
 
-        if self.indices is not None:
+        if indices is not None:
             new_value = np.array(new_value, ndmin=1)
             full_state = []
-            for ind in self.indices:
+            for ind in indices:
                 full_state += new_value[ind].flatten().tolist()
         else:
             full_state = new_value
