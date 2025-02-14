@@ -39,9 +39,11 @@ class FlowSheet(Structure):
 
     name = String()
 
-    def __init__(self, component_system, name=None):
+    def __init__(self, component_system, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
         self.component_system = component_system
-        self.name = name
+
         self._units = []
         self._feed_inlets = []
         self._eluent_inlets = []
