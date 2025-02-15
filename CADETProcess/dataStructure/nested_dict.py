@@ -5,6 +5,7 @@ from operator import getitem
 __all__ = [
     "check_nested",
     "generate_nested_dict",
+    "update_dict_recursively",
     "get_nested_value",
     "set_nested_value",
     "get_nested_attribute",
@@ -86,15 +87,42 @@ def get_nested_value(nested_dict, path):
     return reduce(getitem, path, nested_dict)
 
 
-def update(d, u):
-    """Recursively update dictionary d with u."""
-    for k, v in u.items():
-        if isinstance(v, collections.abc.Mapping):
-            d[k] = update(d.get(k, {}), v)
-        else:
-            d[k] = v
-    return d
+def update_dict_recursively(
+        target_dict: dict[str, Any],
+        updates: dict[str, Any],
+        only_existing_keys: bool = False
+        ) -> dict[str, Any]:
+    """Recursively update `target_dict` with values from `updates`.
 
+    Parameters
+    ----------
+    target_dict : dict
+        The original dictionary to be updated.
+    updates : dict
+        The dictionary containing new values to merge into `target_dict`.
+    only_existing_keys : bool, optional
+        If True, only update keys that already exist in `target_dict`.
+        If False, add new keys from `updates`. Default is False.
+
+    Returns
+    -------
+    dict
+        The updated dictionary with `updates` applied.
+    """
+    for key, value in updates.items():
+        if only_existing_keys and key not in target_dict:
+            continue  # Skip keys that don't exist in target_dict
+
+        if isinstance(value, Mapping) and isinstance(target_dict.get(key), Mapping):
+            # Recursively update nested dictionaries
+            target_dict[key] = update_dict_recursively(
+                target_dict[key], value, only_existing_keys
+            )
+        else:
+            # Directly update the value
+            target_dict[key] = value
+
+    return target_dict
 
 def get_nested_attribute(obj, path):
     """Access a nested attribute using path in dot notation."""
