@@ -40,6 +40,7 @@ __all__ = [
     'Cstr',
     'TubularReactorBase',
     'TubularReactor',
+    'ChromatographicColumnBase',
     'LumpedRateModelWithoutPores',
     'LumpedRateModelWithPores',
     'GeneralRateModel',
@@ -765,7 +766,11 @@ class TubularReactor(TubularReactorBase):
             )
 
 
-class LumpedRateModelWithoutPores(TubularReactorBase):
+class ChromatographicColumnBase(TubularReactorBase):
+    pass
+
+
+class LumpedRateModelWithoutPores(ChromatographicColumnBase):
     """Parameters for a lumped rate model without pores.
 
     Attributes
@@ -823,7 +828,7 @@ class LumpedRateModelWithoutPores(TubularReactorBase):
         self.parameters['q'] = q
 
 
-class LumpedRateModelWithPores(TubularReactorBase):
+class LumpedRateModelWithPores(ChromatographicColumnBase):
     """Parameters for the lumped rate model with pores.
 
     Attributes
@@ -951,7 +956,7 @@ class LumpedRateModelWithPores(TubularReactorBase):
         self.parameters['q'] = q
 
 
-class GeneralRateModel(TubularReactorBase):
+class GeneralRateModel(ChromatographicColumnBase):
     """Parameters for the general rate model.
 
     Attributes
@@ -1233,7 +1238,7 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
 
     @q.setter
     def q(self, q):
-        if isinstance(self.binding_model, NoBinding):
+        if isinstance(self.binding_model, NoBinding) and q not in (None, []):
             raise CADETProcessError("Cannot set q without binding model.")
         self._q = q
 
