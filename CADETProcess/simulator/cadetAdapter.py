@@ -873,6 +873,7 @@ class Cadet(SimulatorBase):
 
         if not isinstance(unit.discretization, NoDiscretization):
             unit_config['discretization'] = unit.discretization.parameters
+            unit_config['discretization']['spatial_method'] = unit.discretization.spatial_method
 
         if isinstance(unit, Cstr) \
                 and not isinstance(unit.binding_model, NoBinding):
