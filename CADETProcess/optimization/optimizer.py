@@ -53,7 +53,6 @@ class OptimizerBase(Structure):
         constraints.
     progress_frequency : int
         Number of generations after which the optimizer reports progress.
-        The default is 1.
     cv_bounds_tol : float
         Tolerance for bounds constraint violation.
         The default is 0.0.
