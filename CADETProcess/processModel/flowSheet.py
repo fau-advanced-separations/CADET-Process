@@ -1,6 +1,6 @@
 from collections import defaultdict
 from functools import wraps
-from typing import NoReturn
+from typing import Iterator, NoReturn
 from warnings import warn
 
 import numpy as np
@@ -1207,7 +1207,15 @@ class FlowSheet(Structure):
                 raise CADETProcessError('Not a valid unit')
             self.units_dict[unit].initial_state = st
 
-    def __getitem__(self, unit_name: str) -> UnitBaseClass:
+    def __len__(self) -> int:
+        """int: The number of unit operations in the system."""
+        return self.number_of_units
+
+    def __iter__(self) -> Iterator[UnitBaseClass]:
+        """Iterate over the unit operations in the system."""
+        return iter(self.units)
+
+    def __getitem__(self, unit_name) -> UnitBaseClass:
         """Make FlowSheet substriptable s.t. units can be used as keys.
 
         Parameters

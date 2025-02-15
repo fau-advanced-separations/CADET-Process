@@ -33,6 +33,9 @@ class Species(Structure):
     molecular_weight: UnsignedFloat = UnsignedFloat()
     density: UnsignedFloat = UnsignedFloat()
 
+    def __str__(self) -> str:
+        """str: String representation of the component."""
+        return self.name
 
 class Component(Structure):
     """
@@ -440,8 +443,12 @@ class ComponentSystem(Structure):
         """str: Return the string representation of the object."""
         return f'{self.__class__.__name__}({self.names})'
 
+    def __len__(self) -> int:
+        """int: Return the number of components in the system."""
+        return self.n_comp
+
     def __iter__(self):
-        """Iterator over components in the system."""
+        """Iterate over components in the system."""
         yield from self.components
 
     def __getitem__(self, item: int) -> Component:
