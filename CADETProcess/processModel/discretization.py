@@ -161,8 +161,7 @@ class LRMDiscretizationDG(DGMixin):
     exact_integration = Bool(default=False)
 
     _parameters = DiscretizationParametersBase._parameters + [
-        'spatial_method', 'nelem', 'use_analytic_jacobian',
-        'polydeg', 'exact_integration'
+        'nelem', 'use_analytic_jacobian', 'polydeg', 'exact_integration'
     ]
     _dimensionality = ['axial_dof']
 
@@ -228,8 +227,7 @@ class LRMPDiscretizationFV(DiscretizationParametersBase):
     schur_safety = UnsignedFloat(default=1.0e-8)
 
     _parameters = DiscretizationParametersBase._parameters + [
-        'spatial_method', 'ncol', 'par_geom',
-        'use_analytic_jacobian', 'reconstruction',
+        'ncol', 'par_geom', 'use_analytic_jacobian', 'reconstruction',
         'gs_type', 'max_krylov', 'max_restarts', 'schur_safety'
     ]
     _dimensionality = ['ncol']
@@ -276,8 +274,7 @@ class LRMPDiscretizationDG(DGMixin):
     exact_integration = Bool(default=False)
 
     _parameters = DiscretizationParametersBase._parameters + [
-        'spatial_method', 'nelem', 'par_geom',
-        'use_analytic_jacobian',
+        'nelem', 'par_geom', 'use_analytic_jacobian',
         'polydeg', 'exact_integration',
     ]
     _dimensionality = ['axial_dof']
@@ -378,7 +375,7 @@ class GRMDiscretizationFV(DiscretizationParametersBase):
     fix_zero_surface_diffusion = Bool(default=False)
 
     _parameters = DiscretizationParametersBase._parameters + [
-        'spatial_method', 'ncol', 'npar',
+        'ncol', 'npar',
         'par_geom', 'par_disc_type', 'par_disc_vector', 'par_boundary_order',
         'use_analytic_jacobian', 'reconstruction',
         'gs_type', 'max_krylov', 'max_restarts', 'schur_safety',
@@ -467,7 +464,7 @@ class GRMDiscretizationDG(DGMixin):
     fix_zero_surface_diffusion = Bool(default=False)
 
     _parameters = DiscretizationParametersBase._parameters + [
-        'spatial_method', 'nelem', 'par_nelem',
+        'nelem', 'par_nelem',
         'par_geom', 'par_disc_type', 'par_disc_vector', 'par_boundary_order',
         'use_analytic_jacobian',
         'polydeg', 'par_polydeg',
@@ -569,8 +566,7 @@ class ConsistencySolverParameters(Structure):
     )
 
     _parameters = [
-        'solver_name', 'init_damping', 'min_damping',
-        'max_iterations', 'subsolvers'
+        'solver_name', 'init_damping', 'min_damping', 'max_iterations', 'subsolvers'
     ]
 
 
@@ -595,7 +591,5 @@ class MCTDiscretizationFV(DiscretizationParametersBase):
     use_analytic_jacobian = Bool(default=True)
     reconstruction = Switch(default='WENO', valid=['WENO'])
 
-    _parameters = [
-        'ncol', 'use_analytic_jacobian', 'reconstruction',
-    ]
+    _parameters = ['ncol', 'use_analytic_jacobian', 'reconstruction']
     _dimensionality = ['ncol']
