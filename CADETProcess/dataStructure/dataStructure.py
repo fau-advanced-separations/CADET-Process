@@ -48,19 +48,12 @@ class Descriptor(ABC):
         del instance.__dict__[self.name]
 
 
-class ProxyList(list):
+class ProxyList():
     """A proxy list that dynamically updates attributes of container elements."""
 
     def __init__(self, aggregator, instance):
-        values = aggregator._get_values_from_container(instance)
-
-        if values is None:
-            values = []  # Ensure we have a valid default
-
         self.aggregator = aggregator
         self.instance = instance
-
-        super().__init__(values)
 
     def _get_values_from_aggregator(self):
         """Fetch the latest values from the aggregator."""
@@ -80,7 +73,6 @@ class ProxyList(list):
         current_value = self._get_values_from_aggregator()
         current_value[index] = value
         self.aggregator.__set__(self.instance, current_value)
-        super().__setitem__(index, value)  # Update the proxy list as well
 
     def __iter__(self):
         """Iterate over aggregated values."""
@@ -97,30 +89,6 @@ class ProxyList(list):
     def __eq__(self, other):
         """Equality comparison."""
         return list(self._get_values_from_aggregator()) == other
-
-    def append(self, value):
-        """Prevent appending to the proxy list."""
-        raise NotImplementedError("Appending elements is not allowed.")
-
-    def extend(self, values):
-        """Prevent extending the proxy list."""
-        raise NotImplementedError("Extending elements is not allowed.")
-
-    def insert(self, index, value):
-        """Prevent inserting into the proxy list."""
-        raise NotImplementedError("Inserting elements is not allowed.")
-
-    def pop(self, index=-1):
-        """Prevent removing elements."""
-        raise NotImplementedError("Popping elements is not allowed.")
-
-    def remove(self, value):
-        """Prevent removing elements."""
-        raise NotImplementedError("Removing elements is not allowed.")
-
-    def clear(self):
-        """Prevent clearing elements."""
-        raise NotImplementedError("Clearing elements is not allowed.")
 
 
 class Aggregator():
