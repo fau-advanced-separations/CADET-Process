@@ -8,7 +8,6 @@ import unittest
 
 import numpy as np
 
-from CADETProcess import CADETProcessError
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess.processModel import (
     Inlet, Cstr,
@@ -30,12 +29,12 @@ init_liquid_volume = volume * total_porosity
 
 axial_dispersion = 4.7e-7
 
-channel_cross_section_areas = [0.1,0.1,0.1]
+channel_cross_section_areas = [0.1, 0.1, 0.1]
 exchange_matrix = np.array([
-                             [[0.0],[0.01],[0.0]],
-                             [[0.02],[0.0],[0.03]],
-                             [[0.0],[0.0],[0.0]]
-                             ])
+    [[0.0], [0.01], [0.0]],
+    [[0.02], [0.0], [0.03]],
+    [[0.0], [0.0], [0.0]]
+])
 flow_direction = 1
 
 
@@ -157,10 +156,14 @@ class Test_Unit_Operation(unittest.TestCase):
         self.assertAlmostEqual(tube.calculate_interstitial_rt(flow_rate), 0.5)
         self.assertAlmostEqual(tube.calculate_superficial_velocity(flow_rate), 2)
         self.assertAlmostEqual(tube.calculate_superficial_rt(flow_rate), 0.5)
-        self.assertAlmostEqual(tube.NTP(flow_rate), 1/3)
 
+        self.assertAlmostEqual(tube.NTP(flow_rate), 1/3)
         tube.set_axial_dispersion_from_NTP(1/3, 2)
         self.assertAlmostEqual(tube.axial_dispersion, 3)
+
+        self.assertAlmostEqual(tube.calculate_bodenstein_number(flow_rate), 2/3)
+        tube.axial_dispersion = 1
+        self.assertAlmostEqual(tube.calculate_bodenstein_number(flow_rate), 2)
 
         flow_rate = 2
         lrmwp.length = 1
@@ -170,6 +173,11 @@ class Test_Unit_Operation(unittest.TestCase):
         self.assertAlmostEqual(lrmwp.calculate_interstitial_rt(flow_rate), 0.25)
         self.assertAlmostEqual(lrmwp.calculate_superficial_velocity(flow_rate), 2)
         self.assertAlmostEqual(lrmwp.calculate_superficial_rt(flow_rate), 0.5)
+
+        lrmwp.axial_dispersion = 3
+        self.assertAlmostEqual(lrmwp.calculate_bodenstein_number(flow_rate), 4/3)
+        lrmwp.axial_dispersion = 1
+        self.assertAlmostEqual(lrmwp.calculate_bodenstein_number(flow_rate), 4)
 
     def test_poly_properties(self):
         source = self.create_source()
@@ -242,12 +250,12 @@ class Test_Unit_Operation(unittest.TestCase):
 
         self.assertEqual(cstr.required_parameters, ['init_liquid_volume'])
 
-
     def test_MCT(self):
         """
         Notes
         -----
-            Tests Parameters, Volumes and Attributes depending on nchannel. Should be later integrated into general testing workflow.
+        Tests Parameters, Volumes and Attributes depending on nchannel.
+        Should be later integrated into general testing workflow.
         """
         total_porosity = 1
 
@@ -256,15 +264,21 @@ class Test_Unit_Operation(unittest.TestCase):
         mct.exchange_matrix = exchange_matrix
 
         parameters_expected = {
-        'c': np.array([[0., 0., 0.]]),
-        'axial_dispersion' : 0,
-        'channel_cross_section_areas' : channel_cross_section_areas,
-        'length' : length,
-        'exchange_matrix': exchange_matrix,
-        'flow_direction' : 1,
-        'nchannel' : 3
+            'c': np.array([[0., 0., 0.]]),
+            'axial_dispersion': 0,
+            'channel_cross_section_areas': channel_cross_section_areas,
+            'length': length,
+            'exchange_matrix': exchange_matrix,
+            'flow_direction': 1,
+            'nchannel': 3
         }
-        np.testing.assert_equal(parameters_expected, {key: value for key, value in mct.parameters.items() if key != 'discretization'})
+        np.testing.assert_equal(
+            parameters_expected,
+            {
+                key: value for key, value in mct.parameters.items()
+                if key != 'discretization'
+            }
+        )
 
         volume = length*sum(channel_cross_section_areas)
         volume_liquid = volume*total_porosity
@@ -274,11 +288,11 @@ class Test_Unit_Operation(unittest.TestCase):
         self.assertAlmostEqual(mct.volume_solid, volume_solid)
 
         with self.assertRaises(ValueError):
-            mct.exchange_matrix =  np.array([[
-                             [0.0, 0.01, 0.0],
-                             [0.02, 0.0, 0.03],
-                             [0.0, 0.0, 0.0]
-                             ]])
+            mct.exchange_matrix = np.array([[
+                [0.0, 0.01, 0.0],
+                [0.02, 0.0, 0.03],
+                [0.0, 0.0, 0.0]
+            ]])
 
         mct.nchannel = 2
         with self.assertRaises(ValueError):
@@ -290,17 +304,18 @@ class Test_Unit_Operation(unittest.TestCase):
         mct2 = self.create_MCT(2)
 
         with self.assertRaises(ValueError):
-            mct2.exchange_matrix =  np.array([[
-                            [0.0, 0.01, 0.0],
-                            [0.02, 0.0, 0.03],
-                            [0.0, 0.0, 0.0]
-                            ],
-
-                            [
-                            [0.0, 0.01, 0.0],
-                            [0.02, 0.0, 0.03],
-                            [0.0, 0.0, 0.0]
-                            ]])
+            mct2.exchange_matrix = np.array([
+                [
+                    [0.0, 0.01, 0.0],
+                    [0.02, 0.0, 0.03],
+                    [0.0, 0.0, 0.0]
+                ],
+                [
+                    [0.0, 0.01, 0.0],
+                    [0.02, 0.0, 0.03],
+                    [0.0, 0.0, 0.0]
+                ]
+            ])
 
 
 if __name__ == '__main__':
