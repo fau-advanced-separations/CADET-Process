@@ -713,7 +713,7 @@ class TubularReactorBase(UnitBaseClass):
         Calculated using the axial dispersion coefficient:
 
         .. math::
-            NTP = \frac{u \cdot L_{Column}}{2 \cdot D_a}
+            NTP = \frac{u_{int} \cdot L_{Column}}{2 \cdot D_{ax}}
 
         Returns
         -------
@@ -722,12 +722,42 @@ class TubularReactorBase(UnitBaseClass):
 
         See Also
         --------
-        u0
+        calculate_interstitial_velocity
         NTP
 
         """
         u0 = self.calculate_interstitial_velocity(flow_rate)
         self.axial_dispersion = u0 * self.length / (2 * NTP)
+
+    def calculate_bodenstein_number(self, flow_rate: float) -> float:
+        r"""Calculate the Bodenstein number for a given flow rate.
+
+        Parameters
+        ----------
+        flow_rate : float
+            volumetric flow rate
+
+        The Bodenstein number is calculated as follows:
+
+        .. math::
+            Bo = \frac{u_{int} \cdot L_{Column}}{D_{ax}},
+
+        where $u_int$ is the interstitial velocity
+
+
+        Returns
+        -------
+        Bo : float
+            Bodenstein number
+
+        See Also
+        --------
+        calculate_interstitial_velocity
+        NTP
+
+        """
+        u0 = self.calculate_interstitial_velocity(flow_rate)
+        return u0 * self.length / self.axial_dispersion
 
 
 class TubularReactor(TubularReactorBase):
@@ -1227,7 +1257,7 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
 
         See Also
         --------
-        u0
+        calculate_interstitial_velocity
 
         """
         return self.volume_liquid / flow_rate
