@@ -231,11 +231,7 @@ class OptimizerBase(Structure):
             checkpoint_path = os.path.join(results_directory, 'checkpoint.h5')
             if use_checkpoint and os.path.isfile(checkpoint_path):
                 self.logger.info("Continue optimization from checkpoint.")
-                data = H5()
-                data.filename = checkpoint_path
-                data.load()
-
-                self.results.update_from_dict(data)
+                self.results = self._update_results_from_h5(checkpoint_path, self.results)
             else:
                 self.results.setup_csv()
 
@@ -289,6 +285,54 @@ class OptimizerBase(Structure):
             )
 
         return self.results
+
+    def load_results(self, checkpoint_path: str | Path, optimization_problem: OptimizationProblem = None):
+        """
+        Load optimization results from a checkpoint file.
+
+        Parameters
+        ----------
+        checkpoint_path : str | Path
+            Path to the checkpoint file.
+        optimization_problem : OptimizationProblem, optional
+            The optimization problem associated with the results. If None, results are loaded without a problem reference.
+
+        Returns
+        -------
+        OptimizationResults
+            The loaded optimization results.
+        """
+        results = OptimizationResults(
+            optimization_problem=optimization_problem,
+            optimizer=self,
+            similarity_tol=self.similarity_tol,
+        )
+
+        results = self._update_results_from_h5(checkpoint_path=checkpoint_path, results=results)
+        return results
+
+    def _update_results_from_h5(self, checkpoint_path, results: OptimizationResults) -> OptimizationResults:
+        """
+        Update optimization results from an HDF5 checkpoint file.
+
+        Parameters
+        ----------
+        checkpoint_path : str
+            Path to the checkpoint file.
+        results : OptimizationResults
+            The results object to update with data from the checkpoint.
+
+        Returns
+        -------
+        OptimizationResults
+            The updated optimization results.
+        """
+        data = H5()
+        data.filename = checkpoint_path
+        data.load()
+
+        results.update_from_dict(data)
+        return results
 
     @abstractmethod
     def _run(optimization_problem, x0=None, *args, **kwargs):
