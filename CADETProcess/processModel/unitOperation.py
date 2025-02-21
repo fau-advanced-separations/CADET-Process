@@ -825,7 +825,7 @@ class LumpedRateModelWithoutPores(ChromatographicColumnBase):
             raise CADETProcessError("Cannot set q without binding model.")
         self._q = q
 
-        self.parameters['q'] = q
+        self.parameters['q'] = self._q
 
 
 class LumpedRateModelWithPores(ChromatographicColumnBase):
