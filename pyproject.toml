@@ -23,7 +23,7 @@ classifiers = [
     "Intended Audience :: Science/Research",
 ]
 dependencies = [
-    "addict==2.3",
+    "addict==2.4.0",
     "cadet-python>=1.0.4",
     "corner>=2.2.1",
     "diskcache>=5.4.0",
