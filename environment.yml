@@ -4,4 +4,5 @@ channels:
 dependencies:
   - python>=3.10.*
   - cadet>=5.0.3
+  - libsqlite<3.49
   - pip
