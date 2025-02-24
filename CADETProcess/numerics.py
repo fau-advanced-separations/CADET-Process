@@ -48,11 +48,13 @@ def round_to_significant_digits(values: np.ndarray | list[float], digits: int) -
 
     # Mask for non-zero values
     nonzero_mask = values != 0
+    nan_mask = ~np.isnan(values)
+    combined_mask = np.logical_and(nonzero_mask, nan_mask)
     result = np.zeros_like(values)  # Initialize result array
 
     # For non-zero elements, calculate the scaling and apply rounding
-    if np.any(nonzero_mask):  # Check if there are any non-zero values
-        nonzero_values = values[nonzero_mask]
+    if np.any(combined_mask):  # Check if there are any non-zero values
+        nonzero_values = values[combined_mask]
         scales = digits - np.floor(np.log10(np.abs(nonzero_values))).astype(int) - 1
 
         # Round each non-zero value individually
@@ -60,8 +62,9 @@ def round_to_significant_digits(values: np.ndarray | list[float], digits: int) -
             round(v, int(scale)) for v, scale in zip(nonzero_values, scales)
         ]
 
-        result[nonzero_mask] = rounded_nonzero  # Assign the rounded values back
+        result[combined_mask] = rounded_nonzero  # Assign the rounded values back
 
+    result[~nan_mask] = np.nan
     if input_type is not np.ndarray:
         result = input_type(result)
 
