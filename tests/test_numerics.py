@@ -69,3 +69,10 @@ def test_none_digits():
     expected = np.array([123.456, 0.001234, 98765])
     result = round_to_significant_digits(values, None)
     np.testing.assert_allclose(result, expected, rtol=1e-6)
+
+
+def test_nan_digits():
+    values = np.array([123.456,  np.nan, 98765])
+    expected = np.array([123.0, np.nan, 98800.0])
+    result = round_to_significant_digits(values, 3)
+    np.testing.assert_allclose(result, expected, rtol=1e-6)
