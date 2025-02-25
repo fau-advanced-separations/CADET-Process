@@ -587,6 +587,7 @@ class MCTDiscretizationFV(DiscretizationParametersBase):
 
     """
 
+    spatial_method = Constant(value='FV')
     ncol = UnsignedInteger(default=100)
     use_analytic_jacobian = Bool(default=True)
     reconstruction = Switch(default='WENO', valid=['WENO'])
