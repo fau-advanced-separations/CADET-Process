@@ -477,8 +477,11 @@ class TubularReactorBase(UnitBaseClass):
     diameter = UnsignedFloat()
     axial_dispersion = SizedUnsignedList(size='n_comp')
     flow_direction = Switch(valid=[-1, 1], default=1)
+    c = SizedList(size='n_comp', default=0)
+
     _initial_state = UnitBaseClass._initial_state + ['c']
-    _parameters = ['length', 'diameter', 'axial_dispersion', 'flow_direction']
+    _parameters = ['length', 'diameter', 'axial_dispersion', 'flow_direction'] \
+        + _initial_state
     _section_dependent_parameters = \
         UnitBaseClass._section_dependent_parameters + \
         ['axial_dispersion', 'flow_direction']
@@ -780,9 +783,6 @@ class TubularReactor(TubularReactorBase):
 
     total_porosity = Constant(1)
 
-    c = SizedList(size='n_comp', default=0)
-    _initial_state = ['c']
-    _parameters = ['c']
 
     def __init__(self, *args, discretization_scheme='FV', **kwargs):
         if discretization_scheme == 'FV':
@@ -831,10 +831,9 @@ class LumpedRateModelWithoutPores(ChromatographicColumnBase):
     total_porosity = UnsignedFloat(ub=1)
     _parameters = ['total_porosity']
 
-    c = SizedList(size='n_comp', default=0)
     _q = SizedUnsignedList(size='n_bound_states', default=0)
-    _initial_state = TubularReactorBase._initial_state + ['q']
 
+    _initial_state = ChromatographicColumnBase._initial_state + ['q']
     _parameters = _parameters + _initial_state
 
     def __init__(self, *args, discretization_scheme='FV', **kwargs):
@@ -907,11 +906,10 @@ class LumpedRateModelWithPores(ChromatographicColumnBase):
         TubularReactorBase._section_dependent_parameters + \
         ['film_diffusion', 'pore_accessibility']
 
-    c = SizedList(size='n_comp', default=0)
     _cp = SizedUnsignedList(size='n_comp')
     _q = SizedUnsignedList(size='n_bound_states', default=0)
 
-    _initial_state = ['cp', 'q']
+    _initial_state = ChromatographicColumnBase._initial_state + ['cp', 'q']
     _parameters = _parameters + _initial_state
 
     def __init__(self, *args, discretization_scheme='FV', **kwargs):
@@ -1038,11 +1036,10 @@ class GeneralRateModel(ChromatographicColumnBase):
         TubularReactorBase._section_dependent_parameters + \
         ['film_diffusion', 'pore_accessibility', 'pore_diffusion', 'surface_diffusion']
 
-    c = SizedList(size='n_comp', default=0)
     _cp = SizedUnsignedList(size='n_comp')
     _q = SizedUnsignedList(size='n_bound_states', default=0)
-    _initial_state = ['cp', 'q']
 
+    _initial_state = ChromatographicColumnBase._initial_state + ['cp', 'q']
     _parameters = _parameters + _initial_state
 
     def __init__(self, *args, discretization_scheme='FV', **kwargs):
@@ -1180,7 +1177,7 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     init_liquid_volume = UnsignedFloat()
     const_solid_volume = UnsignedFloat(default=0)
     _V = UnsignedFloat()
-    _initial_state = ['c', 'q', 'init_liquid_volume']
+    _initial_state = UnitBaseClass._initial_state + ['c', 'q', 'init_liquid_volume']
     _parameters = _parameters + _initial_state
 
     def __init__(self, *args, **kwargs):
@@ -1309,7 +1306,7 @@ class MCT(UnitBaseClass):
     flow_direction = Switch(valid=[-1, 1], default=1)
     nchannel = UnsignedInteger()
 
-    exchange_matrix = SizedNdArray(size=('nchannel', 'nchannel','n_comp'))
+    exchange_matrix = SizedNdArray(size=('nchannel', 'nchannel', 'n_comp'))
 
     _parameters = [
         'length',
@@ -1328,7 +1325,7 @@ class MCT(UnitBaseClass):
         []
 
     c = SizedNdArray(size=('n_comp', 'nchannel'), default=0)
-    _initial_state = ['c']
+    _initial_state = UnitBaseClass._initial_state + ['c']
     _parameters = _parameters + _initial_state
 
     def __init__(self, *args, nchannel, **kwargs):
