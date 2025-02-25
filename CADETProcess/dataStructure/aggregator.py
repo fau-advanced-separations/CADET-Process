@@ -63,7 +63,7 @@ class NumpyProxyArray(np.ndarray):
 
     def __repr__(self):
         """Return a fresh representation that reflects live data."""
-        return f"NumpyProxyArray({self._get_values_from_aggregator().__repr__()})"
+        return f"NumpyProxyA{self._get_values_from_aggregator().__repr__()[1:]}"
 
 
 class SizedAggregator(Aggregator):
