@@ -489,7 +489,7 @@ class AutoTransformer(TransformerBase):
     NormLogTransformer
     """
 
-    def __init__(self, *args, threshold: int = 1000, **kwargs) -> NoReturn:
+    def __init__(self, *args, threshold: int = 100, **kwargs) -> NoReturn:
         """Initialize an AutoTransformer object.
 
         Parameters
@@ -522,8 +522,8 @@ class AutoTransformer(TransformerBase):
     def use_linear(self) -> bool:
         """Determine whether linear transformation should be used."""
         if self.lb_input <= 0:
-            return np.log10(self.ub_input - self.lb_input) <= np.log10(self.threshold)
-        return (self.ub_input / self.lb_input) <= self.threshold
+            return np.log10(self.ub_input - self.lb_input) < np.log10(self.threshold)
+        return (self.ub_input / self.lb_input) < self.threshold
 
     @property
     def use_log(self) -> bool:
