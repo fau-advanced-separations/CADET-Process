@@ -1,13 +1,10 @@
 from pathlib import Path
-import platform
 import shutil
 import unittest
-import warnings
 from typing import Optional
 import pytest
 import numpy as np
 import numpy.testing as npt
-from itertools import product
 
 from tests.create_LWE import create_lwe
 
@@ -82,20 +79,43 @@ exclude_rules = {
 
 }
 
-test_cases = [
+
+# Helper function to format parameters
+def format_params(params):
+    if not params:
+        return "default"
+    return '-'.join(f"{k}={v}" for k, v in params.items())
+
+
+process_test_cases = [
     pytest.param(
         (unit_type, params),
-        id=f"{unit_type}-{'default' if not params else '-'.join(f'{k}={v}' for k, v in params.items())}"
+        id=f"{unit_type}-{format_params(params)}",
     )
     for unit_type in unit_types
     for params in parameter_combinations
     if not (unit_type in exclude_rules and params in exclude_rules[unit_type])
 ]
 
+use_dll_options = [True, False]
+
+simulation_test_cases = [
+    pytest.param(
+        (unit_type, params, use_dll),
+        id=f"{unit_type}-{format_params(params)}-dll={use_dll}",
+    )
+    for unit_type in unit_types
+    for params in parameter_combinations
+    for use_dll in use_dll_options
+    if not (unit_type in exclude_rules and params in exclude_rules[unit_type])
+]
+
+
 def run_simulation(
         process: Process,
-        install_path: Optional[str] = None
-        ) -> SimulationResults:
+        install_path: Optional[str] = None,
+        use_dll: bool = False
+) -> SimulationResults:
     """
     Run the CADET simulation for the given process and handle potential issues.
 
@@ -118,6 +138,7 @@ def run_simulation(
     """
     try:
         process_simulator = Cadet(install_path)
+        process_simulator.use_dll = use_dll
         simulation_results = process_simulator.simulate(process)
 
         if not simulation_results.exit_flag == 0:
@@ -144,14 +165,16 @@ def process(request: pytest.FixtureRequest):
 @pytest.fixture
 def simulation_results(request: pytest.FixtureRequest):
     """
-    Fixture to set up the simulation for each unit type.
+    Fixture to set up the simulation for each unit type with different `use_dll` options.
     """
-    unit_type, kwargs = request.param
-    process = create_lwe(unit_type, **kwargs)
-    simulation_results = run_simulation(process, install_path)
+    unit_type, kwargs, use_dll = request.param  # Extract `use_dll`
+    process = create_lwe(unit_type, **kwargs)  # Process remains unchanged
+    simulation_results = run_simulation(
+        process, install_path, use_dll=use_dll)  # Pass `use_dll` here
     return simulation_results
 
-@pytest.mark.parametrize("process", test_cases, indirect=True)
+
+@pytest.mark.parametrize("process", process_test_cases, indirect=True)
 @pytest.mark.slow
 class TestProcessWithLWE:
 
@@ -406,7 +429,8 @@ class TestProcessWithLWE:
         )
         assert unit_config.COL_DISPERSION == 5.75e-08
         assert unit_config.NCHANNEL == 3
-        assert unit_config.CHANNEL_CROSS_SECTION_AREAS == 3 * [2 * np.pi * (0.01 ** 2)]
+        assert unit_config.CHANNEL_CROSS_SECTION_AREAS == 3 * \
+            [2 * np.pi * (0.01 ** 2)]
 
         self.check_discretization(unit, unit_config)
 
@@ -563,7 +587,7 @@ class TestProcessWithLWE:
         npt.assert_equal(sensitivity_config, expected_sensitivity_config)
 
 
-@pytest.mark.parametrize("simulation_results", test_cases, indirect=True)
+@pytest.mark.parametrize("simulation_results", simulation_test_cases, indirect=True)
 @pytest.mark.slow
 class TestResultsWithLWE:
     def test_trigger_simulation(self, simulation_results):
@@ -602,7 +626,8 @@ class TestResultsWithLWE:
         # for units with ports
         else:
             # assert solution inlet is given for each port
-            assert len(simulation_results.solution[unit.name].inlet) == unit.n_ports
+            assert len(
+                simulation_results.solution[unit.name].inlet) == unit.n_ports
             # assert solution for channel 0 has shape (t, n_comp)
             assert simulation_results.solution[unit.name].inlet.channel_0.solution_shape == (
                 int(process.cycle_time+1), process.component_system.n_comp
