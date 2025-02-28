@@ -39,7 +39,7 @@
         "general rate model",
         "Python"
     ],
-    "version": "0.10.0",
+    "version": "0.10.1",
     "access_right": "open",
     "communities": [{"identifier": "open-source"}],
     "doi": "10.5281/zenodo.14202878"
