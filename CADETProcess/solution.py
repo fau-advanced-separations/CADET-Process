@@ -430,7 +430,8 @@ class SolutionIO(SolutionBase):
         self.is_smoothed = True
 
     def integral(self, start=None, end=None):
-        """Peak area in a fraction interval.
+        """
+        Peak area in a fraction interval.
 
         Parameters
         ----------
@@ -443,7 +444,7 @@ class SolutionIO(SolutionBase):
         Returns
         -------
         Area : np.ndarray
-            Mass of all components in the fraction
+            Area of each component in the fraction.
 
         """
         if start is None:
@@ -489,7 +490,6 @@ class SolutionIO(SolutionBase):
         ----------
         start : float
             Start time of the fraction
-
         end: float
             End time of the fraction
 
@@ -1737,7 +1737,8 @@ class InterpolatedSignal():
         return anti
 
     def integral(self, start=None, end=None):
-        """Definite integral between start and end.
+        """
+        Definite integral between start and end.
 
         Parameters
         ----------
@@ -1753,7 +1754,7 @@ class InterpolatedSignal():
 
         """
         return np.array([
-            comp.integral(start, end)
+            comp.integrate(start, end)
             for comp in self._solutions
         ])
 
