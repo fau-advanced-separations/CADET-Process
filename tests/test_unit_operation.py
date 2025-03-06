@@ -157,13 +157,17 @@ class Test_Unit_Operation(unittest.TestCase):
         self.assertAlmostEqual(tube.calculate_superficial_velocity(flow_rate), 2)
         self.assertAlmostEqual(tube.calculate_superficial_rt(flow_rate), 0.5)
 
-        self.assertAlmostEqual(tube.NTP(flow_rate), 1/3)
+        np.testing.assert_almost_equal(tube.NTP(flow_rate), [1/3, 1/3])
         tube.set_axial_dispersion_from_NTP(1/3, 2)
-        self.assertAlmostEqual(tube.axial_dispersion, 3)
+        np.testing.assert_almost_equal(tube.axial_dispersion, [3, 3])
 
-        self.assertAlmostEqual(tube.calculate_bodenstein_number(flow_rate), 2/3)
+        np.testing.assert_almost_equal(
+            tube.calculate_bodenstein_number(flow_rate), [2/3, 2/3]
+        )
         tube.axial_dispersion = 1
-        self.assertAlmostEqual(tube.calculate_bodenstein_number(flow_rate), 2)
+        np.testing.assert_almost_equal(
+            tube.calculate_bodenstein_number(flow_rate), [2, 2]
+        )
 
         flow_rate = 2
         lrmwp.length = 1
@@ -174,10 +178,14 @@ class Test_Unit_Operation(unittest.TestCase):
         self.assertAlmostEqual(lrmwp.calculate_superficial_velocity(flow_rate), 2)
         self.assertAlmostEqual(lrmwp.calculate_superficial_rt(flow_rate), 0.5)
 
-        lrmwp.axial_dispersion = 3
-        self.assertAlmostEqual(lrmwp.calculate_bodenstein_number(flow_rate), 4/3)
-        lrmwp.axial_dispersion = 1
-        self.assertAlmostEqual(lrmwp.calculate_bodenstein_number(flow_rate), 4)
+        lrmwp.axial_dispersion = [3, 2]
+        np.testing.assert_almost_equal(
+            lrmwp.calculate_bodenstein_number(flow_rate), [4/3, 2]
+        )
+        lrmwp.axial_dispersion = [1, 2]
+        np.testing.assert_almost_equal(
+            lrmwp.calculate_bodenstein_number(flow_rate), [4, 2]
+        )
 
     def test_poly_properties(self):
         source = self.create_source()
@@ -265,7 +273,7 @@ class Test_Unit_Operation(unittest.TestCase):
 
         parameters_expected = {
             'c': np.array([[0., 0., 0.]]),
-            'axial_dispersion': 0,
+            'axial_dispersion': np.array([0.]),
             'channel_cross_section_areas': channel_cross_section_areas,
             'length': length,
             'exchange_matrix': exchange_matrix,
