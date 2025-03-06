@@ -1217,6 +1217,7 @@ unit_parameters_map = {
             'VELOCITY': 'flow_direction',
         },
         'fixed': {
+            'COL_DISPERSION_MULTIPLEX': 3,
             'PAR_SURFDIFFUSION_MULTIPLEX': 0,
         },
     },
@@ -1237,6 +1238,9 @@ unit_parameters_map = {
             'CROSS_SECTION_AREA': 'cross_section_area',
             'VELOCITY': 'flow_direction',
         },
+        'fixed': {
+            'COL_DISPERSION_MULTIPLEX': 3,
+        },
     },
     'LumpedRateModelWithoutPores': {
         'name': 'LUMPED_RATE_MODEL_WITHOUT_PORES',
@@ -1249,6 +1253,9 @@ unit_parameters_map = {
             'TOTAL_POROSITY': 'total_porosity',
             'CROSS_SECTION_AREA': 'cross_section_area',
             'VELOCITY': 'flow_direction',
+        },
+        'fixed': {
+            'COL_DISPERSION_MULTIPLEX': 3,
         },
     },
     'TubularReactor': {
@@ -1263,6 +1270,7 @@ unit_parameters_map = {
         },
         'fixed': {
             'TOTAL_POROSITY': 1,
+            'COL_DISPERSION_MULTIPLEX': 3,
         },
     },
     'Cstr': {
@@ -1287,6 +1295,9 @@ unit_parameters_map = {
             'CHANNEL_CROSS_SECTION_AREAS': 'channel_cross_section_areas',
             'EXCHANGE_MATRIX': 'exchange_matrix',
             'VELOCITY': 'flow_direction',
+        },
+        'fixed': {
+            'COL_DISPERSION_MULTIPLEX': 7,
         },
     },
     'Inlet': {

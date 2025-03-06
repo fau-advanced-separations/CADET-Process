@@ -2,6 +2,8 @@ from abc import abstractmethod
 import math
 import warnings
 
+import numpy as np
+
 from CADETProcess import CADETProcessError
 
 from CADETProcess.dataStructure import frozen_attributes
@@ -461,8 +463,8 @@ class TubularReactorBase(UnitBaseClass):
         Length of column.
     diameter : UnsignedFloat
         Diameter of column.
-    axial_dispersion : UnsignedFloat
-        Dispersion rate of compnents in axial direction.
+    axial_dispersion : List of unsigned floats. Length depends on n_comp.
+        Axial dispersion coefficient for each component.
     flow_direction : Switch
         If 1: Forward flow.
         If -1: Backwards flow.
@@ -473,7 +475,7 @@ class TubularReactorBase(UnitBaseClass):
 
     length = UnsignedFloat()
     diameter = UnsignedFloat()
-    axial_dispersion = UnsignedFloat()
+    axial_dispersion = SizedUnsignedList(size='n_comp')
     flow_direction = Switch(valid=[-1, 1], default=1)
     _initial_state = UnitBaseClass._initial_state + ['c']
     _parameters = ['length', 'diameter', 'axial_dispersion', 'flow_direction']
@@ -698,7 +700,7 @@ class TubularReactorBase(UnitBaseClass):
 
         """
         u0 = self.calculate_interstitial_velocity(flow_rate)
-        return u0 * self.length / (2 * self.axial_dispersion)
+        return u0 * self.length / (2 * np.array(self.axial_dispersion))
 
     def set_axial_dispersion_from_NTP(self, NTP, flow_rate):
         r"""Set axial dispersion from number of theoretical plates (NTP).
@@ -757,7 +759,7 @@ class TubularReactorBase(UnitBaseClass):
 
         """
         u0 = self.calculate_interstitial_velocity(flow_rate)
-        return u0 * self.length / self.axial_dispersion
+        return u0 * self.length / np.array(self.axial_dispersion)
 
 
 class TubularReactor(TubularReactorBase):
@@ -870,7 +872,7 @@ class LumpedRateModelWithPores(ChromatographicColumnBase):
     particle_radius : UnsignedFloat
         Radius of the particles.
     film_diffusion : List of unsigned floats. Length depends on n_comp.
-        Diffusion rate for components in pore volume.
+        Film diffusion coefficients for each component.
     pore_accessibility : List of unsigned floats. Length depends on n_comp.
         Accessibility of pores for components.
     c : List of unsigned floats. Length depends on n_comp
@@ -998,7 +1000,7 @@ class GeneralRateModel(ChromatographicColumnBase):
     particle_radius : UnsignedFloat
         Radius of the particles.
     film_diffusion : List of unsigned floats. Length depends on n_comp.
-        Diffusion rate for components in pore volume.
+        Film diffusion coefficients for each component.
     pore_accessibility : List of unsigned floats. Length depends on n_comp.
         Accessibility of pores for components.
     pore_diffusion : List of unsigned floats. Length depends on n_comp.
@@ -1284,8 +1286,8 @@ class MCT(UnitBaseClass):
         Length of column.
     channel_cross_section_areas : List of unsinged floats. Lenght depends on nchannel.
         Diameter of column.
-    axial_dispersion : UnsignedFloat
-        Dispersion rate of components in axial direction.
+    axial_dispersion : List of unsigned floats. Length depends on n_comp and nchannel.
+        Axial dispersion coefficient for component and each component.
     flow_direction : Switch
         If 1: Forward flow.
         If -1: Backwards flow.
@@ -1303,7 +1305,7 @@ class MCT(UnitBaseClass):
 
     length = UnsignedFloat()
     channel_cross_section_areas = SizedList(size='nchannel')
-    axial_dispersion = UnsignedFloat()
+    axial_dispersion = SizedUnsignedList(size=('n_comp', 'nchannel'))
     flow_direction = Switch(valid=[-1, 1], default=1)
     nchannel = UnsignedInteger()
 
