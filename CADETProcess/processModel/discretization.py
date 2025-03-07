@@ -125,7 +125,7 @@ class LRMDiscretizationFV(DiscretizationParametersBase):
     reconstruction = Switch(default='WENO', valid=['WENO'])
 
     _parameters = DiscretizationParametersBase._parameters + [
-        'spatial_method', 'ncol', 'use_analytic_jacobian', 'reconstruction',
+        'ncol', 'use_analytic_jacobian', 'reconstruction',
     ]
     _dimensionality = ['ncol']
 
