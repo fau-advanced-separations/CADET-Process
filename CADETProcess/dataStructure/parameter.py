@@ -119,7 +119,8 @@ class ParameterBase(Descriptor):
 
         if default is not None:
             default = self._prepare(instance, default, recursive=True)
-            self._check(instance, default, recursive=True)
+            if default is not None:
+                self._check(instance, default, recursive=True)
 
         return default
 
@@ -1079,7 +1080,9 @@ class Sized(ParameterBase):
             else:
                 raise ValueError("Cannot cast value from given value.")
 
-            if expected_size is not None:
+            if expected_size == 0:
+                value = None
+            elif expected_size is not None:
                 value = np.prod(expected_size) * value
 
         if recursive:
