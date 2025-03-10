@@ -128,8 +128,6 @@ class UnitBaseClass(Structure):
             solution_recorder = IORecorder()
         self.solution_recorder = solution_recorder
 
-
-
         super().__init__(*args, **kwargs)
 
     @property
@@ -291,6 +289,8 @@ class UnitBaseClass(Structure):
 
     @property
     def n_bound_states(self):
+        if isinstance(self.binding_model, NoBinding):
+            return 0
         return self.binding_model.n_bound_states
 
     @property
