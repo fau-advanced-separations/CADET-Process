@@ -311,7 +311,7 @@ class OptimizerBase(Structure):
         results = self._update_results_from_h5(checkpoint_path=checkpoint_path, results=results)
         return results
 
-    def _update_results_from_h5(self, checkpoint_path, results: OptimizationResults):
+    def _update_results_from_h5(self, checkpoint_path, results: OptimizationResults) -> OptimizationResults:
         """
         Update optimization results from an HDF5 checkpoint file.
 
