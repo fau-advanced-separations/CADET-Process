@@ -852,7 +852,7 @@ class LumpedRateModelWithoutPores(ChromatographicColumnBase):
 
     @q.setter
     def q(self, q):
-        if isinstance(self.binding_model, NoBinding):
+        if isinstance(self.binding_model, NoBinding) and q not in (None, []):
             raise CADETProcessError("Cannot set q without binding model.")
         self._q = q
 
@@ -979,7 +979,7 @@ class LumpedRateModelWithPores(ChromatographicColumnBase):
 
     @q.setter
     def q(self, q):
-        if isinstance(self.binding_model, NoBinding):
+        if isinstance(self.binding_model, NoBinding) and q not in (None, []):
             raise CADETProcessError("Cannot set q without binding model.")
         self._q = q
 
@@ -1111,7 +1111,7 @@ class GeneralRateModel(ChromatographicColumnBase):
 
     @q.setter
     def q(self, q):
-        if isinstance(self.binding_model, NoBinding):
+        if isinstance(self.binding_model, NoBinding) and q not in (None, []):
             raise CADETProcessError("Cannot set q without binding model.")
         self._q = q
 
