@@ -2977,6 +2977,8 @@ class OptimizationProblem(Structure):
                 use_custom_model=True,
             )
 
+            problem = hopsy.round(problem, simplify=False)
+
             mc = hopsy.MarkovChain(
                 problem,
                 proposal=hopsy.UniformCoordinateHitAndRunProposal,
