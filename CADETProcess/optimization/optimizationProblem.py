@@ -1,5 +1,5 @@
 import copy
-from functools import partial, wraps
+from functools import wraps
 import inspect
 import math
 from pathlib import Path
@@ -2798,11 +2798,12 @@ class OptimizationProblem(Structure):
 
     def create_hopsy_problem(
             self,
-            include_dependent_variables=True,
-            simplify=False,
-            use_custom_model=False
-            ):
-        """Creates a hopsy problem from the optimization problem.
+            include_dependent_variables: Optional[bool] = True,
+            simplify: Optional[bool] = False,
+            use_custom_model: Optional[bool] = False,
+            ) -> hopsy.Problem:
+        """
+        Create a hopsy problem from the optimization problem.
 
         Parameters
         ----------
@@ -2891,7 +2892,10 @@ class OptimizationProblem(Structure):
 
         return problem
 
-    def get_chebyshev_center(self, include_dependent_variables=True):
+    def get_chebyshev_center(
+            self,
+            include_dependent_variables: Optional[bool] = True
+            ) -> list[float]:
         """Compute chebychev center.
 
         The Chebyshev center is the center of the largest Euclidean ball that is fully
@@ -2904,7 +2908,7 @@ class OptimizationProblem(Structure):
 
         Returns
         -------
-        chebyshev : list
+        chebyshev : list[float]
             Chebyshev center.
         """
         problem = self.create_hopsy_problem(
@@ -2941,8 +2945,12 @@ class OptimizationProblem(Structure):
         return chebyshev
 
     def create_initial_values(
-            self, n_samples=1, seed=None, burn_in=100000,
-            include_dependent_variables=True):
+            self,
+            n_samples: Optional[int] = 1,
+            seed: Optional[int] = None,
+            burn_in: Optional[int] = 100000,
+            include_dependent_variables: Optional[bool] = True
+            ) -> np.ndarray:
         """Create initial value within parameter space.
 
         Uses hopsy (Highly Optimized toolbox for Polytope Sampling) to retrieve
@@ -2950,10 +2958,10 @@ class OptimizationProblem(Structure):
 
         Parameters
         ----------
-        n_samples : int
-            Number of initial values to be drawn
+        n_samples : int, optional
+            Number of initial values to be drawn. The default is 1.
         seed : int, optional
-            Seed to initialize random numbers. Only used if method == 'random'
+            Seed to initialize random numbers.
         burn_in : int, optional
             Number of samples that are created to ensure uniform sampling.
             The actual initial values are then drawn from this set.
@@ -2965,11 +2973,11 @@ class OptimizationProblem(Structure):
         Raises
         ------
         CADETProcessError
-            If method is not known.
+            If not enough individuals fulfilling linear constraints are found.
 
         Returns
         -------
-        values : list
+        values : np.ndarray
             Initial values for starting the optimization.
 
         """
