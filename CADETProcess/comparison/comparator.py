@@ -320,10 +320,14 @@ class Comparator(Structure):
                 solution.smooth_data()
             solution_sliced = metric.slice_and_transform(solution)
 
+            y_max = 1.1 * max(
+                np.max(solution_sliced.solution), np.max(metric.reference.solution)
+            )
+
             fig, ax = solution_sliced.plot(
                 ax=ax,
                 show=False,
-                y_max=1.1*np.max(metric.reference.solution)
+                y_max=y_max,
             )
 
             plot_args = {
