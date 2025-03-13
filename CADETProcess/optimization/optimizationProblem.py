@@ -2914,30 +2914,12 @@ class OptimizationProblem(Structure):
         problem = self.create_hopsy_problem(
             include_dependent_variables=False, simplify=False, use_custom_model=True
         )
-        # !!! Additional checks in place to handle PolyRound.round()
-        # removing "small" dimensions.
-        # Bug reported, Check for future release!
-        chebyshev_orig = hopsy.compute_chebyshev_center(
+
+        problem = hopsy.round(problem, simplify=False)
+
+        chebyshev = hopsy.compute_chebyshev_center(
             problem, original_space=True
         )[:, 0]
-
-        try:
-            problem_rounded = hopsy.round(problem)
-        except ValueError:
-            problem_rounded = problem
-
-        if problem_rounded.A.shape[1] == problem.A.shape[1]:
-            chebyshev_rounded = hopsy.compute_chebyshev_center(
-                problem_rounded, original_space=True
-            )[:, 0]
-
-            if np.all(np.greater(chebyshev_rounded, self.lower_bounds_independent)):
-                problem = problem_rounded
-                chebyshev = chebyshev_rounded
-            else:
-                chebyshev = chebyshev_orig
-        else:
-            chebyshev = chebyshev_orig
 
         if include_dependent_variables:
             chebyshev = self.get_dependent_values(chebyshev)
@@ -2995,14 +2977,9 @@ class OptimizationProblem(Structure):
                 use_custom_model=True,
             )
 
-            chebychev_center = self.get_chebyshev_center(
-                include_dependent_variables=False
-            )
-
             mc = hopsy.MarkovChain(
                 problem,
                 proposal=hopsy.UniformCoordinateHitAndRunProposal,
-                starting_point=chebychev_center
             )
             rng_hopsy = hopsy.RandomNumberGenerator(seed=seed)
 
