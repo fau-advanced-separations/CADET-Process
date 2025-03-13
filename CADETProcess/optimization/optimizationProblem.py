@@ -2983,6 +2983,9 @@ class OptimizationProblem(Structure):
         """
         burn_in = int(burn_in)
 
+        if seed is None:
+            seed = random.randint(0, 255)
+
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
 
@@ -2996,11 +2999,6 @@ class OptimizationProblem(Structure):
                 include_dependent_variables=False
             )
 
-            if seed is None:
-                seed = random.randint(0, 255)
-
-            rng = np.random.default_rng(seed)
-
             mc = hopsy.MarkovChain(
                 problem,
                 proposal=hopsy.UniformCoordinateHitAndRunProposal,
@@ -3013,6 +3011,7 @@ class OptimizationProblem(Structure):
             )
             independent_values = states[0, ...]
 
+        rng = np.random.default_rng(seed)
         values = []
         counter = 0
         while len(values) < n_samples:
