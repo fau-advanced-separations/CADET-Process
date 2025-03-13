@@ -802,7 +802,7 @@ class Test_OptimizationProblemLinCon(unittest.TestCase):
         )
         np.testing.assert_almost_equal(x0_chebyshev, x0_chebyshev_expected)
 
-        x0_seed_1_expected = [[0.5666524, 0.8499365]]
+        x0_seed_1_expected = [[0.3448127, 0.9138096]]
         x0_seed_1 = self.optimization_problem.create_initial_values(
             1, seed=1
         )
@@ -817,16 +817,16 @@ class Test_OptimizationProblemLinCon(unittest.TestCase):
             np.testing.assert_almost_equal(x0_seed_1_random, x0_chebyshev_expected)
 
         x0_seed_10_expected = [
-            [0.566652437432882, 0.8499365450601801],
-            [0.16209066464206898, 0.7722304506499793],
-            [0.4265526985487967, 0.609778640412627],
-            [0.36121046800146495, 0.9264826793698916],
-            [0.7875352350909218, 0.8881166149888506],
-            [0.2685012584445143, 0.9067761747715452],
-            [0.9701611935982989, 0.9809160496933532],
-            [0.35086424227614005, 0.4668187637599064],
-            [0.8928778441932161, 0.9360696751348305],
-            [0.5365699848069944, 0.6516012021958184]
+            [0.34481272, 0.91380963],
+            [0.13935918, 0.7377129 ],
+            [0.5219434 , 0.63404393],
+            [0.23933603, 0.8127269 ],
+            [0.30483107, 0.980534  ],
+            [0.11605111, 0.86206301],
+            [0.1869498 , 0.99896377],
+            [0.55986142, 0.65237364],
+            [0.49963092, 0.98791549],
+            [0.6839696 , 0.92668444]
         ]
         x0_seed_10 = self.optimization_problem.create_initial_values(
             10, seed=1
@@ -913,7 +913,7 @@ class Test_OptimizationProblemDepVar(unittest.TestCase):
         variables = self.optimization_problem.get_dependent_values(x0_chebyshev)
         np.testing.assert_almost_equal(variables, variables_expected)
 
-        x0_seed_1_expected = [[0.90164487, 0.27971297, 0.70490538]]
+        x0_seed_1_expected = [[0.8324936, 0.279713 , 0.6649623]]
         x0_seed_1 = self.optimization_problem.create_initial_values(
             1, seed=1, include_dependent_variables=False
         )
@@ -935,16 +935,16 @@ class Test_OptimizationProblemDepVar(unittest.TestCase):
             np.testing.assert_almost_equal(x0_seed_1_random, x0_chebyshev_expected)
 
         x0_seed_10_expected = [
-            [0.90164487, 0.27971297, 0.70490538],
-            [0.78125338, 0.17275154, 0.54650281],
-            [0.97623563, 0.19106333, 0.79016462],
-            [0.12826546, 0.03476412, 0.05270397],
-            [0.89791146, 0.29062957, 0.7429437 ],
-            [0.8703531 , 0.20575487, 0.68237913],
-            [0.92572799, 0.01653708, 0.33539715],
-            [0.96337056, 0.07106034, 0.86232007],
-            [0.85559046, 0.4824452 , 0.84474955],
-            [0.8588277 , 0.73874869, 0.80355266]
+            [0.8324936 , 0.27971297, 0.66496231],
+            [0.73128644, 0.17275154, 0.5115499 ],
+            [0.95771264, 0.19106333, 0.79216119],
+            [0.81089326, 0.29062957, 0.6673637 ],
+            [0.76359474, 0.20575487, 0.59221373],
+            [0.9596961 , 0.6718687 , 0.90182574],
+            [0.89945427, 0.01653708, 0.49987409],
+            [0.92682306, 0.07106034, 0.8258856 ],
+            [0.77868893, 0.4824452 , 0.77038195],
+            [0.59375802, 0.03129941, 0.22275326]
         ]
         x0_seed_10 = self.optimization_problem.create_initial_values(
             10, seed=1, include_dependent_variables=False
@@ -969,7 +969,7 @@ class Test_OptimizationProblemDepVar(unittest.TestCase):
         independent_variables = self.optimization_problem.get_independent_values(x0_chebyshev)
         np.testing.assert_almost_equal(independent_variables, independent_variables_expected)
 
-        x0_seed_1_expected = [[0.9016449, 0.279713 , 0.279713 , 0.7049054]]
+        x0_seed_1_expected = [[0.8324936, 0.279713 , 0.279713 , 0.6649623]]
         x0_seed_1 = self.optimization_problem.create_initial_values(
             1, seed=1, include_dependent_variables=True
         )
@@ -987,16 +987,16 @@ class Test_OptimizationProblemDepVar(unittest.TestCase):
             np.testing.assert_almost_equal(x0_seed_1_random, x0_chebyshev_expected)
 
         x0_seed_10_expected = [
-            [0.90164487, 0.27971297, 0.27971297, 0.70490538],
-            [0.78125338, 0.17275154, 0.17275154, 0.54650281],
-            [0.97623563, 0.19106333, 0.19106333, 0.79016462],
-            [0.12826546, 0.03476412, 0.03476412, 0.05270397],
-            [0.89791146, 0.29062957, 0.29062957, 0.7429437 ],
-            [0.8703531 , 0.20575487, 0.20575487, 0.68237913],
-            [0.92572799, 0.01653708, 0.01653708, 0.33539715],
-            [0.96337056, 0.07106034, 0.07106034, 0.86232007],
-            [0.85559046, 0.4824452 , 0.4824452 , 0.84474955],
-            [0.8588277 , 0.73874869, 0.73874869, 0.80355266]
+            [0.8324936 , 0.27971297, 0.27971297, 0.66496231],
+            [0.73128644, 0.17275154, 0.17275154, 0.5115499 ],
+            [0.95771264, 0.19106333, 0.19106333, 0.79216119],
+            [0.81089326, 0.29062957, 0.29062957, 0.6673637 ],
+            [0.76359474, 0.20575487, 0.20575487, 0.59221373],
+            [0.9596961 , 0.6718687 , 0.6718687 , 0.90182574],
+            [0.89945427, 0.01653708, 0.01653708, 0.49987409],
+            [0.92682306, 0.07106034, 0.07106034, 0.8258856 ],
+            [0.77868893, 0.4824452 , 0.4824452 , 0.77038195],
+            [0.59375802, 0.03129941, 0.03129941, 0.22275326]
         ]
         x0_seed_10 = self.optimization_problem.create_initial_values(
             10, seed=1, include_dependent_variables=True
