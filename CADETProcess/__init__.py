@@ -30,6 +30,7 @@ from . import dynamicEvents
 from . import processModel
 from . import smoothing
 from . import solution
+from . import field
 from . import reference
 from .simulationResults import SimulationResults
 from . import metric
