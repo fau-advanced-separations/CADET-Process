@@ -79,8 +79,8 @@ class UnitBaseClass(Structure):
     CADETProcess.processModel.binding
     CADETProcess.processModel.reaction
     CADETProcess.processModel.FlowSheet
-
     """
+
     name = String()
 
     _parameters = []
@@ -377,14 +377,13 @@ class UnitBaseClass(Structure):
 
 
 class SourceMixin(Structure):
-    """Mixin class for Units that have Source-like behavior
+    """Mixin class for Units that have Source-like behavior.
 
     See Also
     --------
     SinkMixin
     Inlet
     Cstr
-
     """
     _n_poly_coeffs = 4
     flow_rate = Polynomial(size=('_n_poly_coeffs'))
@@ -393,14 +392,14 @@ class SourceMixin(Structure):
 
 
 class SinkMixin():
-    """Mixin class for Units that have Sink-like behavior
+    """Mixin class for Units that have Sink-like behavior.
 
     See Also
     --------
     SourceMixin
     Cstr
-
     """
+
     pass
 
 
@@ -415,7 +414,6 @@ class Inlet(UnitBaseClass, SourceMixin):
         Polynomial coefficients for volumetric flow rate.
     solution_recorder : IORecorder
         Solution recorder for the unit operation.
-
     """
 
     c = NdPolynomial(size=('n_comp', '_n_poly_coeffs'), default=0)
@@ -442,6 +440,7 @@ class Outlet(UnitBaseClass, SinkMixin):
 
 class MixerSplitter(UnitBaseClass):
     """Pseudo unit operation for mixing/splitting streams in the system."""
+
     pass
 
 
@@ -470,7 +469,6 @@ class TubularReactorBase(UnitBaseClass):
         If -1: Backwards flow.
     discretization : DiscretizationParametersBase
         Discretization scheme of the unit.
-
     """
 
     length = UnsignedFloat()
@@ -679,12 +677,11 @@ class TubularReactorBase(UnitBaseClass):
         --------
         calculate_interstitial_velocity
         calculate_interstitial_rt
-
         """
         return u0 * self.cross_section_area_interstitial
 
     def NTP(self, flow_rate):
-        r"""Number of theoretical plates.
+        r"""Calculate number of theoretical plates.
 
         Parameters
         ----------
@@ -700,7 +697,6 @@ class TubularReactorBase(UnitBaseClass):
         -------
         NTP : float
             Number of theretical plates
-
         """
         u0 = self.calculate_interstitial_velocity(flow_rate)
         return u0 * self.length / (2 * np.array(self.axial_dispersion))
@@ -1340,6 +1336,7 @@ class MCT(UnitBaseClass):
 
     @property
     def nchannel(self):
+        """int: The number of channels in the MCT."""
         return self._nchannel
 
     @nchannel.setter
