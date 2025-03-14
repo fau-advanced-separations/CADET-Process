@@ -117,7 +117,7 @@ class FractionationOptimizer():
         CADETProcessError
             If no areas with sufficient purity were found and `ignore_failed` is False.
         """
-        frac = Fractionator(
+        frac = Fractionator.from_simulation_results(
             simulation_results,
             components=components,
             use_total_concentration_components=use_total_concentration_components,
