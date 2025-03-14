@@ -33,6 +33,7 @@ film_diffusion_1 = 1e-6
 pore_diffusion_0 = 0
 pore_diffusion_1 = 1e-11
 
+nchannel = 3
 channel_cross_section_areas = [0.1, 0.1, 0.1]
 exchange_matrix = np.array([
     [[0.0], [0.01], [0.0]],
@@ -338,10 +339,10 @@ def test_polynomial_flow_rate(
         }
     }),
     ("mct", {
-        "nchannel": 3,
+        "nchannel": nchannel,
         "length": length,
         "channel_cross_section_areas": channel_cross_section_areas,
-        "axial_dispersion": [axial_dispersion],
+        "axial_dispersion": nchannel * [axial_dispersion],
         "exchange_matrix": exchange_matrix,
         "flow_direction": 1,
         "c": [[0, 0, 0]],
