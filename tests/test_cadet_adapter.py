@@ -317,7 +317,7 @@ class TestProcessWithLWE:
         assert unit_config.INIT_C == n_comp * [0]
         assert unit_config.INIT_CP == n_comp * [0]
         assert unit_config.VELOCITY == unit.flow_direction
-        assert unit_config.COL_DISPERSION == 5.75e-08
+        assert unit_config.COL_DISPERSION == n_comp * [5.75e-08]
         assert unit_config.CROSS_SECTION_AREA == np.pi * 0.01 ** 2
         assert unit_config.COL_LENGTH == 0.014
         assert unit_config.COL_POROSITY == 0.37
@@ -343,7 +343,7 @@ class TestProcessWithLWE:
         assert unit_config.UNIT_TYPE == 'LUMPED_RATE_MODEL_WITHOUT_PORES'
         assert unit_config.INIT_C == n_comp * [0]
         assert unit_config.VELOCITY == unit.flow_direction
-        assert unit_config.COL_DISPERSION == 5.75e-08
+        assert unit_config.COL_DISPERSION == n_comp * [5.75e-08]
         assert unit_config.CROSS_SECTION_AREA == np.pi * 0.01 ** 2
         assert unit_config.COL_LENGTH == 0.014
         assert unit_config.TOTAL_POROSITY == 1
@@ -366,7 +366,7 @@ class TestProcessWithLWE:
         assert unit_config.UNIT_TYPE == 'LUMPED_RATE_MODEL_WITHOUT_PORES'
         assert unit_config.INIT_C == n_comp * [0]
         assert unit_config.VELOCITY == unit.flow_direction
-        assert unit_config.COL_DISPERSION == 5.75e-08
+        assert unit_config.COL_DISPERSION == n_comp * [5.75e-08]
         assert unit_config.CROSS_SECTION_AREA == np.pi * 0.01 ** 2
         assert unit_config.COL_LENGTH == 0.014
         assert unit_config.TOTAL_POROSITY == 0.8425
@@ -392,7 +392,7 @@ class TestProcessWithLWE:
         assert unit_config.INIT_Q == n_comp * [0]
         assert unit_config.INIT_CP == n_comp * [0]
         assert unit_config.VELOCITY == unit.flow_direction
-        assert unit_config.COL_DISPERSION == 5.75e-08
+        assert unit_config.COL_DISPERSION == n_comp * [5.75e-08]
         assert unit_config.CROSS_SECTION_AREA == np.pi * 0.01 ** 2
         assert unit_config.COL_LENGTH == 0.014
         assert unit_config.COL_POROSITY == 0.37
@@ -427,7 +427,7 @@ class TestProcessWithLWE:
                 [n_comp * [0.0], n_comp * [0.0], n_comp * [0.0]]
             ])
         )
-        assert unit_config.COL_DISPERSION == 5.75e-08
+        assert unit_config.COL_DISPERSION == n_comp * n_channel  * [5.75e-08]
         assert unit_config.NCHANNEL == 3
         assert unit_config.CHANNEL_CROSS_SECTION_AREAS == 3 * \
             [2 * np.pi * (0.01 ** 2)]
