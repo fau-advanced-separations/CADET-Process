@@ -1279,8 +1279,8 @@ class MCT(UnitBaseClass):
         Length of column.
     channel_cross_section_areas : List of unsinged floats. Lenght depends on nchannel.
         Diameter of column.
-    axial_dispersion : List of unsigned floats. Length depends on n_comp.
-        Axial dispersion coefficient for each component.
+    axial_dispersion : List of unsigned floats. Length depends on n_comp and nchannel.
+        Axial dispersion coefficient for component and each component.
     flow_direction : Switch
         If 1: Forward flow.
         If -1: Backwards flow.
@@ -1298,7 +1298,7 @@ class MCT(UnitBaseClass):
 
     length = UnsignedFloat()
     channel_cross_section_areas = SizedList(size='nchannel')
-    axial_dispersion = SizedUnsignedList(size='n_comp')
+    axial_dispersion = SizedUnsignedList(size=('n_comp', 'nchannel'))
     flow_direction = Switch(valid=[-1, 1], default=1)
     nchannel = UnsignedInteger()
 
