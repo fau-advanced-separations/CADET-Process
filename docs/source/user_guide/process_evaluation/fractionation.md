@@ -138,9 +138,9 @@ To add a fractionation event, the following arguments need to be provided:
 Here, component $A$ seems to have sufficient purity between $5 \colon 00~min$ and $5 \colon 45~min$ and component $B$ between $6 \colon 30~min$ and $9 \colon 00~min$.
 
 ```{code-cell} ipython3
-fractionator.add_fractionation_event('start_A', 0, 5*60, 'outlet')
+fractionator.add_fractionation_event('start_A', 'A', 5*60, 'outlet')
 fractionator.add_fractionation_event('end_A', -1, 5.75*60)
-fractionator.add_fractionation_event('start_B', 1, 6.5*60)
+fractionator.add_fractionation_event('start_B', 'B', 6.5*60)
 fractionator.add_fractionation_event('end_B', -1, 9*60)
 ```
 
