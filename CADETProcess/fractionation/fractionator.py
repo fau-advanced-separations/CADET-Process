@@ -1,6 +1,7 @@
 from collections import defaultdict
 from functools import wraps
 import os
+from typing import Optional, NoReturn
 
 from addict import Dict
 import numpy as np
@@ -293,7 +294,7 @@ class Fractionator(EventHandler):
                 text = 'W'
             else:
                 color_index = comp_index
-                text = str(comp_index + 1)
+                text = self.component_system.names[comp_index]
 
             sec_start = sec.start
             sec_end = sec.end
@@ -572,18 +573,23 @@ class Fractionator(EventHandler):
         self._mass = None
 
     def add_fractionation_event(
-            self, event_name, target, time, chromatogram=None):
+            self,
+            event_name: str,
+            target: str|int,
+            time: float,
+            chromatogram: Optional[SolutionIO] = None
+            ) -> NoReturn:
         """Add a fractionation event.
 
         Parameters
         ----------
         event_name : str
             The name of the event.
-        target : int
-            The target component.
+        target : str|int
+            The indice or name of target component in Component System.
         time : float
             The time of the event.
-        chromatogram : SolutionIO, optional
+        chromatogram : Optional[SolutionIO]
             The chromatogram associated with the event.
             If None and there is only one chromatogram, it will be used.
 
@@ -610,6 +616,10 @@ class Fractionator(EventHandler):
             raise CADETProcessError("Could not find chromatogram.")
 
         param_path = f'fractionation_states.{chromatogram.name}'
+
+        if isinstance(target, str):
+            target = self.component_system.names.index(target)
+
         evt = self.add_event(
             event_name, param_path, target, time
         )
