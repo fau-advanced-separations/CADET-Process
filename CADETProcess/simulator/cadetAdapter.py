@@ -164,12 +164,19 @@ class Cadet(SimulatorBase):
         """
         lwe_hdf5_path = Path(self.temp_dir) / 'LWE.h5'
 
-        cadet_model = self.get_new_cadet_instance()
+        cadet = self.get_new_cadet_instance()
 
-        cadet_model.create_lwe(lwe_hdf5_path)
+        cadet.create_lwe(lwe_hdf5_path)
 
-        cadet_model.run()
+        if hasattr(cadet, "run_simulation"):
+            return_information = cadet.run_simulation(timeout=self.timeout)
+        else:
+            return_information = cadet.run_load()
+
         os.remove(lwe_hdf5_path)
+
+        if return_information.return_code != 0:
+            raise CADETProcessError(return_information)
 
         print("Test simulation completed successfully")
 
@@ -232,7 +239,11 @@ class Cadet(SimulatorBase):
 
         try:
             start = time.time()
-            return_information = cadet.run_load(timeout=self.timeout)
+
+            if hasattr(cadet, "run_simulation"):
+                return_information = cadet.run_simulation(timeout=self.timeout)
+            else:
+                return_information = cadet.run_load()
             elapsed = time.time() - start
         except TimeoutExpired:
             raise CADETProcessError('Simulator timed out') from None
@@ -313,7 +324,10 @@ class Cadet(SimulatorBase):
         cadet = self.get_new_cadet_instance()
         cadet.filename = file_path
         cadet.load()
-        cadet.run_load(timeout=self.timeout)
+        if hasattr(cadet, "run_simulation"):
+            return_information = cadet.run_simulation(timeout=self.timeout)
+        else:
+            return_information = cadet.run_load()
 
         return cadet
 

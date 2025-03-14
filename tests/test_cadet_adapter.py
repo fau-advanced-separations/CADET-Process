@@ -42,7 +42,11 @@ class Test_Adapter(unittest.TestCase):
         cwd = simulator.temp_dir
         sim = simulator.get_new_cadet_instance()
         sim.create_lwe(cwd / file_name)
-        sim.run()
+
+        if hasattr(sim, "run_simulation"):
+            return_information = sim.run_simulation()
+        else:
+            return_information = sim.run_load()
 
     @unittest.skipIf(found_cadet is False, "Skip if CADET is not installed.")
     def test_create_lwe(self):
@@ -52,7 +56,11 @@ class Test_Adapter(unittest.TestCase):
         cwd = simulator.temp_dir
         sim = simulator.get_new_cadet_instance()
         sim.create_lwe(cwd / file_name)
-        sim.run()
+
+        if hasattr(sim, "run_simulation"):
+            return_information = sim.run_simulation()
+        else:
+            return_information = sim.run_load()
 
     def tearDown(self):
         shutil.rmtree('./tmp', ignore_errors=True)
