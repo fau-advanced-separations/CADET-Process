@@ -41,18 +41,24 @@ Binding Models
     Linear
     Langmuir
     LangmuirLDF
+    LangmuirLDFLiquidPhase
     BiLangmuir
     BiLangmuirLDF
     FreundlichLDF
     StericMassAction
     AntiLangmuir
     Spreading
+    MobilePhaseModulator
+    ExtendedMobilePhaseModulator
     SelfAssociation
     BiStericMassAction
     MultistateStericMassAction
     SimplifiedMultistateStericMassAction
     Saska
     GeneralizedIonExchange
+    HICConstantWaterActivity
+    HICWaterOnHydrophobicSurfaces
+    MultiComponentColloidal
 
 Unit Operation Models
 =====================
@@ -68,6 +74,7 @@ Unit Operation Models
     LumpedRateModelWithoutPores
     LumpedRateModelWithPores
     GeneralRateModel
+    MCT
 
 Discretization
 --------------
@@ -102,6 +109,7 @@ Process
     Process
 
 """
+
 from . import componentSystem
 from .componentSystem import  *
 

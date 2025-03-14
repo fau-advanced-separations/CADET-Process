@@ -70,6 +70,7 @@ class Reaction(Structure):
         'exponents_fwd',
         'exponents_bwd',
     ]
+
     @deprecated_alias(indices='components')
     def __init__(
             self, component_system, components, coefficients,
