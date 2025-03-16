@@ -1,4 +1,5 @@
 import csv
+from functools import wraps
 import os
 from pathlib import Path
 from typing import Literal, NoReturn
@@ -381,6 +382,7 @@ class OptimizationResults(Structure):
         plot_convergence
         plot_objectives
         plot_corner
+        plot_pairwise
         plot_pareto
 
         """
@@ -414,6 +416,10 @@ class OptimizationResults(Structure):
                 self.plot_corner(
                     show=show, plot_directory=self.plot_directory
                 )
+
+            self.plot_pairwise(
+                show=show, plot_directory=self.plot_directory
+            )
 
             if self.optimization_problem.n_objectives > 1:
                 self.plot_pareto(
@@ -580,12 +586,15 @@ class OptimizationResults(Structure):
         --------
         CADETProcess.results.plot_corner
         corner.corner
-
         """
         try:
             self.population_all.plot_corner(*args, **kwargs)
         except AssertionError:
             pass
+
+    @wraps(Population.plot_pairwise)
+    def plot_pairwise(self, *args, **kwargs):
+        return self.population_all.plot_pairwise(*args, **kwargs)
 
     def setup_convergence_figure(self, target, plot_individual=False):
         if target == 'objectives':
