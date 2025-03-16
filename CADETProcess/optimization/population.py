@@ -1,9 +1,12 @@
 from pathlib import Path
+from typing import Optional
 import uuid
+import warnings
 
 from addict import Dict
 import corner
 import numpy as np
+import numpy.typing as npt
 import matplotlib.pyplot as plt
 from pymoo.visualization.scatter import Scatter
 
@@ -684,6 +687,58 @@ class Population():
 
         return plot
 
+    def plot_pairwise(
+            self,
+            n_bins: int = 20,
+            autoscale: bool = True,
+            use_transformed=False,
+            show=True,
+            plot_directory=None
+            ) -> tuple[plt.Figure, np.ndarray]:
+        """
+        Create a pairplot using Matplotlib.
+
+        Parameters
+        ----------
+        variable_names : list of str, optional
+            list of variable names corresponding to columns in the data.
+            If None, default names will be assigned.
+        n_bins : int, default=20
+            Number of bins for histogram plots.
+        autoscale : bool, optional
+            If True, automatically adjust the scaling of the axes. The default is True.
+        show : bool, optional
+            If True, display the plot. The default is True.
+        plot_directory : str, optional
+            The directory where the plot should be saved. The default is None.
+
+        Returns
+        -------
+        tuple
+            A tuple containing:
+            - plt.Figure: The Matplotlib Figure object.
+            - np.ndarray: An array of Axes objects representing the subplot grid.
+        """
+        if use_transformed:
+            x = self.x_transformed
+            labels = self.independent_variable_names
+        else:
+            x = self.x
+            labels = self.variable_names
+
+        fig, axs = plot_pairwise(
+            x, labels, n_bins=n_bins,
+        )
+
+        if plot_directory is not None:
+            plot_directory = Path(plot_directory)
+            fig.savefig(f'{plot_directory / "pairwise.png"}')
+
+        if not show:
+            plt.close(fig)
+
+        return fig, axs
+
     def plot_corner(self, use_transformed=False, show=True, plot_directory=None):
         """Create a corner plot of the independent variables.
 
@@ -1003,3 +1058,132 @@ class ParetoFront(Population):
             front.add_individual(individual)
 
         return front
+
+
+def plot_pairwise(
+        population: npt.ArrayLike,
+        variable_names: Optional[list[str]] = None,
+        n_bins: int = 20,
+        autoscale: bool = True,
+        fig: Optional[plt.Figure] = None,
+        axs: Optional[npt.NDArray[plt.Axes]] = None,
+        ) -> tuple[plt.Figure, npt.NDArray[plt.Axes]]:
+    """
+    Create a pairwise scatter plot for all variables of a population.
+
+    Parameters
+    ----------
+    population : npt.ArrayLike
+        3D array-like structure containing numerical variables with shape
+        (n_chains, n_samples, n_variables)
+    variable_names : list of str, optional
+        list of variable names corresponding to columns in the data.
+        If None, default names will be assigned.
+    n_bins : int, default=20
+        Number of bins for histogram plots.
+    autoscale : bool, default=True
+        If True, automatically adjust the scaling of the axes.
+    fig : Optional[plt.Figure], default=None
+        An optional Matplotlib Figure object. If none is provided, a new figure will be
+        created.
+    axs : Optional[npt.NDArray[plt.Axes]], default=None
+        An optional array of Matplotlib Axes. If none is provided, new axes will be
+        created.
+    Returns
+    -------
+    tuple
+        A tuple containing:
+        - plt.Figure: The Matplotlib Figure object.
+        - npt.NDArray[plt.Axes]: An array of Axes objects representing the subplot grid.
+    """
+    population = np.array(population)
+
+    if population.ndim != 2:
+        raise ValueError(f"Expected 2D array, got array with ndim={population.ndim}")
+
+    n_samples, n_variables = population.shape
+
+    if variable_names is None:
+        variable_names = [f"$x_{i}$" for i in range(n_variables)]
+
+    if fig is None and axs is None:
+        fig, axes = plt.subplots(
+            n_variables, n_variables,
+            figsize=(6 * n_variables, 5 * n_variables),
+            sharex="col", sharey="row",
+            squeeze=False
+        )
+
+    if axes.shape != (n_variables, n_variables):
+        raise ValueError(
+            "Inconsistent shape for provided axes."
+            f"Expected {(n_variables, n_variables)}, got {axes.shape}."
+        )
+
+    for i in range(n_variables):
+        for j in range(n_variables):
+            scale_variable = False
+
+            ax = axes[i, j]
+
+            if i == j:
+                # Create a twin axis for histograms to avoid sharing y-axis
+                ax_hist = ax.twinx()
+
+                # Determine binning strategy
+                if autoscale and np.all(population[:, i] > 0):
+                    value_range = population[:, i].max() / population[:, i].min()
+                    if value_range > 100.0:
+                        scale_variable = True
+
+                if scale_variable:
+                    bins = np.geomspace(
+                        population[:, i].min(), population[:, i].max(), n_bins+1
+                    )
+                else:
+                    bins = np.linspace(
+                        population[:, i].min(),
+                        population[:, i].max(),
+                        n_bins+1
+                    )
+
+                ax_hist.hist(
+                    population[:, i],
+                    bins=bins,
+                    alpha=0.7,
+                    color="blue",
+                    edgecolor="black",
+                    align="mid"
+                )
+                ax_hist.set_yticks([])  # Hide y-ticks for the histogram
+            else:
+                # Scatter plot for non-diagonal elements
+                ax.scatter(population[:, j], population[:, i], alpha=0.5, s=10)
+
+            # Apply log scale based on autoscale logic
+            if autoscale and np.all(population[:, j] > 0):
+                ax.set_xscale("log")
+            if autoscale and np.all(population[:, i] > 0):
+                ax.set_yscale("log")
+
+            # Ensure axis labels and ticks are visible only on the first column and
+            # last row
+            if j == 0:
+                ax.yaxis.set_tick_params(labelleft=True)
+            else:
+                ax.yaxis.set_tick_params(labelleft=False)
+
+            if i == n_variables - 1:
+                ax.xaxis.set_tick_params(labelbottom=True)
+            else:
+                ax.xaxis.set_tick_params(labelbottom=False)
+
+            # Set axis labels on the edges
+            if i == n_variables - 1:
+                ax.set_xlabel(variable_names[j])
+            if j == 0:
+                ax.set_ylabel(variable_names[i])
+
+    fig.tight_layout()
+
+    return fig, axes
