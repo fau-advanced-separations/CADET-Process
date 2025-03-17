@@ -173,7 +173,7 @@ class Cadet(SimulatorBase):
         else:
             return_information = cadet.run_load()
 
-        os.remove(lwe_hdf5_path)
+        cadet.delete_file()
 
         if return_information.return_code != 0:
             raise CADETProcessError(return_information)
@@ -239,7 +239,9 @@ class Cadet(SimulatorBase):
 
         try:
             start = time.time()
-
+            # Check for CADET-Python > v1.1, which introduced the .run_simulation interface.
+            # If it's not present, assume CADET-Python <= 1.0.4 and use the old .run_load() interface
+            # This check can be removed at some point in the future.
             if hasattr(cadet, "run_simulation"):
                 return_information = cadet.run_simulation(timeout=self.timeout)
             else:
