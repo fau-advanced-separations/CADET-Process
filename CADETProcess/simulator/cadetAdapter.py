@@ -168,10 +168,13 @@ class Cadet(SimulatorBase):
 
         cadet.create_lwe(lwe_hdf5_path)
 
+        # Check for CADET-Python >= v1.1, which introduced the .run_simulation interface.
+        # If it's not present, assume CADET-Python <= 1.0.4 and use the old .run_load() interface
+        # This check can be removed at some point in the future.
         if hasattr(cadet, "run_simulation"):
             return_information = cadet.run_simulation(timeout=self.timeout)
         else:
-            return_information = cadet.run_load()
+            return_information = cadet.run_load(timeout=self.timeout)
 
         cadet.delete_file()
 
@@ -239,7 +242,8 @@ class Cadet(SimulatorBase):
 
         try:
             start = time.time()
-            # Check for CADET-Python > v1.1, which introduced the .run_simulation interface.
+
+            # Check for CADET-Python >= v1.1, which introduced the .run_simulation interface.
             # If it's not present, assume CADET-Python <= 1.0.4 and use the old .run_load() interface
             # This check can be removed at some point in the future.
             if hasattr(cadet, "run_simulation"):
@@ -326,6 +330,10 @@ class Cadet(SimulatorBase):
         cadet = self.get_new_cadet_instance()
         cadet.filename = file_path
         cadet.load()
+
+        # Check for CADET-Python >= v1.1, which introduced the .run_simulation interface.
+        # If it's not present, assume CADET-Python <= 1.0.4 and use the old .run_load() interface
+        # This check can be removed at some point in the future.
         if hasattr(cadet, "run_simulation"):
             return_information = cadet.run_simulation(timeout=self.timeout)
         else:
