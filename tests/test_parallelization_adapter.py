@@ -111,7 +111,10 @@ class TestParallelEvaluation(unittest.TestCase):
             file_name = simulator.get_tempfile_name()
             cwd = simulator.temp_dir
             sim = simulator.create_lwe(cwd / file_name)
-            sim.run()
+            if hasattr(sim, "run_simulation"):
+                return_information = sim.run_simulation()
+            else:
+                return_information = sim.run_load()
 
             return True
 
