@@ -337,7 +337,7 @@ class Cadet(SimulatorBase):
         if hasattr(cadet, "run_simulation"):
             return_information = cadet.run_simulation(timeout=self.timeout)
         else:
-            return_information = cadet.run_load()
+            return_information = cadet.run_load(timeout=self.timeout)
 
         return cadet
 
