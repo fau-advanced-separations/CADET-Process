@@ -751,6 +751,12 @@ class Population():
         plot_directory : str, optional
             The directory where the plot should be saved. The default is None.
         """
+        warnings.warn(
+            "This method will be deprecated in the future. "
+            "Use `plot_pairwise` instead.",
+            FutureWarning,
+        )
+
         if use_transformed:
             x = self.x_transformed
             labels = self.independent_variable_names
