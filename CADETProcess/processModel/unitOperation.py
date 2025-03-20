@@ -1000,13 +1000,13 @@ class GeneralRateModel(ChromatographicColumnBase):
     pore_diffusion : List of unsigned floats. Length depends on n_comp.
         Diffusion rate for components in pore volume.
     surface_diffusion : List of unsigned floats. Length depends on n_comp.
-        Diffusion rate for components in adsrobed state.
+        Diffusion rate for components in adsorbed state.
     c : List of unsigned floats. Length depends on n_comp
-        Initial concentration of the reactor.
+        Initial concentration in the mobile phase.
     cp : List of unsigned floats. Length depends on n_comp
-        Initial concentration of the pores
+        Initial concentration in the stagnant mobile phase within the pores.
     q : List of unsigned floats. Length depends on n_comp
-        Initial concntration of the bound phase.
+        Initial concentration of the bound phase.
     solution_recorder : GRMRecorder
         Solution recorder for the unit operation.
 
