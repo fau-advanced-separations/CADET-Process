@@ -567,30 +567,9 @@ class OptimizationResults(Structure):
                 plot_directory=_plot_directory
             )
 
+    @wraps(Population.plot_corner)
     def plot_corner(self, *args, **kwargs):
-        """Create a corner plot of the independent variables.
-
-        Parameters
-        ----------
-        untransformed : bool, optional
-            If True, use the untransformed independent variables.
-            The default is True.
-        show : bool, optional
-            If True, display the plot.
-            The default is True.
-        plot_directory : str, optional
-            The directory where the plot should be saved.
-            The default is None.
-
-        See Also
-        --------
-        CADETProcess.results.plot_corner
-        corner.corner
-        """
-        try:
-            self.population_all.plot_corner(*args, **kwargs)
-        except AssertionError:
-            pass
+        return self.population_all.plot_corner(*args, **kwargs)
 
     @wraps(Population.plot_pairwise)
     def plot_pairwise(self, *args, **kwargs):
