@@ -329,7 +329,14 @@ class OptimizerBase(Structure):
         """
         data = H5()
         data.filename = checkpoint_path
-        data.load()
+
+        # Check for CADET-Python >= v1.1, which introduced the .load_from_file interface.
+        # If it's not present, assume CADET-Python <= 1.0.4 and use the old .load() interface
+        # This check can be removed at some point in the future.
+        if hasattr(data, "load_from_file"):
+            data.load_from_file()
+        else:
+            data.load()
 
         results.update_from_dict(data)
         return results
