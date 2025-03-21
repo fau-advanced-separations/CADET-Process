@@ -1,7 +1,7 @@
 import csv
 import os
 from pathlib import Path
-from typing import Literal
+from typing import Literal, NoReturn
 import warnings
 
 from addict import Dict
@@ -805,6 +805,29 @@ class OptimizationResults(Structure):
             results.root = Dict(self.to_dict())
             results.filename = self.results_directory / f'{file_name}.h5'
             results.save()
+
+    def load_results(self, file_name: str) -> NoReturn:
+        """
+        Update optimization results from an HDF5 checkpoint file.
+
+        Parameters
+        ----------
+        file_name : str
+            Path to the checkpoint file.
+
+        """
+        data = H5()
+        data.filename = file_name
+
+        # Check for CADET-Python >= v1.1, which introduced the .load_from_file interface.
+        # If it's not present, assume CADET-Python <= 1.0.4 and use the old .load() interface
+        # This check can be removed at some point in the future.
+        if hasattr(data, "load_from_file"):
+            data.load_from_file()
+        else:
+            data.load()
+
+        self.update_from_dict(data)
 
     def to_dict(self) -> dict:
         """Convert Results to a dictionary.
