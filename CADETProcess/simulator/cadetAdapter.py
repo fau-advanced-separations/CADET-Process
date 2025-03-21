@@ -6,6 +6,7 @@ import re
 import subprocess
 import time
 import tempfile
+import warnings
 
 from addict import Dict
 import numpy as np
@@ -83,7 +84,6 @@ class Cadet(SimulatorBase):
 
     """
 
-    timeout = UnsignedFloat()
     use_dll = Bool(default=False)
     _force_constant_flow_rate = False
 
@@ -120,6 +120,22 @@ class Cadet(SimulatorBase):
     @temp_dir.setter
     def temp_dir(self, temp_dir):
         self._temp_dir = temp_dir
+
+    @property
+    def timeout(self):
+        warnings.warn(
+            "This parameter is deprecated. Use solver_parameters.timeout instead.",
+            FutureWarning,
+        )
+        return self.solver_parameters.timeout
+
+    @timeout.setter
+    def timeout(self, timeout):
+        warnings.warn(
+            "This parameter is deprecated. Use solver_parameters.timeout instead.",
+            FutureWarning,
+        )
+        self.solver_parameters.timeout = timeout
 
     def locks_process(func):
         """Lock process to enable caching."""
@@ -171,9 +187,9 @@ class Cadet(SimulatorBase):
         # If it's not present, assume CADET-Python <= 1.0.4 and use the old .run_load() interface
         # This check can be removed at some point in the future.
         if hasattr(cadet, "run_simulation"):
-            return_information = cadet.run_simulation(timeout=self.timeout)
+            return_information = cadet.run_simulation()
         else:
-            return_information = cadet.run_load(timeout=self.timeout)
+            return_information = cadet.run_load()
 
         cadet.delete_file()
 
@@ -245,7 +261,7 @@ class Cadet(SimulatorBase):
             # If it's not present, assume CADET-Python <= 1.0.4 and use the old .run_load() interface
             # This check can be removed at some point in the future.
             if hasattr(cadet, "run_simulation"):
-                return_information = cadet.run_simulation(timeout=self.timeout)
+                return_information = cadet.run_simulation()
             else:
                 return_information = cadet.run_load()
             elapsed = time.time() - start
@@ -351,9 +367,9 @@ class Cadet(SimulatorBase):
         # If it's not present, assume CADET-Python <= 1.0.4 and use the old .run_load() interface
         # This check can be removed at some point in the future.
         if hasattr(cadet, "run_simulation"):
-            return_information = cadet.run_simulation(timeout=self.timeout)
+            return_information = cadet.run_simulation()
         else:
-            return_information = cadet.run_load(timeout=self.timeout)
+            return_information = cadet.run_load()
 
         return cadet
 
@@ -1809,6 +1825,9 @@ class SolverParameters(Structure):
         - 6: None once, then full
         - 7: None once, then lean
         The default is 1.
+    timeout : float, optional
+        Timeout in seconds. Simulation is aborted if wall clock time exceeds the
+        provided value. If value is 0, no timeout is applied. The default is 0.
 
     See Also
     --------
@@ -1819,9 +1838,10 @@ class SolverParameters(Structure):
     nthreads = UnsignedInteger(default=1)
     consistent_init_mode = UnsignedInteger(default=1, ub=7)
     consistent_init_mode_sens = UnsignedInteger(default=1, ub=7)
+    timeout = UnsignedFloat(default=0)
 
     _parameters = [
-        'nthreads', 'consistent_init_mode', 'consistent_init_mode_sens'
+        'nthreads', 'consistent_init_mode', 'consistent_init_mode_sens', 'timeout',
     ]
 
 
