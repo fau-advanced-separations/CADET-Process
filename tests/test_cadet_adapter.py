@@ -184,7 +184,8 @@ def simulation_results(request: pytest.FixtureRequest):
     unit_type, kwargs, use_dll = request.param  # Extract `use_dll`
     process = create_lwe(unit_type, **kwargs)  # Process remains unchanged
     simulation_results = run_simulation(
-        process, install_path, use_dll=use_dll)  # Pass `use_dll` here
+        process, install_path, use_dll=use_dll
+    )
     return simulation_results
 
 

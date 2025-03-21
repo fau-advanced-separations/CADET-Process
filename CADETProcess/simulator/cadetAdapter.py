@@ -1,13 +1,11 @@
-from CADETProcess.dataStructure import Structure, ParameterWrapper
 from collections import defaultdict
 from functools import wraps
 import os
 from pathlib import Path
+import re
 import subprocess
-from subprocess import TimeoutExpired
 import time
 import tempfile
-import re
 
 from addict import Dict
 import numpy as np
@@ -15,6 +13,7 @@ from cadet import Cadet as CadetAPI
 
 from CADETProcess import CADETProcessError
 from CADETProcess import settings
+from CADETProcess.dataStructure import Structure, ParameterWrapper
 from CADETProcess.dataStructure import (
     Bool, Switch, UnsignedFloat, UnsignedInteger,
 )
@@ -189,7 +188,6 @@ class Cadet(SimulatorBase):
         f = next(tempfile._get_candidate_names())
         return self.temp_dir / f'{f}.h5'
 
-
     @locks_process
     def _run(self, process, cadet=None, file_path=None):
         """Interface to the solver run function.
@@ -251,7 +249,7 @@ class Cadet(SimulatorBase):
             else:
                 return_information = cadet.run_load()
             elapsed = time.time() - start
-        except TimeoutExpired:
+        except subprocess.TimeoutExpired:
             raise CADETProcessError('Simulator timed out') from None
         finally:
             if not self.use_dll and file_path is None:
@@ -1768,6 +1766,7 @@ class SolverParameters(Structure):
     ----------
     nthreads : int
         Number of used threads.
+        The default is 1.
     consistent_init_mode : int, optional
         Consistent initialization mode.
         Valid values are:
