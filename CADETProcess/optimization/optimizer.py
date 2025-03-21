@@ -3,12 +3,11 @@ import os
 from pathlib import Path
 import shutil
 import time
+from typing import Optional
 import warnings
 
-from cadet import H5
 import numpy as np
 import matplotlib.pyplot as plt
-import numpy as np
 
 from CADETProcess import settings
 from CADETProcess import log
@@ -231,7 +230,7 @@ class OptimizerBase(Structure):
             checkpoint_path = os.path.join(results_directory, 'checkpoint.h5')
             if use_checkpoint and os.path.isfile(checkpoint_path):
                 self.logger.info("Continue optimization from checkpoint.")
-                self.results = self._update_results_from_h5(checkpoint_path, self.results)
+                self.results.load_results(checkpoint_path)
             else:
                 self.results.setup_csv()
 
@@ -286,7 +285,11 @@ class OptimizerBase(Structure):
 
         return self.results
 
-    def load_results(self, checkpoint_path: str | Path, optimization_problem: OptimizationProblem = None):
+    def load_results(
+            self,
+            checkpoint_path: str | Path,
+            optimization_problem: Optional[OptimizationProblem] = None
+            ) -> OptimizationResults:
         """
         Load optimization results from a checkpoint file.
 
@@ -295,7 +298,8 @@ class OptimizerBase(Structure):
         checkpoint_path : str | Path
             Path to the checkpoint file.
         optimization_problem : OptimizationProblem, optional
-            The optimization problem associated with the results. If None, results are loaded without a problem reference.
+            The optimization problem associated with the results.
+            If None, results are loaded without a problem reference.
 
         Returns
         -------
@@ -308,37 +312,8 @@ class OptimizerBase(Structure):
             similarity_tol=self.similarity_tol,
         )
 
-        results = self._update_results_from_h5(checkpoint_path=checkpoint_path, results=results)
-        return results
+        results.load_results(checkpoint_path)
 
-    def _update_results_from_h5(self, checkpoint_path, results: OptimizationResults) -> OptimizationResults:
-        """
-        Update optimization results from an HDF5 checkpoint file.
-
-        Parameters
-        ----------
-        checkpoint_path : str
-            Path to the checkpoint file.
-        results : OptimizationResults
-            The results object to update with data from the checkpoint.
-
-        Returns
-        -------
-        OptimizationResults
-            The updated optimization results.
-        """
-        data = H5()
-        data.filename = checkpoint_path
-
-        # Check for CADET-Python >= v1.1, which introduced the .load_from_file interface.
-        # If it's not present, assume CADET-Python <= 1.0.4 and use the old .load() interface
-        # This check can be removed at some point in the future.
-        if hasattr(data, "load_from_file"):
-            data.load_from_file()
-        else:
-            data.load()
-
-        results.update_from_dict(data)
         return results
 
     @abstractmethod
