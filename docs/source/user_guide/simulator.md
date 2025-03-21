@@ -17,7 +17,6 @@ sys.path.append('../../../')
 ```
 
 (simulation_guide)=
-
 # Process Simulation
 
 To simulate a {class}`~CADETProcess.processModel.Process`, a simulator needs to be configured.
@@ -126,7 +125,6 @@ simulation_results = process_simulator.simulate(process)
 ```
 
 (simulation_results_guide)=
-
 ## Simulation Results
 
 The {class}`~CADETProcess.simulationResults.SimulationResults` object contains the results of the simulation.
@@ -189,7 +187,6 @@ _ = simulation_results.sensitivity['column.total_porosity'].column.outlet.plot()
 ```
 
 (stationarity_guide)=
-
 ## Cyclic Stationarity
 
 Preparative chromatographic separations are operated in a repetitive fashion.

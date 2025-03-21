@@ -779,7 +779,6 @@ class TubularReactor(TubularReactorBase):
 
     total_porosity = Constant(1)
 
-
     def __init__(self, *args, discretization_scheme='FV', **kwargs):
         if discretization_scheme == 'FV':
             discretization = LRMDiscretizationFV()
