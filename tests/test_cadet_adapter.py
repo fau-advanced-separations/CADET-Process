@@ -1,18 +1,19 @@
 from pathlib import Path
 import shutil
-import unittest
 from typing import Optional
+import unittest
+
 import pytest
 import numpy as np
 import numpy.testing as npt
 
-from tests.create_LWE import create_lwe
-
 from CADETProcess import CADETProcessError
 from CADETProcess.processModel import Process
-from CADETProcess import SimulationResults
-from CADETProcess.simulator import Cadet
 from CADETProcess.processModel.discretization import NoDiscretization
+from CADETProcess.simulator import Cadet
+from CADETProcess import SimulationResults
+
+from tests.create_LWE import create_lwe
 
 
 def detect_cadet(install_path: Optional[Path] = None):
@@ -67,6 +68,14 @@ class Test_Adapter(unittest.TestCase):
             return_information = sim.run_simulation()
         else:
             return_information = sim.run_load()
+
+    @unittest.skipIf(found_cadet is False, "Skip if CADET is not installed.")
+    def test_version(self):
+        simulator = Cadet(install_path)
+        version_pattern = r"\d\.\d\.\d"
+        self.assertRegex(
+            simulator.version, version_pattern, "Version format should be X.X.X"
+        )
 
     def tearDown(self):
         shutil.rmtree('./tmp', ignore_errors=True)

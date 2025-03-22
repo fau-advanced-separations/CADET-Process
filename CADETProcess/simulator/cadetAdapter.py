@@ -6,6 +6,7 @@ import re
 import subprocess
 import time
 import tempfile
+import warnings
 
 from addict import Dict
 import numpy as np
@@ -291,6 +292,11 @@ class Cadet(SimulatorBase):
         RuntimeError
             If any unhandled event during running the subprocess occurs.
         """
+        warnings.warn(
+            "This method will be deprecated in a future release."
+            "Use the `version` attribute instead.",
+            FutureWarning,
+        )
         try:
             result = subprocess.run(
                 [self.get_new_cadet_instance().cadet_cli_path, '--version'],
@@ -313,6 +319,19 @@ class Cadet(SimulatorBase):
                 raise ValueError("CADET version or branch name missing from output.")
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Command execution failed: {e}")
+
+    @property
+    def version(self) -> str:
+        """str: The version of the Cadet installation."""
+        cadet = self.get_new_cadet_instance()
+        # Check for CADET-Python >= v1.1, which introduced the version property.
+        # If it's not present, assume CADET-Python <= 1.0.4 and directly access the
+        # CadetRunner attribute.
+        # This check can be removed at some point in the future.
+        if hasattr(cadet, "version"):
+            return cadet.version
+        else:
+            return cadet.cadet_runner.cadet_version
 
     def get_new_cadet_instance(self):
         cadet = CadetAPI(install_path=self.install_path, use_dll=self.use_dll)
