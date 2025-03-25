@@ -211,7 +211,7 @@ process_simulator = Cadet()
 process = builder_simple.process
 process.cycle_time = 100
 
-simulation_results = process_simulator.run(process)
+simulation_results = process_simulator.simulate(process)
 ```
 
 ## Visualization
