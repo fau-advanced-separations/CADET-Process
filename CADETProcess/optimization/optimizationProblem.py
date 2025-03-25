@@ -24,6 +24,7 @@ from CADETProcess.dataStructure import (
     RangedInteger, Callable, Tuple, SizedNdArray
 )
 from CADETProcess.dataStructure import frozen_attributes
+from CADETProcess.dataStructure import NumpyProxyArray
 from CADETProcess.dataStructure import (
     check_nested, generate_nested_dict, get_nested_value, get_nested_attribute,
     set_nested_list_value
@@ -31,7 +32,6 @@ from CADETProcess.dataStructure import (
 from CADETProcess.dynamicEvents.section import (
     generate_indices, unravel, get_inhomogeneous_shape, get_full_shape
 )
-
 from CADETProcess.optimization.parallelizationBackend import (
     ParallelizationBackendBase, SequentialBackend
 )
@@ -3834,7 +3834,11 @@ class OptimizationVariable:
                             set_nested_list_value(new_value, i, val)
 
                 parameter_type = self._parameter_type(eval_obj)
-                if not isinstance(new_value, parameter_type):
+                if (
+                        parameter_type is not NumpyProxyArray
+                        and
+                        not isinstance(new_value, parameter_type)
+                        ):
                     new_value = parameter_type(new_value.tolist())
 
             # Set the value:
