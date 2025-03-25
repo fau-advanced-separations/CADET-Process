@@ -45,6 +45,9 @@ from CADETProcess.optimization import Individual, Population
 from CADETProcess.optimization import ResultsCache
 
 
+__all__ = ["OptimizationProblem", "OptimizationVariable"]
+
+
 @frozen_attributes
 class OptimizationProblem(Structure):
     """Class for configuring optimization problems.
