@@ -687,7 +687,7 @@ class Fractionator(EventHandler):
                     off_indices = np.where(diff[:, comp] == -1)
                     off_indices = off_indices[0]
                     for index, off_evt in enumerate(off_indices):
-                        time = chrom.time[int(off_evt)]
+                        time = chrom.time[int(off_evt) - 1]
                         event_name = \
                             'chrom_' + str(chrom_index) + \
                             '_comp_' + str(comp) + \
