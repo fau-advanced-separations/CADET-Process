@@ -17,7 +17,6 @@ sys.path.append('../../../')
 ```
 
 (simulation_guide)=
-
 # Process Simulation
 
 To simulate a {class}`~CADETProcess.processModel.Process`, a simulator needs to be configured.
@@ -99,6 +98,13 @@ The {class}`~CADETProcess.simulator.ModelSolverParameters` stores general parame
 print(process_simulator.solver_parameters)
 ```
 
+For instance, sometimes simulations can take a long time to finish.
+To limit their runtime, set the `timeout` attribute.
+
+```
+process_simulator.solver_parameters.timeout = 300
+```
+
 For more information, see also {ref}`CADET Documentation<cadet:FFModelSystem>`.
 
 ## Simulate Processes
@@ -117,16 +123,7 @@ process.add_parameter_sensitivity('column.total_porosity')
 simulation_results = process_simulator.simulate(process)
 ```
 
-Sometimes simulations can take a long time to finish.
-To limit their runtime, set the `timeout` attribute of the simulator.
-
-```
-process_simulator.timeout = 300
-simulation_results = process_simulator.simulate(process)
-```
-
 (simulation_results_guide)=
-
 ## Simulation Results
 
 The {class}`~CADETProcess.simulationResults.SimulationResults` object contains the results of the simulation.
@@ -189,7 +186,6 @@ _ = simulation_results.sensitivity['column.total_porosity'].column.outlet.plot()
 ```
 
 (stationarity_guide)=
-
 ## Cyclic Stationarity
 
 Preparative chromatographic separations are operated in a repetitive fashion.

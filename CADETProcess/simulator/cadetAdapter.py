@@ -1,13 +1,12 @@
-from CADETProcess.dataStructure import Structure, ParameterWrapper
 from collections import defaultdict
 from functools import wraps
 import os
 from pathlib import Path
+import re
 import subprocess
-from subprocess import TimeoutExpired
 import time
 import tempfile
-import re
+import warnings
 
 from addict import Dict
 import numpy as np
@@ -15,6 +14,7 @@ from cadet import Cadet as CadetAPI
 
 from CADETProcess import CADETProcessError
 from CADETProcess import settings
+from CADETProcess.dataStructure import Structure, ParameterWrapper
 from CADETProcess.dataStructure import (
     Bool, Switch, UnsignedFloat, UnsignedInteger,
 )
@@ -84,7 +84,6 @@ class Cadet(SimulatorBase):
 
     """
 
-    timeout = UnsignedFloat()
     use_dll = Bool(default=False)
     _force_constant_flow_rate = False
 
@@ -121,6 +120,22 @@ class Cadet(SimulatorBase):
     @temp_dir.setter
     def temp_dir(self, temp_dir):
         self._temp_dir = temp_dir
+
+    @property
+    def timeout(self):
+        warnings.warn(
+            "This parameter is deprecated. Use solver_parameters.timeout instead.",
+            FutureWarning,
+        )
+        return self.solver_parameters.timeout
+
+    @timeout.setter
+    def timeout(self, timeout):
+        warnings.warn(
+            "This parameter is deprecated. Use solver_parameters.timeout instead.",
+            FutureWarning,
+        )
+        self.solver_parameters.timeout = timeout
 
     def locks_process(func):
         """Lock process to enable caching."""
@@ -172,9 +187,9 @@ class Cadet(SimulatorBase):
         # If it's not present, assume CADET-Python <= 1.0.4 and use the old .run_load() interface
         # This check can be removed at some point in the future.
         if hasattr(cadet, "run_simulation"):
-            return_information = cadet.run_simulation(timeout=self.timeout)
+            return_information = cadet.run_simulation()
         else:
-            return_information = cadet.run_load(timeout=self.timeout)
+            return_information = cadet.run_load()
 
         cadet.delete_file()
 
@@ -188,7 +203,6 @@ class Cadet(SimulatorBase):
     def get_tempfile_name(self):
         f = next(tempfile._get_candidate_names())
         return self.temp_dir / f'{f}.h5'
-
 
     @locks_process
     def _run(self, process, cadet=None, file_path=None):
@@ -247,11 +261,11 @@ class Cadet(SimulatorBase):
             # If it's not present, assume CADET-Python <= 1.0.4 and use the old .run_load() interface
             # This check can be removed at some point in the future.
             if hasattr(cadet, "run_simulation"):
-                return_information = cadet.run_simulation(timeout=self.timeout)
+                return_information = cadet.run_simulation()
             else:
                 return_information = cadet.run_load()
             elapsed = time.time() - start
-        except TimeoutExpired:
+        except subprocess.TimeoutExpired:
             raise CADETProcessError('Simulator timed out') from None
         finally:
             if not self.use_dll and file_path is None:
@@ -293,6 +307,11 @@ class Cadet(SimulatorBase):
         RuntimeError
             If any unhandled event during running the subprocess occurs.
         """
+        warnings.warn(
+            "This method will be deprecated in a future release."
+            "Use the `version` attribute instead.",
+            FutureWarning,
+        )
         try:
             result = subprocess.run(
                 [self.get_new_cadet_instance().cadet_cli_path, '--version'],
@@ -316,6 +335,19 @@ class Cadet(SimulatorBase):
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Command execution failed: {e}")
 
+    @property
+    def version(self) -> str:
+        """str: The version of the Cadet installation."""
+        cadet = self.get_new_cadet_instance()
+        # Check for CADET-Python >= v1.1, which introduced the version property.
+        # If it's not present, assume CADET-Python <= 1.0.4 and directly access the
+        # CadetRunner attribute.
+        # This check can be removed at some point in the future.
+        if hasattr(cadet, "version"):
+            return cadet.version
+        else:
+            return cadet.cadet_runner.version
+
     def get_new_cadet_instance(self):
         cadet = CadetAPI(install_path=self.install_path, use_dll=self.use_dll)
         return cadet
@@ -335,9 +367,9 @@ class Cadet(SimulatorBase):
         # If it's not present, assume CADET-Python <= 1.0.4 and use the old .run_load() interface
         # This check can be removed at some point in the future.
         if hasattr(cadet, "run_simulation"):
-            return_information = cadet.run_simulation(timeout=self.timeout)
+            return_information = cadet.run_simulation()
         else:
-            return_information = cadet.run_load(timeout=self.timeout)
+            return_information = cadet.run_load()
 
         return cadet
 
@@ -1768,6 +1800,7 @@ class SolverParameters(Structure):
     ----------
     nthreads : int
         Number of used threads.
+        The default is 1.
     consistent_init_mode : int, optional
         Consistent initialization mode.
         Valid values are:
@@ -1792,6 +1825,9 @@ class SolverParameters(Structure):
         - 6: None once, then full
         - 7: None once, then lean
         The default is 1.
+    timeout : float, optional
+        Timeout in seconds. Simulation is aborted if wall clock time exceeds the
+        provided value. If value is 0, no timeout is applied. The default is 0.
 
     See Also
     --------
@@ -1802,9 +1838,10 @@ class SolverParameters(Structure):
     nthreads = UnsignedInteger(default=1)
     consistent_init_mode = UnsignedInteger(default=1, ub=7)
     consistent_init_mode_sens = UnsignedInteger(default=1, ub=7)
+    timeout = UnsignedFloat(default=0)
 
     _parameters = [
-        'nthreads', 'consistent_init_mode', 'consistent_init_mode_sens'
+        'nthreads', 'consistent_init_mode', 'consistent_init_mode_sens', 'timeout',
     ]
 
 

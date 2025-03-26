@@ -125,6 +125,14 @@ simulation_test_cases = [
 ]
 
 
+simple_test_case = [
+    pytest.param(
+        (use_dll, ), id=f"dll={use_dll}",
+    )
+    for use_dll in use_dll_options
+]
+
+
 def run_simulation(
         process: Process,
         install_path: Optional[str] = None,
@@ -184,7 +192,8 @@ def simulation_results(request: pytest.FixtureRequest):
     unit_type, kwargs, use_dll = request.param  # Extract `use_dll`
     process = create_lwe(unit_type, **kwargs)  # Process remains unchanged
     simulation_results = run_simulation(
-        process, install_path, use_dll=use_dll)  # Pass `use_dll` here
+        process, install_path, use_dll=use_dll
+    )
     return simulation_results
 
 
@@ -545,6 +554,7 @@ class TestProcessWithLWE:
             'nthreads': 1,
             'consistent_init_mode': 1,
             'consistent_init_mode_sens': 1,
+            'timeout': 0,
             'user_solution_times': np.arange(0.0, 120 * 60 + 1),
             'sections': {
                 'nsec': 3,
@@ -692,6 +702,24 @@ class TestResultsWithLWE:
                     unit.discretization.ncol,
                     process.component_system.n_comp
                 )
+
+
+@pytest.mark.parametrize(
+    "process, use_dll",
+    [
+        (("LumpedRateModelWithPores", {}), True),
+        (("LumpedRateModelWithPores", {}), False),
+    ],
+    indirect=["process"]
+)
+def test_timeout(process, use_dll):
+    simulator = Cadet(use_dll=use_dll)
+    if int(simulator.version[0]) < 5 and int(simulator.version[1]) < 1:
+        return
+
+    simulator.solver_parameters.timeout = 0.1
+
+    simulation_results = simulator.simulate(process)
 
 
 if __name__ == "__main__":
