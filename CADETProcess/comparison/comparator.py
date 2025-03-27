@@ -199,7 +199,7 @@ class Comparator(Structure):
         except KeyError:
             raise CADETProcessError("Could not find solution path")
 
-        return solution
+        return copy.deepcopy(solution)
 
     def evaluate(self, simulation_results):
         """Evaluate all metrics for a given simulation and return the results as a list.
