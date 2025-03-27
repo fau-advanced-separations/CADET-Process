@@ -1,8 +1,10 @@
 import copy
-import importlib
 import functools
+import importlib
+from typing import Optional, NoReturn
 
 import numpy as np
+import numpy.typing as npt
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from matplotlib.axes import Axes
@@ -34,30 +36,40 @@ class Comparator(Structure):
 
     name = String()
 
-    def __init__(self, name=None):
-        """Initialize a new Comparator instance.
+    def __init__(
+            self,
+            name: Optional[str] = None,
+            ) -> NoReturn:
+        """
+        Initialize a new Comparator instance.
 
         Parameters
         ----------
-        name : str, optional
+        name : Optional[str]
             Name of the Comparator instance.
         """
         self.name = name
         self._metrics = []
-        self.references = {}
+        self.references: dict[str, SolutionBase] = {}
         self.solution_paths = {}
 
-    def add_reference(self, reference, update=False, smooth=False):
-        """Add Reference to Comparator.
+    def add_reference(
+            self,
+            reference: SolutionBase,
+            update: Optional[bool] = False,
+            smooth: Optional[bool] = False,
+            ) -> NoReturn:
+        """
+        Add reference to the Comparator.
 
         Parameters
         ----------
-        reference : ReferenceIO
+        reference : SolutionBase
             Reference for comparison with SimulationResults.
-        update : bool, optional
-            If True, update existing reference. The default is False.
-        smooth : bool, optional
-            If True, smooth data before comparison. The default is False.
+        update : Optional[bool], default=False
+            If True, update existing reference.
+        smooth : Optional[bool], default=False
+            If True, smooth data before comparison.
 
         Raises
         ------
@@ -80,39 +92,39 @@ class Comparator(Structure):
         self.references[reference.name] = reference
 
     @property
-    def metrics(self):
-        """list: List of difference metrics."""
+    def metrics(self) -> list[DifferenceBase]:
+        """list[DifferenceBase]: List of difference metrics."""
         return self._metrics
 
     @property
-    def n_difference_metrics(self):
+    def n_difference_metrics(self) -> int:
         """int: Number of difference metrics in the Comparator."""
         return len(self.metrics)
 
     @property
-    def n_metrics(self):
+    def n_metrics(self) -> int:
         """int: Number of metrics to be evaluated."""
         return sum([metric.n_metrics for metric in self.metrics])
 
     @property
-    def bad_metrics(self):
-        """list: Worst case metrics for all difference metrics."""
+    def bad_metrics(self) -> list[float]:
+        """list[float]: Worst case metrics for all difference metrics."""
         bad_metrics = [metric.bad_metrics for metric in self.metrics]
 
         return np.hstack(bad_metrics).flatten().tolist()
 
     @property
-    def labels(self):
-        """list: List of metric labels."""
+    def labels(self) -> list[str]:
+        """list[str]: List of metric labels."""
         labels = []
         for metric in self.metrics:
             try:
                 metric_labels = metric.labels
             except AttributeError:
-                metric_labels = [f'{metric}']
+                metric_labels = [f"{metric}"]
                 if metric.n_metrics > 1:
                     metric_labels = [
-                        f'{metric}_{i}' for i in range(metric.n_metrics)
+                        f"{metric}_{i}" for i in range(metric.n_metrics)
                     ]
 
             if len(metric_labels) != metric.n_metrics:
@@ -126,21 +138,31 @@ class Comparator(Structure):
 
     @functools.wraps(DifferenceBase.__init__)
     def add_difference_metric(
-            self, difference_metric, reference, solution_path,
-            *args, **kwargs):
-        """Add a difference metric to the Comparator.
+            self,
+            difference_metric: str,
+            reference: str | SolutionBase,
+            solution_path: str,
+            *args, **kwargs,
+            ) -> DifferenceBase:
+        """
+        Add a difference metric to the Comparator.
 
         Parameters
         ----------
         difference_metric : str
             Name of the difference metric to be evaluated.
-        reference : str or SolutionBase
+        reference : str | SolutionBase
             Name of the reference or reference itself.
         solution_path : str
             Path to the solution in SimulationResults.
         *args, **kwargs
             Additional arguments and keyword arguments to be passed to the
             difference metric constructor.
+
+        Returns
+        -------
+        DifferenceBase
+            The new difference metric instance.
 
         Raises
         ------
@@ -149,7 +171,7 @@ class Comparator(Structure):
         """
         try:
             module = importlib.import_module(
-                'CADETProcess.comparison.difference'
+                "CADETProcess.comparison.difference"
             )
             cls_ = getattr(module, difference_metric)
         except KeyError:
@@ -171,20 +193,25 @@ class Comparator(Structure):
 
         return metric
 
-    def extract_solution(self, simulation_results, metric):
-        """Extract the solution for a given metric from the SimulationResults object.
+    def extract_solution(
+            self,
+            simulation_results: SimulationResults,
+            metric: DifferenceBase
+            ) -> SolutionBase:
+        """
+        Extract the solution for a given metric from the SimulationResults object.
 
         Parameters
         ----------
         simulation_results : SimulationResults
             The SimulationResults object containing the solution.
-        metric : Metric
-            The Metric object for which to extract the solution.
+        metric : DifferenceBase
+            The difference metric object for which to extract the solution.
 
         Returns
         -------
-        numpy.ndarray
-            The solution array for the given metric.
+        SolutionBase
+            The solution for the given metric.
 
         Raises
         ------
@@ -201,8 +228,9 @@ class Comparator(Structure):
 
         return copy.deepcopy(solution)
 
-    def evaluate(self, simulation_results):
-        """Evaluate all metrics for a given simulation and return the results as a list.
+    def evaluate(self, simulation_results: SimulationResults) -> list[float]:
+        """
+        Evaluate all metrics for a given simulation and return the results as a list.
 
         Parameters
         ----------
@@ -211,8 +239,8 @@ class Comparator(Structure):
 
         Returns
         -------
-        list
-            A list of metric evaluation results, where each element is a numpy array.
+        list[float]
+            A list containing the values of all difference of metrics after comparison.
         """
         metrics = []
         for metric in self.metrics:
@@ -227,21 +255,25 @@ class Comparator(Structure):
     __call__ = evaluate
 
     def setup_comparison_figure(
-        self, plot_individual: bool = False
-    ) -> tuple[list[Figure], list[Axes]]:
-        """Set up a figure for comparing simulation results.
+            self,
+            plot_individual: Optional[bool] = False,
+            ) -> tuple[list[Figure], npt.NDArray[Axes]]:
+        """
+        Set up a figure for comparing simulation results.
 
         Parameters
         ----------
-        plot_individual : bool, optional
+        plot_individual : Optional[bool], default=False
             If True, return figures for individual metrics.
             Otherwise, return a single figure for all metrics.
-            Default is False.
 
         Returns
         -------
         tuple
-            A tuple of the comparison figure(s) and axes object(s).
+            A tuple containing:
+            - list[plt.Figure]: A list of Matplotlib Figure objects.
+            - npt.NDArray[plt.Axes]: An array of Axes objects with one Axes per
+              difference metric.
         """
         if self.n_difference_metrics == 0:
             return (None, None)
@@ -273,13 +305,13 @@ class Comparator(Structure):
     def plot_comparison(
             self,
             simulation_results: SimulationResults,
-            axs: Axes | list[Axes] | None = None,
-            figs: Figure | list[Figure] | None = None,
-            file_name: str | None = None,
-            show: bool = True,
-            plot_individual: bool = False,
-            x_axis_in_minutes: bool = True,
-            ) -> tuple[list[Figure], list[Axes]]:
+            axs: Optional[Axes | list[Axes]] = None,
+            figs: Optional[Figure | list[Figure]] = None,
+            file_name: Optional[str] = None,
+            show: Optional[bool] = True,
+            plot_individual: Optional[bool] = False,
+            x_axis_in_minutes: Optional[bool] = True,
+            ) -> tuple[list[Figure], npt.NDArray[plt.Axes]]:
         """
         Plot the comparison of the simulation results with the reference data.
 
@@ -287,25 +319,26 @@ class Comparator(Structure):
         ----------
         simulation_results : SimulationResults
             Simulation results to compare to reference data.
-        axs : list of Axes, optional
-            List of subplot axes to use for plotting the metrics.
-        figs : list of Figures, optional
+        axs : Optional[Axes | list[Axes]], default=None
+            An array of Axes objects to use for plotting the metrics.
+        figs : Optional[Figure | list[Figure]]
             List of figures to use for plotting the metrics.
-        file_name : str, optional
+        file_name : Optional[str]
             Name of the file to save the figure to.
-        show : bool, optional
+        show : Optional[bool], default=True
             If True, displays the figure(s) on the screen.
-        plot_individual : bool, optional
+        plot_individual : Optional[bool], default=False
             If True, generates a separate figure for each metric.
-        x_axis_in_minutes: bool, optional
+        x_axis_in_minutes: Optional[bool], default=True
             If True, the x-axis will be plotted using minutes. The default is True.
 
         Returns
         -------
-        figs : list of Figure
-            List of figures used for plotting the metrics.
-        axs : list of AxesSubplot
-            List of subplot axes used for plotting the metrics.
+        tuple
+            A tuple containing:
+            - list[plt.Figure]: A list of Matplotlib Figure objects.
+            - npt.NDArray[plt.Axes]: An array of Axes objects with one Axes per
+              difference metric.
         """
         if axs is None:
             figs, axs = self.setup_comparison_figure(plot_individual)
@@ -327,9 +360,9 @@ class Comparator(Structure):
             )
 
             plot_args = {
-                'linestyle': 'dotted',
-                'color': 'k',
-                'label': 'reference',
+                "linestyle": "dotted",
+                "color": "k",
+                "label": "reference",
             }
             ref_time = metric.reference.time
             if x_axis_in_minutes:
@@ -369,9 +402,9 @@ class Comparator(Structure):
 
         if file_name is not None:
             if plot_individual:
-                name, suffix = file_name.split('.')
+                name, suffix = file_name.split(".")
                 for fig, metric in zip(figs, self.metrics):
-                    fig.savefig(f'{name}_{metric}.{suffix}')
+                    fig.savefig(f"{name}_{metric}.{suffix}")
             else:
                 figs[0].savefig(file_name)
 
