@@ -159,8 +159,8 @@ class DifferenceBase(MetricBase):
 
     @property
     def reference(self):
-        """SolutionBase: The reference Solution, sliced and transformed."""
-        return self._reference_sliced_and_transformed
+        """SolutionBase: The reference solution."""
+        return self._reference
 
     @reference.setter
     def reference(self, reference):
@@ -170,7 +170,9 @@ class DifferenceBase(MetricBase):
                 f"Expected types: {self._valid_references}."
             )
 
-        self._reference = copy.deepcopy(reference)
+        reference = copy.deepcopy(reference)
+        self.reference_original = reference
+
         if self.resample:
             reference = reference.resample()
         if self.normalize:
@@ -179,14 +181,14 @@ class DifferenceBase(MetricBase):
             reference = reference.smooth_data()
 
         reference = slice_solution(
-            self._reference,
+            reference,
             self.components,
             self.use_total_concentration,
             self.use_total_concentration_components,
             coordinates={'time': (self.start, self.end)}
         )
 
-        self._reference_sliced_and_transformed = reference
+        self._reference = reference
 
     def checks_dimensions(func):
         """Decorator to automatically check reference and solution dimensions."""
@@ -524,18 +526,6 @@ class Shape(DifferenceBase):
         self.use_derivative = use_derivative
         if use_derivative:
             self.reference_der = self.reference.derivative
-            self.reference_der.resample(
-                start=self._reference.time[0],
-                end=self._reference.time[-1],
-                nt=len(self._reference.time)
-            )
-            self.reference_der_sliced = slice_solution(
-                self.reference_der,
-                None,
-                self.use_total_concentration,
-                self.use_total_concentration_components,
-                coordinates={'time': (self.start, self.end)}
-            )
 
         self.normalize_metrics = normalize_metrics
         if normalization_factor is None:
@@ -559,13 +549,18 @@ class Shape(DifferenceBase):
         return labels
 
     def _evaluate(self, solution):
-        """np.array: Shape similarity using pearson correlation.
+        """
+        Evaluate the Shape similarity using Pearson correlation.
 
         Parameters
         ----------
         solution : SolutionIO
             Concentration profile of simulation.
 
+        Returns
+        -------
+        np.array
+            Array of similarity metrics.
         """
         corr, offset_original = pearson(
             self.reference.time,
@@ -583,13 +578,10 @@ class Shape(DifferenceBase):
         if not self.use_derivative:
             return np.array([corr, offset])
 
-        solution_der = solution.derivative
-        solution_der_sliced = self.slice_and_transform(solution_der)
-
         corr_der = pearson_offset(
-            self.reference_der_sliced.time,
-            self.reference_der_sliced.solution_interpolated.solutions[0],
-            solution_der_sliced.solution_interpolated.solutions[0],
+            self.reference_der.time,
+            self.reference_der.solution_interpolated.solutions[0],
+            solution.derivative.solution_interpolated.solutions[0],
             offset_original,
         )
 
