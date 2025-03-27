@@ -223,13 +223,11 @@ class SolutionIO(SolutionBase):
 
     def __init__(self, name, component_system, time, solution, flow_rate):
 
-        super().__init__(name, component_system, time, solution)
-
         if not isinstance(flow_rate, TimeLine):
             flow_rate = TimeLine.from_profile(time, flow_rate)
         self.flow_rate = flow_rate
 
-        self.reset()
+        super().__init__(name, component_system, time, solution)
 
     @property
     def derivative(self):
@@ -787,16 +785,11 @@ class SolutionBulk(SolutionBase):
             time, solution,
             axial_coordinates=None, radial_coordinates=None
             ):
-        self.name = name
-        self.component_system_original = component_system
-        self.time_original = time
 
         self.axial_coordinates = axial_coordinates
         self.radial_coordinates = radial_coordinates
 
-        self.solution_original = solution
-
-        self.reset()
+        super().__init__(name, component_system, time, solution)
 
     @property
     def ncol(self):
