@@ -97,19 +97,13 @@ class SolutionBase(Structure):
 
     def __init__(self, name, component_system, time, solution):
         self.name = name
-        self.component_system_original = component_system
-        self.time_original = time
-        self.solution_original = solution
+        self.component_system = component_system
+        self.time = time
+        self.solution = solution
 
-        self.reset()
+        self.update_solution()
 
-    def reset(self):
-        """Reset component system, time, and solution arrays to their original values."""
-        self.component_system = self.component_system_original
-        self.time = self.time_original
-        self.solution = self.solution_original
-
-    def update(self):
+    def update_solution(self):
         """Update the solution."""
         pass
 
@@ -229,45 +223,30 @@ class SolutionIO(SolutionBase):
 
         super().__init__(name, component_system, time, solution)
 
+    def update_solution(self):
+        self._solution_interpolated = None
+        self._dm_dt_interpolated = None
+        self.update_transform()
+
     @property
-    def derivative(self):
+    def derivative(self) -> "SolutionIO":
         """SolutionIO: Derivative of this solution."""
         derivative = copy.deepcopy(self)
-        derivative.reset()
         derivative_fun = derivative.solution_interpolated.derivative
-        derivative.solution_original = derivative_fun(derivative.time)
-        derivative.reset()
+        derivative.solution = derivative_fun(derivative.time)
+        derivative.update_solution()
 
         return derivative
 
     @property
-    def antiderivative(self):
+    def antiderivative(self) -> "SolutionIO":
         """SolutionIO: Antiderivative of this solution."""
         antiderivative = copy.deepcopy(self)
-        antiderivative.reset()
         antiderivative_fun = antiderivative.solution_interpolated.antiderivative
-        antiderivative.solution_original = antiderivative_fun(antiderivative.time)
-        antiderivative.reset()
+        antiderivative.solution = antiderivative_fun(antiderivative.time)
+        antiderivative.update_solution()
 
         return antiderivative
-
-    def reset(self):
-        super().reset()
-        self.is_resampled = False
-        self.is_normalized = False
-        self.is_smoothed = False
-
-        self.s = None
-        self.crit_fs = None
-        self.crit_fs_der = None
-        self.is_smoothed = False
-
-        self.update()
-        self.update_transform()
-
-    def update(self):
-        self._solution_interpolated = None
-        self._dm_dt_interpolated = None
 
     def update_transform(self):
         self.transform = transform.NormLinearTransformer(
@@ -288,31 +267,21 @@ class SolutionIO(SolutionBase):
     @property
     def dm_dt_interpolated(self):
         if self._dm_dt_interpolated is None:
-            self.resample()
             dm_dt = self.solution * self.flow_rate.value(self.time)
             self._dm_dt_interpolated = InterpolatedSignal(self.time, dm_dt)
 
         return self._dm_dt_interpolated
 
-    def normalize(self):
+    def normalize(self) -> "SolutionIO":
         """Normalize the solution using the transformation function."""
-        if self.is_normalized:
-            return
+        solution = copy.deepcopy(self)
 
-        self.solution = self.transform.transform(self.solution)
-        self.update()
-        self.is_normalized = True
+        solution.solution = self.transform.transform(self.solution)
+        solution.update_solution()
 
-    def denormalize(self):
-        """Denormalize the solution using the transformation function."""
-        if not self.is_normalized:
-            return
+        return solution
 
-        self.solution = self.transform.untransform(self.solution)
-        self.update()
-        self.is_normalized = False
-
-    def resample(self, start=None, end=None, nt=5001):
+    def resample(self, start=None, end=None, nt=5001) -> "SolutionIO":
         """Resample solution to nt time points.
 
         Parameters
@@ -321,23 +290,20 @@ class SolutionIO(SolutionBase):
             Number of points to resample. The default is 5001.
 
         """
-        if self.is_resampled:
-            return
+        solution = copy.deepcopy(self)
 
         if start is None:
             start = self.time[0]
         if end is None:
             end = self.time[-1]
 
-        solution_interpolated = self.solution_interpolated
-        self.time = np.linspace(start, end, nt)
-        self.solution = solution_interpolated(self.time)
+        solution.time = np.linspace(start, end, nt)
+        solution.solution = self.solution_interpolated(solution.time)
+        solution.update_solution()
 
-        self.update()
+        return solution
 
-        self.is_resampled = True
-
-    def smooth_data(self, s=None, crit_fs=None, crit_fs_der=None):
+    def smooth_data(self, s=None, crit_fs=None, crit_fs_der=None) -> "SolutionIO":
         """Smooth data.
 
         Parameters
@@ -350,17 +316,7 @@ class SolutionIO(SolutionBase):
             DESCRIPTION.
 
         """
-        if self.is_smoothed:
-            return
-
-        if not self.is_resampled:
-            self.resample()
-
-        if not self.is_normalized:
-            normalized = True
-            self.normalize()
-        else:
-            normalized = False
+        solution = copy.deepcopy(self)
 
         if None in (s, crit_fs, crit_fs_der):
             s_ = []
@@ -386,19 +342,16 @@ class SolutionIO(SolutionBase):
             s = self.n_comp * [s]
         elif len(s) == 1:
             s = self.n_comp * s
-        self.s = s
 
         if np.isscalar(crit_fs):
             crit_fs = self.n_comp * [crit_fs]
         elif len(crit_fs) == 1:
             crit_fs = self.n_comp * crit_fs
-        self.crit_fs = crit_fs
 
         if np.isscalar(crit_fs_der):
             crit_fs_der = self.n_comp * [crit_fs_der]
         elif len(crit_fs_der) == 1:
             crit_fs_der = self.n_comp * crit_fs_der
-        self.crit_fs_der = crit_fs_der
 
         solution = np.zeros((self.solution.shape))
         for i, (s, crit_fs, crit_fs_der) in enumerate(zip(s, crit_fs, crit_fs_der)):
@@ -408,14 +361,10 @@ class SolutionIO(SolutionBase):
             )
             solution[..., i] = smooth
 
-        self.solution = solution
+        solution.solution = solution
+        solution.update_solution()
 
-        if normalized:
-            self.denormalize()
-
-        self.update()
-
-        self.is_smoothed = True
+        return solution
 
     def integral(self, start=None, end=None):
         """
@@ -1863,7 +1812,6 @@ def slice_solution(
         solution.component_system = ComponentSystem(['total_concentration'])
         solution.solution = solution_total_concentration
 
-    solution.update()
-    solution.update_transform()
+    solution.update_solution()
 
     return solution
