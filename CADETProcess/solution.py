@@ -1173,6 +1173,93 @@ class SolutionParticle(SolutionBase):
             return
         return len(self.particle_coordinates)
 
+    @plotting.create_and_save_figure
+    def plot(
+            self,
+            start: Optional[float] = None,
+            end: Optional[float] = None,
+            components: Optional[list[str]] = None,
+            layout: Optional[plotting.Layout] = None,
+            y_max: Optional[float] = None,
+            x_axis_in_minutes: Optional[bool] = True,
+            ax: Optional[Axes] = None,
+            *args,
+            **kwargs,
+            ) -> Axes:
+        """
+        Plot the entire particle liquid phase solution for each component.
+
+        Parameters
+        ----------
+        start : Optional[float]
+            Start time for plotting in seconds. If None is provided, the first data
+            point will be used as the start time. The default is None.
+        end : Optional[float]
+            End time for plotting in seconds. If None is provided, the last data point
+            will be used as the end time. The default is None.
+        components : Optional[list[str]]
+            List of components to be plotted. If None, all components are plotted.
+        layout : Optional[plotting.Layout]
+            Plot layout options.
+        y_max : Optional[float]
+            Maximum value of y axis.
+            If None, value is automatically deferred from solution.
+        x_axis_in_minutes : Optional[bool], default=True
+            If True, the x-axis will be plotted using minutes. The default is True.
+        ax : Optional[Axes]
+            Axes to plot on.
+
+        Returns
+        -------
+        ax : Axes
+            Axes object with concentration profile.
+
+        Raises CADETProcessError
+            If solution is not 1D.
+
+        See Also
+        --------
+        _plot_solution_1D
+        slice_solution
+        plotlib
+        plot_purity
+        """
+        if not (self.ncol is None and self.nrad is None and self.npar is None):
+            raise CADETProcessError(
+                "Solution has more than single dimension. "
+                "Please use `plot_at_time`."
+            )
+
+        solution = slice_solution(
+            self,
+            components=components,
+            use_total_concentration=False,
+            use_total_concentration_components=False,
+            coordinates={"time": [start, end]}
+        )
+
+        x = solution.time
+        if x_axis_in_minutes:
+            x = x / 60
+            if start is not None:
+                start = start / 60
+            if end is not None:
+                end = end / 60
+
+        if layout is None:
+            layout = plotting.Layout()
+            layout.x_label = "$time~/~s$"
+            if x_axis_in_minutes:
+                layout.x_label = "$time~/~min$"
+            layout.y_label = "$c~/~mM$"
+            layout.x_lim = (start, end)
+        if y_max is not None:
+            layout.y_lim = (None, y_max)
+
+        ax = _plot_solution_1D(ax, x, solution, layout, *args, **kwargs)
+
+        return ax
+
     def _plot_1D(
             self,
             t: float,
@@ -1292,6 +1379,9 @@ class SolutionParticle(SolutionBase):
         if self.npar is None:
             ax = self._plot_1D(ax, t, vmax)
         else:
+            if comp is None and self.n_comp > 1:
+                raise ValueError("Must specify component index.")
+
             ax = self._plot_2D(ax, t, comp, vmax)
 
         return ax
@@ -1303,8 +1393,6 @@ class SolutionSolid(SolutionBase):
 
     Dimensions: NCOL * NRAD * sum_{j}^{NPARTYPE}{NBOUND,j * NPAR,j}
     """
-
-    n_bound = UnsignedInteger()
 
     dimensions = SolutionBase.dimensions + [
         "axial_coordinates",
@@ -1435,7 +1523,7 @@ class SolutionSolid(SolutionBase):
         plotlib
         plot_purity
         """
-        if not (self.ncol is None and self.nrad is None):
+        if not (self.ncol is None and self.nrad is None and self.npar is None):
             raise CADETProcessError(
                 "Solution has more than single dimension. "
                 "Please use `plot_at_time`."
@@ -1530,27 +1618,27 @@ class SolutionSolid(SolutionBase):
 
         return ax
 
-    def _plot_2D(self, t, comp, state, vmax, ax=None):
+    def _plot_2D(self, ax, t, comp, bound_state=0, vmax=None):
         x = self.axial_coordinates
         y = self.particle_coordinates
 
         if not self.time[0] <= t <= self.time[-1]:
             raise ValueError("Time exceeds bounds.")
         t_i = np.where(t <= self.time)[0][0]
-        c_i = comp*self.n_bound + state
+        c_i = np.sum(self.bound_states[0:comp]) + bound_state
         v = self.solution[t_i, :, :, c_i].transpose()
 
         if vmax is None:
             vmax = v.max()
 
-        mesh = ax.pcolormesh(x, y, v, shading='gouraud', vmin=0, vmax=vmax)
+        mesh = ax.pcolormesh(x, y, v, shading="gouraud", vmin=0, vmax=vmax)
 
-        plotting.add_text(ax, f'time = {t:.2f} s')
+        plotting.add_text(ax, f"time = {t:.2f} s")
 
         layout = plotting.Layout()
-        layout.title = f'Solid phase concentration, comp={comp}, state={state}'
-        layout.x_label = '$z~/~m$'
-        layout.y_label = '$r~/~m$'
+        layout.title = f"Solid phase concentration, comp={comp}, bound_state={bound_state}"
+        layout.x_label = "$z~/~m$"
+        layout.y_label = "$r~/~m$"
         layout.labels = self.component_system.species[c_i]
         plotting.set_layout(ax, layout)
 
@@ -1560,8 +1648,9 @@ class SolutionSolid(SolutionBase):
     def plot_at_time(
             self,
             t: float,
-            bound: Optional[int] = 0,
-            vmax=None,
+            comp: Optional[int] = None,
+            bound_state: Optional[int] = 0,
+            vmax: Optional[float] = None,
             ax: Optional[Axes] = None
             ):
         """
@@ -1571,8 +1660,10 @@ class SolutionSolid(SolutionBase):
         ----------
         t : float
             Solution time at with to plot.
-        bound : Optional[int], default=0
+        bound_state : Optional[int], default=0
             Bound state index.
+        vmax: Optional[float]
+            Maximum data value to scale color map.
         ax : Optional[Axes]
             Axes to plot on.
 
@@ -1588,7 +1679,14 @@ class SolutionSolid(SolutionBase):
         if self.npar is None:
             ax = self._plot_1D(ax, t, vmax)
         else:
-            ax, mesh = self._plot_2D(ax, t, bound, vmax)
+            if comp is None and self.n_comp > 1:
+                raise ValueError("Must specify component index.")
+            if comp is None:
+                comp = 0
+            if bound_state is None and self.bound_states[comp] > 1:
+                raise ValueError("Must specify bound state index.")
+
+            ax, mesh = self._plot_2D(ax, t, comp, bound_state, vmax=vmax)
             plt.colorbar(mesh, ax)
         return ax
 
