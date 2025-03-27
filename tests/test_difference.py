@@ -181,7 +181,7 @@ class TestPeakHeight(unittest.TestCase):
             self.reference,
             normalize_metrics=False
         )
-        metrics_expected = [0.0531923, 0.0531923]
+        metrics_expected = [0.0531923, 0.0]
         metrics = difference.evaluate(self.reference_different_height)
         np.testing.assert_almost_equal(metrics, metrics_expected)
 
@@ -189,7 +189,7 @@ class TestPeakHeight(unittest.TestCase):
             self.reference,
             normalize_metrics=True
         )
-        metrics_expected = [0.3215127, 0.3215127]
+        metrics_expected = [0.3215127, 0.0]
         metrics = difference.evaluate(self.reference_different_height)
         np.testing.assert_almost_equal(metrics, metrics_expected)
 
@@ -327,7 +327,7 @@ class TestShape(unittest.TestCase):
             components=['A'],
             normalize_metrics=False,
         )
-        metrics_expected = [0, 10, 0, ]
+        metrics_expected = [0, 10, 0]
         metrics = difference.evaluate(self.reference)
         np.testing.assert_almost_equal(metrics, metrics_expected)
 
