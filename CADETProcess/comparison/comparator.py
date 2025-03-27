@@ -314,10 +314,6 @@ class Comparator(Structure):
 
         for ax, metric in zip(axs, self.metrics):
             solution = self.extract_solution(simulation_results, metric)
-            if metric.normalize:
-                solution.normalize()
-            if metric.smooth:
-                solution.smooth_data()
             solution_sliced = metric.slice_and_transform(solution)
 
             y_max = 1.1 * max(
