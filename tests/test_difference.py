@@ -351,6 +351,92 @@ class TestShape(unittest.TestCase):
             metrics = difference.evaluate(self.reference)
 
 
+from CADETProcess.comparison import ShapeFront
+class TestShapeFront(unittest.TestCase):
+
+    def setUp(self):
+        # 2 Components, gaussian peaks, constant flow
+        component_system = ComponentSystem(1)
+        self.reference_single = ReferenceIO(
+            'simple', time, solution_2_gaussian[:, [0]],
+            component_system=component_system
+        )
+
+        self.reference = ReferenceIO(
+            'simple', time, solution_2_gaussian,
+            component_system=comp_2
+        )
+
+        self.reference_switched = ReferenceIO(
+            'simple', time, solution_2_gaussian_switched,
+            component_system=comp_2
+        )
+
+    def test_metric(self):
+        # Compare with itself
+        difference = ShapeFront(
+            self.reference,
+            use_derivative=False,
+            components=['A'],
+            normalize_metrics=False,
+        )
+        metrics_expected = [0, 0]
+        metrics = difference.evaluate(self.reference)
+        np.testing.assert_almost_equal(metrics, metrics_expected)
+
+        # Compare with other Gauss Peak
+        difference = ShapeFront(
+            self.reference_switched,
+            use_derivative=False,
+            components=['A'],
+            normalize_metrics=False,
+        )
+        metrics_expected = [0, 10]
+        metrics = difference.evaluate(self.reference)
+        np.testing.assert_almost_equal(metrics, metrics_expected)
+
+        # Compare with other Gauss Peak, normalize_metrics
+        difference = ShapeFront(
+            self.reference_switched,
+            use_derivative=False,
+            components=['A'],
+            normalize_metrics=True,
+        )
+        metrics_expected = [0, 4.6211716e-01]
+        metrics = difference.evaluate(self.reference)
+        np.testing.assert_almost_equal(metrics, metrics_expected)
+
+        # Compare with other Gauss Peak, include derivative
+        difference = ShapeFront(
+            self.reference_switched,
+            use_derivative=True,
+            components=['A'],
+            normalize_metrics=False,
+        )
+        metrics_expected = [0, 10, 0]
+        metrics = difference.evaluate(self.reference)
+        np.testing.assert_almost_equal(metrics, metrics_expected)
+
+        # Compare with other Gauss Peak, include derivative, normalize metrics
+        difference = ShapeFront(
+            self.reference_switched,
+            use_derivative=True,
+            components=['A'],
+            normalize_metrics=True,
+        )
+        metrics_expected = [0, 4.6211716e-01, 0]
+        metrics = difference.evaluate(self.reference)
+        np.testing.assert_almost_equal(metrics, metrics_expected)
+
+        # Multi-component, currently not implemented
+        with self.assertRaises(CADETProcessError):
+            difference = ShapeFront(self.reference, use_derivative=False)
+            metrics_expected = [0, 0]
+        with self.assertRaises(CADETProcessError):
+            difference = ShapeFront(self.reference_single)
+            metrics = difference.evaluate(self.reference)
+
+
 from CADETProcess.fractionation import Fraction
 from CADETProcess.reference import FractionationReference
 from CADETProcess.comparison import FractionationSSE

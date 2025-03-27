@@ -1,14 +1,16 @@
 from abc import abstractmethod
 import copy
 from functools import wraps
+from typing import Optional
 
 import numpy as np
+import numpy.typing as npt
 from scipy.integrate import simpson
 from scipy.special import expit
 
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import UnsignedInteger
-from CADETProcess.solution import SolutionIO, slice_solution
+from CADETProcess.solution import SolutionIO, slice_solution, slice_solution_front
 from CADETProcess.metric import MetricBase
 from CADETProcess.reference import ReferenceIO, FractionationReference
 from .shape import pearson, pearson_offset
@@ -21,7 +23,7 @@ __all__ = [
     'SSE', 'RMSE', 'NRMSE',
     'Norm', 'L1', 'L2',
     'AbsoluteArea', 'RelativeArea',
-    'Shape',
+    'Shape', 'ShapeFront',
     'PeakHeight', 'PeakPosition',
     'BreakthroughHeight', 'BreakthroughPosition',
     'FractionationSSE',
@@ -582,6 +584,121 @@ class Shape(DifferenceBase):
             self.reference_der.time,
             self.reference_der.solution_interpolated.solutions[0],
             solution.derivative.solution_interpolated.solutions[0],
+            offset_original,
+        )
+
+        return np.array(
+            [
+                corr, offset,
+                corr_der,
+            ]
+        )
+
+
+class ShapeFront(Shape):
+    """
+    ShapeFront similarity difference metric.
+
+    This class extends the Shape metric by focusing on the front of a peak for
+    similarity calculations.
+
+    Attributes
+    ----------
+    n_metrics : int
+        Number of similarity metrics calculated by the class.
+    labels : list of str
+        List of labels for each similarity metric calculated by the class.
+
+    Notes
+    -----
+    This class is designed for single-component systems with one peak.
+    """
+
+    def __init__(
+            self,
+            *args,
+            min_percent: Optional[float] = 0.02,
+            max_percent: Optional[float] = 0.98,
+            **kwargs
+            ):
+        """
+        Initialize ShapeFront metric.
+
+        Parameters
+        ----------
+        *args :
+            Positional arguments for Shape.
+        **kwargs : dict
+            Keyword arguments for Shape.
+        """
+        super().__init__(*args, **kwargs)
+
+        self.min_percent = min_percent
+        self.max_percent = max_percent
+
+        self.reference_front, idx_min, idx_max = slice_solution_front(
+            self.reference,
+            self.min_percent, self.max_percent,
+            return_indices=True
+        )
+
+        if self.use_derivative:
+            self.reference_der_front = copy.deepcopy(self.reference_der)
+            self.reference_der_front.solution[:] = 0
+            self.reference_der_front.solution[idx_min:idx_max + 1] = \
+                self.reference_der.solution[idx_min:idx_max + 1]
+            self.reference_der_front.update_solution()
+
+    def _evaluate(self, solution):
+        """
+        Evaluate the ShapeFront similarity using Pearson correlation.
+
+        Parameters
+        ----------
+        solution : SolutionIO
+            Concentration profile of simulation.
+
+        Returns
+        -------
+        np.array
+            Array of similarity metrics.
+        """
+        times = solution.time
+
+        solution_front, idx_min, idx_max = slice_solution_front(
+            solution,
+            self.min_percent, self.max_percent,
+            return_indices=True,
+        )
+
+        corr, offset_original = pearson(
+            times,
+            self.reference_front.solution_interpolated.solutions[0],
+            solution_front.solution_interpolated.solutions[0],
+        )
+
+        if self.normalize_metrics:
+            offset = sigmoid_distance(
+                offset_original, target=0, normalization=self.normalization_factor
+            )
+        else:
+            offset = np.abs(offset_original)
+
+        if not self.use_derivative:
+            return np.array([corr, offset])
+
+        solution_der = solution.derivative
+
+        solution_der_front = copy.deepcopy(solution_der)
+        solution_der_front.solution[:] = 0
+        solution_der_front.solution[idx_min:idx_max + 1] = \
+            solution_der.solution[idx_min:idx_max + 1]
+        solution_der_front.update_solution()
+
+        corr_der = pearson_offset(
+            self.reference_der_front.time,
+            self.reference_der_front.solution_interpolated.solutions[0],
+            solution_der_front.solution_interpolated.solutions[0],
             offset_original,
         )
 
