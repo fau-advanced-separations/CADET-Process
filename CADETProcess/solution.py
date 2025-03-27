@@ -1824,6 +1824,7 @@ def slice_solution_front(
         solution_original: SolutionIO,
         min_percent: Optional[float] = 0.02,
         max_percent: Optional[float] = 0.98,
+        use_max_slope: Optional[bool] = False,
         return_indices: Optional[bool] = False,
         ) -> SolutionIO | tuple[SolutionIO, int, int]:
     """
@@ -1853,17 +1854,22 @@ def slice_solution_front(
     # Initialize new sequence with zeros
     solution.solution[:] = 0
 
+    # Determine whether to use derivative array
+    solution_array = solution_original.solution
+    if use_max_slope:
+        solution_array = solution_original.derivative.solution
+
     # Determine the max value and its index
-    max_value = np.max(solution_original.solution)
-    max_index = np.argmax(solution_original.solution)
+    max_value = np.max(solution_array)
+    max_index = np.argmax(solution_array)
 
     # Determine the min and max percent values
     select_min = min_percent * max_value
     select_max = max_percent * max_value
 
     # Find the indices for slicing using logical indexing
-    idx_min = np.where(solution_original.solution[:max_index] <= select_min)[0][-1]
-    idx_max = np.where(solution_original.solution[:max_index] >= select_max)[0][0]
+    idx_min = np.where(solution_array[:max_index] <= select_min)[0][-1]
+    idx_max = np.where(solution_array[:max_index] >= select_max)[0][0]
 
     # Slice the sequence
     solution.solution[idx_min:idx_max + 1] = solution_original.solution[idx_min:idx_max + 1]
