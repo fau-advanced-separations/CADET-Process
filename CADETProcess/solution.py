@@ -24,10 +24,12 @@ Method to slice a Solution:
    :toctree: generated/
 
    slice_solution
+   slice_solution_front
 
 """
 
 import copy
+from typing import Optional
 
 import numpy as np
 from matplotlib.axes import Axes
@@ -57,6 +59,7 @@ __all__ = [
     'SolutionSolid',
     'SolutionVolume',
     'slice_solution',
+    'slice_solution_front',
 ]
 
 
@@ -1815,3 +1818,58 @@ def slice_solution(
     solution.update_solution()
 
     return solution
+
+
+def slice_solution_front(
+        solution_original: SolutionIO,
+        min_percent: Optional[float] = 0.02,
+        max_percent: Optional[float] = 0.98,
+        return_indices: Optional[bool] = False,
+        ) -> SolutionIO | tuple[SolutionIO, int, int]:
+    """
+    Slice the front of a given solution.
+
+    Parameters
+    ----------
+    solution_original : SolutionIO
+        The `Solution` object to slice.
+    min_percent : Optional[float]
+        Minimum percentage of the peak height to consider. Default is 0.02.
+    max_percent : Optional[float]
+        Maximum percentage of the peak height to consider. Default is 0.98.
+    use_max_slope : Optional[bool]
+        If True, cut use the maximum slope as end. Default if False.
+    return_indices : Optional[bool]
+        If True, also return the start end end indices of the front. Default if False.
+
+    Returns
+    -------
+    SolutionIO or tuple[SolutionIO, int, int]
+        The sliced `SolutionIO` object. If `return_indices` is True, also returns the
+        start and end indices of the slice.
+    """
+    solution = copy.deepcopy(solution_original)
+
+    # Initialize new sequence with zeros
+    solution.solution[:] = 0
+
+    # Determine the max value and its index
+    max_value = np.max(solution_original.solution)
+    max_index = np.argmax(solution_original.solution)
+
+    # Determine the min and max percent values
+    select_min = min_percent * max_value
+    select_max = max_percent * max_value
+
+    # Find the indices for slicing using logical indexing
+    idx_min = np.where(solution_original.solution[:max_index] <= select_min)[0][-1]
+    idx_max = np.where(solution_original.solution[:max_index] >= select_max)[0][0]
+
+    # Slice the sequence
+    solution.solution[idx_min:idx_max + 1] = solution_original.solution[idx_min:idx_max + 1]
+    solution.update_solution()
+
+    if not return_indices:
+        return solution
+
+    return solution, idx_min, idx_max
