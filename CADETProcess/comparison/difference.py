@@ -18,15 +18,15 @@ from .peaks import find_peaks, find_breakthroughs
 
 
 __all__ = [
-    'DifferenceBase',
-    'calculate_sse', 'calculate_rmse',
-    'SSE', 'RMSE', 'NRMSE',
-    'Norm', 'L1', 'L2',
-    'AbsoluteArea', 'RelativeArea',
-    'Shape', 'ShapeFront',
-    'PeakHeight', 'PeakPosition',
-    'BreakthroughHeight', 'BreakthroughPosition',
-    'FractionationSSE',
+    "DifferenceBase",
+    "calculate_sse", "calculate_rmse",
+    "SSE", "RMSE", "NRMSE",
+    "Norm", "L1", "L2",
+    "AbsoluteArea", "RelativeArea",
+    "Shape", "ShapeFront",
+    "PeakHeight", "PeakPosition",
+    "BreakthroughHeight", "BreakthroughPosition",
+    "FractionationSSE",
 ]
 
 
@@ -187,7 +187,7 @@ class DifferenceBase(MetricBase):
             self.components,
             self.use_total_concentration,
             self.use_total_concentration_components,
-            coordinates={'time': (self.start, self.end)}
+            coordinates={"time": (self.start, self.end)}
         )
 
         self._reference = reference
@@ -214,7 +214,7 @@ class DifferenceBase(MetricBase):
                     self.components,
                     self.use_total_concentration,
                     self.use_total_concentration_components,
-                    coordinates={'time': (self.start, self.end)}
+                    coordinates={"time": (self.start, self.end)}
                 )
 
             value = func(self, solution, *args, **kwargs)
@@ -545,9 +545,9 @@ class Shape(DifferenceBase):
 
     @property
     def labels(self):
-        labels = ['Pearson Correleation', 'Time offset']
+        labels = ["Pearson Correleation", "Time offset"]
         if self.use_derivative:
-            labels += ['Pearson Correlation Derivative']
+            labels += ["Pearson Correlation Derivative"]
         return labels
 
     def _evaluate(self, solution):
