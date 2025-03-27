@@ -171,12 +171,13 @@ class DifferenceBase(MetricBase):
             )
 
         self._reference = copy.deepcopy(reference)
-        if self.resample and not self._reference.is_resampled:
-            self._reference.resample()
-        if self.normalize and not self._reference.is_normalized:
-            self._reference.normalize()
-        if self.smooth and not self._reference.is_smoothed:
-            self._reference.smooth_data()
+        if self.resample:
+            reference = reference.resample()
+        if self.normalize:
+            reference = reference.normalize()
+        if self.smooth:
+            reference = reference.smooth_data()
+
         reference = slice_solution(
             self._reference,
             self.components,
@@ -224,15 +225,15 @@ class DifferenceBase(MetricBase):
         def wrapper(self, solution, *args, **kwargs):
             solution = copy.deepcopy(solution)
             if self.resample:
-                solution.resample(
-                    self._reference.time[0],
-                    self._reference.time[-1],
-                    len(self._reference.time),
+                solution = solution.resample(
+                    self.reference.time[0],
+                    self.reference.time[-1],
+                    len(self.reference.time),
                 )
-            if self.normalize and not solution.is_normalized:
-                solution.normalize()
-            if self.smooth and not solution.is_smoothed:
-                solution.smooth_data()
+            if self.normalize:
+                solution = solution.normalize()
+            if self.smooth:
+                solution = solution.smooth_data()
 
             value = func(self, solution, *args, **kwargs)
             return value
@@ -746,8 +747,6 @@ class PeakPosition(DifferenceBase):
                 for i in range(self.reference.n_comp)
             ]
 
-        # if normalization_factor is None:
-        #     normalization_factor = self.reference.time[-1]/10
         self.normalization_factor = normalization_factor
 
     @property

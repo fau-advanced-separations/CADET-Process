@@ -148,39 +148,39 @@ class SimulationResults(Structure):
                     ports = ports_cycles
                     for port, cycles in ports.items():
                         solution[unit][sol][port] = copy.deepcopy(cycles[0])
-                        solution_complete = cycles[0].solution_original
+                        solution_complete = cycles[0].solution
                         if solution_complete.ndim > 1:
                             for i in range(1, self.n_cycles):
                                 solution_complete = np.vstack((
-                                    solution_complete, cycles[i].solution_original[1:]
+                                    solution_complete, cycles[i].solution[1:]
                                 ))
                         else:
                             for i in range(1, self.n_cycles):
                                 solution_complete = np.hstack((
-                                    solution_complete, cycles[i].solution_original[1:]
+                                    solution_complete, cycles[i].solution[1:]
                                 ))
 
-                        solution[unit][sol][port].time_original = time_complete
-                        solution[unit][sol][port].solution_original = solution_complete
-                        solution[unit][sol][port].reset()
+                        solution[unit][sol][port].time = time_complete
+                        solution[unit][sol][port].solution = solution_complete
+                        solution[unit][sol][port].update_solution()
                 else:
                     cycles = ports_cycles
                     solution[unit][sol] = copy.deepcopy(cycles[0])
-                    solution_complete = cycles[0].solution_original
+                    solution_complete = cycles[0].solution
                     if solution_complete.ndim > 1:
                         for i in range(1, self.n_cycles):
                             solution_complete = np.vstack((
-                                solution_complete, cycles[i].solution_original[1:]
+                                solution_complete, cycles[i].solution[1:]
                             ))
                     else:
                         for i in range(1, self.n_cycles):
                             solution_complete = np.hstack((
-                                solution_complete, cycles[i].solution_original[1:]
+                                solution_complete, cycles[i].solution[1:]
                             ))
 
-                    solution[unit][sol].time_original = time_complete
-                    solution[unit][sol].solution_original = solution_complete
-                    solution[unit][sol].reset()
+                    solution[unit][sol].time = time_complete
+                    solution[unit][sol].solution = solution_complete
+                    solution[unit][sol].update_solution()
 
         self._solution = solution
 
@@ -205,26 +205,26 @@ class SimulationResults(Structure):
                         for port, cycles in ports.items():
                             sensitivity[sens_name][unit][flow][port] = copy.deepcopy(
                                 cycles[0])
-                            sensitivity_complete = cycles[0].solution_original
+                            sensitivity_complete = cycles[0].solution
                             for i in range(1, self.n_cycles):
                                 sensitivity_complete = np.vstack((
-                                    sensitivity_complete, cycles[i].solution_original[1:]
+                                    sensitivity_complete, cycles[i].solution[1:]
                                 ))
-                            sensitivity[sens_name][unit][flow][port].time_original = time_complete
-                            sensitivity[sens_name][unit][flow][port].solution_original = sensitivity_complete
-                            sensitivity[sens_name][unit][flow][port].reset()
+                            sensitivity[sens_name][unit][flow][port].time = time_complete
+                            sensitivity[sens_name][unit][flow][port].solution = sensitivity_complete
+                            sensitivity[sens_name][unit][flow][port].update_solution()
 
                     else:
                         cycles = ports_cycles
                         sensitivity[sens_name][unit][flow] = copy.deepcopy(cycles[0])
-                        sensitivity_complete = cycles[0].solution_original
+                        sensitivity_complete = cycles[0].solution
                         for i in range(1, self.n_cycles):
                             sensitivity_complete = np.vstack((
-                                sensitivity_complete, cycles[i].solution_original[1:]
+                                sensitivity_complete, cycles[i].solution[1:]
                             ))
-                        sensitivity[sens_name][unit][flow].time_original = time_complete
-                        sensitivity[sens_name][unit][flow].solution_original = sensitivity_complete
-                        sensitivity[sens_name][unit][flow].reset()
+                        sensitivity[sens_name][unit][flow].time = time_complete
+                        sensitivity[sens_name][unit][flow].solution = sensitivity_complete
+                        sensitivity[sens_name][unit][flow].update_solution()
 
         self._sensitivity = sensitivity
 
@@ -247,7 +247,7 @@ class SimulationResults(Structure):
     @property
     def time_cycle(self):
         """np.array: Solution times vector"""
-        return self.solution_cycles[self._first_unit][self._first_solution][0].time_original
+        return self.solution_cycles[self._first_unit][self._first_solution][0].time
 
     @property
     def time_complete(self):

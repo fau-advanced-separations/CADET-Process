@@ -1,3 +1,5 @@
+import copy
+
 import numpy as np
 import scipy.signal
 
@@ -24,13 +26,13 @@ def find_peaks(solution, normalize=True, prominence=0.5, find_minima=False):
         Regardless of normalization, the actual peak height is returned.
 
     """
-    peaks = []
-    if normalize and not solution.is_normalized:
-        normalized = True
-        solution.normalize()
-    else:
-        normalized = False
+    solution_original = solution
+    solution = copy.deepcopy(solution)
 
+    if normalize:
+        solution = solution.normalize()
+
+    peaks = []
     for i in range(solution.component_system.n_comp):
         sol = solution.solution[:, i].copy()
 
@@ -41,15 +43,9 @@ def find_peaks(solution, normalize=True, prominence=0.5, find_minima=False):
         if len(peak_indices) == 0:
             peak_indices = [np.argmax(sol)]
         time = solution.time[peak_indices]
-        peak_heights = solution.solution[peak_indices, i]
-
-        if normalized:
-            peak_heights = solution.transform.untransform(peak_heights)
+        peak_heights = solution_original.solution[peak_indices, i]
 
         peaks.append([(t, h) for t, h in zip(time, peak_heights)])
-
-    if normalized:
-        solution.denormalize()
 
     return peaks
 
@@ -75,13 +71,13 @@ def find_breakthroughs(solution, normalize=True, threshold=0.95):
         Regardless of normalization, the actual breakthroug height is returned.
 
     """
-    breakthrough = []
-    if normalize and not solution.is_normalized:
-        normalized = True
-        solution.normalize()
-    else:
-        normalized = False
+    solution_original = solution
+    solution = copy.deepcopy(solution)
 
+    if normalize:
+        solution = solution.normalize()
+
+    breakthrough = []
     for i in range(solution.component_system.n_comp):
         sol = solution.solution[:, i].copy()
 
@@ -89,14 +85,8 @@ def find_breakthroughs(solution, normalize=True, threshold=0.95):
         if len(breakthrough_indices) == 0:
             breakthrough_indices = [np.argmax(sol)]
         time = solution.time[breakthrough_indices]
-        breakthrough_height = solution.solution[breakthrough_indices, i]
-
-        if solution.is_normalized:
-            breakthrough_height = solution.transform.untransform(breakthrough_height)
+        breakthrough_height = solution_original.solution[breakthrough_indices, i]
 
         breakthrough.append((time, breakthrough_height))
-
-    if normalized:
-        solution.denormalize()
 
     return breakthrough
