@@ -619,15 +619,22 @@ class ShapeFront(Shape):
             *args,
             min_percent: Optional[float] = 0.02,
             max_percent: Optional[float] = 0.98,
+            use_max_slope: Optional[bool] = False,
             **kwargs
-            ):
+            ) -> None:
         """
         Initialize ShapeFront metric.
 
         Parameters
         ----------
-        *args :
+        *args
             Positional arguments for Shape.
+        min_percent : Optional[float], default=0.02
+            The minimum percentage value for the metric.
+        max_percent : Optional[float], default=0.98
+            The maximum percentage value for the metric.
+        use_max_slope : Optional[bool], default=False
+            If True, use the maximum slope in calculations.
         **kwargs : dict
             Keyword arguments for Shape.
         """
@@ -635,10 +642,12 @@ class ShapeFront(Shape):
 
         self.min_percent = min_percent
         self.max_percent = max_percent
+        self.use_max_slope = use_max_slope
 
         self.reference_front, idx_min, idx_max = slice_solution_front(
             self.reference,
             self.min_percent, self.max_percent,
+            use_max_slope=use_max_slope,
             return_indices=True
         )
 
@@ -668,6 +677,7 @@ class ShapeFront(Shape):
         solution_front, idx_min, idx_max = slice_solution_front(
             solution,
             self.min_percent, self.max_percent,
+            use_max_slope=self.use_max_slope,
             return_indices=True,
         )
 

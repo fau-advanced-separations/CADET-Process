@@ -428,6 +428,29 @@ class TestShapeFront(unittest.TestCase):
         metrics = difference.evaluate(self.reference)
         np.testing.assert_almost_equal(metrics, metrics_expected)
 
+        # Use maximum slope
+        difference = ShapeFront(
+            self.reference,
+            use_derivative=False,
+            use_max_slope=True,
+            components=['A'],
+            normalize_metrics=False,
+        )
+        metrics_expected = [0, 0]
+        metrics = difference.evaluate(self.reference)
+        np.testing.assert_almost_equal(metrics, metrics_expected)
+
+        difference = ShapeFront(
+            self.reference_switched,
+            use_derivative=False,
+            use_max_slope=True,
+            components=['A'],
+            normalize_metrics=False,
+        )
+        metrics_expected = [0, 10]
+        metrics = difference.evaluate(self.reference)
+        np.testing.assert_almost_equal(metrics, metrics_expected)
+
         # Multi-component, currently not implemented
         with self.assertRaises(CADETProcessError):
             difference = ShapeFront(self.reference, use_derivative=False)
