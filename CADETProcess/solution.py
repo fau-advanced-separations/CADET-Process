@@ -37,7 +37,7 @@ from scipy import integrate
 
 from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import (
-    String, UnsignedInteger, UnsignedFloat, Vector, SizedNdArray
+    Typed, String, UnsignedInteger, UnsignedFloat, Vector, SizedNdArray
 )
 
 from CADETProcess.processModel import ComponentSystem
@@ -89,6 +89,7 @@ class SolutionBase(Structure):
 
     name = String()
     time = Vector()
+    component_system = Typed(ty=ComponentSystem)
     solution = SizedNdArray(size='solution_shape')
     c_min = UnsignedFloat(default=1e-6)
 
@@ -115,17 +116,6 @@ class SolutionBase(Structure):
     def update_transform(self):
         """Update the transforms."""
         pass
-
-    @property
-    def component_system(self):
-        """ComponentSystem: ComponentSystem of the Solution object."""
-        return self._component_system
-
-    @component_system.setter
-    def component_system(self, component_system):
-        if not isinstance(component_system, ComponentSystem):
-            raise TypeError('Expected ComponentSystem')
-        self._component_system = component_system
 
     @property
     def n_comp(self):
