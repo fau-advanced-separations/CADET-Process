@@ -218,8 +218,8 @@ class DifferenceBase(MetricBase):
 
         return wrapper
 
-    def resamples_smoothes_and_normalizes_solution(func):
-        """Decorator to automatically smooth and normalize solution."""
+    def resamples_normalizes_and_smoothes_solution(func):
+        """Decorator to automatically resample, normalize, and smooth solution."""
         @wraps(func)
         def wrapper(self, solution, *args, **kwargs):
             solution = copy.deepcopy(solution)
@@ -265,7 +265,7 @@ class DifferenceBase(MetricBase):
         """
         return
 
-    @resamples_smoothes_and_normalizes_solution
+    @resamples_normalizes_and_smoothes_solution
     @slices_solution
     @transforms_solution
     @checks_dimensions
@@ -288,7 +288,7 @@ class DifferenceBase(MetricBase):
 
     __call__ = evaluate
 
-    @resamples_smoothes_and_normalizes_solution
+    @resamples_normalizes_and_smoothes_solution
     @slices_solution
     @transforms_solution
     def slice_and_transform(self, solution):
