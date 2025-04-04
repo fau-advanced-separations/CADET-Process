@@ -796,7 +796,7 @@ class Test_OptimizationProblemLinCon(unittest.TestCase):
             self.optimization_problem.add_linear_equality_constraint('var_0', [])
 
     def test_initial_values(self):
-        x0_chebyshev_expected = [1/3, 2/3]
+        x0_chebyshev_expected = [0.29289322, 0.70710678]
         x0_chebyshev = self.optimization_problem.get_chebyshev_center(
             include_dependent_variables=True
         )
@@ -903,13 +903,13 @@ class Test_OptimizationProblemDepVar(unittest.TestCase):
         self.assertEqual(variables_expected, variables)
 
     def test_initial_values_without_dependencies(self):
-        x0_chebyshev_expected = [2/3, 0.5, 1/3]
+        x0_chebyshev_expected = [0.70710678, 0.29289322, 0.29289322]
         x0_chebyshev = self.optimization_problem.get_chebyshev_center(
             include_dependent_variables=False
         )
         np.testing.assert_almost_equal(x0_chebyshev, x0_chebyshev_expected)
 
-        variables_expected = [2/3, 0.5, 0.5, 1/3]
+        variables_expected = [0.70710678, 0.29289322, 0.29289322, 0.29289322]
         variables = self.optimization_problem.get_dependent_values(x0_chebyshev)
         np.testing.assert_almost_equal(variables, variables_expected)
 
@@ -959,13 +959,13 @@ class Test_OptimizationProblemDepVar(unittest.TestCase):
             np.testing.assert_almost_equal(x0_seed_10_random, x0_seed_10_expected)
 
     def test_initial_values(self):
-        x0_chebyshev_expected = [2/3, 0.5, 0.5, 1/3]
+        x0_chebyshev_expected = [0.70710678, 0.29289322, 0.29289322, 0.29289322]
         x0_chebyshev = self.optimization_problem.get_chebyshev_center(
             include_dependent_variables=True
         )
         np.testing.assert_almost_equal(x0_chebyshev, x0_chebyshev_expected)
 
-        independent_variables_expected = [2/3, 0.5, 1/3]
+        independent_variables_expected = [0.70710678, 0.29289322, 0.29289322]
         independent_variables = self.optimization_problem.get_independent_values(x0_chebyshev)
         np.testing.assert_almost_equal(independent_variables, independent_variables_expected)
 
