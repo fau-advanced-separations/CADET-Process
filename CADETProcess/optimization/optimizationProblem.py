@@ -2897,7 +2897,7 @@ class OptimizationProblem(Structure):
 
     def get_chebyshev_center(
             self,
-            include_dependent_variables: Optional[bool] = True
+            include_dependent_variables: Optional[bool] = True,
             ) -> list[float]:
         """Compute chebychev center.
 
@@ -2906,7 +2906,7 @@ class OptimizationProblem(Structure):
 
         Parameters
         ----------
-        include_dependent_variables : bool, optional
+        include_dependent_variables : Optional[bool], default=True
             If True, include dependent variables in population.
 
         Returns
@@ -2917,8 +2917,6 @@ class OptimizationProblem(Structure):
         problem = self.create_hopsy_problem(
             include_dependent_variables=False, simplify=False, use_custom_model=True
         )
-
-        problem = hopsy.round(problem, simplify=False)
 
         chebyshev = hopsy.compute_chebyshev_center(
             problem, original_space=True
