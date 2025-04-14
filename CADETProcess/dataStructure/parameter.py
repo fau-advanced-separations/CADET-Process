@@ -663,6 +663,120 @@ class Callable(ParameterBase):
             super()._check(instance, value, recursive)
 
 
+# Also check dtype
+class TypedList(List, Typed):
+    """Parameter descriptor for lists with elements of e specific dtype."""
+
+    ty = list
+
+    def __init__(self, *args, dtype=None, **kwargs):
+        """
+        Initialize a Typed instance.
+
+        Parameters
+        ----------
+        *args : Any
+            Variable length argument list.
+        ty : type, optional
+            The desired type for the parameter.
+        **kwargs : Any
+            Arbitrary keyword arguments.
+        """
+        if dtype is not None:
+            self.dtype = dtype
+        elif not hasattr(self, 'dtype'):
+            raise ValueError(
+                "dtype must be provided either in a subclass or during instantiation."
+            )
+
+        super().__init__(*args, **kwargs)
+
+    def _prepare(self, instance, value, recursive=False):
+        """
+        Prepare and optionally cast the array dtype.
+
+        This method is called before `_check` to provide an opportunity to
+        process or type-cast the value. By default, it uses the `cast_value`
+        method to attempt casting the value to the desired type.
+
+        Parameters
+        ----------
+        instance : Any
+            The instance to which this descriptor belongs.
+        value : Any
+            The value to be prepared or type-cast.
+        recursive : bool, optional
+            If True, the preparation is done recursively by calling the parent's
+            _prepare method. This can be useful if `Typed` is combined with other
+            descriptor classes that might also need to process the value.
+            Defaults to False.
+
+        Returns
+        -------
+        Any
+            The potentially type-cast value, ready for type validation.
+        """
+        try:
+            value = np.array(value, dtype=self.dtype).tolist()
+        except ValueError:
+            raise ValueError(
+                f"could not convert elements to {self.dtype}"
+            )
+
+        if recursive:
+            value = super()._prepare(instance, value, recursive)
+
+        return value
+
+    def check_dtype(self, value):
+        """
+        Validate if the dtype of values is correct.
+
+        Parameters
+        ----------
+        value : Any
+            Value to check against the range.
+
+        Raises
+        ------
+        TypeError
+            If the dtype is not correct.
+        """
+        value_array = np.array(value)
+
+        if value_array.dtype != self.dtype:
+            raise ValueError(
+                f"Value entries must be of type {self.dtype}"
+            )
+
+    def _check(self, instance, value, recursive=False):
+        """
+        Validate the value against the range.
+
+        Parameters
+        ----------
+        instance : Any
+            Instance to retrieve the descriptor value for.
+        value : Any
+            Value to check.
+        recursive : bool, optional
+            If True, perform the check recursively. Defaults to False.
+
+        """
+        self.check_dtype(value)
+
+        if recursive:
+            super()._check(instance, value, recursive)
+
+
+class IntegerList(TypedList):
+    dtype = int
+
+
+class FloatList(TypedList):
+    dtype = float
+
+
 # %% Ranged Parameters
 
 class Ranged(ParameterBase):
@@ -1208,7 +1322,7 @@ class SizedNdArray(NdArray, Sized):
         return value
 
 
-class SizedRangedList(RangedList, Sized):
+class SizedRangedList(RangedList, SizedList):
     """Descriptor for ranged lists whose size depends on other instance attributes."""
 
     pass
@@ -1226,14 +1340,20 @@ class SizedUnsignedNdArray(UnsignedNdArray, SizedNdArray):
     pass
 
 
-# Also check content type
-class SizedRangedIntegerList(RangedList, Integer, Sized):
+# Also check dtype
+class SizedFloatList(FloatList, SizedList):
+    """Descriptor for lists of floats whose size depends on other instance attributes."""
+
+    pass
+
+
+class SizedRangedIntegerList(RangedList, IntegerList, SizedList):
     """Descriptor for ranged lists of integers whose size depends on other instance attributes."""
 
     pass
 
 
-class SizedUnsignedIntegerList(UnsignedList, Integer, Sized):
+class SizedUnsignedIntegerList(UnsignedList, IntegerList, SizedList):
     """Descriptor for unsigned lists of integers whose size depends on other instance attributes."""
 
     pass
