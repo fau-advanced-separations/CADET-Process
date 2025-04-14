@@ -12,7 +12,7 @@ from CADETProcess.dataStructure import (
     Constant, UnsignedFloat, UnsignedInteger,
     String, Switch,
     SizedUnsignedList,
-    Polynomial, NdPolynomial, SizedList, SizedNdArray
+    Polynomial, NdPolynomial, SizedFloatList, SizedNdArray
 )
 
 from .componentSystem import ComponentSystem
@@ -475,7 +475,7 @@ class TubularReactorBase(UnitBaseClass):
     diameter = UnsignedFloat()
     axial_dispersion = SizedUnsignedList(size='n_comp')
     flow_direction = Switch(valid=[-1, 1], default=1)
-    c = SizedList(size='n_comp', default=0)
+    c = SizedFloatList(size='n_comp', default=0)
 
     _initial_state = UnitBaseClass._initial_state + ['c']
     _parameters = ['length', 'diameter', 'axial_dispersion', 'flow_direction'] \
@@ -1167,7 +1167,7 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         SourceMixin._section_dependent_parameters + \
         ['flow_rate_filter']
 
-    c = SizedList(size='n_comp', default=0)
+    c = SizedFloatList(size='n_comp', default=0)
     _q = SizedUnsignedList(size='n_bound_states', default=0)
     init_liquid_volume = UnsignedFloat()
     const_solid_volume = UnsignedFloat(default=0)
@@ -1296,7 +1296,7 @@ class MCT(UnitBaseClass):
     discretization_schemes = (MCTDiscretizationFV)
 
     length = UnsignedFloat()
-    channel_cross_section_areas = SizedList(size='nchannel')
+    channel_cross_section_areas = SizedFloatList(size='nchannel')
     axial_dispersion = SizedUnsignedList(size=('n_comp', 'nchannel'))
     flow_direction = Switch(valid=[-1, 1], default=1)
     nchannel = UnsignedInteger()
