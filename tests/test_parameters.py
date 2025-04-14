@@ -6,6 +6,7 @@ from CADETProcess.dataStructure import (
     Structure,
     Constant, Switch,
     Typed, Integer, Float, String, List,
+    IntegerList, FloatList,
     Callable,
     RangedFloat, UnsignedInteger,
     SizedList, SizedNdArray,
@@ -13,7 +14,7 @@ from CADETProcess.dataStructure import (
     Polynomial, NdPolynomial,
     Vector, Matrix,
     DependentlyModulatedUnsignedList,
-    Aggregator, SizedAggregator, SizedClassDependentAggregator,
+    Aggregator, SizedAggregator,
 )
 
 
@@ -209,6 +210,26 @@ class TestCallable(unittest.TestCase):
     def test_default(self):
         assert (callable(self.model.method_default))
         self.assertEqual(self.model.method_default(2), 2)
+
+
+class TestDtype(unittest.TestCase):
+    def setUp(self):
+        class Model(Structure):
+            integer_list_param = IntegerList()
+            float_list_param = FloatList()
+
+        self.model = Model()
+        self.model_other = Model()
+
+    def test_values(self):
+        self.model.integer_list_param = [1, 2]
+        self.assertEqual(self.model.integer_list_param, [1, 2])
+
+        with self.assertRaises(ValueError):
+            self.model.integer_list_param = [1, 'foo']
+
+        self.model.float_list_param = [1., 2]
+        self.assertEqual(self.model.float_list_param, [1., 2.])
 
 
 class TestRanged(unittest.TestCase):
