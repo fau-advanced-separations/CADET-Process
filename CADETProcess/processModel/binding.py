@@ -8,7 +8,7 @@ from CADETProcess.dataStructure import frozen_attributes
 from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import (
     Bool, String,
-    RangedInteger, UnsignedInteger, UnsignedFloat, SizedList,
+    RangedInteger, UnsignedInteger, UnsignedFloat, SizedFloatList,
     SizedRangedIntegerList, SizedUnsignedIntegerList,
     SizedUnsignedList,
     DependentlyModulatedUnsignedList
@@ -451,7 +451,7 @@ class AntiLangmuir(BindingBaseClass):
     adsorption_rate = SizedUnsignedList(size='n_comp')
     desorption_rate = SizedUnsignedList(size='n_comp')
     capacity = SizedUnsignedList(size='n_comp')
-    antilangmuir = SizedList(size='n_comp')
+    antilangmuir = SizedFloatList(size='n_comp')
 
     _parameters = [
         'adsorption_rate',
@@ -527,7 +527,7 @@ class MobilePhaseModulator(BindingBaseClass):
     capacity = SizedUnsignedList(size='n_comp')
     ion_exchange_characteristic = SizedUnsignedList(size='n_comp')
     beta = ion_exchange_characteristic
-    hydrophobicity = SizedList(size='n_comp')
+    hydrophobicity = SizedFloatList(size='n_comp')
     gamma = hydrophobicity
     linear_threshold = UnsignedFloat(default=1e-8)
 
@@ -572,7 +572,7 @@ class ExtendedMobilePhaseModulator(BindingBaseClass):
     capacity = SizedUnsignedList(size='n_comp')
     ion_exchange_characteristic = SizedUnsignedList(size='n_comp')
     beta = ion_exchange_characteristic
-    hydrophobicity = SizedList(size='n_comp')
+    hydrophobicity = SizedFloatList(size='n_comp')
     gamma = hydrophobicity
     component_mode = SizedUnsignedIntegerList(size='n_comp', ub=2)
 
@@ -970,25 +970,25 @@ class GeneralizedIonExchange(BindingBaseClass):
 
     non_binding_component_indices = [1]
 
-    adsorption_rate = SizedList(size='n_comp')
-    adsorption_rate_linear = SizedList(size='n_comp')
-    adsorption_rate_quadratic = SizedList(size='n_comp', default=0)
-    adsorption_rate_cubic = SizedList(size='n_comp', default=0)
-    adsorption_rate_salt = SizedList(size='n_comp', default=0)
-    adsorption_rate_protein = SizedList(size='n_comp', default=0)
-    desorption_rate = SizedList(size='n_comp')
-    desorption_rate_linear = SizedList(size='n_comp', default=0)
-    desorption_rate_quadratic = SizedList(size='n_comp', default=0)
-    desorption_rate_cubic = SizedList(size='n_comp', default=0)
-    desorption_rate_salt = SizedList(size='n_comp', default=0)
-    desorption_rate_protein = SizedList(size='n_comp', default=0)
+    adsorption_rate = SizedFloatList(size='n_comp')
+    adsorption_rate_linear = SizedFloatList(size='n_comp')
+    adsorption_rate_quadratic = SizedFloatList(size='n_comp', default=0)
+    adsorption_rate_cubic = SizedFloatList(size='n_comp', default=0)
+    adsorption_rate_salt = SizedFloatList(size='n_comp', default=0)
+    adsorption_rate_protein = SizedFloatList(size='n_comp', default=0)
+    desorption_rate = SizedFloatList(size='n_comp')
+    desorption_rate_linear = SizedFloatList(size='n_comp', default=0)
+    desorption_rate_quadratic = SizedFloatList(size='n_comp', default=0)
+    desorption_rate_cubic = SizedFloatList(size='n_comp', default=0)
+    desorption_rate_salt = SizedFloatList(size='n_comp', default=0)
+    desorption_rate_protein = SizedFloatList(size='n_comp', default=0)
     characteristic_charge_breaks = DependentlyModulatedUnsignedList(
         size='n_comp', is_optional=True
     )
-    characteristic_charge = SizedList(size=('n_pieces', 'n_comp'),)
-    characteristic_charge_linear = SizedList(size=('n_pieces', 'n_comp'), default=0)
-    characteristic_charge_quadratic = SizedList(size=('n_pieces', 'n_comp'), default=0)
-    characteristic_charge_cubic = SizedList(size=('n_pieces', 'n_comp'), default=0)
+    characteristic_charge = SizedFloatList(size=('n_pieces', 'n_comp'),)
+    characteristic_charge_linear = SizedFloatList(size=('n_pieces', 'n_comp'), default=0)
+    characteristic_charge_quadratic = SizedFloatList(size=('n_pieces', 'n_comp'), default=0)
+    characteristic_charge_cubic = SizedFloatList(size=('n_pieces', 'n_comp'), default=0)
     steric_factor = SizedUnsignedList(size='n_comp')
     capacity = UnsignedFloat()
     reference_liquid_phase_conc = UnsignedFloat(default=1)
@@ -1052,10 +1052,10 @@ class HICConstantWaterActivity(BindingBaseClass):
 
     """
 
-    adsorption_rate = SizedList(size='n_comp')
-    desorption_rate = SizedList(size='n_comp')
-    capacity = SizedList(size='n_comp')
-    hic_characteristic = SizedList(size='n_comp')
+    adsorption_rate = SizedFloatList(size='n_comp')
+    desorption_rate = SizedFloatList(size='n_comp')
+    capacity = SizedFloatList(size='n_comp')
+    hic_characteristic = SizedFloatList(size='n_comp')
 
     beta_0 = UnsignedFloat()
     beta_1 = UnsignedFloat()
@@ -1092,10 +1092,10 @@ class HICWaterOnHydrophobicSurfaces(BindingBaseClass):
 
     """
 
-    adsorption_rate = SizedList(size='n_comp')
-    desorption_rate = SizedList(size='n_comp')
-    capacity = SizedList(size='n_comp')
-    hic_characteristic = SizedList(size='n_comp')
+    adsorption_rate = SizedFloatList(size='n_comp')
+    desorption_rate = SizedFloatList(size='n_comp')
+    capacity = SizedFloatList(size='n_comp')
+    hic_characteristic = SizedFloatList(size='n_comp')
 
     beta_0 = UnsignedFloat()
     beta_1 = UnsignedFloat()
@@ -1165,18 +1165,18 @@ class MultiComponentColloidal(BindingBaseClass):
     kappa_factor = UnsignedFloat()
     kappa_constant = UnsignedFloat()
     coordination_number = UnsignedInteger()
-    logkeq_ph_exponent = SizedList(size='n_comp')
-    logkeq_power_exponent = SizedList(size='n_comp')
-    logkeq_power_factor = SizedList(size='n_comp')
-    logkeq_exponent_factor = SizedList(size='n_comp')
-    logkeq_exponent_multiplier = SizedList(size='n_comp')
-    bpp_ph_exponent = SizedList(size='n_comp')
-    bpp_power_exponent = SizedList(size='n_comp')
-    bpp_power_factor = SizedList(size='n_comp')
-    bpp_exponent_factor = SizedList(size='n_comp')
-    bpp_exponent_multiplier = SizedList(size='n_comp')
-    protein_radius = SizedList(size='n_comp')
-    kinetic_rate_constant = SizedList(size='n_comp')
+    logkeq_ph_exponent = SizedFloatList(size='n_comp')
+    logkeq_power_exponent = SizedFloatList(size='n_comp')
+    logkeq_power_factor = SizedFloatList(size='n_comp')
+    logkeq_exponent_factor = SizedFloatList(size='n_comp')
+    logkeq_exponent_multiplier = SizedFloatList(size='n_comp')
+    bpp_ph_exponent = SizedFloatList(size='n_comp')
+    bpp_power_exponent = SizedFloatList(size='n_comp')
+    bpp_power_factor = SizedFloatList(size='n_comp')
+    bpp_exponent_factor = SizedFloatList(size='n_comp')
+    bpp_exponent_multiplier = SizedFloatList(size='n_comp')
+    protein_radius = SizedFloatList(size='n_comp')
+    kinetic_rate_constant = SizedFloatList(size='n_comp')
     linear_threshold = UnsignedFloat(default=1e-8)
     use_ph = Bool(default=False)
 

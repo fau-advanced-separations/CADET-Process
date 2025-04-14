@@ -10,7 +10,7 @@ from CADETProcess.dataStructure import (
     Aggregator, SizedAggregator, SizedClassDependentAggregator,
 )
 from CADETProcess.dataStructure import (
-    Bool, String, SizedList, SizedNdArray, UnsignedInteger, UnsignedFloat
+    Bool, String, SizedNdArray, UnsignedInteger, UnsignedFloat
 )
 
 from CADETProcess.dataStructure import deprecated_alias
