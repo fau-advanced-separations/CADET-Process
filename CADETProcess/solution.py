@@ -2056,17 +2056,26 @@ def slice_solution(
                 continue
             if dim in coordinates:
                 sl = list(coordinates.pop(dim))
+
+                # Update slice bounds if they are None
                 if sl[0] is None:
                     sl[0] = coord[0]
                 if sl[1] is None:
                     sl[1] = coord[-1]
-                if not coord[0] <= sl[0] <= sl[1] <= coord[-1]:
+
+                # Check bounds
+                if not (coord[0] <= sl[0] <= sl[1] <= coord[-1]):
                     raise ValueError(f"{dim} coordinates exceed bounds.")
-                start_index = np.where(coord >= sl[0])[0][0]
-                if sl[1] is not None:
-                    end_index = np.where(coord >= sl[1])[0][0] + 1
-                else:
-                    end_index = None
+
+                # Calculate start and end indices using searchsorted
+                start_index = np.searchsorted(coord, sl[0], side="right") - 1
+                end_index = np.searchsorted(coord, sl[1], side="left") + 1
+
+                # Ensure only a single entry is returned if start and end elements are the same
+                if sl[0] == sl[1]:
+                    end_index = start_index + 1
+
+                # Create slice and update solution
                 sl = slice(start_index, end_index)
                 slices += (sl,)
                 setattr(solution, dim, coord[sl])
