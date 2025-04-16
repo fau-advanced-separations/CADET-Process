@@ -65,8 +65,8 @@ class FractionationOptimizer:
         if optimizer is None:
             optimizer = COBYLA()
             optimizer.tol = 1e-4
-            optimizer.catol = 5e-3
-            optimizer.rhobeg = 1e-3
+            optimizer.catol = 1e-4
+            optimizer.rhobeg = 1e-4
 
         self.optimizer = optimizer
         self.log_level = log_level
