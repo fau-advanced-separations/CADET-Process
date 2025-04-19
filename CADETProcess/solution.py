@@ -1021,6 +1021,7 @@ class SolutionBulk(SolutionBase):
 
         return ax
 
+    @plotting.create_and_save_figure
     def plot_at_position(
             self,
             z: float,
