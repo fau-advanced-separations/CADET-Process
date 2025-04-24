@@ -1034,7 +1034,7 @@ class OptimizationProblem(Structure):
             warnings.warn("Objective with same name already exists.")
 
         if bad_metrics is None and isinstance(objective, MetricBase):
-            bad_metrics = n_objectives * objective.bad_metrics
+            bad_metrics = objective.bad_metrics
 
         if evaluation_objects is None:
             evaluation_objects = []
