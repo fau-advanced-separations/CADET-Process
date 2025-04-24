@@ -53,6 +53,7 @@ docs = [
     "sphinx_book_theme>=1.0.0",
     "sphinx_copybutton>=0.5.1",
     "sphinx-sitemap>=2.5.0",
+    "cadet-rdm>=0.1.0",
 ]
 ax = [
     "ax-platform >=0.3.5"

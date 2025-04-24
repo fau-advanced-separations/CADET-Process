@@ -19,3 +19,12 @@ The output is in the `build` directory and can be opened with any browser.
 To build the documentation for all releases and the master branch, run:
 
 This documentation is published under https://readthedocs.org/projects/cadet-process/
+
+
+If things throw unexpected errors, run:
+
+```
+git clean -Xdf
+```
+
+To change which examples are included in the documentation, change the list `studies = []` in `conf.py`.
