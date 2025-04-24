@@ -237,6 +237,7 @@ class PerformanceIndicator(MetricBase):
     --------
     RankedPerformance
     """
+    _bad_metrics = 0
 
     def __init__(self, ranking=None):
         """Initialize PerformanceIndicator.
@@ -258,7 +259,7 @@ class PerformanceIndicator(MetricBase):
 
     @property
     def bad_metrics(self):
-        return 0
+        return self._bad_metrics
 
     def evaluate(self, performance):
         """Evaluate the performance indicator for the given performance data.
@@ -346,6 +347,7 @@ class EluentConsumption(PerformanceIndicator):
     PerformanceIndicator
 
     """
+    _bad_metrics = np.inf
 
     def _evaluate(self, performance):
         return performance.eluent_consumption
