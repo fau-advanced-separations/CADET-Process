@@ -1,7 +1,9 @@
 import copy
 from functools import wraps
+import hashlib
 import inspect
 import math
+import os
 from pathlib import Path
 import random
 import shutil
@@ -15,6 +17,7 @@ import numpy as np
 import numpy.typing as npt
 
 from CADETProcess import CADETProcessError
+from CADETProcess.hashing import digest_string
 from CADETProcess import log
 from CADETProcess import settings
 
@@ -2759,7 +2762,13 @@ class OptimizationProblem(Structure):
     def cache_directory(self):
         """pathlib.Path: Path for results cache database."""
         if self._cache_directory is None:
-            _cache_directory = settings.working_directory / f'diskcache_{self.name}'
+            if 'XDG_CACHE_HOME' in os.environ:
+                _cache_directory = (
+                    Path(os.environ['XDG_CACHE_HOME']) / 'CADET-Process' /
+                    digest_string(settings.working_directory) / f'diskcache_{self.name}'
+                )
+            else:
+                _cache_directory = settings.working_directory / f'diskcache_{self.name}'
         else:
             _cache_directory = Path(self._cache_directory).absolute()
 
