@@ -13,7 +13,7 @@ This module provides functionality for general settings.
     Settings
 
 """
-
+import os
 from pathlib import Path
 import shutil
 import tempfile
@@ -120,7 +120,10 @@ class Settings(Structure):
     def temp_dir(self):
         """pathlib.Path: Directory for temporary files."""
         if self._temp_dir is None:
-            _temp_dir = self.working_directory / 'tmp'
+            if 'XDG_RUNTIME_DIR' in os.environ:
+                _temp_dir = Path(os.environ['XDG_RUNTIME_DIR']) / 'CADET-Process'
+            else:
+                _temp_dir = self.working_directory / 'tmp'
         else:
             _temp_dir = Path(self._temp_dir).absolute()
 
