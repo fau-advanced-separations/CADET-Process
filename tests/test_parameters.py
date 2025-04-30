@@ -1,93 +1,101 @@
 import unittest
 
 import numpy as np
-
 from CADETProcess.dataStructure import (
-    Structure,
-    Constant, Switch,
-    Typed, Integer, Float, String, List,
-    IntegerList, FloatList,
+    Aggregator,
     Callable,
-    RangedFloat, UnsignedInteger,
-    SizedList, SizedNdArray,
-    SizedUnsignedList, SizedUnsignedNdArray,
-    Polynomial, NdPolynomial,
-    Vector, Matrix,
+    Constant,
     DependentlyModulatedUnsignedList,
-    Aggregator, SizedAggregator,
+    Float,
+    FloatList,
+    Integer,
+    IntegerList,
+    List,
+    Matrix,
+    NdPolynomial,
+    Polynomial,
+    RangedFloat,
+    SizedAggregator,
+    SizedList,
+    SizedNdArray,
+    SizedUnsignedList,
+    SizedUnsignedNdArray,
+    String,
+    Structure,
+    Switch,
+    Typed,
+    UnsignedInteger,
+    Vector,
 )
 
 
 class TestDescription(unittest.TestCase):
-
     def setUp(self):
         class Model(Structure):
-            param_with_description = Integer(description='foo')
+            param_with_description = Integer(description="foo")
 
         self.model = Model()
 
     def test_description(self):
-        self.assertEqual(type(self.model).param_with_description.description, 'foo')
+        self.assertEqual(type(self.model).param_with_description.description, "foo")
 
     def test_modified_descriptor(self):
-        type(self.model).param_with_description.description = 'bar'
-        self.assertEqual(type(self.model).param_with_description.description, 'bar')
+        type(self.model).param_with_description.description = "bar"
+        self.assertEqual(type(self.model).param_with_description.description, "bar")
 
 
 class TestParameterDictionaries(unittest.TestCase):
-
     def setUp(self):
         class Model(Structure):
             param = Integer()
             param_default = Integer(default=1)
             no_param = None
 
-            _parameters = ['param', 'param_default']
+            _parameters = ["param", "param_default"]
 
         self.model = Model()
 
     def test_parameters_dict_getter(self):
         np.testing.assert_equal(
-            self.model._parameters_dict, {'param': None, 'param_default': 1}
+            self.model._parameters_dict, {"param": None, "param_default": 1}
         )
 
         self.model.param = 1
         np.testing.assert_equal(
-            self.model._parameters_dict, {'param': 1, 'param_default': 1}
+            self.model._parameters_dict, {"param": 1, "param_default": 1}
         )
 
         self.model.param = None
         np.testing.assert_equal(
-            self.model._parameters_dict, {'param': None, 'param_default': 1}
+            self.model._parameters_dict, {"param": None, "param_default": 1}
         )
 
         self.model.param_default = 2
         np.testing.assert_equal(
-            self.model._parameters_dict, {'param': None, 'param_default': 2}
+            self.model._parameters_dict, {"param": None, "param_default": 2}
         )
 
         self.model.param_default = None
         np.testing.assert_equal(
-            self.model._parameters_dict, {'param': None, 'param_default': 1}
+            self.model._parameters_dict, {"param": None, "param_default": 1}
         )
 
     def test_parameters_dict_setter(self):
-        self.model.parameters = {'param': 1, 'param_default': 2}
+        self.model.parameters = {"param": 1, "param_default": 2}
         np.testing.assert_equal(
-            self.model._parameters_dict, {'param': 1, 'param_default': 2}
+            self.model._parameters_dict, {"param": 1, "param_default": 2}
         )
 
-        self.model.parameters = {'param': 2}
+        self.model.parameters = {"param": 2}
         np.testing.assert_equal(
-            self.model._parameters_dict, {'param': 2, 'param_default': 2}
+            self.model._parameters_dict, {"param": 2, "param_default": 2}
         )
 
         with self.assertRaises(ValueError):
-            self.model.parameters = {'not_a_valid_param': 1}
+            self.model.parameters = {"not_a_valid_param": 1}
 
 
 class TestConstant(unittest.TestCase):
-
     def setUp(self):
         class Model(Structure):
             const_int = Constant(value=0)
@@ -108,38 +116,38 @@ class TestConstant(unittest.TestCase):
 
     def test_error_when_no_value(self):
         with self.assertRaises(TypeError):
+
             class NoValue(Structure):
                 const = Constant()
 
 
 class TestSwitch(unittest.TestCase):
-
     def setUp(self):
         class Model(Structure):
-            switch = Switch(valid=['foo', 'bar'], default='foo')
+            switch = Switch(valid=["foo", "bar"], default="foo")
 
         self.model = Model()
 
     def test_value(self):
-        self.model.switch = 'bar'
-        self.assertEqual(self.model.switch, 'bar')
+        self.model.switch = "bar"
+        self.assertEqual(self.model.switch, "bar")
 
         with self.assertRaises(ValueError):
-            self.model.switch = 'spam'
+            self.model.switch = "spam"
 
     def test_default(self):
-        self.assertEqual(self.model.switch, 'foo')
+        self.assertEqual(self.model.switch, "foo")
 
         with self.assertRaises(ValueError):
+
             class InvalidDefault(Structure):
-                switch = Switch(valid=['foo', 'bar'], default='spam')
+                switch = Switch(valid=["foo", "bar"], default="spam")
 
 
 class TestTyped(unittest.TestCase):
-
     def setUp(self):
         class Model(Structure):
-            string_param = String(default='foo')
+            string_param = String(default="foo")
             list_param = List(default=[1, 2])
             dynamic_type_param = Typed(ty=list, default=[0, 1])
 
@@ -147,14 +155,21 @@ class TestTyped(unittest.TestCase):
         self.model_other = Model()
 
     def test_values(self):
-        self.model.string_param = 'string_param'
-        self.assertEqual(self.model.string_param, 'string_param')
+        self.model.string_param = "string_param"
+        self.assertEqual(self.model.string_param, "string_param")
 
         with self.assertRaises(TypeError):
             self.model.string_param = 0
 
-        self.model.list_param = [0,]
-        self.assertEqual(self.model.list_param, [0,])
+        self.model.list_param = [
+            0,
+        ]
+        self.assertEqual(
+            self.model.list_param,
+            [
+                0,
+            ],
+        )
 
         with self.assertRaises(TypeError):
             self.model.list_param = 0
@@ -164,7 +179,7 @@ class TestTyped(unittest.TestCase):
             self.model.dynamic_type_param = 0
 
     def test_default(self):
-        self.assertEqual(self.model.string_param, 'foo')
+        self.assertEqual(self.model.string_param, "foo")
         self.assertEqual(self.model.list_param, [1, 2])
         self.assertEqual(self.model.dynamic_type_param, [0, 1])
 
@@ -172,10 +187,12 @@ class TestTyped(unittest.TestCase):
         self.assertFalse(self.model.dynamic_type_param is self.model_other.list_param)
 
         with self.assertRaises(TypeError):
+
             class WrongDefaultType(Structure):
-                param_1 = List(default='string')
+                param_1 = List(default="string")
 
         with self.assertRaises(TypeError):
+
             class WrongDefaultType(Structure):
                 param_1 = List(default=1)
 
@@ -184,7 +201,6 @@ class TestTyped(unittest.TestCase):
 
 
 class TestCallable(unittest.TestCase):
-
     def setUp(self):
         def default_method(x):
             return x
@@ -197,10 +213,10 @@ class TestCallable(unittest.TestCase):
 
     def test_values(self):
         def method(x):
-            return 2*x
+            return 2 * x
 
         self.model.method = method
-        assert (callable(self.model.method))
+        assert callable(self.model.method)
 
         self.assertEqual(self.model.method(2), 4)
 
@@ -208,7 +224,7 @@ class TestCallable(unittest.TestCase):
             self.model.method = 2
 
     def test_default(self):
-        assert (callable(self.model.method_default))
+        assert callable(self.model.method_default)
         self.assertEqual(self.model.method_default(2), 2)
 
 
@@ -226,14 +242,13 @@ class TestDtype(unittest.TestCase):
         self.assertEqual(self.model.integer_list_param, [1, 2])
 
         with self.assertRaises(ValueError):
-            self.model.integer_list_param = [1, 'foo']
+            self.model.integer_list_param = [1, "foo"]
 
-        self.model.float_list_param = [1., 2]
-        self.assertEqual(self.model.float_list_param, [1., 2.])
+        self.model.float_list_param = [1.0, 2]
+        self.assertEqual(self.model.float_list_param, [1.0, 2.0])
 
 
 class TestRanged(unittest.TestCase):
-
     def setUp(self):
         class Model(Structure):
             bound_float_param = RangedFloat(lb=-1, ub=1, default=0)
@@ -260,12 +275,12 @@ class TestRanged(unittest.TestCase):
         self.assertEqual(self.model.unsigned_integer_param, 1)
 
         with self.assertRaises(ValueError):
+
             class InvalidDefault(Structure):
                 param_1 = UnsignedInteger(default=-1)
 
 
 class TestSizedUnified(unittest.TestCase):
-
     def setUp(self):
         class Model(Structure):
             sized_list = SizedList(size=4, default=0)
@@ -315,20 +330,20 @@ class TestSizedUnified(unittest.TestCase):
         )
 
         # Full default
-        ## List
-        np.testing.assert_equal(
-            self.model.sized_list_full_default, [1, 2, 3, 4]
-        )
+        # List
+        np.testing.assert_equal(self.model.sized_list_full_default, [1, 2, 3, 4])
 
         with self.assertRaises(ValueError):
+
             class InvalidDefaultSize(Structure):
                 param_1 = SizedList(size=4, default=[1, 2, 3])
 
-        ## Array
+        # Array
         np.testing.assert_equal(
             self.model.sized_array_full_default, [[1, 2, 3, 4], [5, 6, 7, 8]]
         )
         with self.assertRaises(ValueError):
+
             class InvalidDefaultSize(Structure):
                 param_1 = SizedNdArray(
                     size=(4, 2), default=[[1, 2, 3, 4], [5, 6, 7, 8], [10, 11, 12, 13]]
@@ -336,6 +351,7 @@ class TestSizedUnified(unittest.TestCase):
 
         # Invalid range
         with self.assertRaises(ValueError):
+
             class InvalidDefaultRange(Structure):
                 param_1 = SizedUnsignedList(size=4, default=-1)
 
@@ -348,25 +364,19 @@ class TestSizedDependent(unittest.TestCase):
             dep_1 = UnsignedInteger()
             dep_2 = UnsignedInteger(default=3)
 
-            list_single_dep_param = SizedUnsignedList(
-                size='dep_1', default=1
-            )
-            array_single_dep_param = SizedUnsignedNdArray(
-                size='dep_1', default=1
-            )
+            list_single_dep_param = SizedUnsignedList(size="dep_1", default=1)
+            array_single_dep_param = SizedUnsignedNdArray(size="dep_1", default=1)
 
             list_double_dep_param = SizedUnsignedList(
-                size=('dep_1', 'dep_2'), default=1
+                size=("dep_1", "dep_2"), default=1
             )
             array_double_dep_param = SizedUnsignedNdArray(
-                size=('dep_1', 'dep_2'), default=1
+                size=("dep_1", "dep_2"), default=1
             )
 
-            list_double_dep_with_int = SizedUnsignedList(
-                size=('dep_1', 2), default=2
-            )
+            list_double_dep_with_int = SizedUnsignedList(size=("dep_1", 2), default=2)
             array_double_dep_with_int = SizedUnsignedNdArray(
-                size=('dep_1', 2), default=2
+                size=("dep_1", 2), default=2
             )
 
         self.model = Model()
@@ -393,9 +403,7 @@ class TestSizedDependent(unittest.TestCase):
             self.model.list_single_dep_param = [2, 2, 2]
 
         # Multiple dependencies
-        np.testing.assert_array_equal(
-            self.model.list_double_dep_param, np.ones((6,))
-        )
+        np.testing.assert_array_equal(self.model.list_double_dep_param, np.ones((6,)))
         np.testing.assert_array_equal(
             self.model.array_double_dep_param, np.ones((2, 3))
         )
@@ -424,57 +432,61 @@ class TestSizedDependent(unittest.TestCase):
 
         # Full default
         with self.assertRaises(ValueError):
+
             class InvalidDefaultSizeList(Structure):
                 dep_1 = UnsignedInteger()
-                param_1 = SizedUnsignedList(size='dep_1', default=[1, 2, 3])
+                param_1 = SizedUnsignedList(size="dep_1", default=[1, 2, 3])
 
         with self.assertRaises(ValueError):
+
             class InvalidDefaultSizeArray(Structure):
                 param_1 = SizedUnsignedNdArray(
-                    size=(4, 'dep_1'), default=[[1, 2, 3, 4], [5, 6, 7, 8]]
+                    size=(4, "dep_1"), default=[[1, 2, 3, 4], [5, 6, 7, 8]]
                 )
 
         # Range error
         with self.assertRaises(ValueError):
+
             class InvalidDefault(Structure):
-                list_single_dep_param = SizedUnsignedList(
-                    size='dep_1', default=-1
-                )
+                list_single_dep_param = SizedUnsignedList(size="dep_1", default=-1)
 
 
 class TestPolynomial(unittest.TestCase):
-
     def setUp(self):
         class Model(Structure):
             poly_param = Polynomial(n_coeff=2, default=0)
             ndpoly_param = NdPolynomial(n_entries=2, n_coeff=4)
 
             n_coeff = 4
-            poly_param_dep = Polynomial(size=('n_coeff'))
+            poly_param_dep = Polynomial(size=("n_coeff"))
 
             n_entries = 3
-            ndpoly_param_dep = NdPolynomial(size=('n_entries', 'n_coeff'))
+            ndpoly_param_dep = NdPolynomial(size=("n_entries", "n_coeff"))
 
         self.model = Model()
 
     def test_parameter(self):
         with self.assertRaises(ValueError):
+
             class TestDuplicateCoeffs(Structure):
                 n_coeff = 2
-                faulty = Polynomial(n_coeff=2, size=('n_coeff'))
+                faulty = Polynomial(n_coeff=2, size=("n_coeff"))
 
         with self.assertRaises(ValueError):
+
             class TestMissingEntries(Structure):
                 n_coeff = 2
-                faulty = NdPolynomial(size=('n_coeff'))
+                faulty = NdPolynomial(size=("n_coeff"))
 
         with self.assertRaises(ValueError):
+
             class TestDuplicateCoeff(Structure):
                 n_coeff = 2
                 entries = 2
-                faulty = NdPolynomial(n_entries=2, n_coeff=2, size=('n_coeff'))
+                faulty = NdPolynomial(n_entries=2, n_coeff=2, size=("n_coeff"))
 
         with self.assertRaises(ValueError):
+
             class TestInvalidDefault(Structure):
                 faulty = NdPolynomial(n_entries=2, n_coeff=2, default=1)
 
@@ -504,18 +516,14 @@ class TestPolynomial(unittest.TestCase):
 
         # Multiple entries
         self.model.ndpoly_param = 2
-        np.testing.assert_equal(
-            self.model.ndpoly_param, [[2, 0, 0, 0], [2, 0, 0, 0]]
-        )
+        np.testing.assert_equal(self.model.ndpoly_param, [[2, 0, 0, 0], [2, 0, 0, 0]])
 
         self.model.ndpoly_param = [3, 2]
-        np.testing.assert_equal(
-            self.model.ndpoly_param, [[3, 0, 0, 0], [2, 0, 0, 0]]
-        )
+        np.testing.assert_equal(self.model.ndpoly_param, [[3, 0, 0, 0], [2, 0, 0, 0]])
 
         self.model.ndpoly_param = [[1, 2], [0, 1, 2]]
         np.testing.assert_equal(
-            self.model.ndpoly_param, [[1, 2, 0., 0.], [0, 1, 2, 0]]
+            self.model.ndpoly_param, [[1, 2, 0.0, 0.0], [0, 1, 2, 0]]
         )
 
         with self.assertRaises(ValueError):
@@ -572,12 +580,11 @@ class TestPolynomial(unittest.TestCase):
 
 
 class TestModulated(unittest.TestCase):
-
     def setUp(self):
         class Model(Structure):
             n_mod = 4
 
-            modulated_list = DependentlyModulatedUnsignedList(size='n_mod')
+            modulated_list = DependentlyModulatedUnsignedList(size="n_mod")
 
         self.model = Model()
 
@@ -622,18 +629,18 @@ class TestAggregator(unittest.TestCase):
             sized_param_transposed = SizedNdArray(size=2)
 
         class Model(Structure):
-            aggregator = Aggregator('float_param', 'container')
-            sized_aggregator = SizedAggregator('sized_param', 'container')
+            aggregator = Aggregator("float_param", "container")
+            sized_aggregator = SizedAggregator("sized_param", "container")
             transposed_sized_aggregator = SizedAggregator(
-                'sized_param_transposed', 'container', transpose=True
+                "sized_param_transposed", "container", transpose=True
             )
 
             def __init__(self):
                 self.container = [
                     DummyInstance(
                         float_param=i,
-                        sized_param=[float(i*j) for j in range(4)],
-                        sized_param_transposed=[float(i*j) for j in range(2)]
+                        sized_param=[float(i * j) for j in range(4)],
+                        sized_param_transposed=[float(i * j) for j in range(2)],
                     )
                     for i in range(3)
                 ]
@@ -666,13 +673,13 @@ class TestAggregator(unittest.TestCase):
                 [0, 0, 0, 0],
                 [0, 1, 2, 3],
                 [0, 2, 4, 6],
-            ]
+            ],
         )
 
         new_value = [
-                [1., 2., 3., 4.],
-                [2., 3., 4., 5.],
-                [3., 4., 5., 6.],
+            [1.0, 2.0, 3.0, 4.0],
+            [2.0, 3.0, 4.0, 5.0],
+            [3.0, 4.0, 5.0, 6.0],
         ]
         self.model.sized_aggregator = new_value
 
@@ -685,16 +692,16 @@ class TestAggregator(unittest.TestCase):
             self.model.sized_aggregator = 3
 
         with self.assertRaises((ValueError, TypeError)):
-            self.model.sized_aggregator = [1., 2., 3., 4.]
+            self.model.sized_aggregator = [1.0, 2.0, 3.0, 4.0]
 
         with self.assertRaises(IndexError):
             self.model.sized_aggregator[3] = 3.0
 
         # Test setting slices and indexes
         new_value = [
-                [1.5, 2.5, 3.5, 4.5],
-                [2.5, 3.5, 4.5, 5.5],
-                [3.5, 4.5, 5.5, 6.5],
+            [1.5, 2.5, 3.5, 4.5],
+            [2.5, 3.5, 4.5, 5.5],
+            [3.5, 4.5, 5.5, 6.5],
         ]
 
         self.model.sized_aggregator[0] = new_value[0]
@@ -707,13 +714,13 @@ class TestAggregator(unittest.TestCase):
         np.testing.assert_almost_equal(
             self.model.transposed_sized_aggregator,
             [
-               [0, 0, 0],
-               [0, 1, 2]
-            ]
+                [0, 0, 0],
+                [0, 1, 2],
+            ],
         )
         new_value = [
-               [1, 2, 3],
-               [2, 3, 4]
+            [1, 2, 3],
+            [2, 3, 4],
         ]
         self.model.transposed_sized_aggregator = new_value
 
@@ -724,5 +731,5 @@ class TestAggregator(unittest.TestCase):
             np.testing.assert_almost_equal(con.sized_param_transposed, val)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

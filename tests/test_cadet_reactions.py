@@ -1,20 +1,20 @@
 import unittest
 
-from CADETProcess.processModel import ComponentSystem
-from CADETProcess.processModel import MassActionLaw, MassActionLawParticle
 from CADETProcess.processModel import (
-    Inlet,
+    ComponentSystem,
     Cstr,
-    TubularReactor,
+    FlowSheet,
+    GeneralRateModel,
+    Inlet,
     LumpedRateModelWithoutPores,
     LumpedRateModelWithPores,
-    GeneralRateModel,
-    Outlet
+    MassActionLaw,
+    MassActionLawParticle,
+    Outlet,
+    Process,
+    TubularReactor,
 )
-from CADETProcess.processModel import FlowSheet
-from CADETProcess.processModel import Process
 from CADETProcess.simulator import Cadet
-
 
 from tests.test_cadet_adapter import found_cadet
 
@@ -22,35 +22,35 @@ from tests.test_cadet_adapter import found_cadet
 def setup_process(unit_type):
     component_system = ComponentSystem(2)
 
-    inlet = Inlet(component_system, 'inlet')
+    inlet = Inlet(component_system, "inlet")
     inlet.c = [1, 0]
     inlet.flow_rate = 1e-3
 
-    if unit_type == 'cstr':
-        cstr = Cstr(component_system, 'reaction_unit')
+    if unit_type == "cstr":
+        cstr = Cstr(component_system, "reaction_unit")
         total_volume = 1e-3
         total_porosity = 0.7
         cstr.init_liquid_volume = total_porosity * total_volume
         cstr.const_solid_volume = (1 - total_porosity) * total_volume
 
         unit = cstr
-    elif unit_type == 'pfr':
-        pfr = TubularReactor(component_system, 'reaction_unit')
+    elif unit_type == "pfr":
+        pfr = TubularReactor(component_system, "reaction_unit")
         pfr.length = 1
         pfr.diameter = 1e-2
         pfr.axial_dispersion = 1e-6
 
         unit = pfr
-    elif unit_type == 'lrm':
-        lrm = LumpedRateModelWithoutPores(component_system, 'reaction_unit')
+    elif unit_type == "lrm":
+        lrm = LumpedRateModelWithoutPores(component_system, "reaction_unit")
         lrm.length = 1
         lrm.diameter = 1e-2
         lrm.total_porosity = 0.7
         lrm.axial_dispersion = 1e-6
 
         unit = lrm
-    elif unit_type == 'lrmp':
-        lrmp = LumpedRateModelWithPores(component_system, 'reaction_unit')
+    elif unit_type == "lrmp":
+        lrmp = LumpedRateModelWithPores(component_system, "reaction_unit")
         lrmp.length = 1
         lrmp.diameter = 1e-2
         lrmp.bed_porosity = 0.7
@@ -60,8 +60,8 @@ def setup_process(unit_type):
         lrmp.film_diffusion = 2 * [1e-3]
 
         unit = lrmp
-    elif unit_type == 'grm':
-        grm = GeneralRateModel(component_system, 'reaction_unit')
+    elif unit_type == "grm":
+        grm = GeneralRateModel(component_system, "reaction_unit")
 
         grm.length = 1
         grm.diameter = 1e-2
@@ -76,7 +76,7 @@ def setup_process(unit_type):
     else:
         raise ValueError("Unknown Model.")
 
-    outlet = Outlet(component_system, 'outlet')
+    outlet = Outlet(component_system, "outlet")
 
     flow_sheet = FlowSheet(component_system)
 
@@ -87,7 +87,7 @@ def setup_process(unit_type):
     flow_sheet.add_connection(inlet, unit)
     flow_sheet.add_connection(unit, outlet)
 
-    process = Process(flow_sheet, 'test_reaction_bulk')
+    process = Process(flow_sheet, "test_reaction_bulk")
     process.cycle_time = 10
 
     return process
@@ -99,14 +99,16 @@ class TestReaction(unittest.TestCase):
     @unittest.skipIf(found_cadet is False, "Skip if CADET is not installed.")
     def test_reaction_bulk(self):
         """Test the reaction in bulk."""
-        for unit_type in ['cstr', 'pfr', 'lrmp', 'grm']:
+        for unit_type in ["cstr", "pfr", "lrmp", "grm"]:
             with self.subTest(unit_type=unit_type):
                 process = setup_process(unit_type)
 
                 bulk_reaction_model = MassActionLaw(process.component_system)
                 bulk_reaction_model.add_reaction([0, 1], [-1, 1], 1)
 
-                process.flow_sheet.reaction_unit.bulk_reaction_model = bulk_reaction_model
+                process.flow_sheet.reaction_unit.bulk_reaction_model = (
+                    bulk_reaction_model
+                )
 
                 simulator = Cadet()
                 results = simulator.simulate(process)
@@ -123,14 +125,18 @@ class TestReaction(unittest.TestCase):
         Cstr currently not working. Need to investigate
 
         """
-        for unit_type in ['lrm', 'lrmp', 'grm']:
+        for unit_type in ["lrm", "lrmp", "grm"]:
             with self.subTest(unit_type=unit_type):
                 process = setup_process(unit_type)
 
-                particle_reaction_model = MassActionLawParticle(process.component_system)
+                particle_reaction_model = MassActionLawParticle(
+                    process.component_system
+                )
                 particle_reaction_model.add_liquid_reaction([0, 1], [-1, 1], 1)
 
-                process.flow_sheet.reaction_unit.particle_reaction_model = particle_reaction_model
+                process.flow_sheet.reaction_unit.particle_reaction_model = (
+                    particle_reaction_model
+                )
 
                 simulator = Cadet()
                 results = simulator.simulate(process)
@@ -147,14 +153,16 @@ class TestReaction(unittest.TestCase):
         Cstr currently not working. Need to investigate
 
         """
-        for unit_type in ['lrm', 'lrmp', 'grm']:
+        for unit_type in ["lrm", "lrmp", "grm"]:
             with self.subTest(unit_type=unit_type):
                 process = setup_process(unit_type)
 
                 bulk_reaction_model = MassActionLaw(process.component_system)
                 bulk_reaction_model.add_reaction([0, 1], [-1, 1], 1)
 
-                process.flow_sheet.reaction_unit.particle_reaction_model = bulk_reaction_model
+                process.flow_sheet.reaction_unit.particle_reaction_model = (
+                    bulk_reaction_model
+                )
 
                 simulator = Cadet()
                 results = simulator.simulate(process)
@@ -163,5 +171,5 @@ class TestReaction(unittest.TestCase):
                 self.assertTrue(results.solution.outlet.inlet.solution[-1, :][1] != 0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

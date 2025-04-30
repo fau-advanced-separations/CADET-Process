@@ -1,8 +1,7 @@
 import unittest
 
 import numpy as np
-
-from CADETProcess.optimization import hash_array, Individual
+from CADETProcess.optimization import Individual, hash_array
 
 
 def setup_individual(n_vars=2, n_obj=1, n_nonlin=0, n_meta=0, rng=None):
@@ -101,19 +100,11 @@ class TestIndividual(unittest.TestCase):
         self.assertFalse(self.individual_1.dominates(self.individual_2))
         self.assertTrue(self.individual_2.dominates(self.individual_1))
 
-        self.assertFalse(
-            self.individual_multi_1.dominates(self.individual_multi_2)
-        )
-        self.assertTrue(
-            self.individual_multi_2.dominates(self.individual_multi_1)
-        )
-        self.assertFalse(
-            self.individual_multi_3.dominates(self.individual_multi_2)
-        )
+        self.assertFalse(self.individual_multi_1.dominates(self.individual_multi_2))
+        self.assertTrue(self.individual_multi_2.dominates(self.individual_multi_1))
+        self.assertFalse(self.individual_multi_3.dominates(self.individual_multi_2))
 
-        self.assertFalse(
-            self.individual_multi_3.dominates(self.individual_multi_2)
-        )
+        self.assertFalse(self.individual_multi_3.dominates(self.individual_multi_2))
 
     def test_similarity(self):
         self.assertTrue(self.individual_1.is_similar(self.individual_2, 1e-1))
@@ -129,20 +120,21 @@ class TestIndividual(unittest.TestCase):
     def test_to_dict(self):
         data = self.individual_1.to_dict()
 
-        np.testing.assert_equal(data['x'], self.individual_1.x)
-        np.testing.assert_equal(data['f'], self.individual_1.f)
-        np.testing.assert_equal(
-            data['x_transformed'], self.individual_1.x_transformed
-        )
-        self.assertEqual(data['variable_names'], self.individual_1.variable_names)
+        np.testing.assert_equal(data["x"], self.individual_1.x)
+        np.testing.assert_equal(data["f"], self.individual_1.f)
+        np.testing.assert_equal(data["x_transformed"], self.individual_1.x_transformed)
+        self.assertEqual(data["variable_names"], self.individual_1.variable_names)
         self.assertEqual(
-            data['independent_variable_names'],
-            self.individual_1.independent_variable_names
+            data["independent_variable_names"],
+            self.individual_1.independent_variable_names,
         )
 
         # Missing: Test for labels.
         # self.assertEqual(data['objective_labels'], self.individual_1.objective_labels)
-        # self.assertEqual(data['nonlinear_constraint_labels'], self.individual_1.nonlinear_constraint_labels)
+        # self.assertEqual(
+        #     data['nonlinear_constraint_labels'],
+        #     self.individual_1.nonlinear_constraint_labels,
+        # )
         # self.assertEqual(data['meta_score_labels'], elf.individual_1.meta_score_labels)
 
     def test_from_dict(self):
@@ -161,13 +153,14 @@ class TestIndividual(unittest.TestCase):
         )
         self.assertEqual(
             test_individual.independent_variable_names,
-            self.individual_1.independent_variable_names
+            self.individual_1.independent_variable_names,
         )
         self.assertEqual(
             test_individual.objective_labels, self.individual_1.objective_labels
         )
         self.assertEqual(
-            test_individual.nonlinear_constraint_labels, self.individual_1.nonlinear_constraint_labels
+            test_individual.nonlinear_constraint_labels,
+            self.individual_1.nonlinear_constraint_labels,
         )
         self.assertEqual(
             test_individual.meta_score_labels, self.individual_1.meta_score_labels
@@ -175,5 +168,5 @@ class TestIndividual(unittest.TestCase):
         self.assertEqual(test_individual.id, self.individual_1.id)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

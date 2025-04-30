@@ -1,12 +1,12 @@
 from abc import abstractmethod
+
 import numpy as np
 
 from CADETProcess import CADETProcessError
-from CADETProcess.log import get_logger, log_time, log_results, log_exceptions
-from CADETProcess.dataStructure import Structure
-from CADETProcess.dataStructure import Bool, UnsignedFloat, UnsignedInteger
+from CADETProcess.dataStructure import Bool, Structure, UnsignedFloat, UnsignedInteger
+from CADETProcess.log import get_logger, log_exceptions, log_results, log_time
 from CADETProcess.processModel import Process
-from CADETProcess.stationarity import StationarityEvaluator, RelativeArea, NRMSE
+from CADETProcess.stationarity import NRMSE, RelativeArea, StationarityEvaluator
 
 
 class SimulatorBase(Structure):
@@ -59,7 +59,7 @@ class SimulatorBase(Structure):
     def __init__(self, stationarity_evaluator=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.logger = get_logger('Simulation')
+        self.logger = get_logger("Simulation")
 
         if stationarity_evaluator is None:
             self.stationarity_evaluator = StationarityEvaluator()
@@ -95,10 +95,10 @@ class SimulatorBase(Structure):
         get_solution_time_complete
 
         """
-        solution_times = np.arange((
-            cycle-1)*process.cycle_time,
-            cycle*process.cycle_time,
-            self.time_resolution
+        solution_times = np.arange(
+            (cycle - 1) * process.cycle_time,
+            cycle * process.cycle_time,
+            self.time_resolution,
         )
         section_times = self.get_section_times(process)
         solution_times = np.append(solution_times, section_times)
@@ -110,7 +110,7 @@ class SimulatorBase(Structure):
         indices = []
         for d in diff:
             if solution_times[d] in process.section_times:
-                indices.append(d+1)
+                indices.append(d + 1)
             else:
                 indices.append(d)
 
@@ -143,9 +143,7 @@ class SimulatorBase(Structure):
         solution_times = time
 
         for i in range(1, self.n_cycles):
-            solution_times = np.append(
-                solution_times, (i)*time[-1] + time[1:]
-            )
+            solution_times = np.append(solution_times, (i) * time[-1] + time[1:])
         solution_times = np.round(solution_times, self.sig_fig)
 
         return solution_times.tolist()
@@ -245,15 +243,17 @@ class SimulatorBase(Structure):
 
         """
         if not isinstance(process, Process):
-            raise TypeError('Expected Process')
+            raise TypeError("Expected Process")
 
         process.lock = True
         if not process.check_config():
             raise CADETProcessError("Process is not configured correctly.")
 
         if self.n_cycles_max < self.n_cycles_min:
-            raise ValueError("n_cycles_max is set lower than n_cycles_min "
-                             f"({self.n_cycles_max} vs {self.n_cycles_min}). ")
+            raise ValueError(
+                "n_cycles_max is set lower than n_cycles_min "
+                f"({self.n_cycles_max} vs {self.n_cycles_min}). "
+            )
 
         # If "max" is below "batch", reduce "batch" to "max" to only run "max" cycles.
         if self.n_cycles_max < self.n_cycles_batch:
@@ -264,18 +264,15 @@ class SimulatorBase(Structure):
                 process, self.n_cycles, previous_results, **kwargs
             )
         else:
-            results = self.simulate_to_stationarity(
-                process, previous_results, **kwargs
-            )
+            results = self.simulate_to_stationarity(process, previous_results, **kwargs)
         process.lock = False
 
         return results
 
-    @log_time('Simulation')
-    @log_results('Simulation')
-    @log_exceptions('Simulation')
-    def simulate_n_cycles(
-            self, process, n_cyc, previous_results=None, **kwargs):
+    @log_time("Simulation")
+    @log_results("Simulation")
+    @log_exceptions("Simulation")
+    def simulate_n_cycles(self, process, n_cyc, previous_results=None, **kwargs):
         """Simulate the process for a given number of cycles.
 
         Parameters
@@ -311,7 +308,7 @@ class SimulatorBase(Structure):
         self.n_cycles = n_cyc
 
         if not isinstance(process, Process):
-            raise TypeError('Expected Process')
+            raise TypeError("Expected Process")
 
         if previous_results is not None:
             self.set_state_from_results(process, previous_results)
@@ -320,11 +317,10 @@ class SimulatorBase(Structure):
 
         self.n_cycles = n_cyc_orig
 
-    @log_time('Simulation')
-    @log_results('Simulation')
-    @log_exceptions('Simulation')
-    def simulate_to_stationarity(
-            self, process, results=None, **kwargs):
+    @log_time("Simulation")
+    @log_results("Simulation")
+    @log_exceptions("Simulation")
+    def simulate_to_stationarity(self, process, results=None, **kwargs):
         """Simulate the process until stationarity is reached.
 
         Parameters
@@ -357,7 +353,7 @@ class SimulatorBase(Structure):
 
         """
         if not isinstance(process, Process):
-            raise TypeError('Expected Process')
+            raise TypeError("Expected Process")
 
         n_cyc_orig = self.n_cycles
         self.n_cycles = max(self.n_cycles_min, self.n_cycles_batch)
@@ -383,9 +379,7 @@ class SimulatorBase(Structure):
             if n_cyc == 1:
                 continue
 
-            stationarity = self.stationarity_evaluator.assert_stationarity(
-                results
-            )
+            stationarity = self.stationarity_evaluator.assert_stationarity(results)
 
             if stationarity:
                 break
@@ -418,9 +412,8 @@ class SimulatorBase(Structure):
             The process with the updated state.
 
         """
-        process.system_state = results.system_state['state']
-        process.system_state_derivative = \
-            results.system_state['state_derivative']
+        process.system_state = results.system_state["state"]
+        process.system_state_derivative = results.system_state["state_derivative"]
 
         return process
 
@@ -474,5 +467,5 @@ class SimulatorBase(Structure):
 
         """
         if not isinstance(stationarity_evaluator, StationarityEvaluator):
-            raise CADETProcessError('Expected StationarityEvaluator')
+            raise CADETProcessError("Expected StationarityEvaluator")
         self._stationarity_evaluator = stationarity_evaluator

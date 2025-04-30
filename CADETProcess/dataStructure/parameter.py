@@ -27,7 +27,9 @@ class ParameterBase(Descriptor):
     -----
     1. Supports deep copying of default values, allowing mutable defaults without side effects.
     2. Subclasses can further specify type constraints (like `Typed`).
-    3. They can also define immutable parameters (like `Constant`) and options-based parameters (`Switch`).
+    3. They can also define
+      - immutable parameters (like `Constant`) and
+      - options-based parameters (`Switch`).
 
     See Also
     --------
@@ -45,13 +47,14 @@ class ParameterBase(Descriptor):
     """
 
     def __init__(
-            self,
-            *args,
-            default=None,
-            is_optional=False,
-            unit=None,
-            description=None,
-            **kwargs):
+        self,
+        *args,
+        default=None,
+        is_optional=False,
+        unit=None,
+        description=None,
+        **kwargs,
+    ):
         """
         Initialize a Parameter instance.
 
@@ -219,6 +222,7 @@ class ParameterBase(Descriptor):
 
 # %% Constant Parameters
 
+
 class Constant(ParameterBase):
     """
     Parameter that is immutable once set.
@@ -334,6 +338,7 @@ class Switch(ParameterBase):
 
 # %% Typed Parameters
 
+
 class Typed(ParameterBase):
     """
     Mixin for parameters constrained to a specific type.
@@ -396,10 +401,8 @@ class Typed(ParameterBase):
         """
         if ty is not None:
             self.ty = ty
-        elif not hasattr(self, 'ty'):
-            raise ValueError(
-                "Type must be provided either in a subclass or during instantiation."
-            )
+        elif not hasattr(self, "ty"):
+            raise ValueError("Type must be provided either in a subclass or during instantiation.")
 
         super().__init__(*args, **kwargs)
 
@@ -627,7 +630,6 @@ class Callable(ParameterBase):
 
     >>> class MyModel:
     ...     func = Callable()
-    ...
     >>> model = MyModel()
     >>> model.func = print  # This is fine as print is callable
     >>> model.func = "not_callable"  # This will raise a TypeError
@@ -684,10 +686,8 @@ class TypedList(List, Typed):
         """
         if dtype is not None:
             self.dtype = dtype
-        elif not hasattr(self, 'dtype'):
-            raise ValueError(
-                "dtype must be provided either in a subclass or during instantiation."
-            )
+        elif not hasattr(self, "dtype"):
+            raise ValueError("dtype must be provided either in a subclass or during instantiation.")
 
         super().__init__(*args, **kwargs)
 
@@ -719,9 +719,7 @@ class TypedList(List, Typed):
         try:
             value = np.array(value, dtype=self.dtype).tolist()
         except ValueError:
-            raise ValueError(
-                f"could not convert elements to {self.dtype}"
-            )
+            raise ValueError(f"could not convert elements to {self.dtype}")
 
         if recursive:
             value = super()._prepare(instance, value, recursive)
@@ -745,9 +743,7 @@ class TypedList(List, Typed):
         value_array = np.array(value)
 
         if value_array.dtype != self.dtype:
-            raise ValueError(
-                f"Value entries must be of type {self.dtype}"
-            )
+            raise ValueError(f"Value entries must be of type {self.dtype}")
 
     def _check(self, instance, value, recursive=False):
         """
@@ -779,6 +775,7 @@ class FloatList(TypedList):
 
 # %% Ranged Parameters
 
+
 class Ranged(ParameterBase):
     """Descriptor for parameters within specified bounds.
 
@@ -804,7 +801,6 @@ class Ranged(ParameterBase):
 
     >>> class MyClass:
     ...     value = Ranged(lb=0, ub=10)
-    ...
     >>> obj = MyClass()
     >>> obj.value = 5  # This is valid
     >>> obj.value = -5  # Raises an error
@@ -823,10 +819,14 @@ class Ranged(ParameterBase):
     """
 
     def __init__(
-            self, *args,
-            lb=-math.inf, lb_op=operator.lt,
-            ub=math.inf, ub_op=operator.gt,
-            **kwargs):
+        self,
+        *args,
+        lb=-math.inf,
+        lb_op=operator.lt,
+        ub=math.inf,
+        ub_op=operator.gt,
+        **kwargs,
+    ):
         """
         Initialize the Ranged descriptor.
 
@@ -917,7 +917,6 @@ class RangedArray(Ranged):
 
     >>> class MyClass:
     ...     values = RangedArray(lb=0, ub=10)
-    ...
     >>> obj = MyClass()
     >>> obj.values = [5, 7, 2]  # This is valid
     >>> obj.values = [5, -1, 2]  # Raises an error indicating the second element is
@@ -1016,6 +1015,7 @@ class UnsignedNdArray(NdArray, UnsignedArray):
 
 # %% Sized Parameters
 
+
 class Sized(ParameterBase):
     """
     Descriptor for parameters with size that potentially depends on instance attributes.
@@ -1108,9 +1108,7 @@ class Sized(ParameterBase):
             If an attribute, on which the size depends, is not set.
         """
         if not self.is_independent and instance is None:
-            raise ValueError(
-                "Parameter is not independent, need instance get expected size!"
-            )
+            raise ValueError("Parameter is not independent, need instance get expected size!")
 
         size = []
         for i in self.size:
@@ -1189,7 +1187,7 @@ class Sized(ParameterBase):
                 expected_size = None
 
             if isinstance(value, (int, float)):
-                value = self.ty((value, ))
+                value = self.ty((value,))
             else:
                 raise ValueError("Cannot cast value from given value.")
 
@@ -1361,6 +1359,7 @@ class SizedUnsignedIntegerList(UnsignedList, IntegerList, SizedList):
 
 # %% Dimensionalized Parameters
 
+
 class DimensionalizedArray(NdArray):
     """
     Parameter descriptor constrained to np.arrays with a specific dimensionality.
@@ -1379,10 +1378,9 @@ class DimensionalizedArray(NdArray):
 
     >>> class MyClass:
     ...     arr = DimensionalizedArray(n_dim=2)
-    ...
     >>> obj = MyClass()
     >>> obj.arr = np.array([[1, 2], [3, 4]])  # This is valid
-    >>> obj.arr = np.array([1, 2, 3, 4])      # Raises a ValueError
+    >>> obj.arr = np.array([1, 2, 3, 4])  # Raises a ValueError
 
     Notes
     -----
@@ -1411,14 +1409,12 @@ class DimensionalizedArray(NdArray):
 
         if n_dim is not None:
             if not isinstance(n_dim, int):
-                raise ValueError('Dimensionality (n_dim) must be an integer.')
+                raise ValueError("Dimensionality (n_dim) must be an integer.")
             self.n_dim = n_dim
 
         # Ensure the dimension is set and valid
         if self.n_dim is None:
-            raise ValueError(
-                'Dimensionality (n_dim) must be set during initialization.'
-            )
+            raise ValueError("Dimensionality (n_dim) must be set during initialization.")
 
     def _check(self, instance, value, recursive=False):
         """
@@ -1439,9 +1435,7 @@ class DimensionalizedArray(NdArray):
             If the number of dimensions of the ndarray doesn't match n_dim.
         """
         if self.n_dim != np.array(value).ndim:
-            raise ValueError(
-                f"Expected {self.n_dim} dimensions, got {np.array(value).ndim}."
-            )
+            raise ValueError(f"Expected {self.n_dim} dimensions, got {np.array(value).ndim}.")
 
         if recursive:
             super()._check(instance, value, recursive)
@@ -1460,7 +1454,6 @@ class Vector(DimensionalizedArray):
     --------
     >>> class MyModel:
     ...     coordinates = Vector()
-    ...
     >>> model.coordinates = np.array([1, 2, 3])  # Valid
     >>> model.coordinates = np.array([[1, 2], [3, 4]])  # Raises ValueError
 
@@ -1488,10 +1481,9 @@ class Matrix(DimensionalizedArray):
     --------
     >>> class MyModel:
     ...     data = Matrix()
-    ...
     >>> model = MyModel()
     >>> model.data = np.array([[1, 2], [3, 4]])  # Valid
-    >>> model.data = np.array([1, 2, 3, 4])      # Raises ValueError
+    >>> model.data = np.array([1, 2, 3, 4])  # Raises ValueError
 
     See Also
     --------
@@ -1503,6 +1495,7 @@ class Matrix(DimensionalizedArray):
 
 
 # %% Polynomial Parameters
+
 
 class NdPolynomial(SizedNdArray):
     """
@@ -1572,11 +1565,11 @@ class NdPolynomial(SizedNdArray):
         The shape of the polynomial array is determined from 'n_entries' and 'n_coeff'
         or from the 'size' keyword argument.
         """
-        if 'default' in kwargs and kwargs['default'] != 0:
+        if "default" in kwargs and kwargs["default"] != 0:
             raise ValueError("Default value for NdPolynomial must always be 0.")
 
         try:
-            size = kwargs['size']
+            size = kwargs["size"]
             if not isinstance(size, tuple):
                 size = (size,)
         except KeyError:
@@ -1610,7 +1603,7 @@ class NdPolynomial(SizedNdArray):
 
         size = (_n_entries, _n_coeff)
 
-        kwargs['size'] = size
+        kwargs["size"] = size
 
         super().__init__(*args, **kwargs)
 
@@ -1666,7 +1659,7 @@ class NdPolynomial(SizedNdArray):
                 v = [v]
             if isinstance(v, (list, tuple)):
                 missing = n_coeff - len(v)
-                v += missing*(0,)
+                v += missing * (0,)
             _value[i, :] = np.array(v)
 
         if single_entry:
@@ -1742,6 +1735,7 @@ class Polynomial(NdPolynomial):
 
 
 # %% Modulated Parameters
+
 
 class DependentlyModulated(Sized):
     """

@@ -1,13 +1,11 @@
 import unittest
 
 import numpy as np
-
+from CADETProcess.dynamicEvents import MultiTimeLine, Section, TimeLine
 from CADETProcess.dynamicEvents.section import generate_indices
-from CADETProcess.dynamicEvents import Section, TimeLine, MultiTimeLine
 
 
 class TestGenerateIndices(unittest.TestCase):
-
     def test_generate_indices(self):
         shape = (3, 3)
 
@@ -39,7 +37,6 @@ class TestGenerateIndices(unittest.TestCase):
 
 
 class TestSection(unittest.TestCase):
-
     def setUp(self):
         self.constant_section_single = Section(0, 1, 1)
         self.constant_section_multi = Section(1, 2, [1, 2])
@@ -50,7 +47,7 @@ class TestSection(unittest.TestCase):
         np.testing.assert_equal(self.constant_section_single.coeffs, [[1]])
         np.testing.assert_equal(self.constant_section_multi.coeffs, [[1], [2]])
         np.testing.assert_equal(self.poly_section_single.coeffs, [[0, 1, 0, 0]])
-        np.testing.assert_equal(self.poly_section_multi.coeffs, [[0,  1], [1, -1]])
+        np.testing.assert_equal(self.poly_section_multi.coeffs, [[0, 1], [1, -1]])
 
     def test_section_value(self):
         const_single = self.constant_section_single
@@ -104,7 +101,6 @@ class TestSection(unittest.TestCase):
 
 
 class TestTimeLine(unittest.TestCase):
-
     def create_timeline_constant_single(self):
         """Piecewise constant sections with single entry."""
         section_0 = Section(0, 1, 1.5)
@@ -225,19 +221,19 @@ class TestTimeLine(unittest.TestCase):
         tl = self.create_timeline_poly_single()
 
         np.testing.assert_equal(tl.integral(0, 0), 0.0)
-        np.testing.assert_equal(tl.integral(0, 0.5), 1.5/2)
+        np.testing.assert_equal(tl.integral(0, 0.5), 1.5 / 2)
         np.testing.assert_equal(tl.integral(0, 1), 1.5)
         np.testing.assert_equal(tl.integral(0, 2), 1.5)
-        np.testing.assert_equal(tl.integral(2, 2.5), 0.5/2/2)
+        np.testing.assert_equal(tl.integral(2, 2.5), 0.5 / 2 / 2)
         np.testing.assert_equal(tl.integral(2, 3), 0.5)
 
         tl = self.create_timeline_poly_multi()
 
         np.testing.assert_equal(tl.integral(0, 0), [0.0, 0.0])
-        np.testing.assert_equal(tl.integral(0, 0.5), [1.5/2, 0.125])
+        np.testing.assert_equal(tl.integral(0, 0.5), [1.5 / 2, 0.125])
         np.testing.assert_equal(tl.integral(0, 1), [1.5, 0.5])
         np.testing.assert_equal(tl.integral(0, 2), [1.5, 2.0])
-        np.testing.assert_equal(tl.integral(5, 6), [1, 1/3])
+        np.testing.assert_equal(tl.integral(5, 6), [1, 1 / 3])
 
     def test_timeline_coeff(self):
         """Test coefficient values at given times."""
@@ -247,13 +243,9 @@ class TestTimeLine(unittest.TestCase):
 
         tl = self.create_timeline_poly_multi()
 
-        np.testing.assert_equal(
-            tl.coefficients(0.0), [[1.5, 0, 0], [0, 1, 0]]
-        )
+        np.testing.assert_equal(tl.coefficients(0.0), [[1.5, 0, 0], [0, 1, 0]])
 
-        np.testing.assert_equal(
-            tl.coefficients(5.5), [[1, -2, 0], [0.25, 1, 1]]
-        )
+        np.testing.assert_equal(tl.coefficients(5.5), [[1, -2, 0], [0.25, 1, 1]])
 
     def test_section_times(self):
         """Test section times."""
@@ -264,14 +256,13 @@ class TestTimeLine(unittest.TestCase):
     def test_tl_from_profile(self):
         """Test creation of time line from time series profile."""
         time = np.linspace(0, 100, 1001)
-        y = np.sin(time/10)
+        y = np.sin(time / 10)
 
         tl = TimeLine.from_profile(time, y)
         np.testing.assert_almost_equal(tl.value(time)[:, 0], y, decimal=3)
 
 
 class TestMultiTimeLine(unittest.TestCase):
-
     def create_timeline_constant_multi(self):
         """Piecewise constant sections with multiple entries managed by MultiTimeline."""
         section_0_0 = Section(0, 1, 1.5)
@@ -300,29 +291,29 @@ class TestMultiTimeLine(unittest.TestCase):
     def create_timeline_poly_multi(self):
         """Polynomial sections with multiple entries managed by MultiTimeline."""
         # Entry 0
-        ## Const. Coeff.
+        # Const. Coeff.
         section_0_0_0 = Section(0, 1, 1.5)
         section_0_0_1 = Section(1, 3, 0)
         section_0_0_2 = Section(3, 4, 1)
         section_0_0_3 = Section(4, 6, 2)
 
-        ## Lin. Coeff.
+        # Lin. Coeff.
         section_0_1_0 = Section(0, 2, 0)
         section_0_1_1 = Section(2, 3, 1)
         section_0_1_2 = Section(3, 5, 0)
         section_0_1_3 = Section(5, 6, -2)
 
         # Entry 1
-        ## Const. Coeff.
+        # Const. Coeff.
         section_1_0_0 = Section(0, 1, 0)
         section_1_0_1 = Section(1, 3, 1)
         section_1_0_2 = Section(3, 6, 0)
 
-        ## Lin. Coeff.
+        # Lin. Coeff.
         section_1_1_0 = Section(0, 3, 1)
         section_1_1_1 = Section(3, 6, 0)
 
-        ## Cubic Coeff
+        # Cubic Coeff
         section_1_2_0 = Section(0, 5, 0)
         section_1_2_1 = Section(5, 6, 1)
 
@@ -381,22 +372,18 @@ class TestMultiTimeLine(unittest.TestCase):
         tl = multi_tl.combined_time_line
 
         np.testing.assert_equal(tl.integral(0, 0), [0.0, 0.0])
-        np.testing.assert_equal(tl.integral(0, 0.5), [1.5/2, 0.125])
+        np.testing.assert_equal(tl.integral(0, 0.5), [1.5 / 2, 0.125])
         np.testing.assert_equal(tl.integral(0, 1), [1.5, 0.5])
         np.testing.assert_equal(tl.integral(0, 2), [1.5, 2.0])
-        np.testing.assert_equal(tl.integral(5, 6), [1, 1/3])
+        np.testing.assert_equal(tl.integral(5, 6), [1, 1 / 3])
 
     def test_timeline_coeff(self):
         """Test coefficient values at given times."""
         multi_tl = self.create_timeline_poly_multi()
         tl = multi_tl.combined_time_line
 
-        np.testing.assert_equal(
-            tl.coefficients(0.0), [[1.5, 0, 0, 0], [0, 1, 0, 0]]
-        )
-        np.testing.assert_equal(
-            tl.coefficients(5.5), [[1, -2, 0, 0], [0.25, 1, 1, 0]]
-        )
+        np.testing.assert_equal(tl.coefficients(0.0), [[1.5, 0, 0, 0], [0, 1, 0, 0]])
+        np.testing.assert_equal(tl.coefficients(5.5), [[1, -2, 0, 0], [0.25, 1, 1, 0]])
 
     def test_section_times(self):
         """Test section times."""
@@ -424,5 +411,6 @@ class TestMultiTimeLine(unittest.TestCase):
     def test_combined_timeline(self):
         pass
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

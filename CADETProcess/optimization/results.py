@@ -1,28 +1,31 @@
 import csv
-from functools import wraps
 import os
+import warnings
+from functools import wraps
 from pathlib import Path
 from typing import Literal, NoReturn
-import warnings
 
-from addict import Dict
-import matplotlib.colors as colors
 import matplotlib.cm as cmx
+import matplotlib.colors as colors
 import matplotlib.pyplot as plt
-cmap_feas = plt.get_cmap('winter_r')
-cmap_infeas = plt.get_cmap('autumn_r')
 import numpy as np
-
+from addict import Dict
 from cadet import H5
-from CADETProcess import plotting
-from CADETProcess.dataStructure import Structure
-from CADETProcess.dataStructure import (
-    Bool, Dictionary, NdArray, String, UnsignedInteger, UnsignedFloat
-)
 
-from CADETProcess import CADETProcessError
+from CADETProcess import CADETProcessError, plotting
+from CADETProcess.dataStructure import (
+    Bool,
+    Dictionary,
+    String,
+    Structure,
+    UnsignedFloat,
+    UnsignedInteger,
+)
+from CADETProcess.optimization import Individual, ParetoFront, Population
 from CADETProcess.sysinfo import system_information
-from CADETProcess.optimization import Individual, Population, ParetoFront
+
+cmap_feas = plt.get_cmap("winter_r")
+cmap_infeas = plt.get_cmap("autumn_r")
 
 
 class OptimizationResults(Structure):
@@ -61,6 +64,7 @@ class OptimizationResults(Structure):
         functions.
 
     """
+
     success = Bool(default=False)
     exit_flag = UnsignedInteger()
     exit_message = String()
@@ -69,11 +73,11 @@ class OptimizationResults(Structure):
     system_information = Dictionary()
 
     def __init__(
-            self,
-            optimization_problem,
-            optimizer,
-            similarity_tol: float = 0,
-            ):
+        self,
+        optimization_problem,
+        optimizer,
+        similarity_tol: float = 0,
+    ):
         self.optimization_problem = optimization_problem
         self.optimizer = optimizer
 
@@ -101,7 +105,7 @@ class OptimizationResults(Structure):
     def results_directory(self, results_directory: str | os.PathLike):
         if results_directory is not None:
             results_directory = Path(results_directory)
-            self.plot_directory = Path(results_directory / 'figures')
+            self.plot_directory = Path(results_directory / "figures")
             self.plot_directory.mkdir(exist_ok=True)
         else:
             self.plot_directory = None
@@ -184,9 +188,7 @@ class OptimizationResults(Structure):
         pareto_new : Population, optional
             New pareto front. If None, update existing front with latest population.
         """
-        pareto_front = ParetoFront(
-            similarity_tol=self._similarity_tol
-        )
+        pareto_front = ParetoFront(similarity_tol=self._similarity_tol)
 
         if pareto_new is not None:
             pareto_front.update_population(pareto_new)
@@ -393,49 +395,42 @@ class OptimizationResults(Structure):
             warnings.simplefilter("ignore")
 
             self.plot_convergence(
-                'objectives',
-                show=show,
-                plot_directory=self.plot_directory
+                "objectives", show=show, plot_directory=self.plot_directory
             )
             if self.optimization_problem.n_nonlinear_constraints > 0:
                 self.plot_convergence(
-                    'nonlinear_constraints',
+                    "nonlinear_constraints",
                     show=show,
-                    plot_directory=self.plot_directory
+                    plot_directory=self.plot_directory,
                 )
             if self.optimization_problem.n_meta_scores > 0:
                 self.plot_convergence(
-                    'meta_scores',
-                    show=show,
-                    plot_directory=self.plot_directory
+                    "meta_scores", show=show, plot_directory=self.plot_directory
                 )
-            self.plot_objectives(
-                show=show, plot_directory=self.plot_directory
-            )
+            self.plot_objectives(show=show, plot_directory=self.plot_directory)
             if self.optimization_problem.n_variables > 1 and len(self.x) > 1:
-                self.plot_corner(
-                    show=show, plot_directory=self.plot_directory
-                )
+                self.plot_corner(show=show, plot_directory=self.plot_directory)
 
-            self.plot_pairwise(
-                show=show, plot_directory=self.plot_directory
-            )
+            self.plot_pairwise(show=show, plot_directory=self.plot_directory)
 
             if self.optimization_problem.n_objectives > 1:
                 self.plot_pareto(
-                    show=show, plot_directory=self.plot_directory,
-                    plot_evolution=True, plot_pareto=False,
+                    show=show,
+                    plot_directory=self.plot_directory,
+                    plot_evolution=True,
+                    plot_pareto=False,
                 )
 
     def plot_objectives(
-            self,
-            include_meta=True,
-            plot_pareto=False,
-            plot_infeasible=True,
-            plot_individual=False,
-            autoscale=True,
-            show=True,
-            plot_directory=None):
+        self,
+        include_meta=True,
+        plot_pareto=False,
+        plot_infeasible=True,
+        plot_individual=False,
+        autoscale=True,
+        show=True,
+        plot_directory=None,
+    ):
         """Plot objective function values for all optimization generations.
 
         Parameters
@@ -495,7 +490,8 @@ class OptimizationResults(Structure):
                 _plot_directory = plot_directory
                 _show = show
             figs, axs = gen.plot_objectives(
-                figs, axs,
+                figs,
+                axs,
                 include_meta=include_meta,
                 plot_infeasible=plot_infeasible,
                 plot_individual=plot_individual,
@@ -503,17 +499,14 @@ class OptimizationResults(Structure):
                 color_feas=scalarMap_feas.to_rgba(i),
                 color_infeas=scalarMap_infeas.to_rgba(i),
                 show=_show,
-                plot_directory=_plot_directory
+                plot_directory=_plot_directory,
             )
 
         return figs, axs
 
     def plot_pareto(
-            self,
-            show=True,
-            plot_pareto=True,
-            plot_evolution=False,
-            plot_directory=None):
+        self, show=True, plot_pareto=True, plot_evolution=False, plot_directory=None
+    ):
         """Plot Pareto fronts for each generation in the optimization.
 
         The Pareto front represents the optimal solutions that cannot be improved in one
@@ -580,7 +573,7 @@ class OptimizationResults(Structure):
                 color_feas=scalarMap_feas.to_rgba(i),
                 color_infeas=scalarMap_infeas.to_rgba(i),
                 show=_show,
-                plot_directory=_plot_directory
+                plot_directory=_plot_directory,
             )
 
         return plot.fig, plot.ax
@@ -594,11 +587,11 @@ class OptimizationResults(Structure):
         return self.population_all.plot_pairwise(*args, **kwargs)
 
     def setup_convergence_figure(self, target, plot_individual=False):
-        if target == 'objectives':
+        if target == "objectives":
             n = self.optimization_problem.n_objectives
-        elif target == 'nonlinear_constraints':
+        elif target == "nonlinear_constraints":
             n = self.optimization_problem.n_nonlinear_constraints
-        elif target == 'meta_scores':
+        elif target == "meta_scores":
             n = self.optimization_problem.n_meta_scores
         else:
             raise CADETProcessError("Unknown target.")
@@ -608,7 +601,7 @@ class OptimizationResults(Structure):
 
         fig_all, axs_all = plt.subplots(
             ncols=n,
-            figsize=(n*6 + 2, 6),
+            figsize=(n * 6 + 2, 6),
             squeeze=False,
         )
         axs_all = axs_all.reshape((-1,))
@@ -631,14 +624,16 @@ class OptimizationResults(Structure):
             return fig_all, axs_all
 
     def plot_convergence(
-            self,
-            target='objectives',
-            figs=None, axs=None,
-            plot_individual=False,
-            plot_avg=True,
-            autoscale=True,
-            show=True,
-            plot_directory=None):
+        self,
+        target="objectives",
+        figs=None,
+        axs=None,
+        plot_individual=False,
+        plot_avg=True,
+        autoscale=True,
+        show=True,
+        plot_directory=None,
+    ):
         """Plot the convergence of optimization metrics over evaluations.
 
         Parameters
@@ -677,17 +672,17 @@ class OptimizationResults(Structure):
             figs = [figs]
 
         layout = plotting.Layout()
-        layout.x_label = '$n_{Evaluations}$'
+        layout.x_label = "$n_{Evaluations}$"
 
-        if target == 'objectives':
+        if target == "objectives":
             funcs = self.optimization_problem.objectives
             values_min = self.f_best_history
             values_avg = self.f_avg_history
-        elif target == 'nonlinear_constraints':
+        elif target == "nonlinear_constraints":
             funcs = self.optimization_problem.nonlinear_constraints
             values_min = self.g_best_history
             values_avg = self.g_avg_history
-        elif target == 'meta_scores':
+        elif target == "meta_scores":
             funcs = self.optimization_problem.meta_scores
             values_min = self.m_best_history
             values_avg = self.m_avg_history
@@ -700,7 +695,7 @@ class OptimizationResults(Structure):
         counter = 0
         for func in funcs:
             start = counter
-            stop = counter+func.n_metrics
+            stop = counter + func.n_metrics
             v_func_min = values_min[:, start:stop]
             v_func_avg = values_avg[:, start:stop]
 
@@ -718,33 +713,29 @@ class OptimizationResults(Structure):
                         lines[1].set_ydata(v_line_avg)
                 else:
                     if plot_avg and self.population_last.n_individuals > 1:
-                        label = 'best'
+                        label = "best"
                     else:
-                        label=None
+                        label = None
 
                     ax.plot(
-                        self.n_evals_history,
-                        v_line_min,
-                        '--',
-                        color='k',
-                        label=label
+                        self.n_evals_history, v_line_min, "--", color="k", label=label
                     )
                     if plot_avg and self.population_last.n_individuals > 1:
                         ax.plot(
                             self.n_evals_history,
                             v_line_avg,
-                            '-',
-                            color='k',
+                            "-",
+                            color="k",
                             alpha=0.5,
-                            label='avg'
+                            label="avg",
                         )
 
-                layout.x_lim = (0, np.max(self.n_evals_history)+1)
+                layout.x_lim = (0, np.max(self.n_evals_history) + 1)
 
                 try:
                     label = func.labels[i_metric]
                 except AttributeError:
-                    label = f'{func}_{i_metric}'
+                    label = f"{func}_{i_metric}"
 
                 if plot_avg and self.population_last.n_individuals > 1:
                     y_min = np.nanmin(v_line_min)
@@ -756,7 +747,7 @@ class OptimizationResults(Structure):
                 layout.y_label = label
                 if autoscale and y_min > 0:
                     if y_max / y_min > 100.0:
-                        ax.set_yscale('log')
+                        ax.set_yscale("log")
                         layout.y_label = f"$log_{{10}}$({label})"
 
                 try:
@@ -783,15 +774,11 @@ class OptimizationResults(Structure):
             plot_directory = Path(plot_directory)
             if plot_individual:
                 for i, fig in enumerate(figs):
-                    figname = f'convergence_{target}_{i}'
-                    fig.savefig(
-                        f'{plot_directory / figname}.png'
-                    )
+                    figname = f"convergence_{target}_{i}"
+                    fig.savefig(f"{plot_directory / figname}.png")
             else:
-                figname = f'convergence_{target}'
-                figs[0].savefig(
-                    f'{plot_directory / figname}.png'
-                )
+                figname = f"convergence_{target}"
+                figs[0].savefig(f"{plot_directory / figname}.png")
 
         if plot_individual:
             return figs, axs
@@ -808,15 +795,15 @@ class OptimizationResults(Structure):
             Results file name without file extension.
         """
         if self.results_directory is not None:
-            self._update_csv(self.population_last, 'results_all', mode='a')
-            self._update_csv(self.population_last, 'results_last', mode='w')
-            self._update_csv(self.pareto_front, 'results_pareto', mode='w')
+            self._update_csv(self.population_last, "results_all", mode="a")
+            self._update_csv(self.population_last, "results_last", mode="w")
+            self._update_csv(self.pareto_front, "results_pareto", mode="w")
             if self.optimization_problem.n_meta_scores > 0:
-                self._update_csv(self.meta_front, 'results_meta', mode='w')
+                self._update_csv(self.meta_front, "results_meta", mode="w")
 
             results = H5()
             results.root = Dict(self.to_dict())
-            results.filename = self.results_directory / f'{file_name}.h5'
+            results.filename = self.results_directory / f"{file_name}.h5"
             results.save()
 
     def load_results(self, file_name: str) -> NoReturn:
@@ -877,29 +864,29 @@ class OptimizationResults(Structure):
         data : dict
             Serialized data.
         """
-        self._optimizer_state = data['optimizer_state']
-        self._population_all = Population(id=data['population_all_id'])
-        self._similarity_tol = data.get('similarity_tol')
+        self._optimizer_state = data["optimizer_state"]
+        self._population_all = Population(id=data["population_all_id"])
+        self._similarity_tol = data.get("similarity_tol")
 
-        for pop_dict in data['populations'].values():
+        for pop_dict in data["populations"].values():
             pop = Population.from_dict(pop_dict)
             self.update(pop)
 
         self._pareto_fronts = [
-            ParetoFront.from_dict(d) for d in data['pareto_fronts'].values()
+            ParetoFront.from_dict(d) for d in data["pareto_fronts"].values()
         ]
         if self._meta_fronts is not None:
             self._meta_fronts = [
-                ParetoFront.from_dict(d) for d in data['meta_fronts'].values()
+                ParetoFront.from_dict(d) for d in data["meta_fronts"].values()
             ]
 
     def setup_csv(self):
         """Create csv files for optimization results."""
-        self._setup_csv('results_all')
-        self._setup_csv('results_last')
-        self._setup_csv('results_pareto')
+        self._setup_csv("results_all")
+        self._setup_csv("results_last")
+        self._setup_csv("results_pareto")
         if self.optimization_problem.n_meta_scores > 0:
-            self._setup_csv('results_meta')
+            self._setup_csv("results_meta")
 
     def _setup_csv(self, file_name: str):
         """
@@ -913,7 +900,7 @@ class OptimizationResults(Structure):
         header = [
             "id",
             *self.optimization_problem.variable_names,
-            *self.optimization_problem.objective_labels
+            *self.optimization_problem.objective_labels,
         ]
 
         if self.optimization_problem.n_nonlinear_constraints > 0:
@@ -921,19 +908,16 @@ class OptimizationResults(Structure):
         if self.optimization_problem.n_meta_scores > 0:
             header += [*self.optimization_problem.meta_score_labels]
 
-        with open(
-                f'{self.results_directory / file_name}.csv', 'w'
-        ) as csvfile:
-
+        with open(f"{self.results_directory / file_name}.csv", "w") as csvfile:
             writer = csv.writer(csvfile, delimiter=",")
             writer.writerow(header)
 
     def _update_csv(
-            self,
-            population: Population,
-            file_name: str,
-            mode: Literal["w", "b"],
-            ):
+        self,
+        population: Population,
+        file_name: str,
+        mode: Literal["w", "b"],
+    ):
         """
         Update csv file with latest population.
 
@@ -951,22 +935,15 @@ class OptimizationResults(Structure):
         --------
         setup_csv
         """
-        if mode == 'w':
+        if mode == "w":
             self._setup_csv(file_name)
-            mode = 'a'
+            mode = "a"
 
-        with open(
-                f'{self.results_directory / file_name}.csv', mode
-        ) as csvfile:
-
+        with open(f"{self.results_directory / file_name}.csv", mode) as csvfile:
             writer = csv.writer(csvfile, delimiter=",")
 
             for ind in population:
-                row = [
-                    ind.id,
-                    *ind.x.tolist(),
-                    *ind.f.tolist()
-                ]
+                row = [ind.id, *ind.x.tolist(), *ind.f.tolist()]
                 if ind.g is not None:
                     row += ind.g.tolist()
                 if ind.m is not None:

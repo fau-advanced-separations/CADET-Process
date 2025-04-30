@@ -2,22 +2,22 @@ import shutil
 import unittest
 from pathlib import Path
 
-from addict import Dict
 import numpy as np
+from addict import Dict
+from CADETProcess.optimization import U_NSGA3, OptimizationResults
 
-from CADETProcess.optimization import OptimizationResults
-from CADETProcess.optimization import U_NSGA3
-
-from tests.test_population import setup_population
 from tests.test_optimization_problem import setup_optimization_problem
+from tests.test_population import setup_population
 
 
 class OptimizationResultsWithoutNans(OptimizationResults):
     """
-    Patch class that removes None values in the OptimizationResults during .to_dict() call. This allows
-    serialization with any version of CADET-Python pending the merge of https://github.com/cadet/CADET-Python/pull/48
+    Patch class that removes None values in the OptimizationResults during .to_dict() call.
+    This allows serialization with any version of CADET-Python pending the merge of
+    https://github.com/cadet/CADET-Python/pull/48
 
     """
+
     def to_dict(self) -> dict:
         """Convert Results to a dictionary.
 
@@ -73,14 +73,22 @@ class OptimizationResultsWithoutNans(OptimizationResults):
         return dictionary
 
 
-
 def setup_optimization_problem_and_results(
-        n_gen=3, n_ind=3, n_vars=2, n_obj=1, n_nonlin=0, n_meta=0, rng=None,
-        initialize_data=True):
+    n_gen=3,
+    n_ind=3,
+    n_vars=2,
+    n_obj=1,
+    n_nonlin=0,
+    n_meta=0,
+    rng=None,
+    initialize_data=True,
+):
     optimization_problem = setup_optimization_problem(n_vars, n_obj, n_nonlin, n_meta)
     optimizer = U_NSGA3()
 
-    optimization_results = OptimizationResultsWithoutNans(optimization_problem, optimizer)
+    optimization_results = OptimizationResultsWithoutNans(
+        optimization_problem, optimizer
+    )
     results_dir = Path("tmp") / "optimization_results"
 
     shutil.rmtree(results_dir, ignore_errors=True)
@@ -115,11 +123,13 @@ class TestOptimizationResults(unittest.TestCase):
         n_evals = self.optimization_results.n_evals
         self.assertEqual(n_evals, n_evals_expected)
 
-        f_min_history_expected = np.array([
-            [-0.79736546],
-            [-0.94888115],
-            [-0.94888115],
-        ])
+        f_min_history_expected = np.array(
+            [
+                [-0.79736546],
+                [-0.94888115],
+                [-0.94888115],
+            ]
+        )
         f_min_history = self.optimization_results.f_min_history
         np.testing.assert_almost_equal(f_min_history, f_min_history_expected)
 
@@ -143,19 +153,23 @@ class TestOptimizationResults(unittest.TestCase):
         optimization_problem, _ = setup_optimization_problem_and_results()
 
         # save_results() needs to happen after creation of optimization_problem,
-        #  because during optimization_problem creation the results folder gets cleared and that would delete the save
+        # because during optimization_problem creation the results folder gets cleared
+        # and that would delete the save
         self.optimization_results.save_results("checkpoint")
 
         optimizer = U_NSGA3()
         optimization_results_new = optimizer.load_results(
-            checkpoint_path=self.optimization_results.results_directory / "checkpoint.h5",
-            optimization_problem=optimization_problem
+            checkpoint_path=self.optimization_results.results_directory
+            / "checkpoint.h5",
+            optimization_problem=optimization_problem,
         )
         np.testing.assert_equal(
             desired=self.optimization_results.to_dict(),
-            actual=OptimizationResultsWithoutNans._remove_none_values(optimization_results_new.to_dict())
+            actual=OptimizationResultsWithoutNans._remove_none_values(
+                optimization_results_new.to_dict()
+            ),
         )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

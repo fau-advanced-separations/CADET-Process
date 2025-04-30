@@ -1,15 +1,14 @@
 from functools import partial
+
 import numpy as np
 import pytest
-
-
 from CADETProcess.optimization import (
-    OptimizerBase,
-    TrustConstr,
     COBYLA,
-    NelderMead,
     SLSQP,
     U_NSGA3,
+    NelderMead,
+    OptimizerBase,
+    TrustConstr,
 )
 
 skip_ax = False
@@ -23,17 +22,17 @@ except ImportError:
     skip_ax = True
 
 from tests.optimization_problem_fixtures import (
-    TestProblem,
-    Rosenbrock,
+    LinearConstraintsMooTestProblem,
     LinearConstraintsSooTestProblem,
     LinearConstraintsSooTestProblem2,
     LinearEqualityConstraintsSooTestProblem,
-    NonlinearConstraintsSooTestProblem,
-    NonlinearLinearConstraintsSooTestProblem,
-    LinearConstraintsMooTestProblem,
     LinearNonlinearConstraintsMooTestProblem,
     NonlinearConstraintsMooTestProblem,
-) # noqa: E402
+    NonlinearConstraintsSooTestProblem,
+    NonlinearLinearConstraintsSooTestProblem,
+    Rosenbrock,
+    TestProblem,
+)  # noqa: E402
 
 # %% Optimizer Setup
 
@@ -112,7 +111,9 @@ class U_NSGA3(U_NSGA3):
     pop_size = 100
     n_max_gen = 20  # before used 100 generations --> this did not improve the fit
 
+
 if not skip_ax:
+
     class GPEI(GPEI):
         cv_lincon_tol = CV_LINCON_TOL
         n_init_evals = 40
@@ -120,14 +121,12 @@ if not skip_ax:
         early_stopping_improvement_window = 10
         n_max_evals = 50
 
-
     class NEHVI(NEHVI):
         cv_lincon_tol = CV_LINCON_TOL
         n_init_evals = 50
         early_stopping_improvement_bar = 1e-4
         early_stopping_improvement_window = 10
         n_max_evals = 60
-
 
     class qNParEGO(qNParEGO):
         cv_lincon_tol = CV_LINCON_TOL
@@ -139,6 +138,7 @@ if not skip_ax:
 
 # %% Test problem factory
 
+
 @pytest.fixture(
     params=[
         # single objective problems
@@ -148,12 +148,10 @@ if not skip_ax:
         NonlinearConstraintsSooTestProblem,
         LinearEqualityConstraintsSooTestProblem,
         NonlinearLinearConstraintsSooTestProblem,
-
         # multi objective problems
         LinearConstraintsMooTestProblem,
         NonlinearConstraintsMooTestProblem,
         LinearNonlinearConstraintsMooTestProblem,
-
         # transformed problems
         partial(LinearConstraintsSooTestProblem, transform="linear"),
         partial(LinearEqualityConstraintsSooTestProblem, transform="linear"),
@@ -163,7 +161,8 @@ if not skip_ax:
 def optimization_problem(request):
     return request.param(use_diskcache=False)
 
-params=[
+
+params = [
     TrustConstr,
     COBYLA,
     SLSQP,
@@ -176,7 +175,7 @@ if not skip_ax:
         [
             GPEI,
             NEHVI,
-            qNParEGO
+            qNParEGO,
         ]
     )
     EXCLUDE_COMBINATIONS.append(
@@ -189,9 +188,7 @@ if not skip_ax:
     )
 
 
-@pytest.fixture(
-    params=params
-)
+@pytest.fixture(params=params)
 def optimizer(request):
     optimizer = request.param()
     optimizer.progress_freqency = None
@@ -215,11 +212,11 @@ def test_convergence(optimization_problem: TestProblem, optimizer: OptimizerBase
         else:
             optimization_problem.test_if_solved(results, MOO_TEST_KWARGS)
 
+
 @pytest.mark.slow
 def test_from_initial_values(
     optimization_problem: TestProblem, optimizer: OptimizerBase
 ):
-
     if optimizer.check_optimization_problem(optimization_problem):
         skip_if_combination_excluded(optimizer, optimization_problem)
         set_non_default_parameters(optimizer, optimization_problem)
@@ -254,6 +251,7 @@ class AbortingCallback:
             raise RuntimeError("Max number of evaluations reached. Aborting!")
         self.n_calls += 1
 
+
 @pytest.mark.slow
 def test_resume_from_checkpoint(
     optimization_problem: TestProblem, optimizer: OptimizerBase
@@ -262,7 +260,6 @@ def test_resume_from_checkpoint(
 
     # TODO: Do we need to run this for all problems?
     if optimizer.check_optimization_problem(optimization_problem):
-
         callback = AbortingCallback(n_max_evals=2, abort=True)
         optimization_problem.add_callback(callback)
 

@@ -1,11 +1,10 @@
 import hashlib
 
-from addict import Dict
 import numpy as np
+from addict import Dict
 
 from CADETProcess import CADETProcessError
-from CADETProcess.dataStructure import Structure
-from CADETProcess.dataStructure import Bool, Float, Vector
+from CADETProcess.dataStructure import Bool, Float, Structure, Vector
 
 
 def hash_array(array: np.ndarray) -> str:
@@ -84,25 +83,25 @@ class Individual(Structure):
     is_feasible = Bool()
 
     def __init__(
-            self,
-            x,
-            f=None,
-            g=None,
-            f_min=None,
-            x_transformed=None,
-            cv_bounds=None,
-            cv_lincon=None,
-            cv_lineqcon=None,
-            cv_nonlincon=None,
-            m=None,
-            m_min=None,
-            independent_variable_names=None,
-            objective_labels=None,
-            nonlinear_constraint_labels=None,
-            meta_score_labels=None,
-            variable_names=None,
-            is_feasible=True,
-            ):
+        self,
+        x,
+        f=None,
+        g=None,
+        f_min=None,
+        x_transformed=None,
+        cv_bounds=None,
+        cv_lincon=None,
+        cv_lineqcon=None,
+        cv_nonlincon=None,
+        m=None,
+        m_min=None,
+        independent_variable_names=None,
+        objective_labels=None,
+        nonlinear_constraint_labels=None,
+        meta_score_labels=None,
+        variable_names=None,
+        is_feasible=True,
+    ):
         self.x = x
         if x_transformed is None:
             x_transformed = x
@@ -132,7 +131,9 @@ class Individual(Structure):
             variable_names = [s.decode() for s in variable_names]
         self.variable_names = variable_names
         if isinstance(independent_variable_names, np.ndarray):
-            independent_variable_names = [s.decode() for s in independent_variable_names]
+            independent_variable_names = [
+                s.decode() for s in independent_variable_names
+            ]
         self.independent_variable_names = independent_variable_names
         if isinstance(objective_labels, np.ndarray):
             objective_labels = [s.decode() for s in objective_labels]
@@ -302,11 +303,11 @@ class Individual(Structure):
         return similar_x and similar_f and similar_g and similar_m
 
     def is_similar_x(
-            self,
-            other: "Individual",
-            tol: float = 1e-1,
-            use_transformed: bool = False,
-            ) -> bool:
+        self,
+        other: "Individual",
+        tol: float = 1e-1,
+        use_transformed: bool = False,
+    ) -> bool:
         """Determine if individual is similar to other based on parameter values.
 
         Parameters
@@ -394,9 +395,9 @@ class Individual(Structure):
 
     def __repr__(self) -> str:
         if self.g is None:
-            return f'{self.__class__.__name__}({self.x}, {self.f})'
+            return f"{self.__class__.__name__}({self.x}, {self.f})"
         else:
-            return f'{self.__class__.__name__}({self.x}, {self.f}, {self.g})'
+            return f"{self.__class__.__name__}({self.x}, {self.f}, {self.g})"
 
     def to_dict(self) -> dict:
         """Convert individual to a dictionary.

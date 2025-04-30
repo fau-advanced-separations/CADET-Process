@@ -1,16 +1,15 @@
-from collections import defaultdict
 import copy
+from collections import defaultdict
 
 import numpy as np
 
-from CADETProcess import CADETProcessError
-from CADETProcess import plotting
+from CADETProcess import CADETProcessError, plotting
 from CADETProcess.processModel import ComponentSystem
 
 
 def preprocessing(reaction_system, buffer, pH=None, components=None):
     buffer = np.array(buffer, ndmin=2)
-    buffer_M = 1e-3*buffer
+    buffer_M = 1e-3 * buffer
 
     component_system = copy.deepcopy(reaction_system.component_system)
 
@@ -21,14 +20,14 @@ def preprocessing(reaction_system, buffer, pH=None, components=None):
                 indices.pop(comp)
 
     try:
-        proton_index = indices.pop('H+')
+        proton_index = indices.pop("H+")
     except ValueError:
         raise CADETProcessError("Could not find proton in component system")
 
     if pH is None:
         pH = -np.log10(buffer_M[:, proton_index]).reshape((-1))
     else:
-        pH = np.asarray(pH, dtype='float64')
+        pH = np.asarray(pH, dtype="float64")
 
     scalar_input = False
     if pH.ndim == 0:
@@ -42,13 +41,9 @@ def preprocessing(reaction_system, buffer, pH=None, components=None):
             if not all(r_i in i + proton_index for r_i in reaction_indices):
                 continue
 
-            pKa[comp].append(-np.log10(r.k_eq*1e-3))
+            pKa[comp].append(-np.log10(r.k_eq * 1e-3))
 
-    c_acids_M = {
-        comp: buffer_M[:, i]
-        for comp, i in indices.items()
-        if comp in pKa
-    }
+    c_acids_M = {comp: buffer_M[:, i] for comp, i in indices.items() if comp in pKa}
 
     for comp in indices.copy():
         if comp not in pKa:
@@ -74,15 +69,15 @@ def c_species_nu(pKa, pH):
 
     """
     pKa = np.array([1.0] + pKa)
-    k_eq = 10**(-pKa)
+    k_eq = 10 ** (-pKa)
     n = len(k_eq)
 
     c_H = np.power(10, -pH)
     c_species_nu = np.zeros((n, len(pH)))
 
     for j in range(n):
-        k = np.prod(k_eq[0:j+1])
-        c_species_nu[j] = k*c_H**(n-j)
+        k = np.prod(k_eq[0 : j + 1])
+        c_species_nu[j] = k * c_H ** (n - j)
 
     return c_species_nu
 
@@ -143,7 +138,7 @@ def eta(pKa, pH):
         Degree of dissociation.
 
     """
-    return z_total_nu(pKa, pH)/c_total_nu(pKa, pH)
+    return z_total_nu(pKa, pH) / c_total_nu(pKa, pH)
 
 
 def charge_distribution(reaction_system, pH, components=None):
@@ -247,7 +242,7 @@ def alpha(pKa, pH):
     alpha : np.array
         Degree of protolysis.
     """
-    return c_species_nu(pKa, pH)/c_total_nu(pKa, pH)
+    return c_species_nu(pKa, pH) / c_total_nu(pKa, pH)
 
 
 def beta(c_acid, pKa, pH):
@@ -268,12 +263,14 @@ def beta(c_acid, pKa, pH):
         Buffer capacity.
     """
     a = alpha(pKa, pH)
-    beta = np.zeros(len(pH),)
+    beta = np.zeros(
+        len(pH),
+    )
 
     n = c_acid.shape[1]
     for j in range(1, n):
         for i in range(0, j):
-            beta += (j-i)**2 * a[j] * a[i]
+            beta += (j - i) ** 2 * a[j] * a[i]
 
     beta *= np.log(10) * np.sum(c_acid, axis=1)
 
@@ -293,8 +290,8 @@ def beta_water(pH):
     beta_water
         Buffer capacity of water.
     """
-    c_H = 10**(-pH)
-    return np.log(10)*(10**(-14)/c_H + c_H)
+    c_H = 10 ** (-pH)
+    return np.log(10) * (10 ** (-14) / c_H + c_H)
 
 
 def buffer_capacity(reaction_system, buffer, pH=None, components=None):
@@ -322,7 +319,7 @@ def buffer_capacity(reaction_system, buffer, pH=None, components=None):
         reaction_system, buffer, pH, components
     )
 
-    buffer_capacity = np.zeros((len(pH), len(c_acids_M)+1))
+    buffer_capacity = np.zeros((len(pH), len(c_acids_M) + 1))
 
     for i, comp in enumerate(indices):
         buffer_capacity[:, i] = beta(c_acids_M[comp], pKa[comp], pH)
@@ -357,9 +354,9 @@ def ionic_strength(component_system, buffer):
     if len(buffer) != component_system.n_comp:
         raise CADETProcessError("Number of components does not match")
 
-    buffer = np.asarray(buffer, dtype='float64')
+    buffer = np.asarray(buffer, dtype="float64")
     z = np.asarray(component_system.charges)
-    return 1/2 * np.sum(buffer*z**2)
+    return 1 / 2 * np.sum(buffer * z**2)
 
 
 @plotting.create_and_save_figure
@@ -389,18 +386,18 @@ def plot_buffer_capacity(reaction_system, buffer, pH=None, ax=None):
     b_total = np.sum(b, axis=1)
 
     labels = reaction_system.component_system.names
-    labels.remove('H+')
+    labels.remove("H+")
 
     for i in range(reaction_system.component_system.n_components - 1):
         ax.plot(pH, b[:, i], label=labels[i])
 
-    ax.plot(pH, b[:, -1], label='Water')
-    ax.plot(pH, b_total, 'k--', label='Total buffer capacity')
+    ax.plot(pH, b[:, -1], label="Water")
+    ax.plot(pH, b_total, "k--", label="Total buffer capacity")
 
     layout = plotting.Layout()
-    layout.x_label = '$pH$'
-    layout.y_label = 'buffer capacity / mM'
-    layout.y_lim = (0, 1.1*np.max(b_total))
+    layout.x_label = "$pH$"
+    layout.y_label = "buffer capacity / mM"
+    layout.y_lim = (0, 1.1 * np.max(b_total))
 
     plotting.set_layout(ax, layout)
 
@@ -408,8 +405,7 @@ def plot_buffer_capacity(reaction_system, buffer, pH=None, ax=None):
 
 
 @plotting.create_and_save_figure
-def plot_charge_distribution(
-        reaction_system, pH=None, plot_cumulative=False, ax=None):
+def plot_charge_distribution(reaction_system, pH=None, plot_cumulative=False, ax=None):
     """Plot charge distribution of components over pH.
 
     Parameters
@@ -435,23 +431,23 @@ def plot_charge_distribution(
 
     if plot_cumulative:
         c = cummulative_charge_distribution(reaction_system, pH)
-        layout.y_label = 'degree of dissociation'
+        layout.y_label = "degree of dissociation"
     else:
         c = charge_distribution(reaction_system, pH)
-        layout.y_label = 'degree of protolysis'
+        layout.y_label = "degree of protolysis"
 
     if plot_cumulative:
         labels = reaction_system.component_system.names
     else:
         labels = reaction_system.component_system.species
 
-    labels.remove('H+')
+    labels.remove("H+")
 
-    for i, l in zip(c.T, labels):
-        ax.plot(pH, i, label=l)
+    for i, label in zip(c.T, labels):
+        ax.plot(pH, i, label=label)
 
-    layout.x_label = '$pH$'
-    layout.y_lim = (1.1*np.min(c), 1.1*np.max(c))
+    layout.x_label = "$pH$"
+    layout.y_lim = (1.1 * np.min(c), 1.1 * np.max(c))
 
     plotting.set_layout(ax, layout)
 

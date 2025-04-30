@@ -1,7 +1,7 @@
 from CADETProcess import CADETProcessError
 
 
-class ParameterWrapper():
+class ParameterWrapper:
     """Base class for converting the config from objects such as units.
 
     Attributes
@@ -36,14 +36,14 @@ class ParameterWrapper():
     def parameters(self):
         model_parameters = {}
 
-        model_parameters[self._model_type] = self.model_parameters['name']
+        model_parameters[self._model_type] = self.model_parameters["name"]
 
-        for key, value in self.model_parameters['parameters'].items():
+        for key, value in self.model_parameters["parameters"].items():
             value = getattr(self._wrapped_object, value)
             if value is not None:
                 model_parameters[key] = value
 
-        for key, value in self.model_parameters.get('fixed', dict()).items():
+        for key, value in self.model_parameters.get("fixed", dict()).items():
             if isinstance(value, list):
                 value = self._wrapped_object.n_comp * value
             model_parameters[key] = value

@@ -1,21 +1,20 @@
-from pathlib import Path
-from typing import Optional
 import uuid
 import warnings
+from pathlib import Path
+from typing import Optional
 
-from addict import Dict
 import corner
+import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
-import matplotlib.pyplot as plt
+from addict import Dict
 from pymoo.visualization.scatter import Scatter
 
-from CADETProcess import CADETProcessError
-from CADETProcess import plotting
-from CADETProcess.optimization.individual import hash_array, Individual
+from CADETProcess import CADETProcessError, plotting
+from CADETProcess.optimization.individual import Individual, hash_array
 
 
-class Population():
+class Population:
     """Collection of Individuals evaluated during Optimization.
 
     Attributes
@@ -446,16 +445,18 @@ class Population():
             return space_fig_all, space_axs_all
 
     def plot_objectives(
-            self,
-            figs=None, axs=None,
-            include_meta=True,
-            plot_infeasible=True,
-            plot_individual=False,
-            autoscale=True,
-            color_feas='blue',
-            color_infeas='red',
-            show=True,
-            plot_directory=None):
+        self,
+        figs=None,
+        axs=None,
+        include_meta=True,
+        plot_infeasible=True,
+        plot_individual=False,
+        autoscale=True,
+        color_feas="blue",
+        color_infeas="red",
+        show=True,
+        plot_directory=None,
+    ):
         """Plot the objective function values for each design variable.
 
         Parameters
@@ -581,9 +582,9 @@ class Population():
             plot_directory = Path(plot_directory)
             if plot_individual:
                 for i, fig in enumerate(figs):
-                    fig.savefig(f'{plot_directory / "objectives"}_{i}.png')
+                    fig.savefig(f"{plot_directory / 'objectives'}_{i}.png")
             else:
-                figs[0].savefig(f'{plot_directory / "objectives"}.png')
+                figs[0].savefig(f"{plot_directory / 'objectives'}.png")
 
         if plot_individual:
             return figs, axs
@@ -618,15 +619,15 @@ class Population():
         return plot
 
     def plot_pareto(
-            self,
-            plot=None,
-            include_meta=True,
-            plot_infeasible=True,
-            color_feas="blue",
-            color_infeas="red",
-            show=True,
-            plot_directory=None,
-            ):
+        self,
+        plot=None,
+        include_meta=True,
+        plot_infeasible=True,
+        color_feas="blue",
+        color_infeas="red",
+        show=True,
+        plot_directory=None,
+    ):
         """Plot pairwise Pareto fronts for each generation in the optimization.
 
         The Pareto front represents the optimal solutions that cannot be improved in one
@@ -683,7 +684,7 @@ class Population():
 
         if plot_directory is not None:
             plot_directory = Path(plot_directory)
-            plot.save(f'{plot_directory / "pareto.png"}')
+            plot.save(f"{plot_directory / 'pareto.png'}")
 
         if not show:
             plt.close(plot.fig)
@@ -693,15 +694,15 @@ class Population():
         return plot
 
     def plot_pairwise(
-            self,
-            fig: Optional[plt.Figure] = None,
-            axs: Optional[npt.NDArray[plt.Axes]] = None,
-            n_bins: int = 20,
-            use_transformed=False,
-            autoscale: bool = True,
-            show=True,
-            plot_directory=None,
-            ) -> tuple[plt.Figure, np.ndarray]:
+        self,
+        fig: Optional[plt.Figure] = None,
+        axs: Optional[npt.NDArray[plt.Axes]] = None,
+        n_bins: int = 20,
+        use_transformed=False,
+        autoscale: bool = True,
+        show=True,
+        plot_directory=None,
+    ) -> tuple[plt.Figure, np.ndarray]:
         """
         Create a pairplot using Matplotlib.
 
@@ -739,12 +740,17 @@ class Population():
             labels = self.variable_names
 
         fig, axs = plot_pairwise(
-            x, labels, n_bins=n_bins, autoscale=autoscale, fig=fig, axs=axs,
+            x,
+            labels,
+            n_bins=n_bins,
+            autoscale=autoscale,
+            fig=fig,
+            axs=axs,
         )
 
         if plot_directory is not None:
             plot_directory = Path(plot_directory)
-            fig.savefig(f'{plot_directory / "pairwise.png"}')
+            fig.savefig(f"{plot_directory / 'pairwise.png'}")
 
         if not show:
             plt.close(fig)
@@ -805,7 +811,7 @@ class Population():
 
         if plot_directory is not None:
             plot_directory = Path(plot_directory)
-            fig.savefig(f'{plot_directory / "corner.png"}')
+            fig.savefig(f"{plot_directory / 'corner.png'}")
 
         if not show:
             plt.close(fig)
@@ -1067,10 +1073,7 @@ class ParetoFront(Population):
         ParetoFront
             ParetoFront created from data.
         """
-        front = cls(
-            similarity_tol=data.get("similarity_tol"),
-            id=data["id"]
-        )
+        front = cls(similarity_tol=data.get("similarity_tol"), id=data["id"])
         for individual_data in data["individuals"].values():
             individual = Individual.from_dict(individual_data)
             front.add_individual(individual)
@@ -1079,13 +1082,13 @@ class ParetoFront(Population):
 
 
 def plot_pairwise(
-        population: npt.ArrayLike,
-        variable_names: Optional[list[str]] = None,
-        n_bins: int = 20,
-        autoscale: bool = True,
-        fig: Optional[plt.Figure] = None,
-        axs: Optional[npt.NDArray[plt.Axes]] = None,
-        ) -> tuple[plt.Figure, npt.NDArray[plt.Axes]]:
+    population: npt.ArrayLike,
+    variable_names: Optional[list[str]] = None,
+    n_bins: int = 20,
+    autoscale: bool = True,
+    fig: Optional[plt.Figure] = None,
+    axs: Optional[npt.NDArray[plt.Axes]] = None,
+) -> tuple[plt.Figure, npt.NDArray[plt.Axes]]:
     """
     Create a pairwise scatter plot for all variables of a population.
 
@@ -1126,10 +1129,12 @@ def plot_pairwise(
 
     if fig is None and axs is None:
         fig, axs = plt.subplots(
-            n_variables, n_variables,
+            n_variables,
+            n_variables,
             figsize=(6 * n_variables, 5 * n_variables),
-            sharex="col", sharey="row",
-            squeeze=False
+            sharex="col",
+            sharey="row",
+            squeeze=False,
         )
 
     if axs.shape != (n_variables, n_variables):
@@ -1162,13 +1167,11 @@ def plot_pairwise(
                 # Determine binning strategy
                 if scale_i:
                     bins = np.geomspace(
-                        population[:, i].min(), population[:, i].max(), n_bins+1
+                        population[:, i].min(), population[:, i].max(), n_bins + 1
                     )
                 else:
                     bins = np.linspace(
-                        population[:, i].min(),
-                        population[:, i].max(),
-                        n_bins+1
+                        population[:, i].min(), population[:, i].max(), n_bins + 1
                     )
 
                 ax_hist.hist(
@@ -1177,7 +1180,7 @@ def plot_pairwise(
                     alpha=0.7,
                     color="blue",
                     edgecolor="black",
-                    align="mid"
+                    align="mid",
                 )
                 ax_hist.set_yticks([])  # Hide y-ticks for the histogram
             else:

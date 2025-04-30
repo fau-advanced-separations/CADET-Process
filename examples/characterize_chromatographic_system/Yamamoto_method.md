@@ -5,7 +5,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.14.5
+    jupytext_version: 1.17.1
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -30,7 +30,7 @@ using the Yamamoto method.
 ```{code-cell}
 import numpy as np
 
-from CADETProcess.processModel import ComponentSystem, StericMassAction, LumpedRateModelWithPores
+from CADETProcess.processModel import ComponentSystem
 from CADETProcess.tools.yamamoto import GradientExperiment, fit_parameters
 
 from binding_model_parameters import create_column_model, create_in_silico_experimental_data

@@ -1,38 +1,41 @@
+import warnings
 from copy import deepcopy
 from functools import wraps
-from typing import Any, Optional, NoReturn
-import warnings
+from typing import Any, NoReturn, Optional
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
-from CADETProcess import CADETProcessError
-from CADETProcess import plotting
-
-from CADETProcess.dataStructure import Structure
-from CADETProcess.dataStructure import Integer, UnsignedInteger, UnsignedFloat
-
-from CADETProcess.processModel import ComponentSystem
-from CADETProcess.processModel import BindingBaseClass, Linear, Langmuir
-from CADETProcess.processModel import UnitBaseClass, FlowSheet, Process
-from CADETProcess.processModel import (
-    Cstr,
-    Inlet,
-    TubularReactorBase,
-    TubularReactor,
-    Outlet,
+from CADETProcess import CADETProcessError, plotting
+from CADETProcess.dataStructure import (
+    Integer,
+    Structure,
+    UnsignedFloat,
+    UnsignedInteger,
 )
-
+from CADETProcess.processModel import (
+    BindingBaseClass,
+    ComponentSystem,
+    Cstr,
+    FlowSheet,
+    Inlet,
+    Langmuir,
+    Linear,
+    Outlet,
+    Process,
+    TubularReactor,
+    TubularReactorBase,
+    UnitBaseClass,
+)
 from CADETProcess.solution import SolutionBase
 
-
 __all__ = [
-    'SerialZone',
-    'ParallelZone',
-    'CarouselBuilder',
-    'SMBBuilder',
-    'LinearSMBBuilder',
-    'LangmuirSMBBuilder',
+    "SerialZone",
+    "ParallelZone",
+    "CarouselBuilder",
+    "SMBBuilder",
+    "LinearSMBBuilder",
+    "LangmuirSMBBuilder",
 ]
 
 
@@ -52,16 +55,16 @@ class ZoneBaseClass(UnitBaseClass):
     flow_direction = Integer(default=1)
 
     def __init__(
-            self,
-            component_system: ComponentSystem,
-            name: str,
-            n_columns: int = 1,
-            flow_direction: int = 1,
-            initial_state: list = None,
-            valve_parameters: dict = None,
-            *args,
-            **kwargs
-            ) -> NoReturn:
+        self,
+        component_system: ComponentSystem,
+        name: str,
+        n_columns: int = 1,
+        flow_direction: int = 1,
+        initial_state: list = None,
+        valve_parameters: dict = None,
+        *args,
+        **kwargs,
+    ) -> NoReturn:
         """
         Initialize a ZoneBaseClass instance.
 
@@ -87,10 +90,10 @@ class ZoneBaseClass(UnitBaseClass):
         valve_parameters = valve_parameters or {}
 
         self._inlet_unit = self._setup_valve(
-            component_system, f'{name}_inlet', **valve_parameters
+            component_system, f"{name}_inlet", **valve_parameters
         )
         self._outlet_unit = self._setup_valve(
-            component_system, f'{name}_outlet', **valve_parameters
+            component_system, f"{name}_outlet", **valve_parameters
         )
 
         super().__init__(component_system, name, *args, **kwargs)
@@ -102,9 +105,8 @@ class ZoneBaseClass(UnitBaseClass):
 
     @initial_state.setter
     def initial_state(
-            self,
-            initial_state: list[dict[str, list]] | dict[str, list]
-            ) -> NoReturn:
+        self, initial_state: list[dict[str, list]] | dict[str, list]
+    ) -> NoReturn:
         if initial_state is None:
             self._initial_state = initial_state
             return
@@ -117,11 +119,16 @@ class ZoneBaseClass(UnitBaseClass):
 
         self._initial_state = initial_state
 
-    def _setup_valve(self, component_system, name, unit_type=Cstr, **valve_parameters):
+    def _setup_valve(
+        self,
+        component_system,
+        name,
+        unit_type=Cstr,
+        **valve_parameters,
+    ):
         if unit_type not in (Cstr, TubularReactor):
             raise ValueError(
-                "Unknown unit type. Must be one of "
-                "`Cstr`, `TubularReactor`."
+                "Unknown unit type. Must be one of `Cstr`, `TubularReactor`."
             )
 
         valve = unit_type(component_system, name)
@@ -134,7 +141,9 @@ class ZoneBaseClass(UnitBaseClass):
             valve.discretization.ncol = 1
 
             length_diameter_ratio = valve_parameters.get("length_diameter_ratio", 1)
-            valve.diameter = (4 / np.pi * valve_dead_volume / length_diameter_ratio)**(1/3)
+            valve.diameter = (
+                4 / np.pi * valve_dead_volume / length_diameter_ratio
+            ) ** (1 / 3)
             valve.length = length_diameter_ratio * valve.diameter
 
             valve.axial_dispersion = valve_parameters.get("axial_dispersion", 0)
@@ -183,11 +192,11 @@ class CarouselBuilder(Structure):
     switch_time = UnsignedFloat()
 
     def __init__(
-            self,
-            component_system: ComponentSystem,
-            name: str,
-            valve_parameters: dict = None,
-            ) -> NoReturn:
+        self,
+        component_system: ComponentSystem,
+        name: str,
+        valve_parameters: dict = None,
+    ) -> NoReturn:
         """
         Initialize a CarouselBuilder instance.
 
@@ -221,7 +230,7 @@ class CarouselBuilder(Structure):
         if not isinstance(column, TubularReactorBase):
             raise TypeError("Column must be an instance of TubularReactorBase.")
         if self.component_system is not column.component_system:
-            raise CADETProcessError('Number of components does not match.')
+            raise CADETProcessError("Number of components does not match.")
         self._column = column
 
     @wraps(FlowSheet.add_unit)
@@ -314,7 +323,7 @@ class CarouselBuilder(Structure):
                 for i_col in range(unit.n_columns):
                     col = deepcopy(self.column)
                     col.component_system = self.component_system
-                    col.name = f'column_{col_index}'
+                    col.name = f"column_{col_index}"
                     if unit.initial_state is not None:
                         col.initial_state = unit.initial_state[i_col]
                     flow_sheet.add_unit(col)
@@ -338,17 +347,17 @@ class CarouselBuilder(Structure):
         """Add connections within zones."""
         for zone in self.zones:
             for col_index in range(self.n_columns):
-                col = flow_sheet[f'column_{col_index}']
+                col = flow_sheet[f"column_{col_index}"]
                 flow_sheet.add_connection(zone.inlet_unit, col)
-                col = flow_sheet[f'column_{col_index}']
+                col = flow_sheet[f"column_{col_index}"]
                 flow_sheet.add_connection(col, zone.outlet_unit)
 
         for col_index in range(self.n_columns):
-            col_orig = flow_sheet[f'column_{col_index}']
+            col_orig = flow_sheet[f"column_{col_index}"]
             if col_index < self.n_columns - 1:
-                col_dest = flow_sheet[f'column_{col_index + 1}']
+                col_dest = flow_sheet[f"column_{col_index + 1}"]
             else:
-                col_dest = flow_sheet[f'column_{0}']
+                col_dest = flow_sheet[f"column_{0}"]
             flow_sheet.add_connection(col_orig, col_dest)
 
     def _set_output_states(self, flow_sheet: FlowSheet) -> NoReturn:
@@ -387,74 +396,72 @@ class CarouselBuilder(Structure):
     def _add_events(self, process):
         """Add events to process."""
         process.cycle_time = self.n_columns * self.switch_time
-        process.add_duration('switch_time', self.switch_time)
+        process.add_duration("switch_time", self.switch_time)
 
         for carousel_state in range(self.n_columns):
             position_counter = 0
             for i_zone, zone in enumerate(self.zones):
                 col_indices = np.arange(zone.n_columns)
                 col_indices += position_counter
-                col_indices = self.column_indices_at_state(
-                    col_indices, carousel_state
-                )
+                col_indices = self.column_indices_at_state(col_indices, carousel_state)
 
                 if isinstance(zone, SerialZone):
                     evt = process.add_event(
-                        f'{zone.name}_{carousel_state}',
-                        f'flow_sheet.output_states.{zone.inlet_unit}',
-                        col_indices[0]
+                        f"{zone.name}_{carousel_state}",
+                        f"flow_sheet.output_states.{zone.inlet_unit}",
+                        col_indices[0],
                     )
                     process.add_event_dependency(
-                        evt.name, 'switch_time', [carousel_state]
+                        evt.name, "switch_time", [carousel_state]
                     )
                     for i, col in enumerate(col_indices):
                         if i < (zone.n_columns - 1):
                             evt = process.add_event(
-                                f'column_{col}_{carousel_state}',
-                                f'flow_sheet.output_states.column_{col}',
-                                self.n_zones
+                                f"column_{col}_{carousel_state}",
+                                f"flow_sheet.output_states.column_{col}",
+                                self.n_zones,
                             )
                         else:
                             evt = process.add_event(
-                                f'column_{col}_{carousel_state}',
-                                f'flow_sheet.output_states.column_{col}',
-                                i_zone
+                                f"column_{col}_{carousel_state}",
+                                f"flow_sheet.output_states.column_{col}",
+                                i_zone,
                             )
                         process.add_event_dependency(
-                            evt.name, 'switch_time', [carousel_state]
+                            evt.name, "switch_time", [carousel_state]
                         )
                 elif isinstance(zone, ParallelZone):
                     output_state = self.n_columns * [0]
                     for col in col_indices:
-                        output_state[col] = 1/zone.n_columns
+                        output_state[col] = 1 / zone.n_columns
 
                     evt = process.add_event(
-                            f'{zone.name}_{carousel_state}',
-                            f'flow_sheet.output_states.{zone.inlet_unit}',
-                            output_state
+                        f"{zone.name}_{carousel_state}",
+                        f"flow_sheet.output_states.{zone.inlet_unit}",
+                        output_state,
                     )
                     process.add_event_dependency(
-                            evt.name, 'switch_time', [carousel_state]
+                        evt.name, "switch_time", [carousel_state]
                     )
 
                     for col in col_indices:
                         evt = process.add_event(
-                            f'column_{col}_{carousel_state}',
-                            f'flow_sheet.output_states.column_{col}',
-                            i_zone
+                            f"column_{col}_{carousel_state}",
+                            f"flow_sheet.output_states.column_{col}",
+                            i_zone,
                         )
                         process.add_event_dependency(
-                            evt.name, 'switch_time', [carousel_state]
+                            evt.name, "switch_time", [carousel_state]
                         )
 
                 for i, col in enumerate(col_indices):
                     evt = process.add_event(
-                        f'column_{col}_{carousel_state}_velocity',
-                        f'flow_sheet.column_{col}.flow_direction',
-                        zone.flow_direction
+                        f"column_{col}_{carousel_state}_velocity",
+                        f"flow_sheet.column_{col}.flow_direction",
+                        zone.flow_direction,
                     )
                     process.add_event_dependency(
-                        evt.name, 'switch_time', [carousel_state]
+                        evt.name, "switch_time", [carousel_state]
                     )
 
                 position_counter += zone.n_columns
@@ -470,10 +477,10 @@ class CarouselBuilder(Structure):
         return int(np.floor((t % self.cycle_time) / self.switch_time))
 
     def column_indices_at_state(
-            self,
-            carousel_positions: np.typing.NDArray[int],
-            carousel_state: int
-            ) -> np.ndarray[int]:
+        self,
+        carousel_positions: np.typing.NDArray[int],
+        carousel_state: int,
+    ) -> np.ndarray[int]:
         """Determine index of column unit at given carousel position and state.
 
         Parameters
@@ -493,10 +500,10 @@ class CarouselBuilder(Structure):
         return (carousel_positions + carousel_state) % self.n_columns
 
     def column_indices_at_time(
-            self,
-            t: float,
-            carousel_positions: np.typing.NDArray[int],
-            ) -> int:
+        self,
+        t: float,
+        carousel_positions: np.typing.NDArray[int],
+    ) -> int:
         """Determine index of column unit at given carousel position and time.
 
         Parameters
@@ -534,13 +541,13 @@ class SMBBuilder(CarouselBuilder):
     binding_model_type = BindingBaseClass
 
     def __init__(
-            self,
-            feed: Inlet,
-            eluent: Inlet,
-            column: TubularReactorBase,
-            name: str = 'SMB',
-            valve_parameters: dict = None,
-            ) -> NoReturn:
+        self,
+        feed: Inlet,
+        eluent: Inlet,
+        column: TubularReactorBase,
+        name: str = "SMB",
+        valve_parameters: dict = None,
+    ) -> NoReturn:
         """
         Initialize an SMBBuilder instance.
 
@@ -577,20 +584,20 @@ class SMBBuilder(CarouselBuilder):
 
         super().__init__(component_system, name, valve_parameters)
 
-        raffinate = Outlet(component_system, name='raffinate')
-        extract = Outlet(component_system, name='extract')
+        raffinate = Outlet(component_system, name="raffinate")
+        extract = Outlet(component_system, name="extract")
 
         zone_I = SerialZone(
-            component_system, 'zone_I', 1, valve_parameters=self.valve_parameters
-            )
+            component_system, "zone_I", 1, valve_parameters=self.valve_parameters
+        )
         zone_II = SerialZone(
-            component_system, 'zone_II', 1, valve_parameters=self.valve_parameters
+            component_system, "zone_II", 1, valve_parameters=self.valve_parameters
         )
         zone_III = SerialZone(
-            component_system, 'zone_III', 1, valve_parameters=self.valve_parameters
+            component_system, "zone_III", 1, valve_parameters=self.valve_parameters
         )
         zone_IV = SerialZone(
-            component_system, 'zone_IV', 1, valve_parameters=self.valve_parameters
+            component_system, "zone_IV", 1, valve_parameters=self.valve_parameters
         )
 
         # Carousel Builder
@@ -636,7 +643,7 @@ class SMBBuilder(CarouselBuilder):
         """
         if not isinstance(binding_model, self.binding_model_type):
             raise TypeError(
-                f'Invalid binding model. Expected {self.binding_model_type}.'
+                f"Invalid binding model. Expected {self.binding_model_type}."
             )
 
     def _get_zone_flow_rates(self, m, switch_time):
@@ -645,10 +652,10 @@ class SMBBuilder(CarouselBuilder):
         Vc = self.column.volume
         et = self.column.total_porosity
 
-        Q_I = Vc*(m1*(1-et)+et)/switch_time     # Flow rate Zone I
-        Q_II = Vc*(m2*(1-et)+et)/switch_time    # Flow rate Zone II
-        Q_III = Vc*(m3*(1-et)+et)/switch_time   # Flow rate Zone III
-        Q_IV = Vc*(m4*(1-et)+et)/switch_time    # Flow rate Zone IV
+        Q_I = Vc * (m1 * (1 - et) + et) / switch_time     # Flow rate Zone I
+        Q_II = Vc * (m2 * (1 - et) + et) / switch_time    # Flow rate Zone II
+        Q_III = Vc * (m3 * (1 - et) + et) / switch_time   # Flow rate Zone III
+        Q_IV = Vc * (m4 * (1 - et) + et) / switch_time    # Flow rate Zone IV
 
         return [Q_I, Q_II, Q_III, Q_IV]
 
@@ -672,10 +679,10 @@ class SMBBuilder(CarouselBuilder):
         return w_r, w_e
 
     def get_design_parameters(
-            self,
-            binding_model: BindingBaseClass,
-            c_feed: np.ndarray,
-            ) -> Any:
+        self,
+        binding_model: BindingBaseClass,
+        c_feed: np.ndarray,
+    ) -> Any:
         """
         Retrieve design parameters based on the binding model.
 
@@ -720,11 +727,11 @@ class SMBBuilder(CarouselBuilder):
         raise NotImplementedError("Subclass must implement this method.")
 
     def apply_safety_factor(
-            self,
-            m_opt: list,
-            *design_parameters: Any,
-            gamma: float | list[float]
-            ) -> Any:
+        self,
+        m_opt: list,
+        *design_parameters: Any,
+        gamma: float | list[float],
+    ) -> Any:
         """
         Apply a safety factor to the optimal zone flow rates.
 
@@ -751,13 +758,13 @@ class SMBBuilder(CarouselBuilder):
         raise NotImplementedError("Subclass must implement this method.")
 
     def triangle_design(
-            self,
-            binding_model: Optional[BindingBaseClass] = None,
-            c_feed: Optional[np.ndarray] = None,
-            switch_time: Optional[float] = None,
-            gamma: float | list[float] = 1,
-            set_values: bool = True
-            ) -> list[float]:
+        self,
+        binding_model: Optional[BindingBaseClass] = None,
+        c_feed: Optional[np.ndarray] = None,
+        switch_time: Optional[float] = None,
+        gamma: float | list[float] = 1,
+        set_values: bool = True,
+    ) -> list[float]:
         """
         Design the SMB process according to the triangle theory.
 
@@ -805,11 +812,7 @@ class SMBBuilder(CarouselBuilder):
 
         design_parameters = self.get_design_parameters(binding_model, c_feed)
         m_opt = self.calculate_m_opt(*design_parameters)
-        m = self.apply_safety_factor(
-            m_opt,
-            *design_parameters,
-            gamma=gamma
-        )
+        m = self.apply_safety_factor(m_opt, *design_parameters, gamma=gamma)
 
         if switch_time is None:
             switch_time = self.switch_time
@@ -824,19 +827,19 @@ class SMBBuilder(CarouselBuilder):
         if set_values:
             self.flow_sheet.feed.flow_rate = Q_feed
             self.flow_sheet.eluent.flow_rate = Q_eluent
-            self.set_output_state('zone_I', [w_e, 1-w_e])
-            self.set_output_state('zone_III', [w_r, 1-w_r])
+            self.set_output_state("zone_I", [w_e, 1 - w_e])
+            self.set_output_state("zone_III", [w_r, 1 - w_r])
 
         return [Q_feed, Q_eluent, w_r, w_e]
 
     def plot_triangle(
-            self,
-            binding_model: Optional[BindingBaseClass] = None,
-            c_feed: Optional[np.ndarray] = None,
-            gamma: float | list[float] = 1,
-            fig: Optional[plt.Figure] = None,
-            ax: Optional[plt.Axes] = None
-            ) -> tuple[plt.Figure, plt.Axes]:
+        self,
+        binding_model: Optional[BindingBaseClass] = None,
+        c_feed: Optional[np.ndarray] = None,
+        gamma: float | list[float] = 1,
+        fig: Optional[plt.Figure] = None,
+        ax: Optional[plt.Axes] = None,
+    ) -> tuple[plt.Figure, plt.Axes]:
         """
         Plot the triangle diagram for the SMB process with the operating point marked.
 
@@ -878,9 +881,7 @@ class SMBBuilder(CarouselBuilder):
         design_parameters = self.get_design_parameters(binding_model, c_feed)
         m_opt = self.calculate_m_opt(*design_parameters)
         m1, m2, m3, m4 = self.apply_safety_factor(
-            m_opt,
-            *design_parameters,
-            gamma=gamma
+            m_opt, *design_parameters, gamma=gamma
         )
 
         # Setup figure
@@ -890,16 +891,16 @@ class SMBBuilder(CarouselBuilder):
         # Plot Triangle
         self._plot_triangle(ax, *design_parameters)
 
-        ax.set_xlabel('$m_{II}$')
-        ax.set_ylabel('$m_{III}$')
+        ax.set_xlabel("$m_{II}$")
+        ax.set_ylabel("$m_{III}$")
 
         # Operating point
-        ax.scatter(m2, m3, c='k', marker='x', zorder=3)
+        ax.scatter(m2, m3, c="k", marker="x", zorder=3)
         ax.annotate(
-            'operating point',
+            "operating point",
             xy=(m2, m3),
-            xytext=(1.1*m2, 0.9*m3),
-            arrowprops=dict(facecolor='black', shrink=0.01),
+            xytext=(1.1 * m2, 0.9 * m3),
+            arrowprops=dict(facecolor="black", shrink=0.01),
         )
 
         return fig, ax
@@ -972,10 +973,10 @@ class LinearSMBBuilder(SMBBuilder):
             )
 
     def get_design_parameters(
-            self,
-            binding_model: BindingBaseClass,
-            c_feed: np.ndarray
-            ) -> tuple[float, float]:
+        self,
+        binding_model: BindingBaseClass,
+        c_feed: np.ndarray,
+    ) -> tuple[float, float]:
         """
         Calculate Henry's constants (H) based on adsorption and desorption rates.
 
@@ -1003,10 +1004,10 @@ class LinearSMBBuilder(SMBBuilder):
         return HA, HB
 
     def calculate_m_opt(
-            self,
-            HA: float,
-            HB: float
-            ) -> list[float]:
+        self,
+        HA: float,
+        HB: float,
+    ) -> list[float]:
         """
         Calculate the optimal flow rates for SMB zones based on Henry's constants.
 
@@ -1030,11 +1031,11 @@ class LinearSMBBuilder(SMBBuilder):
         return [m1, m2, m3, m4]
 
     def apply_safety_factor(
-            self,
-            m_opt: list[float],
-            *design_parameters: Any,
-            gamma: float | list[float] = 1
-            ) -> list[float]:
+        self,
+        m_opt: list[float],
+        *design_parameters: Any,
+        gamma: float | list[float] = 1,
+    ) -> list[float]:
         """
         Adjust the optimal flow rates by applying safety factors to each zone.
 
@@ -1077,10 +1078,11 @@ class LinearSMBBuilder(SMBBuilder):
         return [m1, m2, m3, m4]
 
     def _plot_triangle(
-            self, ax,
-            HA: float,
-            HB: float,
-            ) -> NoReturn:
+        self,
+        ax,
+        HA: float,
+        HB: float,
+    ) -> NoReturn:
         """
         Plot SMB triangle for linear isotherm.
 
@@ -1107,28 +1109,28 @@ class LinearSMBBuilder(SMBBuilder):
         ax.set_ylim(lb, ub)
 
         # Diagonal
-        ax.plot((lb, ub), (lb, ub), 'k')
+        ax.plot((lb, ub), (lb, ub), "k")
 
         # Henry coefficients
         for h in [HB, HA]:
-            ax.hlines(h, 0, h, 'k', 'dashed')
-            ax.vlines(h, h, ub, 'k', 'dashed')
+            ax.hlines(h, 0, h, "k", "dashed")
+            ax.vlines(h, h, ub, "k", "dashed")
 
         # Triangle
-        ax.hlines(HA, HB, HA, 'k')
-        ax.vlines(HB, HB, HA, 'k')
+        ax.hlines(HA, HB, HA, "k")
+        ax.vlines(HB, HB, HA, "k")
 
         # Label regions
         ax.text(
-            (HB + (HA - HB) / 2), (0.95 * ub),
-            'Pure extract',
-            ha='center', va='center'
+            (HB + (HA - HB) / 2), (0.95 * ub), "Pure extract", ha="center", va="center"
         )
         ax.text(
-            (1.05 * lb), (HB + (HA - HB) / 2),
-            'Pure raffinate',
-            ha='center', va='center',
-            rotation='vertical',
+            (1.05 * lb),
+            (HB + (HA - HB) / 2),
+            "Pure raffinate",
+            ha="center",
+            va="center",
+            rotation="vertical",
         )
 
 
@@ -1178,10 +1180,10 @@ class LangmuirSMBBuilder(SMBBuilder):
             )
 
     def get_design_parameters(
-            self,
-            binding_model: BindingBaseClass,
-            c_feed: np.ndarray
-            ) -> tuple[float, float]:
+        self,
+        binding_model: BindingBaseClass,
+        c_feed: np.ndarray,
+    ) -> tuple[float, float]:
         """
         Calculate the optimal flow rates for SMB zones based on the provided parameters.
 
@@ -1215,22 +1217,22 @@ class LangmuirSMBBuilder(SMBBuilder):
 
         a = -(HA * (1 + bB * cFB) + HB * (1 + bA * cFA)) / (1 + bB * cFB + bA * cFA)
         b = HA * HB / (1 + bB * cFB + bA * cFA)
-        wG = -a / 2 + np.sqrt((-a / 2)**2 - b)
-        wF = -a / 2 - np.sqrt((-a / 2)**2 - b)
+        wG = -a / 2 + np.sqrt((-a / 2) ** 2 - b)
+        wF = -a / 2 - np.sqrt((-a / 2) ** 2 - b)
 
         return HA, HB, bA, bB, cFA, cFB, wG, wF
 
     def calculate_m_opt(
-            self,
-            HA: float,
-            HB: float,
-            bA: float,
-            bB: float,
-            cFA: float,
-            cFB: float,
-            wG: float,
-            wF: float
-            ) -> list[float]:
+        self,
+        HA: float,
+        HB: float,
+        bA: float,
+        bB: float,
+        cFA: float,
+        cFB: float,
+        wG: float,
+        wF: float,
+    ) -> list[float]:
         """
         Calculate optimal zone flow rates based on Langmuir isotherm parameters.
 
@@ -1261,23 +1263,32 @@ class LangmuirSMBBuilder(SMBBuilder):
         m1 = HA
         m2 = HB / HA * wG
         m3 = wG * (wF * (HA - HB) + HB * (HB - wF)) / (HB * (HA - wF))
-        m4 = 1 / 2 * (HB + m3 + bB * cFB * (m3 - m2) - np.sqrt((HB + m3 + bB * cFB * (m3 - m2))**2 - 4 * HB * m3))
+        m4 = (
+            1
+            / 2
+            * (
+                HB
+                + m3
+                + bB * cFB * (m3 - m2)
+                - np.sqrt((HB + m3 + bB * cFB * (m3 - m2)) ** 2 - 4 * HB * m3)
+            )
+        )
 
         return [m1, m2, m3, m4]
 
     def apply_safety_factor(
-            self,
-            m_opt: list[float],
-            HA: float,
-            HB: float,
-            bA: float,
-            bB: float,
-            cFA: float,
-            cFB: float,
-            wG: float,
-            wF: float,
-            gamma: float | list[float] = 1
-            ) -> list[float]:
+        self,
+        m_opt: list[float],
+        HA: float,
+        HB: float,
+        bA: float,
+        bB: float,
+        cFA: float,
+        cFB: float,
+        wG: float,
+        wF: float,
+        gamma: float | list[float] = 1,
+    ) -> list[float]:
         """
         Apply a safety factor to the optimal zone flow rates.
 
@@ -1316,8 +1327,10 @@ class LangmuirSMBBuilder(SMBBuilder):
             W_opt = np.array([m2_opt, m3_opt])
             B = np.array([HB, HB])
             R = [
-                wG ** 2 / HA,
-                wG * (wF * (HA - wG) * (HA - HB) + HB * wG * (HA - wF)) / (HA * HB * (HA - wF))
+                wG**2 / HA,
+                wG
+                * (wF * (HA - wG) * (HA - HB) + HB * wG * (HA - wF))
+                / (HA * HB * (HA - wF)),
             ]
 
             # Calculating vectors WB and WA
@@ -1379,8 +1392,10 @@ class LangmuirSMBBuilder(SMBBuilder):
         W = [m2, m3]
 
         R = [
-            wG ** 2 / HA,
-            wG * (wF * (HA - wG) * (HA - HB) + HB * wG * (HA - wF)) / (HA * HB * (HA - wF))
+            wG**2 / HA,
+            wG
+            * (wF * (HA - wG) * (HA - HB) + HB * wG * (HA - wF))
+            / (HA * HB * (HA - wF)),
         ]
 
         # Bounds
@@ -1391,22 +1406,26 @@ class LangmuirSMBBuilder(SMBBuilder):
         ax.set_ylim(lb, ub)
 
         # Diagonal
-        ax.plot((lb, ub), (lb, ub), 'k')
+        ax.plot((lb, ub), (lb, ub), "k")
 
         # Plot [W -> R]
         m2WR = np.linspace(W[0], R[0], 50)
-        m3WR = 1 / (bA * cFA * wG) * (wG * (HA - wG) - (HA - wG * (1 + bA * cFA)) * m2WR)
-        ax.plot(m2WR, m3WR, 'k-')
+        m3WR = (
+            1 / (bA * cFA * wG) * (wG * (HA - wG) - (HA - wG * (1 + bA * cFA)) * m2WR)
+        )
+        ax.plot(m2WR, m3WR, "k-")
 
         # plot [W -> HB]
         m2WHB = np.linspace(W[0], HB, 10)
-        m3WHB = 1 / (bA * cFA * HB) * (HB * (HA - HB) - (HA - HB * (1 + bA * cFA)) * m2WHB)
-        ax.plot(m2WHB, m3WHB, 'k-')
+        m3WHB = (
+            1 / (bA * cFA * HB) * (HB * (HA - HB) - (HA - HB * (1 + bA * cFA)) * m2WHB)
+        )
+        ax.plot(m2WHB, m3WHB, "k-")
 
         # plot [R -> HA]
         m2RHA = np.linspace(R[0], HA, 10)
         m3RHA = m2RHA + (np.sqrt(HA) - np.sqrt(m2RHA)) ** 2 / (bA * cFA)
-        ax.plot(m2RHA, m3RHA, 'k-')
+        ax.plot(m2RHA, m3RHA, "k-")
 
         # TODO: Equations that plot regions of pure extract / raffinate not clear yet.
 
@@ -1417,7 +1436,8 @@ class CarouselSolutionBulk(SolutionBase):
     N_COLUMNS * NCOL * NRAD
 
     """
-    _coordinates = ['axial_coordinates', 'radial_coordinates']
+
+    _coordinates = ["axial_coordinates", "radial_coordinates"]
 
     def __init__(self, builder, simulation_results):
         if not builder.column.solution_recorder.write_solution_bulk:
@@ -1443,8 +1463,9 @@ class CarouselSolutionBulk(SolutionBase):
 
     @property
     def radial_coordinates(self):
-        radial_coordinates = \
+        radial_coordinates = (
             self.simulation_results.solution.column_0.bulk.radial_coordinates
+        )
         if radial_coordinates is not None and len(radial_coordinates) == 1:
             radial_coordinates = None
 
@@ -1455,12 +1476,12 @@ class CarouselSolutionBulk(SolutionBase):
         return self.simulation_results.solution.column_0.bulk.time
 
     def plot_at_time(
-            self,
-            t,
-            y_min=None,
-            y_max=None,
-            axs=None,
-            ):
+        self,
+        t,
+        y_min=None,
+        y_max=None,
+        axs=None,
+    ):
         """Plot bulk solution over space at given time.
 
         Parameters
@@ -1478,9 +1499,9 @@ class CarouselSolutionBulk(SolutionBase):
         if axs is None:
             fig, axs = plt.subplots(
                 ncols=n_cols,
-                figsize=(n_cols*4, 6),
+                figsize=(n_cols * 4, 6),
                 gridspec_kw=dict(wspace=0.0, hspace=0.0),
-                sharey='row'
+                sharey="row",
             )
         else:
             fig = axs[0].figure
@@ -1497,19 +1518,19 @@ class CarouselSolutionBulk(SolutionBase):
         for position, ax in enumerate(axs):
             col_index = self.builder.column_indices_at_time(t, position)
 
-            y = self.solution[f'column_{col_index}'].bulk.solution[t_i, :]
+            y = self.solution[f"column_{col_index}"].bulk.solution[t_i, :]
 
             y_min_data = min(y_min_data, min(0, np.min(y)))
-            y_max_data = max(y_max_data, 1.1*np.max(y))
+            y_max_data = max(y_max_data, 1.1 * np.max(y))
 
             ax.plot(x, y)
 
             zone = self.builder.zones[zone_counter]
 
             if zone.n_columns > 1:
-                ax.set_title(f'{zone.name}, position {column_counter}')
+                ax.set_title(f"{zone.name}, position {column_counter}")
             else:
-                ax.set_title(f'{zone.name}')
+                ax.set_title(f"{zone.name}")
 
             if column_counter < (zone.n_columns - 1):
                 column_counter += 1
@@ -1517,7 +1538,7 @@ class CarouselSolutionBulk(SolutionBase):
                 zone_counter += 1
                 column_counter = 0
 
-        plotting.add_text(ax, f'time = {t:.2f} s')
+        plotting.add_text(ax, f"time = {t:.2f} s")
 
         if y_min is None:
             y_min = y_min_data

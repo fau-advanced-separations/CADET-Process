@@ -34,19 +34,18 @@ They are available for the Solution, as well as the TimeLine objects.
 import unittest
 
 import numpy as np
-from scipy import stats
-
-from CADETProcess.solution import SolutionIO, slice_solution
+from CADETProcess.dynamicEvents import Section, TimeLine
 from CADETProcess.processModel import ComponentSystem
-from CADETProcess.dynamicEvents import TimeLine, Section
+from CADETProcess.solution import SolutionIO, slice_solution
+from scipy import stats
 
 show_plots = False
 
 comp_2 = ComponentSystem(2)
 
 comp_2_3_species = ComponentSystem()
-comp_2_3_species.add_component('A')
-comp_2_3_species.add_component('B', species=['B+', 'B-'])
+comp_2_3_species.add_component("A")
+comp_2_3_species.add_component("B", species=["B+", "B-"])
 
 # Note that signal is recorded at 10 Hz.
 time = np.linspace(0, 100, 1001)
@@ -86,71 +85,60 @@ q_interrupted.add_section(Section(40, 100, [1, 0, 0, 0], is_polynomial=True))
 
 q_linear = TimeLine()
 q_linear.add_section(Section(0, 35, [0, 0, 0, 0], is_polynomial=True))
-q_linear.add_section(Section(35, 45, [0, 1/10, 0, 0], is_polynomial=True))
+q_linear.add_section(Section(35, 45, [0, 1 / 10, 0, 0], is_polynomial=True))
 q_linear.add_section(Section(45, 100, [0, 0, 0, 0], is_polynomial=True))
 
 
 class TestSolution(unittest.TestCase):
-
     def setUp(self):
         # 2 Components, constant concentration, constant flow
         self.solution_constant = SolutionIO(
-            'simple', comp_2, time, solution_2_constant,
-            q_const
+            "simple", comp_2, time, solution_2_constant, q_const
         )
 
         # 2 Components, square peaks, constant flow
         self.solution_square = SolutionIO(
-            'simple', comp_2, time, solution_2_square,
-            q_const
+            "simple", comp_2, time, solution_2_square, q_const
         )
 
         # 3 Components (species), linear peaks, constant flow
         self.solution_species = SolutionIO(
-            'simple', comp_2_3_species, time, solution_3_linear,
-            q_const
+            "simple", comp_2_3_species, time, solution_3_linear, q_const
         )
 
         # 2 Components, constant concentration, interrupted flow
         self.solution_constant_interrupted = SolutionIO(
-            'simple', comp_2, time, solution_2_constant,
-            q_interrupted
+            "simple", comp_2, time, solution_2_constant, q_interrupted
         )
 
         # 2 Components, constant concentration, linear flow
         self.solution_constant_linear = SolutionIO(
-            'simple', comp_2, time, solution_2_constant,
-            q_linear
+            "simple", comp_2, time, solution_2_constant, q_linear
         )
 
         # 2 Components, square peaks, interrupted flow
         self.solution_square_interrupted = SolutionIO(
-            'simple', comp_2, time, solution_2_square,
-            q_interrupted
+            "simple", comp_2, time, solution_2_square, q_interrupted
         )
 
         # 2 Components, square peaks, linear flow
         self.solution_square_linear = SolutionIO(
-            'simple', comp_2, time, solution_2_square,
-            q_linear
+            "simple", comp_2, time, solution_2_square, q_linear
         )
 
         # 2 Components, gaussian peaks, constant flow
         self.solution_gaussian = SolutionIO(
-            'simple', comp_2, time, solution_2_gaussian,
-            q_const
+            "simple", comp_2, time, solution_2_gaussian, q_const
         )
 
         # 2 Components, gaussian peaks, interrupted flow
         self.solution_gaussian_interrupted = SolutionIO(
-            'simple', comp_2, time, solution_2_gaussian,
-            q_interrupted
+            "simple", comp_2, time, solution_2_gaussian, q_interrupted
         )
 
         # 2 Components, gaussian peaks, linear flow
         self.solution_gaussian_linear = SolutionIO(
-            'simple', comp_2, time, solution_2_gaussian,
-            q_linear
+            "simple", comp_2, time, solution_2_gaussian, q_linear
         )
 
     def test_total_concentration(self):
@@ -228,38 +216,28 @@ class TestSolution(unittest.TestCase):
         t = 150
         c_total_comp_expected = [1, 0]
         c_total_comp_actual = c_total_comp[t]
-        np.testing.assert_almost_equal(
-            c_total_comp_actual, c_total_comp_expected
-        )
+        np.testing.assert_almost_equal(c_total_comp_actual, c_total_comp_expected)
 
         t = 300
         c_total_comp_expected = [0.5, 0.5]
         c_total_comp_actual = c_total_comp[t]
-        np.testing.assert_almost_equal(
-            c_total_comp_actual, c_total_comp_expected
-        )
+        np.testing.assert_almost_equal(c_total_comp_actual, c_total_comp_expected)
 
         t = 350
         c_total_comp_expected = [0.25, 1]
         c_total_comp_actual = c_total_comp[t]
-        np.testing.assert_almost_equal(
-            c_total_comp_actual, c_total_comp_expected
-        )
+        np.testing.assert_almost_equal(c_total_comp_actual, c_total_comp_expected)
 
         t = 450
         c_total_comp_expected = [0, 1.5]
         c_total_comp_actual = c_total_comp[t]
-        np.testing.assert_almost_equal(
-            c_total_comp_actual, c_total_comp_expected
-        )
+        np.testing.assert_almost_equal(c_total_comp_actual, c_total_comp_expected)
 
     def test_local_purity_components(self):
         # Simple case
-        local_purity_expected = [1/3, 2/3]
+        local_purity_expected = [1 / 3, 2 / 3]
         local_purity_actual = self.solution_constant.local_purity_components[0]
-        np.testing.assert_almost_equal(
-            local_purity_actual, local_purity_expected
-        )
+        np.testing.assert_almost_equal(local_purity_actual, local_purity_expected)
 
         # 2 Components, square peaks
         local_purity = self.solution_square.local_purity_components
@@ -267,37 +245,27 @@ class TestSolution(unittest.TestCase):
         t = 0
         local_purity_expected = [0, 0]
         local_purity_actual = local_purity[t]
-        np.testing.assert_almost_equal(
-            local_purity_actual, local_purity_expected
-        )
+        np.testing.assert_almost_equal(local_purity_actual, local_purity_expected)
 
         t = 250
         local_purity_expected = [1, 0]
         local_purity_actual = local_purity[t]
-        np.testing.assert_almost_equal(
-            local_purity_actual, local_purity_expected
-        )
+        np.testing.assert_almost_equal(local_purity_actual, local_purity_expected)
 
         t = 350
-        local_purity_expected = [2/3, 1/3]
+        local_purity_expected = [2 / 3, 1 / 3]
         local_purity_actual = local_purity[t]
-        np.testing.assert_almost_equal(
-            local_purity_actual, local_purity_expected
-        )
+        np.testing.assert_almost_equal(local_purity_actual, local_purity_expected)
 
         t = 450
         local_purity_expected = [0, 1]
         local_purity_actual = local_purity[t]
-        np.testing.assert_almost_equal(
-            local_purity_actual, local_purity_expected
-        )
+        np.testing.assert_almost_equal(local_purity_actual, local_purity_expected)
 
         t = 550
         local_purity_expected = [0, 0]
         local_purity_actual = local_purity[t]
-        np.testing.assert_almost_equal(
-            local_purity_actual, local_purity_expected
-        )
+        np.testing.assert_almost_equal(local_purity_actual, local_purity_expected)
 
         # 2 Components, 3 species (summed up)
         local_purity_components = self.solution_species.local_purity_components
@@ -409,38 +377,33 @@ class TestSolution(unittest.TestCase):
         mass_actual = self.solution_constant.fraction_mass(0, 10)
         np.testing.assert_almost_equal(mass_actual, mass_expected)
 
-        mass_expected = np.array([
-            np.diff(stats.norm.cdf([-2, 2]))[0],
-            np.diff(stats.norm.cdf([-4, 0]))[0]
-        ])
+        mass_expected = np.array(
+            [np.diff(stats.norm.cdf([-2, 2]))[0], np.diff(stats.norm.cdf([-4, 0]))[0]]
+        )
         mass_actual = self.solution_gaussian.fraction_mass(20, 40)
         np.testing.assert_almost_equal(mass_actual, mass_expected)
 
-        mass_expected = np.array([
-            np.diff(stats.norm.cdf([-2, 0]))[0],
-            np.diff(stats.norm.cdf([-4, -2]))[0]
-        ])
+        mass_expected = np.array(
+            [np.diff(stats.norm.cdf([-2, 0]))[0], np.diff(stats.norm.cdf([-4, -2]))[0]]
+        )
         mass_actual = self.solution_gaussian_interrupted.fraction_mass(20, 40)
         np.testing.assert_almost_equal(mass_actual, mass_expected)
 
 
 class TestSliceSolution(unittest.TestCase):
-
     def setUp(self):
         # 2 Components, gaussian peaks, constant flow
         self.solution_gaussian = SolutionIO(
-            'simple', comp_2, time, solution_2_gaussian,
-            q_const
+            "simple", comp_2, time, solution_2_gaussian, q_const
         )
 
         self.solution_species = SolutionIO(
-            'simple', comp_2_3_species, time, solution_3_linear,
-            q_const
+            "simple", comp_2_3_species, time, solution_3_linear, q_const
         )
 
     def test_coordinates(self):
         solution = slice_solution(
-            self.solution_gaussian, coordinates={'time': [30, 40]}
+            self.solution_gaussian, coordinates={"time": [30, 40]}
         )
 
         np.testing.assert_almost_equal(solution.time, np.linspace(30, 40, 101))
@@ -450,8 +413,8 @@ class TestSliceSolution(unittest.TestCase):
 
     def test_components(self):
         # Test single component
-        solution = slice_solution(self.solution_gaussian, components='0')
-        self.assertEqual(solution.component_system.names, ['0'])
+        solution = slice_solution(self.solution_gaussian, components="0")
+        self.assertEqual(solution.component_system.names, ["0"])
 
         np.testing.assert_equal(
             self.solution_gaussian.solution[..., [0]], solution.solution
@@ -460,9 +423,9 @@ class TestSliceSolution(unittest.TestCase):
         # Test with multiple components
 
         # Test with component that has > 1 species
-        solution = slice_solution(self.solution_species, components='B')
-        self.assertEqual(solution.component_system.names, ['B'])
-        self.assertEqual(solution.component_system.species, ['B+', 'B-'])
+        solution = slice_solution(self.solution_species, components="B")
+        self.assertEqual(solution.component_system.names, ["B"])
+        self.assertEqual(solution.component_system.species, ["B+", "B-"])
 
         np.testing.assert_equal(
             self.solution_species.solution[..., 1:], solution.solution
@@ -472,8 +435,8 @@ class TestSliceSolution(unittest.TestCase):
         solution = slice_solution(
             self.solution_species, use_total_concentration_components=True
         )
-        self.assertEqual(solution.component_system.names, ['A', 'B'])
-        self.assertEqual(solution.component_system.species, ['A', 'B'])
+        self.assertEqual(solution.component_system.names, ["A", "B"])
+        self.assertEqual(solution.component_system.species, ["A", "B"])
 
         np.testing.assert_equal(
             self.solution_species.solution[..., 0], solution.solution[:, 0]
@@ -481,58 +444,53 @@ class TestSliceSolution(unittest.TestCase):
 
         np.testing.assert_equal(
             np.sum(self.solution_species.solution[..., 1:]),
-            np.sum(solution.solution[:, 1])
+            np.sum(solution.solution[:, 1]),
         )
         np.testing.assert_equal(
             self.solution_species.total_concentration_components,
-            solution.total_concentration_components
+            solution.total_concentration_components,
         )
 
     def test_total_concentration(self):
-        solution = slice_solution(
-            self.solution_species, use_total_concentration=True
-        )
-        self.assertEqual(solution.component_system.names, ['total_concentration'])
+        solution = slice_solution(self.solution_species, use_total_concentration=True)
+        self.assertEqual(solution.component_system.names, ["total_concentration"])
 
         np.testing.assert_equal(
             np.sum(self.solution_species.solution[..., :]),
-            np.sum(solution.solution, axis=0)
+            np.sum(solution.solution, axis=0),
         )
         np.testing.assert_equal(
-            self.solution_species.total_concentration,
-            solution.total_concentration
+            self.solution_species.total_concentration, solution.total_concentration
         )
 
         # One component
         solution = slice_solution(
-            self.solution_species, components=['A'], use_total_concentration=True
+            self.solution_species, components=["A"], use_total_concentration=True
         )
-        self.assertEqual(solution.component_system.names, ['total_concentration'])
+        self.assertEqual(solution.component_system.names, ["total_concentration"])
 
         np.testing.assert_equal(
-            self.solution_species.solution[..., [0]],
-            solution.solution
+            self.solution_species.solution[..., [0]], solution.solution
         )
 
         np.testing.assert_equal(
-            self.solution_species.solution[..., [0]],
-            solution.total_concentration
+            self.solution_species.solution[..., [0]], solution.total_concentration
         )
 
         # One component with two species
         solution = slice_solution(
-            self.solution_species, components=['B'], use_total_concentration=True
+            self.solution_species, components=["B"], use_total_concentration=True
         )
-        self.assertEqual(solution.component_system.names, ['total_concentration'])
+        self.assertEqual(solution.component_system.names, ["total_concentration"])
 
         np.testing.assert_equal(
             np.sum(self.solution_species.solution[..., 1:], keepdims=True, axis=1),
-            solution.solution
+            solution.solution,
         )
 
         np.testing.assert_equal(
             np.sum(self.solution_species.solution[..., 1:], keepdims=True, axis=1),
-            solution.total_concentration
+            solution.total_concentration,
         )
 
 
@@ -540,8 +498,7 @@ class TestPlot(unittest.TestCase):
     def setUp(self):
         # 2 Components, gaussian peaks, constant flow
         self.solution_species = SolutionIO(
-            'simple', comp_2_3_species, time, solution_3_linear,
-            q_const
+            "simple", comp_2_3_species, time, solution_3_linear, q_const
         )
 
     def test_plot(self):
@@ -577,21 +534,21 @@ class TestPlot(unittest.TestCase):
             )
 
             self.solution_species.plot(
-                components=['A'],
+                components=["A"],
                 plot_components=True,
                 plot_species=True,
                 plot_total_concentration=True,
             )
 
             self.solution_species.plot(
-                components=['B'],
+                components=["B"],
                 plot_components=True,
                 plot_species=True,
                 plot_total_concentration=True,
             )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     show_plots = True
 
     unittest.main()

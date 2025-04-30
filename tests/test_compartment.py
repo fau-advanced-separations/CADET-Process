@@ -1,14 +1,12 @@
 import unittest
-import numpy as np
 
+import numpy as np
 from CADETProcess import CADETProcessError
-from CADETProcess.processModel import ComponentSystem
-from CADETProcess.processModel import Langmuir
 from CADETProcess.modelBuilder import CompartmentBuilder
+from CADETProcess.processModel import ComponentSystem, Langmuir
 
 
 class Test_CompartmentBuilder(unittest.TestCase):
-
     def setUp(self):
         self.component_system = ComponentSystem(2)
 
@@ -16,37 +14,41 @@ class Test_CompartmentBuilder(unittest.TestCase):
 
         self.volume_simple = [1, 2, 3, 4, 5]
         self.matrix_simple = [
-            0,   0.1, 0.2, 0.3, 0.4,
-            0.1, 0,   0,   0,   0,
-            0.2, 0,   0,   0,   0,
-            0.3, 0,   0,   0,   0,
-            0.4, 0,   0,   0,   0,
+            0,   0.1, 0.2, 0.3, 0.4,  # noqa: E241
+            0.1, 0,   0,   0,   0,    # noqa: E241
+            0.2, 0,   0,   0,   0,    # noqa: E241
+            0.3, 0,   0,   0,   0,    # noqa: E241
+            0.4, 0,   0,   0,   0,    # noqa: E241
         ]
 
         self.builder_simple = CompartmentBuilder(
             self.component_system,
-            self.volume_simple, self.matrix_simple,
+            self.volume_simple,
+            self.matrix_simple,
         )
         self.builder_simple.cycle_time = 1000
 
-        self.volume_complex = ['inlet', 2, 1, 3, 1, 2, 1, 4, 1, 'outlet']
+        self.volume_complex = ["inlet", 2, 1, 3, 1, 2, 1, 4, 1, "outlet"]
+        # fmt: off
         self.matrix_complex = [
         #   0    1    2    3    4    5    6    7    8    9
-            0,   0.1, 0,   0,   0,   0,   0,   0,   0,   0,    # 0
-            0,   0,   0.3, 0,   0,   0,   0,   0.1, 0,   0,    # 1
-            0,   0.1, 0,   0.1, 0,   0,   0,   0.1, 0,   0,    # 2
-            0,   0.2, 0,   0,   0,   0.5, 0,   0,   0.1, 0,    # 3
-            0,   0,   0,   0.1, 0,   0.1, 0,   0.1, 0,   0,    # 4
-            0,   0,   0,   0,   0.3, 0,   0.2, 0.1, 0,   0,    # 5
-            0,   0,   0,   0,   0,   0,   0,   0.1, 0,   0.1,  # 6
-            0,   0,   0,   0.5, 0,   0,   0,   0,   0,   0,    # 7
-            0,   0,   0,   0.1, 0,   0,   0,   0,   0,   0,    # 8
-            0,   0,   0,   0,   0,   0,   0,   0,   0,   0,    # 9
+            0,   0.1, 0,   0,   0,   0,   0,   0,   0,   0,    # 0 #noqa: E241
+            0,   0,   0.3, 0,   0,   0,   0,   0.1, 0,   0,    # 1 #noqa: E241
+            0,   0.1, 0,   0.1, 0,   0,   0,   0.1, 0,   0,    # 2 #noqa: E241
+            0,   0.2, 0,   0,   0,   0.5, 0,   0,   0.1, 0,    # 3 #noqa: E241
+            0,   0,   0,   0.1, 0,   0.1, 0,   0.1, 0,   0,    # 4 #noqa: E241
+            0,   0,   0,   0,   0.3, 0,   0.2, 0.1, 0,   0,    # 5 #noqa: E241
+            0,   0,   0,   0,   0,   0,   0,   0.1, 0,   0.1,  # 6 #noqa: E241
+            0,   0,   0,   0.5, 0,   0,   0,   0,   0,   0,    # 7 #noqa: E241
+            0,   0,   0,   0.1, 0,   0,   0,   0,   0,   0,    # 8 #noqa: E241
+            0,   0,   0,   0,   0,   0,   0,   0,   0,   0,    # 9 #noqa: E241
         ]
+        # fmt: on
 
         self.builder_complex = CompartmentBuilder(
             self.component_system,
-            self.volume_complex, self.matrix_complex,
+            self.volume_complex,
+            self.matrix_complex,
             init_c=1,
         )
         self.builder_complex.cycle_time = 1000
@@ -62,134 +64,66 @@ class Test_CompartmentBuilder(unittest.TestCase):
 
     def test_connections(self):
         flow_rates_expected = {
-            'compartment_0': {
-                'total_in': {
-                    None: np.array([1., 0., 0., 0.])
-                },
-                'total_out': {
-                    None: np.array([1., 0., 0., 0.])
-                },
-                'origins': {
+            "compartment_0": {
+                "total_in": {None: np.array([1.0, 0.0, 0.0, 0.0])},
+                "total_out": {None: np.array([1.0, 0.0, 0.0, 0.0])},
+                "origins": {
                     None: {
-                        'compartment_1': {
-                            None: np.array([0.1, 0., 0., 0.])
-                        },
-                        'compartment_2': {
-                            None: np.array([0.2, 0., 0., 0.])
-                        },
-                        'compartment_3': {
-                            None: np.array([0.3, 0., 0., 0.])
-                        },
-                        'compartment_4': {
-                            None: np.array([0.4, 0., 0., 0.])
-                        }
+                        "compartment_1": {None: np.array([0.1, 0.0, 0.0, 0.0])},
+                        "compartment_2": {None: np.array([0.2, 0.0, 0.0, 0.0])},
+                        "compartment_3": {None: np.array([0.3, 0.0, 0.0, 0.0])},
+                        "compartment_4": {None: np.array([0.4, 0.0, 0.0, 0.0])},
                     }
                 },
-                'destinations': {
+                "destinations": {
                     None: {
-                        'compartment_1': {
-                            None: np.array([0.1, 0., 0., 0.])
-                        },
-                        'compartment_2': {
-                            None: np.array([0.2, 0., 0., 0.])
-                        },
-                        'compartment_3': {
-                            None: np.array([0.3, 0., 0., 0.])
-                        },
-                        'compartment_4': {
-                            None: np.array([0.4, 0., 0., 0.])
-                        }
+                        "compartment_1": {None: np.array([0.1, 0.0, 0.0, 0.0])},
+                        "compartment_2": {None: np.array([0.2, 0.0, 0.0, 0.0])},
+                        "compartment_3": {None: np.array([0.3, 0.0, 0.0, 0.0])},
+                        "compartment_4": {None: np.array([0.4, 0.0, 0.0, 0.0])},
                     }
                 },
             },
-            'compartment_1': {
-                'total_in': {
-                    None: np.array([0.1, 0., 0., 0.])
+            "compartment_1": {
+                "total_in": {None: np.array([0.1, 0.0, 0.0, 0.0])},
+                "total_out": {None: np.array([0.1, 0.0, 0.0, 0.0])},
+                "origins": {
+                    None: {"compartment_0": {None: np.array([0.1, 0.0, 0.0, 0.0])}}
                 },
-                'total_out': {
-                    None: np.array([0.1, 0., 0., 0.])
-                },
-                'origins': {
-                    None: {
-                        'compartment_0': {
-                            None: np.array([0.1, 0., 0., 0.])
-                        }
-                    }
-                },
-                'destinations': {
-                    None: {
-                        'compartment_0': {
-                            None: np.array([0.1, 0., 0., 0.])
-                        }
-                    }
+                "destinations": {
+                    None: {"compartment_0": {None: np.array([0.1, 0.0, 0.0, 0.0])}}
                 },
             },
-            'compartment_2': {
-                'total_in': {
-                    None: np.array([0.2, 0., 0., 0.])
+            "compartment_2": {
+                "total_in": {None: np.array([0.2, 0.0, 0.0, 0.0])},
+                "total_out": {None: np.array([0.2, 0.0, 0.0, 0.0])},
+                "origins": {
+                    None: {"compartment_0": {None: np.array([0.2, 0.0, 0.0, 0.0])}}
                 },
-                'total_out': {
-                    None: np.array([0.2, 0., 0., 0.])
+                "destinations": {
+                    None: {"compartment_0": {None: np.array([0.2, 0.0, 0.0, 0.0])}}
                 },
-                'origins': {
-                    None: {
-                        'compartment_0': {
-                            None: np.array([0.2, 0., 0., 0.])
-                        }
-                    }
-                },
-                'destinations': {
-                    None: {
-                        'compartment_0': {
-                            None: np.array([0.2, 0., 0., 0.])
-                        }
-                    }
-                }
             },
-            'compartment_3': {
-                'total_in': {
-                    None: np.array([0.3, 0., 0., 0.])
+            "compartment_3": {
+                "total_in": {None: np.array([0.3, 0.0, 0.0, 0.0])},
+                "total_out": {None: np.array([0.3, 0.0, 0.0, 0.0])},
+                "origins": {
+                    None: {"compartment_0": {None: np.array([0.3, 0.0, 0.0, 0.0])}}
                 },
-                'total_out': {
-                    None: np.array([0.3, 0., 0., 0.])
+                "destinations": {
+                    None: {"compartment_0": {None: np.array([0.3, 0.0, 0.0, 0.0])}}
                 },
-                'origins': {
-                    None: {
-                        'compartment_0': {
-                            None: np.array([0.3, 0., 0., 0.])
-                        }
-                    }
-                },
-                'destinations': {
-                    None: {
-                        'compartment_0': {
-                            None: np.array([0.3, 0., 0., 0.])
-                        }
-                    }
-                }
             },
-            'compartment_4': {
-                'total_in': {
-                    None: np.array([0.4, 0., 0., 0.])
+            "compartment_4": {
+                "total_in": {None: np.array([0.4, 0.0, 0.0, 0.0])},
+                "total_out": {None: np.array([0.4, 0.0, 0.0, 0.0])},
+                "origins": {
+                    None: {"compartment_0": {None: np.array([0.4, 0.0, 0.0, 0.0])}}
                 },
-                'total_out': {
-                    None: np.array([0.4, 0., 0., 0.])
+                "destinations": {
+                    None: {"compartment_0": {None: np.array([0.4, 0.0, 0.0, 0.0])}}
                 },
-                'origins': {
-                    None: {
-                        'compartment_0': {
-                            None: np.array([0.4, 0., 0., 0.])
-                        }
-                    }
-                },
-                'destinations': {
-                    None: {
-                        'compartment_0': {
-                            None: np.array([0.4, 0., 0., 0.])
-                        }
-                    }
-                }
-            }
+            },
         }
         flow_rates = self.builder_simple.flow_sheet.get_flow_rates().to_dict()
         np.testing.assert_equal(flow_rates, flow_rates_expected)
@@ -204,7 +138,8 @@ class Test_CompartmentBuilder(unittest.TestCase):
         # All to zero (default)
         builder = CompartmentBuilder(
             self.component_system,
-            self.volume_complex, self.matrix_complex,
+            self.volume_complex,
+            self.matrix_complex,
         )
         c_expected = [0, 0]
         c = builder.flow_sheet.compartment_2.c
@@ -213,7 +148,8 @@ class Test_CompartmentBuilder(unittest.TestCase):
         # All components, all compartments same value
         builder = CompartmentBuilder(
             self.component_system,
-            self.volume_complex, self.matrix_complex,
+            self.volume_complex,
+            self.matrix_complex,
             init_c=1,
         )
         c_expected = [1, 1]
@@ -223,7 +159,8 @@ class Test_CompartmentBuilder(unittest.TestCase):
         # All compartments same value
         builder = CompartmentBuilder(
             self.component_system,
-            self.volume_complex, self.matrix_complex,
+            self.volume_complex,
+            self.matrix_complex,
             init_c=[1, 2],
         )
         c_expected = [1, 2]
@@ -231,17 +168,12 @@ class Test_CompartmentBuilder(unittest.TestCase):
         np.testing.assert_almost_equal(c, c_expected)
 
         # Different per zone
-        init_c = np.array([
-            [0, 0],
-            [1, 1],
-            [2, 2],
-            [3, 3],
-            [4, 4]
-        ])
+        init_c = np.array([[0, 0], [1, 1], [2, 2], [3, 3], [4, 4]])
 
         builder = CompartmentBuilder(
             self.component_system,
-            self.volume_simple, self.matrix_simple,
+            self.volume_simple,
+            self.matrix_simple,
             init_c=init_c,
         )
         c = builder.flow_sheet.compartment_2.c
@@ -260,10 +192,11 @@ class Test_CompartmentBuilder(unittest.TestCase):
         self.builder_complex.add_tracer(4, [1, 1], 10, 0.1)
 
         from CADETProcess.simulator import Cadet
+
         process_simulator = Cadet()
 
         proc_results = process_simulator.simulate(self.builder_complex.process)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -2,8 +2,6 @@ import numpy as np
 
 from .dataStructure import Aggregator
 
-import numpy as np
-
 
 class NumpyProxyArray(np.ndarray):
     """A numpy array that dynamically updates attributes of container elements."""
@@ -23,9 +21,7 @@ class NumpyProxyArray(np.ndarray):
 
     def _get_values_from_aggregator(self):
         """Refresh data from the underlying container."""
-        return self.aggregator._get_values_from_container(
-            self.instance, transpose=True, check=True
-        )
+        return self.aggregator._get_values_from_container(self.instance, transpose=True, check=True)
 
     def __getitem__(self, index):
         """Retrieve an item from the aggregated parameter array."""
@@ -50,8 +46,8 @@ class NumpyProxyArray(np.ndarray):
         if not isinstance(obj, NumpyProxyArray):
             return np.asarray(obj)
 
-        self.aggregator = getattr(obj, 'aggregator', None)
-        self.instance = getattr(obj, 'instance', None)
+        self.aggregator = getattr(obj, "aggregator", None)
+        self.instance = getattr(obj, "instance", None)
 
     def __array_function__(self, func, types, *args, **kwargs):
         """
@@ -103,9 +99,9 @@ class SizedAggregator(Aggregator):
 
     def _expected_shape(self, instance):
         if self.transpose:
-            return self._parameter_shape(instance) + (self._n_instances(instance), )
+            return self._parameter_shape(instance) + (self._n_instances(instance),)
         else:
-            return (self._n_instances(instance), ) + self._parameter_shape(instance)
+            return (self._n_instances(instance),) + self._parameter_shape(instance)
 
     def _get_values_from_container(self, instance, transpose=False, check=False):
         value = super()._get_values_from_container(instance, check=False)
@@ -133,9 +129,7 @@ class SizedAggregator(Aggregator):
         expected_shape = self._expected_shape(instance)
 
         if value_shape != expected_shape:
-            raise ValueError(
-                f"Expected a array with shape {expected_shape}, got {value_shape}"
-            )
+            raise ValueError(f"Expected a array with shape {expected_shape}, got {value_shape}")
 
         if recursive:
             super()._check(instance, value, recursive)

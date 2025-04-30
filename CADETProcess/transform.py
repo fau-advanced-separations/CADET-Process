@@ -20,7 +20,7 @@ This module provides functionality for transforming data.
 """
 
 from abc import ABC, abstractmethod
-from typing import NoReturn, Optional, Union
+from typing import NoReturn, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -75,12 +75,12 @@ class TransformerBase(ABC):
     """
 
     def __init__(
-            self,
-            lb_input: float | np.ndarray = -np.inf,
-            ub_input: float | np.ndarray = np.inf,
-            allow_extended_input: bool = False,
-            allow_extended_output: bool = False
-            ) -> NoReturn:
+        self,
+        lb_input: float | np.ndarray = -np.inf,
+        ub_input: float | np.ndarray = np.inf,
+        allow_extended_input: bool = False,
+        allow_extended_output: bool = False,
+    ) -> NoReturn:
         """Initialize TransformerBase.
 
         Parameters
@@ -159,17 +159,15 @@ class TransformerBase(ABC):
         ValueError
             If `x` exceeds input or output bounds and `allow_extended_*` is False.
         """
-        if (
-            not self.allow_extended_input and
-            not np.all((self.lb_input <= x) & (x <= self.ub_input))
+        if not self.allow_extended_input and not np.all(
+            (self.lb_input <= x) & (x <= self.ub_input)
         ):
             raise ValueError("Value exceeds input bounds.")
 
         x = self._transform(x)
 
-        if (
-            not self.allow_extended_output and
-            not np.all((self.lb <= x) & (x <= self.ub))
+        if not self.allow_extended_output and not np.all(
+            (self.lb <= x) & (x <= self.ub)
         ):
             raise ValueError("Value exceeds output bounds.")
 
@@ -194,10 +192,10 @@ class TransformerBase(ABC):
         pass
 
     def untransform(
-            self,
-            x: float | np.ndarray,
-            significant_digits: Optional[int] = None
-            ) -> float | np.ndarray:
+        self,
+        x: float | np.ndarray,
+        significant_digits: Optional[int] = None,
+    ) -> float | np.ndarray:
         """Transform the output parameter space back to the input parameter space.
 
         Parameters
@@ -216,7 +214,8 @@ class TransformerBase(ABC):
         x_ = round_to_significant_digits(x, digits=significant_digits)
 
         if (
-            not self.allow_extended_output and
+            not self.allow_extended_output
+            and
             not np.all((self.lb <= x_) & (x_ <= self.ub))
         ):
             raise ValueError("Value exceeds output bounds.")
@@ -225,7 +224,8 @@ class TransformerBase(ABC):
         x_ = round_to_significant_digits(x_, digits=significant_digits)
 
         if (
-            not self.allow_extended_input and
+            not self.allow_extended_input
+            and
             not np.all((self.lb_input <= x_) & (x_ <= self.ub_input))
         ):
             raise ValueError("Value exceeds input bounds.")
@@ -459,8 +459,11 @@ class NormLogTransformer(TransformerBase):
             The untransformed input value(s) in the original range.
         """
         if self.lb_input <= 0:
-            return \
-                np.exp(x * np.log(self.ub_input - self.lb_input + 1)) + self.lb_input - 1
+            return (
+                np.exp(x * np.log(self.ub_input - self.lb_input + 1))
+                + self.lb_input
+                - 1
+            )
         else:
             return self.lb_input * np.exp(x * np.log(self.ub_input / self.lb_input))
 

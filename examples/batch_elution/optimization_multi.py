@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.14.5
+#       jupytext_version: 1.17.1
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -99,6 +99,7 @@ def callback(fractionation, individual, evaluation_object, callbacks_dir):
         file_name=f'{callbacks_dir}/{individual.id}_{evaluation_object}_fractionation.png',
         show=False
     )
+
 
 optimization_problem.add_callback(
     callback, requires=[process_simulator, frac_opt]
