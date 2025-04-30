@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.14.5
+#       jupytext_version: 1.17.1
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -109,7 +109,7 @@ process = Process(flow_sheet, 'clr')
 # ### Create Events and Durations
 
 # %%
-Q = 60/(60*1e6)
+Q = 60 / (60 * 1e6)
 
 process.add_event('feed_on', 'flow_sheet.feed.flow_rate', Q)
 process.add_event('feed_off', 'flow_sheet.feed.flow_rate', 0.0)

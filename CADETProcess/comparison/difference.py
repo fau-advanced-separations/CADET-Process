@@ -1,31 +1,39 @@
-from abc import abstractmethod
 import copy
+from abc import abstractmethod
 from functools import wraps
 from typing import Optional
 
 import numpy as np
-import numpy.typing as npt
 from scipy.integrate import simpson
 from scipy.special import expit
 
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import UnsignedInteger
-from CADETProcess.solution import SolutionIO, slice_solution, slice_solution_front
 from CADETProcess.metric import MetricBase
-from CADETProcess.reference import ReferenceIO, FractionationReference
-from .shape import pearson, pearson_offset
-from .peaks import find_peaks, find_breakthroughs
+from CADETProcess.reference import FractionationReference, ReferenceIO
+from CADETProcess.solution import SolutionIO, slice_solution, slice_solution_front
 
+from .peaks import find_breakthroughs, find_peaks
+from .shape import pearson, pearson_offset
 
 __all__ = [
     "DifferenceBase",
-    "calculate_sse", "calculate_rmse",
-    "SSE", "RMSE", "NRMSE",
-    "Norm", "L1", "L2",
-    "AbsoluteArea", "RelativeArea",
-    "Shape", "ShapeFront",
-    "PeakHeight", "PeakPosition",
-    "BreakthroughHeight", "BreakthroughPosition",
+    "calculate_sse",
+    "calculate_rmse",
+    "SSE",
+    "RMSE",
+    "NRMSE",
+    "Norm",
+    "L1",
+    "L2",
+    "AbsoluteArea",
+    "RelativeArea",
+    "Shape",
+    "ShapeFront",
+    "PeakHeight",
+    "PeakPosition",
+    "BreakthroughHeight",
+    "BreakthroughPosition",
     "FractionationSSE",
 ]
 
@@ -95,18 +103,19 @@ class DifferenceBase(MetricBase):
     _valid_references = ()
 
     def __init__(
-            self,
-            reference,
-            components=None,
-            use_total_concentration=False,
-            use_total_concentration_components=True,
-            start=None,
-            end=None,
-            transform=None,
-            only_transforms_array=True,
-            resample=True,
-            smooth=False,
-            normalize=False):
+        self,
+        reference,
+        components=None,
+        use_total_concentration=False,
+        use_total_concentration_components=True,
+        start=None,
+        end=None,
+        transform=None,
+        only_transforms_array=True,
+        resample=True,
+        smooth=False,
+        normalize=False,
+    ):
         """Initialize an instance of DifferenceBase.
 
         Parameters
@@ -138,8 +147,7 @@ class DifferenceBase(MetricBase):
         """
         self.components = components
         self.use_total_concentration = use_total_concentration
-        self.use_total_concentration_components = \
-            use_total_concentration_components
+        self.use_total_concentration_components = use_total_concentration_components
         self.start = start
         self.end = end
         self.transform = transform
@@ -187,25 +195,26 @@ class DifferenceBase(MetricBase):
             self.components,
             self.use_total_concentration,
             self.use_total_concentration_components,
-            coordinates={"time": (self.start, self.end)}
+            coordinates={"time": (self.start, self.end)},
         )
 
         self._reference = reference
 
     def checks_dimensions(func):
         """Decorator to automatically check reference and solution dimensions."""
+
         @wraps(func)
         def wrapper(self, solution, *args, **kwargs):
             if solution.solution.shape != self.reference.solution.shape:
-                raise CADETProcessError(
-                    "Simulation shape does not match experiment"
-                )
+                raise CADETProcessError("Simulation shape does not match experiment")
             value = func(self, solution, *args, **kwargs)
             return value
+
         return wrapper
 
     def slices_solution(func):
         """Decorator to automatically slice solution."""
+
         @wraps(func)
         def wrapper(self, solution, slice=True, *args, **kwargs):
             if slice:
@@ -214,7 +223,7 @@ class DifferenceBase(MetricBase):
                     self.components,
                     self.use_total_concentration,
                     self.use_total_concentration_components,
-                    coordinates={"time": (self.start, self.end)}
+                    coordinates={"time": (self.start, self.end)},
                 )
 
             value = func(self, solution, *args, **kwargs)
@@ -225,6 +234,7 @@ class DifferenceBase(MetricBase):
 
     def resamples_normalizes_and_smoothes_solution(func):
         """Decorator to automatically resample, normalize, and smooth solution."""
+
         @wraps(func)
         def wrapper(self, solution, *args, **kwargs):
             solution = copy.deepcopy(solution)
@@ -241,10 +251,12 @@ class DifferenceBase(MetricBase):
 
             value = func(self, solution, *args, **kwargs)
             return value
+
         return wrapper
 
     def transforms_solution(func):
         """Decorator to automatically transform solution data."""
+
         @wraps(func)
         def wrapper(self, solution, *args, **kwargs):
             if self.transform is not None:
@@ -257,6 +269,7 @@ class DifferenceBase(MetricBase):
 
             value = func(self, solution, *args, **kwargs)
             return value
+
         return wrapper
 
     @abstractmethod
@@ -429,9 +442,7 @@ class AbsoluteArea(DifferenceBase):
             Concentration profile of simulation.
 
         """
-        area_ref = simpson(
-            self.reference.solution, self.reference.time, axis=0
-        )
+        area_ref = simpson(self.reference.solution, self.reference.time, axis=0)
         area_sol = simpson(solution.solution, solution.time, axis=0)
 
         return abs(area_ref - area_sol)
@@ -451,12 +462,10 @@ class RelativeArea(DifferenceBase):
             Concentration profile of simulation.
 
         """
-        area_ref = simpson(
-            self.reference.solution, x=self.reference.time, axis=0
-        )
+        area_ref = simpson(self.reference.solution, x=self.reference.time, axis=0)
         area_new = simpson(solution.solution, x=solution.time, axis=0)
 
-        return abs(area_ref - area_new)/area_ref
+        return abs(area_ref - area_new) / area_ref
 
 
 class Shape(DifferenceBase):
@@ -490,11 +499,13 @@ class Shape(DifferenceBase):
 
     @wraps(DifferenceBase.__init__)
     def __init__(
-            self, *args,
-            use_derivative=True,
-            normalize_metrics=True,
-            normalization_factor=None,
-            **kwargs):
+        self,
+        *args,
+        use_derivative=True,
+        normalize_metrics=True,
+        normalization_factor=None,
+        **kwargs,
+    ):
         """Initialize Shape metric.
 
         Parameters
@@ -531,7 +542,7 @@ class Shape(DifferenceBase):
 
         self.normalize_metrics = normalize_metrics
         if normalization_factor is None:
-            normalization_factor = self.reference.time[-1]/10
+            normalization_factor = self.reference.time[-1] / 10
         self.normalization_factor = normalization_factor
 
     @property
@@ -589,7 +600,8 @@ class Shape(DifferenceBase):
 
         return np.array(
             [
-                corr, offset,
+                corr,
+                offset,
                 corr_der,
             ]
         )
@@ -615,13 +627,13 @@ class ShapeFront(Shape):
     """
 
     def __init__(
-            self,
-            *args,
-            min_percent: Optional[float] = 0.02,
-            max_percent: Optional[float] = 0.98,
-            use_max_slope: Optional[bool] = False,
-            **kwargs
-            ) -> None:
+        self,
+        *args,
+        min_percent: Optional[float] = 0.02,
+        max_percent: Optional[float] = 0.98,
+        use_max_slope: Optional[bool] = False,
+        **kwargs,
+    ) -> None:
         """
         Initialize ShapeFront metric.
 
@@ -646,16 +658,18 @@ class ShapeFront(Shape):
 
         self.reference_front, idx_min, idx_max = slice_solution_front(
             self.reference,
-            self.min_percent, self.max_percent,
+            self.min_percent,
+            self.max_percent,
             use_max_slope=use_max_slope,
-            return_indices=True
+            return_indices=True,
         )
 
         if self.use_derivative:
             self.reference_der_front = copy.deepcopy(self.reference_der)
             self.reference_der_front.solution[:] = 0
-            self.reference_der_front.solution[idx_min:idx_max + 1] = \
-                self.reference_der.solution[idx_min:idx_max + 1]
+            self.reference_der_front.solution[idx_min : idx_max + 1] = (
+                self.reference_der.solution[idx_min : idx_max + 1]
+            )
             self.reference_der_front.update_solution()
 
     def _evaluate(self, solution):
@@ -676,7 +690,8 @@ class ShapeFront(Shape):
 
         solution_front, idx_min, idx_max = slice_solution_front(
             solution,
-            self.min_percent, self.max_percent,
+            self.min_percent,
+            self.max_percent,
             use_max_slope=self.use_max_slope,
             return_indices=True,
         )
@@ -701,8 +716,9 @@ class ShapeFront(Shape):
 
         solution_der_front = copy.deepcopy(solution_der)
         solution_der_front.solution[:] = 0
-        solution_der_front.solution[idx_min:idx_max + 1] = \
-            solution_der.solution[idx_min:idx_max + 1]
+        solution_der_front.solution[idx_min : idx_max + 1] = (
+                solution_der.solution[idx_min : idx_max + 1]
+        )
         solution_der_front.update_solution()
 
         corr_der = pearson_offset(
@@ -714,7 +730,8 @@ class ShapeFront(Shape):
 
         return np.array(
             [
-                corr, offset,
+                corr,
+                offset,
                 corr_der,
             ]
         )
@@ -739,9 +756,13 @@ class PeakHeight(DifferenceBase):
 
     @wraps(DifferenceBase.__init__)
     def __init__(
-            self, *args,
-            find_minima=False, normalize_metrics=True, normalization_factor=None,
-            **kwargs):
+        self,
+        *args,
+        find_minima=False,
+        normalize_metrics=True,
+        normalization_factor=None,
+        **kwargs,
+    ):
         """Initialize the PeakHeight object.
 
         Parameters
@@ -764,9 +785,7 @@ class PeakHeight(DifferenceBase):
         super().__init__(*args, **kwargs)
 
         self.find_minima = find_minima
-        self.reference_peaks = find_peaks(
-            self.reference, find_minima=find_minima
-        )
+        self.reference_peaks = find_peaks(self.reference, find_minima=find_minima)
 
         self.normalize_metrics = normalize_metrics
         if normalization_factor is None:
@@ -776,7 +795,7 @@ class PeakHeight(DifferenceBase):
             ]
         else:
             normalization_factor = [
-                len(self.reference_peaks[i])*[normalization_factor]
+                len(self.reference_peaks[i]) * [normalization_factor]
                 for i in range(self.reference.n_comp)
             ]
         self.normalization_factor = normalization_factor
@@ -801,9 +820,9 @@ class PeakHeight(DifferenceBase):
                 sigmoid_distance(sol[1], ref[1], factor)
                 for i in range(self.reference.n_comp)
                 for ref, sol, factor in zip(
-                     self.reference_peaks[i],
-                     solution_peaks[i],
-                     self.normalization_factor
+                    self.reference_peaks[i],
+                    solution_peaks[i],
+                    self.normalization_factor,
                 )
             ]
         else:
@@ -832,7 +851,9 @@ class PeakPosition(DifferenceBase):
     _valid_references = (SolutionIO, ReferenceIO)
 
     @wraps(DifferenceBase.__init__)
-    def __init__(self, *args, normalize_metrics=True, normalization_factor=None, **kwargs):
+    def __init__(
+        self, *args, normalize_metrics=True, normalization_factor=None, **kwargs
+    ):
         """Initialize PeakPosition object.
 
         Parameters
@@ -862,7 +883,7 @@ class PeakPosition(DifferenceBase):
             ]
         else:
             normalization_factor = [
-                len(self.reference_peaks[i])*[normalization_factor]
+                len(self.reference_peaks[i]) * [normalization_factor]
                 for i in range(self.reference.n_comp)
             ]
 
@@ -890,7 +911,7 @@ class PeakPosition(DifferenceBase):
                 for ref, sol, factor in zip(
                     self.reference_peaks[i],
                     solution_peaks[i],
-                    self.normalization_factor[i]
+                    self.normalization_factor[i],
                 )
             ]
         else:
@@ -957,10 +978,7 @@ class BreakthroughHeight(DifferenceBase):
                 for ref, sol in zip(self.reference_bt, solution_bt)
             ]
         else:
-            score = [
-                ref[1] - sol[1]
-                for ref, sol in zip(self.solution_bt, solution_bt)
-            ]
+            score = [ref[1] - sol[1] for ref, sol in zip(self.solution_bt, solution_bt)]
 
         return np.abs(score)
 
@@ -971,7 +989,9 @@ class BreakthroughPosition(DifferenceBase):
     _valid_references = (SolutionIO, ReferenceIO)
 
     @wraps(DifferenceBase.__init__)
-    def __init__(self, *args, normalize_metrics=True, normalization_factor=None, **kwargs):
+    def __init__(
+        self, *args, normalize_metrics=True, normalization_factor=None, **kwargs
+    ):
         """
         Initialize the BreakthroughPosition object.
 
@@ -1025,10 +1045,7 @@ class BreakthroughPosition(DifferenceBase):
                 for ref, sol in zip(self.reference_bt, solution_bt)
             ]
         else:
-            score = [
-                ref[0] - sol[0]
-                for ref, sol in zip(self.solution_bt, solution_bt)
-            ]
+            score = [ref[0] - sol[0] for ref, sol in zip(self.solution_bt, solution_bt)]
 
         return np.abs(score)
 
@@ -1036,10 +1053,12 @@ class BreakthroughPosition(DifferenceBase):
 class FractionationSSE(DifferenceBase):
     """Fractionation based score using SSE."""
 
-    _valid_references = (FractionationReference)
+    _valid_references = FractionationReference
 
     @wraps(DifferenceBase.__init__)
-    def __init__(self, *args, normalize_metrics=True, normalization_factor=None, **kwargs):
+    def __init__(
+        self, *args, normalize_metrics=True, normalization_factor=None, **kwargs
+    ):
         """
         Initialize the FractionationSSE object.
 
@@ -1061,7 +1080,9 @@ class FractionationSSE(DifferenceBase):
         super().__init__(*args, resample=False, only_transforms_array=False, **kwargs)
 
         if not isinstance(self.reference, FractionationReference):
-            raise TypeError("FractionationSSE can only work with FractionationReference")
+            raise TypeError(
+                "FractionationSSE can only work with FractionationReference"
+            )
 
         def transform(solution):
             solution = copy.deepcopy(solution)
@@ -1070,8 +1091,12 @@ class FractionationSSE(DifferenceBase):
                 for frac in self.reference.fractions
             ]
 
-            solution.time = np.array([(frac.start + frac.end)/2 for frac in solution_fractions])
-            solution.solution = np.array([frac.concentration for frac in solution_fractions])
+            solution.time = np.array(
+                [(frac.start + frac.end) / 2 for frac in solution_fractions]
+            )
+            solution.solution = np.array(
+                [frac.concentration for frac in solution_fractions]
+            )
 
             return solution
 

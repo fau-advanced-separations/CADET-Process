@@ -75,75 +75,77 @@ Hlines
 
 """
 
-from functools import wraps
 import sys
+from functools import wraps
 
-import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib import cycler
 
 from CADETProcess import CADETProcessError
-
-from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import (
-    Integer, List, String, Tuple, Callable, UnsignedFloat
+    Callable,
+    Integer,
+    List,
+    String,
+    Structure,
+    Tuple,
+    UnsignedFloat,
 )
-
 
 this = sys.modules[__name__]
 
-style = 'medium'
+style = "medium"
 
 color_dict = {
-    'blue': matplotlib.colors.to_rgb('#000099'),
-    'red':  matplotlib.colors.to_rgb('#990000'),
-    'green': matplotlib.colors.to_rgb('#009900'),
-    'orange': matplotlib.colors.to_rgb('#D79B00'),
-    'purple': matplotlib.colors.to_rgb('#896999'),
-    'grey':  matplotlib.colors.to_rgb('#444444'),
-         }
+    "blue": matplotlib.colors.to_rgb("#000099"),
+    "red": matplotlib.colors.to_rgb("#990000"),
+    "green": matplotlib.colors.to_rgb("#009900"),
+    "orange": matplotlib.colors.to_rgb("#D79B00"),
+    "purple": matplotlib.colors.to_rgb("#896999"),
+    "grey": matplotlib.colors.to_rgb("#444444"),
+}
 color_list = list(color_dict.values())
 chromapy_cycler = cycler(color=color_list)
 
-linestyle_cycler = cycler('linestyle', ['--', ':', '-.'])
+linestyle_cycler = cycler("linestyle", ["--", ":", "-."])
 
-textbox_props = dict(facecolor='white', alpha=1)
+textbox_props = dict(facecolor="white", alpha=1)
 
 
 figure_styles = {
-    'small': {
-        'width': 5,
-        'height': 3,
-        'linewidth': 2,
-        'font_small': 8,
-        'font_medium': 10,
-        'font_large': 12,
-        'color_cycler': chromapy_cycler,
-
+    "small": {
+        "width": 5,
+        "height": 3,
+        "linewidth": 2,
+        "font_small": 8,
+        "font_medium": 10,
+        "font_large": 12,
+        "color_cycler": chromapy_cycler,
     },
-    'medium': {
-        'width': 10,
-        'height': 6,
-        'linewidth': 4,
-        'font_small': 20,
-        'font_medium': 24,
-        'font_large': 28,
-        'color_cycler': chromapy_cycler,
+    "medium": {
+        "width": 10,
+        "height": 6,
+        "linewidth": 4,
+        "font_small": 20,
+        "font_medium": 24,
+        "font_large": 28,
+        "color_cycler": chromapy_cycler,
     },
-    'large': {
-        'width': 15,
-        'height': 9,
-        'linewidth': 6,
-        'font_small': 25,
-        'font_medium': 30,
-        'font_large': 40,
-        'color_cycler': chromapy_cycler,
+    "large": {
+        "width": 15,
+        "height": 9,
+        "linewidth": 6,
+        "font_small": 25,
+        "font_medium": 30,
+        "font_large": 40,
+        "color_cycler": chromapy_cycler,
     },
 }
 
 
-def set_figure_style(style='medium'):
+def set_figure_style(style="medium"):
     """Define the sytle of a plot.
 
     Can set the sytle of a plot for small, medium and large plots. The
@@ -161,26 +163,26 @@ def set_figure_style(style='medium'):
         If no valid style has been chosen as parameter.
     """
     if style not in figure_styles:
-        raise CADETProcessError('Not a valid style')
+        raise CADETProcessError("Not a valid style")
 
-    width = figure_styles[style]['width']
-    height = figure_styles[style]['height']
-    linewidth = figure_styles[style]['linewidth']
-    font_small = figure_styles[style]['font_small']
-    font_medium = figure_styles[style]['font_medium']
-    font_large = figure_styles[style]['font_large']
-    color_cycler = figure_styles[style]['color_cycler']
+    width = figure_styles[style]["width"]
+    height = figure_styles[style]["height"]
+    linewidth = figure_styles[style]["linewidth"]
+    font_small = figure_styles[style]["font_small"]
+    font_medium = figure_styles[style]["font_medium"]
+    font_large = figure_styles[style]["font_large"]
+    color_cycler = figure_styles[style]["color_cycler"]
 
-    plt.rcParams['figure.figsize'] = (width, height)
-    plt.rcParams['lines.linewidth'] = linewidth
-    plt.rcParams['font.size'] = font_small          # controls default text sizes
-    plt.rcParams['axes.titlesize'] = font_small     # fontsize of the axes title
-    plt.rcParams['axes.labelsize'] = font_medium    # fontsize of the x and y labels
-    plt.rcParams['xtick.labelsize'] = font_small    # fontsize of the tick labels
-    plt.rcParams['ytick.labelsize'] = font_small    # fontsize of the tick labels
-    plt.rcParams['legend.fontsize'] = font_small    # legend fontsize
-    plt.rcParams['figure.titlesize'] = font_large   # fontsize of the figure title
-    plt.rcParams['axes.prop_cycle'] = color_cycler
+    plt.rcParams["figure.figsize"] = (width, height)
+    plt.rcParams["lines.linewidth"] = linewidth
+    plt.rcParams["font.size"] = font_small  # controls default text sizes
+    plt.rcParams["axes.titlesize"] = font_small  # fontsize of the axes title
+    plt.rcParams["axes.labelsize"] = font_medium  # fontsize of the x and y labels
+    plt.rcParams["xtick.labelsize"] = font_small  # fontsize of the tick labels
+    plt.rcParams["ytick.labelsize"] = font_small  # fontsize of the tick labels
+    plt.rcParams["legend.fontsize"] = font_small  # legend fontsize
+    plt.rcParams["figure.titlesize"] = font_large  # fontsize of the figure title
+    plt.rcParams["axes.prop_cycle"] = color_cycler
 
 
 set_figure_style()
@@ -208,8 +210,8 @@ def get_fig_size(n_rows=1, n_cols=1, style=None):
     if style is None:
         style = this.style
 
-    width = figure_styles[style]['width']
-    height = figure_styles[style]['height']
+    width = figure_styles[style]["width"]
+    height = figure_styles[style]["height"]
 
     fig_size = (n_cols * width + 2, n_rows * height + 2)
 
@@ -243,10 +245,7 @@ def setup_figure(n_rows=1, n_cols=1, style=None, squeeze=True):
 
     fig_size = get_fig_size(n_rows, n_cols)
     fig, axs = plt.subplots(
-        nrows=n_rows,
-        ncols=n_cols,
-        squeeze=squeeze,
-        figsize=fig_size
+        nrows=n_rows, ncols=n_cols, squeeze=squeeze, figsize=fig_size
     )
 
     fig.tight_layout()
@@ -272,15 +271,9 @@ class Layout(Structure):
     y_lim = Tuple()
 
 
-def set_layout(
-        ax,
-        layout,
-        show_legend=True,
-        ax_secondary=None,
-        secondary_layout=None):
-
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
+def set_layout(ax, layout, show_legend=True, ax_secondary=None, secondary_layout=None):
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
 
     ax.set_xlabel(layout.x_label)
     ax.set_ylabel(layout.y_label)
@@ -300,8 +293,7 @@ def set_layout(
         ax_secondary.set_ylim(secondary_layout.y_lim)
 
         if show_legend:
-            lines_secondary, labels_secondary = \
-                ax_secondary.get_legend_handles_labels()
+            lines_secondary, labels_secondary = ax_secondary.get_legend_handles_labels()
             ax_secondary.legend(
                 lines_secondary + lines, labels_secondary + labels, loc=0
             )
@@ -316,15 +308,15 @@ class Tick(Structure):
 
 
 def set_yticks(ax, y_ticks):
-    locs = np.array([y_tick['loc'] for y_tick in y_ticks])
-    labels = [y_tick['label'] for y_tick in y_ticks]
+    locs = np.array([y_tick["loc"] for y_tick in y_ticks])
+    labels = [y_tick["label"] for y_tick in y_ticks]
     ax.set_yticks(locs, labels)
 
 
 def set_xticks(ax, x_ticks):
-    locs = np.array([x_tick['loc'] for x_tick in x_ticks])
-    labels = [x_tick['label'] for x_tick in x_ticks]
-    plt.xticks(locs, labels, rotation=72, horizontalalignment='center')
+    locs = np.array([x_tick["loc"] for x_tick in x_ticks])
+    labels = [x_tick["label"] for x_tick in x_ticks]
+    plt.xticks(locs, labels, rotation=72, horizontalalignment="center")
 
 
 def add_text(ax, text, position=(0.05, 0.9), tb_props=None, **kwargs):
@@ -332,8 +324,12 @@ def add_text(ax, text, position=(0.05, 0.9), tb_props=None, **kwargs):
         textbox_props.update(tb_props)
 
     ax.text(
-        *position, text, transform=ax.transAxes, verticalalignment='top',
-        bbox=textbox_props, **kwargs
+        *position,
+        text,
+        transform=ax.transAxes,
+        verticalalignment="top",
+        bbox=textbox_props,
+        **kwargs,
     )
 
 
@@ -353,7 +349,7 @@ class Annotation(Structure):
     text = String()
     xy = Tuple()
     xytext = Tuple()
-    arrowstyle = '-|>'
+    arrowstyle = "-|>"
 
 
 def add_annotations(ax, annotations):
@@ -361,12 +357,12 @@ def add_annotations(ax, annotations):
         ax.annotate(
             annotation.text,
             xy=annotation.xy,
-            xycoords='data',
+            xycoords="data",
             xytext=annotation.xytext,
-            textcoords='offset points',
+            textcoords="offset points",
             arrowprops={
-                'arrowstyle': annotation.arrowstyle
-            }
+                "arrowstyle": annotation.arrowstyle,
+            },
         )
 
 
@@ -385,20 +381,24 @@ def add_fill_regions(ax, fill_regions, x_lim=None):
         color = color_list[fill.color_index]
         ax.fill_between(
             [fill.start, fill.end],
-            fill.y_max, alpha=0.3, color=color
+            fill.y_max,
+            alpha=0.3,
+            color=color,
         )
 
         if fill.text is not None:
             if x_lim is None or fill.start < x_lim[0]:
-                x_position = (x_lim[0] + fill.end)/2
+                x_position = (x_lim[0] + fill.end) / 2
             else:
-                x_position = (fill.start + fill.end)/2
+                x_position = (fill.start + fill.end) / 2
             y_position = 0.5 * fill.y_max
 
             ax.text(
-                x_position, y_position, fill.text,
-                horizontalalignment='center',
-                verticalalignment='center'
+                x_position,
+                y_position,
+                fill.text,
+                horizontalalignment="center",
+                verticalalignment="center",
             )
 
 
@@ -416,11 +416,14 @@ def add_hlines(ax, hlines):
 def create_and_save_figure(func):
     @wraps(func)
     def wrapper(
-            *args,
-            fig=None,
-            ax=None,
-            show=True, file_name=None, style='medium',
-            **kwargs):
+        *args,
+        fig=None,
+        ax=None,
+        show=True,
+        file_name=None,
+        style="medium",
+        **kwargs,
+    ):
         """Wrapper around plot function.
 
         Parameters

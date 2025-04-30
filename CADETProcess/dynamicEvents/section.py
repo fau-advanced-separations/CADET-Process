@@ -2,17 +2,14 @@ import itertools
 import warnings
 
 import numpy as np
-from numpy.exceptions import VisibleDeprecationWarning
 import scipy
 from matplotlib.axes import Axes
+from numpy.exceptions import VisibleDeprecationWarning
 
-from CADETProcess import CADETProcessError
-from CADETProcess.dataStructure import Structure
-from CADETProcess.dataStructure import NdPolynomial
-from CADETProcess import plotting
+from CADETProcess import CADETProcessError, plotting
+from CADETProcess.dataStructure import NdPolynomial, Structure
 
-
-__all__ = ['Section', 'TimeLine', 'MultiTimeLine']
+__all__ = ["Section", "TimeLine", "MultiTimeLine"]
 
 
 class Section(Structure):
@@ -39,7 +36,7 @@ class Section(Structure):
 
     """
 
-    coeffs = NdPolynomial(size=('n_entries', 'n_poly_coeffs'))
+    coeffs = NdPolynomial(size=("n_entries", "n_poly_coeffs"))
 
     def __init__(self, start, end, coeffs, is_polynomial=False):
         if start > end:
@@ -47,7 +44,7 @@ class Section(Structure):
 
         self.start = start
         self.end = end
-        diff = end-start
+        diff = end - start
 
         coeffs = np.array(coeffs, ndmin=1, dtype=np.float64)
         self.parameter_shape = coeffs.shape
@@ -121,7 +118,7 @@ class Section(Structure):
 
         """
         if np.any(t < self.start) or np.any(self.end < t):
-            raise ValueError('Time exceeds section times')
+            raise ValueError("Time exceeds section times")
 
         value = np.array([p(t) for p in self._poly])
 
@@ -174,7 +171,7 @@ class Section(Structure):
 
         """
         if np.any(t < self.start) or np.any(self.end < t):
-            raise ValueError('Time exceeds section times')
+            raise ValueError("Time exceeds section times")
 
         deriv = np.array([p.deriv(t).coef for p in self._poly_der])
 
@@ -207,7 +204,7 @@ class Section(Structure):
             end = self.end
 
         if not ((self.start <= start) & (start <= end) & (end <= self.end)):
-            raise ValueError('Integration bounds exceed section times')
+            raise ValueError("Integration bounds exceed section times")
 
         integ_methods = [p.integ(lbnd=start) for p in self._poly]
         return np.array([i(end) for i in integ_methods])
@@ -220,7 +217,7 @@ class Section(Structure):
         return f"Section({args})"
 
 
-class TimeLine():
+class TimeLine:
     """Class representing a timeline of time-varying data.
 
     The timeline is made up of Sections, which are continuous time intervals.
@@ -273,13 +270,13 @@ class TimeLine():
 
         """
         if not isinstance(section, Section):
-            raise TypeError('Expected Section')
+            raise TypeError("Expected Section")
         if len(self.sections) > 0:
             if section.degree != self.degree:
-                raise CADETProcessError('Polynomial degree does not match')
+                raise CADETProcessError("Polynomial degree does not match")
 
             if not (section.start == self.end or section.end == self.start):
-                raise CADETProcessError('Sections times must be without gaps')
+                raise CADETProcessError("Sections times must be without gaps")
 
         self._sections.append(section)
         self._sections = sorted(self._sections, key=lambda sec: sec.start)
@@ -366,11 +363,9 @@ class TimeLine():
             end = self.end
 
         if not ((self.start <= start) & (start <= end) & (end <= self.end)):
-            raise ValueError('Integration bounds exceed section times')
+            raise ValueError("Integration bounds exceed section times")
 
-        return np.array(
-            [p.integrate(start, end) for p in self.piecewise_poly]
-        ).T
+        return np.array([p.integrate(start, end) for p in self.piecewise_poly]).T
 
     def section_index(self, time):
         """Return the index of the section that contains the specified time.
@@ -436,12 +431,12 @@ class TimeLine():
         ax.plot(time, y)
 
         layout = plotting.Layout()
-        layout.x_label = '$time~/~s$'
+        layout.x_label = "$time~/~s$"
         if x_axis_in_minutes:
-            layout.x_label = '$time~/~min$'
-        layout.y_label = '$state$'
+            layout.x_label = "$time~/~min$"
+        layout.y_label = "$state$"
         layout.x_lim = (start, end)
-        layout.y_lim = (np.min(y), 1.1*np.max(y))
+        layout.y_lim = (np.min(y), 1.1 * np.max(y))
 
         plotting.set_layout(ax, layout)
 
@@ -490,6 +485,7 @@ class TimeLine():
 
         """
         from scipy import interpolate
+
         tl = cls()
 
         tck = interpolate.splrep(time, profile, s=s)
@@ -500,15 +496,13 @@ class TimeLine():
                 continue
             elif i > len(ppoly.x) - 5:
                 continue
-            end = ppoly.x[i+1]
-            tl.add_section(
-                Section(start, end, np.flip(sec), is_polynomial=True)
-            )
+            end = ppoly.x[i + 1]
+            tl.add_section(Section(start, end, np.flip(sec), is_polynomial=True))
 
         return tl
 
 
-class MultiTimeLine():
+class MultiTimeLine:
     """Class for a collection of TimeLines with the same number of entries.
 
     Attributes
@@ -611,7 +605,7 @@ class MultiTimeLine():
         section_times = self.section_times
         for iSec in range(len(section_times) - 1):
             start = self.section_times[iSec]
-            end = self.section_times[iSec+1]
+            end = self.section_times[iSec + 1]
 
             if not self.is_polynomial:
                 for i, entry in enumerate(self.time_lines):
@@ -621,7 +615,9 @@ class MultiTimeLine():
                         coeffs[index] = coeff
             else:
                 for i_entry in range(self.n_entries):
-                    tl_indices = slice(i_entry*n_poly_coeffs, (i_entry+1)*n_poly_coeffs)
+                    tl_indices = slice(
+                        i_entry * n_poly_coeffs, (i_entry + 1) * n_poly_coeffs
+                    )
                     i_entry_tl = self.time_lines[tl_indices]
                     for i_poly, i_poly_tl in enumerate(i_entry_tl):
                         if self.is_single_entry:
@@ -629,7 +625,10 @@ class MultiTimeLine():
                         else:
                             index = (i_entry, i_poly)
 
-                        if len(i_poly_tl.sections) > 0 and start in i_poly_tl.section_times:
+                        if (
+                            len(i_poly_tl.sections) > 0
+                            and start in i_poly_tl.section_times
+                        ):
                             coeffs[index] = i_poly_tl.coefficients(start)[0]
 
             section = Section(start, end, coeffs, self.is_polynomial)
@@ -674,13 +673,17 @@ def generate_indices(shape, indices=None):
     [(0, 1), (1, 2)]
     """
     if not shape:
-        raise ValueError("Shape must not be empty, scalar parameters are not supported.")
+        raise ValueError(
+            "Shape must not be empty, scalar parameters are not supported."
+        )
 
     if indices is None:
         indices = np.s_[:]
 
     if not isinstance(indices, list):
-        indices = [indices, ]
+        indices = [
+            indices,
+        ]
 
     indices_array = np.array(indices, ndmin=1)
 
@@ -803,14 +806,14 @@ def get_inhomogeneous_shape(value):
 
 def get_full_shape(inhomogeneous_shape):
     """Create full shape from inhomogeneous shape to be used with numpy arrays."""
-    first_dimension = (len(inhomogeneous_shape))
+    first_dimension = len(inhomogeneous_shape)
 
     sub_dims = ()
     for sub_dim in inhomogeneous_shape:
         if not isinstance(sub_dim, tuple):
             sub_dim = get_full_shape(sub_dim)
 
-        sub_dims += (sub_dim, )
+        sub_dims += (sub_dim,)
 
     max_dims = {}
     for el in sub_dims:
@@ -820,7 +823,7 @@ def get_full_shape(inhomogeneous_shape):
             except KeyError:
                 max_dims[i] = dim
 
-    dims = (first_dimension, ) + tuple(max_dims.values())
+    dims = (first_dimension,) + tuple(max_dims.values())
 
     return dims
 

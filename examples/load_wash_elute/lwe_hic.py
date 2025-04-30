@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.14.5
+#       jupytext_version: 1.17.1
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -27,7 +27,7 @@ import numpy as np
 import matplotlib
 matplotlib.use("TkAgg")
 
-from CADETProcess.processModel import ComponentSystem, HICConstantWaterActivity, HICWaterOnHydrophobicSurfaces
+from CADETProcess.processModel import ComponentSystem, HICConstantWaterActivity
 from CADETProcess.processModel import Inlet, GeneralRateModel, Outlet
 from CADETProcess.processModel import FlowSheet
 from CADETProcess.processModel import Process

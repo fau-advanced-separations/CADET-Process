@@ -1,18 +1,15 @@
-import io
 import functools as ft
+import io
+import os.path as op
 import pickletools
 import sqlite3
-import os.path as op
 
 import dill as pickle
-
 import diskcache
-from diskcache.core import (
-    UNKNOWN, MODE_RAW, MODE_BINARY, MODE_PICKLE, MODE_TEXT
-)
-
+from diskcache.core import MODE_BINARY, MODE_PICKLE, MODE_RAW, MODE_TEXT, UNKNOWN
 
 __all__ = ["DillDisk"]
+
 
 class DillDisk(diskcache.Disk):
     """Cache key and value serialization for SQLite database and files."""
@@ -29,10 +26,7 @@ class DillDisk(diskcache.Disk):
             return sqlite3.Binary(key), True
         elif (
             (type_key is str)
-            or (
-                type_key is int
-                and -9223372036854775808 <= key <= 9223372036854775807
-            )
+            or (type_key is int and -9223372036854775808 <= key <= 9223372036854775807)
             or (type_key is float)
         ):
             return key, True
@@ -79,18 +73,18 @@ class DillDisk(diskcache.Disk):
                 return 0, MODE_RAW, None, sqlite3.Binary(value)
             else:
                 filename, full_path = self.filename(key, value)
-                self._write(full_path, io.BytesIO(value), 'xb')
+                self._write(full_path, io.BytesIO(value), "xb")
                 return len(value), MODE_BINARY, filename, None
         elif type_value is str:
             filename, full_path = self.filename(key, value)
-            self._write(full_path, io.StringIO(value), 'x', 'UTF-8')
+            self._write(full_path, io.StringIO(value), "x", "UTF-8")
             size = op.getsize(full_path)
             return size, MODE_TEXT, filename, None
         elif read:
-            reader = ft.partial(value.read, 2 ** 22)
+            reader = ft.partial(value.read, 2**22)
             filename, full_path = self.filename(key, value)
-            iterator = iter(reader, b'')
-            size = self._write(full_path, iterator, 'xb')
+            iterator = iter(reader, b"")
+            size = self._write(full_path, iterator, "xb")
             return size, MODE_BINARY, filename, None
         else:
             result = pickle.dumps(value, protocol=self.pickle_protocol)
@@ -99,7 +93,7 @@ class DillDisk(diskcache.Disk):
                 return 0, MODE_PICKLE, None, sqlite3.Binary(result)
             else:
                 filename, full_path = self.filename(key, value)
-                self._write(full_path, io.BytesIO(result), 'xb')
+                self._write(full_path, io.BytesIO(result), "xb")
                 return len(result), MODE_PICKLE, filename, None
 
     def fetch(self, mode, filename, value, read):
@@ -117,17 +111,17 @@ class DillDisk(diskcache.Disk):
             return bytes(value) if type(value) is sqlite3.Binary else value
         elif mode == MODE_BINARY:
             if read:
-                return open(op.join(self._directory, filename), 'rb')
+                return open(op.join(self._directory, filename), "rb")
             else:
-                with open(op.join(self._directory, filename), 'rb') as reader:
+                with open(op.join(self._directory, filename), "rb") as reader:
                     return reader.read()
         elif mode == MODE_TEXT:
             full_path = op.join(self._directory, filename)
-            with open(full_path, 'r', encoding='UTF-8') as reader:
+            with open(full_path, "r", encoding="UTF-8") as reader:
                 return reader.read()
         elif mode == MODE_PICKLE:
             if value is None:
-                with open(op.join(self._directory, filename), 'rb') as reader:
+                with open(op.join(self._directory, filename), "rb") as reader:
                     return pickle.load(reader)
             else:
                 return pickle.load(io.BytesIO(value))

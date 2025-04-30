@@ -1,21 +1,24 @@
 import unittest
 
 import numpy
-
-from CADETProcess.processModel import ComponentSystem, binding, BindingBaseClass
 from CADETProcess.processModel import (
-    Langmuir, BiLangmuir, MultistateStericMassAction, StericMassAction, MobilePhaseModulator
+    BiLangmuir,
+    BindingBaseClass,
+    ComponentSystem,
+    Langmuir,
+    MobilePhaseModulator,
+    MultistateStericMassAction,
+    StericMassAction,
+    binding,
 )
 from CADETProcess.simulator.cadetAdapter import adsorption_parameters_map
 
 
 class Test_Binding(unittest.TestCase):
-
     def setUp(self):
-
         component_system = ComponentSystem(2)
 
-        binding_model = Langmuir(component_system, name='test')
+        binding_model = Langmuir(component_system, name="test")
 
         binding_model.adsorption_rate = [0.02, 0.03]
         binding_model.desorption_rate = [1, 1]
@@ -23,7 +26,7 @@ class Test_Binding(unittest.TestCase):
 
         self.langmuir = binding_model
 
-        binding_model = BiLangmuir(component_system, name='test')
+        binding_model = BiLangmuir(component_system, name="test")
 
         binding_model.adsorption_rate = [0.02, 0.03, 0.001, 0.002]
         binding_model.desorption_rate = [1, 1, 2, 2]
@@ -31,13 +34,11 @@ class Test_Binding(unittest.TestCase):
 
         self.bi_langmuir = binding_model
 
-        binding_model = MultistateStericMassAction(
-            component_system, name='test'
-        )
+        binding_model = MultistateStericMassAction(component_system, name="test")
 
         self.multi_state_sma = binding_model
 
-        binding_model = StericMassAction(component_system, name='test')
+        binding_model = StericMassAction(component_system, name="test")
 
         binding_model.adsorption_rate = [0.02, 0.03]
         binding_model.desorption_rate = [1, 1]
@@ -48,7 +49,7 @@ class Test_Binding(unittest.TestCase):
         binding_model.reference_solid_phase_conc = 100
         self.sma = binding_model
 
-        binding_model = MobilePhaseModulator(component_system, name='test')
+        binding_model = MobilePhaseModulator(component_system, name="test")
 
         binding_model.adsorption_rate = [0.02, 0.03]
         binding_model.desorption_rate = [1, 1]
@@ -62,42 +63,56 @@ class Test_Binding(unittest.TestCase):
         adsorption_rate = numpy.array(self.sma.adsorption_rate)
         desorption_rate = numpy.array(self.sma.desorption_rate)
         characteristic_charge = numpy.array(self.sma.characteristic_charge)
-        expected_untransformed_adsorption_rate = adsorption_rate * (self.sma.reference_solid_phase_conc
-                                                                    ** -characteristic_charge)
-        expected_untransformed_desorption_rate = desorption_rate * (self.sma.reference_liquid_phase_conc
-                                                                    ** -characteristic_charge)
-        assert (numpy.allclose(expected_untransformed_adsorption_rate, self.sma.adsorption_rate_untransformed))
-        assert (numpy.allclose(expected_untransformed_desorption_rate, self.sma.desorption_rate_untransformed))
+        expected_untransformed_adsorption_rate = adsorption_rate * (
+            self.sma.reference_solid_phase_conc**-characteristic_charge
+        )
+        expected_untransformed_desorption_rate = desorption_rate * (
+            self.sma.reference_liquid_phase_conc**-characteristic_charge
+        )
+        assert numpy.allclose(
+            expected_untransformed_adsorption_rate,
+            self.sma.adsorption_rate_untransformed,
+        )
+        assert numpy.allclose(
+            expected_untransformed_desorption_rate,
+            self.sma.desorption_rate_untransformed,
+        )
 
         with self.assertRaises(ValueError):
             component_system = ComponentSystem(2)
-            binding_model = StericMassAction(component_system, name='test')
+            binding_model = StericMassAction(component_system, name="test")
             binding_model.adsorption_rate_untransformed = [0.02, 0.03]
 
     def test_in_cadetAdapter(self):
-        binding_classes = {name: cls for name, cls in binding.__dict__.items() if (isinstance(cls, type) and
-                                                                                   issubclass(cls, BindingBaseClass))}
+        binding_classes = {
+            name: cls
+            for name, cls in binding.__dict__.items()
+            if (isinstance(cls, type) and issubclass(cls, BindingBaseClass))
+        }
         binding_classes.pop("BindingBaseClass")
 
         for name, cls in binding_classes.items():
             self.assertIn(name, adsorption_parameters_map)
             map = adsorption_parameters_map[name]
             try:
-                assert set(cls._parameters) == set(map["parameters"].values())  # This needs to compare to .values
+                assert set(cls._parameters) == set(
+                    map["parameters"].values()
+                )  # This needs to compare to .values
             except AssertionError:
-                raise AssertionError(f"Isotherm '{name}' has these parameters in cadetAdapter.py missing: "
-                                     f"{set(cls._parameters) - set(map['parameters'].values())} "
-                                     "and these parameters in binding.py missing: "
-                                     f"{set(map['parameters'].values()) - set(cls._parameters)}")
-
+                raise AssertionError(
+                    f"Isotherm '{name}' has these parameters in cadetAdapter.py missing: "
+                    f"{set(cls._parameters) - set(map['parameters'].values())} "
+                    "and these parameters in binding.py missing: "
+                    f"{set(map['parameters'].values()) - set(cls._parameters)}"
+                )
 
     def test_get_parameters(self):
         parameters_expected = {
-                'is_kinetic': True,
-                'adsorption_rate': [0.02, 0.03],
-                'desorption_rate': [1.0, 1.0],
-                'capacity': [100.0, 100.0]
-                }
+            "is_kinetic": True,
+            "adsorption_rate": [0.02, 0.03],
+            "desorption_rate": [1.0, 1.0],
+            "capacity": [100.0, 100.0],
+        }
         parameters = self.langmuir.parameters
         self.assertDictEqual(parameters_expected, parameters)
 
@@ -125,5 +140,5 @@ class Test_Binding(unittest.TestCase):
             self.langmuir.bound_states = [2, 2]
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

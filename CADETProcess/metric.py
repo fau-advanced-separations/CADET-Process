@@ -12,6 +12,7 @@ class MetricBase(ABC):
     DifferenceMetric
 
     """
+
     n_metrics = 1
     bad_metrics = np.inf
 

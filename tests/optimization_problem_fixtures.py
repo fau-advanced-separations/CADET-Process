@@ -4,40 +4,32 @@ TODO:
 - [ ] Add documentation / scope of tests (e.g. link to scipy/pymoo)
 
 """
+
+import warnings
 from functools import partial
 from typing import NoReturn
-import warnings
 
 import numpy as np
-
 from CADETProcess.optimization import OptimizationProblem, OptimizationResults
 
 __all__ = [
-    'Rosenbrock',
-    'LinearConstraintsSooTestProblem',
-    'LinearConstraintsSooTestProblem2',
-    'LinearEqualityConstraintsSooTestProblem',
-    'NonlinearConstraintsSooTestProblem',
-    'NonlinearLinearConstraintsSooTestProblem',
-    'LinearConstraintsMooTestProblem',
-    'LinearNonlinearConstraintsMooTestProblem',
-    'NonlinearConstraintsMooTestProblem'
+    "Rosenbrock",
+    "LinearConstraintsSooTestProblem",
+    "LinearConstraintsSooTestProblem2",
+    "LinearEqualityConstraintsSooTestProblem",
+    "NonlinearConstraintsSooTestProblem",
+    "NonlinearLinearConstraintsSooTestProblem",
+    "LinearConstraintsMooTestProblem",
+    "LinearNonlinearConstraintsMooTestProblem",
+    "NonlinearConstraintsMooTestProblem",
 ]
 
 
 error = "Optimizer did not approach solution close enough."
-default_test_kwargs = {
-    "rtol": 0.01,
-    "atol": 0.0001,
-    "err_msg": error
-}
+default_test_kwargs = {"rtol": 0.01, "atol": 0.0001, "err_msg": error}
 
 
-def allow_test_failure_percentage(
-        test_function,
-        test_kwargs,
-        mismatch_tol=0.0
-        ):
+def allow_test_failure_percentage(test_function, test_kwargs, mismatch_tol=0.0):
     """When two arrays are compared, allow a certain fraction of the comparisons
     to fail. This behaviour is explicitly accepted in convergence tests of
     multi-objective tests. The reason behind it is that building the pareto
@@ -54,24 +46,24 @@ def allow_test_failure_percentage(
         test_function(**test_kwargs)
     except AssertionError as e:
         msg = e.args[0].split("\n")
-        lnum, mismatch_line = [(i, l) for i, l in enumerate(msg)
-                               if "Mismatched elements:" in l][0]
+        lnum, mismatch_line = [
+            (i, l) for i, l in enumerate(msg) if "Mismatched elements:" in l  # noqa: E741
+        ][0]
         mismatch_percent = float(mismatch_line.split("(")[1].split("%")[0])
         if mismatch_percent / 100 > mismatch_tol:
             err_line = (
-                 "---> " + mismatch_line +
-                 f" exceeded tolerance ({mismatch_percent}% > {mismatch_tol * 100}%)"
+                "---> "
+                + mismatch_line
+                + f" exceeded tolerance ({mismatch_percent}% > {mismatch_tol * 100}%)"
             )
             msg[lnum] = err_line
             raise AssertionError("\n".join(msg))
         else:
             warn_line = (
-                mismatch_line +
-                f" below tolerance ({mismatch_percent}% <= {mismatch_tol * 100}%)"
+                mismatch_line
+                + f" below tolerance ({mismatch_percent}% <= {mismatch_tol * 100}%)"
             )
-            warnings.warn(
-                 f"Equality test passed with {warn_line}"
-            )
+            warnings.warn(f"Equality test passed with {warn_line}")
 
 
 class TestProblem(OptimizationProblem):
@@ -93,14 +85,14 @@ class TestProblem(OptimizationProblem):
 
 class Rosenbrock(TestProblem):
     def __init__(self, *args, n_var=2, **kwargs):
-        super().__init__('rosenbrock', *args, **kwargs)
+        super().__init__("rosenbrock", *args, **kwargs)
 
         if n_var not in [1, 2, 3, 4, 5, 6, 7]:
-            raise ValueError('n_var must be 1 or 2')
+            raise ValueError("n_var must be 1 or 2")
 
-        self.add_variable('var_0', lb=-10, ub=10)
+        self.add_variable("var_0", lb=-10, ub=10)
         if n_var == 2:
-            self.add_variable('var_1', lb=-10, ub=10)
+            self.add_variable("var_1", lb=-10, ub=10)
 
         self.add_objective(self._objective_function)
 
@@ -120,7 +112,7 @@ class Rosenbrock(TestProblem):
         for 4-7 D it has the same global minimum but in addition a local optimum
         at x=(-1, 1, ..., 1)
         """
-        return sum(100.0*(x[1:]-x[:-1]**2.0)**2.0 + (1-x[:-1])**2.0)
+        return sum(100.0 * (x[1:] - x[:-1] ** 2.0) ** 2.0 + (1 - x[:-1]) ** 2.0)
 
     @classmethod
     def rosen_1D(cls, x):
@@ -141,10 +133,8 @@ class Rosenbrock(TestProblem):
         return np.repeat(0.9, self.n_variables)
 
     def test_if_solved(
-            self,
-            optimization_results: OptimizationResults,
-            test_kwargs=default_test_kwargs
-            ) -> NoReturn:
+        self, optimization_results: OptimizationResults, test_kwargs=default_test_kwargs
+    ) -> NoReturn:
         x_true, f_true = self.optimal_solution
         x = optimization_results.x
         f = optimization_results.f
@@ -156,47 +146,41 @@ class Rosenbrock(TestProblem):
 
 class LinearConstraintsSooTestProblem(TestProblem):
     def __init__(
-            self,
-            transform=None,
-            has_evaluator=False,
-            significant_digits=None,
-            *args,
-            **kwargs
-            ):
+        self,
+        transform=None,
+        has_evaluator=False,
+        significant_digits=None,
+        *args,
+        **kwargs,
+    ):
         self.test_abs_tol = 0.1
-        super().__init__('linear_constraints_single_objective', *args, **kwargs)
-        self.setup_variables(
-            transform=transform,
-            significant_digits=significant_digits
-        )
+        super().__init__("linear_constraints_single_objective", *args, **kwargs)
+        self.setup_variables(transform=transform, significant_digits=significant_digits)
         self.setup_linear_constraints()
         if has_evaluator:
             eval_fun = lambda x: x
             self.add_evaluator(eval_fun)
-            self.add_objective(
-                self._objective_function,
-                requires=eval_fun
-            )
+            self.add_objective(self._objective_function, requires=eval_fun)
         else:
             self.add_objective(self._objective_function)
 
     def setup_variables(self, transform, significant_digits=None):
         self.add_variable(
-            'var_0',
+            "var_0",
             lb=-2,
             ub=2,
             transform=transform,
             significant_digits=significant_digits,
         )
         self.add_variable(
-            'var_1',
+            "var_1",
             lb=-2,
             ub=2,
             transform=transform,
             significant_digits=significant_digits,
         )
         self.add_variable(
-            'var_2',
+            "var_2",
             lb=0,
             ub=2,
             transform="log",
@@ -204,7 +188,7 @@ class LinearConstraintsSooTestProblem(TestProblem):
         )
 
     def setup_linear_constraints(self):
-        self.add_linear_constraint(['var_0', 'var_1'], [-1, -0.5], 0)
+        self.add_linear_constraint(["var_0", "var_1"], [-1, -0.5], 0)
 
     def _objective_function(self, x):
         return x[0] - x[1] + x[2]
@@ -222,13 +206,14 @@ class LinearConstraintsSooTestProblem(TestProblem):
 
     @property
     def conditional_minima(self):
-        f_x0 = lambda x0:  x0 - 2
-        f_x1 = lambda x1:  x1 * - 3/2
+        f_x0 = lambda x0: x0 - 2
+        f_x1 = lambda x1: x1 * -3 / 2
         f_x2 = lambda x2: x2
         return f_x0, f_x1, f_x2
 
-    def test_if_solved(self, optimization_results: OptimizationResults,
-                       test_kwargs=default_test_kwargs):
+    def test_if_solved(
+        self, optimization_results: OptimizationResults, test_kwargs=default_test_kwargs
+    ):
         x_true, f_true = self.optimal_solution
         x = optimization_results.x
         f = optimization_results.f
@@ -241,7 +226,7 @@ class LinearConstraintsSooTestProblem(TestProblem):
 class NonlinearConstraintsSooTestProblem(TestProblem):
     def __init__(self, transform=None, has_evaluator=False, *args, **kwargs):
         self.fixture_evaluator = None
-        super().__init__('linear_constraints_single_objective', *args, **kwargs)
+        super().__init__("linear_constraints_single_objective", *args, **kwargs)
         self.setup_variables(transform=transform)
         self.setup_evaluator(has_evaluator=has_evaluator)
         self.setup_nonlinear_constraints()
@@ -255,14 +240,11 @@ class NonlinearConstraintsSooTestProblem(TestProblem):
             self.fixture_evaluator = None
 
     def setup_objectives(self):
-        self.add_objective(
-            self._objective_function,
-            requires=self.fixture_evaluator
-        )
+        self.add_objective(self._objective_function, requires=self.fixture_evaluator)
 
     def setup_variables(self, transform):
-        self.add_variable('var_0', lb=-2, ub=0, transform=transform)
-        self.add_variable('var_1', lb=-2, ub=2, transform=transform)
+        self.add_variable("var_0", lb=-2, ub=0, transform=transform)
+        self.add_variable("var_1", lb=-2, ub=2, transform=transform)
 
     def setup_nonlinear_constraints(self):
         """
@@ -272,17 +254,20 @@ class NonlinearConstraintsSooTestProblem(TestProblem):
         """
         nlc_fun_0 = lambda x: -1 * x[0] - 0.5 * x[1]
         self.add_nonlinear_constraint(
-            nlc_fun_0, bounds=0, n_nonlinear_constraints=1,
-            requires=self.fixture_evaluator
+            nlc_fun_0,
+            bounds=0,
+            n_nonlinear_constraints=1,
+            requires=self.fixture_evaluator,
         )
 
         def nlc_fun_1(x):
-            return -0.01/(1+np.exp(x[0])) + 0.005, x[1]
+            return -0.01 / (1 + np.exp(x[0])) + 0.005, x[1]
 
         self.add_nonlinear_constraint(
-            nlc_fun_1, bounds=[0.001, 2],
+            nlc_fun_1,
+            bounds=[0.001, 2],
             n_nonlinear_constraints=2,
-            requires=self.fixture_evaluator
+            requires=self.fixture_evaluator,
         )
 
     @property
@@ -299,8 +284,9 @@ class NonlinearConstraintsSooTestProblem(TestProblem):
 
         return x, f
 
-    def test_if_solved(self, optimization_results: OptimizationResults,
-                       test_kwargs=default_test_kwargs):
+    def test_if_solved(
+        self, optimization_results: OptimizationResults, test_kwargs=default_test_kwargs
+    ):
         x_true, f_true = self.optimal_solution
         x = optimization_results.x
         f = optimization_results.f
@@ -311,32 +297,25 @@ class NonlinearConstraintsSooTestProblem(TestProblem):
 
 
 class LinearConstraintsSooTestProblem2(TestProblem):
-    def __init__(
-            self,
-            transform=None,
-            *args, **kwargs
-        ):
-        super().__init__(
-            "linear_constraints_single_objective_2",
-            *args, **kwargs
-        )
+    def __init__(self, transform=None, *args, **kwargs):
+        super().__init__("linear_constraints_single_objective_2", *args, **kwargs)
 
         self.setup_variables(transform=transform)
         self.setup_linear_constraints()
         self.add_objective(self._objective_function)
 
     def setup_variables(self: OptimizationProblem, transform=None):
-        self.add_variable('var_0', lb=-5, ub=5, transform=transform)
-        self.add_variable('var_1', lb=-5, ub=5, transform=transform)
-        self.add_variable('var_2', lb=-5, ub=5, transform=transform)
+        self.add_variable("var_0", lb=-5, ub=5, transform=transform)
+        self.add_variable("var_1", lb=-5, ub=5, transform=transform)
+        self.add_variable("var_2", lb=-5, ub=5, transform=transform)
 
     def setup_linear_constraints(self):
         # cuts off upper right corner of var 0 and var 1
-        self.add_linear_constraint(['var_0', 'var_1'], [1, 2], 8)
+        self.add_linear_constraint(["var_0", "var_1"], [1, 2], 8)
         # halfs the cube along the diagonal plane and allows only values above
-        self.add_linear_constraint(['var_0', 'var_1', 'var_2'], [-1, -1, -0.5], 0)
+        self.add_linear_constraint(["var_0", "var_1", "var_2"], [-1, -1, -0.5], 0)
         # ???
-        self.add_linear_constraint(['var_1', 'var_2'], [0.5, -2], 4)
+        self.add_linear_constraint(["var_1", "var_2"], [0.5, -2], 4)
 
     def _objective_function(self, x):
         return 2 * x[0] - x[1] + 0.5 * x[2]
@@ -353,9 +332,8 @@ class LinearConstraintsSooTestProblem2(TestProblem):
         return x, f
 
     def test_if_solved(
-            self, optimization_results: OptimizationResults,
-            test_kwargs=default_test_kwargs
-            ):
+        self, optimization_results: OptimizationResults, test_kwargs=default_test_kwargs
+    ):
         x_true, f_true = self.optimal_solution
         x = optimization_results.x
         f = optimization_results.f
@@ -366,14 +344,9 @@ class LinearConstraintsSooTestProblem2(TestProblem):
 
 
 class LinearEqualityConstraintsSooTestProblem(TestProblem):
-    def __init__(
-            self,
-            transform=None,
-            *args, **kwargs
-            ):
+    def __init__(self, transform=None, *args, **kwargs):
         super().__init__(
-            "linear_equality_constraints_single_objective",
-            *args, **kwargs
+            "linear_equality_constraints_single_objective", *args, **kwargs
         )
 
         self.setup_variables(transform=transform)
@@ -381,27 +354,32 @@ class LinearEqualityConstraintsSooTestProblem(TestProblem):
         self.add_objective(self._objective_function)
 
     def setup_variables(
-            self: OptimizationProblem,
-            transform=None,
-            significant_digits=None
-            ):
+        self: OptimizationProblem, transform=None, significant_digits=None
+    ):
         self.add_variable(
-            'var_0', lb=-5, ub=5,
-            transform=transform, significant_digits=significant_digits
+            "var_0",
+            lb=-5,
+            ub=5,
+            transform=transform,
+            significant_digits=significant_digits,
         )
         self.add_variable(
-            'var_1', lb=-5, ub=5,
-            transform=transform, significant_digits=significant_digits
+            "var_1",
+            lb=-5,
+            ub=5,
+            transform=transform,
+            significant_digits=significant_digits,
         )
         self.add_variable(
-            'var_2', lb=-5, ub=5,
-            transform=transform, significant_digits=significant_digits
+            "var_2",
+            lb=-5,
+            ub=5,
+            transform=transform,
+            significant_digits=significant_digits,
         )
 
     def setup_linear_constraints(self):
-        self.add_linear_equality_constraint(
-            ['var_0', 'var_1'], [1.0,  2.0], 8, eps=1e-3
-        )
+        self.add_linear_equality_constraint(["var_0", "var_1"], [1.0, 2.0], 8, eps=1e-3)
 
     @property
     def x0(self):
@@ -418,9 +396,8 @@ class LinearEqualityConstraintsSooTestProblem(TestProblem):
         return x.reshape(1, self.n_variables), f
 
     def test_if_solved(
-            self, optimization_results: OptimizationResults,
-            test_kwargs=default_test_kwargs
-            ):
+        self, optimization_results: OptimizationResults, test_kwargs=default_test_kwargs
+    ):
         x_true, f_true = self.optimal_solution
         x = optimization_results.x
         f = optimization_results.f
@@ -434,8 +411,7 @@ class NonlinearLinearConstraintsSooTestProblem(TestProblem):
     def __init__(self, transform=None, *args, **kwargs):
         self.test_tol = 0.1
         super().__init__(
-            'nonlinear_linear_constraints_single_objective',
-            *args, **kwargs
+            "nonlinear_linear_constraints_single_objective", *args, **kwargs
         )
         self.setup_variables(transform=transform)
         self.setup_linear_constraints()
@@ -443,11 +419,11 @@ class NonlinearLinearConstraintsSooTestProblem(TestProblem):
         self.add_objective(self._objective_function)
 
     def setup_variables(self, transform):
-        self.add_variable('var_0', lb=-2, ub=2, transform=transform)
-        self.add_variable('var_1', lb=-2, ub=2, transform=transform)
+        self.add_variable("var_0", lb=-2, ub=2, transform=transform)
+        self.add_variable("var_1", lb=-2, ub=2, transform=transform)
 
     def setup_linear_constraints(self):
-        self.add_linear_constraint(['var_0', 'var_1'], [-1, -0.5], 0)
+        self.add_linear_constraint(["var_0", "var_1"], [-1, -0.5], 0)
 
     def setup_nonlinear_constraints(self):
         f_nonlinconc = lambda x: np.array([(x[0] + x[1]) ** 2])
@@ -467,8 +443,9 @@ class NonlinearLinearConstraintsSooTestProblem(TestProblem):
 
         return x, f
 
-    def test_if_solved(self, optimization_results: OptimizationResults,
-                       test_kwargs=default_test_kwargs):
+    def test_if_solved(
+        self, optimization_results: OptimizationResults, test_kwargs=default_test_kwargs
+    ):
         x_true, f_true = self.optimal_solution
         x = optimization_results.x
         f = optimization_results.f
@@ -484,18 +461,18 @@ class LinearConstraintsMooTestProblem(TestProblem):
     def __init__(self, transform=None, *args, **kwargs):
         self.test_abs_tol = 0.1
 
-        super().__init__('linear_constraints_multi_objective', *args, **kwargs)
+        super().__init__("linear_constraints_multi_objective", *args, **kwargs)
         self.setup_variables(transform=transform)
         self.setup_linear_constraints()
         self.setup_objectives()
 
     def setup_variables(self: OptimizationProblem, transform=None):
-        self.add_variable('var_0', lb=1, ub=5, transform=transform)
-        self.add_variable('var_1', lb=0, ub=3, transform=transform)
+        self.add_variable("var_0", lb=1, ub=5, transform=transform)
+        self.add_variable("var_1", lb=0, ub=3, transform=transform)
 
     def setup_linear_constraints(self):
-        self.add_linear_constraint(['var_0', 'var_1'], [-1, -1], -3)
-        self.add_linear_constraint(['var_0', 'var_1'], [ 1, -1],  5)
+        self.add_linear_constraint(["var_0", "var_1"], [-1, -1], -3)
+        self.add_linear_constraint(["var_0", "var_1"], [1, -1], 5)
 
     @staticmethod
     def _objective_function(x):
@@ -553,9 +530,8 @@ class LinearConstraintsMooTestProblem(TestProblem):
         return X, F
 
     def test_if_solved(
-            self, optimization_results: OptimizationResults,
-            test_kwargs=default_test_kwargs
-            ) -> NoReturn:
+        self, optimization_results: OptimizationResults, test_kwargs=default_test_kwargs
+    ) -> NoReturn:
         X = optimization_results.x
 
         x1, x2 = X.T
@@ -567,9 +543,7 @@ class LinearConstraintsMooTestProblem(TestProblem):
         test_func = partial(np.testing.assert_allclose, actual=x2, desired=x2_test)
 
         allow_test_failure_percentage(
-            test_function=test_func,
-            test_kwargs=test_kwargs_,
-            mismatch_tol=mismatch_tol
+            test_function=test_func, test_kwargs=test_kwargs_, mismatch_tol=mismatch_tol
         )
 
 
@@ -577,36 +551,36 @@ class LinearNonlinearConstraintsMooTestProblem(TestProblem):
     """Function curtesy of Florian Schunck and Samuel Leweke."""
 
     def __init__(self, has_evaluator=False, *args, **kwargs):
-        super().__init__('linear_constraints_multi_objective', *args, **kwargs)
+        super().__init__("linear_constraints_multi_objective", *args, **kwargs)
         self.setup_variables()
         self.setup_linear_constraints()
         self.setup_nonlinear_constraints()
         self.setup_objectives(has_evaluator=has_evaluator)
 
     def setup_variables(self):
-        self.add_variable('var_0', lb=1, ub=5)
-        self.add_variable('var_1', lb=0, ub=3)
+        self.add_variable("var_0", lb=1, ub=5)
+        self.add_variable("var_1", lb=0, ub=3)
 
     def setup_linear_constraints(self):
-        self.add_linear_constraint(['var_0', 'var_1'], [-1, -1], -2)
-        self.add_linear_constraint(['var_0', 'var_1'], [ 1, -1],  5)
+        self.add_linear_constraint(["var_0", "var_1"], [-1, -1], -2)
+        self.add_linear_constraint(["var_0", "var_1"], [1, -1], 5)
 
     def setup_nonlinear_constraints(self):
-        f_nonlinconc_0 = lambda x: np.array([x[0]**2, x[1]**2])
-        f_nonlinconc_1 = lambda x: np.array([x[0]**1.1, x[1]**1.1])
+        f_nonlinconc_0 = lambda x: np.array([x[0] ** 2, x[1] ** 2])
+        f_nonlinconc_1 = lambda x: np.array([x[0] ** 1.1, x[1] ** 1.1])
 
         self.add_nonlinear_constraint(
             nonlincon=f_nonlinconc_0,
             name="nonlincon_0",
             bounds=4,
-            n_nonlinear_constraints=2
+            n_nonlinear_constraints=2,
         )
 
         self.add_nonlinear_constraint(
             nonlincon=f_nonlinconc_1,
             name="nonlincon_1",
             bounds=3,
-            n_nonlinear_constraints=2
+            n_nonlinear_constraints=2,
         )
 
     def setup_objectives(self, has_evaluator):
@@ -649,9 +623,8 @@ class LinearNonlinearConstraintsMooTestProblem(TestProblem):
         return X, F
 
     def test_if_solved(
-            self, optimization_results: OptimizationResults,
-            test_kwargs=default_test_kwargs
-            ):
+        self, optimization_results: OptimizationResults, test_kwargs=default_test_kwargs
+    ):
         X = optimization_results.x
 
         x1, x2 = X.T
@@ -663,22 +636,20 @@ class LinearNonlinearConstraintsMooTestProblem(TestProblem):
         test_func = partial(np.testing.assert_allclose, actual=x2, desired=x2_test)
 
         allow_test_failure_percentage(
-            test_function=test_func,
-            test_kwargs=test_kwargs_,
-            mismatch_tol=mismatch_tol
+            test_function=test_func, test_kwargs=test_kwargs_, mismatch_tol=mismatch_tol
         )
 
 
 class NonlinearConstraintsMooTestProblem(TestProblem):
-
     def __init__(self, has_evaluator=False, *args, **kwargs):
         from pymoo.problems.multi import SRN
+
         self._problem = SRN()
         self.fixture_evaluator = None
-        super().__init__('nonlinear_constraints_multi_objective', *args, **kwargs)
+        super().__init__("nonlinear_constraints_multi_objective", *args, **kwargs)
 
-        self.add_variable('var_0', lb=-20, ub=20)
-        self.add_variable('var_1', lb=-20, ub=20)
+        self.add_variable("var_0", lb=-20, ub=20)
+        self.add_variable("var_1", lb=-20, ub=20)
         self.setup_evaluator(has_evaluator=has_evaluator)
         self.setup_nonlinear_constraints()
         self.setup_objectives()
@@ -694,7 +665,7 @@ class NonlinearConstraintsMooTestProblem(TestProblem):
         self.add_nonlinear_constraint(
             nonlincon=self._nonlincon_fun,
             requires=self.fixture_evaluator,
-            n_nonlinear_constraints=2
+            n_nonlinear_constraints=2,
         )
 
     def setup_objectives(self):
@@ -720,13 +691,11 @@ class NonlinearConstraintsMooTestProblem(TestProblem):
         F = self._problem.pareto_front()
         # TODO: test nonlinear constraints as well.
 
-        return X, F     # G ???
+        return X, F  # G ???
 
     def test_if_solved(
-            self,
-            optimization_results: OptimizationResults,
-            test_kwargs=default_test_kwargs
-            ) -> NoReturn:
+        self, optimization_results: OptimizationResults, test_kwargs=default_test_kwargs
+    ) -> NoReturn:
         X = optimization_results.x_transformed
         x1, x2 = X.T
 
@@ -741,17 +710,13 @@ class NonlinearConstraintsMooTestProblem(TestProblem):
         allow_test_failure_percentage(
             test_function=test_func_1,
             test_kwargs=test_kwargs_,
-            mismatch_tol=mismatch_tol
+            mismatch_tol=mismatch_tol,
         )
 
         allow_test_failure_percentage(
-            test_function=test_func_2,
-            test_kwargs={},
-            mismatch_tol=mismatch_tol
+            test_function=test_func_2, test_kwargs={}, mismatch_tol=mismatch_tol
         )
 
         allow_test_failure_percentage(
-            test_function=test_func_3,
-            test_kwargs={},
-            mismatch_tol=mismatch_tol
+            test_function=test_func_3, test_kwargs={}, mismatch_tol=mismatch_tol
         )

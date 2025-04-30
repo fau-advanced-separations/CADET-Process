@@ -1,18 +1,18 @@
 import copy
-import pytest
 
+import pytest
 from CADETProcess.dataStructure.nested_dict import (
     check_nested,
     generate_nested_dict,
-    insert_path,
     get_leaves,
-    set_nested_value,
-    get_nested_value,
-    update_dict_recursively,
     get_nested_attribute,
-    set_nested_attribute,
     get_nested_list_value,
+    get_nested_value,
+    insert_path,
+    set_nested_attribute,
     set_nested_list_value,
+    set_nested_value,
+    update_dict_recursively,
 )
 
 
@@ -22,14 +22,14 @@ def sample_dict():
     return {
         "a": {
             "b": {
-                "c": 42
-            }
+                "c": 42,
+            },
         },
         "x": {
             "y": {
-                "z": 99
-            }
-        }
+                "z": 99,
+            },
+        },
     }
 
 
@@ -40,6 +40,7 @@ def sample_list():
 
 
 # --- TESTS FOR NESTED DICTIONARY FUNCTIONS --- #
+
 
 def test_check_nested(sample_dict):
     assert check_nested(sample_dict, "a.b.c") is True
@@ -84,6 +85,7 @@ def test_get_nested_value(sample_dict):
 
 # --- TESTS FOR DICTIONARY UPDATING --- #
 
+
 def test_update_dict_recursively(sample_dict):
     target = {"a": {"b": 1}, "c": 3}
     updates = {"a": {"b": 2, "d": 4}, "c": 30, "e": 5}
@@ -98,6 +100,7 @@ def test_update_dict_recursively(sample_dict):
 
 
 # --- TESTS FOR OBJECT ATTRIBUTE FUNCTIONS --- #
+
 
 class SampleObject:
     def __init__(self):
@@ -135,6 +138,7 @@ def test_set_nested_attribute(sample_obj):
 
 
 # --- TESTS FOR NESTED LIST FUNCTIONS --- #
+
 
 def test_get_nested_list_value(sample_list):
     assert get_nested_list_value(sample_list, (0, 1, 1)) == 4

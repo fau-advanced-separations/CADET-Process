@@ -1,13 +1,10 @@
-import numpy as np
 from functools import wraps
 
+import numpy as np
+
 from CADETProcess import CADETProcessError
-
-from CADETProcess.dataStructure import StructMeta
-from CADETProcess.dataStructure import String, UnsignedInteger
-
-from CADETProcess.processModel import FlowSheet, Process
-from CADETProcess.processModel import Cstr, Inlet, Outlet
+from CADETProcess.dataStructure import String, StructMeta, UnsignedInteger
+from CADETProcess.processModel import Cstr, FlowSheet, Inlet, Outlet, Process
 
 
 class CompartmentBuilder(metaclass=StructMeta):
@@ -15,13 +12,16 @@ class CompartmentBuilder(metaclass=StructMeta):
     n_compartments = UnsignedInteger()
 
     def __init__(
-            self, component_system,
-            compartment_volumes, flow_rate_matrix,
-            init_c=0,
-            binding_model=None,
-            bulk_reaction_model=None,
-            particle_reaction_model=None,
-            name=None):
+        self,
+        component_system,
+        compartment_volumes,
+        flow_rate_matrix,
+        init_c=0,
+        binding_model=None,
+        bulk_reaction_model=None,
+        particle_reaction_model=None,
+        name=None,
+    ):
         """Initialize builder.
 
         Parameters
@@ -46,11 +46,11 @@ class CompartmentBuilder(metaclass=StructMeta):
         """
         self.component_system = component_system
         if name is None:
-            name = 'CompartmentBuilder'
+            name = "CompartmentBuilder"
         self.name = name
 
         self._compartment_model = CompartmentModel(
-            component_system, 'master compartment'
+            component_system, "master compartment"
         )
 
         self.binding_model = binding_model
@@ -75,7 +75,7 @@ class CompartmentBuilder(metaclass=StructMeta):
         """list: Compartment units excluding pseudo units s.a. Inlet/Outlet"""
         compartments = []
         for i in range(self.n_compartments):
-            name = f'compartment_{i}'
+            name = f"compartment_{i}"
             compartment = self.flow_sheet[name]
             if isinstance(compartment, Cstr):
                 compartments.append(compartment)
@@ -122,8 +122,7 @@ class CompartmentBuilder(metaclass=StructMeta):
     @wraps(Cstr.particle_reaction_model)
     def particle_reaction_model(self, particle_reaction_model):
         if particle_reaction_model is not None:
-            self._compartment_model.particle_reaction_model \
-                = particle_reaction_model
+            self._compartment_model.particle_reaction_model = particle_reaction_model
 
             for compartment in self._real_compartments:
                 compartment.particle_reaction_model = particle_reaction_model
@@ -149,11 +148,11 @@ class CompartmentBuilder(metaclass=StructMeta):
         self.n_compartments = len(compartment_volumes)
 
         for i, vol in enumerate(compartment_volumes):
-            name = f'compartment_{i}'
+            name = f"compartment_{i}"
 
-            if vol == 'inlet':
+            if vol == "inlet":
                 unit = Inlet(self.component_system, name)
-            elif vol == 'outlet':
+            elif vol == "outlet":
                 unit = Outlet(self.component_system, name)
             else:
                 unit = Cstr(self.component_system, name)
@@ -176,15 +175,15 @@ class CompartmentBuilder(metaclass=StructMeta):
         for iOrigin, destinations in enumerate(connections_matrix):
             flow_rate = np.sum(destinations)
 
-            origin = self.flow_sheet[f'compartment_{iOrigin}']
+            origin = self.flow_sheet[f"compartment_{iOrigin}"]
             output_state = []
 
             for iDestination, flow in enumerate(destinations):
                 if flow == 0:
                     continue
 
-                destination = self.flow_sheet[f'compartment_{iDestination}']
-                output_state.append(flow/flow_rate)
+                destination = self.flow_sheet[f"compartment_{iDestination}"]
+                output_state.append(flow / flow_rate)
 
                 self.flow_sheet.add_connection(origin, destination)
 
@@ -222,11 +221,12 @@ class CompartmentBuilder(metaclass=StructMeta):
     def init_c(self, init_c):
         if isinstance(init_c, (int, float)):
             init_c = init_c * np.ones((self.n_compartments, self.n_comp))
-        elif isinstance(init_c, list) \
-                and len(init_c) == self.n_comp:
+        elif isinstance(init_c, list) and len(init_c) == self.n_comp:
             init_c = np.tile(init_c, (self.n_compartments, 1))
-        elif isinstance(init_c, np.ndarray) \
-                and init_c.shape == (self.n_compartments, self.n_comp):
+        elif isinstance(init_c, np.ndarray) and init_c.shape == (
+            self.n_compartments,
+            self.n_comp,
+        ):
             pass
         else:
             raise ValueError("unexpected value for init_c")
@@ -234,11 +234,13 @@ class CompartmentBuilder(metaclass=StructMeta):
         self._init_c = init_c
 
         for i in range(self.n_compartments):
-            compartment = self.flow_sheet[f'compartment_{i}']
+            compartment = self.flow_sheet[f"compartment_{i}"]
             if not isinstance(compartment, Outlet):
                 compartment.c = init_c[i, :].tolist()
 
-    def add_tracer(self, compartment_index, c, t_inj, flow_rate, t_start=0, flow_rate_filter=True):
+    def add_tracer(
+        self, compartment_index, c, t_inj, flow_rate, t_start=0, flow_rate_filter=True
+    ):
         """Add tracer injection to compartment model.
 
         For this purpose, a new inlet source is instantiated and connected to
@@ -267,10 +269,10 @@ class CompartmentBuilder(metaclass=StructMeta):
             If compartment is not a real compartment.
 
         """
-        tracer = Inlet(self.component_system, 'tracer')
+        tracer = Inlet(self.component_system, "tracer")
         tracer.flow_rate = flow_rate
 
-        compartment_unit = self.flow_sheet[f'compartment_{compartment_index}']
+        compartment_unit = self.flow_sheet[f"compartment_{compartment_index}"]
         if compartment_unit not in self._real_compartments:
             raise CADETProcessError("Tracer must connect to real compartment")
 
@@ -280,10 +282,8 @@ class CompartmentBuilder(metaclass=StructMeta):
         self.flow_sheet.add_unit(tracer)
         self.flow_sheet.add_connection(tracer, compartment_unit)
 
-        self.process.add_event('tracer_on', 'flow_sheet.tracer.c', c, t_start)
-        self.process.add_event(
-            'tracer_off', 'flow_sheet.tracer.c', 0, t_start+t_inj
-        )
+        self.process.add_event("tracer_on", "flow_sheet.tracer.c", c, t_start)
+        self.process.add_event("tracer_off", "flow_sheet.tracer.c", 0, t_start + t_inj)
 
     def validate_flow_rates(self):
         """Validate that compartment volume is constant."""
@@ -292,10 +292,11 @@ class CompartmentBuilder(metaclass=StructMeta):
         for comp in self._real_compartments:
             for port in flow_rates[comp.name].total_in:
                 if not np.all(
-                        np.isclose(
-                            flow_rates[comp.name].total_in[port],
-                            flow_rates[comp.name].total_out[port]
-                        )):
+                    np.isclose(
+                        flow_rates[comp.name].total_in[port],
+                        flow_rates[comp.name].total_out[port],
+                    )
+                ):
                     if comp.n_ports == 1:
                         msg = comp.name
                     else:
@@ -307,4 +308,5 @@ class CompartmentBuilder(metaclass=StructMeta):
 
 class CompartmentModel(Cstr):
     """Dummy Class for checking binding and reaction models"""
+
     pass

@@ -8,6 +8,7 @@ for other solvers.
 
 See https://cadet-process.readthedocs.io for complete documentation.
 """
+
 # Version information
 name = "CADET-Process"
 __version__ = "0.10.0"

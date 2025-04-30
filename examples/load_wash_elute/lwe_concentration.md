@@ -5,7 +5,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.14.5
+    jupytext_version: 1.17.1
 kernelspec:
   display_name: Python 3
   language: python
@@ -57,9 +57,9 @@ column.bed_porosity = 0.37
 column.particle_radius = 4.5e-5
 column.particle_porosity = 0.75
 column.axial_dispersion = 5.75e-8
-column.film_diffusion = column.n_comp*[6.9e-6]
+column.film_diffusion = column.n_comp * [6.9e-6]
 column.pore_diffusion = [7e-10, 6.07e-11, 6.07e-11, 6.07e-11]
-column.surface_diffusion = column.n_bound_states*[0.0]
+column.surface_diffusion = column.n_bound_states * [0.0]
 
 column.c = [50, 0, 0, 0]
 column.cp = [50, 0, 0, 0]
@@ -94,11 +94,11 @@ gradient_duration = process.cycle_time - t_gradient_start
 c_load = np.array([50.0, 1.0, 1.0, 1.0])
 c_wash = np.array([50.0, 0.0, 0.0, 0.0])
 c_elute = np.array([500.0, 0.0, 0.0, 0.0])
-gradient_slope = (c_elute - c_wash)/gradient_duration
+gradient_slope = (c_elute - c_wash) / gradient_duration
 c_gradient_poly = np.array(list(zip(c_wash, gradient_slope)))
 
 process.add_event('load', 'flow_sheet.inlet.c', c_load)
-process.add_event('wash', 'flow_sheet.inlet.c',  c_wash, load_duration)
+process.add_event('wash', 'flow_sheet.inlet.c', c_wash, load_duration)
 process.add_event('grad_start', 'flow_sheet.inlet.c', c_gradient_poly, t_gradient_start)
 ```
 

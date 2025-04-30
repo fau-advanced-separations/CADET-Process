@@ -1,28 +1,31 @@
-from abc import abstractmethod
 import os
-from pathlib import Path
 import shutil
 import time
-from typing import Optional
 import warnings
+from abc import abstractmethod
+from pathlib import Path
+from typing import Optional
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
-from CADETProcess import settings
-from CADETProcess import log
-from CADETProcess import CADETProcessError
-from CADETProcess.dataStructure import Structure
+from CADETProcess import CADETProcessError, log, settings
 from CADETProcess.dataStructure import (
-    Typed, UnsignedInteger, RangedInteger, UnsignedFloat
+    RangedInteger,
+    Structure,
+    Typed,
+    UnsignedFloat,
+    UnsignedInteger,
+)
+from CADETProcess.optimization import (
+    Joblib,
+    OptimizationProblem,
+    OptimizationResults,
+    ParallelizationBackendBase,
+    Population,
 )
 
-from CADETProcess.optimization import OptimizationProblem
-from CADETProcess.optimization import Individual, Population, ParetoFront
-from CADETProcess.optimization import ParallelizationBackendBase, Joblib
-from CADETProcess.optimization import OptimizationResults
-
-__all__ = ['OptimizerBase']
+__all__ = ["OptimizerBase"]
 
 
 class OptimizerBase(Structure):
@@ -109,16 +112,16 @@ class OptimizerBase(Structure):
     parallelization_backend = Typed(ty=ParallelizationBackendBase)
 
     _general_options = [
-        'progress_frequency',
-        'x_tol',
-        'f_tol',
-        'cv_bounds_tol',
-        'cv_lincon_tol',
-        'cv_lineqcon_tol',
-        'cv_nonlincon_tol',
-        'n_max_iter',
-        'n_max_evals',
-        'similarity_tol',
+        "progress_frequency",
+        "x_tol",
+        "f_tol",
+        "cv_bounds_tol",
+        "cv_lincon_tol",
+        "cv_lineqcon_tol",
+        "cv_nonlincon_tol",
+        "n_max_iter",
+        "n_max_evals",
+        "similarity_tol",
     ]
 
     def __init__(self, *args, **kwargs):
@@ -127,18 +130,20 @@ class OptimizerBase(Structure):
         super().__init__(*args, **kwargs)
 
     def optimize(
-            self,
-            optimization_problem: OptimizationProblem,
-            x0=None,
-            save_results=True,
-            results_directory=None,
-            use_checkpoint=False,
-            overwrite_results_directory=False,
-            exist_ok=True,
-            log_level="INFO",
-            reinit_cache=True,
-            delete_cache=True,
-            *args, **kwargs):
+        self,
+        optimization_problem: OptimizationProblem,
+        x0=None,
+        save_results=True,
+        results_directory=None,
+        use_checkpoint=False,
+        overwrite_results_directory=False,
+        exist_ok=True,
+        log_level="INFO",
+        reinit_cache=True,
+        delete_cache=True,
+        *args,
+        **kwargs,
+    ):
         """Solve OptimizationProblem.
 
         Parameters
@@ -194,10 +199,10 @@ class OptimizerBase(Structure):
 
         # Check OptimizationProblem
         if not isinstance(optimization_problem, OptimizationProblem):
-            raise TypeError('Expected OptimizationProblem')
+            raise TypeError("Expected OptimizationProblem")
 
         if not self.check_optimization_problem(optimization_problem):
-            raise CADETProcessError('Cannot solve OptimizationProblem.')
+            raise CADETProcessError("Cannot solve OptimizationProblem.")
 
         self.optimization_problem = optimization_problem
 
@@ -210,14 +215,14 @@ class OptimizerBase(Structure):
 
         if save_results:
             if results_directory is None:
-                results_directory = settings.working_directory / f"results_{optimization_problem.name}"
+                results_directory = (
+                    settings.working_directory / f"results_{optimization_problem.name}"
+                )
             results_directory = Path(results_directory)
             if overwrite_results_directory and results_directory.exists():
                 shutil.rmtree(results_directory)
             try:
-                results_directory.mkdir(
-                    exist_ok=exist_ok, parents=True
-                )
+                results_directory.mkdir(exist_ok=exist_ok, parents=True)
             except FileExistsError:
                 raise CADETProcessError(
                     "Results directory already exists. "
@@ -227,7 +232,7 @@ class OptimizerBase(Structure):
 
             self.results.results_directory = results_directory
 
-            checkpoint_path = os.path.join(results_directory, 'checkpoint.h5')
+            checkpoint_path = os.path.join(results_directory, "checkpoint.h5")
             if use_checkpoint and os.path.isfile(checkpoint_path):
                 self.logger.info("Continue optimization from checkpoint.")
                 self.results.load_results(checkpoint_path)
@@ -256,12 +261,12 @@ class OptimizerBase(Structure):
             if not flag:
                 raise ValueError("x0 contains invalid entries.")
 
-        log.log_time('Optimization', self.logger.level)(self._run)
-        log.log_results('Optimization', self.logger.level)(self._run)
-        log.log_exceptions('Optimization', self.logger.level)(self._run)
+        log.log_time("Optimization", self.logger.level)(self._run)
+        log.log_results("Optimization", self.logger.level)(self._run)
+        log.log_exceptions("Optimization", self.logger.level)(self._run)
 
         backend = plt.get_backend()
-        plt.switch_backend('agg')
+        plt.switch_backend("agg")
 
         start = time.time()
         self._run(self.optimization_problem, x0, *args, **kwargs)
@@ -286,10 +291,10 @@ class OptimizerBase(Structure):
         return self.results
 
     def load_results(
-            self,
-            checkpoint_path: str | Path,
-            optimization_problem: Optional[OptimizationProblem] = None
-            ) -> OptimizationResults:
+        self,
+        checkpoint_path: str | Path,
+        optimization_problem: Optional[OptimizationProblem] = None,
+    ) -> OptimizationResults:
         """
         Load optimization results from a checkpoint file.
 
@@ -359,48 +364,55 @@ class OptimizerBase(Structure):
         """
         flag = True
         if not optimization_problem.check_config(
-                ignore_linear_constraints=self.ignore_linear_constraints_config):
+            ignore_linear_constraints=self.ignore_linear_constraints_config
+        ):
             # Warnings are raised internally
             flag = False
 
-        if optimization_problem.n_objectives == 1 and not self.supports_single_objective:
-            warnings.warn(
-                "Optimizer does not support single-objective problems"
-            )
+        if (
+            optimization_problem.n_objectives == 1
+            and not self.supports_single_objective
+        ):
+            warnings.warn("Optimizer does not support single-objective problems")
             flag = False
 
         if optimization_problem.n_objectives > 1 and not self.supports_multi_objective:
-            warnings.warn(
-                "Optimizer does not support multi-objective problems"
-            )
+            warnings.warn("Optimizer does not support multi-objective problems")
             flag = False
 
         if (
-            not np.all(np.isinf(optimization_problem.lower_bounds_independent_transformed))
-                and
-            not np.all(np.isinf(optimization_problem.upper_bounds_independent_transformed))
-        ) and not self.supports_bounds:
-            warnings.warn(
-                "Optimizer does not support bounds"
+            not np.all(
+                np.isinf(optimization_problem.lower_bounds_independent_transformed)
             )
+            and not np.all(
+                np.isinf(optimization_problem.upper_bounds_independent_transformed)
+            )
+        ) and not self.supports_bounds:
+            warnings.warn("Optimizer does not support bounds")
             flag = False
 
-        if optimization_problem.n_linear_constraints > 0 \
-                and not self.supports_linear_constraints:
+        if (
+            optimization_problem.n_linear_constraints > 0
+            and not self.supports_linear_constraints
+        ):
             warnings.warn(
                 "Optimizer does not support problems with linear constraints."
             )
             flag = False
 
-        if optimization_problem.n_linear_equality_constraints > 0 \
-                and not self.supports_linear_equality_constraints:
+        if (
+            optimization_problem.n_linear_equality_constraints > 0
+            and not self.supports_linear_equality_constraints
+        ):
             warnings.warn(
                 "Optimizer does not support problems with linear equality constraints."
             )
             flag = False
 
-        if optimization_problem.n_nonlinear_constraints > 0 \
-                and not self.supports_nonlinear_constraints:
+        if (
+            optimization_problem.n_nonlinear_constraints > 0
+            and not self.supports_nonlinear_constraints
+        ):
             warnings.warn(
                 "Optimizer does not support problems with nonlinear constraints."
             )
@@ -455,14 +467,14 @@ class OptimizerBase(Structure):
 
         for x in x0:
             if not optimization_problem.check_individual(
-                    x,
-                    get_dependent_values=True,
-                    cv_bounds_tol=self.cv_bounds_tol,
-                    cv_lincon_tol=self.cv_lincon_tol,
-                    cv_lineqcon_tol=self.cv_lineqcon_tol,
-                    check_nonlinear_constraints=False,
-                    silent=True,
-                    ):
+                x,
+                get_dependent_values=True,
+                cv_bounds_tol=self.cv_bounds_tol,
+                cv_lincon_tol=self.cv_lincon_tol,
+                cv_lineqcon_tol=self.cv_lineqcon_tol,
+                check_nonlinear_constraints=False,
+                silent=True,
+            ):
                 flag = False
                 break
 
@@ -489,7 +501,7 @@ class OptimizerBase(Structure):
                 parallelization_backend=self.parallelization_backend,
             )
             M = self.optimization_problem.transform_maximization(
-                M_min, scores='meta_scores'
+                M_min, scores="meta_scores"
             )
         else:
             M_min = None
@@ -548,10 +560,11 @@ class OptimizerBase(Structure):
         else:
             pareto_front = self.results.pareto_front
 
-            X_meta_front = \
+            X_meta_front = (
                 self.optimization_problem.evaluate_multi_criteria_decision_functions(
                     pareto_front
                 )
+            )
 
             meta_front = Population()
             for x in X_meta_front:
@@ -583,28 +596,26 @@ class OptimizerBase(Structure):
         )
 
     def _log_results(self, current_generation):
-        self.logger.info(
-            f'Finished Generation {current_generation}.'
-        )
+        self.logger.info(f"Finished Generation {current_generation}.")
         for ind in self.results.meta_front:
-            message = f'x: {ind.x}, f: {ind.f}'
+            message = f"x: {ind.x}, f: {ind.f}"
 
             if self.optimization_problem.n_nonlinear_constraints > 0:
-                message += f', cv: {ind.cv_nonlincon}'
+                message += f", cv: {ind.cv_nonlincon}"
 
             if self.optimization_problem.n_meta_scores > 0:
-                message += f', m: {ind.m}'
+                message += f", m: {ind.m}"
             self.logger.info(message)
 
     def run_post_processing(
-            self,
-            X_transformed,
-            F_minimized,
-            G,
-            CV_nonlincon,
-            current_generation,
-            X_opt_transformed=None
-            ):
+        self,
+        X_transformed,
+        F_minimized,
+        G,
+        CV_nonlincon,
+        current_generation,
+        X_opt_transformed=None,
+    ):
         """Run post-processing of generation.
 
         Notes
@@ -631,7 +642,7 @@ class OptimizerBase(Structure):
 
         """
         F = self.optimization_problem.transform_maximization(
-            F_minimized, scores='objectives'
+            F_minimized, scores="objectives"
         )
         population = self._create_population(
             X_transformed, F, F_minimized, G, CV_nonlincon
@@ -645,13 +656,15 @@ class OptimizerBase(Structure):
         if meta_front is not None:
             self.results.update_meta(meta_front)
 
-        if self.progress_frequency is not None \
-                and current_generation % self.progress_frequency == 0:
+        if (
+            self.progress_frequency is not None
+            and current_generation % self.progress_frequency == 0
+        ):
             self.results.plot_figures(show=False)
 
         self._evaluate_callbacks(current_generation)
 
-        self.results.save_results('checkpoint')
+        self.results.save_results("checkpoint")
 
         # Remove new entries from cache that didn't make it to the meta front
         for x in population.x:
@@ -673,8 +686,8 @@ class OptimizerBase(Structure):
     def run_final_processing(self):
         self.results.plot_figures(show=False)
         if self.optimization_problem.n_callbacks > 0:
-            self._evaluate_callbacks(0, 'final')
-        self.results.save_results('final')
+            self._evaluate_callbacks(0, "final")
+        self.results.save_results("final")
 
     @property
     def options(self):
@@ -687,10 +700,7 @@ class OptimizerBase(Structure):
     @property
     def specific_options(self):
         """dict: Optimizer spcific options."""
-        return {
-            opt: getattr(self, opt)
-            for opt in (self._specific_options)
-        }
+        return {opt: getattr(self, opt) for opt in (self._specific_options)}
 
     @property
     def n_cores(self):

@@ -58,7 +58,7 @@ dev = [
     {include-group = "testing"},
     "certifi", # tries to prevent certificate problems on windows
     "pre-commit",
-    "ruff",
+    "ruff<=0.11.4",
 ]
 
 [project.optional-dependencies]
@@ -75,14 +75,49 @@ documentation = "https://cadet-process.readthedocs.io"
 "Bug Tracker" = "https://github.com/fau-advanced-separations/CADET-Process/issues"
 
 [tool.setuptools.packages.find]
-include = ["CADETProcess*", "examples*", "tests*"]
+include = [
+  "CADETProcess*",
+  "examples*",
+  "tests*"
+]
 
 [tool.setuptools.dynamic]
 version = { attr = "CADETProcess.__version__" }
 
 [tool.ruff]
-src = ["CADETProcess"]
-line-length = 88
+src = ["CADETProcess", "tests"]
+exclude = ["examples", "docs", "__init__.py"]
+line-length = 100
+fix = true
+
+[tool.ruff.lint]
+preview = true
+select = [
+  "E",    # pycodestyle errors
+  "F",    # Pyflakes (undefined names, etc.)
+  "I",    # isort (import sorting)
+  "W",    # pycodestyle warnings
+]
+ignore = [
+  "D100",    # Missing docstring in public module
+  "ANN401",  # Dynamically typed expressions
+]
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*.py" = [
+  "ANN",   # type annotations
+  "D",     # docstrings
+  "E402",  # imports on top of module 
+  "E731",  # lamba assignments
+  "F841",  # unused variables
+]
+
 
 [tool.pytest.ini_options]
 testpaths = [

@@ -46,7 +46,9 @@ def test_mixed_values():
 
 
 def test_invalid_digits():
-    with pytest.raises(ValueError, match="Number of significant digits must be greater than 0."):
+    with pytest.raises(
+        ValueError, match="Number of significant digits must be greater than 0."
+    ):
         round_to_significant_digits(np.array([123.456]), 0)
 
 
@@ -72,7 +74,7 @@ def test_none_digits():
 
 
 def test_nan_digits():
-    values = np.array([123.456,  np.nan, 98765])
+    values = np.array([123.456, np.nan, 98765])
     expected = np.array([123.0, np.nan, 98800.0])
     result = round_to_significant_digits(values, 3)
     np.testing.assert_allclose(result, expected, rtol=1e-6)

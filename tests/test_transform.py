@@ -1,12 +1,14 @@
 import unittest
 
 from CADETProcess.transform import (
-    NullTransformer, NormLinearTransformer, NormLogTransformer, AutoTransformer
+    AutoTransformer,
+    NormLinearTransformer,
+    NormLogTransformer,
+    NullTransformer,
 )
 
 
 class Test_Transformer(unittest.TestCase):
-
     def test_input_range(self):
         transform = NormLinearTransformer(0, 100)
 
@@ -96,21 +98,21 @@ class Test_Transformer(unittest.TestCase):
         self.assertAlmostEqual(out_expected, out)
 
         in_ = 10
-        out_expected = 1/3
+        out_expected = 1 / 3
         out = transform.transform(in_)
         self.assertAlmostEqual(out_expected, out)
 
-        in_ = 1/3
+        in_ = 1 / 3
         out_expected = 10
         out = transform.untransform(in_)
         self.assertAlmostEqual(out_expected, out)
 
         in_ = 100
-        out_expected = 2/3
+        out_expected = 2 / 3
         out = transform.transform(in_)
         self.assertAlmostEqual(out_expected, out)
 
-        in_ = 2/3
+        in_ = 2 / 3
         out_expected = 100
         out = transform.untransform(in_)
         self.assertAlmostEqual(out_expected, out)
@@ -138,5 +140,5 @@ class Test_Transformer(unittest.TestCase):
         self.assertTrue(transform.use_log)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

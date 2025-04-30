@@ -1,13 +1,16 @@
 import unittest
 
 import numpy as np
-
 from CADETProcess import CADETProcessError
-from CADETProcess.processModel import ComponentSystem
 from CADETProcess.processModel import (
-    Inlet, Cstr, MCT, LumpedRateModelWithoutPores, Outlet
+    MCT,
+    ComponentSystem,
+    Cstr,
+    FlowSheet,
+    Inlet,
+    LumpedRateModelWithoutPores,
+    Outlet,
 )
-from CADETProcess.processModel import FlowSheet
 
 
 def assert_almost_equal_dict(dict_actual, dict_expected, decimal=7, verbose=True):
@@ -811,7 +814,7 @@ class TestFlowSheet(unittest.TestCase):
         output_state = self.ssr_flow_sheet.output_states[column]
         np.testing.assert_equal(output_state, output_state_expected)
 
-        self.ssr_flow_sheet.set_output_state(column, [0,  1])
+        self.ssr_flow_sheet.set_output_state(column, [0, 1])
         output_state_expected = {None: [0, 1]}
         output_state = self.ssr_flow_sheet._output_states[column]
         np.testing.assert_equal(output_state, output_state_expected)
@@ -1117,11 +1120,11 @@ class TestPorts(unittest.TestCase):
             mct_2c1: {
                 'origins': {
                     'channel_0': {
-                        mct_3c:['channel_0'],
+                        mct_3c: ['channel_0'],
                     },
 
                     'channel_1': {
-                        mct_3c:['channel_0'],
+                        mct_3c: ['channel_0'],
                     },
                 },
                 'destinations': {
@@ -1137,7 +1140,7 @@ class TestPorts(unittest.TestCase):
             mct_2c2: {
                 'origins': {
                     'channel_0': {
-                        mct_3c:['channel_1'],
+                        mct_3c: ['channel_1'],
                     },
                     'channel_1': {
 
@@ -1155,9 +1158,9 @@ class TestPorts(unittest.TestCase):
             },
 
             outlet1: {
-                'origins':{
+                'origins': {
                     None: {
-                        mct_2c1:['channel_0','channel_1'],
+                        mct_2c1: ['channel_0', 'channel_1'],
                     },
                 },
 
@@ -1165,9 +1168,9 @@ class TestPorts(unittest.TestCase):
             },
 
             outlet2: {
-                'origins':{
+                'origins': {
                     None: {
-                        mct_2c2:['channel_0'],
+                        mct_2c2: ['channel_0'],
                     },
                 },
 

@@ -1,11 +1,10 @@
 from abc import ABC, ABCMeta
 from collections import OrderedDict
-from inspect import Parameter, Signature
 from functools import wraps
+from inspect import Parameter, Signature
 from warnings import warn
 
 from addict import Dict
-import numpy as np
 
 
 # %% Descriptors
@@ -48,7 +47,7 @@ class Descriptor(ABC):
         del instance.__dict__[self.name]
 
 
-class ProxyList():
+class ProxyList:
     """A proxy list that dynamically updates attributes of container elements."""
 
     def __init__(self, aggregator, instance):
@@ -57,9 +56,7 @@ class ProxyList():
 
     def _get_values_from_aggregator(self):
         """Fetch the latest values from the aggregator."""
-        return self.aggregator._get_values_from_container(
-            self.instance, check=True
-        )
+        return self.aggregator._get_values_from_container(self.instance, check=True)
 
     def __getitem__(self, index):
         """Retrieve an item from the aggregated parameter list (live view)."""
@@ -91,7 +88,7 @@ class ProxyList():
         return list(self._get_values_from_aggregator()) == other
 
 
-class Aggregator():
+class Aggregator:
     """Descriptor aggregating parameters from iterable container of other objects."""
 
     def __init__(self, parameter_name, container, *args, **kwargs):
@@ -245,9 +242,7 @@ class Aggregator():
 
 
 def make_signature(names):
-    return Signature(
-            Parameter(name, Parameter.POSITIONAL_OR_KEYWORD)
-            for name in names)
+    return Signature(Parameter(name, Parameter.POSITIONAL_OR_KEYWORD) for name in names)
 
 
 class StructMeta(type):
@@ -295,27 +290,25 @@ class StructMeta(type):
     def __new__(cls, clsname, bases, clsdict):
         # Extract descriptor keys
         descriptors = [
-            key for key, val in clsdict.items()
-            if isinstance(val, Descriptor)
+            key for key, val in clsdict.items() if isinstance(val, Descriptor)
         ]
 
         # Assign name attribute for each descriptor
         for name in descriptors:
             clsdict[name].name = name
 
-        clsdict['_descriptors'] = descriptors
+        clsdict["_descriptors"] = descriptors
 
         # Extract aggregator keys
         aggregators = [
-            key for key, val in clsdict.items()
-            if isinstance(val, Aggregator)
+            key for key, val in clsdict.items() if isinstance(val, Aggregator)
         ]
 
         # Assign name attribute for each descriptor
         for name in aggregators:
             clsdict[name].name = name
 
-        clsdict['_aggregators'] = aggregators
+        clsdict["_aggregators"] = aggregators
 
         # Create the new class object
         clsobj = super().__new__(cls, clsname, bases, dict(clsdict))
@@ -328,10 +321,10 @@ class StructMeta(type):
             pass
 
         for base in bases:
-            base_parameters = getattr(base, '_parameters', [])
+            base_parameters = getattr(base, "_parameters", [])
             parameters += base_parameters
 
-        setattr(clsobj, '_parameters', parameters)
+        setattr(clsobj, "_parameters", parameters)
 
         # Categorize parameters based on their attributes
         sized_parameters = []
@@ -346,33 +339,32 @@ class StructMeta(type):
             if not isinstance(descriptor, Descriptor):
                 continue
 
-            if hasattr(descriptor, 'size'):
+            if hasattr(descriptor, "size"):
                 sized_parameters.append(param)
-            if hasattr(descriptor, 'fill_values'):
+            if hasattr(descriptor, "fill_values"):
                 polynomial_parameters.append(param)
             if descriptor.default is None and not descriptor.is_optional:
                 required_parameters.append(param)
             if descriptor.is_optional:
                 optional_parameters.append(param)
 
-        setattr(clsobj, '_sized_parameters', sized_parameters)
-        setattr(clsobj, '_polynomial_parameters', polynomial_parameters)
-        setattr(clsobj, '_required_parameters', required_parameters)
-        setattr(clsobj, '_optional_parameters', optional_parameters)
+        setattr(clsobj, "_sized_parameters", sized_parameters)
+        setattr(clsobj, "_polynomial_parameters", polynomial_parameters)
+        setattr(clsobj, "_required_parameters", required_parameters)
+        setattr(clsobj, "_optional_parameters", optional_parameters)
 
         # Collect descriptors from base classes
         for base in bases:
-            descriptors += getattr(base, '_descriptors', [])
+            descriptors += getattr(base, "_descriptors", [])
 
         # Remove duplicates from the descriptors list
         args = list(dict.fromkeys(descriptors))
 
         # Register descriptor fields as arguments in __init__
         sig = make_signature(args)
-        setattr(clsobj, '__signature__', sig)
+        setattr(clsobj, "__signature__", sig)
 
         return clsobj
-
 
 
 class AbstractStructMeta(StructMeta, ABCMeta):
@@ -449,7 +441,7 @@ class Structure(metaclass=AbstractStructMeta):
         """
         for param, value in parameters.items():
             if param not in self._parameters:
-                raise ValueError('Not a valid parameter.')
+                raise ValueError("Not a valid parameter.")
             if value is not None:
                 setattr(self, param, value)
                 self._parameters_dict[param] = value
@@ -458,7 +450,8 @@ class Structure(metaclass=AbstractStructMeta):
     def sized_parameters(self):
         """dict: Sized parameters of the instance."""
         parameters = {
-            key: value for key, value in self.parameters.items()
+            key: value
+            for key, value in self.parameters.items()
             if key in self._sized_parameters
         }
         return Dict(parameters)
@@ -466,16 +459,15 @@ class Structure(metaclass=AbstractStructMeta):
     @property
     def aggregated_parameters(self):
         """dict: Aggregated parameters of the instance."""
-        parameters = {
-            key: getattr(self, key) for key in self._aggregators
-        }
+        parameters = {key: getattr(self, key) for key in self._aggregators}
         return Dict(parameters)
 
     @property
     def polynomial_parameters(self):
         """dict: Polynomial parameters of the instance."""
         parameters = {
-            key: value for key, value in self.parameters.items()
+            key: value
+            for key, value in self.parameters.items()
             if key in self._polynomial_parameters
         }
         return Dict(parameters)
@@ -523,9 +515,7 @@ def frozen_attributes(cls):
 
     def frozensetattr(self, key, value):
         if self._is_frozen and not hasattr(self, key):
-            raise AttributeError(
-                f"{cls.__name__} object has no attribute {key}"
-            )
+            raise AttributeError(f"{cls.__name__} object has no attribute {key}")
         else:
             object.__setattr__(self, key, value)
 
@@ -534,6 +524,7 @@ def frozen_attributes(cls):
         def wrapper(self, *args, **kwargs):
             func(self, *args, **kwargs)
             self._is_frozen = True
+
         return wrapper
 
     cls.__setattr__ = frozensetattr

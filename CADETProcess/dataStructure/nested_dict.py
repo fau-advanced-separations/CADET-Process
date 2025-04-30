@@ -32,7 +32,7 @@ def check_nested(nested_dict: dict[str, Any], path: str | list) -> bool:
         True if the item exists and is not a dictionary, False otherwise.
     """
     if isinstance(path, str):
-        path = path.split('.')
+        path = path.split(".")
 
     try:
         value = get_nested_value(nested_dict, path)
@@ -57,7 +57,7 @@ def generate_nested_dict(path: str | list, value: Any = None) -> dict[str, Any]:
         A nested dictionary created from the path.
     """
     if isinstance(path, str):
-        path = path.split('.')
+        path = path.split(".")
 
     nested_dict = {path[-1]: value}
     for key in reversed(path[:-1]):
@@ -83,7 +83,7 @@ def insert_path(nested_dict: dict[str, Any], path: str | list, value: Any) -> No
         If an intermediate key in the path does not exist.
     """
     if isinstance(path, str):
-        path = path.split('.')
+        path = path.split(".")
 
     if len(path) == 1:
         nested_dict.setdefault(path[0], value)
@@ -131,7 +131,7 @@ def set_nested_value(nested_dict: dict[str, Any], path: str | list, value: Any) 
         If an intermediate key in the path does not exist.
     """
     if isinstance(path, str):
-        path = path.split('.')
+        path = path.split(".")
 
     get_nested_value(nested_dict, path[:-1])[path[-1]] = value
 
@@ -157,16 +157,16 @@ def get_nested_value(nested_dict: dict[str, Any], path: str | list) -> Any:
         If the key path does not exist.
     """
     if isinstance(path, str):
-        path = path.split('.')
+        path = path.split(".")
 
     return reduce(getitem, path, nested_dict)
 
 
 def update_dict_recursively(
-        target_dict: dict[str, Any],
-        updates: dict[str, Any],
-        only_existing_keys: bool = False
-        ) -> dict[str, Any]:
+    target_dict: dict[str, Any],
+    updates: dict[str, Any],
+    only_existing_keys: bool = False,
+) -> dict[str, Any]:
     """Recursively update `target_dict` with values from `updates`.
 
     Parameters
@@ -220,7 +220,7 @@ def get_nested_attribute(obj: Any, path: str) -> Any:
     AttributeError
         If any attribute in the path does not exist.
     """
-    attributes = path.split('.')
+    attributes = path.split(".")
     for attr in attributes:
         obj = getattr(obj, attr)
     return obj
@@ -239,7 +239,7 @@ def set_nested_attribute(obj: Any, attr_string: str, value: Any) -> None:
         The value to set.
 
     """
-    attributes = attr_string.split('.')
+    attributes = attr_string.split(".")
     for attr in attributes[:-1]:
         obj = getattr(obj, attr)
     setattr(obj, attributes[-1], value)
@@ -265,14 +265,12 @@ def get_nested_list_value(ls: Sequence[Any], idx_tuple: tuple[int, ...]) -> Any:
     IndexError
         If any index in the path is out of range.
     """
-    return reduce(lambda l, i: l[i], idx_tuple, ls)
+    return reduce(lambda l, i: l[i], idx_tuple, ls)  # noqa: E741
 
 
 def set_nested_list_value(
-        ls: Sequence[Any],
-        idx_tuple: tuple[int, ...],
-        value: Any
-        ) -> None:
+    ls: Sequence[Any], idx_tuple: tuple[int, ...], value: Any
+) -> None:
     """Set a value in a nested list structure using an index tuple.
 
     Parameters

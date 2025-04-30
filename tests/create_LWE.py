@@ -1,14 +1,21 @@
 import numpy as np
-
 from CADETProcess.processModel import (
-    ComponentSystem, FlowSheet, Process,
-    Inlet, Outlet, Cstr, GeneralRateModel,
-    TubularReactor, LumpedRateModelWithoutPores,
-    LumpedRateModelWithPores, MCT, StericMassAction
+    MCT,
+    ComponentSystem,
+    Cstr,
+    FlowSheet,
+    GeneralRateModel,
+    Inlet,
+    LumpedRateModelWithoutPores,
+    LumpedRateModelWithPores,
+    Outlet,
+    Process,
+    StericMassAction,
+    TubularReactor,
 )
 
 
-def create_lwe(unit_type: str = 'GeneralRateModel', **kwargs) -> Process:
+def create_lwe(unit_type: str = "GeneralRateModel", **kwargs) -> Process:
     """
     Create a process with the specified unit type and configuration.
 
@@ -24,43 +31,40 @@ def create_lwe(unit_type: str = 'GeneralRateModel', **kwargs) -> Process:
     Process
         The configured process.
     """
-    n_comp: int = kwargs.get('n_comp', 4)
+    n_comp: int = kwargs.get("n_comp", 4)
     component_system = ComponentSystem(n_comp)
 
-    if unit_type == 'Cstr':
+    if unit_type == "Cstr":
         unit = configure_cstr(component_system, **kwargs)
-    elif unit_type == 'GeneralRateModel':
+    elif unit_type == "GeneralRateModel":
         unit = configure_general_rate_model(component_system, **kwargs)
-    elif unit_type == 'TubularReactor':
+    elif unit_type == "TubularReactor":
         unit = configure_tubular_reactor(component_system, **kwargs)
-    elif unit_type == 'LumpedRateModelWithoutPores':
+    elif unit_type == "LumpedRateModelWithoutPores":
         unit = configure_lumped_rate_model_without_pores(component_system, **kwargs)
-    elif unit_type == 'LumpedRateModelWithPores':
+    elif unit_type == "LumpedRateModelWithPores":
         unit = configure_lumped_rate_model_with_pores(component_system, **kwargs)
-    elif unit_type == 'MCT':
+    elif unit_type == "MCT":
         unit = configure_multichannel_transport_model(component_system, **kwargs)
     else:
-        raise ValueError(f'Unknown unit operation type {unit_type}')
+        raise ValueError(f"Unknown unit operation type {unit_type}")
 
     flow_sheet = setup_flow_sheet(unit, component_system)
 
-    process = Process(flow_sheet, 'process')
+    process = Process(flow_sheet, "process")
     process.cycle_time = 120 * 60
 
     c1_lwe = [[50.0], [0.0], [[100.0, 0.2]]]
     cx_lwe = [[1.0], [0.0], [0.0]]
 
     process.add_event(
-        'load', 'flow_sheet.inlet.c',
-        c1_lwe[0] + cx_lwe[0] * (n_comp - 1), 0
+        "load", "flow_sheet.inlet.c", c1_lwe[0] + cx_lwe[0] * (n_comp - 1), 0
     )
     process.add_event(
-        'wash', 'flow_sheet.inlet.c',
-        c1_lwe[1] + cx_lwe[1] * (n_comp - 1), 10
+        "wash", "flow_sheet.inlet.c", c1_lwe[1] + cx_lwe[1] * (n_comp - 1), 10
     )
     process.add_event(
-        'elute', 'flow_sheet.inlet.c',
-        c1_lwe[2] + cx_lwe[2] * (n_comp - 1), 90
+        "elute", "flow_sheet.inlet.c", c1_lwe[2] + cx_lwe[2] * (n_comp - 1), 90
     )
 
     return process
@@ -83,17 +87,17 @@ def setup_flow_sheet(unit, component_system: ComponentSystem) -> FlowSheet:
         The configured flow sheet.
     """
     flow_sheet = FlowSheet(component_system)
-    inlet = Inlet(component_system, name='inlet')
+    inlet = Inlet(component_system, name="inlet")
     inlet.flow_rate = 1.2e-3
-    outlet = Outlet(component_system, name='outlet')
+    outlet = Outlet(component_system, name="outlet")
 
     flow_sheet.add_unit(inlet)
     flow_sheet.add_unit(unit)
     flow_sheet.add_unit(outlet)
 
     if unit.has_ports:
-        flow_sheet.add_connection(inlet, unit, destination_port='channel_0')
-        flow_sheet.add_connection(unit, outlet, origin_port='channel_0')
+        flow_sheet.add_connection(inlet, unit, destination_port="channel_0")
+        flow_sheet.add_connection(unit, outlet, origin_port="channel_0")
     else:
         flow_sheet.add_connection(inlet, unit)
         flow_sheet.add_connection(unit, outlet)
@@ -117,7 +121,7 @@ def configure_cstr(component_system: ComponentSystem, **kwargs) -> Cstr:
     Cstr
         The configured CSTR.
     """
-    cstr = Cstr(component_system, name='Cstr')
+    cstr = Cstr(component_system, name="Cstr")
 
     total_volume = 1e-3
     total_porosity = 0.37 + (1.0 - 0.37) * 0.75
@@ -130,7 +134,9 @@ def configure_cstr(component_system: ComponentSystem, **kwargs) -> Cstr:
     return cstr
 
 
-def configure_general_rate_model(component_system: ComponentSystem, **kwargs) -> GeneralRateModel:
+def configure_general_rate_model(
+    component_system: ComponentSystem, **kwargs
+) -> GeneralRateModel:
     """
     Configure a general rate model.
 
@@ -146,7 +152,7 @@ def configure_general_rate_model(component_system: ComponentSystem, **kwargs) ->
     GeneralRateModel
         The configured general rate model.
     """
-    grm = GeneralRateModel(component_system, name='GeneralRateModel')
+    grm = GeneralRateModel(component_system, name="GeneralRateModel")
 
     grm.length = 0.014
     grm.diameter = 0.01 * 2
@@ -164,7 +170,9 @@ def configure_general_rate_model(component_system: ComponentSystem, **kwargs) ->
     return grm
 
 
-def configure_tubular_reactor(component_system: ComponentSystem, **kwargs) -> TubularReactor:
+def configure_tubular_reactor(
+    component_system: ComponentSystem, **kwargs
+) -> TubularReactor:
     """
     Configure a tubular reactor.
 
@@ -180,7 +188,7 @@ def configure_tubular_reactor(component_system: ComponentSystem, **kwargs) -> Tu
     TubularReactor
         The configured tubular reactor.
     """
-    tr = TubularReactor(component_system, name='TubularReactor')
+    tr = TubularReactor(component_system, name="TubularReactor")
 
     tr.length = 0.014
     tr.diameter = 0.01 * 2
@@ -193,7 +201,9 @@ def configure_tubular_reactor(component_system: ComponentSystem, **kwargs) -> Tu
     return tr
 
 
-def configure_lumped_rate_model_without_pores(component_system: ComponentSystem, **kwargs) -> LumpedRateModelWithoutPores:
+def configure_lumped_rate_model_without_pores(
+    component_system: ComponentSystem, **kwargs
+) -> LumpedRateModelWithoutPores:
     """
     Configure a lumped rate model without pores.
 
@@ -210,7 +220,7 @@ def configure_lumped_rate_model_without_pores(component_system: ComponentSystem,
         The configured lumped rate model.
     """
     lrm = LumpedRateModelWithoutPores(
-        component_system, name='LumpedRateModelWithoutPores'
+        component_system, name="LumpedRateModelWithoutPores"
     )
 
     lrm.length = 0.014
@@ -226,7 +236,9 @@ def configure_lumped_rate_model_without_pores(component_system: ComponentSystem,
     return lrm
 
 
-def configure_lumped_rate_model_with_pores(component_system: ComponentSystem, **kwargs) -> LumpedRateModelWithPores:
+def configure_lumped_rate_model_with_pores(
+    component_system: ComponentSystem, **kwargs
+) -> LumpedRateModelWithPores:
     """
     Configure a lumped rate model with pores.
 
@@ -242,9 +254,7 @@ def configure_lumped_rate_model_with_pores(component_system: ComponentSystem, **
     LumpedRateModelWithPores
         The configured lumped rate model.
     """
-    lrmp = LumpedRateModelWithPores(
-        component_system, name='LumpedRateModelWithPores'
-    )
+    lrmp = LumpedRateModelWithPores(component_system, name="LumpedRateModelWithPores")
 
     lrmp.length = 0.014
     lrmp.diameter = 0.01 * 2
@@ -261,7 +271,9 @@ def configure_lumped_rate_model_with_pores(component_system: ComponentSystem, **
     return lrmp
 
 
-def configure_multichannel_transport_model(component_system: ComponentSystem, **kwargs) -> MCT:
+def configure_multichannel_transport_model(
+    component_system: ComponentSystem, **kwargs
+) -> MCT:
     """
     Configure a multichannel transport model.
 
@@ -277,19 +289,21 @@ def configure_multichannel_transport_model(component_system: ComponentSystem, **
     MCT
         The configured multichannel transport model.
     """
-    mct = MCT(component_system, nchannel=3, name='MCT')
+    mct = MCT(component_system, nchannel=3, name="MCT")
 
     mct.length = 0.014
-    mct.channel_cross_section_areas = 3 * [2 * np.pi * (0.01 ** 2)]
+    mct.channel_cross_section_areas = 3 * [2 * np.pi * (0.01**2)]
     mct.axial_dispersion = 5.75e-8
 
     n_comp: int = component_system.n_comp
 
-    mct.exchange_matrix = np.array([
-        [n_comp * [0.0], n_comp * [0.001], n_comp * [0.0]],
-        [n_comp * [0.002], n_comp * [0.0], n_comp * [0.003]],
-        [n_comp * [0.0], n_comp * [0.0], n_comp * [0.0]]
-    ])
+    mct.exchange_matrix = np.array(
+        [
+            [n_comp * [0.0], n_comp * [0.001], n_comp * [0.0]],
+            [n_comp * [0.002], n_comp * [0.0], n_comp * [0.003]],
+            [n_comp * [0.0], n_comp * [0.0], n_comp * [0.0]],
+        ]
+    )
 
     configure_solution_recorder(mct, **kwargs)
     configure_discretization(mct, **kwargs)
@@ -309,13 +323,13 @@ def configure_discretization(unit_operation, **kwargs) -> None:
     **kwargs : dict
         Additional parameters for configuring the discretization.
     """
-    n_col: int = kwargs.get('n_col', 100)
-    n_par: int = kwargs.get('n_par', 2)
-    ad_jacobian: bool = kwargs.get('ad_jacobian', False)
+    n_col: int = kwargs.get("n_col", 100)
+    n_par: int = kwargs.get("n_par", 2)
+    ad_jacobian: bool = kwargs.get("ad_jacobian", False)
 
-    if 'npar' in unit_operation.discretization.parameters:
+    if "npar" in unit_operation.discretization.parameters:
         unit_operation.discretization.npar = n_par
-        unit_operation.discretization.par_disc_type = 'EQUIDISTANT_PAR'
+        unit_operation.discretization.par_disc_type = "EQUIDISTANT_PAR"
 
     unit_operation.discretization.ncol = n_col
     unit_operation.discretization.use_analytic_jacobian = not ad_jacobian
@@ -335,7 +349,7 @@ def configure_particles(unit_operation) -> None:
 
     unit_operation.particle_radius = par_radius
     unit_operation.particle_porosity = par_porosity
-    unit_operation.discretization.par_geom = 'SPHERE'
+    unit_operation.discretization.par_geom = "SPHERE"
 
 
 def configure_steric_mass_action(unit_operation, component_system, **kwargs) -> None:
@@ -351,7 +365,7 @@ def configure_steric_mass_action(unit_operation, component_system, **kwargs) -> 
     **kwargs : dict
         Additional parameters for configuring the steric mass action binding model.
     """
-    is_kinetic = kwargs.get('is_kinetic', True)
+    is_kinetic = kwargs.get("is_kinetic", True)
 
     kA = 35.5
     kD = 1000.0
@@ -397,7 +411,7 @@ def configure_flow_direction(unit_operation, **kwargs) -> None:
     **kwargs : dict
         Additional parameters for configuring the flow direction.
     """
-    reverse_flow = kwargs.get('reverse_flow', False)
+    reverse_flow = kwargs.get("reverse_flow", False)
     unit_operation.flow_direction = -1 if reverse_flow else 1
 
 

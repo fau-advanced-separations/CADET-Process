@@ -22,8 +22,7 @@ from CADETProcess import CADETProcessError
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess.solution import SolutionBase, SolutionIO
 
-
-__all__ = ['ReferenceBase', 'ReferenceIO', 'FractionationReference']
+__all__ = ["ReferenceBase", "ReferenceIO", "FractionationReference"]
 
 
 class ReferenceBase(SolutionBase):
@@ -61,9 +60,7 @@ class ReferenceIO(ReferenceBase, SolutionIO):
 
     """
 
-    def __init__(
-            self, name, time, solution,
-            flow_rate=None, component_system=None):
+    def __init__(self, name, time, solution, flow_rate=None, component_system=None):
         """Initialize a ReferenceIO object.
 
         Parameters
@@ -106,7 +103,7 @@ class ReferenceIO(ReferenceBase, SolutionIO):
 
         if flow_rate is None:
             flow_rate = 1
-        if isinstance(flow_rate, (int,  float)):
+        if isinstance(flow_rate, (int, float)):
             flow_rate = flow_rate * np.ones(time.shape)
 
         super().__init__(name, component_system, time, solution, flow_rate)
@@ -132,7 +129,7 @@ class FractionationReference(ReferenceBase):
     CADETProcess.fractionation.Fraction
     """
 
-    dimensions = SolutionBase.dimensions + ['component_coordinates']
+    dimensions = SolutionBase.dimensions + ["component_coordinates"]
 
     def __init__(self, name, fractions, component_system=None, *args, **kwargs):
         from CADETProcess.fractionation import Fraction
@@ -147,7 +144,7 @@ class FractionationReference(ReferenceBase):
 
         self.fractions = fractions
 
-        time = np.array([(frac.start + frac.end)/2 for frac in self.fractions])
+        time = np.array([(frac.start + frac.end) / 2 for frac in self.fractions])
         solution = np.array([frac.mass / frac.volume for frac in self.fractions])
 
         if component_system is None:

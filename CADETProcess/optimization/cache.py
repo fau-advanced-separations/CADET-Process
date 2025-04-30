@@ -1,15 +1,14 @@
-from collections import defaultdict
-from pathlib import Path
 import shutil
 import tempfile
+from collections import defaultdict
+from pathlib import Path
 
 from diskcache import Cache, FanoutCache
 
-from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import DillDisk
 
 
-class ResultsCache():
+class ResultsCache:
     """Cache to store (intermediate) results.
 
     Optinally uses diskcache library to store large objects in sqlite database.
@@ -51,7 +50,7 @@ class ResultsCache():
         """Initialize ResultsCache."""
         if self.use_diskcache:
             if self.directory is None:
-                self.directory = Path(tempfile.mkdtemp(prefix='diskcache-'))
+                self.directory = Path(tempfile.mkdtemp(prefix="diskcache-"))
 
             if self.directory.exists():
                 shutil.rmtree(self.directory, ignore_errors=True)
@@ -60,20 +59,20 @@ class ResultsCache():
 
             if self.n_shards == 1:
                 self.cache = Cache(
-                   self.directory.as_posix(),
-                   disk=DillDisk,
-                   disk_min_file_size=2**18,    # 256 kb
-                   size_limit=2**36,            # 64 GB
-                   tag_index=True,
+                    self.directory.as_posix(),
+                    disk=DillDisk,
+                    disk_min_file_size=2**18,  # 256 kb
+                    size_limit=2**36,  # 64 GB
+                    tag_index=True,
                 )
             else:
                 self.cache = FanoutCache(
-                   self.directory.as_posix(),
-                   shards=self.n_shards,
-                   disk=DillDisk,
-                   disk_min_file_size=2**18,    # 256 kb
-                   size_limit=2**36,            # 64 GB
-                   tag_index=True,
+                    self.directory.as_posix(),
+                    shards=self.n_shards,
+                    disk=DillDisk,
+                    disk_min_file_size=2**18,  # 256 kb
+                    size_limit=2**36,  # 64 GB
+                    tag_index=True,
                 )
             self.directory = self.cache.directory
         else:

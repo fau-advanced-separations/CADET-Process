@@ -28,30 +28,29 @@ Method to slice a Solution:
 
 """
 
-import copy
-from typing import Optional, NoReturn
+from __future__ import annotations
 
+import copy
+from typing import NoReturn, Optional
+
+import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
 from matplotlib.axes import Axes
-import matplotlib.pyplot as plt
-from scipy.interpolate import PchipInterpolator
 from scipy import integrate
+from scipy.interpolate import PchipInterpolator
 
-from CADETProcess.dataStructure import Structure
+from CADETProcess import CADETProcessError, plotting, smoothing, transform
 from CADETProcess.dataStructure import (
-    Typed, String, UnsignedInteger, UnsignedFloat, Vector, SizedNdArray
+    SizedNdArray,
+    String,
+    Structure,
+    Typed,
+    UnsignedFloat,
+    Vector,
 )
-
-from CADETProcess.processModel import ComponentSystem
 from CADETProcess.dynamicEvents import TimeLine
-
-from CADETProcess import plotting
-from CADETProcess import CADETProcessError
-
-from CADETProcess import smoothing
-from CADETProcess import transform
-
+from CADETProcess.processModel import ComponentSystem
 
 __all__ = [
     "SolutionIO",
@@ -100,12 +99,12 @@ class SolutionBase(Structure):
     dimensions = ["time"]
 
     def __init__(
-            self,
-            name: str,
-            component_system: ComponentSystem,
-            time: npt.ArrayLike,
-            solution: npt.ArrayLike,
-            ) -> NoReturn:
+        self,
+        name: str,
+        component_system: ComponentSystem,
+        time: npt.ArrayLike,
+        solution: npt.ArrayLike,
+    ) -> NoReturn:
         """
         Initialize the SolutionBase.
 
@@ -202,7 +201,7 @@ class SolutionBase(Structure):
 
         purity = np.zeros(solution.shape)
         with np.errstate(divide="ignore", invalid="ignore"):
-            purity = solution/c_total
+            purity = solution / c_total
 
         purity = np.nan_to_num(purity)
 
@@ -217,7 +216,7 @@ class SolutionBase(Structure):
 
         purity = np.zeros(solution.shape)
         with np.errstate(divide="ignore", invalid="ignore"):
-            purity = solution/c_total
+            purity = solution / c_total
 
         purity = np.nan_to_num(purity)
 
@@ -240,13 +239,13 @@ class SolutionIO(SolutionBase):
     dimensions = SolutionBase.dimensions + ["component_coordinates"]
 
     def __init__(
-            self,
-            name: str,
-            component_system: ComponentSystem,
-            time: npt.ArrayLike,
-            solution: npt.ArrayLike,
-            flow_rate: TimeLine | npt.ArrayLike,
-            ) -> NoReturn:
+        self,
+        name: str,
+        component_system: ComponentSystem,
+        time: npt.ArrayLike,
+        solution: npt.ArrayLike,
+        flow_rate: TimeLine | npt.ArrayLike,
+    ) -> NoReturn:
         """
         Initialize the SolutionIO.
 
@@ -299,15 +298,14 @@ class SolutionIO(SolutionBase):
             np.min(self.solution, axis=0),
             np.max(self.solution, axis=0),
             allow_extended_input=True,
-            allow_extended_output=True
+            allow_extended_output=True,
         )
 
     @property
     def solution_interpolated(self) -> "InterpolatedSignal":
         """InterpolatedSignal: The interpolated signal."""
         if self._solution_interpolated is None:
-            self._solution_interpolated = \
-                InterpolatedSignal(self.time, self.solution)
+            self._solution_interpolated = InterpolatedSignal(self.time, self.solution)
 
         return self._solution_interpolated
 
@@ -320,7 +318,7 @@ class SolutionIO(SolutionBase):
         return self._dm_dt_interpolated
 
     def normalize(self) -> "SolutionIO":
-        """"SolutionIO: Normalize the solution using the transformation function."""
+        """ "SolutionIO: Normalize the solution using the transformation function."""
         solution = copy.deepcopy(self)
 
         solution.solution = self.transform.transform(self.solution)
@@ -329,11 +327,11 @@ class SolutionIO(SolutionBase):
         return solution
 
     def resample(
-            self,
-            start: Optional[float] = None,
-            end: Optional[float] = None,
-            nt: Optional[int] = 5001,
-            ) -> "SolutionIO":
+        self,
+        start: Optional[float] = None,
+        end: Optional[float] = None,
+        nt: Optional[int] = 5001,
+    ) -> "SolutionIO":
         """
         Resample solution to nt time points.
 
@@ -367,11 +365,11 @@ class SolutionIO(SolutionBase):
         return solution
 
     def smooth_data(
-            self,
-            s: Optional[float | list[float]] = None,
-            crit_fs: Optional[float | list[float]] = None,
-            crit_fs_der: Optional[float | list[float]] = None
-            ) -> "SolutionIO":
+        self,
+        s: Optional[float | list[float]] = None,
+        crit_fs: Optional[float | list[float]] = None,
+        crit_fs_der: Optional[float | list[float]] = None,
+    ) -> "SolutionIO":
         """
         Smooth data.
 
@@ -429,8 +427,7 @@ class SolutionIO(SolutionBase):
         solution = np.zeros((self.solution.shape))
         for i, (s, crit_fs, crit_fs_der) in enumerate(zip(s, crit_fs, crit_fs_der)):
             smooth, smooth_der = smoothing.full_smooth(
-                self.time, self.solution[..., i],
-                crit_fs, s, crit_fs_der
+                self.time, self.solution[..., i], crit_fs, s, crit_fs_der
             )
             solution[..., i] = smooth
 
@@ -440,10 +437,10 @@ class SolutionIO(SolutionBase):
         return solution
 
     def integral(
-            self,
-            start: Optional[float] = None,
-            end: Optional[float] = None,
-            ) -> np.ndarray:
+        self,
+        start: Optional[float] = None,
+        end: Optional[float] = None,
+    ) -> np.ndarray:
         """
         Peak area in a fraction interval.
 
@@ -470,10 +467,10 @@ class SolutionIO(SolutionBase):
         return self.solution_interpolated.integral(start, end)
 
     def create_fraction(
-            self,
-            start: Optional[float] = None,
-            end: Optional[float] = None,
-            ) -> "Fraction":
+        self,
+        start: Optional[float] = None,
+        end: Optional[float] = None,
+    ) -> Fraction:  # noqa:F821
         """
         Create fraction in interval [start, end].
 
@@ -499,15 +496,16 @@ class SolutionIO(SolutionBase):
             end = self.cycle_time
 
         from CADETProcess.fractionation import Fraction
+
         mass = self.fraction_mass(start, end)
         volume = self.fraction_volume(start, end)
         return Fraction(mass, volume, start, end)
 
     def fraction_mass(
-            self,
-            start: Optional[float] = None,
-            end: Optional[float] = None,
-            ) -> np.ndarray:
+        self,
+        start: Optional[float] = None,
+        end: Optional[float] = None,
+    ) -> np.ndarray:
         """
         Component mass in a fraction interval
 
@@ -535,7 +533,7 @@ class SolutionIO(SolutionBase):
         # discontinuities in the flow rate profile, by passing the section times to
         # `quad_vec`. Maybe this can be improved in the future.
         def dm_dt(t, flow_rate, solution):
-            dm_dt = flow_rate.value(t)*solution(t)
+            dm_dt = flow_rate.value(t) * solution(t)
             return dm_dt
 
         points = None
@@ -544,7 +542,8 @@ class SolutionIO(SolutionBase):
 
         mass = integrate.quad_vec(
             dm_dt,
-            start, end,
+            start,
+            end,
             epsabs=1e-6,
             epsrel=1e-8,
             args=(self.flow_rate, self.solution_interpolated),
@@ -554,10 +553,10 @@ class SolutionIO(SolutionBase):
         return mass
 
     def fraction_volume(
-            self,
-            start: Optional[float] = None,
-            end: Optional[float] = None,
-            ) -> float:
+        self,
+        start: Optional[float] = None,
+        end: Optional[float] = None,
+    ) -> float:
         """
         Volume of a fraction interval.
 
@@ -585,17 +584,17 @@ class SolutionIO(SolutionBase):
 
     @plotting.create_and_save_figure
     def plot(
-            self,
-            start: Optional[float] = None,
-            end: Optional[float] = None,
-            components: Optional[list[str]] = None,
-            layout: Optional[plotting.Layout] = None,
-            y_max: Optional[float] = None,
-            x_axis_in_minutes: Optional[bool] = True,
-            ax: Optional[Axes] = None,
-            *args,
-            **kwargs,
-            ) -> Axes:
+        self,
+        start: Optional[float] = None,
+        end: Optional[float] = None,
+        components: Optional[list[str]] = None,
+        layout: Optional[plotting.Layout] = None,
+        y_max: Optional[float] = None,
+        x_axis_in_minutes: Optional[bool] = True,
+        ax: Optional[Axes] = None,
+        *args,
+        **kwargs,
+    ) -> Axes:
         """
         Plot the entire time_signal for each component.
 
@@ -637,7 +636,7 @@ class SolutionIO(SolutionBase):
             components=components,
             use_total_concentration=False,
             use_total_concentration_components=False,
-            coordinates={"time": [start, end]}
+            coordinates={"time": [start, end]},
         )
 
         x = solution.time
@@ -664,20 +663,20 @@ class SolutionIO(SolutionBase):
 
     @plotting.create_and_save_figure
     def plot_purity(
-            self,
-            start: Optional[float] = None,
-            end: Optional[float] = None,
-            components: Optional[list[str]] = None,
-            layout: Optional[plotting.Layout] = None,
-            y_max: Optional[float] = None,
-            x_axis_in_minutes: Optional[bool] = True,
-            plot_components_purity: Optional[bool] = True,
-            plot_species_purity: Optional[bool] = False,
-            alpha: Optional[float] = 1,
-            hide_labels: Optional[bool] = False,
-            show_legend: Optional[bool] = True,
-            ax: Optional[Axes] = None,
-            ) -> Axes:
+        self,
+        start: Optional[float] = None,
+        end: Optional[float] = None,
+        components: Optional[list[str]] = None,
+        layout: Optional[plotting.Layout] = None,
+        y_max: Optional[float] = None,
+        x_axis_in_minutes: Optional[bool] = True,
+        plot_components_purity: Optional[bool] = True,
+        plot_species_purity: Optional[bool] = False,
+        alpha: Optional[float] = 1,
+        hide_labels: Optional[bool] = False,
+        show_legend: Optional[bool] = True,
+        ax: Optional[Axes] = None,
+    ) -> Axes:
         """
         Plot local purity for each component of the concentration profile.
 
@@ -734,7 +733,7 @@ class SolutionIO(SolutionBase):
             components=components,
             use_total_concentration=False,
             use_total_concentration_components=False,
-            coordinates={"time": [start, end]}
+            coordinates={"time": [start, end]},
         )
 
         if solution.n_comp < 2:
@@ -783,7 +782,7 @@ class SolutionIO(SolutionBase):
                     x, y,
                     label=label,
                     color=color,
-                    alpha=alpha
+                    alpha=alpha,
                 )
 
             if plot_species_purity:
@@ -800,7 +799,7 @@ class SolutionIO(SolutionBase):
                         x, y, "--",
                         label=label,
                         color=color,
-                        alpha=alpha
+                        alpha=alpha,
                     )
                     species_index += 1
 
@@ -828,14 +827,14 @@ class SolutionBulk(SolutionBase):
     ]
 
     def __init__(
-            self,
-            name: str,
-            component_system: ComponentSystem,
-            time: npt.ArrayLike,
-            solution: npt.ArrayLike,
-            axial_coordinates: Optional[npt.ArrayLike] = None,
-            radial_coordinates: Optional[npt.ArrayLike] = None,
-            ) -> None:
+        self,
+        name: str,
+        component_system: ComponentSystem,
+        time: npt.ArrayLike,
+        solution: npt.ArrayLike,
+        axial_coordinates: Optional[npt.ArrayLike] = None,
+        radial_coordinates: Optional[npt.ArrayLike] = None,
+    ) -> None:
         """
         Initialize the SolutionBulk.
 
@@ -877,17 +876,17 @@ class SolutionBulk(SolutionBase):
 
     @plotting.create_and_save_figure
     def plot(
-            self,
-            start: Optional[float] = None,
-            end: Optional[float] = None,
-            components: Optional[list[str]] = None,
-            layout: Optional[plotting.Layout] = None,
-            y_max: Optional[float] = None,
-            x_axis_in_minutes: Optional[bool] = True,
-            ax: Optional[Axes] = None,
-            *args,
-            **kwargs,
-            ) -> Axes:
+        self,
+        start: Optional[float] = None,
+        end: Optional[float] = None,
+        components: Optional[list[str]] = None,
+        layout: Optional[plotting.Layout] = None,
+        y_max: Optional[float] = None,
+        x_axis_in_minutes: Optional[bool] = True,
+        ax: Optional[Axes] = None,
+        *args,
+        **kwargs,
+    ) -> Axes:
         """
         Plot the entire time_signal for each component.
 
@@ -939,7 +938,7 @@ class SolutionBulk(SolutionBase):
             components=components,
             use_total_concentration=False,
             use_total_concentration_components=False,
-            coordinates={"time": [start, end]}
+            coordinates={"time": [start, end]},
         )
 
         x = solution.time
@@ -966,13 +965,14 @@ class SolutionBulk(SolutionBase):
 
     @plotting.create_and_save_figure
     def plot_at_time(
-            self,
-            t: float,
-            components: Optional[list[str]] = None,
-            layout: Optional[plotting.Layout] = None,
-            ax: Optional[Axes] = None,
-            *args, **kwargs,
-            ) -> Axes:
+        self,
+        t: float,
+        components: Optional[list[str]] = None,
+        layout: Optional[plotting.Layout] = None,
+        ax: Optional[Axes] = None,
+        *args,
+        **kwargs,
+    ) -> Axes:
         """
         Plot bulk solution over space at given time.
 
@@ -1023,16 +1023,17 @@ class SolutionBulk(SolutionBase):
 
     @plotting.create_and_save_figure
     def plot_at_position(
-            self,
-            z: float,
-            start: Optional[float] = None,
-            end: Optional[float] = None,
-            components: Optional[list[str]] = None,
-            layout: Optional[plotting.Layout] = None,
-            x_axis_in_minutes: bool = True,
-            ax: Optional[Axes] = None,
-            *args, **kwargs,
-            ) -> Axes:
+        self,
+        z: float,
+        start: Optional[float] = None,
+        end: Optional[float] = None,
+        components: Optional[list[str]] = None,
+        layout: Optional[plotting.Layout] = None,
+        x_axis_in_minutes: bool = True,
+        ax: Optional[Axes] = None,
+        *args,
+        **kwargs,
+    ) -> Axes:
         """
         Plot bulk solution over time at given position.
 
@@ -1115,15 +1116,15 @@ class SolutionParticle(SolutionBase):
     ]
 
     def __init__(
-            self,
-            name: str,
-            component_system: ComponentSystem,
-            time: npt.ArrayLike,
-            solution: npt.ArrayLike,
-            axial_coordinates: Optional[npt.ArrayLike] = None,
-            radial_coordinates: Optional[npt.ArrayLike] = None,
-            particle_coordinates: Optional[npt.ArrayLike] = None,
-            ) -> None:
+        self,
+        name: str,
+        component_system: ComponentSystem,
+        time: npt.ArrayLike,
+        solution: npt.ArrayLike,
+        axial_coordinates: Optional[npt.ArrayLike] = None,
+        radial_coordinates: Optional[npt.ArrayLike] = None,
+        particle_coordinates: Optional[npt.ArrayLike] = None,
+    ) -> None:
         """
         Initialize the SolutionParticle.
 
@@ -1176,17 +1177,17 @@ class SolutionParticle(SolutionBase):
 
     @plotting.create_and_save_figure
     def plot(
-            self,
-            start: Optional[float] = None,
-            end: Optional[float] = None,
-            components: Optional[list[str]] = None,
-            layout: Optional[plotting.Layout] = None,
-            y_max: Optional[float] = None,
-            x_axis_in_minutes: Optional[bool] = True,
-            ax: Optional[Axes] = None,
-            *args,
-            **kwargs,
-            ) -> Axes:
+        self,
+        start: Optional[float] = None,
+        end: Optional[float] = None,
+        components: Optional[list[str]] = None,
+        layout: Optional[plotting.Layout] = None,
+        y_max: Optional[float] = None,
+        x_axis_in_minutes: Optional[bool] = True,
+        ax: Optional[Axes] = None,
+        *args,
+        **kwargs,
+    ) -> Axes:
         """
         Plot the entire particle liquid phase solution for each component.
 
@@ -1227,8 +1228,7 @@ class SolutionParticle(SolutionBase):
         """
         if not (self.ncol is None and self.nrad is None and self.npar is None):
             raise CADETProcessError(
-                "Solution has more than single dimension. "
-                "Please use `plot_at_time`."
+                "Solution has more than single dimension. Please use `plot_at_time`."
             )
 
         solution = slice_solution(
@@ -1236,7 +1236,7 @@ class SolutionParticle(SolutionBase):
             components=components,
             use_total_concentration=False,
             use_total_concentration_components=False,
-            coordinates={"time": [start, end]}
+            coordinates={"time": [start, end]},
         )
 
         x = solution.time
@@ -1262,13 +1262,14 @@ class SolutionParticle(SolutionBase):
         return ax
 
     def _plot_1D(
-            self,
-            t: float,
-            components: Optional[list[str]] = None,
-            layout: Optional[plotting.Layout] = None,
-            ax: Optional[Axes] = None,
-            *args, **kwargs,
-            ) -> Axes:
+        self,
+        t: float,
+        components: Optional[list[str]] = None,
+        layout: Optional[plotting.Layout] = None,
+        ax: Optional[Axes] = None,
+        *args,
+        **kwargs,
+    ) -> Axes:
         """
         Plot particle solution over space at given time.
 
@@ -1331,7 +1332,7 @@ class SolutionParticle(SolutionBase):
         try:
             mesh = ax.get_children()[0]
             mesh.set_array(v.flatten())
-        except:
+        except AttributeError:
             mesh = ax.pcolormesh(x, y, v, shading="gouraud", vmin=0, vmax=vmax)
 
         plotting.add_text(ax, f"time = {t:.2f} s")
@@ -1348,12 +1349,12 @@ class SolutionParticle(SolutionBase):
 
     @plotting.create_and_save_figure
     def plot_at_time(
-            self,
-            t: float,
-            comp: Optional[int] = None,
-            vmax: Optional[float] = None,
-            ax: Optional[Axes] = None
-            ):
+        self,
+        t: float,
+        comp: Optional[int] = None,
+        vmax: Optional[float] = None,
+        ax: Optional[Axes] = None,
+    ):
         """
         Plot particle liquid solution for a given component over space at given time.
 
@@ -1403,16 +1404,16 @@ class SolutionSolid(SolutionBase):
     ]
 
     def __init__(
-            self,
-            name: str,
-            component_system: ComponentSystem,
-            bound_states: list[int],
-            time: npt.ArrayLike,
-            solution: npt.ArrayLike,
-            axial_coordinates: Optional[npt.ArrayLike] = None,
-            radial_coordinates: Optional[npt.ArrayLike] = None,
-            particle_coordinates: Optional[npt.ArrayLike] = None,
-            ) -> None:
+        self,
+        name: str,
+        component_system: ComponentSystem,
+        bound_states: list[int],
+        time: npt.ArrayLike,
+        solution: npt.ArrayLike,
+        axial_coordinates: Optional[npt.ArrayLike] = None,
+        radial_coordinates: Optional[npt.ArrayLike] = None,
+        particle_coordinates: Optional[npt.ArrayLike] = None,
+    ) -> None:
         """
         Initialize the SolutionSolid.
 
@@ -1475,17 +1476,17 @@ class SolutionSolid(SolutionBase):
 
     @plotting.create_and_save_figure
     def plot(
-            self,
-            start: Optional[float] = None,
-            end: Optional[float] = None,
-            components: Optional[list[str]] = None,
-            layout: Optional[plotting.Layout] = None,
-            y_max: Optional[float] = None,
-            x_axis_in_minutes: Optional[bool] = True,
-            ax: Optional[Axes] = None,
-            *args,
-            **kwargs,
-            ) -> Axes:
+        self,
+        start: Optional[float] = None,
+        end: Optional[float] = None,
+        components: Optional[list[str]] = None,
+        layout: Optional[plotting.Layout] = None,
+        y_max: Optional[float] = None,
+        x_axis_in_minutes: Optional[bool] = True,
+        ax: Optional[Axes] = None,
+        *args,
+        **kwargs,
+    ) -> Axes:
         """
         Plot the entire solid phase solution for each component.
 
@@ -1526,8 +1527,7 @@ class SolutionSolid(SolutionBase):
         """
         if not (self.ncol is None and self.nrad is None and self.npar is None):
             raise CADETProcessError(
-                "Solution has more than single dimension. "
-                "Please use `plot_at_time`."
+                "Solution has more than single dimension. Please use `plot_at_time`."
             )
 
         solution = slice_solution(
@@ -1535,7 +1535,7 @@ class SolutionSolid(SolutionBase):
             components=components,
             use_total_concentration=False,
             use_total_concentration_components=False,
-            coordinates={"time": [start, end]}
+            coordinates={"time": [start, end]},
         )
 
         x = solution.time
@@ -1561,14 +1561,14 @@ class SolutionSolid(SolutionBase):
         return ax
 
     def _plot_1D(
-            self,
-            t: float,
-            components: list[str] | None = None,
-            layout: plotting.Layout | None = None,
-            ax: Axes | None = None,
-            *args,
-            **kwargs,
-            ) -> Axes:
+        self,
+        t: float,
+        components: list[str] | None = None,
+        layout: plotting.Layout | None = None,
+        ax: Axes | None = None,
+        *args,
+        **kwargs,
+    ) -> Axes:
         """
         Plot solid solution over space at given time.
 
@@ -1637,7 +1637,9 @@ class SolutionSolid(SolutionBase):
         plotting.add_text(ax, f"time = {t:.2f} s")
 
         layout = plotting.Layout()
-        layout.title = f"Solid phase concentration, comp={comp}, bound_state={bound_state}"
+        layout.title = (
+            f"Solid phase concentration, comp={comp}, bound_state={bound_state}"
+        )
         layout.x_label = "$z~/~m$"
         layout.y_label = "$r~/~m$"
         layout.labels = self.component_system.species[c_i]
@@ -1647,13 +1649,13 @@ class SolutionSolid(SolutionBase):
 
     @plotting.create_and_save_figure
     def plot_at_time(
-            self,
-            t: float,
-            comp: Optional[int] = None,
-            bound_state: Optional[int] = 0,
-            vmax: Optional[float] = None,
-            ax: Optional[Axes] = None
-            ):
+        self,
+        t: float,
+        comp: Optional[int] = None,
+        bound_state: Optional[int] = 0,
+        vmax: Optional[float] = None,
+        ax: Optional[Axes] = None,
+    ):
         """
         Plot particle solid solution for a given bound state over space at given time.
 
@@ -1698,18 +1700,18 @@ class SolutionVolume(SolutionBase):
     @property
     def solution_shape(self):
         """tuple: (Expected) shape of the solution"""
-        return (self.nt, )
+        return (self.nt,)
 
     @plotting.create_and_save_figure
     def plot(
-            self,
-            start: Optional[float] = None,
-            end: Optional[float] = None,
-            x_axis_in_minutes: Optional[bool] = True,
-            ax: Optional[Axes] = None,
-            update_layout: Optional[bool] = True,
-            **kwargs
-            ) -> Axes:
+        self,
+        start: Optional[float] = None,
+        end: Optional[float] = None,
+        x_axis_in_minutes: Optional[bool] = True,
+        ax: Optional[Axes] = None,
+        update_layout: Optional[bool] = True,
+        **kwargs,
+    ) -> Axes:
         """
         Plot the unit operation"s volume over time.
 
@@ -1766,19 +1768,21 @@ class SolutionVolume(SolutionBase):
 
 
 def _plot_solution_1D(
-        ax,
-        x,
-        solution,
-        layout=None,
-        plot_species=False,
-        plot_components=True,
-        plot_total_concentration=False,
-        alpha=1, hide_labels=False, hide_species_labels=False,
-        secondary_axis=None, secondary_layout=None,
-        show_legend=True,
-        update_layout=True,
-        ):
-
+    ax,
+    x,
+    solution,
+    layout=None,
+    plot_species=False,
+    plot_components=True,
+    plot_total_concentration=False,
+    alpha=1,
+    hide_labels=False,
+    hide_species_labels=False,
+    secondary_axis=None,
+    secondary_layout=None,
+    show_legend=True,
+    update_layout=True,
+):
     sol = solution.solution
     c_total_comp = solution.total_concentration_components
 
@@ -1820,7 +1824,8 @@ def _plot_solution_1D(
             y_comp = np.squeeze(y_comp)
 
             a.plot(
-                x, y_comp,
+                x,
+                y_comp,
                 linestyle="-",
                 color=color,
                 alpha=alpha,
@@ -1841,16 +1846,20 @@ def _plot_solution_1D(
                 else:
                     label = species
 
-                if comp.n_species == 1 \
-                        and not plot_total_concentration\
-                        and not plot_components:
+                if (
+                    comp.n_species == 1
+                    and not plot_total_concentration
+                    and not plot_components
+                ):
                     linestyle = "-"
                 else:
                     linestyle = next(linestyle_iter)["linestyle"]
 
-                if secondary_axis is not None \
-                        and secondary_axis.transform is not None \
-                        and comp.name in secondary_axis.components:
+                if (
+                    secondary_axis is not None
+                    and secondary_axis.transform is not None
+                    and comp.name in secondary_axis.components
+                ):
                     y_spec = secondary_axis.transform(sol[..., species_index])
                     y_min_sec = min(min(y_spec), y_min_sec)
                     y_max_sec = max(max(y_spec), y_max_sec)
@@ -1862,11 +1871,12 @@ def _plot_solution_1D(
                 y_spec = np.squeeze(y_spec)
 
                 a.plot(
-                    x, y_spec,
+                    x,
+                    y_spec,
                     linestyle=linestyle,
                     label=label,
                     color=color,
-                    alpha=alpha
+                    alpha=alpha,
                 )
                 species_index += 1
 
@@ -1884,16 +1894,16 @@ def _plot_solution_1D(
             x, y_total, "-",
             label=label,
             color="k",
-            alpha=alpha
+            alpha=alpha,
         )
 
     if layout.y_lim is None:
-        layout.y_lim = (y_min, 1.1*y_max)
+        layout.y_lim = (y_min, 1.1 * y_max)
 
     if secondary_axis is not None and secondary_layout is None:
         secondary_layout = plotting.Layout()
         secondary_layout.y_label = secondary_axis.y_label
-        secondary_layout.y_lim = (y_min_sec, 1.1*y_max_sec)
+        secondary_layout.y_lim = (y_min_sec, 1.1 * y_max_sec)
 
     if update_layout:
         plotting.set_layout(
@@ -1907,13 +1917,12 @@ def _plot_solution_1D(
     return ax
 
 
-class InterpolatedSignal():
+class InterpolatedSignal:
     def __init__(self, time, signal):
         if len(signal.shape) == 1:
             signal = np.array(signal, ndmin=2).transpose()
         self._solutions = [
-            PchipInterpolator(time, signal[:, comp])
-            for comp in range(signal.shape[1])
+            PchipInterpolator(time, signal[:, comp]) for comp in range(signal.shape[1])
         ]
         self._derivatives = [signal.derivative() for signal in self._solutions]
         self._antiderivatives = [signal.antiderivative() for signal in self._solutions]
@@ -1974,10 +1983,10 @@ class InterpolatedSignal():
         return anti
 
     def integral(
-            self,
-            start: Optional[float] = None,
-            end: Optional[float] = None,
-            ) -> np.ndarray:
+        self,
+        start: Optional[float] = None,
+        end: Optional[float] = None,
+    ) -> np.ndarray:
         """
         Definite integral between start and end.
 
@@ -1993,24 +2002,21 @@ class InterpolatedSignal():
         np.ndarray
             Definite integral of the solution spline(s) between limits.
         """
-        return np.array([
-            comp.integrate(start, end)
-            for comp in self._solutions
-        ])
+        return np.array([comp.integrate(start, end) for comp in self._solutions])
 
     def __call__(self, t):
-        return np.array([
-            comp(t) for comp in self._solutions
-        ]).transpose()
+        return np.array([comp(t) for comp in self._solutions]).transpose()
 
 
 def slice_solution(
-        solution_original: SolutionBase,
-        components: Optional[str | list[str]] = None,
-        use_total_concentration: Optional[bool] = False,
-        use_total_concentration_components: Optional[bool] = False,
-        coordinates: Optional[dict[str, Optional[tuple[Optional[int], Optional[int]]]]] = None
-        ) -> SolutionBase:
+    solution_original: SolutionBase,
+    components: Optional[str | list[str]] = None,
+    use_total_concentration: Optional[bool] = False,
+    use_total_concentration_components: Optional[bool] = False,
+    coordinates: Optional[
+        dict[str, Optional[tuple[Optional[int], Optional[int]]]]
+    ] = None,
+) -> SolutionBase:
     """
     Slice a `Solution` object along specified dimensions, components or both.
 
@@ -2107,7 +2113,8 @@ def slice_solution(
         component_system = copy.deepcopy(solution.component_system)
         component_indices = []
         for i, (name, component) in enumerate(
-                solution.component_system.components_dict.items()):
+            solution.component_system.components_dict.items()
+        ):
             if name not in components:
                 component_system.remove_component(component.name)
             else:
@@ -2137,12 +2144,12 @@ def slice_solution(
 
 
 def slice_solution_front(
-        solution_original: SolutionIO,
-        min_percent: Optional[float] = 0.02,
-        max_percent: Optional[float] = 0.98,
-        use_max_slope: Optional[bool] = False,
-        return_indices: Optional[bool] = False,
-        ) -> SolutionIO | tuple[SolutionIO, int, int]:
+    solution_original: SolutionIO,
+    min_percent: Optional[float] = 0.02,
+    max_percent: Optional[float] = 0.98,
+    use_max_slope: Optional[bool] = False,
+    return_indices: Optional[bool] = False,
+) -> SolutionIO | tuple[SolutionIO, int, int]:
     """
     Slice the front of a given solution.
 
@@ -2188,7 +2195,8 @@ def slice_solution_front(
     idx_max = np.where(solution_array[:max_index] >= select_max)[0][0]
 
     # Slice the sequence
-    solution.solution[idx_min:idx_max + 1] = solution_original.solution[idx_min:idx_max + 1]
+    solution.solution[idx_min : idx_max + 1] = \
+        solution_original.solution[idx_min : idx_max + 1]
     solution.update_solution()
 
     if not return_indices:

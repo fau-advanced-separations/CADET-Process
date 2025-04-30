@@ -4,11 +4,8 @@ from . import ptc
 
 
 def calculate_buffer_equilibrium(
-        buffer,
-        reaction_system,
-        constant_indices=None,
-        reinit=True,
-        verbose=False):
+    buffer, reaction_system, constant_indices=None, reinit=True, verbose=False
+):
     """Calculate buffer equilibrium for given concentration.
 
     Parameters
@@ -29,6 +26,7 @@ def calculate_buffer_equilibrium(
     sol : list of floats.
         buffer equilbrium concentrations
     """
+
     def residual(c):
         return dydx_mal(
             c,
@@ -49,9 +47,9 @@ def calculate_buffer_equilibrium(
         np.array(buffer.copy()),
         residual,
         jacobian,
-        1e-4,   # init step size
+        1e-4,  # init step size
         1e-14,  # tolerance (scaled l2)
-        quiet=not(verbose),
+        quiet=not (verbose),
         maxIter=10000,
     )
 
@@ -59,7 +57,7 @@ def calculate_buffer_equilibrium(
 
 
 def dydx_mal(c, reaction_system, constant_indices=None, c_init=None):
-    cc = np.asarray(c, dtype='float64')
+    cc = np.asarray(c, dtype="float64")
     if constant_indices is not None:
         if c_init is None:
             c_init = c
@@ -75,11 +73,11 @@ def dydx_mal(c, reaction_system, constant_indices=None, c_init=None):
 
     for r_i in range(reaction_system.n_reactions):
         fwd_indices = np.where(exp_fwd[:, r_i] > 0.0)
-        prod = np.prod(cc[fwd_indices]**exp_fwd[:, r_i][fwd_indices])
+        prod = np.prod(cc[fwd_indices] ** exp_fwd[:, r_i][fwd_indices])
         r_fwd = k_fwd[r_i] * prod
 
         bwd_indices = np.where(exp_bwd[:, r_i] > 0.0)
-        prod = np.prod(cc[bwd_indices]**exp_bwd[:, r_i][bwd_indices])
+        prod = np.prod(cc[bwd_indices] ** exp_bwd[:, r_i][bwd_indices])
         r_bwd = k_bwd[r_i] * prod
 
         r[r_i] = r_fwd - r_bwd
@@ -94,7 +92,7 @@ def dydx_mal(c, reaction_system, constant_indices=None, c_init=None):
 
 
 def jac_mal(c, reaction_system, constant_indices=None, c_init=None):
-    cc = np.asarray(c, dtype='float64')
+    cc = np.asarray(c, dtype="float64")
 
     if constant_indices is not None:
         if c_init is None:
