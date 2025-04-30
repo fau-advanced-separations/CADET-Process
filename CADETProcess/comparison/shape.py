@@ -1,7 +1,7 @@
 import warnings
 
-import numpy as np
 import numba
+import numpy as np
 import scipy
 
 from CADETProcess import CADETProcessError
@@ -99,7 +99,7 @@ def pearsonr_mat(x, Y, times):
             for j in range(x.shape[0]):
                 min_fun += min(x[j], Y[i, j])
 
-            r[i] = min(max(r_num/denominator, -1.0), 1.0) * min_fun
+            r[i] = min(max(r_num / denominator, -1.0), 1.0) * min_fun
     return r
 
 
@@ -133,8 +133,8 @@ def eval_offsets(time, reference_spline, simulation_spline, offsets):
 
 
 def pearson(
-        time, reference_spline, simulation_spline,
-        size=20, nest=50, bounds=2, tol=1e-13):
+    time, reference_spline, simulation_spline, size=20, nest=50, bounds=2, tol=1e-13
+):
     """Find highest correlation between reference and simulation.
 
     The two signals are shifted in time to find the time offset which
@@ -173,19 +173,19 @@ def pearson(
         if i == 0:
             lb = -time[-1]
             ub = time[-1]
-            local_size = min(100+1, int((ub - lb) * 2+1))
+            local_size = min(100 + 1, int((ub - lb) * 2 + 1))
         else:
             idx_max = np.argmax(pearson)
 
             try:
-                lb = offsets[idx_max - bounds]
+                lb = offsets[idx_max - bounds]  # noqa: F821
             except IndexError:
-                lb = offsets[0]
+                lb = offsets[0]  # noqa: F821
 
             try:
-                ub = offsets[idx_max + bounds]
+                ub = offsets[idx_max + bounds]  # noqa: F821
             except IndexError:
-                ub = offsets[-1]
+                ub = offsets[-1]  # noqa: F821
             local_size = size
 
         if ub - lb < tol:
@@ -193,9 +193,7 @@ def pearson(
 
         offsets = np.linspace(lb, ub, local_size)
 
-        pearson = eval_offsets(
-            time, reference_spline, simulation_spline, offsets
-        )
+        pearson = eval_offsets(time, reference_spline, simulation_spline, offsets)
 
         idx_max = np.argmax(pearson)
 
@@ -207,9 +205,7 @@ def pearson(
             expand_ub = expand_ub * 2
             dt = offsets[1] - offsets[0]
             if expand_lb:
-                local_offsets = np.linspace(
-                    offsets[0] - expand_lb * dt, offsets[0] - dt, expand_lb
-                )
+                local_offsets = np.linspace(offsets[0] - expand_lb * dt, offsets[0] - dt, expand_lb)
                 local_pearson = eval_offsets(
                     time, reference_spline, simulation_spline, local_offsets
                 )
@@ -234,8 +230,6 @@ def pearson(
     dt, time_found, goal_found = find_opt_poly(offsets, pearson, idx)
 
     # calculate pearson correlation at the new time
-    score_local = pearson_offset(
-        time, reference_spline, simulation_spline, dt
-    )
+    score_local = pearson_offset(time, reference_spline, simulation_spline, dt)
 
     return score_local, dt

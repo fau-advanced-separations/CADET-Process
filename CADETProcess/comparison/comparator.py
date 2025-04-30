@@ -1,21 +1,19 @@
 import copy
 import functools
 import importlib
-from typing import Optional, NoReturn
+from typing import NoReturn, Optional
 
+import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
-import matplotlib.pyplot as plt
-from matplotlib.figure import Figure
 from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 
-from CADETProcess import CADETProcessError
-from CADETProcess import plotting, SimulationResults
-from CADETProcess.dataStructure import Structure, String
-from CADETProcess.dataStructure import get_nested_value
-from CADETProcess.solution import SolutionBase
+from CADETProcess import CADETProcessError, SimulationResults, plotting
 from CADETProcess.comparison import DifferenceBase
+from CADETProcess.dataStructure import String, Structure, get_nested_value
 from CADETProcess.numerics import round_to_significant_digits
+from CADETProcess.solution import SolutionBase
 
 
 class Comparator(Structure):
@@ -37,9 +35,9 @@ class Comparator(Structure):
     name = String()
 
     def __init__(
-            self,
-            name: Optional[str] = None,
-            ) -> NoReturn:
+        self,
+        name: Optional[str] = None,
+    ) -> NoReturn:
         """
         Initialize a new Comparator instance.
 
@@ -54,11 +52,11 @@ class Comparator(Structure):
         self.solution_paths = {}
 
     def add_reference(
-            self,
-            reference: SolutionBase,
-            update: Optional[bool] = False,
-            smooth: Optional[bool] = False,
-            ) -> NoReturn:
+        self,
+        reference: SolutionBase,
+        update: Optional[bool] = False,
+        smooth: Optional[bool] = False,
+    ) -> NoReturn:
         """
         Add reference to the Comparator.
 
@@ -123,14 +121,10 @@ class Comparator(Structure):
             except AttributeError:
                 metric_labels = [f"{metric}"]
                 if metric.n_metrics > 1:
-                    metric_labels = [
-                        f"{metric}_{i}" for i in range(metric.n_metrics)
-                    ]
+                    metric_labels = [f"{metric}_{i}" for i in range(metric.n_metrics)]
 
             if len(metric_labels) != metric.n_metrics:
-                raise CADETProcessError(
-                    f"Must return {metric.n_labels} labels."
-                )
+                raise CADETProcessError(f"Must return {metric.n_labels} labels.")
 
             labels += metric_labels
 
@@ -138,12 +132,13 @@ class Comparator(Structure):
 
     @functools.wraps(DifferenceBase.__init__)
     def add_difference_metric(
-            self,
-            difference_metric: str,
-            reference: str | SolutionBase,
-            solution_path: str,
-            *args, **kwargs,
-            ) -> DifferenceBase:
+        self,
+        difference_metric: str,
+        reference: str | SolutionBase,
+        solution_path: str,
+        *args,
+        **kwargs,
+    ) -> DifferenceBase:
         """
         Add a difference metric to the Comparator.
 
@@ -170,9 +165,7 @@ class Comparator(Structure):
             If the difference metric or reference is unknown.
         """
         try:
-            module = importlib.import_module(
-                "CADETProcess.comparison.difference"
-            )
+            module = importlib.import_module("CADETProcess.comparison.difference")
             cls_ = getattr(module, difference_metric)
         except KeyError:
             raise CADETProcessError("Unknown Metric Type.")
@@ -194,10 +187,8 @@ class Comparator(Structure):
         return metric
 
     def extract_solution(
-            self,
-            simulation_results: SimulationResults,
-            metric: DifferenceBase
-            ) -> SolutionBase:
+        self, simulation_results: SimulationResults, metric: DifferenceBase
+    ) -> SolutionBase:
         """
         Extract the solution for a given metric from the SimulationResults object.
 
@@ -220,9 +211,7 @@ class Comparator(Structure):
         """
         try:
             solution_path = self.solution_paths[metric]
-            solution = get_nested_value(
-                simulation_results.solution_cycles, solution_path
-            )[-1]
+            solution = get_nested_value(simulation_results.solution_cycles, solution_path)[-1]
         except KeyError:
             raise CADETProcessError("Could not find solution path")
 
@@ -255,9 +244,9 @@ class Comparator(Structure):
     __call__ = evaluate
 
     def setup_comparison_figure(
-            self,
-            plot_individual: Optional[bool] = False,
-            ) -> tuple[list[Figure], npt.NDArray[Axes]]:
+        self,
+        plot_individual: Optional[bool] = False,
+    ) -> tuple[list[Figure], npt.NDArray[Axes]]:
         """
         Set up a figure for comparing simulation results.
 
@@ -279,8 +268,7 @@ class Comparator(Structure):
             return (None, None)
 
         comparison_fig_all, comparison_axs_all = plotting.setup_figure(
-            n_rows=self.n_difference_metrics,
-            squeeze=False
+            n_rows=self.n_difference_metrics, squeeze=False
         )
 
         plt.close(comparison_fig_all)
@@ -294,8 +282,7 @@ class Comparator(Structure):
             comparison_axs_ind.append(axs)
             plt.close(fig)
 
-        comparison_axs_ind = \
-            np.array(comparison_axs_ind).reshape(comparison_axs_all.shape)
+        comparison_axs_ind = np.array(comparison_axs_ind).reshape(comparison_axs_all.shape)
 
         if plot_individual:
             return comparison_fig_ind, comparison_axs_ind
@@ -303,15 +290,15 @@ class Comparator(Structure):
             return comparison_fig_all, comparison_axs_all
 
     def plot_comparison(
-            self,
-            simulation_results: SimulationResults,
-            axs: Optional[Axes | list[Axes]] = None,
-            figs: Optional[Figure | list[Figure]] = None,
-            file_name: Optional[str] = None,
-            show: Optional[bool] = True,
-            plot_individual: Optional[bool] = False,
-            x_axis_in_minutes: Optional[bool] = True,
-            ) -> tuple[list[Figure], npt.NDArray[plt.Axes]]:
+        self,
+        simulation_results: SimulationResults,
+        axs: Optional[Axes | list[Axes]] = None,
+        figs: Optional[Figure | list[Figure]] = None,
+        file_name: Optional[str] = None,
+        show: Optional[bool] = True,
+        plot_individual: Optional[bool] = False,
+        x_axis_in_minutes: Optional[bool] = True,
+    ) -> tuple[list[Figure], npt.NDArray[plt.Axes]]:
         """
         Plot the comparison of the simulation results with the reference data.
 
@@ -349,9 +336,7 @@ class Comparator(Structure):
             solution = self.extract_solution(simulation_results, metric)
             solution_sliced = metric.slice_and_transform(solution)
 
-            y_max = 1.1 * max(
-                np.max(solution_sliced.solution), np.max(metric.reference.solution)
-            )
+            y_max = 1.1 * max(np.max(solution_sliced.solution), np.max(metric.reference.solution))
 
             fig, ax = solution_sliced.plot(
                 ax=ax,

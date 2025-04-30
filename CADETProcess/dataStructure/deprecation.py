@@ -1,7 +1,6 @@
-from typing import Any, Callable, Dict
 import functools
 import warnings
-
+from typing import Any, Callable, Dict
 
 __all__ = ["deprecated_alias", "rename_kwargs"]
 
@@ -25,6 +24,7 @@ def deprecated_alias(**aliases: str) -> Callable:
     def example_function(new_name):
          return new_name
     """
+
     # Decorator function: takes the f and returns a f with the new argument names
     def decorator(f: Callable):
         @functools.wraps(f)
@@ -71,8 +71,7 @@ def rename_kwargs(func_name: str, kwargs: Dict[str, Any], aliases: Dict[str, str
                 )
             warnings.warn(
                 message=(
-                    f"`{alias}` is deprecated as an argument to `{func_name}`; use"
-                    f" `{new}` instead."
+                    f"`{alias}` is deprecated as an argument to `{func_name}`; use `{new}` instead."
                 ),
                 category=DeprecationWarning,
                 stacklevel=2,

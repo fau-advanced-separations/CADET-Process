@@ -20,14 +20,13 @@ import multiprocessing
 
 import numpy as np
 import scipy.signal
-
-from pymoo.core.problem import ElementwiseProblem
 from pymoo.algorithms.soo.nonconvex.pattern import PatternSearch
+from pymoo.core.problem import ElementwiseProblem
 from pymoo.optimize import minimize
 
 butter_order = 3
 
-__all__ = ['find_smoothing_factors', 'full_smooth']
+__all__ = ["find_smoothing_factors", "full_smooth"]
 
 
 class TargetProblem(ElementwiseProblem):
@@ -45,7 +44,7 @@ class TargetProblem(ElementwiseProblem):
             low_passed = scipy.signal.sosfiltfilt(sos, self.values)
             sse = np.sum((low_passed - self.values) ** 2)
 
-            error = (sse - self.sse_target)**2
+            error = (sse - self.sse_target) ** 2
         except (ValueError, np.linalg.LinAlgError):
             error = np.inf
         out["F"] = error
@@ -68,20 +67,22 @@ class MaxDistance(ElementwiseProblem):
         try:
             sos = self.func(crit_fs, self.fs)
         except ValueError:
-            out['F'] = 1e6
+            out["F"] = 1e6
             return
 
         try:
             low_passed = scipy.signal.sosfiltfilt(sos, self.values)
         except np.linalg.LinAlgError:
-            out['F'] = 1e6
+            out["F"] = 1e6
             return
 
         sse = np.sum((low_passed - self.values) ** 2)
 
         pT = np.array([crit_fs - self.x_min, np.log(sse) - self.y_min]).T / self.factor
 
-        d = np.cross(self.p2 - self.p1, self.p1 - pT) / np.linalg.norm(self.p2 - self.p1)
+        d = np.cross(self.p2 - self.p1, self.p1 - pT) / np.linalg.norm(
+            self.p2 - self.p1
+        )
         out["F"] = -d
 
 
@@ -108,15 +109,19 @@ def get_p(x, y):
 
 def signal_bessel(crit_fs, fs):
     return scipy.signal.bessel(
-        butter_order, crit_fs, btype="lowpass", analog=False, fs=fs,
-        output="sos", norm="delay"
+        butter_order,
+        crit_fs,
+        btype="lowpass",
+        analog=False,
+        fs=fs,
+        output="sos",
+        norm="delay",
     )
 
 
 def signal_butter(crit_fs, fs):
     return scipy.signal.butter(
-        butter_order, crit_fs, btype="lowpass", analog=False, fs=fs,
-        output="sos"
+        butter_order, crit_fs, btype="lowpass", analog=False, fs=fs, output="sos"
     )
 
 
@@ -126,20 +131,13 @@ def refine_signal(func, times, values, x, y, fs, start):
     lb = np.log10(x[0])
     ub = np.log10(x[-1])
 
-    problem = MaxDistance(
-        lb, ub, func, fs, values, x_min, y_min, p1, p2, factor
-    )
+    problem = MaxDistance(lb, ub, func, fs, values, x_min, y_min, p1, p2, factor)
 
     algorithm = PatternSearch(n_sample_points=50, eps=1e-13)
 
-    res = minimize(
-        problem,
-        algorithm,
-        verbose=False,
-        seed=1
-    )
+    res = minimize(problem, algorithm, verbose=False, seed=1)
 
-    crit_fs = 10**res.X[0]
+    crit_fs = 10 ** res.X[0]
 
     return crit_fs
 
@@ -180,16 +178,12 @@ def find_signal(func, times, values, sse_target):
         except (ValueError, np.linalg.LinAlgError):
             continue
 
-    crit_fs_max = find_max_signal(
-        func, times, values, sse_target, filters, sse
-    )
+    crit_fs_max = find_max_signal(func, times, values, sse_target, filters, sse)
 
     L_x, L_y = find_L(filters, np.log(sse))
 
     if L_x is not None:
-        L_x = refine_signal(
-            func, times, values, filters, np.log(sse), fs, L_x
-        )
+        L_x = refine_signal(func, times, values, filters, np.log(sse), fs, L_x)
 
     if L_x is not None and crit_fs_max < L_x:
         L_x = crit_fs_max
@@ -201,20 +195,13 @@ def find_max_signal(func, times, values, sse_target, filters, sse):
     fs = 1.0 / (times[1] - times[0])
 
     filters = np.log10(filters)
-    problem = TargetProblem(
-        filters[0], filters[-1], sse_target, func, values, fs
-    )
+    problem = TargetProblem(filters[0], filters[-1], sse_target, func, values, fs)
 
     algorithm = PatternSearch(n_sample_points=50, eps=1e-13)
 
-    res = minimize(
-        problem,
-        algorithm,
-        verbose=False,
-        seed=1
-    )
+    res = minimize(problem, algorithm, verbose=False, seed=1)
 
-    crit_fs = 10**res.X[0]
+    crit_fs = 10 ** res.X[0]
 
     return crit_fs
 
@@ -229,7 +216,7 @@ def smoothing_filter_signal(func, times, values, crit_fs):
 
 
 def find_smoothing_factors(times, values, rmse_target=1e-4):
-    sse_target = (rmse_target**2.0)*len(values)
+    sse_target = (rmse_target**2.0) * len(values)
 
     try:
         crit_fs = find_signal(signal_bessel, times, values, sse_target)
@@ -241,9 +228,7 @@ def find_smoothing_factors(times, values, rmse_target=1e-4):
             "butter filter disabled, no viable L point found"
         )
 
-    values_filter = smoothing_filter_signal(
-        signal_bessel, times, values, crit_fs
-    )
+    values_filter = smoothing_filter_signal(signal_bessel, times, values, crit_fs)
 
     s = sse_target
 
@@ -252,7 +237,7 @@ def find_smoothing_factors(times, values, rmse_target=1e-4):
     # run a quick butter pass to remove high frequency noise in the derivative
     # (needed for some experimental data)
     values_filter = spline.derivative()(times) / factor
-    factor = 1.0/np.max(values_filter)
+    factor = 1.0 / np.max(values_filter)
     values_filter = values_filter * factor
     crit_fs_der = find_signal(signal_bessel, times, values_filter, sse_target)
 
@@ -262,14 +247,10 @@ def find_smoothing_factors(times, values, rmse_target=1e-4):
 def create_spline(times, values, crit_fs, s):
     factor = 1.0 / np.max(values)
     values = values * factor
-    values_filter = smoothing_filter_signal(
-        signal_bessel, times, values, crit_fs
-    )
+    values_filter = smoothing_filter_signal(signal_bessel, times, values, crit_fs)
 
     return (
-        scipy.interpolate.UnivariateSpline(
-            times, values_filter, s=s, k=5, ext=3
-        ),
+        scipy.interpolate.UnivariateSpline(times, values_filter, s=s, k=5, ext=3),
         factor,
     )
 
@@ -280,18 +261,15 @@ def smooth_data(times, values, crit_fs, s):
     return spline(times) / factor
 
 
-def smooth_data_derivative(
-        times, values, crit_fs, s, crit_fs_der, smooth=True):
+def smooth_data_derivative(times, values, crit_fs, s, crit_fs_der, smooth=True):
     spline, factor = create_spline(times, values, crit_fs, s)
 
     if smooth:
         values_filter_der = spline.derivative()(times) / factor
 
-        factor_der = 1.0/np.max(values_filter_der)
+        factor_der = 1.0 / np.max(values_filter_der)
         values_filter_der = values_filter_der * factor_der
-        values_filter_der = butter(
-            times, values_filter_der, crit_fs_der
-        )
+        values_filter_der = butter(times, values_filter_der, crit_fs_der)
         values_filter_der = values_filter_der / factor_der
         spline_der = scipy.interpolate.InterpolatedUnivariateSpline(
             times, values_filter_der, k=5, ext=3
@@ -314,11 +292,9 @@ def full_smooth(times, values, crit_fs, s, crit_fs_der, smooth=True):
     if smooth:
         values_filter_der = spline.derivative()(times) / factor
 
-        factor_der = 1.0/np.max(values_filter_der)
+        factor_der = 1.0 / np.max(values_filter_der)
         values_filter_der = values_filter_der * factor_der
-        values_filter_der = butter(
-            times, values_filter_der, crit_fs_der
-        )
+        values_filter_der = butter(times, values_filter_der, crit_fs_der)
         values_filter_der = values_filter_der / factor_der
         spline_der = scipy.interpolate.InterpolatedUnivariateSpline(
             times, values_filter_der, k=5, ext=3
@@ -330,7 +306,6 @@ def full_smooth(times, values, crit_fs, s, crit_fs_der, smooth=True):
 
 
 def butter(times, values, crit_fs_der):
-    values_filter = \
-        smoothing_filter_signal(signal_bessel, times, values, crit_fs_der)
+    values_filter = smoothing_filter_signal(signal_bessel, times, values, crit_fs_der)
 
     return values_filter

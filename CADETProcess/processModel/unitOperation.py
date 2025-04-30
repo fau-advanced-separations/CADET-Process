@@ -1,52 +1,62 @@
-from abc import abstractmethod
 import math
 import warnings
+from abc import abstractmethod
 
 import numpy as np
 
 from CADETProcess import CADETProcessError
-
-from CADETProcess.dataStructure import frozen_attributes
-from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import (
-    Constant, UnsignedFloat, UnsignedInteger,
-    String, Switch,
+    Constant,
+    NdPolynomial,
+    Polynomial,
+    SizedFloatList,
+    SizedNdArray,
     SizedUnsignedList,
-    Polynomial, NdPolynomial, SizedFloatList, SizedNdArray
+    String,
+    Structure,
+    Switch,
+    UnsignedFloat,
+    frozen_attributes,
 )
 
-from .componentSystem import ComponentSystem
 from .binding import BindingBaseClass, NoBinding
-from .reaction import BulkReactionBase, ParticleReactionBase, NoReaction
+from .componentSystem import ComponentSystem
 from .discretization import (
-    DiscretizationParametersBase, NoDiscretization,
-    LRMDiscretizationFV, LRMDiscretizationDG,
-    LRMPDiscretizationFV, LRMPDiscretizationDG,
-    GRMDiscretizationFV, GRMDiscretizationDG,
+    DiscretizationParametersBase,
+    GRMDiscretizationDG,
+    GRMDiscretizationFV,
+    LRMDiscretizationDG,
+    LRMDiscretizationFV,
+    LRMPDiscretizationDG,
+    LRMPDiscretizationFV,
     MCTDiscretizationFV,
+    NoDiscretization,
 )
-
+from .reaction import BulkReactionBase, NoReaction, ParticleReactionBase
 from .solutionRecorder import (
+    CSTRRecorder,
+    GRMRecorder,
     IORecorder,
-    TubularReactorRecorder, LRMRecorder, LRMPRecorder, GRMRecorder, CSTRRecorder,
+    LRMPRecorder,
+    LRMRecorder,
     MCTRecorder,
+    TubularReactorRecorder,
 )
-
 
 __all__ = [
-    'UnitBaseClass',
-    'SourceMixin',
-    'SinkMixin',
-    'Inlet',
-    'Outlet',
-    'Cstr',
-    'TubularReactorBase',
-    'TubularReactor',
-    'ChromatographicColumnBase',
-    'LumpedRateModelWithoutPores',
-    'LumpedRateModelWithPores',
-    'GeneralRateModel',
-    'MCT'
+    "UnitBaseClass",
+    "SourceMixin",
+    "SinkMixin",
+    "Inlet",
+    "Outlet",
+    "Cstr",
+    "TubularReactorBase",
+    "TubularReactor",
+    "ChromatographicColumnBase",
+    "LumpedRateModelWithoutPores",
+    "LumpedRateModelWithPores",
+    "GeneralRateModel",
+    "MCT",
 ]
 
 
@@ -94,17 +104,17 @@ class UnitBaseClass(Structure):
     discretization_schemes = ()
 
     def __init__(
-            self,
-            component_system,
-            name,
-            *args,
-            binding_model=None,
-            bulk_reaction_model=None,
-            particle_reaction_model=None,
-            discretization=None,
-            solution_recorder=None,
-            **kwargs
-            ):
+        self,
+        component_system,
+        name,
+        *args,
+        binding_model=None,
+        bulk_reaction_model=None,
+        particle_reaction_model=None,
+        discretization=None,
+        solution_recorder=None,
+        **kwargs,
+    ):
         self.name = name
         self.component_system = component_system
 
@@ -141,7 +151,7 @@ class UnitBaseClass(Structure):
     @component_system.setter
     def component_system(self, component_system):
         if not isinstance(component_system, ComponentSystem):
-            raise TypeError('Expected ComponentSystem')
+            raise TypeError("Expected ComponentSystem")
         self._component_system = component_system
 
     @property
@@ -151,12 +161,12 @@ class UnitBaseClass(Structure):
     @discretization.setter
     def discretization(self, discretization):
         if not isinstance(discretization, DiscretizationParametersBase):
-            raise TypeError('Expected DiscretizationParametersBase')
+            raise TypeError("Expected DiscretizationParametersBase")
 
         if not isinstance(discretization, NoDiscretization):
             if not isinstance(discretization, self.discretization_schemes):
                 raise CADETProcessError(
-                    f'Unit does not support {type(discretization)}.'
+                    f"Unit does not support {type(discretization)}."
                 )
 
         self._discretization = discretization
@@ -179,38 +189,35 @@ class UnitBaseClass(Structure):
         parameters = super().parameters
 
         if not isinstance(self.binding_model, NoBinding):
-            parameters['binding_model'] = self.binding_model.parameters
+            parameters["binding_model"] = self.binding_model.parameters
         if not isinstance(self.bulk_reaction_model, NoReaction):
-            parameters['bulk_reaction_model'] = self.bulk_reaction_model.parameters
+            parameters["bulk_reaction_model"] = self.bulk_reaction_model.parameters
         if not isinstance(self.particle_reaction_model, NoReaction):
             parameters['particle_reaction_model'] = \
                 self.particle_reaction_model.parameters
         if not isinstance(self.discretization, NoDiscretization):
-            parameters['discretization'] = \
-                self.discretization.parameters
+            parameters["discretization"] = self.discretization.parameters
 
         return parameters
 
     @parameters.setter
     def parameters(self, parameters):
         try:
-            self.binding_model.parameters = parameters.pop('binding_model')
+            self.binding_model.parameters = parameters.pop("binding_model")
         except KeyError:
             pass
         try:
-            self.bulk_reaction_model.parameters = parameters.pop(
-                'bulk_reaction_model'
-            )
+            self.bulk_reaction_model.parameters = parameters.pop("bulk_reaction_model")
         except KeyError:
             pass
         try:
             self.particle_reaction_model.parameters = parameters.pop(
-                'particle_reaction_model'
+                "particle_reaction_model"
             )
         except KeyError:
             pass
         try:
-            self.discretization.parameters = parameters.pop('discretization')
+            self.discretization.parameters = parameters.pop("discretization")
         except KeyError:
             pass
 
@@ -219,15 +226,15 @@ class UnitBaseClass(Structure):
     @property
     def section_dependent_parameters(self):
         parameters = {
-            key: value for key, value in self.parameters.items()
+            key: value
+            for key, value in self.parameters.items()
             if key in self._section_dependent_parameters
         }
         return parameters
 
     @property
     def initial_state(self):
-        """dict: Dictionary with initial states.
-        """
+        """dict: Dictionary with initial states."""
         initial_state = {st: getattr(self, st) for st in self._initial_state}
 
         return initial_state
@@ -236,7 +243,7 @@ class UnitBaseClass(Structure):
     def initial_state(self, initial_state):
         for st, value in initial_state.items():
             if st not in self._initial_state:
-                raise CADETProcessError('Not a valid parameter')
+                raise CADETProcessError("Not a valid parameter")
             if value is not None:
                 setattr(self, st, value)
 
@@ -245,7 +252,7 @@ class UnitBaseClass(Structure):
         missing_parameters = super().missing_parameters
 
         missing_parameters += [
-            f'binding_model.{param}' for param in self.binding_model.missing_parameters
+            f"binding_model.{param}" for param in self.binding_model.missing_parameters
         ]
 
         return missing_parameters
@@ -275,15 +282,17 @@ class UnitBaseClass(Structure):
     @binding_model.setter
     def binding_model(self, binding_model):
         if not isinstance(binding_model, BindingBaseClass):
-            raise TypeError('Expected BindingBaseClass')
+            raise TypeError("Expected BindingBaseClass")
 
         if not isinstance(binding_model, NoBinding):
             if not self.supports_binding:
-                raise CADETProcessError('Unit does not support binding models.')
+                raise CADETProcessError("Unit does not support binding models.")
 
-            if binding_model.component_system is not self.component_system \
-                    and not isinstance(binding_model, NoBinding):
-                raise CADETProcessError('Component systems do not match.')
+            if (
+                binding_model.component_system is not self.component_system
+                and not isinstance(binding_model, NoBinding)
+            ):
+                raise CADETProcessError("Component systems do not match.")
 
         self._binding_model = binding_model
 
@@ -312,15 +321,12 @@ class UnitBaseClass(Structure):
     def bulk_reaction_model(self, bulk_reaction_model):
         if not isinstance(bulk_reaction_model, NoReaction):
             if not isinstance(bulk_reaction_model, BulkReactionBase):
-                raise TypeError('Expected BulkReactionBase')
+                raise TypeError("Expected BulkReactionBase")
 
             if not self.supports_bulk_reaction:
-                raise CADETProcessError(
-                    'Unit does not support bulk reactions.'
-                )
-            if bulk_reaction_model.component_system \
-                    is not self.component_system:
-                raise CADETProcessError('Component systems do not match.')
+                raise CADETProcessError("Unit does not support bulk reactions.")
+            if bulk_reaction_model.component_system is not self.component_system:
+                raise CADETProcessError("Component systems do not match.")
 
         self._bulk_reaction_model = bulk_reaction_model
 
@@ -353,23 +359,18 @@ class UnitBaseClass(Structure):
 
         if not isinstance(particle_reaction_model, NoReaction):
             if not isinstance(particle_reaction_model, ParticleReactionBase):
-                raise TypeError('Expected ReactionBaseClass')
+                raise TypeError("Expected ReactionBaseClass")
 
             if not self.supports_particle_reaction:
-                raise CADETProcessError(
-                    'Unit does not support particle reactions.'
-                )
-            if particle_reaction_model.component_system \
-                    is not self.component_system:
-                raise CADETProcessError('Component systems do not match.')
+                raise CADETProcessError("Unit does not support particle reactions.")
+            if particle_reaction_model.component_system is not self.component_system:
+                raise CADETProcessError("Component systems do not match.")
 
         self._particle_reaction_model = particle_reaction_model
 
     def __repr__(self):
         """str: String-representation of the object."""
-        return \
-            f'{self.__class__.__name__}' \
-            f'(n_comp={self.n_comp}, name={self.name})'
+        return f"{self.__class__.__name__}(n_comp={self.n_comp}, name={self.name})"
 
     def __str__(self):
         """str: String-representation of the object."""
@@ -385,13 +386,14 @@ class SourceMixin(Structure):
     Inlet
     Cstr
     """
+
     _n_poly_coeffs = 4
-    flow_rate = Polynomial(size=('_n_poly_coeffs'))
-    _parameters = ['flow_rate']
-    _section_dependent_parameters = ['flow_rate']
+    flow_rate = Polynomial(size=("_n_poly_coeffs"))
+    _parameters = ["flow_rate"]
+    _section_dependent_parameters = ["flow_rate"]
 
 
-class SinkMixin():
+class SinkMixin:
     """Mixin class for Units that have Sink-like behavior.
 
     See Also
@@ -416,14 +418,15 @@ class Inlet(UnitBaseClass, SourceMixin):
         Solution recorder for the unit operation.
     """
 
-    c = NdPolynomial(size=('n_comp', '_n_poly_coeffs'), default=0)
-    flow_rate = Polynomial(size=('_n_poly_coeffs'), default=0)
+    c = NdPolynomial(size=("n_comp", "_n_poly_coeffs"), default=0)
+    flow_rate = Polynomial(size=("_n_poly_coeffs"), default=0)
     _n_poly_coeffs = 4
-    _parameters = ['c']
-    _section_dependent_parameters = \
-        UnitBaseClass._section_dependent_parameters + \
-        SourceMixin._section_dependent_parameters + \
-        ['c']
+    _parameters = ["c"]
+    _section_dependent_parameters = (
+        UnitBaseClass._section_dependent_parameters
+        + SourceMixin._section_dependent_parameters
+        + ["c"]
+    )
 
 
 class Outlet(UnitBaseClass, SinkMixin):
@@ -473,16 +476,21 @@ class TubularReactorBase(UnitBaseClass):
 
     length = UnsignedFloat()
     diameter = UnsignedFloat()
-    axial_dispersion = SizedUnsignedList(size='n_comp')
+    axial_dispersion = SizedUnsignedList(size="n_comp")
     flow_direction = Switch(valid=[-1, 1], default=1)
-    c = SizedFloatList(size='n_comp', default=0)
+    c = SizedFloatList(size="n_comp", default=0)
 
-    _initial_state = UnitBaseClass._initial_state + ['c']
-    _parameters = ['length', 'diameter', 'axial_dispersion', 'flow_direction'] \
-        + _initial_state
-    _section_dependent_parameters = \
-        UnitBaseClass._section_dependent_parameters + \
-        ['axial_dispersion', 'flow_direction']
+    _initial_state = UnitBaseClass._initial_state + ["c"]
+    _parameters = [
+        "length",
+        "diameter",
+        "axial_dispersion",
+        "flow_direction",
+    ] + _initial_state
+    _section_dependent_parameters = UnitBaseClass._section_dependent_parameters + [
+        "axial_dispersion",
+        "flow_direction",
+    ]
 
     @property
     @abstractmethod
@@ -500,11 +508,11 @@ class TubularReactorBase(UnitBaseClass):
 
         """
         if self.diameter is not None:
-            return math.pi/4 * self.diameter**2
+            return math.pi / 4 * self.diameter**2
 
     @cross_section_area.setter
     def cross_section_area(self, cross_section_area):
-        self.diameter = (4*cross_section_area/math.pi)**0.5
+        self.diameter = (4 * cross_section_area / math.pi) ** 0.5
 
     def set_diameter_from_interstitial_velocity(self, Q, u0):
         """Set diamter from flow rate and interstitial velocity.
@@ -526,7 +534,7 @@ class TubularReactorBase(UnitBaseClass):
             Needs to be overwritten depending on the model porosities!
 
         """
-        self.cross_section_area = Q/(u0*self.total_porosity)
+        self.cross_section_area = Q / (u0 * self.total_porosity)
 
     @property
     def cross_section_area_interstitial(self):
@@ -636,7 +644,7 @@ class TubularReactorBase(UnitBaseClass):
         calculate_superficial_velocity
 
         """
-        return self.length/self.calculate_interstitial_rt(flow_rate)
+        return self.length / self.calculate_interstitial_rt(flow_rate)
 
     def calculate_superficial_velocity(self, flow_rate):
         """Calculate superficial flow velocity of a volume element in an empty column.
@@ -774,23 +782,24 @@ class TubularReactor(TubularReactorBase):
         Solution recorder for the unit operation.
 
     """
+
     supports_bulk_reaction = True
     discretization_schemes = (LRMDiscretizationFV, LRMDiscretizationDG)
 
     total_porosity = Constant(1)
 
-    def __init__(self, *args, discretization_scheme='FV', **kwargs):
-        if discretization_scheme == 'FV':
+    def __init__(self, *args, discretization_scheme="FV", **kwargs):
+        if discretization_scheme == "FV":
             discretization = LRMDiscretizationFV()
-        elif discretization_scheme == 'DG':
+        elif discretization_scheme == "DG":
             discretization = LRMDiscretizationDG()
 
         super().__init__(
             *args,
             discretization=discretization,
             solution_recorder=TubularReactorRecorder(),
-            **kwargs
-            )
+            **kwargs,
+        )
 
 
 class ChromatographicColumnBase(TubularReactorBase):
@@ -818,25 +827,26 @@ class LumpedRateModelWithoutPores(ChromatographicColumnBase):
     reactions in the solid phase and cross-phase reactions.
 
     """
+
     supports_binding = True
     supports_bulk_reaction = False
     supports_particle_reaction = True
     discretization_schemes = (LRMDiscretizationFV, LRMDiscretizationDG)
 
     total_porosity = UnsignedFloat(ub=1)
-    _parameters = ['total_porosity']
+    _parameters = ["total_porosity"]
 
-    _q = SizedUnsignedList(size='n_bound_states', default=0)
+    _q = SizedUnsignedList(size="n_bound_states", default=0)
 
-    _initial_state = ChromatographicColumnBase._initial_state + ['q']
+    _initial_state = ChromatographicColumnBase._initial_state + ["q"]
     _parameters = _parameters + _initial_state
 
-    def __init__(self, *args, discretization_scheme='FV', **kwargs):
+    def __init__(self, *args, discretization_scheme="FV", **kwargs):
         super().__init__(*args, **kwargs)
 
-        if discretization_scheme == 'FV':
+        if discretization_scheme == "FV":
             self.discretization = LRMDiscretizationFV()
-        elif discretization_scheme == 'DG':
+        elif discretization_scheme == "DG":
             self.discretization = LRMDiscretizationDG()
 
         self.solution_recorder = LRMRecorder()
@@ -851,7 +861,7 @@ class LumpedRateModelWithoutPores(ChromatographicColumnBase):
             raise CADETProcessError("Cannot set q without binding model.")
         self._q = q
 
-        self.parameters['q'] = self._q
+        self.parameters["q"] = self._q
 
 
 class LumpedRateModelWithPores(ChromatographicColumnBase):
@@ -887,32 +897,33 @@ class LumpedRateModelWithPores(ChromatographicColumnBase):
     bed_porosity = UnsignedFloat(ub=1)
     particle_porosity = UnsignedFloat(ub=1)
     particle_radius = UnsignedFloat()
-    film_diffusion = SizedUnsignedList(size='n_comp')
-    pore_accessibility = SizedUnsignedList(ub=1, size='n_comp', default=1)
+    film_diffusion = SizedUnsignedList(size="n_comp")
+    pore_accessibility = SizedUnsignedList(ub=1, size="n_comp", default=1)
     _parameters = [
-        'bed_porosity',
-        'particle_porosity',
-        'particle_radius',
-        'film_diffusion',
-        'pore_accessibility',
+        "bed_porosity",
+        "particle_porosity",
+        "particle_radius",
+        "film_diffusion",
+        "pore_accessibility",
     ]
 
-    _section_dependent_parameters = \
-        TubularReactorBase._section_dependent_parameters + \
-        ['film_diffusion', 'pore_accessibility']
+    _section_dependent_parameters = TubularReactorBase._section_dependent_parameters + [
+        "film_diffusion",
+        "pore_accessibility",
+    ]
 
-    _cp = SizedUnsignedList(size='n_comp')
-    _q = SizedUnsignedList(size='n_bound_states', default=0)
+    _cp = SizedUnsignedList(size="n_comp")
+    _q = SizedUnsignedList(size="n_bound_states", default=0)
 
-    _initial_state = ChromatographicColumnBase._initial_state + ['cp', 'q']
+    _initial_state = ChromatographicColumnBase._initial_state + ["cp", "q"]
     _parameters = _parameters + _initial_state
 
-    def __init__(self, *args, discretization_scheme='FV', **kwargs):
+    def __init__(self, *args, discretization_scheme="FV", **kwargs):
         super().__init__(*args, **kwargs)
 
-        if discretization_scheme == 'FV':
+        if discretization_scheme == "FV":
             self.discretization = LRMPDiscretizationFV()
-        elif discretization_scheme == 'DG':
+        elif discretization_scheme == "DG":
             self.discretization = LRMPDiscretizationDG()
 
         self.solution_recorder = LRMPRecorder()
@@ -920,8 +931,7 @@ class LumpedRateModelWithPores(ChromatographicColumnBase):
     @property
     def total_porosity(self):
         """float: Total porosity of the column."""
-        return self.bed_porosity + \
-            (1 - self.bed_porosity) * self.particle_porosity
+        return self.bed_porosity + (1 - self.bed_porosity) * self.particle_porosity
 
     @property
     def cross_section_area_interstitial(self):
@@ -953,7 +963,7 @@ class LumpedRateModelWithPores(ChromatographicColumnBase):
             Overwrites parent method.
 
         """
-        self.cross_section_area = Q/(u0*self.bed_porosity)
+        self.cross_section_area = Q / (u0 * self.bed_porosity)
 
     @property
     def cp(self):
@@ -966,7 +976,7 @@ class LumpedRateModelWithPores(ChromatographicColumnBase):
     def cp(self, cp):
         self._cp = cp
 
-        self.parameters['cp'] = cp
+        self.parameters["cp"] = cp
 
     @property
     def q(self):
@@ -978,7 +988,7 @@ class LumpedRateModelWithPores(ChromatographicColumnBase):
             raise CADETProcessError("Cannot set q without binding model.")
         self._q = q
 
-        self.parameters['q'] = q
+        self.parameters["q"] = q
 
 
 class GeneralRateModel(ChromatographicColumnBase):
@@ -1010,6 +1020,7 @@ class GeneralRateModel(ChromatographicColumnBase):
         Solution recorder for the unit operation.
 
     """
+
     supports_binding = True
     supports_bulk_reaction = True
     supports_particle_reaction = True
@@ -1018,41 +1029,46 @@ class GeneralRateModel(ChromatographicColumnBase):
     bed_porosity = UnsignedFloat(ub=1)
     particle_porosity = UnsignedFloat(ub=1)
     particle_radius = UnsignedFloat()
-    film_diffusion = SizedUnsignedList(size='n_comp')
-    pore_accessibility = SizedUnsignedList(ub=1, size='n_comp', default=1)
-    pore_diffusion = SizedUnsignedList(size='n_comp')
-    _surface_diffusion = SizedUnsignedList(size='n_bound_states')
+    film_diffusion = SizedUnsignedList(size="n_comp")
+    pore_accessibility = SizedUnsignedList(ub=1, size="n_comp", default=1)
+    pore_diffusion = SizedUnsignedList(size="n_comp")
+    _surface_diffusion = SizedUnsignedList(size="n_bound_states")
     _parameters = [
-        'bed_porosity', 'particle_porosity', 'particle_radius',
-        'film_diffusion', 'pore_accessibility',
-        'pore_diffusion', 'surface_diffusion'
+        "bed_porosity",
+        "particle_porosity",
+        "particle_radius",
+        "film_diffusion",
+        "pore_accessibility",
+        "pore_diffusion",
+        "surface_diffusion",
     ]
-    _section_dependent_parameters = \
-        TubularReactorBase._section_dependent_parameters + \
-        ['film_diffusion', 'pore_accessibility', 'pore_diffusion', 'surface_diffusion']
+    _section_dependent_parameters = TubularReactorBase._section_dependent_parameters + [
+        "film_diffusion",
+        "pore_accessibility",
+        "pore_diffusion",
+        "surface_diffusion",
+    ]
 
-    _cp = SizedUnsignedList(size='n_comp')
-    _q = SizedUnsignedList(size='n_bound_states', default=0)
+    _cp = SizedUnsignedList(size="n_comp")
+    _q = SizedUnsignedList(size="n_bound_states", default=0)
 
-    _initial_state = ChromatographicColumnBase._initial_state + ['cp', 'q']
+    _initial_state = ChromatographicColumnBase._initial_state + ["cp", "q"]
     _parameters = _parameters + _initial_state
 
-    def __init__(self, *args, discretization_scheme='FV', **kwargs):
+    def __init__(self, *args, discretization_scheme="FV", **kwargs):
         super().__init__(*args, **kwargs)
 
-        if discretization_scheme == 'FV':
+        if discretization_scheme == "FV":
             self.discretization = GRMDiscretizationFV()
-        elif discretization_scheme == 'DG':
+        elif discretization_scheme == "DG":
             self.discretization = GRMDiscretizationDG()
 
         self.solution_recorder = GRMRecorder()
 
     @property
     def total_porosity(self):
-        """float: Total porosity of the column
-        """
-        return self.bed_porosity + \
-            (1 - self.bed_porosity) * self.particle_porosity
+        """float: Total porosity of the column"""
+        return self.bed_porosity + (1 - self.bed_porosity) * self.particle_porosity
 
     @property
     def cross_section_area_interstitial(self):
@@ -1085,7 +1101,7 @@ class GeneralRateModel(ChromatographicColumnBase):
             Overwrites parent method.
 
         """
-        self.cross_section_area = Q/(u0*self.bed_porosity)
+        self.cross_section_area = Q / (u0 * self.bed_porosity)
 
     @property
     def cp(self):
@@ -1098,7 +1114,7 @@ class GeneralRateModel(ChromatographicColumnBase):
     def cp(self, cp):
         self._cp = cp
 
-        self.parameters['cp'] = cp
+        self.parameters["cp"] = cp
 
     @property
     def q(self):
@@ -1110,7 +1126,7 @@ class GeneralRateModel(ChromatographicColumnBase):
             raise CADETProcessError("Cannot set q without binding model.")
         self._q = q
 
-        self.parameters['q'] = q
+        self.parameters["q"] = q
 
     @property
     def surface_diffusion(self):
@@ -1124,7 +1140,7 @@ class GeneralRateModel(ChromatographicColumnBase):
             )
         self._surface_diffusion = surface_diffusion
 
-        self.parameters['surface_diffusion'] = surface_diffusion
+        self.parameters["surface_diffusion"] = surface_diffusion
 
 
 class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
@@ -1155,24 +1171,26 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     not exposed since there are some issues with the interface (.
 
     """
+
     supports_binding = True
     supports_bulk_reaction = True
     supports_particle_reaction = False
 
     flow_rate_filter = UnsignedFloat(default=0)
-    _parameters = ['const_solid_volume', 'flow_rate_filter']
+    _parameters = ["const_solid_volume", "flow_rate_filter"]
 
-    _section_dependent_parameters = \
-        UnitBaseClass._section_dependent_parameters + \
-        SourceMixin._section_dependent_parameters + \
-        ['flow_rate_filter']
+    _section_dependent_parameters = (
+        UnitBaseClass._section_dependent_parameters
+        + SourceMixin._section_dependent_parameters
+        + ["flow_rate_filter"]
+    )
 
-    c = SizedFloatList(size='n_comp', default=0)
-    _q = SizedUnsignedList(size='n_bound_states', default=0)
+    c = SizedFloatList(size="n_comp", default=0)
+    _q = SizedUnsignedList(size="n_bound_states", default=0)
     init_liquid_volume = UnsignedFloat()
     const_solid_volume = UnsignedFloat(default=0)
     _V = UnsignedFloat()
-    _initial_state = UnitBaseClass._initial_state + ['c', 'q', 'init_liquid_volume']
+    _initial_state = UnitBaseClass._initial_state + ["c", "q", "init_liquid_volume"]
     _parameters = _parameters + _initial_state
 
     def __init__(self, *args, **kwargs):
@@ -1187,14 +1205,16 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         If flow rate is None, Q_in == Q_out'.
         """
         required_parameters = super().required_parameters.copy()
-        required_parameters.remove('flow_rate')
+        required_parameters.remove("flow_rate")
         return required_parameters
 
     @property
     def porosity(self):
         if self.const_solid_volume is None or self.init_liquid_volume is None:
             return None
-        return self.init_liquid_volume / (self.init_liquid_volume + self.const_solid_volume)
+        return self.init_liquid_volume / (
+            self.init_liquid_volume + self.const_solid_volume
+        )
 
     @porosity.setter
     def porosity(self, porosity):
@@ -1266,7 +1286,7 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
             raise CADETProcessError("Cannot set q without binding model.")
         self._q = q
 
-        self.parameters['q'] = q
+        self.parameters["q"] = q
 
 
 class MCT(UnitBaseClass):
@@ -1291,36 +1311,36 @@ class MCT(UnitBaseClass):
     n_channel : int
         Number of channels
     """
+
     has_ports = True
     supports_bulk_reaction = True
 
-    discretization_schemes = (MCTDiscretizationFV)
+    discretization_schemes = MCTDiscretizationFV
 
     length = UnsignedFloat()
-    channel_cross_section_areas = SizedFloatList(size='nchannel')
-    axial_dispersion = SizedUnsignedList(size=('n_comp', 'nchannel'))
+    channel_cross_section_areas = SizedFloatList(size="nchannel")
+    axial_dispersion = SizedUnsignedList(size=("n_comp", "nchannel"))
     flow_direction = Switch(valid=[-1, 1], default=1)
 
-    exchange_matrix = SizedNdArray(size=('nchannel', 'nchannel', 'n_comp'))
+    exchange_matrix = SizedNdArray(size=("nchannel", "nchannel", "n_comp"))
 
     _parameters = [
-        'length',
-        'channel_cross_section_areas',
-        'axial_dispersion',
-        'flow_direction',
-        'exchange_matrix',
-        'nchannel'
+        "length",
+        "channel_cross_section_areas",
+        "axial_dispersion",
+        "flow_direction",
+        "exchange_matrix",
+        "nchannel",
     ]
-    _section_dependent_parameters = \
-        UnitBaseClass._section_dependent_parameters + \
-        ['axial_dispersion', 'flow_direction']
+    _section_dependent_parameters = UnitBaseClass._section_dependent_parameters + [
+        "axial_dispersion",
+        "flow_direction",
+    ]
 
-    _section_dependent_parameters = \
-        UnitBaseClass._section_dependent_parameters + \
-        []
+    _section_dependent_parameters = UnitBaseClass._section_dependent_parameters + []
 
-    c = SizedNdArray(size=('n_comp', 'nchannel'), default=0)
-    _initial_state = UnitBaseClass._initial_state + ['c']
+    c = SizedNdArray(size=("n_comp", "nchannel"), default=0)
+    _initial_state = UnitBaseClass._initial_state + ["c"]
     _parameters = _parameters + _initial_state
 
     def __init__(self, *args, nchannel, **kwargs):
@@ -1330,7 +1350,7 @@ class MCT(UnitBaseClass):
             *args,
             discretization=discretization,
             solution_recorder=MCTRecorder(),
-            **kwargs
+            **kwargs,
         )
 
     @property

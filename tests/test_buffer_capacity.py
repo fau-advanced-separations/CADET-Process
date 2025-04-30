@@ -1,130 +1,96 @@
 import unittest
 
 import numpy as np
-
-from CADETProcess.processModel import ComponentSystem
-from CADETProcess.processModel import MassActionLaw
 from CADETProcess import equilibria
+from CADETProcess.processModel import ComponentSystem, MassActionLaw
 
 enable_plot = False
 
 
 class TestBufferCapacity(unittest.TestCase):
-
     def setUp(self):
         self.components_simple = ComponentSystem(2, charges=[1, 2])
 
         # Ammonia
         self.components_ammonia = ComponentSystem()
         self.components_ammonia.add_component(
-            'Ammonia',
-            species=['NH4+', 'NH3'],
-            charge=[1, 0]
+            "Ammonia", species=["NH4+", "NH3"], charge=[1, 0]
         )
-        self.components_ammonia.add_component(
-            'H+',
-            charge=1
-        )
+        self.components_ammonia.add_component("H+", charge=1)
 
         self.reaction_ammonia = MassActionLaw(self.components_ammonia)
         self.reaction_ammonia.add_reaction(
-            [0, 1, 2], [-1, 1, 1], 10**(-9.2)*1e3, is_kinetic=False
+            [0, 1, 2], [-1, 1, 1], 10 ** (-9.2) * 1e3, is_kinetic=False
         )
 
         # Ammonia, component order switched
         self.components_ammonia_switched = ComponentSystem()
+        self.components_ammonia_switched.add_component("H+", charge=1)
         self.components_ammonia_switched.add_component(
-            'H+',
-            charge=1
-        )
-        self.components_ammonia_switched.add_component(
-            'Ammonia',
-            species=['NH4+', 'NH3'],
-            charge=[1, 0]
+            "Ammonia", species=["NH4+", "NH3"], charge=[1, 0]
         )
 
-        self.reaction_ammonia_switched = MassActionLaw(
-            self.components_ammonia_switched
-        )
+        self.reaction_ammonia_switched = MassActionLaw(self.components_ammonia_switched)
         self.reaction_ammonia_switched.add_reaction(
-            [1, 2, 0], [-1, 1, 1], 10**(-9.2)*1e3, is_kinetic=False
+            [1, 2, 0], [-1, 1, 1], 10 ** (-9.2) * 1e3, is_kinetic=False
         )
 
         # Lysine
         self.components_lys = ComponentSystem()
         self.components_lys.add_component(
-            'Lysine',
-            species=['Lys2+', 'Lys+', 'Lys', 'Lys-'],
-            charge=[2, 1, 0, -1]
+            "Lysine", species=["Lys2+", "Lys+", "Lys", "Lys-"], charge=[2, 1, 0, -1]
         )
-        self.components_lys.add_component(
-            'H+',
-            charge=1
-        )
+        self.components_lys.add_component("H+", charge=1)
         self.reaction_lys = MassActionLaw(self.components_lys)
         self.reaction_lys.add_reaction(
-            [0, 1, -1], [-1, 1, 1], 10**(-2.20)*1e3, is_kinetic=False
+            [0, 1, -1], [-1, 1, 1], 10 ** (-2.20) * 1e3, is_kinetic=False
         )
         self.reaction_lys.add_reaction(
-            [1, 2, -1], [-1, 1, 1], 10**(-8.90)*1e3, is_kinetic=False
+            [1, 2, -1], [-1, 1, 1], 10 ** (-8.90) * 1e3, is_kinetic=False
         )
         self.reaction_lys.add_reaction(
-            [2, 3, -1], [-1, 1, 1], 10**(-10.28)*1e3, is_kinetic=False
+            [2, 3, -1], [-1, 1, 1], 10 ** (-10.28) * 1e3, is_kinetic=False
         )
 
         # Lysine, component order switched
         self.components_lys_switched = ComponentSystem()
+        self.components_lys_switched.add_component("H+", charge=1)
         self.components_lys_switched.add_component(
-            'H+',
-            charge=1
-        )
-        self.components_lys_switched.add_component(
-            'Lysine',
-            species=['Lys2+', 'Lys+', 'Lys', 'Lys-'],
-            charge=[2, 1, 0, -1]
+            "Lysine", species=["Lys2+", "Lys+", "Lys", "Lys-"], charge=[2, 1, 0, -1]
         )
 
-        self.reaction_lys_switched = MassActionLaw(
-            self.components_lys_switched
+        self.reaction_lys_switched = MassActionLaw(self.components_lys_switched)
+        self.reaction_lys_switched.add_reaction(
+            [1, 2, 0], [-1, 1, 1], 10 ** (-2.20) * 1e3, is_kinetic=False
         )
         self.reaction_lys_switched.add_reaction(
-            [1, 2, 0], [-1, 1, 1], 10**(-2.20)*1e3, is_kinetic=False
+            [2, 3, 0], [-1, 1, 1], 10 ** (-8.90) * 1e3, is_kinetic=False
         )
         self.reaction_lys_switched.add_reaction(
-            [2, 3, 0], [-1, 1, 1], 10**(-8.90)*1e3, is_kinetic=False
-        )
-        self.reaction_lys_switched.add_reaction(
-            [3, 4, 0], [-1, 1, 1], 10**(-10.28)*1e3, is_kinetic=False
+            [3, 4, 0], [-1, 1, 1], 10 ** (-10.28) * 1e3, is_kinetic=False
         )
 
         # Ammonia and Lysine
         self.components_ammonia_lys = ComponentSystem()
         self.components_ammonia_lys.add_component(
-            'Ammonia',
-            species=['NH4+', 'NH3'],
-            charge=[1, 0]
+            "Ammonia", species=["NH4+", "NH3"], charge=[1, 0]
         )
         self.components_ammonia_lys.add_component(
-            'Lysine',
-            species=['Lys2+', 'Lys+', 'Lys', 'Lys-'],
-            charge=[2, 1, 0, -1]
+            "Lysine", species=["Lys2+", "Lys+", "Lys", "Lys-"], charge=[2, 1, 0, -1]
         )
-        self.components_ammonia_lys.add_component(
-            'H+',
-            charge=1
-        )
+        self.components_ammonia_lys.add_component("H+", charge=1)
         self.reaction_ammonia_lys = MassActionLaw(self.components_ammonia_lys)
         self.reaction_ammonia_lys.add_reaction(
-            [0, 1, -1], [-1, 1, 1], 10**(-9.2)*1e3, is_kinetic=False
+            [0, 1, -1], [-1, 1, 1], 10 ** (-9.2) * 1e3, is_kinetic=False
         )
         self.reaction_ammonia_lys.add_reaction(
-            [2, 3, -1], [-1, 1, 1], 10**(-2.20)*1e3, is_kinetic=False
+            [2, 3, -1], [-1, 1, 1], 10 ** (-2.20) * 1e3, is_kinetic=False
         )
         self.reaction_ammonia_lys.add_reaction(
-            [3, 4, -1], [-1, 1, 1], 10**(-8.90)*1e3, is_kinetic=False
+            [3, 4, -1], [-1, 1, 1], 10 ** (-8.90) * 1e3, is_kinetic=False
         )
         self.reaction_ammonia_lys.add_reaction(
-            [4, 5, -1], [-1, 1, 1], 10**(-10.28)*1e3, is_kinetic=False
+            [4, 5, -1], [-1, 1, 1], 10 ** (-10.28) * 1e3, is_kinetic=False
         )
 
     def test_ionic_strength(self):
@@ -179,9 +145,7 @@ class TestBufferCapacity(unittest.TestCase):
 
         pH = 0
         b_expected = np.array([1.4528329738818527e-06, 2302.585092994069])
-        b = equilibria.buffer_capacity(
-            self.reaction_ammonia_switched, buffer, pH
-        )
+        b = equilibria.buffer_capacity(self.reaction_ammonia_switched, buffer, pH)
         np.testing.assert_almost_equal(b_expected, b)
 
     def test_charge_distribution(self):
@@ -207,17 +171,13 @@ class TestBufferCapacity(unittest.TestCase):
 
         pH = 0
         eta_expected = np.array([0.9999999993690426, 6.30957344082087e-10])
-        eta = equilibria.charge_distribution(
-            self.reaction_ammonia_switched, pH
-        )
+        eta = equilibria.charge_distribution(self.reaction_ammonia_switched, pH)
         np.testing.assert_almost_equal(eta_expected, eta)
 
     def test_plot(self):
         if enable_plot:
             _ = equilibria.plot_charge_distribution(self.reaction_ammonia)
-            _ = equilibria.plot_charge_distribution(
-                self.reaction_ammonia_switched
-            )
+            _ = equilibria.plot_charge_distribution(self.reaction_ammonia_switched)
             _ = equilibria.plot_charge_distribution(
                 self.reaction_lys_switched, plot_cumulative=True
             )
@@ -226,6 +186,6 @@ class TestBufferCapacity(unittest.TestCase):
             )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     enable_plot = True
     unittest.main()

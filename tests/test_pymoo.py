@@ -1,5 +1,5 @@
-import unittest
 import shutil
+import unittest
 
 from CADETProcess import settings
 from CADETProcess.optimization import U_NSGA3
@@ -8,13 +8,12 @@ from tests.test_optimization_problem import setup_optimization_problem
 
 
 class Test_OptimizationProblemSimple(unittest.TestCase):
-
     def tearDown(self):
-        shutil.rmtree('./results_simple', ignore_errors=True)
+        shutil.rmtree("./results_simple", ignore_errors=True)
         settings.working_directory = None
 
     def test_restart_from_checkpoint(self):
-        class Callback():
+        class Callback:
             def __init__(self, n_calls=0, kill=True):
                 self.n_calls = n_calls
                 self.kill = kill
@@ -52,5 +51,5 @@ class Test_OptimizationProblemSimple(unittest.TestCase):
         )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

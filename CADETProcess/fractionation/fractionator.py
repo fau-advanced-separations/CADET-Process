@@ -1,26 +1,19 @@
+import os
 from collections import defaultdict
 from functools import wraps
-import os
-from typing import Optional, Any
+from typing import Any, Optional
 
-from addict import Dict
 import numpy as np
+from addict import Dict
 from matplotlib.axes import Axes
-from matplotlib.figure import Figure
 
-from CADETProcess import CADETProcessError
-from CADETProcess import settings
+from CADETProcess import CADETProcessError, SimulationResults, plotting, settings
 from CADETProcess.dataStructure import String
-from CADETProcess.dynamicEvents import EventHandler, Event
-from CADETProcess import plotting
-from CADETProcess.performance import Performance
-from CADETProcess.solution import slice_solution, SolutionIO
-from CADETProcess import SimulationResults
-from CADETProcess.processModel import Process
-from CADETProcess.processModel import ComponentSystem
-
+from CADETProcess.dynamicEvents import Event, EventHandler
 from CADETProcess.fractionation.fractions import Fraction, FractionPool
-
+from CADETProcess.performance import Performance
+from CADETProcess.processModel import ComponentSystem, Process
+from CADETProcess.solution import SolutionIO, slice_solution
 
 __all__ = ["Fractionator"]
 
@@ -41,18 +34,24 @@ class Fractionator(EventHandler):
 
     """
 
-    name = String(default='Fractionator')
+    name = String(default="Fractionator")
     performance_keys: list[str] = [
-        'mass', 'concentration', 'purity', 'recovery',
-        'productivity', 'eluent_consumption'
+        "mass",
+        "concentration",
+        "purity",
+        "recovery",
+        "productivity",
+        "eluent_consumption",
     ]
 
     def __init__(
-            self,
-            simulation_results: SimulationResults,
-            components: Optional[list[str]] = None,
-            use_total_concentration_components: bool = True,
-            *args: Any, **kwargs: Any) -> None:
+        self,
+        simulation_results: SimulationResults,
+        components: Optional[list[str]] = None,
+        use_total_concentration_components: bool = True,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
         """Initialize the Fractionator.
 
         Parameters
@@ -98,12 +97,10 @@ class Fractionator(EventHandler):
 
         """
         if not isinstance(simulation_results, SimulationResults):
-            raise TypeError('Expected SimulationResults')
+            raise TypeError("Expected SimulationResults")
 
         if len(simulation_results.chromatograms) == 0:
-            raise CADETProcessError(
-                'Simulation results do not contain chromatogram'
-            )
+            raise CADETProcessError("Simulation results do not contain chromatogram")
 
         self._simulation_results = simulation_results
 
@@ -111,12 +108,12 @@ class Fractionator(EventHandler):
             slice_solution(
                 chrom,
                 components=self.components,
-                use_total_concentration_components=self.use_total_concentration_components
+                use_total_concentration_components=self.use_total_concentration_components,
             )
             for chrom in simulation_results.chromatograms
         ]
 
-        m_feed = np.zeros((self.component_system.n_comp, ))
+        m_feed = np.zeros((self.component_system.n_comp,))
         counter = 0
         for comp, indices in simulation_results.component_system.indices.items():
             if comp in self.component_system.names:
@@ -126,18 +123,12 @@ class Fractionator(EventHandler):
                     counter += 1
                 else:
                     n_species = len(indices)
-                    m_feed[counter:counter+n_species] = m_feed_comp
+                    m_feed[counter : counter + n_species] = m_feed_comp
                     counter += n_species
         self.m_feed: np.ndarray = m_feed
 
-        self._fractionation_states = Dict({
-            chrom: []
-            for chrom in self.chromatograms
-        })
-        self._chromatogram_events = Dict({
-            chrom: []
-            for chrom in self.chromatograms
-        })
+        self._fractionation_states = Dict({chrom: [] for chrom in self.chromatograms})
+        self._chromatogram_events = Dict({chrom: [] for chrom in self.chromatograms})
 
         self._cycle_time = self.process.cycle_time
 
@@ -150,6 +141,7 @@ class Fractionator(EventHandler):
 
     def _call_by_chrom_name(func):
         """Decorator to enable calling functions with chromatogram object or name."""
+
         @wraps(func)
         def wrapper_call_by_chrom_name(self, chrom, *args, **kwargs):
             """Enable calling functions with chromatogram object or name."""
@@ -157,7 +149,7 @@ class Fractionator(EventHandler):
                 try:
                     chrom = self.chromatograms_dict[chrom]
                 except KeyError:
-                    raise CADETProcessError('Not a valid unit')
+                    raise CADETProcessError("Not a valid unit")
             return func(self, chrom, *args, **kwargs)
 
         return wrapper_call_by_chrom_name
@@ -232,13 +224,13 @@ class Fractionator(EventHandler):
 
     @plotting.create_and_save_figure
     def plot_fraction_signal(
-            self,
-            chromatogram: Optional[SolutionIO | str] = None,
-            x_axis_in_minutes: bool = True,
-            ax: Optional[Axes] = None,
-            *args: Any,
-            **kwargs: Any,
-            ) -> Axes:
+        self,
+        chromatogram: Optional[SolutionIO | str] = None,
+        x_axis_in_minutes: bool = True,
+        ax: Optional[Axes] = None,
+        *args: Any,
+        **kwargs: Any,
+    ) -> Axes:
         """Plot the signal without the waste fractions.
 
         Parameters
@@ -262,22 +254,22 @@ class Fractionator(EventHandler):
 
         """
         if chromatogram is None:
-            chromatogram = \
-                list(self.performer_timelines['fractionation_states'].keys())[0]
+            chromatogram = list(
+                self.performer_timelines["fractionation_states"].keys()
+            )[0]
         if isinstance(chromatogram, str):
             chromatogram = self.chromatograms_dict[chromatogram]
 
-        time_line = \
-            self.performer_timelines['fractionation_states'][chromatogram.name]
+        time_line = self.performer_timelines["fractionation_states"][chromatogram.name]
 
         try:
-            start: float = kwargs['start']
+            start: float = kwargs["start"]
             if x_axis_in_minutes:
                 start = start / 60
         except KeyError:
             start = 0
         try:
-            end: float = kwargs['end']
+            end: float = kwargs["end"]
             if x_axis_in_minutes:
                 end = end / 60
         except KeyError:
@@ -287,14 +279,14 @@ class Fractionator(EventHandler):
             show=False, ax=ax, x_axis_in_minutes=x_axis_in_minutes, *args, **kwargs
         )
 
-        y_max = 1.1*np.max(chromatogram.solution)
+        y_max = 1.1 * np.max(chromatogram.solution)
 
         fill_regions = []
         for sec in time_line.sections:
             comp_index = int(np.where(sec.coeffs)[0].squeeze())
             if comp_index == self.n_comp:
                 color_index = -1
-                text = 'W'
+                text = "W"
             else:
                 color_index = comp_index
                 text = self.component_system.names[comp_index]
@@ -320,11 +312,7 @@ class Fractionator(EventHandler):
         if len(time_line.sections) == 0:
             fill_regions.append(
                 plotting.FillRegion(
-                    start=sec_start,
-                    end=sec_end,
-                    y_max=y_max,
-                    color_index=-1,
-                    text="W"
+                    start=sec_start, end=sec_end, y_max=y_max, color_index=-1, text="W"
                 )
             )
 
@@ -344,7 +332,9 @@ class Fractionator(EventHandler):
         return self._fractionation_states
 
     @_call_by_chrom_name
-    def set_fractionation_state(self, chrom: SolutionIO, state: int | list[float]) -> None:
+    def set_fractionation_state(
+        self, chrom: SolutionIO, state: int | list[float]
+    ) -> None:
         """Set fractionation states of Chromatogram.
 
         Parameters
@@ -364,7 +354,7 @@ class Fractionator(EventHandler):
 
         """
         if chrom not in self.chromatograms:
-            raise CADETProcessError('Chromatogram not in Fractionator')
+            raise CADETProcessError("Chromatogram not in Fractionator")
 
         state_length = self.n_comp + 1
 
@@ -373,16 +363,16 @@ class Fractionator(EventHandler):
 
         if type(state) is int:
             if state >= state_length:
-                raise CADETProcessError('Index exceeds fractionation states')
+                raise CADETProcessError("Index exceeds fractionation states")
 
             fractionation_state = [0] * state_length
             fractionation_state[state] = 1
         else:
             if len(state) != state_length:
-                raise CADETProcessError(f'Expected length {state_length}.')
+                raise CADETProcessError(f"Expected length {state_length}.")
 
             elif sum(state) != 1:
-                raise CADETProcessError('Sum of fractions must be 1')
+                raise CADETProcessError("Sum of fractions must be 1")
 
             fractionation_state = state
 
@@ -471,10 +461,10 @@ class Fractionator(EventHandler):
 
         """
         if not isinstance(fraction, Fraction):
-            raise TypeError('Expected Fraction')
+            raise TypeError("Expected Fraction")
 
         if target not in range(self.n_comp + 1):
-            raise CADETProcessError('Not a valid target')
+            raise CADETProcessError("Not a valid target")
         self._fraction_pools[target].add_fraction(fraction)
 
     @property
@@ -511,7 +501,7 @@ class Fractionator(EventHandler):
     @property
     def recovery(self) -> np.ndarray:
         """ndarray: Component recovery yield in corresponding fraction pool."""
-        with np.errstate(divide='ignore', invalid='ignore'):
+        with np.errstate(divide="ignore", invalid="ignore"):
             recovery = self.mass / self.m_feed
 
         return np.nan_to_num(recovery)
@@ -542,9 +532,7 @@ class Fractionator(EventHandler):
     @property
     def productivity(self) -> np.ndarray:
         """ndarray: Specific productivity in corresponding fraction pool."""
-        return self.mass / (
-            self.process.cycle_time * self.process.V_solid
-        )
+        return self.mass / (self.process.cycle_time * self.process.V_solid)
 
     @property
     def eluent_consumption(self) -> np.ndarray:
@@ -563,10 +551,14 @@ class Fractionator(EventHandler):
         """Performance: The performance metrics of the fractionation."""
         self.reset()
         return Performance(
-            self.mass, self.concentration, self.purity,
-            self.recovery, self.productivity, self.eluent_consumption,
+            self.mass,
+            self.concentration,
+            self.purity,
+            self.recovery,
+            self.productivity,
+            self.eluent_consumption,
             self.mass_balance_difference,
-            self.component_system
+            self.component_system,
         )
 
     def reset(self) -> None:
@@ -576,12 +568,12 @@ class Fractionator(EventHandler):
         self._mass = None
 
     def add_fractionation_event(
-            self,
-            event_name: str,
-            target: str | int,
-            time: float,
-            chromatogram: Optional[SolutionIO | str] = None
-            ) -> None:
+        self,
+        event_name: str,
+        target: str | int,
+        time: float,
+        chromatogram: Optional[SolutionIO | str] = None,
+    ) -> None:
         """Add a fractionation event.
 
         Parameters
@@ -618,14 +610,12 @@ class Fractionator(EventHandler):
         if chromatogram not in self.chromatograms:
             raise CADETProcessError("Could not find chromatogram.")
 
-        param_path = f'fractionation_states.{chromatogram.name}'
+        param_path = f"fractionation_states.{chromatogram.name}"
 
         if isinstance(target, str):
             target = self.component_system.names.index(target)
 
-        evt = self.add_event(
-            event_name, param_path, target, time
-        )
+        evt = self.add_event(event_name, param_path, target, time)
         self._chromatogram_events[chromatogram].append(evt)
 
         self.reset()
@@ -648,16 +638,12 @@ class Fractionator(EventHandler):
 
         """
         if isinstance(purity_required, float):
-            purity_required = [purity_required]*self.n_comp
+            purity_required = [purity_required] * self.n_comp
         elif len(purity_required) != self.n_comp:
-            raise ValueError(
-                f'Expected purity array with size {self.n_comp}'
-            )
+            raise ValueError(f"Expected purity array with size {self.n_comp}")
 
         self._events = []
-        self._chromatogram_events = Dict({
-            chrom: [] for chrom in self.chromatograms
-        })
+        self._chromatogram_events = Dict({chrom: [] for chrom in self.chromatograms})
         self.reset()
 
         for chrom_index, chrom in enumerate(self.chromatograms):
@@ -665,8 +651,8 @@ class Fractionator(EventHandler):
             purity_min[chrom.local_purity_components > purity_required] = 1
             diff = np.vstack((
                 purity_min[0, :] - purity_min[-1, :],
-                np.diff(purity_min, axis=0))
-            )
+                np.diff(purity_min, axis=0)
+            ))
 
             for comp in range(self.n_comp):
                 if purity_required[comp] > 0:
@@ -675,9 +661,9 @@ class Fractionator(EventHandler):
 
                     # Handle the case where the entire array is above the threshold
                     if (
-                            len(on_indices) == 0
-                            and len(off_indices) == 0
-                            and purity_min[0, comp] == 1
+                        len(on_indices) == 0
+                        and len(off_indices) == 0
+                        and purity_min[0, comp] == 1
                     ):
                         on_indices = np.array([0])
                         off_indices = np.array([purity_min.shape[0] - 1])
@@ -685,26 +671,23 @@ class Fractionator(EventHandler):
                     # Ensure regions with a single value are ignored
                     valid_regions = [
                         (on, off)
-                        for on, off in zip(on_indices, off_indices) if off != on
+                        for on, off in zip(on_indices, off_indices)
+                        if off != on
                     ]
 
                     for index, (on_evt, off_evt) in enumerate(valid_regions):
                         # Add start event
                         time = chrom.time[int(on_evt)]
-                        event_name = f'chrom_{chrom_index}_comp_{comp}_start_{index}'
-                        param_path = f'fractionation_states.{chrom.name}'
-                        evt = self.add_event(
-                            event_name, param_path, comp, time
-                        )
+                        event_name = f"chrom_{chrom_index}_comp_{comp}_start_{index}"
+                        param_path = f"fractionation_states.{chrom.name}"
+                        evt = self.add_event(event_name, param_path, comp, time)
                         self._chromatogram_events[chrom].append(evt)
 
                         # Add end event
                         time = chrom.time[int(off_evt)]
-                        event_name = f'chrom_{chrom_index}_comp_{comp}_end_{index}'
-                        param_path = f'fractionation_states.{chrom.name}'
-                        evt = self.add_event(
-                            event_name, param_path, self.n_comp, time
-                        )
+                        event_name = f"chrom_{chrom_index}_comp_{comp}_end_{index}"
+                        param_path = f"fractionation_states.{chrom.name}"
+                        evt = self.add_event(event_name, param_path, self.n_comp, time)
                         self._chromatogram_events[chrom].append(evt)
 
         if not self.check_duplicate_events():
@@ -725,9 +708,8 @@ class Fractionator(EventHandler):
     @property
     def parameters(self) -> Dict:
         parameters = super().parameters
-        parameters['fractionation_states'] = {
-            chrom.name: self.fractionation_states[chrom]
-            for chrom in self.chromatograms
+        parameters["fractionation_states"] = {
+            chrom.name: self.fractionation_states[chrom] for chrom in self.chromatograms
         }
 
         return Dict(parameters)
@@ -735,7 +717,7 @@ class Fractionator(EventHandler):
     @parameters.setter
     def parameters(self, parameters: Dict) -> None:
         try:
-            fractionation_states = parameters.pop('fractionation_states')
+            fractionation_states = parameters.pop("fractionation_states")
             for chrom, state in fractionation_states.items():
                 self.set_fractionation_state(chrom, state)
         except KeyError:
@@ -748,11 +730,8 @@ class Fractionator(EventHandler):
         return self.parameters
 
     def save(
-            self,
-            case_dir: str,
-            start: float = 0,
-            end: Optional[float] = None
-            ) -> None:
+        self, case_dir: str, start: float = 0, end: Optional[float] = None
+    ) -> None:
         """
         Save chromatogram and purity plots to a specified directory.
 
@@ -768,17 +747,18 @@ class Fractionator(EventHandler):
         path = os.path.join(settings.working_directory, case_dir)
 
         for index, chrom in enumerate(self.chromatograms):
-            chrom.plot(save_path=path + f'/chrom_{index}.png')
+            chrom.plot(save_path=path + f"/chrom_{index}.png")
             chrom.plot_purity(
-                start=start, end=end, save_path=path + '/chrom_purity.png'
+                start=start, end=end, save_path=path + "/chrom_purity.png"
             )
 
         for chrom in enumerate(self.chromatograms):
             self.plot_fraction_signal(
                 chromatogram=chrom,
-                start=start, end=end,
-                save_path=path + f'/fractionation_signal_{index}.png',
-                index=index
+                start=start,
+                end=end,
+                save_path=path + f"/fractionation_signal_{index}.png",
+                index=index,
             )
 
     def __str__(self) -> str:

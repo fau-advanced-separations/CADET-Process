@@ -18,21 +18,24 @@ Maybe this is too complicated, just use Process instead?
 
 import unittest
 
-from addict import Dict
-import numpy as np
-
 import CADETProcess
-from CADETProcess import CADETProcessError
-from CADETProcess.dataStructure import Structure
+import numpy as np
+from addict import Dict
 from CADETProcess.dataStructure import (
-    Float, Switch, SizedTuple, SizedList, SizedNdArray, Polynomial, NdPolynomial,
+    Float,
+    NdPolynomial,
+    Polynomial,
+    SizedList,
+    SizedNdArray,
+    SizedTuple,
+    Structure,
+    Switch,
 )
 
 plot = True
 
 
 class PerformerFixture(Structure):
-
     n_entries = 4
     n_coeff = 4
 
@@ -45,43 +48,41 @@ class PerformerFixture(Structure):
     ndarray_no_default = SizedNdArray(size=(2, 4))
     array_1d_poly = Polynomial(n_coeff=4, default=0)
     ndarray_poly = NdPolynomial(n_entries=2, n_coeff=4, default=0)
-    ndarray_poly_dep = NdPolynomial(size=('n_entries', 'n_coeff'), default=0)
+    ndarray_poly_dep = NdPolynomial(size=("n_entries", "n_coeff"), default=0)
 
     _parameters = [
-        'scalar_float',
-        'sized_tuple',
-        'switch',
-        'array_1d',
-        'array_1d_single',
-        'ndarray',
-        'ndarray_no_default',
-        'array_1d_poly',
-        'ndarray_poly',
-        'ndarray_poly_dep',
+        "scalar_float",
+        "sized_tuple",
+        "switch",
+        "array_1d",
+        "array_1d_single",
+        "ndarray",
+        "ndarray_no_default",
+        "array_1d_poly",
+        "ndarray_poly",
+        "ndarray_poly_dep",
     ]
     _section_dependent_parameters = [
-        'scalar_float',
-        'sized_tuple',
-        'array_1d',
-        'array_1d_single',
-        'ndarray',
-        'ndarray_no_default',
-        'array_1d_poly',
-        'ndarray_poly',
-        'ndarray_poly_dep',
+        "scalar_float",
+        "sized_tuple",
+        "array_1d",
+        "array_1d_single",
+        "ndarray",
+        "ndarray_no_default",
+        "array_1d_poly",
+        "ndarray_poly",
+        "ndarray_poly_dep",
     ]
 
     @property
     def section_dependent_parameters(self):
         parameters = {
-            param: getattr(self, param)
-            for param in self._section_dependent_parameters
+            param: getattr(self, param) for param in self._section_dependent_parameters
         }
         return parameters
 
 
 class HandlerFixture(CADETProcess.dynamicEvents.EventHandler):
-
     def __init__(self):
         self.name = None
         self.performer = PerformerFixture()
@@ -91,14 +92,14 @@ class HandlerFixture(CADETProcess.dynamicEvents.EventHandler):
     def parameters(self):
         parameters = super().parameters
 
-        parameters['performer'] = self.performer.parameters
+        parameters["performer"] = self.performer.parameters
 
         return Dict(parameters)
 
     @parameters.setter
     def parameters(self, parameters):
         try:
-            self.performer.parameters = parameters.pop('performer')
+            self.performer.parameters = parameters.pop("performer")
         except KeyError:
             pass
 
@@ -107,28 +108,27 @@ class HandlerFixture(CADETProcess.dynamicEvents.EventHandler):
     @property
     def section_dependent_parameters(self):
         parameters = Dict()
-        parameters['performer'] = self.performer.section_dependent_parameters
+        parameters["performer"] = self.performer.section_dependent_parameters
         return parameters
 
     @property
     def polynomial_parameters(self):
         parameters = Dict()
-        parameters['performer'] = self.performer.polynomial_parameters
+        parameters["performer"] = self.performer.polynomial_parameters
         return parameters
 
 
 class Test_Events(unittest.TestCase):
-
     def setup_event_handler(self, add_events=False):
         event_handler = HandlerFixture()
         event_handler.cycle_time = 20
 
         if add_events:
-            evt = event_handler.add_event('evt0', 'performer.scalar_float', 0)
-            evt = event_handler.add_event('evt1', 'performer.scalar_float', 1)
-            evt = event_handler.add_event('evt2', 'performer.sized_tuple', (2, 1))
-            evt = event_handler.add_event('evt3', 'performer.sized_tuple', (3, 2))
-            evt = event_handler.add_event('evt4', 'performer.sized_tuple', (3, 3))
+            evt = event_handler.add_event("evt0", "performer.scalar_float", 0)
+            evt = event_handler.add_event("evt1", "performer.scalar_float", 1)
+            evt = event_handler.add_event("evt2", "performer.sized_tuple", (2, 1))
+            evt = event_handler.add_event("evt3", "performer.sized_tuple", (3, 2))
+            evt = event_handler.add_event("evt4", "performer.sized_tuple", (3, 3))
 
         return event_handler
 
@@ -140,29 +140,25 @@ class Test_Events(unittest.TestCase):
 
         # Invalid path
         with self.assertRaises(CADETProcess.CADETProcessError):
-            event_handler.add_event('wrong_path', 'performer.wrong', 1)
+            event_handler.add_event("wrong_path", "performer.wrong", 1)
 
         # Invalid state
         with self.assertRaises(TypeError):
-            event_handler.add_event(
-                'wrong_value', 'performer.scalar_float', 'wrong'
-            )
+            event_handler.add_event("wrong_value", "performer.scalar_float", "wrong")
 
         # Duplicate name
         with self.assertRaises(CADETProcess.CADETProcessError):
-            event_handler.add_event('duplicate', 'performer.scalar_float', 1)
-            event_handler.add_event('duplicate', 'performer.scalar_float', 1)
+            event_handler.add_event("duplicate", "performer.scalar_float", 1)
+            event_handler.add_event("duplicate", "performer.scalar_float", 1)
 
         # Not section dependent
         with self.assertRaises(CADETProcess.CADETProcessError):
-            event_handler.add_event(
-                'not_sec_dependent', 'performer.switch', 1
-            )
+            event_handler.add_event("not_sec_dependent", "performer.switch", 1)
 
     def test_event_scalar(self):
         event_handler = self.event_handler
 
-        evt = event_handler.add_event('trivial', 'performer.scalar_float', 1, time=0)
+        evt = event_handler.add_event("trivial", "performer.scalar_float", 1, time=0)
         self.assertEqual(evt.state, 1)
         self.assertEqual(evt.full_state, 1)
         self.assertEqual(evt.n_entries, 1)
@@ -174,7 +170,7 @@ class Test_Events(unittest.TestCase):
         # Raise Error for indices
         with self.assertRaises(IndexError):
             evt = event_handler.add_event(
-                'param_has_no_indices', 'performer.scalar_float', 1, time=0, indices=1
+                "param_has_no_indices", "performer.scalar_float", 1, time=0, indices=1
             )
 
     def test_event_array_1d_single(self):
@@ -186,7 +182,7 @@ class Test_Events(unittest.TestCase):
         event_handler = self.event_handler
 
         # No index
-        evt = event_handler.add_event('trivial', 'performer.array_1d_single', 1, time=0)
+        evt = event_handler.add_event("trivial", "performer.array_1d_single", 1, time=0)
         self.assertEqual(evt.state, 1)
         self.assertEqual(evt.full_state, [1])
         self.assertEqual(evt.n_entries, 1)
@@ -197,12 +193,12 @@ class Test_Events(unittest.TestCase):
 
         # Explicit Index
         evt = event_handler.add_event(
-            'trivial_1', 'performer.array_1d_single', 2, time=0, indices=0
+            "trivial_1", "performer.array_1d_single", 2, time=0, indices=0
         )
         self.assertEqual(evt.state, 2)
         self.assertEqual(evt.full_state, [2])
         self.assertEqual(evt.n_entries, 1)
-        self.assertEqual(evt.indices, [(0, )])
+        self.assertEqual(evt.indices, [(0,)])
         self.assertEqual(evt.full_indices, [(0,)])
         self.assertEqual(evt.n_indices, 1)
         self.assertEqual(event_handler.performer.array_1d_single, [2])
@@ -210,7 +206,11 @@ class Test_Events(unittest.TestCase):
         # Raise Error for exceeding indices
         with self.assertRaises(IndexError):
             evt = event_handler.add_event(
-                'param_has_no_indices', 'performer.array_1d_single', 1, time=0, indices=1
+                "param_has_no_indices",
+                "performer.array_1d_single",
+                1,
+                time=0,
+                indices=1,
             )
 
     def test_event_1D(self):
@@ -220,7 +220,7 @@ class Test_Events(unittest.TestCase):
         # Add event for single entry in 1D list / array
         event_handler.performer.array_1d
         evt = event_handler.add_event(
-            '1D_single', 'performer.array_1d', 1, indices=0, time=0
+            "1D_single", "performer.array_1d", 1, indices=0, time=0
         )
         self.assertEqual(evt.state, 1)
         self.assertEqual(evt.full_state, [1])
@@ -233,7 +233,7 @@ class Test_Events(unittest.TestCase):
         # Add event for multiple entries in 1D list / array
         # TODO: When creating section, missing parameters must be read at that time!
         evt = event_handler.add_event(
-            '1D_multi', 'performer.array_1d', [0, 1], indices=[0, 1], time=1
+            "1D_multi", "performer.array_1d", [0, 1], indices=[0, 1], time=1
         )
         np.testing.assert_equal(evt.state, [0, 1])
         self.assertEqual(evt.full_state, [0, 1])
@@ -245,7 +245,7 @@ class Test_Events(unittest.TestCase):
 
         # Add event for multiple entries in 1D list / array with custom order
         evt = event_handler.add_event(
-            '1D_multi_order', 'performer.array_1d', [2, 3], indices=[1, 2], time=2
+            "1D_multi_order", "performer.array_1d", [2, 3], indices=[1, 2], time=2
         )
         np.testing.assert_equal(evt.state, [2, 3])
         np.testing.assert_equal(evt.full_state, [2, 3])
@@ -257,7 +257,7 @@ class Test_Events(unittest.TestCase):
 
         # Add event for all entries in 1D list / array
         evt = event_handler.add_event(
-            '1D_all', 'performer.array_1d', [0, 0, 1], indices=[0, 1, 2], time=3
+            "1D_all", "performer.array_1d", [0, 0, 1], indices=[0, 1, 2], time=3
         )
         np.testing.assert_equal(evt.state, [0, 0, 1])
         np.testing.assert_equal(evt.full_state, [0, 0, 1])
@@ -269,8 +269,7 @@ class Test_Events(unittest.TestCase):
 
         # Set all values without indices
         evt = event_handler.add_event(
-            '1D_all_slice_all_no_indices', 'performer.array_1d',
-            [0, 1, 2, 3], time=4
+            "1D_all_slice_all_no_indices", "performer.array_1d", [0, 1, 2, 3], time=4
         )
         np.testing.assert_equal(evt.state, [0, 1, 2, 3])
         np.testing.assert_equal(evt.full_state, [0, 1, 2, 3])
@@ -282,8 +281,7 @@ class Test_Events(unittest.TestCase):
 
         # Set all values using slicing notation.
         evt = event_handler.add_event(
-            '1D_all_slice', 'performer.array_1d',
-            [2, 3, 4, 5], indices=np.s_[:], time=5
+            "1D_all_slice", "performer.array_1d", [2, 3, 4, 5], indices=np.s_[:], time=5
         )
         np.testing.assert_equal(evt.state, [2, 3, 4, 5])
         np.testing.assert_equal(evt.full_state, [2, 3, 4, 5])
@@ -295,7 +293,7 @@ class Test_Events(unittest.TestCase):
 
         # Set all values to one value using slicing notation
         evt = event_handler.add_event(
-            '1D_all_slice_one_value', 'performer.array_1d', 1, indices=np.s_[:], time=6
+            "1D_all_slice_one_value", "performer.array_1d", 1, indices=np.s_[:], time=6
         )
         np.testing.assert_equal(evt.state, 1)
         np.testing.assert_equal(evt.full_state, [1, 1, 1, 1])
@@ -307,7 +305,7 @@ class Test_Events(unittest.TestCase):
 
         # Set all values from starting_index to one value using slice
         evt = event_handler.add_event(
-            '1D_partial_slice', 'performer.array_1d', 2, indices=np.s_[1:], time=7
+            "1D_partial_slice", "performer.array_1d", 2, indices=np.s_[1:], time=7
         )
         np.testing.assert_equal(evt.state, 2)
         np.testing.assert_equal(evt.full_state, [2, 2, 2])
@@ -323,23 +321,23 @@ class Test_Events(unittest.TestCase):
         # Number of indices
         with self.assertRaises(ValueError):
             event_handler.add_event(
-                'not_enough_entries', 'performer.array_1d', [1, 2], indices=[2]
+                "not_enough_entries", "performer.array_1d", [1, 2], indices=[2]
             )
         with self.assertRaises(ValueError):
             event_handler.add_event(
-                'too_many_indices', 'performer.array_1d', [1, 2], indices=[1, 2, 2]
+                "too_many_indices", "performer.array_1d", [1, 2], indices=[1, 2, 2]
             )
 
         # Index exceeds shape
         with self.assertRaises(IndexError):
             event_handler.add_event(
-                'index_exceeds_shape', 'performer.array_1d', [1, 2], indices=[1, 4]
+                "index_exceeds_shape", "performer.array_1d", [1, 2], indices=[1, 4]
             )
 
         # Duplicate entries for indices
         with self.assertRaises(ValueError):
             event_handler.add_event(
-                'duplicate_entries', 'performer.array_1d', [1, 2], indices=[1, 1]
+                "duplicate_entries", "performer.array_1d", [1, 2], indices=[1, 1]
             )
 
     def test_event_ndarray(self):
@@ -350,7 +348,7 @@ class Test_Events(unittest.TestCase):
         # Add event for single entry in ndarray
         t += 1
         evt = event_handler.add_event(
-            'ndarray_single', 'performer.ndarray', 1, indices=(0, 0), time=t
+            "ndarray_single", "performer.ndarray", 1, indices=(0, 0), time=t
         )
         np.testing.assert_equal(evt.state, 1)
         self.assertEqual(evt.n_entries, 1)
@@ -364,8 +362,11 @@ class Test_Events(unittest.TestCase):
         # Add event for multiple entries in array
         t += 1
         evt = event_handler.add_event(
-            'ndarray_multiple', 'performer.ndarray',
-            [0, 1], indices=[(0, 0), (0, 1)], time=t
+            "ndarray_multiple",
+            "performer.ndarray",
+            [0, 1],
+            indices=[(0, 0), (0, 1)],
+            time=t,
         )
         np.testing.assert_equal(evt.state, [0, 1])
         np.testing.assert_equal(evt.full_state, [0, 1])
@@ -380,8 +381,11 @@ class Test_Events(unittest.TestCase):
         # Add event for multiple entries in array with custom order
         t += 1
         evt = event_handler.add_event(
-            'ndarray_multiple_order', 'performer.ndarray',
-            [1, 0], indices=[(1, 0), (0, 1)], time=t
+            "ndarray_multiple_order",
+            "performer.ndarray",
+            [1, 0],
+            indices=[(1, 0), (0, 1)],
+            time=t,
         )
         np.testing.assert_equal(evt.state, [1, 0])
         np.testing.assert_equal(evt.full_state, [1, 0])
@@ -396,20 +400,21 @@ class Test_Events(unittest.TestCase):
         # Add event for all entries in array
         t += 1
         evt = event_handler.add_event(
-            'ndarray_all', 'performer.ndarray',
+            "ndarray_all",
+            "performer.ndarray",
             [0, 1, 2, 3, 4, 5, 6, 7],
             indices=[(0, 0), (0, 1), (0, 2), (0, 3), (1, 0), (1, 1), (1, 2), (1, 3)],
-            time=t
+            time=t,
         )
         np.testing.assert_equal(evt.state, [0, 1, 2, 3, 4, 5, 6, 7])
         self.assertEqual(evt.n_entries, 8)
         np.testing.assert_equal(
             evt.indices,
-            [(0, 0), (0, 1), (0, 2), (0, 3), (1, 0), (1, 1), (1, 2), (1, 3)]
+            [(0, 0), (0, 1), (0, 2), (0, 3), (1, 0), (1, 1), (1, 2), (1, 3)],
         )
         np.testing.assert_equal(
             evt.full_indices,
-            [(0, 0), (0, 1), (0, 2), (0, 3), (1, 0), (1, 1), (1, 2), (1, 3)]
+            [(0, 0), (0, 1), (0, 2), (0, 3), (1, 0), (1, 1), (1, 2), (1, 3)],
         )
         self.assertEqual(evt.n_indices, 8)
         np.testing.assert_equal(
@@ -419,9 +424,10 @@ class Test_Events(unittest.TestCase):
         # Set all values without indices
         t += 1
         evt = event_handler.add_event(
-            'ndarray_all_no_indices', 'performer.ndarray',
+            "ndarray_all_no_indices",
+            "performer.ndarray",
             [[8, 7, 6, 5], [4, 3, 2, 1]],
-            time=t
+            time=t,
         )
         np.testing.assert_equal(evt.state, [[8, 7, 6, 5], [4, 3, 2, 1]])
         np.testing.assert_equal(evt.full_state, [8, 7, 6, 5, 4, 3, 2, 1])
@@ -429,7 +435,7 @@ class Test_Events(unittest.TestCase):
         np.testing.assert_equal(evt.indices, [(slice(None, None, None),)])
         np.testing.assert_equal(
             evt.full_indices,
-            [(0, 0), (0, 1), (0, 2), (0, 3), (1, 0), (1, 1), (1, 2), (1, 3)]
+            [(0, 0), (0, 1), (0, 2), (0, 3), (1, 0), (1, 1), (1, 2), (1, 3)],
         )
         self.assertEqual(evt.n_indices, 8)
         np.testing.assert_equal(
@@ -439,8 +445,11 @@ class Test_Events(unittest.TestCase):
         # Set all values using slicing notation.
         t += 1
         evt = event_handler.add_event(
-            'ndarray_all_slice', 'performer.ndarray',
-            [[0, 0, 0, 0], [1, 1, 1, 1]], indices=np.s_[:], time=t
+            "ndarray_all_slice",
+            "performer.ndarray",
+            [[0, 0, 0, 0], [1, 1, 1, 1]],
+            indices=np.s_[:],
+            time=t,
         )
         np.testing.assert_equal(evt.state, [[0, 0, 0, 0], [1, 1, 1, 1]])
         np.testing.assert_equal(evt.full_state, [0, 0, 0, 0, 1, 1, 1, 1])
@@ -448,7 +457,7 @@ class Test_Events(unittest.TestCase):
         np.testing.assert_equal(evt.indices, [(slice(None, None, None),)])
         np.testing.assert_equal(
             evt.full_indices,
-            [(0, 0), (0, 1), (0, 2), (0, 3), (1, 0), (1, 1), (1, 2), (1, 3)]
+            [(0, 0), (0, 1), (0, 2), (0, 3), (1, 0), (1, 1), (1, 2), (1, 3)],
         )
         self.assertEqual(evt.n_indices, 8)
         np.testing.assert_equal(
@@ -458,8 +467,11 @@ class Test_Events(unittest.TestCase):
         # Set all values to one value using slicing notation
         t += 1
         evt = event_handler.add_event(
-            'ndarray_all_slice_one_value', 'performer.ndarray',
-            1, indices=np.s_[:], time=t
+            "ndarray_all_slice_one_value",
+            "performer.ndarray",
+            1,
+            indices=np.s_[:],
+            time=t,
         )
         np.testing.assert_equal(evt.state, 1)
         np.testing.assert_equal(evt.full_state, [1, 1, 1, 1, 1, 1, 1, 1])
@@ -467,7 +479,7 @@ class Test_Events(unittest.TestCase):
         np.testing.assert_equal(evt.indices, [(slice(None, None, None),)])
         np.testing.assert_equal(
             evt.full_indices,
-            [(0, 0), (0, 1), (0, 2), (0, 3), (1, 0), (1, 1), (1, 2), (1, 3)]
+            [(0, 0), (0, 1), (0, 2), (0, 3), (1, 0), (1, 1), (1, 2), (1, 3)],
         )
         self.assertEqual(evt.n_indices, 8)
         np.testing.assert_equal(
@@ -478,16 +490,18 @@ class Test_Events(unittest.TestCase):
         # Set all values of one row using slicing notation
         t += 1
         evt = event_handler.add_event(
-            'ndarray_row_slice', 'performer.ndarray',
-            [0, 0, 0, 0], indices=np.s_[0, :], time=t
+            "ndarray_row_slice",
+            "performer.ndarray",
+            [0, 0, 0, 0],
+            indices=np.s_[0, :],
+            time=t,
         )
         np.testing.assert_equal(evt.state, [0, 0, 0, 0])
         np.testing.assert_equal(evt.full_state, [0, 0, 0, 0])
         self.assertEqual(evt.n_entries, 4)
-        np.testing.assert_equal(evt.indices, [(0, slice(None, None, None),)])
         np.testing.assert_equal(
             evt.full_indices,
-            [(0, 0), (0, 1), (0, 2), (0, 3)]
+            [(0, 0), (0, 1), (0, 2), (0, 3)],
         )
         self.assertEqual(evt.n_indices, 4)
         np.testing.assert_equal(
@@ -497,27 +511,37 @@ class Test_Events(unittest.TestCase):
         # Set all values of one row to one value using slicing notation
         t += 1
         evt = event_handler.add_event(
-            'ndarray_row_slice_one_value', 'performer.ndarray',
-            2, indices=np.s_[0, :], time=t
+            "ndarray_row_slice_one_value",
+            "performer.ndarray",
+            2,
+            indices=np.s_[0, :],
+            time=t,
         )
         np.testing.assert_equal(evt.state, 2)
         np.testing.assert_equal(evt.full_state, [2, 2, 2, 2])
         self.assertEqual(evt.n_entries, 4)
-        np.testing.assert_equal(evt.indices, [(0, slice(None, None, None),)])
+        np.testing.assert_equal(
+            evt.indices,
+            [(0, slice(None, None, None))],
+        )
         np.testing.assert_equal(
             evt.full_indices,
-            [(0, 0), (0, 1), (0, 2), (0, 3)]
+            [(0, 0), (0, 1), (0, 2), (0, 3)],
         )
         self.assertEqual(evt.n_indices, 4)
         np.testing.assert_equal(
-            event_handler.performer.ndarray, [[2, 2, 2, 2], [1, 1, 1, 1]]
+            event_handler.performer.ndarray,
+            [[2, 2, 2, 2], [1, 1, 1, 1]],
         )
 
         # Set all values of one column from starting_index to one value using slice
         t += 1
         evt = event_handler.add_event(
-            'ndarray_column_partial_slice', 'performer.ndarray',
-            3, indices=np.s_[1:, 1], time=t
+            "ndarray_column_partial_slice",
+            "performer.ndarray",
+            3,
+            indices=np.s_[1:, 1],
+            time=t,
         )
         np.testing.assert_equal(evt.state, 3)
         np.testing.assert_equal(evt.full_state, [3])
@@ -526,28 +550,34 @@ class Test_Events(unittest.TestCase):
         np.testing.assert_equal(evt.full_indices, [(1, 1)])
         self.assertEqual(evt.n_indices, 1)
         np.testing.assert_equal(
-            event_handler.performer.ndarray, [[2, 2, 2, 2], [1, 3, 1, 1]]
+            event_handler.performer.ndarray,
+            [[2, 2, 2, 2], [1, 3, 1, 1]],
         )
 
         # Check multiple slices
         t += 1
         evt = event_handler.add_event(
-            'ndarray_multiple_slices', 'performer.ndarray',
-            [4, 5], indices=[np.s_[0, 1:], np.s_[1, :]], time=t
+            "ndarray_multiple_slices",
+            "performer.ndarray",
+            [4, 5],
+            indices=[np.s_[0, 1:], np.s_[1, :]],
+            time=t,
         )
         np.testing.assert_equal(evt.state, [4, 5])
         np.testing.assert_equal(evt.full_state, [4, 4, 4, 5, 5, 5, 5])
         self.assertEqual(evt.n_entries, 7)
         np.testing.assert_equal(
-            evt.indices, [(0, slice(1, None, None)), (1, slice(None, None, None))]
+            evt.indices,
+            [(0, slice(1, None, None)), (1, slice(None, None, None))],
         )
         np.testing.assert_equal(
             evt.full_indices,
-            [(0, 1), (0, 2), (0, 3), (1, 0), (1, 1), (1, 2), (1, 3)]
+            [(0, 1), (0, 2), (0, 3), (1, 0), (1, 1), (1, 2), (1, 3)],
         )
         self.assertEqual(evt.n_indices, 7)
         np.testing.assert_equal(
-            event_handler.performer.ndarray, [[2, 4, 4, 4], [5, 5, 5, 5]]
+            event_handler.performer.ndarray,
+            [[2, 4, 4, 4], [5, 5, 5, 5]],
         )
 
         if plot:
@@ -558,7 +588,7 @@ class Test_Events(unittest.TestCase):
 
         # Add event relying on filling missing coefficients
         evt = event_handler.add_event(
-            '1D_single_fill', 'performer.array_1d_poly', 1, time=0
+            "1D_single_fill", "performer.array_1d_poly", 1, time=0
         )
         np.testing.assert_equal(evt.state, 1)
         np.testing.assert_equal(evt.full_state, [1, 0, 0, 0])
@@ -567,12 +597,13 @@ class Test_Events(unittest.TestCase):
         np.testing.assert_equal(evt.full_indices, [(0,), (1,), (2,), (3,)])
         self.assertEqual(evt.n_indices, 4)
         np.testing.assert_equal(
-            event_handler.performer.array_1d_poly, [1, 0, 0, 0]
+            event_handler.performer.array_1d_poly,
+            [1, 0, 0, 0],
         )
 
         # Fill all values to specific value
         evt = event_handler.add_event(
-            '1D_multi_no_fill', 'performer.array_1d_poly', 2, indices=np.s_[:], time=1
+            "1D_multi_no_fill", "performer.array_1d_poly", 2, indices=np.s_[:], time=1
         )
         np.testing.assert_equal(evt.state, 2)
         np.testing.assert_equal(evt.full_state, [2, 2, 2, 2])
@@ -580,13 +611,11 @@ class Test_Events(unittest.TestCase):
         np.testing.assert_equal(evt.indices, [(slice(None, None, None),)])
         np.testing.assert_equal(evt.full_indices, [(0,), (1,), (2,), (3,)])
         self.assertEqual(evt.n_indices, 4)
-        np.testing.assert_equal(
-            event_handler.performer.array_1d_poly, [2, 2, 2, 2]
-        )
+        np.testing.assert_equal(event_handler.performer.array_1d_poly, [2, 2, 2, 2])
 
         # Add event relying on filling missing coefficients
         evt = event_handler.add_event(
-            '1D_multi_fill', 'performer.array_1d_poly', [3, 3], time=2
+            "1D_multi_fill", "performer.array_1d_poly", [3, 3], time=2
         )
         np.testing.assert_equal(evt.state, [3, 3])
         np.testing.assert_equal(evt.full_state, [3, 3, 0, 0])
@@ -594,27 +623,23 @@ class Test_Events(unittest.TestCase):
         np.testing.assert_equal(evt.indices, [(slice(None, None, None),)])
         np.testing.assert_equal(evt.full_indices, [(0,), (1,), (2,), (3,)])
         self.assertEqual(evt.n_indices, 4)
-        np.testing.assert_equal(
-            event_handler.performer.array_1d_poly, [3, 3, 0, 0]
-        )
+        np.testing.assert_equal(event_handler.performer.array_1d_poly, [3, 3, 0, 0])
 
         # Add event for single entry in array
         evt = event_handler.add_event(
-            '1D_single', 'performer.array_1d_poly', 1, indices=0, time=3
+            "1D_single", "performer.array_1d_poly", 1, indices=0, time=3
         )
         np.testing.assert_equal(evt.state, 1)
         np.testing.assert_equal(evt.full_state, [1])
         self.assertEqual(evt.n_entries, 1)
-        np.testing.assert_equal(evt.indices, [(0, )])
+        np.testing.assert_equal(evt.indices, [(0,)])
         np.testing.assert_equal(evt.full_indices, [(0,)])
         self.assertEqual(evt.n_indices, 1)
-        np.testing.assert_equal(
-            event_handler.performer.array_1d_poly, [1, 3, 0, 0]
-        )
+        np.testing.assert_equal(event_handler.performer.array_1d_poly, [1, 3, 0, 0])
 
         # Add event for multiple entry in array
         evt = event_handler.add_event(
-            '1D_multi', 'performer.array_1d_poly', [2, 2], indices=[0, 1], time=4
+            "1D_multi", "performer.array_1d_poly", [2, 2], indices=[0, 1], time=4
         )
         np.testing.assert_equal(evt.state, [2, 2])
         np.testing.assert_equal(evt.full_state, [2, 2])
@@ -622,13 +647,11 @@ class Test_Events(unittest.TestCase):
         np.testing.assert_equal(evt.indices, [(0,), (1,)])
         np.testing.assert_equal(evt.full_indices, [(0,), (1,)])
         self.assertEqual(evt.n_indices, 2)
-        np.testing.assert_equal(
-            event_handler.performer.array_1d_poly, [2, 2, 0, 0]
-        )
+        np.testing.assert_equal(event_handler.performer.array_1d_poly, [2, 2, 0, 0])
 
         # Add event for single entry in array to check if list notation works
         evt = event_handler.add_event(
-            '1D_multi_flat', 'performer.array_1d_poly', [0], indices=[1], time=5
+            "1D_multi_flat", "performer.array_1d_poly", [0], indices=[1], time=5
         )
         np.testing.assert_equal(evt.state, [0])
         np.testing.assert_equal(evt.full_state, [0])
@@ -636,9 +659,7 @@ class Test_Events(unittest.TestCase):
         np.testing.assert_equal(evt.indices, [(1,)])
         np.testing.assert_equal(evt.full_indices, [(1,)])
         self.assertEqual(evt.n_indices, 1)
-        np.testing.assert_equal(
-            event_handler.performer.array_1d_poly, [2, 0, 0, 0]
-        )
+        np.testing.assert_equal(event_handler.performer.array_1d_poly, [2, 0, 0, 0])
 
         if plot:
             event_handler.plot_events()
@@ -651,7 +672,7 @@ class Test_Events(unittest.TestCase):
         # Add event relying for individual coefficient
         t += 1
         evt = event_handler.add_event(
-            'single_coeff', 'performer.ndarray_poly', 1, indices=(0, 1), time=t
+            "single_coeff", "performer.ndarray_poly", 1, indices=(0, 1), time=t
         )
         np.testing.assert_equal(evt.state, 1)
         np.testing.assert_equal(evt.full_state, [1])
@@ -664,14 +685,17 @@ class Test_Events(unittest.TestCase):
             [
                 [0, 1, 0, 0],
                 [0, 0, 0, 0],
-            ]
+            ],
         )
 
         # Add event for multiple coefficients / indices
         t += 1
         evt = event_handler.add_event(
-            'multi_coeffs', 'performer.ndarray_poly',
-            [1, 2], indices=[(0, 0), (1, 1)], time=t
+            "multi_coeffs",
+            "performer.ndarray_poly",
+            [1, 2],
+            indices=[(0, 0), (1, 1)],
+            time=t,
         )
         np.testing.assert_equal(evt.state, [1, 2])
         np.testing.assert_equal(evt.full_state, [1, 2])
@@ -684,30 +708,22 @@ class Test_Events(unittest.TestCase):
             [
                 [1, 1, 0, 0],
                 [0, 2, 0, 0],
-            ]
+            ],
         )
 
         # Add event relying on filling missing coefficients
         t += 1
-        evt = event_handler.add_event(
-            'fill_all', 'performer.ndarray_poly', 1, time=t
-        )
+        evt = event_handler.add_event("fill_all", "performer.ndarray_poly", 1, time=t)
         np.testing.assert_equal(evt.state, 1)
         np.testing.assert_equal(
             evt.full_state,
-            [
-                1, 0, 0, 0,
-                1, 0, 0, 0,
-            ]
+            [1, 0, 0, 0, 1, 0, 0, 0],
         )
         self.assertEqual(evt.n_entries, 8)
         np.testing.assert_equal(evt.indices, [(slice(None, None, None),)])
         np.testing.assert_equal(
             evt.full_indices,
-            [
-                (0, 0), (0, 1), (0, 2), (0, 3),
-                (1, 0), (1, 1), (1, 2), (1, 3),
-            ]
+            [(0, 0), (0, 1), (0, 2), (0, 3), (1, 0), (1, 1), (1, 2), (1, 3)],
         )
         self.assertEqual(evt.n_indices, 8)
         np.testing.assert_equal(
@@ -715,27 +731,23 @@ class Test_Events(unittest.TestCase):
             [
                 [1, 0, 0, 0],
                 [1, 0, 0, 0],
-            ]
+            ],
         )
         # Add event relying on filling missing coefficients for single entry
         t += 1
         evt = event_handler.add_event(
-            'multi_fill_single', 'performer.ndarray_poly', 3, indices=0, time=t
+            "multi_fill_single", "performer.ndarray_poly", 3, indices=0, time=t
         )
         np.testing.assert_equal(evt.state, 3)
         np.testing.assert_equal(
             evt.full_state,
-            [
-                3, 0, 0, 0,
-            ]
+            [3, 0, 0, 0],
         )
         self.assertEqual(evt.n_entries, 4)
         np.testing.assert_equal(evt.indices, [(0,)])
         np.testing.assert_equal(
             evt.full_indices,
-            [
-                (0, 0), (0, 1), (0, 2), (0, 3),
-            ]
+            [(0, 0), (0, 1), (0, 2), (0, 3)],
         )
         self.assertEqual(evt.n_indices, 4)
         np.testing.assert_equal(
@@ -743,30 +755,24 @@ class Test_Events(unittest.TestCase):
             [
                 [3, 0, 0, 0],
                 [1, 0, 0, 0],
-            ]
+            ],
         )
 
         # Add event relying on filling missing coefficients with inhomogeneous shape
         t += 1
         evt = event_handler.add_event(
-            'multi_fill_inhomogeneous', 'performer.ndarray_poly', [2, [0, 1]], time=t
+            "multi_fill_inhomogeneous", "performer.ndarray_poly", [2, [0, 1]], time=t
         )
         np.testing.assert_equal(evt.state, [2, [0, 1]])
         np.testing.assert_equal(
             evt.full_state,
-            [
-                2, 0, 0, 0,
-                0, 1, 0, 0,
-            ]
+            [2, 0, 0, 0, 0, 1, 0, 0],
         )
         self.assertEqual(evt.n_entries, 8)
         np.testing.assert_equal(evt.indices, [(slice(None, None, None),)])
         np.testing.assert_equal(
             evt.full_indices,
-            [
-                (0, 0), (0, 1), (0, 2), (0, 3),
-                (1, 0), (1, 1), (1, 2), (1, 3),
-            ]
+            [(0, 0), (0, 1), (0, 2), (0, 3), (1, 0), (1, 1), (1, 2), (1, 3)],
         )
         self.assertEqual(evt.n_indices, 8)
         np.testing.assert_equal(
@@ -774,13 +780,13 @@ class Test_Events(unittest.TestCase):
             [
                 [2, 0, 0, 0],
                 [0, 1, 0, 0],
-            ]
+            ],
         )
 
         # Add event using slicing (should work just like a regular ndarray)
         t += 1
         evt = event_handler.add_event(
-            'multi_slice', 'performer.ndarray_poly', [1], indices=[np.s_[0, :]], time=t
+            "multi_slice", "performer.ndarray_poly", [1], indices=[np.s_[0, :]], time=t
         )
 
         np.testing.assert_equal(evt.state, [1])
@@ -789,9 +795,7 @@ class Test_Events(unittest.TestCase):
         np.testing.assert_equal(evt.indices, [(0, slice(None, None, None))])
         np.testing.assert_equal(
             evt.full_indices,
-            [
-                (0, 0), (0, 1), (0, 2), (0, 3),
-            ]
+            [(0, 0), (0, 1), (0, 2), (0, 3)],
         )
         self.assertEqual(evt.n_indices, 4)
         np.testing.assert_equal(
@@ -799,7 +803,7 @@ class Test_Events(unittest.TestCase):
             [
                 [1, 1, 1, 1],
                 [0, 1, 0, 0],
-            ]
+            ],
         )
 
         if plot:
@@ -808,12 +812,12 @@ class Test_Events(unittest.TestCase):
     def test_lwe(self):
         """This reproduces the situation from the LWE / SMA model in the examples."""
         event_handler = self.setup_event_handler()
-        event_handler.name = 'LWE'
+        event_handler.name = "LWE"
 
-        cycle_time = 110*60
+        cycle_time = 110 * 60
         event_handler.cycle_time = cycle_time
 
-        t_flush = 20*60
+        t_flush = 20 * 60
 
         t_gradient_start = 90
         gradient_duration = cycle_time - t_gradient_start - t_flush
@@ -821,23 +825,26 @@ class Test_Events(unittest.TestCase):
         c_load = np.array([5, 1, 1, 1])
         c_wash = np.array([5, 0, 0, 0])
         c_elute = np.array([1000, 0, 0, 0])
-        gradient_slope = (c_elute - c_wash)/gradient_duration
+        gradient_slope = (c_elute - c_wash) / gradient_duration
         c_gradient_poly = np.array(list(zip(c_wash, gradient_slope)))
         c_gradient_poly[0][1] = 0.4
         c_gradient_poly = c_gradient_poly.tolist()
 
-        event_handler.add_event('load', 'performer.ndarray_poly_dep', c_load, time=0)
+        event_handler.add_event("load", "performer.ndarray_poly_dep", c_load, time=0)
         event_handler.add_event(
-            'wash', 'performer.ndarray_poly_dep',
-            c_wash, time=t_flush
+            "wash", "performer.ndarray_poly_dep", c_wash, time=t_flush
         )
         event_handler.add_event(
-            'grad_start', 'performer.ndarray_poly_dep',
-            c_gradient_poly, time=t_gradient_start
+            "grad_start",
+            "performer.ndarray_poly_dep",
+            c_gradient_poly,
+            time=t_gradient_start,
         )
         event_handler.add_event(
-            'Flush', 'performer.ndarray_poly_dep',
-            c_elute, time=t_gradient_start + gradient_duration
+            "Flush",
+            "performer.ndarray_poly_dep",
+            c_elute,
+            time=t_gradient_start + gradient_duration,
         )
 
         if plot:
@@ -858,16 +865,16 @@ class Test_Events(unittest.TestCase):
     def test_dependencies(self):
         event_handler = self.setup_event_handler(add_events=True)
 
-        event_handler.add_event_dependency('evt1', 'evt0')
+        event_handler.add_event_dependency("evt1", "evt0")
         self.assertEqual(event_handler.event_times, [0])
 
         event_handler.evt0.time = 1
         self.assertEqual(event_handler.event_times, [0, 1])
 
-        event_handler.add_event_dependency('evt2', 'evt1', 2)
+        event_handler.add_event_dependency("evt2", "evt1", 2)
         self.assertEqual(event_handler.event_times, [0, 1, 2])
 
-        event_handler.add_event_dependency('evt3', ['evt1', 'evt0'], [2, 1])
+        event_handler.add_event_dependency("evt3", ["evt1", "evt0"], [2, 1])
         self.assertEqual(event_handler.event_times, [0, 1, 2, 3])
 
         # Dependent event
@@ -876,15 +883,15 @@ class Test_Events(unittest.TestCase):
 
         # Event does not exist
         with self.assertRaises(CADETProcess.CADETProcessError):
-            event_handler.add_event_dependency('evt3', 'evt0')
+            event_handler.add_event_dependency("evt3", "evt0")
 
         # Duplicate dependency
         with self.assertRaises(CADETProcess.CADETProcessError):
-            event_handler.add_event_dependency('evt1', 'evt0')
+            event_handler.add_event_dependency("evt1", "evt0")
 
         # Linear factors not matching
         with self.assertRaises(CADETProcess.CADETProcessError):
-            event_handler.add_event_dependency('evt1', 'evt0', [1, 1])
+            event_handler.add_event_dependency("evt1", "evt0", [1, 1])
 
     def test_section_states(self):
         pass
@@ -895,8 +902,8 @@ class Test_Events(unittest.TestCase):
     def test_duplicate_event_times(self):
         event_handler = self.setup_event_handler()
 
-        event_handler.add_event('evt0', 'performer.scalar_float', 0, 0)
-        event_handler.add_event('evt1', 'performer.scalar_float', 1, 1)
+        event_handler.add_event("evt0", "performer.scalar_float", 0, 0)
+        event_handler.add_event("evt1", "performer.scalar_float", 1, 1)
 
         event_handler.check_config()
 
@@ -908,14 +915,15 @@ class Test_Events(unittest.TestCase):
         event_handler = self.setup_event_handler()
 
         event_handler.add_event(
-            'evt0', 'performer.ndarray_no_default', 0, indices=(0, 0)
+            "evt0", "performer.ndarray_no_default", 0, indices=(0, 0)
         )
 
         self.assertFalse(event_handler.check_uninitialized_indices())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     plot = True
     import matplotlib.pyplot as plt
-    plt.close('all')
+
+    plt.close("all")
     unittest.main()

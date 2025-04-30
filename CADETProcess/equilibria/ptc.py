@@ -12,9 +12,10 @@ __contact__ = "leweke@math.uni-koeln.de"
 __copyright__ = "Copyright 2020, University of Cologne"
 
 
+import math
+
 import numpy as np
 import scipy.linalg
-import math
 
 
 def scaled_norm2(x, scale):
@@ -30,9 +31,17 @@ def jacrow_scale(jacMat, scale):
 
 
 def ptc(
-        x, f, jacF, tau, tol,
-        scale=None, maxIter=50, maxNonMonotone=5,
-        quiet=True, variant=False):
+    x,
+    f,
+    jacF,
+    tau,
+    tol,
+    scale=None,
+    maxIter=50,
+    maxNonMonotone=5,
+    quiet=True,
+    variant=False,
+):
     r"""Solve a nonlinear equation system using pseudo-transient continuation.
 
     The nonlinear equation system f(x) = 0 is solved using pseudo-transient
@@ -109,7 +118,7 @@ def ptc(
     nNonMonotoneResidual = 0
 
     if not quiet:
-        print('%4i  %12e  %12e  %7f' % (k, normdx, normfk, tau))
+        print("%4i  %12e  %12e  %7f" % (k, normdx, normfk, tau))
 
     while True:
         if normfk <= tol:
@@ -164,7 +173,7 @@ def ptc(
 
         if not quiet:
             normdx = norm2(dx)
-            print('%4i  %12e  %12e  %7f' % (k, normdx, normfk, tau))
+            print("%4i  %12e  %12e  %7f" % (k, normdx, normfk, tau))
 
         # Check terminal condition
         if k > maxIter:

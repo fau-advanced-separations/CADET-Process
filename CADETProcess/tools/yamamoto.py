@@ -1,32 +1,31 @@
 from typing import NoReturn, Optional
 
+import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
-import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 
 from CADETProcess import CADETProcessError
-from CADETProcess.processModel import TubularReactorBase, StericMassAction
-
+from CADETProcess.processModel import StericMassAction, TubularReactorBase
 
 __all__ = [
-    'GradientExperiment',
-    'plot_experiments',
-    'YamamotoResults',
-    'fit_parameters'
+    "GradientExperiment",
+    "plot_experiments",
+    "YamamotoResults",
+    "fit_parameters",
 ]
 
 
-class GradientExperiment():
+class GradientExperiment:
     def __init__(
-            self,
-            time: npt.ArrayLike,
-            c_salt: npt.ArrayLike,
-            c_protein: npt.ArrayLike,
-            gradient_volume: float,
-            c_salt_start: Optional[float] = None,
-            c_salt_end: Optional[float] = None
-            ) -> NoReturn:
+        self,
+        time: npt.ArrayLike,
+        c_salt: npt.ArrayLike,
+        c_protein: npt.ArrayLike,
+        gradient_volume: float,
+        c_salt_start: Optional[float] = None,
+        c_salt_end: Optional[float] = None,
+    ) -> NoReturn:
         """
         Initialize a GradientExperiment instance.
 
@@ -82,10 +81,8 @@ class GradientExperiment():
         return self.time[max_c_protein]
 
     def calculate_normalized_gradient_slope(
-            self,
-            column_volume,
-            total_porosity
-            ) -> float:
+        self, column_volume, total_porosity
+    ) -> float:
         """
         Calculate normalized concentration gradient slope.
 
@@ -102,15 +99,15 @@ class GradientExperiment():
             Gradient slope in mM.
         """
         slope = (self.c_salt_end - self.c_salt_start) / self.gradient_volume
-        vol_factor = column_volume - total_porosity*column_volume
+        vol_factor = column_volume - total_porosity * column_volume
         return slope * vol_factor
 
     def plot(
-            self,
-            fig: Optional[plt.Figure] = None,
-            ax: Optional[plt.Axes] = None,
-            sec_ax: Optional[plt.Axes] = None,
-            ) -> tuple[plt.Figure, plt.Axes, plt.Axes]:
+        self,
+        fig: Optional[plt.Figure] = None,
+        ax: Optional[plt.Axes] = None,
+        sec_ax: Optional[plt.Axes] = None,
+    ) -> tuple[plt.Figure, plt.Axes, plt.Axes]:
         """
         Plot the gradient experiment data.
 
@@ -135,18 +132,18 @@ class GradientExperiment():
         if ax is None:
             fig, ax = plt.subplots()
 
-            ax.set_xlabel('$Time / s$')
-            ax.set_ylabel('$c_{Protein} / mM$')
+            ax.set_xlabel("$Time / s$")
+            ax.set_ylabel("$c_{Protein} / mM$")
 
             sec_ax = ax.twinx()
-            sec_ax.set_ylabel('$c_{Salt} / mM$')
+            sec_ax.set_ylabel("$c_{Salt} / mM$")
 
-        ax.plot(self.time, self.c_protein, label='Protein')
+        ax.plot(self.time, self.c_protein, label="Protein")
 
         c_p_max = np.max(self.c_protein, axis=0)
-        ax.vlines(self.t_at_max, ymin=0, ymax=c_p_max, color='k', linestyle='--')
-        sec_ax.plot(self.time, self.c_salt, 'k', label='Salt')
-        sec_ax.plot(self.t_at_max, self.c_salt_at_max, 'ro')
+        ax.vlines(self.t_at_max, ymin=0, ymax=c_p_max, color="k", linestyle="--")
+        sec_ax.plot(self.time, self.c_salt, "k", label="Salt")
+        sec_ax.plot(self.t_at_max, self.c_salt_at_max, "ro")
 
         fig.tight_layout()
 
@@ -169,11 +166,11 @@ def plot_experiments(experiments: list[GradientExperiment]):
 
 
 def yamamoto_equation(
-        log_c_salt_at_max_M: float,
-        lambda_: float,
-        nu: float,
-        k_eq: float,
-        ) -> np.ndarray:
+    log_c_salt_at_max_M: float,
+    lambda_: float,
+    nu: float,
+    k_eq: float,
+) -> np.ndarray:
     r"""
     Calculate the theoretical normalized gradient slope using Yamamoto's method.
 
@@ -212,21 +209,23 @@ def yamamoto_equation(
     np.ndarray
         Calculated normalized gradient slope (GH) values in logarithmic scale.
     """
-    lambda_M = lambda_/1000
+    lambda_M = lambda_ / 1000
 
-    return np.multiply((nu + 1), log_c_salt_at_max_M) - np.log10(k_eq * lambda_M**nu * (nu + 1))
+    return np.multiply((nu + 1), log_c_salt_at_max_M) - np.log10(
+        k_eq * lambda_M**nu * (nu + 1)
+    )
 
 
 class YamamotoResults:
     """Parameter values determined using Yamamoto's method."""
 
     def __init__(
-            self,
-            column,
-            experiments: list[GradientExperiment],
-            log_gradient_slope: npt.ArrayLike,
-            log_c_salt_at_max_M: npt.ArrayLike,
-            ) -> NoReturn:
+        self,
+        column,
+        experiments: list[GradientExperiment],
+        log_gradient_slope: npt.ArrayLike,
+        log_c_salt_at_max_M: npt.ArrayLike,
+    ) -> NoReturn:
         """
         Initialize YamamotoResults with column, experiments, and log-transformed data.
 
@@ -257,10 +256,8 @@ class YamamotoResults:
         return np.array(self.column.binding_model.adsorption_rate[1:])
 
     def plot(
-            self,
-            fig: Optional[plt.Figure] = None,
-            ax: Optional[plt.Axes] = None
-            ) -> tuple[plt.Figure, plt.Axes]:
+        self, fig: Optional[plt.Figure] = None, ax: Optional[plt.Axes] = None
+    ) -> tuple[plt.Figure, plt.Axes]:
         """
         Plot the normalized gradient slope against the peak salt concentration.
 
@@ -280,8 +277,8 @@ class YamamotoResults:
         """
         if ax is None:
             fig, ax = plt.subplots()
-            ax.set_ylabel('Normalized Gradient Slope $GH$ / $M$')
-            ax.set_xlabel('Peak Salt Concentration $I_R$ / $M$')
+            ax.set_ylabel("Normalized Gradient Slope $GH$ / $M$")
+            ax.set_xlabel("Peak Salt Concentration $I_R$ / $M$")
 
         n_proteins = self.experiments[0].n_proteins
 
@@ -291,7 +288,7 @@ class YamamotoResults:
 
             x = [
                 min(self.log_c_salt_at_max_M[:, i_p]) * 1.05,
-                max(self.log_c_salt_at_max_M[:, i_p]) * 0.95
+                max(self.log_c_salt_at_max_M[:, i_p]) * 0.95,
             ]
 
             y = yamamoto_equation(
@@ -300,8 +297,8 @@ class YamamotoResults:
                 nu=nu,
                 k_eq=k_eq,
             )
-            ax.plot(x, y, 'k')
-            ax.plot(self.log_c_salt_at_max_M[:, i_p], self.log_gradient_slope, 'ro')
+            ax.plot(x, y, "k")
+            ax.plot(self.log_c_salt_at_max_M[:, i_p], self.log_gradient_slope, "ro")
 
         fig.tight_layout()
         return fig, ax
@@ -342,34 +339,36 @@ def fit_parameters(experiments, column):
 
     nu = np.zeros((experiments[0].n_proteins,))
     k_eq = np.zeros((experiments[0].n_proteins,))
-    log_c_salt_at_max_M = np.zeros((len(experiments), experiments[0].n_proteins,))
+    log_c_salt_at_max_M = np.zeros(
+        (
+            len(experiments),
+            experiments[0].n_proteins,
+        )
+    )
 
     for i_p in range(experiments[0].n_proteins):
         c_salt_at_max = [exp.c_salt_at_max[i_p] for exp in experiments]
-        log_c_salt_at_max_M[:, i_p] = np.log10(np.array(c_salt_at_max)/1000)
+        log_c_salt_at_max_M[:, i_p] = np.log10(np.array(c_salt_at_max) / 1000)
 
         nu[i_p], k_eq[i_p] = _fit_yamamoto(
             log_c_salt_at_max_M[:, i_p],
             log_gradient_slope,
-            column.binding_model.capacity
+            column.binding_model.capacity,
         )
 
     column.binding_model.characteristic_charge = [0, *nu.tolist()]
     column.binding_model.adsorption_rate = [0, *k_eq.tolist()]
 
     yamamoto_results = YamamotoResults(
-        column, experiments,
-        log_gradient_slope, log_c_salt_at_max_M
-        )
+        column, experiments, log_gradient_slope, log_c_salt_at_max_M
+    )
 
     return yamamoto_results
 
 
 def _fit_yamamoto(
-        log_c_salt_at_max_M: np.ndarray,
-        log_gradient_slope: np.ndarray,
-        lambda_: float
-        ) -> tuple[float, float]:
+    log_c_salt_at_max_M: np.ndarray, log_gradient_slope: np.ndarray, lambda_: float
+) -> tuple[float, float]:
     """
     Fit the Yamamoto model to experimental data using non-linear curve fitting.
 
@@ -399,7 +398,7 @@ def _fit_yamamoto(
         log_c_salt_at_max_M,
         log_gradient_slope,
         bounds=bounds,
-        p0=(1, 1)
+        p0=(1, 1),
     )
 
     return results

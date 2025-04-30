@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.14.5
+#       jupytext_version: 1.17.1
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -64,9 +64,9 @@ column.bed_porosity = 0.37
 column.particle_radius = 4.5e-5
 column.particle_porosity = 0.75
 column.axial_dispersion = 5.75e-8
-column.film_diffusion = column.n_comp*[6.9e-6]
+column.film_diffusion = column.n_comp * [6.9e-6]
 column.pore_diffusion = [7e-10, 6.07e-11, 6.07e-11, 6.07e-11]
-column.surface_diffusion = column.n_bound_states*[0.0]
+column.surface_diffusion = column.n_bound_states * [0.0]
 
 column.c = [50, 0, 0, 0]
 column.cp = [50, 0, 0, 0]
@@ -103,7 +103,7 @@ t_gradient_start = 90.0
 gradient_duration = process.cycle_time - t_gradient_start
 
 Q = 6.683738370512285e-8
-gradient_slope = Q/(process.cycle_time - t_gradient_start)
+gradient_slope = Q / (process.cycle_time - t_gradient_start)
 
 process.add_event('load_on', 'flow_sheet.load.flow_rate', Q)
 process.add_event('load_off', 'flow_sheet.load.flow_rate', 0.0)

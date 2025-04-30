@@ -1,10 +1,11 @@
 import unittest
 
 import numpy as np
-
 from CADETProcess import CADETProcessError
-from CADETProcess.optimization import Individual, Population, ParetoFront
+from CADETProcess.optimization import Individual, ParetoFront, Population
+
 from tests.test_individual import setup_individual
+
 enable_plot = False
 
 
@@ -22,7 +23,6 @@ def setup_population(n_ind, n_vars, n_obj, n_nonlin=0, n_meta=0, rng=None):
 
 
 class TestPopulation(unittest.TestCase):
-
     def setUp(self):
         x = [1, 2]
         f = [-1]
@@ -100,41 +100,43 @@ class TestPopulation(unittest.TestCase):
         self.assertEqual(1, self.population_meta.n_m)
 
     def test_values(self):
-        x_expected = np.array([
-            [1, 2],
-            [2, 3],
-            [1.001, 2]
-        ])
+        x_expected = np.array(
+            [
+                [1, 2],
+                [2, 3],
+                [1.001, 2],
+            ]
+        )
         x = self.population.x
         np.testing.assert_almost_equal(x, x_expected)
 
-        f_expected = np.array([
-            [-1],
-            [-2],
-            [-1.001]
-        ])
+        f_expected = np.array(
+            [
+                [-1],
+                [-2],
+                [-1.001],
+            ]
+        )
         f = self.population.f
         np.testing.assert_almost_equal(f, f_expected)
 
-        g_expected = np.array([
-            [3],
-            [0]
-        ])
+        g_expected = np.array(
+            [
+                [3],
+                [0],
+            ]
+        )
         g = self.population_constr.g
         np.testing.assert_almost_equal(g, g_expected)
 
     def test_add_remove(self):
         with self.assertRaises(TypeError):
-            self.population.add_individual('foo')
+            self.population.add_individual("foo")
 
-        self.population.add_individual(
-            self.individual_1, ignore_duplicate=True
-        )
+        self.population.add_individual(self.individual_1, ignore_duplicate=True)
 
         with self.assertRaises(CADETProcessError):
-            self.population.add_individual(
-                self.individual_1, ignore_duplicate=False
-            )
+            self.population.add_individual(self.individual_1, ignore_duplicate=False)
 
         new_individual = Individual([9, 10], f=[3], g=[-1])
         with self.assertRaises(CADETProcessError):
@@ -145,55 +147,67 @@ class TestPopulation(unittest.TestCase):
         self.assertFalse(new_individual in self.population)
         self.assertTrue(self.individual_1 in self.population_constr)
 
-        x_expected = np.array([
-            [1, 2],
-            [2, 3],
-            [9, 10],
-        ])
+        x_expected = np.array(
+            [
+                [1, 2],
+                [2, 3],
+                [9, 10],
+            ]
+        )
         x = self.population_constr.x
         np.testing.assert_almost_equal(x, x_expected)
 
-        f_expected = np.array([
-            [-1],
-            [-2],
-            [3]
-        ])
+        f_expected = np.array(
+            [
+                [-1],
+                [-2],
+                [3],
+            ]
+        )
         f = self.population_constr.f
         np.testing.assert_almost_equal(f, f_expected)
 
-        g_expected = np.array([
-            [3],
-            [0],
-            [-1]
-        ])
+        g_expected = np.array(
+            [
+                [3],
+                [0],
+                [-1],
+            ]
+        )
         g = self.population_constr.g
         np.testing.assert_almost_equal(g, g_expected)
 
         with self.assertRaises(TypeError):
-            self.population.remove_individual('foo')
+            self.population.remove_individual("foo")
 
         with self.assertRaises(CADETProcessError):
             self.population.remove_individual(new_individual)
 
         self.population_constr.remove_individual(new_individual)
-        x_expected = np.array([
-            [1, 2],
-            [2, 3],
-        ])
+        x_expected = np.array(
+            [
+                [1, 2],
+                [2, 3],
+            ]
+        )
         x = self.population_constr.x
         np.testing.assert_almost_equal(x, x_expected)
 
-        f_expected = np.array([
-            [-1],
-            [-2],
-        ])
+        f_expected = np.array(
+            [
+                [-1],
+                [-2],
+            ]
+        )
         f = self.population_constr.f
         np.testing.assert_almost_equal(f, f_expected)
 
-        g_expected = np.array([
-            [3],
-            [0],
-        ])
+        g_expected = np.array(
+            [
+                [3],
+                [0],
+            ]
+        )
         g = self.population_constr.g
         np.testing.assert_almost_equal(g, g_expected)
 
@@ -221,9 +235,9 @@ class TestPopulation(unittest.TestCase):
     def test_to_dict(self):
         # Test that Population can be converted to a dictionary
         population_dict = self.population.to_dict()
-        individuals_list = population_dict['individuals']
+        individuals_list = population_dict["individuals"]
         self.assertEqual(len(individuals_list), 3)
-        self.assertEqual(population_dict['id'], str(self.population.id))
+        self.assertEqual(population_dict["id"], str(self.population.id))
 
     def test_from_dict(self):
         # Test that a Population can be created from a dictionary
@@ -236,7 +250,6 @@ class TestPopulation(unittest.TestCase):
 
 
 class TestPareto(unittest.TestCase):
-
     def setUp(self):
         front = ParetoFront(3)
 
@@ -254,7 +267,7 @@ class TestPareto(unittest.TestCase):
         front.update(population)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     enable_plot = True
 
     unittest.main()

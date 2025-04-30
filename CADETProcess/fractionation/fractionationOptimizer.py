@@ -2,19 +2,15 @@ import warnings
 
 import numpy as np
 
-from CADETProcess import CADETProcessError
-
-from CADETProcess import SimulationResults
+from CADETProcess import CADETProcessError, SimulationResults
 from CADETProcess.fractionation import Fractionator
-from CADETProcess.optimization import OptimizerBase, OptimizationProblem
-from CADETProcess.optimization import COBYLA
+from CADETProcess.optimization import COBYLA, OptimizationProblem, OptimizerBase
 from CADETProcess.performance import Mass, Purity
 
+__all__ = ["FractionationOptimizer"]
 
-__all__ = ['FractionationOptimizer']
 
-
-class FractionationEvaluator():
+class FractionationEvaluator:
     """Dummy Evaluator to enable caching."""
 
     def evaluate(self, fractionator):
@@ -38,10 +34,10 @@ class FractionationEvaluator():
         return __class__.__name__
 
 
-class FractionationOptimizer():
+class FractionationOptimizer:
     """Configuration for fractionating Chromatograms."""
 
-    def __init__(self, optimizer=None, log_level='WARNING'):
+    def __init__(self, optimizer=None, log_level="WARNING"):
         """Initialize the FractionationOptimizer.
 
         Parameters
@@ -82,16 +78,17 @@ class FractionationOptimizer():
             If the optimizer is not an instance of OptimizerBase.
         """
         if not isinstance(optimizer, OptimizerBase):
-            raise TypeError('Expected OptimizerBase')
+            raise TypeError("Expected OptimizerBase")
         self._optimizer = optimizer
 
     def _setup_fractionator(
-            self,
-            simulation_results,
-            purity_required,
-            components=None,
-            use_total_concentration_components=True,
-            allow_empty_fractions=True):
+        self,
+        simulation_results,
+        purity_required,
+        components=None,
+        use_total_concentration_components=True,
+        allow_empty_fractions=True,
+    ):
         """Set up the Fractionator for optimizing the fractionation times of Chromatograms.
 
         Parameters
@@ -124,7 +121,7 @@ class FractionationOptimizer():
         if not np.any(frac.n_fractions_per_pool[:-1]):
             raise CADETProcessError("No areas found with sufficient purity.")
 
-        if not allow_empty_fractions :
+        if not allow_empty_fractions:
             empty_fractions = []
             for i, comp in enumerate(purity_required):
                 if comp > 0:
@@ -139,15 +136,16 @@ class FractionationOptimizer():
         return frac
 
     def _setup_optimization_problem(
-            self,
-            frac,
-            purity_required,
-            allow_empty_fractions=True,
-            ranking=1,
-            obj_fun=None,
-            minimize=True,
-            bad_metrics=None,
-            n_objectives=1):
+        self,
+        frac,
+        purity_required,
+        allow_empty_fractions=True,
+        ranking=1,
+        obj_fun=None,
+        minimize=True,
+        bad_metrics=None,
+        n_objectives=1,
+    ):
         """Set up the OptimizationProblem for optimizing the fractionation times.
 
         Parameters
@@ -197,7 +195,7 @@ class FractionationOptimizer():
 
         # Setup Optimization Problem
         opt = OptimizationProblem(
-            'FractionationOptimization',
+            "FractionationOptimization",
             log_level=self.log_level,
             use_diskcache=False,
         )
@@ -226,15 +224,17 @@ class FractionationOptimizer():
             purity,
             n_nonlinear_constraints=len(purity_required),
             bounds=purity_required,
-            comparison_operator='ge',
+            comparison_operator="ge",
             requires=frac_evaluator,
         )
 
         for evt in frac.events:
             opt.add_variable(
-                evt.name, parameter_path=evt.name + '.time',
-                lb=-frac.cycle_time, ub=2*frac.cycle_time,
-                transform='linear'
+                evt.name,
+                parameter_path=evt.name + ".time",
+                lb=-frac.cycle_time,
+                ub=2 * frac.cycle_time,
+                transform="linear",
             )
 
         for chrom_index, chrom in enumerate(frac.chromatograms):
@@ -243,7 +243,7 @@ class FractionationOptimizer():
             for evt_index, evt in enumerate(chrom_events):
                 if evt_index < len(chrom_events) - 1:
                     opt.add_linear_constraint(
-                        [evt_names[evt_index], evt_names[evt_index+1]], [1, -1]
+                        [evt_names[evt_index], evt_names[evt_index + 1]], [1, -1]
                     )
                 else:
                     opt.add_linear_constraint(
@@ -258,20 +258,21 @@ class FractionationOptimizer():
         return opt, x0
 
     def optimize_fractionation(
-            self,
-            simulation_results,
-            purity_required,
-            components=None,
-            use_total_concentration_components=True,
-            ranking=1,
-            obj_fun=None,
-            n_objectives=1,
-            bad_metrics=0,
-            minimize=True,
-            allow_empty_fractions=True,
-            ignore_failed=False,
-            return_optimization_results=False,
-            save_results=False):
+        self,
+        simulation_results,
+        purity_required,
+        components=None,
+        use_total_concentration_components=True,
+        ranking=1,
+        obj_fun=None,
+        n_objectives=1,
+        bad_metrics=0,
+        minimize=True,
+        allow_empty_fractions=True,
+        ignore_failed=False,
+        return_optimization_results=False,
+        save_results=False,
+    ):
         """Optimize the fractionation times with respect to purity constraints.
 
         Parameters
@@ -338,12 +339,10 @@ class FractionationOptimizer():
 
         """
         if not isinstance(simulation_results, SimulationResults):
-            raise TypeError('Expected SimulationResults.')
+            raise TypeError("Expected SimulationResults.")
 
         if len(simulation_results.chromatograms) == 0:
-            raise CADETProcessError(
-                'Simulation results do not contain chromatogram.'
-            )
+            raise CADETProcessError("Simulation results do not contain chromatogram.")
 
         if isinstance(purity_required, float):
             n_comp = simulation_results.component_system.n_comp
@@ -358,7 +357,7 @@ class FractionationOptimizer():
             purity_required,
             components=components,
             use_total_concentration_components=use_total_concentration_components,
-            allow_empty_fractions=allow_empty_fractions
+            allow_empty_fractions=allow_empty_fractions,
         )
 
         opt, x0 = self._setup_optimization_problem(
@@ -376,7 +375,8 @@ class FractionationOptimizer():
         simulation_results.process.lock = True
         try:
             results = self.optimizer.optimize(
-                opt, x0,
+                opt,
+                x0,
                 save_results=save_results,
                 log_level=self.log_level,
                 delete_cache=True,
@@ -385,7 +385,7 @@ class FractionationOptimizer():
             frac.reset()
         except CADETProcessError as e:
             if ignore_failed:
-                warnings.warn('Optimization failed. Returning initial values')
+                warnings.warn("Optimization failed. Returning initial values")
                 frac.initial_values(purity_required)
             else:
                 raise CADETProcessError(str(e))

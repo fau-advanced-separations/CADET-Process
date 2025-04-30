@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.14.5
+#       jupytext_version: 1.17.1
 #   kernelspec:
 #     display_name: Python 3
 #     name: python3
@@ -114,7 +114,7 @@ flow_sheet.add_connection(column, outlet)
 from CADETProcess.processModel import Process
 process = Process(flow_sheet, 'mrssr')
 
-Q = 60/(60*1e6)
+Q = 60 / (60 * 1e6)
 
 # Create Events and Durations
 process.add_event('feed_on', 'flow_sheet.feed.flow_rate', Q)

@@ -1,10 +1,13 @@
+import multiprocessing
 from abc import abstractmethod
 from collections.abc import Iterable
-import multiprocessing
 
-from CADETProcess.dataStructure import Structure
-from CADETProcess.dataStructure import Bool, Integer, RangedInteger, UnsignedInteger, Constant, String
-
+from CADETProcess.dataStructure import (
+    Constant,
+    RangedInteger,
+    Structure,
+    UnsignedInteger,
+)
 
 cpu_count = multiprocessing.cpu_count()
 
@@ -25,7 +28,7 @@ class ParallelizationBackendBase(Structure):
 
     n_cores = RangedInteger(lb=-cpu_count, ub=cpu_count, default=1)
 
-    _parameters = ['n_cores']
+    _parameters = ["n_cores"]
 
     @property
     def _n_cores(self):
@@ -107,6 +110,7 @@ class SequentialBackend(ParallelizationBackendBase):
 
 try:
     from joblib import Parallel, delayed
+
     __all__.append("Joblib")
 except ModuleNotFoundError:
     pass
@@ -126,7 +130,7 @@ class Joblib(ParallelizationBackendBase):
     """
 
     verbose = UnsignedInteger(default=0)
-    _parameters = ['verbose']
+    _parameters = ["verbose"]
 
     def evaluate(self, function: callable, population: Iterable) -> list:
         """Evaluate the function in parallalel for all individuals of the population.
@@ -152,6 +156,7 @@ class Joblib(ParallelizationBackendBase):
 
 try:
     import pathos
+
     __all__.append("Pathos")
 except ModuleNotFoundError:
     pass

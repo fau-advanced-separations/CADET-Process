@@ -1,7 +1,10 @@
 import numpy as np
 
 
-def round_to_significant_digits(values: np.ndarray | list[float], digits: int) -> np.ndarray:
+def round_to_significant_digits(
+    values: np.ndarray | list[float],
+    digits: int,
+) -> np.ndarray:
     """
     Round an array of numbers to the specified number of significant digits.
 

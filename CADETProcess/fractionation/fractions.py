@@ -1,11 +1,7 @@
 import numpy as np
 
 from CADETProcess import CADETProcessError
-from CADETProcess.dataStructure import Structure
-from CADETProcess.dataStructure import (
-    UnsignedInteger, UnsignedFloat, Vector
-)
-
+from CADETProcess.dataStructure import Structure, UnsignedFloat, UnsignedInteger, Vector
 
 __all__ = ["Fraction", "FractionPool"]
 
@@ -45,7 +41,7 @@ class Fraction(Structure):
     start = UnsignedFloat()
     end = UnsignedFloat()
 
-    _parameters = ['mass', 'volume', 'start', 'end']
+    _parameters = ["mass", "volume", "start", "end"]
 
     @property
     def n_comp(self):
@@ -76,7 +72,7 @@ class Fraction(Structure):
         fraction_mass
         concentration
         """
-        with np.errstate(divide='ignore', invalid='ignore'):
+        with np.errstate(divide="ignore", invalid="ignore"):
             purity = self.mass / self.fraction_mass
 
         return np.nan_to_num(purity)
@@ -92,15 +88,13 @@ class Fraction(Structure):
         mass
         volume
         """
-        with np.errstate(divide='ignore', invalid='ignore'):
+        with np.errstate(divide="ignore", invalid="ignore"):
             concentration = self.mass / self.volume
 
         return np.nan_to_num(concentration)
 
     def __repr__(self):
-        return \
-            f"{self.__class__.__name__}" \
-            f"(mass={self.mass},volume={self.volume})"
+        return f"{self.__class__.__name__}(mass={self.mass},volume={self.volume})"
 
 
 class FractionPool(Structure):
@@ -140,7 +134,7 @@ class FractionPool(Structure):
 
     n_comp = UnsignedInteger()
 
-    _parameters = ['n_comp']
+    _parameters = ["n_comp"]
 
     def __init__(self, n_comp, *args, **kwargs):
         """Initialize a FractionPool instance.
@@ -171,10 +165,10 @@ class FractionPool(Structure):
             of components in the pool.
         """
         if not isinstance(fraction, Fraction):
-            raise CADETProcessError('Expected Fraction')
+            raise CADETProcessError("Expected Fraction")
 
         if fraction.n_comp != self.n_comp:
-            raise CADETProcessError('Number of components does not match.')
+            raise CADETProcessError("Number of components does not match.")
 
         self._fractions.append(fraction)
 
@@ -222,7 +216,7 @@ class FractionPool(Structure):
         pool_mass
         concentration
         """
-        with np.errstate(divide='ignore', invalid='ignore'):
+        with np.errstate(divide="ignore", invalid="ignore"):
             purity = self.mass / self.pool_mass
 
         return np.nan_to_num(purity)
@@ -244,7 +238,7 @@ class FractionPool(Structure):
         volume
 
         """
-        with np.errstate(divide='ignore', invalid='ignore'):
+        with np.errstate(divide="ignore", invalid="ignore"):
             concentration = self.mass / self.volume
 
         return np.nan_to_num(concentration)

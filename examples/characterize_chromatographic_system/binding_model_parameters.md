@@ -5,7 +5,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.14.5
+    jupytext_version: 1.17.1
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -290,7 +290,6 @@ if __name__ == '__main__':
         transform=lambda k_kin, k_eq: k_eq / k_kin
     )
 
-
     def callback(simulation_results, individual, evaluation_object, callbacks_dir='./'):
         comparator = comparators[evaluation_object.name]
         comparator.plot_comparison(
@@ -298,7 +297,6 @@ if __name__ == '__main__':
             file_name=f'{callbacks_dir}/{individual.id}_{evaluation_object}_comparison.png',
             show=False
         )
-
 
     optimization_problem.add_callback(callback, requires=[simulator])
 

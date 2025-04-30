@@ -1,21 +1,18 @@
 from collections import defaultdict
 from dataclasses import dataclass
-from warnings import warn
 from typing import Literal, Optional
+from warnings import warn
 
-from addict import Dict
 import numpy as np
-from scipy import integrate
-from scipy import interpolate
+from addict import Dict
+from scipy import integrate, interpolate
 
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import cached_property_if_locked
-
-from CADETProcess.dynamicEvents import EventHandler
-from CADETProcess.dynamicEvents import Section, TimeLine
+from CADETProcess.dynamicEvents import EventHandler, Section, TimeLine
 
 from .flowSheet import FlowSheet
-from .unitOperation import Inlet, SourceMixin, Outlet
+from .unitOperation import Inlet, Outlet
 
 
 class Process(EventHandler):
@@ -37,7 +34,7 @@ class Process(EventHandler):
     CADETProcess.simulation.Solver
     """
 
-    _initial_states = ['system_state', 'system_state_derivative']
+    _initial_states = ["system_state", "system_state_derivative"]
 
     def __init__(self, flow_sheet, name, *args, **kwargs):
         self.flow_sheet = flow_sheet
@@ -79,7 +76,7 @@ class Process(EventHandler):
     @flow_sheet.setter
     def flow_sheet(self, flow_sheet):
         if not isinstance(flow_sheet, FlowSheet):
-            raise TypeError('Expected FlowSheet')
+            raise TypeError("Expected FlowSheet")
         self._flow_sheet = flow_sheet
 
     @cached_property_if_locked
@@ -92,24 +89,23 @@ class Process(EventHandler):
         feed_all = np.zeros((self.n_comp,))
         for feed in self.flow_sheet.feed_inlets:
             feed_flow_rate_time_line = flow_rate_timelines[feed.name].total_out[None]
-            feed_signal_param = f'flow_sheet.{feed.name}.c'
+            feed_signal_param = f"flow_sheet.{feed.name}.c"
             if feed_signal_param in self.parameter_timelines:
                 tl = self.parameter_timelines[feed_signal_param]
                 feed_signal_time_line = tl
             else:
                 feed_signal_time_line = TimeLine()
-                feed_section = Section(
-                    0, self.cycle_time, feed.c, is_polynomial=True
-                )
+                feed_section = Section(0, self.cycle_time, feed.c, is_polynomial=True)
                 feed_signal_time_line.add_section(feed_section)
 
             m_i = [
                 integrate.quad(
-                    lambda t:
-                        feed_flow_rate_time_line.value(t)
-                        * feed_signal_time_line.value(t)[comp],
-                        0, self.cycle_time, points=self.event_times
-                    )[0] for comp in range(self.n_comp)
+                    lambda t: feed_flow_rate_time_line.value(t) * feed_signal_time_line.value(t)[comp],  # noqa: E501
+                    0,
+                    self.cycle_time,
+                    points=self.event_times,
+                )[0]
+                for comp in range(self.n_comp)
             ]
 
             feed_all += np.array(m_i)
@@ -123,7 +119,7 @@ class Process(EventHandler):
 
         V_all = 0
         for eluent in self.flow_sheet.eluent_inlets:
-            eluent_time_line = flow_rate_timelines[eluent.name]['total_out'][None]
+            eluent_time_line = flow_rate_timelines[eluent.name]["total_out"][None]
             V_eluent = eluent_time_line.integral().squeeze()
             V_all += V_eluent
 
@@ -132,20 +128,22 @@ class Process(EventHandler):
     @cached_property_if_locked
     def V_solid(self):
         """float: Volume of all solid phase material used in flow sheet."""
-        return sum(
-            [unit.volume_solid for unit in self.flow_sheet.units_with_binding]
-        )
+        return sum([unit.volume_solid for unit in self.flow_sheet.units_with_binding])
 
     @cached_property_if_locked
     def flow_rate_timelines(self):
         """dict: TimeLine of flow_rate for all unit_operations."""
         flow_rate_timelines = {
             unit.name: {
-                'total_in': defaultdict(TimeLine),
-                'origins': defaultdict( lambda: defaultdict( lambda: defaultdict(TimeLine))),
-                'total_out': defaultdict(TimeLine),
-                'destinations': defaultdict( lambda: defaultdict( lambda: defaultdict(TimeLine))),
-                }
+                "total_in": defaultdict(TimeLine),
+                "origins": defaultdict(
+                    lambda: defaultdict(lambda: defaultdict(TimeLine))
+                ),
+                "total_out": defaultdict(TimeLine),
+                "destinations": defaultdict(
+                    lambda: defaultdict(lambda: defaultdict(TimeLine))
+                ),
+            }
             for unit in self.flow_sheet.units
         }
 
@@ -157,7 +155,7 @@ class Process(EventHandler):
 
         for i, (time, state) in enumerate(it):
             start = self.section_times[i]
-            end = self.section_times[i+1]
+            end = self.section_times[i + 1]
 
             flow_rates = self.flow_sheet.get_flow_rates(state)
 
@@ -167,49 +165,62 @@ class Process(EventHandler):
                 # If inlet, also use outlet for total_in
 
                 if isinstance(self.flow_sheet[unit], Inlet):
-                    for port in flow_rate_dict['total_out']:
+                    for port in flow_rate_dict["total_out"]:
                         section = Section(
-                            start, end, flow_rate_dict.total_out[port], is_polynomial=True
+                            start,
+                            end,
+                            flow_rate_dict.total_out[port],
+                            is_polynomial=True,
                         )
-                        unit_flow_rates['total_in'][port].add_section(section)
+                        unit_flow_rates["total_in"][port].add_section(section)
                 else:
-                    for port in flow_rate_dict['total_in']:
+                    for port in flow_rate_dict["total_in"]:
                         section = Section(
-                            start, end, flow_rate_dict.total_in[port], is_polynomial=True
+                            start,
+                            end,
+                            flow_rate_dict.total_in[port],
+                            is_polynomial=True,
                         )
-                        unit_flow_rates['total_in'][port].add_section(section)
+                        unit_flow_rates["total_in"][port].add_section(section)
 
                 for port in flow_rate_dict.origins:
-
                     for orig, origin_port_dict in flow_rate_dict.origins[port].items():
                         for orig_port, flow_rate_orig in origin_port_dict.items():
                             section = Section(
                                 start, end, flow_rate_orig, is_polynomial=True
                             )
-                            unit_flow_rates['origins'][port][orig][orig_port].add_section(section)
+                            unit_flow_rates["origins"][port][orig][orig_port].add_section(section)
 
                 # If outlet, also use inlet for total_out
-
                 if isinstance(self.flow_sheet[unit], Outlet):
-                    for port in flow_rate_dict['total_in']:
+                    for port in flow_rate_dict["total_in"]:
                         section = Section(
-                            start, end, flow_rate_dict.total_in[port], is_polynomial=True
+                            start,
+                            end,
+                            flow_rate_dict.total_in[port],
+                            is_polynomial=True,
                         )
-                        unit_flow_rates['total_out'][port].add_section(section)
+                        unit_flow_rates["total_out"][port].add_section(section)
                 else:
-                    for port in flow_rate_dict['total_out']:
+                    for port in flow_rate_dict["total_out"]:
                         section = Section(
-                            start, end, flow_rate_dict.total_out[port], is_polynomial=True
+                            start,
+                            end,
+                            flow_rate_dict.total_out[port],
+                            is_polynomial=True,
                         )
-                        unit_flow_rates['total_out'][port].add_section(section)
+                        unit_flow_rates["total_out"][port].add_section(section)
 
                 for port in flow_rate_dict.destinations:
                     for dest, dest_port_dict in flow_rate_dict.destinations[port].items():
                         for dest_port, flow_rate_dest in dest_port_dict.items():
                             section = Section(
-                                start, end, flow_rate_dest, is_polynomial=True
+                                start,
+                                end,
+                                flow_rate_dest,
+                                is_polynomial=True,
                             )
-                            unit_flow_rates['destinations'][port][dest][dest_port].add_section(section)
+                            unit_flow_rates["destinations"][port][dest][dest_port].add_section(section)
 
         return Dict(flow_rate_timelines)
 
@@ -219,46 +230,51 @@ class Process(EventHandler):
         section_states = {
             time: {
                 unit.name: {
-                    'total_in': defaultdict(list),
-                    'origins': defaultdict( lambda: defaultdict( lambda: defaultdict(list))),
-                    'total_out': defaultdict(list),
-                    'destinations': defaultdict( lambda: defaultdict( lambda: defaultdict(list))),
-                } for unit in self.flow_sheet.units
-            } for time in self.section_times[0:-1]
+                    "total_in": defaultdict(list),
+                    "origins": defaultdict(
+                        lambda: defaultdict(lambda: defaultdict(list))
+                    ),
+                    "total_out": defaultdict(list),
+                    "destinations": defaultdict(
+                        lambda: defaultdict(lambda: defaultdict(list))
+                    ),
+                }
+                for unit in self.flow_sheet.units
+            }
+            for time in self.section_times[0:-1]
         }
 
         for sec_time in self.section_times[0:-1]:
             for unit, unit_flow_rates in self.flow_rate_timelines.items():
                 if isinstance(self.flow_sheet[unit], Inlet):
-                    for port in unit_flow_rates['total_out']:
-                        section_states[sec_time][unit]['total_in'][port] \
-                            = unit_flow_rates['total_out'][port].coefficients(sec_time)
+                    for port in unit_flow_rates["total_out"]:
+                        section_states[sec_time][unit]["total_in"][port] = \
+                        unit_flow_rates["total_out"][port].coefficients(sec_time)
                 else:
-                    for port in unit_flow_rates['total_in']:
-                        section_states[sec_time][unit]['total_in'][port] \
-                            = unit_flow_rates['total_in'][port].coefficients(sec_time)
+                    for port in unit_flow_rates["total_in"]:
+                        section_states[sec_time][unit]["total_in"][port] = \
+                            unit_flow_rates["total_in"][port].coefficients(sec_time)
 
                     for port, orig_dict in unit_flow_rates.origins.items():
                         for origin in orig_dict:
                             for origin_port, tl in orig_dict[origin].items():
-                                section_states[sec_time][unit]['origins'][port][origin][origin_port]\
-                                    = tl.coefficients(sec_time)
-
+                                section_states[sec_time][unit]["origins"][port][origin][origin_port] = \
+                                    tl.coefficients(sec_time)  # noqa: E501
 
                 if isinstance(self.flow_sheet[unit], Outlet):
-                    for port in unit_flow_rates['total_in']:
-                        section_states[sec_time][unit]['total_out'][port] \
-                            = unit_flow_rates['total_in'][port].coefficients(sec_time)
+                    for port in unit_flow_rates["total_in"]:
+                        section_states[sec_time][unit]["total_out"][port] = \
+                            unit_flow_rates["total_in"][port].coefficients(sec_time)
                 else:
-                    for port in unit_flow_rates['total_out']:
-                        section_states[sec_time][unit]['total_out'][port] \
-                            = unit_flow_rates['total_out'][port].coefficients(sec_time)
+                    for port in unit_flow_rates["total_out"]:
+                        section_states[sec_time][unit]["total_out"][port] = \
+                            unit_flow_rates["total_out"][port].coefficients(sec_time)
 
                     for port, dest_dict in unit_flow_rates.destinations.items():
                         for dest in dest_dict:
                             for dest_port, tl in dest_dict[dest].items():
-                                section_states[sec_time][unit]['destinations'][port][dest][dest_port] \
-                                    = tl.coefficients(sec_time)
+                                section_states[sec_time][unit]["destinations"][port][dest][dest_port] = \
+                                    tl.coefficients(sec_time)  # noqa: E501
 
         return Dict(section_states)
 
@@ -278,10 +294,17 @@ class Process(EventHandler):
         return [sens.name for sens in self.parameter_sensitivities]
 
     def add_parameter_sensitivity(
-            self, parameter_paths, name=None,
-            components=None, polynomial_coefficients=None,
-            reaction_indices=None, bound_state_indices=None,
-            section_indices=None, abstols=None, factors=None):
+        self,
+        parameter_paths,
+        name=None,
+        components=None,
+        polynomial_coefficients=None,
+        reaction_indices=None,
+        bound_state_indices=None,
+        section_indices=None,
+        abstols=None,
+        factors=None,
+    ):
         """Add parameter sensitivty to Process.
 
         Parameters
@@ -410,16 +433,21 @@ class Process(EventHandler):
         associated_models = []
         parameters = []
         for param, comp, coeff, reac, state, section, tol, fac in zip(
-                parameter_paths, components, polynomial_coefficients,
-                reaction_indices, bound_state_indices,
-                section_indices, abstols, factors):
-
-            param_parts = param.split('.')
+            parameter_paths,
+            components,
+            polynomial_coefficients,
+            reaction_indices,
+            bound_state_indices,
+            section_indices,
+            abstols,
+            factors,
+        ):
+            param_parts = param.split(".")
             unit = param_parts[0]
             parameter = param_parts[-1]
-            if parameter == 'flow_rate':
+            if parameter == "flow_rate":
                 raise CADETProcessError(
-                    'Flow rate is currently not supported for sensitivities.'
+                    "Flow rate is currently not supported for sensitivities."
                 )
             parameters.append(parameter)
 
@@ -428,40 +456,45 @@ class Process(EventHandler):
                 associated_model = param_parts[1]
 
             if comp is not None and comp not in self.component_system.species:
-                raise CADETProcessError(f'Unknown component {comp}.')
+                raise CADETProcessError(f"Unknown component {comp}.")
 
             unit = self.flow_sheet[unit]
             if unit not in self.flow_sheet.units:
-                raise CADETProcessError('Not a valid unit')
+                raise CADETProcessError("Not a valid unit")
             units.append(unit)
 
             if coeff is not None and parameter not in unit.polynomial_parameters:
-                raise CADETProcessError('Not a polynomial parameter.')
+                raise CADETProcessError("Not a polynomial parameter.")
             if parameter in unit.polynomial_parameters and coeff is None:
-                raise CADETProcessError('Polynomial coefficient must be provided.')
+                raise CADETProcessError("Polynomial coefficient must be provided.")
 
             if associated_model is None:
                 if parameter not in unit.parameters:
-                    raise CADETProcessError('Not a valid parameter.')
+                    raise CADETProcessError("Not a valid parameter.")
             else:
                 associated_model = getattr(unit, associated_model)
 
-                if state is not None \
-                        and state > associated_model.n_binding_sites:
-                    raise ValueError('Binding site index exceed number of binding sites.')
-                if reac is not None \
-                        and reac > associated_model.n_reactions:
-                    raise ValueError('Reaction index exceed number of reactions.')
+                if state is not None and state > associated_model.n_binding_sites:
+                    raise ValueError("Binding site index exceed number of binding sites.")
+                if reac is not None and reac > associated_model.n_reactions:
+                    raise ValueError("Reaction index exceed number of reactions.")
 
                 if parameter not in associated_model.parameters:
-                    raise CADETProcessError('Not a valid parameter')
+                    raise CADETProcessError("Not a valid parameter")
             associated_models.append(associated_model)
 
         sens = ParameterSensitivity(
             name,
-            units, parameters, associated_models,
-            components, polynomial_coefficients, reaction_indices, bound_state_indices,
-            section_indices, abstols, factors
+            units,
+            parameters,
+            associated_models,
+            components,
+            polynomial_coefficients,
+            reaction_indices,
+            bound_state_indices,
+            section_indices,
+            abstols,
+            factors,
         )
         self._parameter_sensitivities.append(sens)
 
@@ -485,14 +518,14 @@ class Process(EventHandler):
     def parameters(self):
         parameters = super().parameters
 
-        parameters['flow_sheet'] = self.flow_sheet.parameters
+        parameters["flow_sheet"] = self.flow_sheet.parameters
 
         return parameters
 
     @parameters.setter
     def parameters(self, parameters):
         try:
-            self.flow_sheet.parameters = parameters.pop('flow_sheet')
+            self.flow_sheet.parameters = parameters.pop("flow_sheet")
         except KeyError:
             pass
 
@@ -518,47 +551,43 @@ class Process(EventHandler):
 
     @property
     def initial_state(self):
-        initial_state = {
-            state: getattr(self, state)
-            for state in self._initial_states
-        }
-        initial_state['flow_sheet'] = self.flow_sheet.initial_state
+        initial_state = {state: getattr(self, state) for state in self._initial_states}
+        initial_state["flow_sheet"] = self.flow_sheet.initial_state
 
         return initial_state
 
     @initial_state.setter
     def initial_state(self, initial_state):
         try:
-            self.flow_sheet.initial_state = initial_state.pop('flow_sheet')
+            self.flow_sheet.initial_state = initial_state.pop("flow_sheet")
         except KeyError:
             pass
 
         for state_name, state_value in initial_state.items():
             if state_name not in self._initial_state:
-                raise CADETProcessError('Not an valid state')
+                raise CADETProcessError("Not an valid state")
             setattr(self, state_name, state_value)
 
     @property
     def config(self):
-        return Dict({
-            'parameters': self.parameters,
-            'initial_state': self.initial_state
-        })
+        return Dict(
+            {"parameters": self.parameters, "initial_state": self.initial_state}
+        )
 
     @config.setter
     def config(self, config):
-        self.parameters = config['parameters']
-        self.initial_state = config['initial_state']
+        self.parameters = config["parameters"]
+        self.initial_state = config["initial_state"]
 
     def add_concentration_profile(
-            self,
-            unit: str,
-            time: np.ndarray,
-            c: np.ndarray,
-            components: Optional[list[str]] = None,
-            s: float = 1e-6,
-            interpolation_method: Literal['cubic', 'pchip', None] = 'pchip'
-            ) -> None:
+        self,
+        unit: str,
+        time: np.ndarray,
+        c: np.ndarray,
+        components: Optional[list[str]] = None,
+        s: float = 1e-6,
+        interpolation_method: Literal["cubic", "pchip", None] = "pchip",
+    ) -> None:
         """Add concentration profile to Process.
 
         Parameters
@@ -598,23 +627,23 @@ class Process(EventHandler):
             unit = self.flow_sheet[unit]
 
         if unit not in self.flow_sheet.inlets:
-            raise TypeError('Expected Inlet')
+            raise TypeError("Expected Inlet")
 
         if max(time) > self.cycle_time:
-            raise ValueError('Inlet profile exceeds cycle time.')
+            raise ValueError("Inlet profile exceeds cycle time.")
 
         # Handle components and concentration shape
         if components is None:
             if c.shape[1] != self.n_comp:
                 raise ValueError(
-                    f'Expected shape ({len(time), self.n_comp}) for concentration array'
-                    f'. Got {c.shape}.'
+                    f"Expected shape ({len(time), self.n_comp}) for concentration array"
+                    f". Got {c.shape}."
                 )
             components = self.component_system.species
         elif components == -1:
             # Assume same profile for all components
             if c.ndim > 1:
-                raise ValueError('Expected single concentration profile.')
+                raise ValueError("Expected single concentration profile.")
             c = np.column_stack([c] * self.n_comp)
             components = self.component_system.species
 
@@ -634,9 +663,9 @@ class Process(EventHandler):
             match interpolation_method:
                 case None:
                     pass
-                case 'cubic':
+                case "cubic":
                     interpolator = interpolate.CubicSpline(time, c)
-                case 'pchip':
+                case "pchip":
                     interpolator = interpolate.PchipInterpolator(time, c)
                 case _:
                     raise ValueError(
@@ -656,8 +685,8 @@ class Process(EventHandler):
 
             if range_val == 0:
                 warn(
-                    f'Component {comp} has no variation in concentration; '
-                    'scaling will be skipped.'
+                    f"Component {comp} has no variation in concentration; "
+                    "scaling will be skipped."
                 )
                 range_val = 1  # Avoid division by zero
 
@@ -675,18 +704,21 @@ class Process(EventHandler):
                 scaled_sec = sec * range_val
                 scaled_sec[-1] += min_val  # Adjust the constant term for shifting
                 self.add_event(
-                    f'{unit}_inlet_{comp}_{j-3}', f'flow_sheet.{unit}.c',
-                    np.flip(scaled_sec), t, comp
+                    f"{unit}_inlet_{comp}_{j - 3}",
+                    f"flow_sheet.{unit}.c",
+                    np.flip(scaled_sec),
+                    t,
+                    comp,
                 )
 
     def add_flow_rate_profile(
-            self,
-            unit: str,
-            time: np.ndarray,
-            flow_rate: np.ndarray,
-            s: float = 1e-6,
-            interpolation_method: Literal["cubic", "pchip", None] = "pchip"
-            ) -> None:
+        self,
+        unit: str,
+        time: np.ndarray,
+        flow_rate: np.ndarray,
+        s: float = 1e-6,
+        interpolation_method: Literal["cubic", "pchip", None] = "pchip",
+    ) -> None:
         """Add flow rate profile to a SourceMixin unit operation.
 
         Parameters
@@ -728,9 +760,7 @@ class Process(EventHandler):
         range_val = max_val - min_val
 
         if range_val == 0:
-            warn(
-                "Flow rate has no variation; scaling will be skipped."
-            )
+            warn("Flow rate has no variation; scaling will be skipped.")
             range_val = 1  # Avoid division by zero, effectively skipping scaling
 
         # Normalize flow_rate to [0, 1]
@@ -743,11 +773,8 @@ class Process(EventHandler):
         else:
             time_interp = np.linspace(0, max(time), max(1001, len(time)))
             match interpolation_method:
-
                 case "cubic":
-                    interpolator = interpolate.CubicSpline(
-                        time, normalized_flow_rate
-                    )
+                    interpolator = interpolate.CubicSpline(time, normalized_flow_rate)
                 case "pchip":
                     interpolator = interpolate.PchipInterpolator(
                         time, normalized_flow_rate
@@ -773,8 +800,10 @@ class Process(EventHandler):
             unscaled_sec[-1] += min_val  # Adjust the constant term for shifting
 
             self.add_event(
-                f"{unit}_flow_rate_{i-3}", f"flow_sheet.{unit}.flow_rate",
-                np.flip(unscaled_sec), t
+                f"{unit}_flow_rate_{i - 3}",
+                f"flow_sheet.{unit}.flow_rate",
+                np.flip(unscaled_sec),
+                t,
             )
 
     def check_config(self):
@@ -791,7 +820,7 @@ class Process(EventHandler):
         missing_parameters = self.flow_sheet.missing_parameters
         if len(missing_parameters) > 0:
             for param in missing_parameters:
-                if f'flow_sheet.{param}' not in self.event_parameters:
+                if f"flow_sheet.{param}" not in self.event_parameters:
                     warn(f"Missing parameter {param}.")
                     flag = False
 
@@ -799,7 +828,7 @@ class Process(EventHandler):
             flag = False
 
         if self.cycle_time is None:
-            warn('Cycle time is not set')
+            warn("Cycle time is not set")
             flag = False
 
         if not self.check_cstr_volume():
@@ -827,7 +856,7 @@ class Process(EventHandler):
                 V_out = self.flow_rate_timelines[cstr.name].total_out[port].integral()
                 if V_0 + V_in - V_out < 0:
                     flag = False
-                    warn(f'CSTR {cstr.name} runs empty on port {port} during process.')
+                    warn(f"CSTR {cstr.name} runs empty on port {port} during process.")
 
         return flag
 
@@ -836,7 +865,7 @@ class Process(EventHandler):
 
 
 @dataclass
-class ParameterSensitivity():
+class ParameterSensitivity:
     name: str
     units: list
     parameters: list

@@ -16,20 +16,21 @@ This module provides a class for storing simulation results.
 """
 
 import copy
-import os
 
 import numpy as np
 from addict import Dict
 
 from CADETProcess import CADETProcessError
-from CADETProcess import settings
-from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import (
-    Dictionary, String, List, UnsignedInteger, UnsignedFloat
+    Dictionary,
+    List,
+    String,
+    Structure,
+    UnsignedFloat,
+    UnsignedInteger,
 )
 
-
-__all__ = ['SimulationResults']
+__all__ = ["SimulationResults"]
 
 
 class SimulationResults(Structure):
@@ -82,13 +83,18 @@ class SimulationResults(Structure):
     chromatograms = List()
 
     def __init__(
-            self,
-            solver_name, solver_parameters,
-            exit_flag, exit_message, time_elapsed,
-            process,
-            solution_cycles, sensitivity_cycles, system_state,
-            chromatograms
-            ):
+        self,
+        solver_name,
+        solver_parameters,
+        exit_flag,
+        exit_message,
+        time_elapsed,
+        process,
+        solution_cycles,
+        sensitivity_cycles,
+        system_state,
+        chromatograms,
+    ):
         self.solver_name = solver_name
         self.solver_parameters = solver_parameters
 
@@ -109,7 +115,7 @@ class SimulationResults(Structure):
 
     def update(self, new_results):
         if self.process.name != new_results.process.name:
-            raise CADETProcessError('Process does not match')
+            raise CADETProcessError("Process does not match")
 
         self.exit_flag = new_results.exit_flag
         self.exit_message = new_results.exit_message
@@ -142,7 +148,6 @@ class SimulationResults(Structure):
 
         solution = Dict()
         for unit, solutions in self.solution_cycles.items():
-
             for sol, ports_cycles in solutions.items():
                 if isinstance(ports_cycles, Dict):
                     ports = ports_cycles
@@ -196,15 +201,14 @@ class SimulationResults(Structure):
 
         sensitivity = Dict()
         for sens_name, sensitivities in self.sensitivity_cycles.items():
-
             for unit, sensitivities in sensitivities.items():
-
                 for flow, ports_cycles in sensitivities.items():
                     if isinstance(ports_cycles, Dict):
                         ports = ports_cycles
                         for port, cycles in ports.items():
                             sensitivity[sens_name][unit][flow][port] = copy.deepcopy(
-                                cycles[0])
+                                cycles[0]
+                            )
                             sensitivity_complete = cycles[0].solution
                             for i in range(1, self.n_cycles):
                                 sensitivity_complete = np.vstack((
@@ -232,9 +236,7 @@ class SimulationResults(Structure):
 
     @property
     def n_cycles(self):
-        return len(
-            self.solution_cycles[self._first_unit][self._first_solution]
-        )
+        return len(self.solution_cycles[self._first_unit][self._first_solution])
 
     @property
     def _first_unit(self):
@@ -257,8 +259,7 @@ class SimulationResults(Structure):
         time_complete = self.time_cycle
         for i in range(1, self.n_cycles):
             time_complete = np.hstack((
-                time_complete,
-                self.time_cycle[1:] + i*self.process.cycle_time
+                time_complete, self.time_cycle[1:] + i * self.process.cycle_time
             ))
 
         self._time_complete = time_complete

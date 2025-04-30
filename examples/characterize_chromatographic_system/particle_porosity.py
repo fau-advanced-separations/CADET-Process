@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.14.5
+#       jupytext_version: 1.17.1
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -87,11 +87,11 @@ flow_sheet.add_connection(column, outlet)
 from CADETProcess.processModel import Process
 
 Q_ml_min = 0.5  # ml/min
-Q_m3_s = Q_ml_min/(60*1e6)
+Q_m3_s = Q_ml_min / (60 * 1e6)
 V_tracer = 50e-9  # m3
 
 process = Process(flow_sheet, 'Tracer')
-process.cycle_time = 15*60
+process.cycle_time = 15 * 60
 
 process.add_event(
     'feed_on',
@@ -102,14 +102,14 @@ process.add_event(
     'feed_off',
     'flow_sheet.feed.flow_rate',
     0,
-    V_tracer/Q_m3_s
+    V_tracer / Q_m3_s
 )
 
 process.add_event(
     'feed_water_on',
     'flow_sheet.eluent.flow_rate',
      Q_m3_s,
-     V_tracer/Q_m3_s
+     V_tracer / Q_m3_s
 )
 
 process.add_event(
@@ -169,6 +169,7 @@ optimization_problem.add_objective(
     n_objectives=comparator.n_metrics,
     requires=[simulator]
 )
+
 
 def callback(simulation_results, individual, evaluation_object, callbacks_dir='./'):
     comparator.plot_comparison(

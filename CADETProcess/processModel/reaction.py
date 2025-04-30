@@ -1,19 +1,19 @@
-from functools import wraps
 import warnings
+from functools import wraps
 
-from addict import Dict
 import numpy as np
 
-from CADETProcess import CADETProcessError
-from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import (
-    Aggregator, SizedAggregator, SizedClassDependentAggregator,
+    Aggregator,
+    Bool,
+    SizedAggregator,
+    SizedClassDependentAggregator,
+    SizedNdArray,
+    String,
+    Structure,
+    UnsignedFloat,
+    deprecated_alias,
 )
-from CADETProcess.dataStructure import (
-    Bool, String, SizedNdArray, UnsignedInteger, UnsignedFloat
-)
-
-from CADETProcess.dataStructure import deprecated_alias
 
 from .componentSystem import ComponentSystem
 
@@ -53,29 +53,38 @@ class Reaction(Structure):
     k_eq : float
         The equilibrium constant for the reaction.
     """
+
     is_kinetic = Bool(default=True)
-    stoich = SizedNdArray(size='n_comp')
+    stoich = SizedNdArray(size="n_comp")
     k_fwd = UnsignedFloat()
     k_bwd = UnsignedFloat()
     k_fwd_min = UnsignedFloat(default=100)
-    exponents_fwd = SizedNdArray(size='n_comp', default=0)
-    exponents_bwd = SizedNdArray(size='n_comp', default=0)
+    exponents_fwd = SizedNdArray(size="n_comp", default=0)
+    exponents_bwd = SizedNdArray(size="n_comp", default=0)
 
     _parameters = [
-        'is_kinetic',
-        'stoich',
-        'k_fwd',
-        'k_bwd',
-        'k_fwd_min',
-        'exponents_fwd',
-        'exponents_bwd',
+        "is_kinetic",
+        "stoich",
+        "k_fwd",
+        "k_bwd",
+        "k_fwd_min",
+        "exponents_fwd",
+        "exponents_bwd",
     ]
 
-    @deprecated_alias(indices='components')
+    @deprecated_alias(indices="components")
     def __init__(
-            self, component_system, components, coefficients,
-            k_fwd, k_bwd=1, is_kinetic=True, k_fwd_min=100,
-            exponents_fwd=None, exponents_bwd=None):
+        self,
+        component_system,
+        components,
+        coefficients,
+        k_fwd,
+        k_bwd=1,
+        is_kinetic=True,
+        k_fwd_min=100,
+        exponents_fwd=None,
+        exponents_bwd=None,
+    ):
         """Initialize individual Mass Action Law Reaction.
 
         Parameters
@@ -122,7 +131,8 @@ class Reaction(Structure):
             warnings.warn(
                 "Component are expected to be specified by name. "
                 "This will be deprecated in future versions.",
-                DeprecationWarning, stacklevel=2
+                DeprecationWarning,
+                stacklevel=2,
             )
             indices = components
 
@@ -154,19 +164,17 @@ class Reaction(Structure):
     @property
     def k_eq(self):
         """float: Equilibrium constant (Ratio of forward and backward reaction)."""
-        return self.k_fwd/self.k_bwd
+        return self.k_fwd / self.k_bwd
 
     def __str__(self):
         educts = []
         products = []
         for i, nu in enumerate(self.stoich):
             if nu < 0:
-                if nu == - 1:
+                if nu == -1:
                     educts.append(f"{self.component_system.species[i]}")
                 else:
-                    educts.append(
-                        f"{abs(nu)} {self.component_system.species[i]}"
-                    )
+                    educts.append(f"{abs(nu)} {self.component_system.species[i]}")
             elif nu > 0:
                 if nu == 1:
                     products.append(f"{self.component_system.species[i]}")
@@ -174,9 +182,9 @@ class Reaction(Structure):
                     products.append(f"{nu} {self.component_system.species[i]}")
 
         if self.is_kinetic:
-            reaction_operator = f' <=>[{self.k_fwd:.2E}][{self.k_bwd:.2E}] '
+            reaction_operator = f" <=>[{self.k_fwd:.2E}][{self.k_bwd:.2E}] "
         else:
-            reaction_operator = f' <=>[{self.k_eq:.2E}] '
+            reaction_operator = f" <=>[{self.k_eq:.2E}] "
 
         return " + ".join(educts) + reaction_operator + " + ".join(products)
 
@@ -227,45 +235,56 @@ class CrossPhaseReaction(Structure):
 
     is_kinetic = Bool(default=True)
 
-    stoich_liquid = SizedNdArray(size='n_comp', default=0)
-    stoich_solid = SizedNdArray(size='n_comp', default=0)
+    stoich_liquid = SizedNdArray(size="n_comp", default=0)
+    stoich_solid = SizedNdArray(size="n_comp", default=0)
     k_fwd = UnsignedFloat()
     k_bwd = UnsignedFloat()
     k_fwd_min = UnsignedFloat(default=100)
 
-    exponents_fwd_liquid = SizedNdArray(size='n_comp', default=0)
-    exponents_fwd_solid = SizedNdArray(size='n_comp', default=0)
+    exponents_fwd_liquid = SizedNdArray(size="n_comp", default=0)
+    exponents_fwd_solid = SizedNdArray(size="n_comp", default=0)
 
-    exponents_bwd_liquid = SizedNdArray(size='n_comp', default=0)
-    exponents_bwd_solid = SizedNdArray(size='n_comp', default=0)
+    exponents_bwd_liquid = SizedNdArray(size="n_comp", default=0)
+    exponents_bwd_solid = SizedNdArray(size="n_comp", default=0)
 
-    exponents_fwd_liquid_modsolid = SizedNdArray(size='n_comp', default=0)
-    exponents_fwd_solid_modliquid = SizedNdArray(size='n_comp', default=0)
+    exponents_fwd_liquid_modsolid = SizedNdArray(size="n_comp", default=0)
+    exponents_fwd_solid_modliquid = SizedNdArray(size="n_comp", default=0)
 
-    exponents_bwd_liquid_modsolid = SizedNdArray(size='n_comp', default=0)
-    exponents_bwd_solid_modliquid = SizedNdArray(size='n_comp', default=0)
+    exponents_bwd_liquid_modsolid = SizedNdArray(size="n_comp", default=0)
+    exponents_bwd_solid_modliquid = SizedNdArray(size="n_comp", default=0)
 
     _parameters = [
-        'stoich_liquid',
-        'stoich_solid',
-        'k_fwd',
-        'k_bwd',
-        'k_fwd_min',
-        'exponents_fwd_liquid',
-        'exponents_fwd_solid',
-        'exponents_bwd_liquid',
-        'exponents_bwd_solid',
-        'exponents_fwd_liquid_modsolid',
-        'exponents_fwd_solid_modliquid',
-        'exponents_bwd_liquid_modsolid',
-        'exponents_bwd_solid_modliquid',
+        "stoich_liquid",
+        "stoich_solid",
+        "k_fwd",
+        "k_bwd",
+        "k_fwd_min",
+        "exponents_fwd_liquid",
+        "exponents_fwd_solid",
+        "exponents_bwd_liquid",
+        "exponents_bwd_solid",
+        "exponents_fwd_liquid_modsolid",
+        "exponents_fwd_solid_modliquid",
+        "exponents_bwd_liquid_modsolid",
+        "exponents_bwd_solid_modliquid",
     ]
-    @deprecated_alias(indices='components')
+
+    @deprecated_alias(indices="components")
     def __init__(
-            self, component_system, components, coefficients, phases,
-            k_fwd, k_bwd=1, is_kinetic=True, k_fwd_min=100,
-            exponents_fwd_liquid=None, exponents_bwd_liquid=None,
-            exponents_fwd_solid=None, exponents_bwd_solid=None):
+        self,
+        component_system,
+        components,
+        coefficients,
+        phases,
+        k_fwd,
+        k_bwd=1,
+        is_kinetic=True,
+        k_fwd_min=100,
+        exponents_fwd_liquid=None,
+        exponents_bwd_liquid=None,
+        exponents_fwd_solid=None,
+        exponents_bwd_solid=None,
+    ):
         """Initialize individual cross-phase MAL reaction.
 
         Parameters
@@ -324,7 +343,8 @@ class CrossPhaseReaction(Structure):
             warnings.warn(
                 "Component are expected to be specified by name. "
                 "This will be deprecated in future versions.",
-                DeprecationWarning, stacklevel=2
+                DeprecationWarning,
+                stacklevel=2,
             )
             indices = components
 
@@ -392,46 +412,38 @@ class CrossPhaseReaction(Structure):
     @property
     def k_eq(self):
         """float: Equilibrium constant (Ratio of forward and backward reaction)."""
-        return self.k_fwd/self.k_bwd
+        return self.k_fwd / self.k_bwd
 
     def __str__(self):
         educts = []
         products = []
         for i, nu in enumerate(self.stoich_liquid):
             if nu < 0:
-                if nu == - 1:
+                if nu == -1:
                     educts.append(f"{self.component_system.species[i]}(l)")
                 else:
-                    educts.append(
-                        f"{abs(nu)} {self.component_system.species[i]}(l)"
-                    )
+                    educts.append(f"{abs(nu)} {self.component_system.species[i]}(l)")
             elif nu > 0:
                 if nu == 1:
                     products.append(f"{self.component_system.species[i]}(l)")
                 else:
-                    products.append(
-                        f"{nu} {self.component_system.species[i]}(l)"
-                    )
+                    products.append(f"{nu} {self.component_system.species[i]}(l)")
         for i, nu in enumerate(self.stoich_solid):
             if nu < 0:
-                if nu == - 1:
+                if nu == -1:
                     educts.append(f"{self.component_system.species[i]}(s)")
                 else:
-                    educts.append(
-                        f"{abs(nu)} {self.component_system.species[i]}(s)"
-                    )
+                    educts.append(f"{abs(nu)} {self.component_system.species[i]}(s)")
             elif nu > 0:
                 if nu == 1:
                     products.append(f"{self.component_system.species[i]}(s)")
                 else:
-                    products.append(
-                        f"{nu} {self.component_system.species[i]}(s)"
-                    )
+                    products.append(f"{nu} {self.component_system.species[i]}(s)")
 
         if self.is_kinetic:
-            reaction_operator = f' <=>[{self.k_fwd:.2E}][{self.k_bwd:.2E}] '
+            reaction_operator = f" <=>[{self.k_fwd:.2E}][{self.k_bwd:.2E}] "
         else:
-            reaction_operator = f' <=>[{self.k_eq:.2E}] '
+            reaction_operator = f" <=>[{self.k_eq:.2E}] "
 
         return " + ".join(educts) + reaction_operator + " + ".join(products)
 
@@ -447,6 +459,7 @@ class ReactionBaseClass(Structure):
         name of the reaction model.
 
     """
+
     name = String()
 
     _parameters = []
@@ -469,7 +482,7 @@ class ReactionBaseClass(Structure):
     @component_system.setter
     def component_system(self, component_system):
         if not isinstance(component_system, ComponentSystem):
-            raise TypeError('Expected ComponentSystem')
+            raise TypeError("Expected ComponentSystem")
         self._component_system = component_system
 
     @property
@@ -478,10 +491,7 @@ class ReactionBaseClass(Structure):
         return self.component_system.n_comp
 
     def __repr__(self):
-        return \
-            f'{self.__class__.__name__}(' \
-            f'n_comp={self.n_comp}, name={self.name}' \
-            f')'
+        return f"{self.__class__.__name__}(n_comp={self.n_comp}, name={self.name})"
 
     def __str__(self):
         if self.name is None:
@@ -497,7 +507,7 @@ class NoReaction(ReactionBaseClass):
     """
 
     def __init__(self, *args, **kwargs):
-        super().__init__(ComponentSystem(), name='NoReaction')
+        super().__init__(ComponentSystem(), name="NoReaction")
 
 
 class BulkReactionBase(ReactionBaseClass):
@@ -512,13 +522,13 @@ class BulkReactionBase(ReactionBaseClass):
 class MassActionLaw(BulkReactionBase):
     """Parameters for Reaction in Bulk Phase."""
 
-    k_fwd = Aggregator('k_fwd', 'reactions')
-    k_bwd = Aggregator('k_bwd', 'reactions')
-    stoich = SizedAggregator('stoich', 'reactions', transpose=True)
-    exponents_fwd = SizedAggregator('exponents_fwd', 'reactions', transpose=True)
-    exponents_bwd = SizedAggregator('exponents_bwd', 'reactions', transpose=True)
+    k_fwd = Aggregator("k_fwd", "reactions")
+    k_bwd = Aggregator("k_bwd", "reactions")
+    stoich = SizedAggregator("stoich", "reactions", transpose=True)
+    exponents_fwd = SizedAggregator("exponents_fwd", "reactions", transpose=True)
+    exponents_bwd = SizedAggregator("exponents_bwd", "reactions", transpose=True)
 
-    _parameters = ['stoich', 'exponents_fwd', 'exponents_bwd', 'k_fwd', 'k_bwd']
+    _parameters = ["stoich", "exponents_fwd", "exponents_bwd", "k_fwd", "k_bwd"]
 
     def __init__(self, *args, **kwargs):
         self._reactions = []
@@ -563,80 +573,76 @@ class MassActionLawParticle(ParticleReactionBase):
     """Parameters for Reaction in Particle Phase."""
 
     stoich_liquid = SizedClassDependentAggregator(
-        'stoich_liquid', 'liquid_reactions',
-        mapping={
-            CrossPhaseReaction: 'stoich_liquid',
-            None: 'stoich'
-        },
+        "stoich_liquid",
+        "liquid_reactions",
+        mapping={CrossPhaseReaction: "stoich_liquid", None: "stoich"},
         transpose=True,
     )
-    k_fwd_liquid = Aggregator('k_fwd', 'liquid_reactions')
-    k_bwd_liquid = Aggregator('k_bwd', 'liquid_reactions')
+    k_fwd_liquid = Aggregator("k_fwd", "liquid_reactions")
+    k_bwd_liquid = Aggregator("k_bwd", "liquid_reactions")
     exponents_fwd_liquid = SizedAggregator(
-        'exponents_fwd', 'liquid_reactions', transpose=True
+        "exponents_fwd", "liquid_reactions", transpose=True
     )
     exponents_bwd_liquid = SizedAggregator(
-        'exponents_bwd', 'liquid_reactions', transpose=True
+        "exponents_bwd", "liquid_reactions", transpose=True
     )
 
     stoich_solid = SizedClassDependentAggregator(
-        'stoich_solid', 'solid_reactions',
-        mapping={
-            CrossPhaseReaction: 'stoich_solid',
-            None: 'stoich'
-        },
-        transpose=True
+        "stoich_solid",
+        "solid_reactions",
+        mapping={CrossPhaseReaction: "stoich_solid", None: "stoich"},
+        transpose=True,
     )
-    k_fwd_solid = Aggregator('k_fwd', 'solid_reactions')
-    k_bwd_solid = Aggregator('k_bwd', 'solid_reactions')
+    k_fwd_solid = Aggregator("k_fwd", "solid_reactions")
+    k_bwd_solid = Aggregator("k_bwd", "solid_reactions")
     exponents_fwd_solid = SizedAggregator(
-        'exponents_fwd', 'solid_reactions', transpose=True
+        "exponents_fwd", "solid_reactions", transpose=True
     )
     exponents_bwd_solid = SizedAggregator(
-        'exponents_bwd', 'solid_reactions', transpose=True
+        "exponents_bwd", "solid_reactions", transpose=True
     )
 
     exponents_fwd_liquid_modsolid = SizedClassDependentAggregator(
-        'exponents_fwd_liquid_modsolid', 'liquid_reactions',
-        mapping={
-            CrossPhaseReaction: 'exponents_fwd_liquid_modsolid',
-            None: None
-        },
+        "exponents_fwd_liquid_modsolid",
+        "liquid_reactions",
+        mapping={CrossPhaseReaction: "exponents_fwd_liquid_modsolid", None: None},
         transpose=True,
     )
     exponents_bwd_liquid_modsolid = SizedClassDependentAggregator(
-        'exponents_bwd_liquid_modsolid', 'liquid_reactions',
-        mapping={
-            CrossPhaseReaction: 'exponents_bwd_liquid_modsolid',
-            None: None
-        },
+        "exponents_bwd_liquid_modsolid",
+        "liquid_reactions",
+        mapping={CrossPhaseReaction: "exponents_bwd_liquid_modsolid", None: None},
         transpose=True,
     )
 
     exponents_fwd_solid_modliquid = SizedClassDependentAggregator(
-        'exponents_fwd_solid_modliquid', 'solid_reactions',
-        mapping={
-            CrossPhaseReaction: 'exponents_fwd_solid_modliquid',
-            None: None
-        },
+        "exponents_fwd_solid_modliquid",
+        "solid_reactions",
+        mapping={CrossPhaseReaction: "exponents_fwd_solid_modliquid", None: None},
         transpose=True,
     )
     exponents_bwd_solid_modliquid = SizedClassDependentAggregator(
-        'exponents_bwd_solid_modliquid', 'solid_reactions',
-        mapping={
-            CrossPhaseReaction: 'exponents_bwd_solid_modliquid',
-            None: None
-        },
+        "exponents_bwd_solid_modliquid",
+        "solid_reactions",
+        mapping={CrossPhaseReaction: "exponents_bwd_solid_modliquid", None: None},
         transpose=True,
     )
 
     _parameters = [
-        'stoich_liquid', 'exponents_fwd_liquid', 'exponents_bwd_liquid',
-        'k_fwd_liquid', 'k_bwd_liquid',
-        'exponents_fwd_liquid_modsolid', 'exponents_bwd_liquid_modsolid',
-        'stoich_solid', 'exponents_fwd_solid', 'exponents_bwd_solid',
-        'k_fwd_solid', 'k_bwd_solid',
-        'exponents_fwd_solid_modliquid', 'exponents_bwd_solid_modliquid'
+        "stoich_liquid",
+        "exponents_fwd_liquid",
+        "exponents_bwd_liquid",
+        "k_fwd_liquid",
+        "k_bwd_liquid",
+        "exponents_fwd_liquid_modsolid",
+        "exponents_bwd_liquid_modsolid",
+        "stoich_solid",
+        "exponents_fwd_solid",
+        "exponents_bwd_solid",
+        "k_fwd_solid",
+        "k_bwd_solid",
+        "exponents_fwd_solid_modliquid",
+        "exponents_bwd_solid_modliquid",
     ]
 
     def __init__(self, *args, **kwargs):
@@ -727,6 +733,6 @@ def scale_to_rapid_equilibrium(k_eq, k_fwd_min=10):
 
     """
     k_fwd = k_fwd_min
-    k_bwd = k_fwd_min/k_eq
+    k_bwd = k_fwd_min / k_eq
 
     return k_fwd, k_bwd

@@ -1,12 +1,12 @@
 ---
 jupytext:
   formats: md:myst,py:percent
-  main_language: python
   text_representation:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.14.5
+    jupytext_version: 1.17.1
+  main_language: python
 kernelspec:
   display_name: Python 3
   name: python3
@@ -101,7 +101,7 @@ Events of batch elution process.
 from CADETProcess.processModel import Process
 process = Process(flow_sheet, 'batch elution')
 
-Q = 60/(60*1e6)
+Q = 60 / (60 * 1e6)
 process.add_event('feed_on', 'flow_sheet.feed.flow_rate', Q)
 process.add_event('feed_off', 'flow_sheet.feed.flow_rate', 0.0)
 

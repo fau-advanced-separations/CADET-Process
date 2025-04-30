@@ -5,10 +5,10 @@ from typing import NoReturn
 from addict import Dict
 
 from CADETProcess import CADETProcessError
-from CADETProcess.dataStructure import Structure
-from CADETProcess.dataStructure import String, Integer, UnsignedFloat
+from CADETProcess.dataStructure import Integer, String, Structure, UnsignedFloat
 
-__all__ = ['ComponentSystem', 'Component', 'Species']
+__all__ = ["ComponentSystem", "Component", "Species"]
+
 
 class Species(Structure):
     """
@@ -28,6 +28,7 @@ class Species(Structure):
         Density of the species.
 
     """
+
     name: String = String()
     charge: Integer = Integer(default=0)
     molecular_weight: UnsignedFloat = UnsignedFloat()
@@ -36,6 +37,7 @@ class Species(Structure):
     def __str__(self) -> str:
         """str: String representation of the component."""
         return self.name
+
 
 class Component(Structure):
     """
@@ -66,16 +68,17 @@ class Component(Structure):
     ComponentSystem
 
     """
+
     name: String = String()
 
     def __init__(
-            self,
-            name: str | None = None,
-            species: str | list[str | None] = None,
-            charge: int | list[int | None] = None,
-            molecular_weight: float | list[float | None] = None,
-            density: float | list[float | None] = None
-            ) -> NoReturn:
+        self,
+        name: str | None = None,
+        species: str | list[str | None] = None,
+        charge: int | list[int | None] = None,
+        molecular_weight: float | list[float | None] = None,
+        density: float | list[float | None] = None,
+    ) -> NoReturn:
         """
         Parameters
         ----------
@@ -116,11 +119,11 @@ class Component(Structure):
 
     @wraps(Species.__init__)
     def add_species(
-            self,
-            species: str| Species ,
-            *args,
-            **kwargs
-            ) -> Species:
+        self,
+        species: str | Species,
+        *args,
+        **kwargs,
+    ) -> Species:
         """
         Add a subspecies to the component.
 
@@ -212,16 +215,17 @@ class ComponentSystem(Structure):
     Component
 
     """
+
     name: String = String()
 
     def __init__(
-            self,
-            components: int | list[str | Component | None] = None,
-            name: str | None = None,
-            charges: list[int | None] = None,
-            molecular_weights: list[float | None] = None,
-            densities: list[float | None] = None
-            ) -> None:
+        self,
+        components: int | list[str | Component | None] = None,
+        name: str | None = None,
+        charges: list[int | None] = None,
+        molecular_weights: list[float | None] = None,
+        densities: list[float | None] = None,
+    ) -> None:
         """
         Initialize the ComponentSystem object.
 
@@ -272,7 +276,7 @@ class ComponentSystem(Structure):
                 comp,
                 charge=charges[i],
                 molecular_weight=molecular_weights[i],
-                density=densities[i]
+                density=densities[i],
             )
 
     @property
@@ -283,10 +287,7 @@ class ComponentSystem(Structure):
     @property
     def components_dict(self) -> dict[str, Component]:
         """dict[str, Component]: Components indexed by name."""
-        return {
-            name: comp
-            for name, comp in zip(self.names, self.components)
-        }
+        return {name: comp for name, comp in zip(self.names, self.components)}
 
     @property
     def n_components(self) -> int:
@@ -305,11 +306,11 @@ class ComponentSystem(Structure):
 
     @wraps(Component.__init__)
     def add_component(
-            self,
-            component: str | Component,
-            *args: list,
-            **kwargs: dict
-            ) -> NoReturn:
+        self,
+        component: str | Component,
+        *args: list,
+        **kwargs: dict,
+    ) -> NoReturn:
         """
         Add a component to the system.
 
@@ -328,8 +329,7 @@ class ComponentSystem(Structure):
 
         if component.name in self.names:
             raise CADETProcessError(
-                f"Component '{component.name}' "
-                "already exists in ComponentSystem."
+                f"Component '{component.name}' already exists in ComponentSystem."
             )
 
         self._components.append(component)
@@ -441,7 +441,7 @@ class ComponentSystem(Structure):
 
     def __repr__(self) -> str:
         """str: Return the string representation of the object."""
-        return f'{self.__class__.__name__}({self.names})'
+        return f"{self.__class__.__name__}({self.names})"
 
     def __len__(self) -> int:
         """int: Return the number of components in the system."""

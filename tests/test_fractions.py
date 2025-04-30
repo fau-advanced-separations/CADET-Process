@@ -1,11 +1,10 @@
 import unittest
 
-import numpy as np
 import CADETProcess
+import numpy as np
 
 
 class Test_Fractions(unittest.TestCase):
-
     def create_fractions(self):
         m_0 = np.array([0, 0])
         frac0 = CADETProcess.fractionation.Fraction(m_0, 1)
@@ -48,20 +47,18 @@ class Test_Fractions(unittest.TestCase):
     def test_fraction_concentration(self):
         fractions = self.create_fractions()
 
-        np.testing.assert_equal(fractions[0].concentration, np.array([0., 0.]))
+        np.testing.assert_equal(fractions[0].concentration, np.array([0.0, 0.0]))
         np.testing.assert_equal(fractions[1].concentration, np.array([1.5, 0]))
-        np.testing.assert_equal(
-            fractions[2].concentration, np.array([1/3, 2/3])
-        )
-        np.testing.assert_equal(fractions[3].concentration, np.array([0, 2/3]))
+        np.testing.assert_equal(fractions[2].concentration, np.array([1 / 3, 2 / 3]))
+        np.testing.assert_equal(fractions[3].concentration, np.array([0, 2 / 3]))
         np.testing.assert_equal(fractions[4].concentration, np.array([0, 0]))
 
     def test_fraction_purity(self):
         fractions = self.create_fractions()
 
-        np.testing.assert_equal(fractions[0].purity, np.array([0., 0.]))
+        np.testing.assert_equal(fractions[0].purity, np.array([0.0, 0.0]))
         np.testing.assert_equal(fractions[1].purity, np.array([1, 0]))
-        np.testing.assert_equal(fractions[2].purity, np.array([1/3, 2/3]))
+        np.testing.assert_equal(fractions[2].purity, np.array([1 / 3, 2 / 3]))
         np.testing.assert_equal(fractions[3].purity, np.array([0, 1]))
         np.testing.assert_equal(fractions[4].purity, np.array([0, 0]))
 
@@ -72,8 +69,7 @@ class Test_Fractions(unittest.TestCase):
         self.assertEqual(pools[0].fractions[0].n_comp, 2)
 
         m_wrong_n_comp = np.array([0, 0, 0])
-        frac_wrong_n_comp = \
-            CADETProcess.fractionation.Fraction(m_wrong_n_comp, 1)
+        frac_wrong_n_comp = CADETProcess.fractionation.Fraction(m_wrong_n_comp, 1)
 
         with self.assertRaises(CADETProcess.CADETProcessError):
             pools[0].add_fraction(frac_wrong_n_comp)
@@ -81,7 +77,7 @@ class Test_Fractions(unittest.TestCase):
     def test_pool_mass(self):
         pools = self.create_pools()
 
-        np.testing.assert_equal(pools[0].mass, np.array([4., 2.]))
+        np.testing.assert_equal(pools[0].mass, np.array([4.0, 2.0]))
         np.testing.assert_equal(pools[1].mass, np.array([0, 2]))
         np.testing.assert_equal(pools[2].mass, np.array([0, 0]))
 
@@ -102,17 +98,17 @@ class Test_Fractions(unittest.TestCase):
     def test_pool_concentration(self):
         pools = self.create_pools()
 
-        np.testing.assert_equal(pools[0].concentration, np.array([2/3, 1/3]))
-        np.testing.assert_equal(pools[1].concentration, np.array([0, 2/3]))
+        np.testing.assert_equal(pools[0].concentration, np.array([2 / 3, 1 / 3]))
+        np.testing.assert_equal(pools[1].concentration, np.array([0, 2 / 3]))
         np.testing.assert_equal(pools[2].concentration, np.array([0, 0]))
 
     def test_pool_purity(self):
         pools = self.create_pools()
 
-        np.testing.assert_equal(pools[0].purity, np.array([2/3, 1/3]))
+        np.testing.assert_equal(pools[0].purity, np.array([2 / 3, 1 / 3]))
         np.testing.assert_equal(pools[1].purity, np.array([0, 1]))
         np.testing.assert_equal(pools[2].purity, np.array([0, 0]))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

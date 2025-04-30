@@ -46,9 +46,8 @@ it's no longer required for setting up as optimization problem.
 import numpy as np
 
 from CADETProcess import CADETProcessError
-from CADETProcess.dataStructure import Structure
+from CADETProcess.dataStructure import SizedNdArray, Structure
 from CADETProcess.metric import MetricBase
-from CADETProcess.dataStructure import SizedNdArray
 from CADETProcess.processModel import ComponentSystem
 
 
@@ -90,21 +89,34 @@ class Performance(Structure):
     """
 
     _performance_keys = [
-        'mass', 'concentration', 'purity', 'recovery',
-        'productivity', 'eluent_consumption', 'mass_balance_difference'
+        "mass",
+        "concentration",
+        "purity",
+        "recovery",
+        "productivity",
+        "eluent_consumption",
+        "mass_balance_difference",
     ]
 
-    mass = SizedNdArray(size=('n_comp'))
-    concentration = SizedNdArray(size=('n_comp'))
-    purity = SizedNdArray(size=('n_comp'))
-    recovery = SizedNdArray(size=('n_comp'))
-    productivity = SizedNdArray(size=('n_comp'))
-    eluent_consumption = SizedNdArray(size=('n_comp'))
-    mass_balance_difference = SizedNdArray(size=('n_comp'))
+    mass = SizedNdArray(size=("n_comp"))
+    concentration = SizedNdArray(size=("n_comp"))
+    purity = SizedNdArray(size=("n_comp"))
+    recovery = SizedNdArray(size=("n_comp"))
+    productivity = SizedNdArray(size=("n_comp"))
+    eluent_consumption = SizedNdArray(size=("n_comp"))
+    mass_balance_difference = SizedNdArray(size=("n_comp"))
 
     def __init__(
-            self, mass, concentration, purity, recovery,
-            productivity, eluent_consumption, mass_balance_difference, component_system=None):
+        self,
+        mass,
+        concentration,
+        purity,
+        recovery,
+        productivity,
+        eluent_consumption,
+        mass_balance_difference,
+        component_system=None,
+    ):
         """Initialize Performance.
 
         Parameters
@@ -145,29 +157,29 @@ class Performance(Structure):
 
     def to_dict(self):
         """Return a dictionary representation of the object."""
-        return {key: getattr(self, key).tolist()
-                for key in self._performance_keys}
+        return {key: getattr(self, key).tolist() for key in self._performance_keys}
 
     def __getitem__(self, item):
         """Get an attribute of the object by its name."""
         if item not in self._performance_keys:
-            raise AttributeError('Not a valid performance parameter')
+            raise AttributeError("Not a valid performance parameter")
 
         return getattr(self, item)
 
     def __repr__(self):
         """String representation of the object."""
-        return \
-            f'{self.__class__.__name__}(mass={np.array_repr(self.mass)}, '\
-            f'concentration={np.array_repr(self.concentration)}, '\
-            f'purity={np.array_repr(self.purity)}, '\
-            f'recovery={np.array_repr(self.recovery)}, '\
-            f'productivity={np.array_repr(self.productivity)}, '\
-            f'eluent_consumption={np.array_repr(self.eluent_consumption)} '\
-            f'mass_balance_difference={np.array_repr(self.mass_balance_difference)})'
+        return (
+            f"{self.__class__.__name__}(mass={np.array_repr(self.mass)}, "
+            f"concentration={np.array_repr(self.concentration)}, "
+            f"purity={np.array_repr(self.purity)}, "
+            f"recovery={np.array_repr(self.recovery)}, "
+            f"productivity={np.array_repr(self.productivity)}, "
+            f"eluent_consumption={np.array_repr(self.eluent_consumption)} "
+            f"mass_balance_difference={np.array_repr(self.mass_balance_difference)})"
+        )
 
 
-class RankedPerformance():
+class RankedPerformance:
     """Class for calculating a weighted average of the Performance
 
     See Also
@@ -181,7 +193,7 @@ class RankedPerformance():
 
     def __init__(self, performance, ranking=1.0):
         if not isinstance(performance, Performance):
-            raise TypeError('Expected Performance')
+            raise TypeError("Expected Performance")
 
         self._performance = performance
 
@@ -200,34 +212,33 @@ class RankedPerformance():
         if isinstance(ranking, (float, int)):
             ranking = self.performance.n_comp * [ranking]
         elif len(ranking) != self.performance.n_comp:
-            raise CADETProcessError('Number of components does not match.')
+            raise CADETProcessError("Number of components does not match.")
 
         self._ranking = ranking
 
     def to_dict(self):
-        return {
-            key: float(getattr(self, key)) for key in self._performance_keys
-        }
+        return {key: float(getattr(self, key)) for key in self._performance_keys}
 
     def __getattr__(self, item):
         if item not in self._performance_keys:
             raise AttributeError
-        return sum(self._performance[item]*self.ranking)/sum(self.ranking)
+        return sum(self._performance[item] * self.ranking) / sum(self.ranking)
 
     def __getitem__(self, item):
         if item not in self._performance_keys:
-            raise AttributeError('Not a valid performance parameter')
+            raise AttributeError("Not a valid performance parameter")
         return getattr(self, item)
 
     def __repr__(self):
-        return \
-            f'{self.__class__.__name__}(mass={np.array_repr(self.mass)}, '\
-            f'concentration={np.array_repr(self.concentration)}, '\
-            f'purity={np.array_repr(self.purity)}, '\
-            f'recovery={np.array_repr(self.recovery)}, '\
-            f'productivity={np.array_repr(self.productivity)}, '\
-            f'eluent_consumption={np.array_repr(self.eluent_consumption)} ' \
-            f'mass_balance_difference={np.array_repr(self.mass_balance_difference)})'
+        return (
+            f"{self.__class__.__name__}(mass={np.array_repr(self.mass)}, "
+            f"concentration={np.array_repr(self.concentration)}, "
+            f"purity={np.array_repr(self.purity)}, "
+            f"recovery={np.array_repr(self.recovery)}, "
+            f"productivity={np.array_repr(self.productivity)}, "
+            f"eluent_consumption={np.array_repr(self.eluent_consumption)} "
+            f"mass_balance_difference={np.array_repr(self.mass_balance_difference)})"
+        )
 
 
 class PerformanceIndicator(MetricBase):
@@ -390,10 +401,11 @@ class PerformanceProduct(PerformanceIndicator):
     """
 
     def _evaluate(self, performance):
-        return \
-            performance.productivity \
-            * performance.recovery \
+        return (
+            performance.productivity
+            * performance.recovery
             * performance.eluent_consumption
+        )
 
 
 class MassBalanceDifference(PerformanceIndicator):

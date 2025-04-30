@@ -13,17 +13,16 @@ This module provides functionality for general settings.
     Settings
 
 """
+
 import os
-from pathlib import Path
 import shutil
 import tempfile
+from pathlib import Path
 from warnings import warn
 
-from CADETProcess.dataStructure import Structure
-from CADETProcess.dataStructure import Bool, Switch
+from CADETProcess.dataStructure import Bool, Structure, Switch
 
-
-__all__ = ['Settings']
+__all__ = ["Settings"]
 
 
 class Settings(Structure):
@@ -53,8 +52,8 @@ class Settings(Structure):
     _save_log = Bool(default=False)
     debug_mode = Bool(default=False)
     LOG_LEVEL = Switch(
-        valid=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
-        default='INFO'
+        valid=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        default="INFO",
     )
 
     def __init__(self):
@@ -78,7 +77,7 @@ class Settings(Structure):
             The absolute path of the working directory.
         """
         if self._working_directory is None:
-            _working_directory = Path('./')
+            _working_directory = Path("./")
         else:
             _working_directory = Path(self._working_directory)
 
@@ -94,8 +93,9 @@ class Settings(Structure):
 
     def set_working_directory(self, working_directory):
         warn(
-            'This function is deprecated, use working_directory property.',
-            DeprecationWarning, stacklevel=2
+            "This function is deprecated, use working_directory property.",
+            DeprecationWarning,
+            stacklevel=2,
         )
         self.working_directory = working_directory
 
@@ -107,6 +107,7 @@ class Settings(Structure):
     @save_log.setter
     def save_log(self, save_log):
         from CADETProcess import log
+
         log.update_loggers(self.log_directory, save_log)
 
         self._save_log = save_log
@@ -114,16 +115,16 @@ class Settings(Structure):
     @property
     def log_directory(self):
         """pathlib.Path: Log directory."""
-        return self.working_directory / 'log'
+        return self.working_directory / "log"
 
     @property
     def temp_dir(self):
         """pathlib.Path: Directory for temporary files."""
         if self._temp_dir is None:
-            if 'XDG_RUNTIME_DIR' in os.environ:
-                _temp_dir = Path(os.environ['XDG_RUNTIME_DIR']) / 'CADET-Process'
+            if "XDG_RUNTIME_DIR" in os.environ:
+                _temp_dir = Path(os.environ["XDG_RUNTIME_DIR"]) / "CADET-Process"
             else:
-                _temp_dir = self.working_directory / 'tmp'
+                _temp_dir = self.working_directory / "tmp"
         else:
             _temp_dir = Path(self._temp_dir).absolute()
 
