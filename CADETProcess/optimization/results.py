@@ -195,7 +195,7 @@ class OptimizationResults(Structure):
                 pareto_front.update_population(self.pareto_front)
             pareto_front.update_population(self.population_last)
 
-        if self._similarity_tol is not None:
+        if self._similarity_tol:
             pareto_front.remove_similar()
         self._pareto_fronts.append(pareto_front)
 
@@ -207,7 +207,7 @@ class OptimizationResults(Structure):
         meta_front : Population
             New meta front.
         """
-        if self._similarity_tol is not None:
+        if self._similarity_tol:
             meta_front.remove_similar()
         self._meta_fronts.append(meta_front)
 
