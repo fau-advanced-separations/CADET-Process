@@ -253,8 +253,8 @@ class Individual(Structure):
                 return better_in_all and strictly_better_in_one
 
         if self.m is not None:
-            self_values = self.m
-            other_values = other.m
+            self_values = self.m_min
+            other_values = other.m_min
         else:
             self_values = self.f_min
             other_values = other.f_min
