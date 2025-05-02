@@ -225,6 +225,8 @@ class Population():
                     continue
 
                 if ind_other.is_similar(ind, self.similarity_tol):
+                    if np.any(ind_other.f_min == self.f_best):
+                        continue
                     to_remove.append(ind_other)
 
             for i in reversed(to_remove):
@@ -996,7 +998,7 @@ class ParetoFront(Population):
         elif len(self) > 1:
             self.remove_infeasible()
 
-        if self.similarity_tol is not None:
+        if self.similarity_tol:
             self.remove_similar()
 
         return new_members, any(significant)
@@ -1036,7 +1038,7 @@ class ParetoFront(Population):
             ParetoFront as a dictionary with individuals stored as list of dictionaries.
         """
         front = super().to_dict()
-        if self.similarity_tol is not None:
+        if self.similarity_tol:
             front["similarity_tol"] = self.similarity_tol
 
         return front
@@ -1056,7 +1058,7 @@ class ParetoFront(Population):
             ParetoFront created from data.
         """
         front = cls(
-            similarity_tol=data["similarity_tol"],
+            similarity_tol=data.get("similarity_tol"),
             id=data["id"]
         )
         for individual_data in data["individuals"].values():
