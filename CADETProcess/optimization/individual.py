@@ -283,8 +283,9 @@ class Individual(Structure):
         is_similar : bool
             True if individuals are close to each other. False otherwise
         """
-        if tol is None:
+        if not tol:
             return False
+
         similar_x = self.is_similar_x(other, tol)
         similar_f = self.is_similar_f(other, tol)
 
