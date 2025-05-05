@@ -815,7 +815,7 @@ class OptimizationResults(Structure):
         else:
             data.load()
 
-        self.update_from_dict(data)
+        self.update_from_dict(data.root)
 
     def to_dict(self) -> dict:
         """Convert Results to a dictionary.
@@ -828,6 +828,7 @@ class OptimizationResults(Structure):
         data = Dict()
         data.system_information = self.system_information
         data.optimizer_state = self.optimizer_state
+        data.similarity_tol = self._similarity_tol
         data.population_all_id = str(self.population_all.id)
         data.populations = {i: pop.to_dict() for i, pop in enumerate(self.populations)}
         data.pareto_fronts = {
@@ -853,6 +854,7 @@ class OptimizationResults(Structure):
         """
         self._optimizer_state = data['optimizer_state']
         self._population_all = Population(id=data['population_all_id'])
+        self._similarity_tol = data.get('similarity_tol')
 
         for pop_dict in data['populations'].values():
             pop = Population.from_dict(pop_dict)
