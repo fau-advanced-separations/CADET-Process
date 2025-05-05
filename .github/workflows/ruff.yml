@@ -1,0 +1,16 @@
+name: Ruff
+on:
+  push:
+    branches:
+      - master
+      - dev
+  pull_request:
+jobs:
+  ruff:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/ruff-action@v3
+        with:
+          args: check --output-format=github
