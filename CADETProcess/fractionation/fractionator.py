@@ -670,28 +670,20 @@ class Fractionator(EventHandler):
 
             for comp in range(self.n_comp):
                 if purity_required[comp] > 0:
-                    on_indices = np.where(diff[:, comp] == 1)
-                    on_indices = on_indices[0]
+                    on_indices = np.where(diff[:, comp] == 1)[0]
                     for index, on_evt in enumerate(on_indices):
                         time = chrom.time[int(on_evt)]
-                        event_name = \
-                            'chrom_' + str(chrom_index) + \
-                            '_comp_' + str(comp) + \
-                            '_start_' + str(index)
+                        event_name = f'chrom_{chrom_index}_comp_{comp}_start_{index}'
                         param_path = f'fractionation_states.{chrom.name}'
                         evt = self.add_event(
                             event_name, param_path, comp, time
                         )
                         self._chromatogram_events[chrom].append(evt)
 
-                    off_indices = np.where(diff[:, comp] == -1)
-                    off_indices = off_indices[0]
+                    off_indices = np.where(diff[:, comp] == -1)[0]
                     for index, off_evt in enumerate(off_indices):
                         time = chrom.time[int(off_evt) - 1]
-                        event_name = \
-                            'chrom_' + str(chrom_index) + \
-                            '_comp_' + str(comp) + \
-                            '_end_' + str(index)
+                        event_name = f'chrom_{chrom_index}_comp_{comp}_end_{index}'
                         param_path = f'fractionation_states.{chrom.name}'
                         evt = self.add_event(
                             event_name, param_path, self.n_comp, time
