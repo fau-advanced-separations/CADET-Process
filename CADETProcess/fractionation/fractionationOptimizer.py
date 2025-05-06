@@ -112,10 +112,6 @@ class FractionationOptimizer():
         Fractionator
             The Fractionator object that has been set up using the provided arguments.
 
-        Raises
-        ------
-        CADETProcessError
-            If no areas with sufficient purity were found and `ignore_failed` is False.
         """
         frac = Fractionator(
             simulation_results,
