@@ -41,4 +41,5 @@ from . import simulator
 from . import fractionation
 from . import equilibria
 from . import modelBuilder
+from . import errorModel
 from . import tools
