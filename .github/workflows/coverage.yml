@@ -64,7 +64,7 @@ jobs:
 
       - name: Install
         run: |
-          pip install -e ./[testing,coverage]
+          pip install -e ./[all] --group testing
 
         # Push event doesn't have input context => inputs.notslows is empty => false
       - name: Coverage Run
