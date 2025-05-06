@@ -671,7 +671,25 @@ class Fractionator(EventHandler):
             for comp in range(self.n_comp):
                 if purity_required[comp] > 0:
                     on_indices = np.where(diff[:, comp] == 1)[0]
-                    for index, on_evt in enumerate(on_indices):
+                    off_indices = np.where(diff[:, comp] == -1)[0] - 1
+
+                    # Handle the case where the entire array is above the threshold
+                    if (
+                            len(on_indices) == 0
+                            and len(off_indices) == 0
+                            and purity_min[0, comp] == 1
+                    ):
+                        on_indices = np.array([0])
+                        off_indices = np.array([purity_min.shape[0] - 1])
+
+                    # Ensure regions with a single value are ignored
+                    valid_regions = [
+                        (on, off)
+                        for on, off in zip(on_indices, off_indices) if off != on
+                    ]
+
+                    for index, (on_evt, off_evt) in enumerate(valid_regions):
+                        # Add start event
                         time = chrom.time[int(on_evt)]
                         event_name = f'chrom_{chrom_index}_comp_{comp}_start_{index}'
                         param_path = f'fractionation_states.{chrom.name}'
@@ -680,9 +698,8 @@ class Fractionator(EventHandler):
                         )
                         self._chromatogram_events[chrom].append(evt)
 
-                    off_indices = np.where(diff[:, comp] == -1)[0]
-                    for index, off_evt in enumerate(off_indices):
-                        time = chrom.time[int(off_evt) - 1]
+                        # Add end event
+                        time = chrom.time[int(off_evt)]
                         event_name = f'chrom_{chrom_index}_comp_{comp}_end_{index}'
                         param_path = f'fractionation_states.{chrom.name}'
                         evt = self.add_event(
