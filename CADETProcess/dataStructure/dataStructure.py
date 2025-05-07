@@ -331,6 +331,8 @@ class StructMeta(type):
             base_parameters = getattr(base, '_parameters', [])
             parameters += base_parameters
 
+        parameters = list(set(parameters))
+
         setattr(clsobj, '_parameters', parameters)
 
         # Categorize parameters based on their attributes

@@ -40,6 +40,7 @@ __all__ = [
     'Inlet',
     'Outlet',
     'Cstr',
+    'CstrConstantVolume',
     'TubularReactorBase',
     'TubularReactor',
     'ChromatographicColumnBase',
@@ -391,8 +392,8 @@ class SourceMixin(Structure):
     _section_dependent_parameters = ['flow_rate']
 
 
-class SinkMixin():
-    """Mixin class for Units that have Sink-like behavior.
+class SinkMixin(Structure):
+    """Mixin class for Units that have Sink-like behavior
 
     See Also
     --------
@@ -1370,3 +1371,7 @@ class MCT(UnitBaseClass):
     def volume_solid(self):
         """float: Volume of the solid phase. Equals zero, since there is no solid phase."""
         return 0
+
+
+class CstrConstantVolume(Cstr):
+    """Parameters for an ideal mixer with constant volume."""

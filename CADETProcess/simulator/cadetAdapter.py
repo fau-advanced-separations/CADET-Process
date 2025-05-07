@@ -1330,6 +1330,17 @@ unit_parameters_map = {
             'INIT_LIQUID_VOLUME': 'init_liquid_volume',
         },
     },
+    'CstrConstantVolume': {
+        'name': 'CSTR_CONSTANT_VOLUME',
+        'parameters': {
+            'NCOMP': 'n_comp',
+            'VOLUME': 'init_liquid_volume',
+            'INIT_C': 'c',
+        },
+        'fixed': {
+            'POROSITY': 1,
+        },
+    },
     'MCT': {
         'name': 'MULTI_CHANNEL_TRANSPORT',
         'parameters': {
