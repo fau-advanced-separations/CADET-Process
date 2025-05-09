@@ -7,6 +7,7 @@ from CADETProcess.processModel import (
     ComponentSystem,
     Cstr,
     FlowSheet,
+    GeneralRateModel2D,
     Inlet,
     LumpedRateModelWithoutPores,
     Outlet,
@@ -990,8 +991,48 @@ class TestCstrFlowRate(unittest.TestCase):
 class TestPorts(unittest.TestCase):
     def setUp(self):
         self.setup_mct_flow_sheet()
-
+        self.setup_grm2d_flow_sheet()
         self.setup_ccc_flow_sheet()
+
+    def setup_grm2d_flow_sheet(self):
+        self.component_system = ComponentSystem(1)
+
+        grm2d_flow_sheet = FlowSheet(self.component_system)
+
+        inlet = Inlet(self.component_system, name='inlet')
+        column1 = GeneralRateModel2D(self.component_system, nrad = 1, name='column1')
+        column2 = GeneralRateModel2D(self.component_system, nrad = 3, name='column2')
+        column3 = GeneralRateModel2D(self.component_system, nrad = 5, name='column3')
+        outlet = Outlet(self.component_system, name='outlet')
+
+        grm2d_flow_sheet.add_unit(inlet)
+        grm2d_flow_sheet.add_unit(column1)
+        grm2d_flow_sheet.add_unit(column2)
+        grm2d_flow_sheet.add_unit(column3)
+        grm2d_flow_sheet.add_unit(outlet)
+
+        grm2d_flow_sheet.add_connection(inlet, column1, destination_port='radial_cell_0')
+        grm2d_flow_sheet.add_connection(
+            column1, column2, origin_port='radial_cell_0', destination_port='radial_cell_0'
+        )
+        grm2d_flow_sheet.add_connection(
+            column1, column2, origin_port='radial_cell_0', destination_port='radial_cell_1'
+        )
+        grm2d_flow_sheet.add_connection(
+            column1, column2, origin_port='radial_cell_0', destination_port='radial_cell_2'
+        )
+        grm2d_flow_sheet.add_connection(
+            column2, column3, origin_port='radial_cell_0', destination_port='radial_cell_0'
+        )
+        grm2d_flow_sheet.add_connection(
+            column2, column3, origin_port='radial_cell_1', destination_port='radial_cell_1'
+        )
+        grm2d_flow_sheet.add_connection(
+            column2, column3, origin_port='radial_cell_2', destination_port='radial_cell_2'
+        )
+        grm2d_flow_sheet.add_connection(column3, outlet, origin_port='radial_cell_4')
+
+        self.grm2d_flow_sheet = grm2d_flow_sheet
 
     def setup_mct_flow_sheet(self):
         self.component_system = ComponentSystem(1)
@@ -1055,6 +1096,125 @@ class TestPorts(unittest.TestCase):
         ccc_flow_sheet.add_connection(ccc3, outlet, origin_port="channel_0")
 
         self.ccc_flow_sheet = ccc_flow_sheet
+
+    def test_grm2d_connections(self):
+        inlet = self.grm2d_flow_sheet['inlet']
+        column1 = self.grm2d_flow_sheet['column1']
+        column2 = self.grm2d_flow_sheet['column2']
+        column3 = self.grm2d_flow_sheet['column3']
+        outlet = self.grm2d_flow_sheet['outlet']
+
+        expected_connections = {
+            inlet: {
+                'origins': None,
+                'destinations': {
+                    None: {
+                        column1: ['radial_cell_0'],
+                    },
+                },
+            },
+            column1: {
+                'origins': {
+                    'radial_cell_0': {
+                        inlet: [None],
+                    },
+                },
+                'destinations': {
+                    'radial_cell_0': {
+                        column2: ['radial_cell_0', 'radial_cell_1', 'radial_cell_2'],
+                    },
+                },
+            },
+
+            column2: {
+                'origins': {
+                    'radial_cell_0': {
+                        column1:['radial_cell_0'],
+                    },
+                    'radial_cell_1': {
+                        column1:['radial_cell_0'],
+                    },
+                    'radial_cell_2': {
+                        column1:['radial_cell_0'],
+                    },
+                },
+                'destinations': {
+                    'radial_cell_0': {
+                        column3: ['radial_cell_0'],
+                    },
+                    'radial_cell_1': {
+                        column3: ['radial_cell_1'],
+                    },
+                    'radial_cell_2': {
+                        column3: ['radial_cell_2'],
+                    },
+                },
+            },
+
+            column3: {
+                'origins': {
+                    'radial_cell_0': {
+                        column2:['radial_cell_0'],
+                    },
+                    'radial_cell_1': {
+                        column2:['radial_cell_1'],
+                    },
+                    'radial_cell_2': {
+                        column2:['radial_cell_2'],
+                    },
+                    'radial_cell_3': {
+                    },
+                    'radial_cell_4': {
+                    },
+                },
+                'destinations': {
+                    'radial_cell_0': {
+                    },
+                    'radial_cell_1': {
+                    },
+                    'radial_cell_2': {
+                    },
+                    'radial_cell_3': {
+                    },
+                    'radial_cell_4': {
+                        outlet:[None]
+                    },
+                },
+            },
+
+            outlet: {
+                'origins':{
+                    None: {
+                        column3:['radial_cell_4'],
+                    },
+                },
+
+                'destinations': None,
+            },
+        }
+
+        assert_almost_equal_dict(
+            self.grm2d_flow_sheet.connections, expected_connections
+        )
+
+        self.assertTrue(
+            self.grm2d_flow_sheet.connection_exists(
+                inlet, column1, destination_port='radial_cell_0'
+            )
+        )
+
+        self.assertTrue(self.grm2d_flow_sheet.connection_exists(inlet, column1, destination_port='radial_cell_0'))
+        self.assertTrue(self.grm2d_flow_sheet.connection_exists(column1, column2, 'radial_cell_0', 'radial_cell_0'))
+        self.assertTrue(self.grm2d_flow_sheet.connection_exists(column1, column2, 'radial_cell_0', 'radial_cell_1'))
+        self.assertTrue(self.grm2d_flow_sheet.connection_exists(column1, column2, 'radial_cell_0', 'radial_cell_2'))
+        self.assertTrue(self.grm2d_flow_sheet.connection_exists(column2, column3, 'radial_cell_0', 'radial_cell_0'))
+        self.assertTrue(self.grm2d_flow_sheet.connection_exists(column2, column3, 'radial_cell_1', 'radial_cell_1'))
+        self.assertTrue(self.grm2d_flow_sheet.connection_exists(column2, column3, 'radial_cell_2', 'radial_cell_2'))
+        self.assertTrue(self.grm2d_flow_sheet.connection_exists(column3, outlet, 'radial_cell_4'))
+
+        self.assertFalse(self.grm2d_flow_sheet.connection_exists(column2, column3, 'radial_cell_1', 'radial_cell_2'))
+        self.assertFalse(self.grm2d_flow_sheet.connection_exists(inlet, column3, destination_port='radial_cell_0'))
+
 
     def test_mct_connections(self):
         inlet = self.mct_flow_sheet["inlet"]
