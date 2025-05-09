@@ -74,6 +74,7 @@ Unit Operation Models
     LumpedRateModelWithoutPores
     LumpedRateModelWithPores
     GeneralRateModel
+    GeneralRateModel2D
     MCT
 
 Discretization
