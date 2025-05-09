@@ -3,6 +3,7 @@ import warnings
 
 from addict import Dict
 import numpy as np
+import numpy.typing as npt
 
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import Structure
@@ -84,7 +85,7 @@ class Reaction(Structure):
             Component system of the reaction.
         components : list of int or strings
             Component names of the components involved in the reaction.
-        coefficients : np.ndarray
+    coefficients : np.ndarray
             Stoichiometric coefficients in the same order of components .
         k_fwd : float
             Forward reaction rate.
@@ -180,6 +181,71 @@ class Reaction(Structure):
 
         return " + ".join(educts) + reaction_operator + " + ".join(products)
 
+class ReactionBaseClass(Structure):
+    """Abstract base class for parameters of reaction models.
+
+    Attributes
+    ----------
+    n_comp : UnsignedInteger
+        number of components.
+    parameters : dict
+        dict with parameter values.
+    name : String
+        name of the reaction model.
+
+    """
+    name = String()
+    n_comp = UnsignedInteger()
+
+    _parameters = []
+
+    def __init__(self, component_system, name=None, *args, **kwargs):
+        self.component_system = component_system
+        self.name = name
+
+        super().__init__(*args, **kwargs)
+
+    @property
+    def model(self):
+        return self.__class__.__name__
+
+    @property
+    def component_system(self):
+        """ComponentSystem: Component System"""
+        return self._component_system
+
+    @component_system.setter
+    def component_system(self, component_system):
+        if not isinstance(component_system, ComponentSystem):
+            raise TypeError('Expected ComponentSystem')
+        self._component_system = component_system
+
+    @property
+    def n_comp(self):
+        """int: Number of components."""
+        return self.component_system.n_comp
+
+    def __repr__(self):
+        return \
+            f'{self.__class__.__name__}(' \
+            f'n_comp={self.n_comp}, name={self.name}' \
+            f')'
+
+    def __str__(self):
+        if self.name is None:
+            return self.__class__.__name__
+        return self.name
+
+class BulkReactionBase(ReactionBaseClass):
+    """Base class for bulk reaction systems."""
+
+    @classmethod
+    def to_particle_model():
+        """Convert bulk reaction model to particle reaction model."""
+        raise NotImplementedError
+
+class ParticleReactionBase(ReactionBaseClass):
+    """Base class for bulk reaction systems."""
 
 class CrossPhaseReaction(Structure):
     """
@@ -435,63 +501,6 @@ class CrossPhaseReaction(Structure):
 
         return " + ".join(educts) + reaction_operator + " + ".join(products)
 
-
-class ReactionBaseClass(Structure):
-    """Abstract base class for parameters of reaction models.
-
-    Attributes
-    ----------
-    n_comp : UnsignedInteger
-        number of components.
-    parameters : dict
-        dict with parameter values.
-    name : String
-        name of the reaction model.
-
-    """
-    name = String()
-    n_comp = UnsignedInteger()
-
-    _parameters = []
-
-    def __init__(self, component_system, name=None, *args, **kwargs):
-        self.component_system = component_system
-        self.name = name
-
-        super().__init__(*args, **kwargs)
-
-    @property
-    def model(self):
-        return self.__class__.__name__
-
-    @property
-    def component_system(self):
-        """ComponentSystem: Component System"""
-        return self._component_system
-
-    @component_system.setter
-    def component_system(self, component_system):
-        if not isinstance(component_system, ComponentSystem):
-            raise TypeError('Expected ComponentSystem')
-        self._component_system = component_system
-
-    @property
-    def n_comp(self):
-        """int: Number of components."""
-        return self.component_system.n_comp
-
-    def __repr__(self):
-        return \
-            f'{self.__class__.__name__}(' \
-            f'n_comp={self.n_comp}, name={self.name}' \
-            f')'
-
-    def __str__(self):
-        if self.name is None:
-            return self.__class__.__name__
-        return self.name
-
-
 class NoReaction(ReactionBaseClass):
     """Dummy class for units that do not experience reaction behavior.
 
@@ -501,16 +510,6 @@ class NoReaction(ReactionBaseClass):
 
     def __init__(self, *args, **kwargs):
         super().__init__(ComponentSystem(), name='NoReaction')
-
-
-class BulkReactionBase(ReactionBaseClass):
-    """Base class for bulk reaction systems."""
-
-    @classmethod
-    def to_particle_model():
-        """Convert bulk reaction model to particle reaction model."""
-        raise NotImplementedError
-
 
 class MassActionLaw(BulkReactionBase):
     """Parameters for Reaction in Bulk Phase."""
@@ -556,11 +555,6 @@ class MassActionLaw(BulkReactionBase):
         particle_model._liquid_reactions = self.reactions
 
         return particle_model
-
-
-class ParticleReactionBase(ReactionBaseClass):
-    """Base class for bulk reaction systems."""
-
 
 class MassActionLawParticle(ParticleReactionBase):
     """Parameters for Reaction in Particle Phase."""
