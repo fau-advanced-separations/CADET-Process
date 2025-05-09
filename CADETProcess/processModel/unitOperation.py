@@ -24,6 +24,7 @@ from .binding import BindingBaseClass, NoBinding
 from .componentSystem import ComponentSystem
 from .discretization import (
     DiscretizationParametersBase,
+    GRM2DDiscretizationFV,
     GRMDiscretizationDG,
     GRMDiscretizationFV,
     LRMDiscretizationDG,
@@ -36,6 +37,7 @@ from .discretization import (
 from .reaction import BulkReactionBase, NoReaction, ParticleReactionBase
 from .solutionRecorder import (
     CSTRRecorder,
+    GRM2DRecorder,
     GRMRecorder,
     IORecorder,
     LRMPRecorder,
@@ -57,6 +59,7 @@ __all__ = [
     "LumpedRateModelWithoutPores",
     "LumpedRateModelWithPores",
     "GeneralRateModel",
+    "GeneralRateModel2D",
     "MCT",
 ]
 
@@ -228,8 +231,9 @@ class UnitBaseClass(Structure):
         if not isinstance(self.bulk_reaction_model, NoReaction):
             parameters["bulk_reaction_model"] = self.bulk_reaction_model.parameters
         if not isinstance(self.particle_reaction_model, NoReaction):
-            parameters['particle_reaction_model'] = \
+            parameters["particle_reaction_model"] = (
                 self.particle_reaction_model.parameters
+            )
         if not isinstance(self.discretization, NoDiscretization):
             parameters["discretization"] = self.discretization.parameters
 
@@ -1362,6 +1366,193 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
 
         self.parameters["q"] = q
 
+
+class GeneralRateModel2D(ChromatographicColumnBase):
+    """
+    Parameters for the 2D general rate model.
+
+    Attributes
+    ----------
+    bed_porosity : UnsignedFloat between 0 and 1.
+        Porosity of the bed
+    particle_porosity : UnsignedFloat between 0 and 1.
+        Porosity of particles.
+    particle_radius : UnsignedFloat
+        Radius of the particles.
+    film_diffusion : List of unsigned floats. Length depends on n_comp.
+        Film diffusion coefficients for each component.
+    pore_accessibility : List of unsigned floats. Length depends on n_comp.
+        Accessibility of pores for components.
+    pore_diffusion : List of unsigned floats. Length depends on n_comp.
+        Diffusion rate for components in pore volume.
+    surface_diffusion : List of unsigned floats. Length depends on n_comp.
+        Diffusion rate for components in adsorbed state.
+    c : List of unsigned floats. Length depends on n_comp
+        Initial concentration in the mobile phase.
+    cp : List of unsigned floats. Length depends on n_comp
+        Initial concentration in the stagnant mobile phase within the pores.
+    q : List of unsigned floats. Length depends on n_comp
+        Initial concentration of the bound phase.
+    solution_recorder : GRMRecorder
+        Solution recorder for the unit operation.
+
+    """
+
+    has_ports: bool = True
+    supports_binding: bool = True
+    supports_bulk_reaction: bool = True
+    supports_particle_reaction: bool = True
+    discretization_schemes = GRM2DDiscretizationFV
+
+    axial_dispersion = SizedUnsignedList(size=("n_comp", "nrad"))
+    col_dispersion_radial = SizedUnsignedList(size=("n_comp", "nrad"))
+
+    bed_porosity = SizedUnsignedList(size="nrad")
+    particle_porosity = UnsignedFloat(ub=1)
+    particle_radius = UnsignedFloat()
+    film_diffusion = SizedUnsignedList(size="n_comp")
+    pore_accessibility = SizedUnsignedList(ub=1, size="n_comp", default=1)
+    pore_diffusion = SizedUnsignedList(size="n_comp")
+    _surface_diffusion = SizedUnsignedList(size="n_bound_states")
+
+    _parameters = [
+        "bed_porosity",
+        "particle_porosity",
+        "particle_radius",
+        "film_diffusion",
+        "pore_accessibility",
+        "pore_diffusion",
+        "surface_diffusion",
+        "col_dispersion_radial",
+    ]
+    _section_dependent_parameters = TubularReactorBase._section_dependent_parameters + [
+        "film_diffusion",
+        "pore_accessibility",
+        "pore_diffusion",
+        "surface_diffusion",
+        "col_dispersion_radial",
+    ]
+
+    c = SizedFloatList(size=("n_comp", "nrad"), default=0)
+    _cp = SizedUnsignedList(size=("n_comp", "nrad"))
+    _q = SizedUnsignedList(size=("n_bound_states", "nrad"), default=0)
+
+    _initial_state = ChromatographicColumnBase._initial_state + ["cp", "q"]
+    _parameters = _parameters + _initial_state
+
+    def __init__(
+        self,
+        *args: Any,
+        nrad: int,
+        discretization_scheme: str = "FV",
+        **kwargs: Any,
+    ) -> None:
+        if discretization_scheme == "FV":
+            discretization = GRM2DDiscretizationFV()
+            discretization.nrad = nrad
+        else:
+            raise ValueError(f"Unsupported discretization scheme: {discretization_scheme}")
+
+        super().__init__(
+            *args,
+            discretization=discretization,
+            solution_recorder=GRM2DRecorder(),
+            **kwargs,
+        )
+
+    @property
+    def total_porosity(self) -> float:
+        """float: Total porosity of the column."""
+        return self.bed_porosity + (1 - self.bed_porosity) * self.particle_porosity
+
+    @property
+    def cross_section_area_interstitial(self) -> float:
+        """float: Interstitial area between particles.
+
+        See Also
+        --------
+        cross_section_area
+
+        """
+        return self.bed_porosity * self.cross_section_area
+
+    def set_diameter_from_interstitial_velocity(self, Q: float, u0: float) -> None:
+        """Set diameter from flow rate and interstitial velocity.
+
+        In literature, often only the interstitial velocity is given.
+        This method, the diameter / cross section area can be inferred from
+        the flow rate, velocity, and bed porosity.
+
+        Parameters
+        ----------
+        Q : float
+            Volumetric flow rate.
+        u0 : float
+            Interstitial velocity.
+
+        Notes
+        -----
+            Overwrites parent method.
+
+        """
+        self.cross_section_area = Q / (u0 * self.bed_porosity)
+
+    @property
+    def nrad(self) -> int:
+        """int: Number of radial discretization cells."""
+        return self.discretization.nrad
+
+    @property
+    def ports(self) -> list[str]:
+        """list[str]: Ports of the unit operation."""
+        return [f"radial_cell_{i}" for i in range(self.nrad)]
+
+    @property
+    def n_ports(self) -> int:
+        """int: Number of ports (here the number of radial discretization cells)."""
+        return self.nrad
+
+    @property
+    def cp(self) -> list[float]:
+        """list[float]: Initial particle liquid concentration."""
+        if self._cp is None:
+            return self.c
+        else:
+            return self._cp
+
+    @cp.setter
+    def cp(self, cp: list[float]) -> None:
+        self._cp = cp
+
+        self.parameters["cp"] = cp
+
+    @property
+    def q(self) -> list[float]:
+        """list[float]: Initial solid phase concentration."""
+        return self._q
+
+    @q.setter
+    def q(self, q: list[float]) -> None:
+        if isinstance(self.binding_model, NoBinding) and q not in (None, []):
+            raise CADETProcessError("Cannot set q without binding model.")
+        self._q = q
+
+        self.parameters["q"] = q
+
+    @property
+    def surface_diffusion(self) -> list[float]:
+        """list[float] | None: Surface diffusion coefficients."""
+        return self._surface_diffusion
+
+    @surface_diffusion.setter
+    def surface_diffusion(self, surface_diffusion: list[float]) -> None:
+        if isinstance(self.binding_model, NoBinding):
+            raise CADETProcessError(
+                "Cannot set surface diffusion without binding model."
+            )
+        self._surface_diffusion = surface_diffusion
+
+        self.parameters["surface_diffusion"] = surface_diffusion
 
 class MCT(UnitBaseClass):
     """
