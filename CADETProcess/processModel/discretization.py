@@ -307,7 +307,7 @@ class LRMPDiscretizationDG(DGMixin):
 
 class GRMDiscretizationFV(DiscretizationParametersBase):
     """
-    Discretization parameters of the FV version of the LRMP.
+    Discretization parameters of the FV version of the GRM.
 
     Attributes
     ----------
@@ -362,8 +362,9 @@ class GRMDiscretizationFV(DiscretizationParametersBase):
 
     See Also
     --------
-    CADETProcess.processModel.LRMPDiscretizationDG
-    CADETProcess.processModel.LumpedRateModelWithPores
+    CADETProcess.processModel.GRMDiscretizationFV
+    CADETProcess.processModel.GeneralRateModel
+
     """
 
     spatial_method = Constant(value="FV")
