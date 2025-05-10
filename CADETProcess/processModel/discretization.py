@@ -21,6 +21,7 @@ from CADETProcess.dataStructure import (
 
 
 __all__ = [
+    'DiscretizationParametersBase',
     'NoDiscretization',
     'LRMDiscretizationFV', 'LRMDiscretizationDG',
     'LRMPDiscretizationFV', 'LRMPDiscretizationDG',
