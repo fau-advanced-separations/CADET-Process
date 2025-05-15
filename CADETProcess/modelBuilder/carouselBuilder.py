@@ -15,7 +15,14 @@ from CADETProcess.dataStructure import Integer, UnsignedInteger, UnsignedFloat
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess.processModel import BindingBaseClass, Linear, Langmuir
 from CADETProcess.processModel import UnitBaseClass, FlowSheet, Process
-from CADETProcess.processModel import Inlet, TubularReactorBase, Cstr, Outlet
+from CADETProcess.processModel import (
+    Cstr,
+    CstrConstantVolume,
+    Inlet,
+    TubularReactorBase,
+    TubularReactor,
+    Outlet,
+)
 
 from CADETProcess.solution import SolutionBase
 
@@ -40,13 +47,10 @@ class ZoneBaseClass(UnitBaseClass):
     flow_direction : Integer
         The flow direction in the zone, where 1 indicates normal and -1 indicates
         reverse flow.
-    valve_dead_volume : UnsignedFloat
-        The dead volume of the valves in the zone.
     """
 
     n_columns = UnsignedInteger()
     flow_direction = Integer(default=1)
-    valve_dead_volume = UnsignedFloat(default=1e-6)
 
     def __init__(
             self,
@@ -55,6 +59,7 @@ class ZoneBaseClass(UnitBaseClass):
             n_columns: int = 1,
             flow_direction: int = 1,
             initial_state: list = None,
+            valve_parameters: dict = None,
             *args,
             **kwargs
             ) -> NoReturn:
@@ -71,18 +76,23 @@ class ZoneBaseClass(UnitBaseClass):
             Number of columns in the zone.
         flow_direction : int, optional
             Flow direction in the zone.
-        initial_state : Any, optional
+        initial_state : list, optional
             Initial state of the zone.
+        valve_parameters : dict
+            Additional parameters to setup mixer/splitter valves.
         """
         self.n_columns = n_columns
         self.flow_direction = flow_direction
         self.initial_state = initial_state
 
-        self._inlet_unit = Cstr(component_system, f'{name}_inlet')
+        valve_parameters = valve_parameters or {}
 
-        self._inlet_unit.init_liquid_volume = self.valve_dead_volume
-        self._outlet_unit = Cstr(component_system, f'{name}_outlet')
-        self._outlet_unit.init_liquid_volume = self.valve_dead_volume
+        self._inlet_unit = self._setup_valve(
+            component_system, f'{name}_inlet', **valve_parameters
+        )
+        self._outlet_unit = self._setup_valve(
+            component_system, f'{name}_outlet', **valve_parameters
+        )
 
         super().__init__(component_system, name, *args, **kwargs)
 
@@ -107,6 +117,30 @@ class ZoneBaseClass(UnitBaseClass):
             raise CADETProcessError(f"Expected size {self.n_columns}")
 
         self._initial_state = initial_state
+
+    def _setup_valve(self, component_system, name, unit_type=Cstr, **valve_parameters):
+        if unit_type not in (Cstr, CstrConstantVolume, TubularReactor):
+            raise ValueError(
+                "Unknown unit type. Must be one of "
+                "`Cstr`, `CstrConstantVolume`, `TubularReactor`."
+            )
+
+        valve = unit_type(component_system, name)
+
+        valve_dead_volume = valve_parameters.get("valve_dead_volume", 1e-6)
+
+        if isinstance(valve, (Cstr, CstrConstantVolume)):
+            valve.init_liquid_volume = valve_dead_volume
+        elif isinstance(valve, TubularReactor):
+            valve.discretization.ncol = 1
+
+            length_diameter_ratio = valve_parameters.get("length_diameter_ratio", 1)
+            valve.diameter = (4 / np.pi * valve_dead_volume / length_diameter_ratio)**(1/3)
+            valve.length = length_diameter_ratio * valve.diameter
+
+            valve.axial_dispersion = valve_parameters.get("axial_dispersion", 0)
+
+        return valve
 
     @property
     def inlet_unit(self) -> Cstr:
@@ -143,11 +177,18 @@ class CarouselBuilder(Structure):
         Name of the carousel system.
     switch_time : float
         Column switch time.
+    valve_parameters : dict
+        Additional parameters to setup mixer/splitter valves.
     """
 
     switch_time = UnsignedFloat()
 
-    def __init__(self, component_system: ComponentSystem, name: str) -> NoReturn:
+    def __init__(
+            self,
+            component_system: ComponentSystem,
+            name: str,
+            valve_parameters: dict = None,
+            ) -> NoReturn:
         """
         Initialize a CarouselBuilder instance.
 
@@ -157,11 +198,14 @@ class CarouselBuilder(Structure):
             The system of components that will be used in the carousel.
         name : str
             The carousel name.
+        valve_parameters : dict
+            Additional parameters to setup mixer/splitter valves.
         """
         self.component_system = component_system
         self.name = name
         self._flow_sheet = FlowSheet(component_system, name)
         self._column = None
+        self.valve_parameters = valve_parameters
 
     @property
     def flow_sheet(self) -> FlowSheet:
@@ -486,7 +530,8 @@ class SMBBuilder(CarouselBuilder):
             feed: Inlet,
             eluent: Inlet,
             column: TubularReactorBase,
-            name: str = 'SMB'
+            name: str = 'SMB',
+            valve_parameters: dict = None,
             ) -> NoReturn:
         """
         Initialize an SMBBuilder instance.
@@ -522,15 +567,23 @@ class SMBBuilder(CarouselBuilder):
 
         self._validate_binding_model(column.binding_model)
 
-        super().__init__(component_system, name)
+        super().__init__(component_system, name, valve_parameters)
 
         raffinate = Outlet(component_system, name='raffinate')
         extract = Outlet(component_system, name='extract')
 
-        zone_I = SerialZone(component_system, 'zone_I', 1)
-        zone_II = SerialZone(component_system, 'zone_II', 1)
-        zone_III = SerialZone(component_system, 'zone_III', 1)
-        zone_IV = SerialZone(component_system, 'zone_IV', 1)
+        zone_I = SerialZone(
+            component_system, 'zone_I', 1, valve_parameters=self.valve_parameters
+            )
+        zone_II = SerialZone(
+            component_system, 'zone_II', 1, valve_parameters=self.valve_parameters
+        )
+        zone_III = SerialZone(
+            component_system, 'zone_III', 1, valve_parameters=self.valve_parameters
+        )
+        zone_IV = SerialZone(
+            component_system, 'zone_IV', 1, valve_parameters=self.valve_parameters
+        )
 
         # Carousel Builder
         self.column = column
