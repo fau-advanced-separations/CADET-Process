@@ -585,7 +585,10 @@ class Population():
             else:
                 figs[0].savefig(f'{plot_directory / "objectives"}.png')
 
-        return figs, axs
+        if plot_individual:
+            return figs, axs
+        else:
+            return figs[0], axs
 
     def setup_pareto(self, include_meta: bool = False):
         """Set up base figure for plotting the Pareto front.
