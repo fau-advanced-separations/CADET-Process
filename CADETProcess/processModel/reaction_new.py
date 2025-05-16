@@ -9,18 +9,21 @@ import numpy.typing as npt
 
 
 from CADETProcess import CADETProcessError
+from CADETProcess.dataStructure import frozen_attributes
+
 from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import (
     Aggregator, SizedAggregator, SizedClassDependentAggregator,
 )
 from CADETProcess.dataStructure import (
-    Bool, String, SizedList, SizedNdArray, UnsignedInteger, UnsignedFloat
+    Bool, String, SizedList, SizedNdArray, UnsignedInteger, UnsignedFloat, SizedUnsignedList
 )
 
 from CADETProcess.dataStructure import deprecated_alias
 
 from CADETProcess.processModel.componentSystem import ComponentSystem
 
+@frozen_attributes
 class ReactionBase(Structure):
     """Abstract base class for parameters of reaction models.
 
@@ -34,20 +37,25 @@ class ReactionBase(Structure):
         name of the reaction model.
 
     """
-    name = String()
-    n_comp = UnsignedInteger()
 
+    _name = String()
     _parameters = []
 
-    def __init__(self, component_system, name=None, *args, **kwargs):
-        self.component_system = component_system
-        self.name = name
-
+    def __init__(self, component_system, components, coefficients, name=None, *args, **kwargs):
+        self._component_system = component_system
+        self._name = name
+        self._components = components
+        self._coefficients = coefficients
         super().__init__(*args, **kwargs)
 
     @property
     def model(self):
         return self.__class__.__name__
+
+    @property
+    def name(self):
+        """str: Name of the reaction model."""
+        return self._name
 
     @property
     def component_system(self):
@@ -63,7 +71,22 @@ class ReactionBase(Structure):
     @property
     def n_comp(self):
         """int: Number of components."""
-        return self.component_system.n_comp
+        return self._component_system.n_comp
+
+    @property
+    def reactions(self):
+        """list[ReactionBulkBase]: List of reactions."""
+        return self._reactions
+
+    @property
+    def components(self):
+        """list[str]: List of components."""
+        return self._components
+
+    @property
+    def coefficients(self):
+        """list[float]: List of coefficients."""
+        return self._coefficients
 
     def __repr__(self):
         return \
@@ -72,9 +95,9 @@ class ReactionBase(Structure):
             f')'
 
     def __str__(self):
-        if self.name is None:
+        if self._name is None:
             return self.__class__.__name__
-        return self.name
+        return self._name
 
 class NoReaction(ReactionBase):
     """Dummy class for units that do not experience reaction behavior.
@@ -83,107 +106,118 @@ class NoReaction(ReactionBase):
 
     """
     def __init__(self, *args, **kwargs):
-        super().__init__(ComponentSystem(), name='NoReaction')
+        super().__init__(ComponentSystem(), components=[], coefficients= [], name='NoReaction')
 
 class InhibitionBase():
-    pass
+    """Abstract base class for inhibition reactions."""
+
+
+    _parameters = [
+        'component_system',
+        'substrate',
+        'inhibitors',
+        'ki'
+    ]
+
+    def __init__(
+        self,
+        type: str,
+        component_system: ComponentSystem,
+        substrate: str,
+        inhibitors: str | list[str],
+        ki: float | list[float],
+        ):
+
+        self._type = type
+        self._component_system = component_system
+        self._substrate = substrate
+        self._inhibitors = inhibitors
+        self._ki = ki
+
+        #check if substrate is in component system
+        self.validate_types()
+        self.validate_components()
+
+
+    def validate_types(self):
+        """Validate the inhibition reaction."""
+        if not isinstance(self._ki, (float, list)):
+            raise TypeError("Inhibition constant must be a float or list of floats")
+        if isinstance(self._ki, list):
+            for ki in self._ki:
+                if not isinstance(ki, float):
+                    raise TypeError("Inhibition constant must be a float or list of floats")
+        if not isinstance(self._component_system, ComponentSystem):
+            raise TypeError("Component system must be a ComponentSystem object")
+
+    def validate_components(self):
+        """ Validate, if substrate and inhibitors are correctly set """
+
+        if self._substrate not in self._component_system.species:
+            raise ValueError(f"Substrate {self._substrate} not in component system")
+
+        if isinstance(self._inhibitors, list):
+            for i in self._inhibitors:
+                if i not in self._component_system.species:
+                    raise ValueError(f"Inhibitor {i} not in component system")
+        else:
+            if self._inhibitors not in self._component_system.species:
+                raise ValueError(f"Inhibitor {self._inhibitors} not in component system")
+
+    @property
+    def type(self):
+        """str: Type of inhibition"""
+        return self._type
+
+    @property
+    def ki(self):
+        """float: Inhibition constant."""
+        if isinstance(self._ki, list):
+            return np.array(self._ki)
+        return self._ki
+
+    @ki.setter
+    def ki(self, ki):
+        if isinstance(ki, list):
+            self._ki = np.array(ki)
+        else:
+            self._ki = ki
+
+    @property
+    def component_system(self):
+        """ComponentSystem: Component System"""
+        return self._component_system
+
+    @property
+    def substrate(self):
+        """str: Substrate"""
+        return self._substrate
+
+    @property
+    def inhibitors(self):
+        """str | list[str]: Inhibitors"""
+        if isinstance(self._inhibitors, list):
+            return np.array(self._inhibitors)
+        return self._inhibitors
 
 class CompetitiveInhibition(InhibitionBase):
-    _name = "Competitive Inhibition"
+    _type = "Competitive Inhibition"
 
-    _parameters = [
-        'component_system',
-        'substrate',
-        'inhibitors',
-        'ki'
-    ]
-
-    def __init__(
-        self,
-        component_system: ComponentSystem,
-        substrate: str,
-        inhibitors: str | list[str],
-        ki: float | list[float],
-        ):
-
-        self.component_system = component_system
-        self.substrate = substrate
-        self.inhibitors = inhibitors
-        self.ki = ki
-
-    @property
-    def name(self):
-        """str: Name of the inhibition reaction."""
-        return self._name
+    parameters = [ "ki" ]
 
 class UnCompetitiveInhibition(InhibitionBase):
-
-    _name = "Uncompetitive Inhibition"
-
-    _parameters = [
-        'component_system',
-        'substrate',
-        'inhibitors',
-        'ki'
-    ]
-
-    def __init__(
-        self,
-        component_system: ComponentSystem,
-        substrate: str,
-        inhibitors: str | list[str],
-        ki: float | list[float],
-        ):
-
-        self.component_system = component_system
-        self.substrate = substrate
-        self.inhibitors = inhibitors
-        self.ki = ki
-
-    @property
-    def name(self):
-        """str: Name of the inhibition reaction."""
-        return self._name
+    _type = "Uncompetitive Inhibition"
+    parameters = [ "ki" ]
 
 class NonCompetitiveInhibition(InhibitionBase):
-
-    _name = "Non-competitive Inhibition"
-    _parameters = [
-        'component_system',
-        'substrate',
-        'inhibitors',
-        'ki'
-    ]
-
-    def __init__(
-        self,
-        component_system: ComponentSystem,
-        substrate: str,
-        inhibitors: str | list[str],
-        ki: float | list[float],
-        ):
-
-        self.component_system = component_system
-        self.substrate = substrate
-        self.inhibitors = inhibitors
-        self.ki = ki
-
-    @property
-    def name(self):
-        """str: Name of the inhibition reaction."""
-        return self._name
+    _type = "Non-competitive Inhibition"
+    parameters = [ "ki" ]
 
 class MichaelisMenten(ReactionBase):
 
     """Michaelis-Menten reaction model.
     Parameters
     ----------
-    component_system : ComponentSystem
-        Component system.
-    components : list[str]
-        List of components.
-    coefficients : list[float]
-        List of coefficients.
     km : float
         Michaelis-Menten constant.
     vmax : float
@@ -191,83 +225,81 @@ class MichaelisMenten(ReactionBase):
     inhibition_reactions : list[InhibitionBase], optional
         List of inhibition reactions. Default is None.
     """
-    name = "Michaelis-Menten"
-    _stoichVec = None
+    _type = "Michaelis-Menten"
 
 
-    _parameters = [
-        'component_system',
-        'components',
-        'coefficients',
-        'km',
-        'vmax',
-        'inhibition_reactions'
-    ]
+    _km = list()
+    _vmax = UnsignedFloat()
+    _inhibition_reactions = list()
 
-    def __init__(
-            self,
-            component_system: ComponentSystem,
-            components: list[str],
-            coefficients :list[float],
-            km: list[float],
-            vmax: float,
-            inhibition_reactions: Optional[list[InhibitionBase]] = None,
-        ):
+    _parameters = [ 'km', 'vmax' ]
 
-        # Pass on parameters
-        self._km = km
-        self._vmax = vmax
-        self._component_system = component_system
-
-        indices = [component_system.species.index(i) for i in components]
-        self._stoichVec = np.zeros((self.n_comp))
-        for i, c in zip(indices, coefficients):
-            self._stoichVec[i] = c
-
-        self._ki_competative = np.zeros((self.n_comp,self.n_comp))
-        self._ki_uncompetative = np.zeros((self.n_comp,self.n_comp))
-
-        # set inhibition parameters
-        for inhibition in inhibition_reactions:
-            if isinstance(inhibition, CompetitiveInhibition, NonCompetitiveInhibition):
-                for inh in inhibition.inhibitors:
-                    inhibitor_index = component_system.species.index(inh)
-                    substrate_index = component_system.species.index(inhibition.substrat)
-                    self._ki_competative[substrate_index][inhibitor_index] = inhibition.ki[inhibitor_index]
-            elif isinstance(inhibition, UnCompetitiveInhibition, NonCompetitiveInhibition):
-                for inh in inhibition.inhibitors:
-                    inhibitor_index = component_system.species.index(inh)
-                    substrate_index = component_system.species.index(inhibition.substrat)
-                    self._ki_uncompetative[substrate_index][inhibitor_index] = inhibition.ki[inhibitor_index]
-            else:
-                raise TypeError('Unknown inhibition type')
-
-    @property
-    def n_comp(self):
-        """int: Number of components."""
-        return self._component_system.n_comp
-
-    @property
-    def components(self):
-        """list[str]: List of components."""
-        return self.components
-
-    @property
-    def coefficients(self):
-        """list[float]: List of coefficients."""
-        return self.coefficients
-
-    @property
-    def km(self):
-        """float: Michaelis-Menten constant."""
-        return self.km
-
-    @property
-    def vmax(self):
-        """float: Maximum reaction rate."""
-        return self.vmax
+    def __init__(self, component_system, components, coefficients, name=None, *args, **kwargs):
+        super().__init__(component_system, components, coefficients, name, *args, **kwargs)
+        self._inhibition_reactions = []
 
     @property
     def inhibition_reactions(self):
         """list[InhibitionBase]: List of inhibition reactions."""
-        return self.inhibition_reactions
+        if not hasattr(self, '_inhibition_reactions'):
+            self._inhibition_reactions = []
+        return self._inhibition_reactions
+
+
+    def add_inhibition_reaction(self, inhibition_reaction):
+        """Add inhibition reaction to the model."""
+        if not isinstance(inhibition_reaction, InhibitionBase):
+            raise TypeError('Expected InhibitionBase')
+        self._inhibition_reactions.append(inhibition_reaction)
+
+
+    def __str__(self):
+        for inh in self.inhibition_reactions:
+            if isinstance(inh, CompetitiveInhibition):
+                return f"{self._type} with {inh.type}"
+            elif isinstance(inh, UnCompetitiveInhibition):
+                return f"{self._type} with {inh.type}"
+            elif isinstance(inh, NonCompetitiveInhibition):
+                return f"{self._type} with {inh.type}"
+        return f"{self._type} without inhibition"
+
+    @property
+    def km(self):
+        """float | list[float]: Michaelis-Menten constant."""
+        if isinstance(self._km, list):
+            return np.array(self._km)
+        return self._km
+
+    @km.setter
+    def km(self, value):
+        self._km = value
+
+    @property
+    def vmax(self):
+        """float: Michaelis-Menten constant."""
+        return self._vmax
+
+    @vmax.setter
+    def vmax(self, value):
+        self._vmax = value
+
+
+
+class MassActionLaw(ReactionBase):
+    """Parameters for Mass Action Law reaction model."""
+
+    _type = "Mass Action Law"
+
+    forward_rate = UnsignedFloat()
+    reverse_rate = UnsignedFloat()
+
+    _parameters = [
+        'forward_rate',
+        'reverse_rate',
+    ]
+
+class Cristilazation(ReactionBase):
+    pass
+
+class ActivatedSludgeModel(ReactionBase):
+    pass

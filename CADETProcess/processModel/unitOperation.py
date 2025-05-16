@@ -93,7 +93,7 @@ class UnitBaseClass(Structure):
     supports_binding = False
     supports_bulk_reaction = False
     supports_bulk_reactions: set[ReactionBase] = set()
-    _bulk_reactions = []
+    bulk_reactions = []
 
     supports_particle_reaction = False
     discretization_schemes = ()
@@ -313,6 +313,7 @@ class UnitBaseClass(Structure):
         """
         return self._bulk_reaction_model
 
+    #can be deleted
     @bulk_reaction_model.setter
     def bulk_reaction_model(self, bulk_reaction_model):
         if not isinstance(bulk_reaction_model, NoReaction):
@@ -332,13 +333,14 @@ class UnitBaseClass(Structure):
     @property
     def bulk_reaction(self) -> list[ReactionBase]:
         """bulk_reaction: List of bulk reactions."""
-        return self._bulk_reactions
+        return self.bulk_reactions
 
+    # this is the alternative to bulk_reaction_model_setter
     def add_bulk_reaction(self, reaction: ReactionBase):
-        if type(reaction) not in self.supported_bulk_reactions:
+        if type(reaction) not in self.supports_bulk_reactions:
             raise TypeError('Expected supported bulk reaction')
 
-        self._bulk_reactions.append(reaction)
+        self.bulk_reactions.append(reaction)
 
     @property
     def particle_reaction_model(self):
