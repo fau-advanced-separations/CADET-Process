@@ -462,6 +462,13 @@ class OptimizationResults(Structure):
             The directory where the plot should be saved.
             The default is None.
 
+        Returns
+        -------
+        tuple
+            A tuple containing:
+            - plt.Figure: The Matplotlib Figure object.
+            - npt.NDArray[plt.Axes]: An array of Axes objects representing the subplots.
+
         See Also
         --------
         CADETProcess.optimization.Population.plot_objectives
@@ -499,6 +506,11 @@ class OptimizationResults(Structure):
                 plot_directory=_plot_directory
             )
 
+        if plot_individual:
+            return figs[0], axs
+        else:
+            return figs, axs
+
     def plot_pareto(
             self,
             show=True,
@@ -531,6 +543,13 @@ class OptimizationResults(Structure):
         plot_directory : str, optional
             The directory where the plot should be saved.
             The default is None.
+
+        Returns
+        -------
+        tuple
+            A tuple containing:
+            - plt.Figure: The Matplotlib Figure object.
+            - npt.NDArray[plt.Axes]: An array of Axes objects representing the subplots.
 
         See Also
         --------
@@ -566,6 +585,8 @@ class OptimizationResults(Structure):
                 show=_show,
                 plot_directory=_plot_directory
             )
+
+        return plot.fig, plot.ax
 
     @wraps(Population.plot_corner)
     def plot_corner(self, *args, **kwargs):
@@ -647,7 +668,9 @@ class OptimizationResults(Structure):
         Returns
         -------
         tuple
-            Tuple with (lists of) figure and axes objects.
+            A tuple containing:
+            - plt.Figure: The Matplotlib Figure object.
+            - npt.NDArray[plt.Axes]: An array of Axes objects representing the subplots.
 
         """
         if axs is None:
@@ -772,6 +795,11 @@ class OptimizationResults(Structure):
                 figs[0].savefig(
                     f'{plot_directory / figname}.png'
                 )
+
+        if plot_individual:
+            return figs[0], axs
+        else:
+            return figs, axs
 
     def save_results(self, file_name: str):
         """
