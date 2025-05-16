@@ -462,6 +462,13 @@ class OptimizationResults(Structure):
             The directory where the plot should be saved.
             The default is None.
 
+        Returns
+        -------
+        tuple
+            A tuple containing:
+            - plt.Figure: The Matplotlib Figure object.
+            - npt.NDArray[plt.Axes]: An array of Axes objects representing the subplots.
+
         See Also
         --------
         CADETProcess.optimization.Population.plot_objectives
@@ -487,8 +494,8 @@ class OptimizationResults(Structure):
             if gen is population_last:
                 _plot_directory = plot_directory
                 _show = show
-            axs, figs = gen.plot_objectives(
-                axs, figs,
+            figs, axs = gen.plot_objectives(
+                figs, axs,
                 include_meta=include_meta,
                 plot_infeasible=plot_infeasible,
                 plot_individual=plot_individual,
@@ -498,6 +505,8 @@ class OptimizationResults(Structure):
                 show=_show,
                 plot_directory=_plot_directory
             )
+
+        return figs, axs
 
     def plot_pareto(
             self,
@@ -531,6 +540,13 @@ class OptimizationResults(Structure):
         plot_directory : str, optional
             The directory where the plot should be saved.
             The default is None.
+
+        Returns
+        -------
+        tuple
+            A tuple containing:
+            - plt.Figure: The Matplotlib Figure object.
+            - npt.NDArray[plt.Axes]: An array of Axes objects representing the subplots.
 
         See Also
         --------
@@ -566,6 +582,8 @@ class OptimizationResults(Structure):
                 show=_show,
                 plot_directory=_plot_directory
             )
+
+        return plot.fig, plot.ax
 
     @wraps(Population.plot_corner)
     def plot_corner(self, *args, **kwargs):
@@ -647,7 +665,9 @@ class OptimizationResults(Structure):
         Returns
         -------
         tuple
-            Tuple with (lists of) figure and axes objects.
+            A tuple containing:
+            - plt.Figure: The Matplotlib Figure object.
+            - npt.NDArray[plt.Axes]: An array of Axes objects representing the subplots.
 
         """
         if axs is None:
@@ -772,6 +792,11 @@ class OptimizationResults(Structure):
                 figs[0].savefig(
                     f'{plot_directory / figname}.png'
                 )
+
+        if plot_individual:
+            return figs, axs
+        else:
+            return figs[0], axs
 
     def save_results(self, file_name: str):
         """
