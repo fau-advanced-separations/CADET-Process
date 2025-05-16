@@ -43,7 +43,7 @@ testing = [
     "certifi", # tries to prevent certificate problems on windows
     "pytest",
     "pre-commit", # system tests run pre-commit
-    "ax-platform >=0.3.5"
+    "ax-platform >=0.3.5,<1.0.0"
 ]
 docs = [
     "myst-nb>=0.17.1",
