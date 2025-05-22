@@ -6,24 +6,8 @@ from CADETProcess.processModel import Inlet, LumpedRateModelWithoutPores, Outlet
 from CADETProcess.processModel import FlowSheet, Process
 import math
 
-#Assuming one layer of membrane; uniform binding model
-binding_model = Langmuir(component_system)
-binding_model.is_kinetic = True
-binding_model.adsorption_rate = [9.5e-3]
-binding_model.desorption_rate = [1]
-binding_model.capacity = 1.2e3
-
-#In both scenarios axial or radial configuration, we define one inlet that goes into one cstr
-inlet = Inlet(component_system, name='inlet')
-volumetric_flow_rate = 1e-6
-inlet.flow_rate = volumetric_flow_rate #flow rate is constant assuming constant liquid density 
-inlet.c=1
-
-outlet = Outlet(component_system, name='outlet') #Same as inlet
-
-
 class ZRMBuilder:
-    def __init__(self, component_system, inlet, outlet, flow_rate, segments_area,configuration, binding_model=None, name=None):
+    def __init__(self, component_system, flow_rate, segments_area, configuration, init_c=0, binding_model=None, name=None):
         """
         Builder class for Axial Zoneal Rate Model (ZRM) with symmetric cstrs layout.
 
@@ -37,11 +21,10 @@ class ZRMBuilder:
             name: Optional name for the builder instance.
         """
         self.component_system = component_system
-        self.inlet = inlet
-        self.outlet = outlet
         self.flow_rate = flow_rate
         self.segments_area = segments_area
-        
+        self.init_c=init_c
+
         if configuration not in ['Axial', 'Radial']:
             raise ValueError("Configuration must be either 'Axial' or 'Radial'")
 
@@ -55,20 +38,48 @@ class ZRMBuilder:
         self.name = name or 'ZRMBuilder'
 
         self.zones = []
-        self.cstrs = []
-        self.flow_sheet = FlowSheet(component_system)
-        
+        self.cstrs_in = []
+        self.cstrs_out = []
+
+        self._flow_sheet = FlowSheet(component_system, name)
+        self._process = Process(self._flow_sheet, name)
+
+        #Define the inlet/outlet
+        self.inlet = Inlet(component_system, name='inlet')
+        self.inlet.c = self.init_c
+        self.inlet.flow_rate = self.flow_rate
+
+        self.outlet = Outlet(component_system, name='outlet')
+
+
+    @property
+    def flow_sheet(self):
+        return self._flow_sheet
+
+    @property
+    def process(self):
+        return self._process
+
+    @property
+    def cycle_time(self):
+        return self.process.cycle_time  
     
-    def Flow_rates(self):
-        """Returns the flow rate."""
-        return self.flow_rate
+    
+    def Segments_ratio(self):
+        """Returns the surface area ratio of each zone."""
+        total_area = sum(self.segments_area)
+        if total_area == 0:
+            raise ZeroDivisionError("Total area of segments is zero.")
+        return [area / total_area for area in self.segments_area]
 
     def build(self, length, porosity, axial_dispersion, volumes):
         """Constructs the flow sheet."""
-        if len(volumes) != self.n:
-            raise ValueError(f"Length of volumes list must match number of segments (n={self.n})")
+        if len(volumes) not in (self.n, 2 * self.n):
+            raise ValueError(f"Length of volumes list must be either {self.n} or {2*self.n}, got {len(volumes)}")
         if any(a <= 0 for a in self.segments_area):
             raise ValueError("All segment areas must be positive.")
+        if any(a <= 0 for a in volumes):
+            raise ValueError("All cstrs volumes must be positive.")
         self._initialize_units(length, porosity, axial_dispersion, volumes)
         self._connect_units()
         return self.flow_sheet
@@ -91,68 +102,70 @@ class ZRMBuilder:
             self.zones.append(zone)
 
         # Create symmetric cstrs' volumes
-        symmetric_volumes = volumes + volumes[::-1]
-        for i in range(2 * self.n):
-            cstr = Cstr(self.component_system, f"cstr{i+1}")
-            cstr.init_liquid_volume = symmetric_volumes[i]
-            self.flow_sheet.add_unit(cstr)
-            self.cstrs.append(cstr)
+        if len(volumes)==2*self.n:
+            volumes_in=volumes[0:self.n]
+            volumes_out=volumes[self.n:2*self.n]
+        else:
+            volumes_in = volumes
+            volumes_out = volumes
+
+        for i in range(self.n):
+            cstr_in = Cstr(self.component_system, f"cstr_in{i+1}")
+            cstr_out = Cstr(self.component_system, f"cstr_out{i+1}")
+            cstr_in.init_liquid_volume = volumes_in[i]
+            cstr_out.init_liquid_volume =volumes_out[i]
+            self.flow_sheet.add_unit(cstr_in)
+            self.flow_sheet.add_unit(cstr_out)
+            self.cstrs_in.append(cstr_in)
+            self.cstrs_out.append(cstr_out)
 
     def _connect_units(self):
         """Connects all units in the flow sheet."""
         # First half of cstrs
         for i in range(self.n - 1):
-            self.flow_sheet.add_connection(self.cstrs[i], self.cstrs[i + 1])
+            self.flow_sheet.add_connection(self.cstrs_in[i], self.cstrs_in[i + 1])
 
         # Connect first half cstrs to zones
         for i in range(self.n):
-            self.flow_sheet.add_connection(self.cstrs[i], self.zones[i])
+            self.flow_sheet.add_connection(self.cstrs_in[i], self.zones[i])
+            self.flow_sheet.add_connection(self.zones[i], self.cstrs_out[i])
 
-         # Conditional handling for configuration
+       # Conditional handling for configuration
         if self.configuration == 'Axial':
             # Forward connection for second cstr chain
-            for i in range(self.n, 2 * self.n - 1):
-                self.flow_sheet.add_connection(self.cstrs[i], self.cstrs[i + 1])
+            for i in range(self.n - 1):
+                self.flow_sheet.add_connection(self.cstrs_out[i+1], self.cstrs_out[i])
 
         elif self.configuration == 'Radial':
             # Backward connection for second cstr chain
-            for i in range(self.n, 2 * self.n - 1):
-                self.flow_sheet.add_connection(self.cstrs[i + 1], self.cstrs[i])
+            for i in range(self.n - 1):
+                self.flow_sheet.add_connection(self.cstrs_out[i], self.cstrs_out[i+1])
         else:
             raise ValueError("Invalid configuration. Must be 'Axial' or 'Radial'.")
-
-
-        # Back connections from zones to second half of cstrs
-        for i in range(self.n - 1, -1, -1):
-            target_idx = 2 * self.n - i - 1
-            self.flow_sheet.add_connection(self.zones[i], self.cstrs[target_idx])
 
         # Set output states for flow splitting
         total_area = sum(self.segments_area)
         lowest_bound = 1e-12  # Prevent divide-by-zero
 
+        Ratio=self.Segments_ratio()
         for i in range(self.n - 1):
-            remaining_area = sum(self.segments_area[i:]) + lowest_bound
-            zone_fraction = self.segments_area[i] / remaining_area
+            remaining_area = sum(Ratio[i:]) + lowest_bound
+            zone_fraction = Ratio[i] / remaining_area
             next_cstr_fraction = 1 - zone_fraction
             self.flow_sheet.set_output_state(
-                f'cstr{i+1}',
+                f'cstr_in{i+1}',
                 {
-                    f'cstr{i+2}': next_cstr_fraction,
+                    f'cstr_in{i+2}': next_cstr_fraction,
                     f'zone{i+1}': zone_fraction
                 }
             )
         # Inlet and outlet connections
-        self.flow_sheet.add_connection(self.inlet, self.cstrs[0])
+        self.flow_sheet.add_connection(self.inlet, self.cstrs_in[0])
         if self.configuration == 'Axial':
-            self.flow_sheet.add_connection(self.cstrs[-1], self.outlet)
+            self.flow_sheet.add_connection(self.cstrs_out[0], self.outlet)
         else:  # Radial already validated above
-            self.flow_sheet.add_connection(self.cstrs[self.n], self.outlet)
+            self.flow_sheet.add_connection(self.cstrs_out[-1], self.outlet)
 
-inlet.c=1
-volumes=[1.6e-6,1e-6,1e-7,1e-7,1.6e-6,1e-6,1e-7,1e-7]
-flow_rate=1e-6
-configuration='Axial'
-segments_area=[7.85e-5,7.85e-5,3.85e-5,9e-6,7.85e-5,7.85e-5,3.85e-5,9e-5]
-builder = ZRMBuilder(component_system, inlet, outlet, flow_rate=flow_rate, segments_area=segments_area,configuration=configuration, binding_model=binding_model )
-flow_sheet = builder.build(length=0.0222, porosity=0.7,axial_dispersion=7.3e-9, volumes=volumes)
+
+
+
