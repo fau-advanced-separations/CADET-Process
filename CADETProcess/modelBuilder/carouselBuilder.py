@@ -247,6 +247,7 @@ class CarouselBuilder(Structure):
         self._add_units(flow_sheet)
         self._add_inter_zone_connections(flow_sheet)
         self._add_intra_zone_connections(flow_sheet)
+        self._set_output_states(flow_sheet)
 
         return flow_sheet
 
@@ -290,10 +291,6 @@ class CarouselBuilder(Structure):
 
                     flow_sheet.add_connection(origin, destination)
 
-        for zone in self.zones:
-            output_state = self.flow_sheet.output_states[zone]
-            flow_sheet.set_output_state(zone.outlet_unit, output_state)
-
     def _add_intra_zone_connections(self, flow_sheet: FlowSheet) -> NoReturn:
         """Add connections within zones."""
         for zone in self.zones:
@@ -310,6 +307,18 @@ class CarouselBuilder(Structure):
             else:
                 col_dest = flow_sheet[f'column_{0}']
             flow_sheet.add_connection(col_orig, col_dest)
+
+    def _set_output_states(self, flow_sheet: FlowSheet) -> NoReturn:
+        for unit in self.flow_sheet.output_states:
+            output_state = self.flow_sheet.output_states[unit]
+
+            if output_state == {}:
+                continue
+
+            if isinstance(unit, ZoneBaseClass):
+                flow_sheet.set_output_state(unit.outlet_unit, output_state)
+            else:
+                flow_sheet.set_output_state(unit, output_state)
 
     def build_process(self) -> Process:
         """
