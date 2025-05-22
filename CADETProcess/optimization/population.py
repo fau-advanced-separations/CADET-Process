@@ -691,22 +691,29 @@ class Population():
 
     def plot_pairwise(
             self,
+            fig: Optional[plt.Figure] = None,
+            axs: Optional[npt.NDArray[plt.Axes]] = None,
             n_bins: int = 20,
-            autoscale: bool = True,
             use_transformed=False,
+            autoscale: bool = True,
             show=True,
-            plot_directory=None
+            plot_directory=None,
             ) -> tuple[plt.Figure, np.ndarray]:
         """
         Create a pairplot using Matplotlib.
 
         Parameters
         ----------
-        variable_names : list of str, optional
-            list of variable names corresponding to columns in the data.
-            If None, default names will be assigned.
+        fig : Optional[plt.Figure], default=None
+            An optional Matplotlib Figure object. If none is provided, a new figure will
+            be created.
+        axs : Optional[npt.NDArray[plt.Axes]], default=None
+            An optional array of Matplotlib Axes. If none is provided, new axes will
+            be created.
         n_bins : int, default=20
             Number of bins for histogram plots.
+        use_transformed : bool, optional
+            If True, use the transformed independent variables. The default is False.
         autoscale : bool, optional
             If True, automatically adjust the scaling of the axes. The default is True.
         show : bool, optional
@@ -729,7 +736,7 @@ class Population():
             labels = self.variable_names
 
         fig, axs = plot_pairwise(
-            x, labels, n_bins=n_bins,
+            x, labels, n_bins=n_bins, autoscale=autoscale, fig=fig, axs=axs,
         )
 
         if plot_directory is not None:
@@ -1115,36 +1122,42 @@ def plot_pairwise(
         variable_names = [f"$x_{i}$" for i in range(n_variables)]
 
     if fig is None and axs is None:
-        fig, axes = plt.subplots(
+        fig, axs = plt.subplots(
             n_variables, n_variables,
             figsize=(6 * n_variables, 5 * n_variables),
             sharex="col", sharey="row",
             squeeze=False
         )
 
-    if axes.shape != (n_variables, n_variables):
+    if axs.shape != (n_variables, n_variables):
         raise ValueError(
             "Inconsistent shape for provided axes."
-            f"Expected {(n_variables, n_variables)}, got {axes.shape}."
+            f"Expected {(n_variables, n_variables)}, got {axs.shape}."
         )
 
+    # Rows
     for i in range(n_variables):
+        scale_i = False
+        if autoscale and np.all(population[:, i] > 0):
+            value_range = population[:, i].max() / population[:, i].min()
+            if value_range > 100.0:
+                scale_i = True
+
+        # Columns
         for j in range(n_variables):
-            scale_variable = False
+            scale_j = False
+            if autoscale and np.all(population[:, j] > 0):
+                value_range = population[:, j].max() / population[:, j].min()
+                if value_range > 100.0:
+                    scale_j = True
 
-            ax = axes[i, j]
-
+            ax = axs[i, j]
             if i == j:
                 # Create a twin axis for histograms to avoid sharing y-axis
                 ax_hist = ax.twinx()
 
                 # Determine binning strategy
-                if autoscale and np.all(population[:, i] > 0):
-                    value_range = population[:, i].max() / population[:, i].min()
-                    if value_range > 100.0:
-                        scale_variable = True
-
-                if scale_variable:
+                if scale_i:
                     bins = np.geomspace(
                         population[:, i].min(), population[:, i].max(), n_bins+1
                     )
@@ -1169,20 +1182,25 @@ def plot_pairwise(
                 ax.scatter(population[:, j], population[:, i], alpha=0.5, s=10)
 
             # Apply log scale based on autoscale logic
-            if autoscale and np.all(population[:, j] > 0):
+            if scale_j:
                 ax.set_xscale("log")
-            if autoscale and np.all(population[:, i] > 0):
+            if scale_i:
                 ax.set_yscale("log")
 
-            # Ensure axis labels and ticks are visible only on the first column and
-            # last row
+            # Ensure axis labels and ticks are visible only on the
+            # first column
             if j == 0:
                 ax.yaxis.set_tick_params(labelleft=True)
+                if not scale_i:
+                    ax.ticklabel_format(axis="y", useMathText=True, scilimits=[-3, 3])
             else:
                 ax.yaxis.set_tick_params(labelleft=False)
 
+            # and last row
             if i == n_variables - 1:
                 ax.xaxis.set_tick_params(labelbottom=True)
+                if not scale_j:
+                    ax.ticklabel_format(axis="x", useMathText=True, scilimits=[-3, 3])
             else:
                 ax.xaxis.set_tick_params(labelbottom=False)
 
@@ -1194,4 +1212,4 @@ def plot_pairwise(
 
     fig.tight_layout()
 
-    return fig, axes
+    return fig, axs
