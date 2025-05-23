@@ -64,7 +64,7 @@ jobs:
 
       - name: Install
         run: |
-          conda run pip install -e ./[ax] --group testing
+          conda run pip install -e ./[all] --group testing
 
       - name: Test
         run: |
