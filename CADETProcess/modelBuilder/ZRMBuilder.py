@@ -12,7 +12,7 @@ class ZRMBuilder:
         Builder class for Axial Zoneal Rate Model (ZRM) with symmetric cstrs layout.
 
         Args:
-            component_system: number of components.
+            component_system: number of components, include the type.
             inlet: Feed inlet unit.
             outlet: Outlet unit.
             flow_rate: Volumetric flow rate through the system.
@@ -72,26 +72,39 @@ class ZRMBuilder:
             raise ZeroDivisionError("Total area of segments is zero.")
         return [area / total_area for area in self.segments_area]
 
-    def build(self, length, porosity, axial_dispersion, volumes):
-        """Constructs the flow sheet."""
-        if len(volumes) not in (self.n, 2 * self.n):
-            raise ValueError(f"Length of volumes list must be either {self.n} or {2*self.n}, got {len(volumes)}")
-        if any(a <= 0 for a in self.segments_area):
-            raise ValueError("All segment areas must be positive.")
-        if any(a <= 0 for a in volumes):
-            raise ValueError("All cstrs volumes must be positive.")
-        self._initialize_units(length, porosity, axial_dispersion, volumes)
-        self._connect_units()
-        return self.flow_sheet
+    def build(self , rate_model , length , porosity, axial_dispersion, volumes_in, volumes_out):
+        
+         """Constructs the flow sheet."""
+         if len(volumes_in) != self.n:
+             raise ValueError(f"Length of volumes_in must be {self.n}, got {len(volumes_in)}")
 
-    def _initialize_units(self, length, porosity, axial_dispersion, volumes):
+         if any(area <= 0 for area in self.segments_area):
+             raise ValueError("All segment areas must be positive.")
+
+         if any(v <= 0 for v in volumes_in):
+             raise ValueError("All CSTR volumes (volumes_in) must be positive.")
+
+         if not volumes_out:
+             volumes_out = volumes_in
+         elif len(volumes_out) != self.n:
+             raise ValueError(f"Length of volumes_out must be {self.n}, got {len(volumes_out)}")
+
+    # Proceed with the rest of the build logic here
+
+         self._initialize_units(rate_model,length, porosity, axial_dispersion,volumes_in,volumes_out)
+         self._connect_units()
+         return self.flow_sheet
+    
+
+    def _initialize_units(self,rate_model, length, porosity, axial_dispersion, volumes_in, volumes_out):
         """Initializes zones and cstr units in the flow sheet."""
         self.flow_sheet.add_unit(self.inlet, feed_inlet=True)
         self.flow_sheet.add_unit(self.outlet)
 
+
         # Create membrane zones
         for i in range(self.n):
-            zone = LumpedRateModelWithoutPores(self.component_system, f"zone{i+1}")
+            zone = rate_model(self.component_system, f"zone{i+1}")
             if self.binding_model:
                 zone.binding_model = self.binding_model
             zone.length = length
@@ -101,13 +114,7 @@ class ZRMBuilder:
             self.flow_sheet.add_unit(zone)
             self.zones.append(zone)
 
-        # Create symmetric cstrs' volumes
-        if len(volumes)==2*self.n:
-            volumes_in=volumes[0:self.n]
-            volumes_out=volumes[self.n:2*self.n]
-        else:
-            volumes_in = volumes
-            volumes_out = volumes
+       
 
         for i in range(self.n):
             cstr_in = Cstr(self.component_system, f"cstr_in{i+1}")
