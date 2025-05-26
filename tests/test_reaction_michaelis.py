@@ -4,10 +4,7 @@ import numpy as np
 
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess.processModel.reaction_new import (
-    MichaelisMenten,
-    CompetitiveInhibition,
-    UnCompetitiveInhibition,
-    NonCompetitiveInhibition,
+    MichaelisMenten, EnzyemeInhibtion
 )
 
 
@@ -24,11 +21,11 @@ class Test_MichaelisMenten(unittest.TestCase):
             component_system=component_system,
             components=['S', 'P'],
             coefficients=[-1, 1],
-            name='simple_enzyme'
+            name='simple_enzyme',
+            km = [0.5],
+            vmax = 2.0
         )
-        # Set Michaelis-Menten parameters
-        reaction_model1.km = [0.5]
-        reaction_model1.vmax = 2.0
+
 
         return reaction_model1
 
@@ -37,26 +34,26 @@ class Test_MichaelisMenten(unittest.TestCase):
         component_system = ComponentSystem()
         component_system.add_component('S')
         component_system.add_component('P')
-        component_system.add_component('Inhibitor')
+        component_system.add_component('I')
 
         # Create Michaelis-Menten reaction
         reaction_model2 = MichaelisMenten(
             component_system=component_system,
             components=['S', 'P'],
             coefficients=[-1, 1],
-            name='competitive_inhibition'
+            name='competitive_inhibition',
+            km=[0.5],
+            vmax=2.0
         )
-        # Set Michaelis-Menten parameters
-        reaction_model2.km = [0.5]
-        reaction_model2.vmax = 2.0
+
 
         # Add competitive inhibition
-        inhibition = CompetitiveInhibition(
-            type="Competitive Inhibition",
+        inhibition = EnzyemeInhibtion(
+            name = "CompInh",
             component_system=component_system,
             substrate='S',
-            inhibitors='Inhibitor',
-            ki=0.1
+            inhibitors= ['I'],
+            competitive_rate=[0.1]
         )
         reaction_model2.add_inhibition_reaction(inhibition)
 
@@ -67,26 +64,25 @@ class Test_MichaelisMenten(unittest.TestCase):
         component_system = ComponentSystem()
         component_system.add_component('S')
         component_system.add_component('P')
-        component_system.add_component('Inhibitor')
+        component_system.add_component('I')
 
         # Create Michaelis-Menten reaction
         reaction_model3 = MichaelisMenten(
             component_system=component_system,
             components=['S', 'P'],
             coefficients=[-1, 1],
-            name='uncompetitive_inhibition'
+            name='uncompetitive_inhibition',
+            km=[0.5],
+            vmax=2.0
         )
-        # Set Michaelis-Menten parameters
-        reaction_model3.km = [0.5]
-        reaction_model3.vmax = 2.0
 
         # Add uncompetitive inhibition
-        inhibition = UnCompetitiveInhibition(
-            type="Uncompetitive Inhibition",
+        inhibition = EnzyemeInhibtion(
+            name="UnCompInh",
             component_system=component_system,
             substrate='S',
-            inhibitors='Inhibitor',
-            ki=0.2
+            inhibitors=['I'],
+            uncompetitive_rate=[0.2]
         )
         reaction_model3.add_inhibition_reaction(inhibition)
 
@@ -97,26 +93,25 @@ class Test_MichaelisMenten(unittest.TestCase):
         component_system = ComponentSystem()
         component_system.add_component('S')
         component_system.add_component('P')
-        component_system.add_component('Inhibitor')
+        component_system.add_component('I')
 
         # Create Michaelis-Menten reaction
         reaction_model = MichaelisMenten(
             component_system=component_system,
             components=['S', 'P'],
             coefficients=[-1, 1],
-            name='noncompetitive_inhibition'
+            name='noncompetitive_inhibition',
+            km=[0.5],
+            vmax=2.0
         )
-        # Set Michaelis-Menten parameters
-        reaction_model.km = [0.5]
-        reaction_model.vmax = 2.0
 
         # Add non-competitive inhibition
-        inhibition = NonCompetitiveInhibition(
-            type="Non-competitive Inhibition",
+        inhibition = EnzyemeInhibtion(
+            name="NonCompInh",
             component_system=component_system,
             substrate='S',
-            inhibitors='Inhibitor',
-            ki=0.3
+            inhibitors=['I'],
+            noncompetitive_rate=[0.3]
         )
         reaction_model.add_inhibition_reaction(inhibition)
 
@@ -135,8 +130,6 @@ class Test_MichaelisMenten(unittest.TestCase):
         self.assertEqual(reaction_model.components, ['S', 'P'])
         self.assertEqual(reaction_model.coefficients, [-1, 1])
 
-        # Test string representation
-        self.assertIn("Michaelis-Menten without inhibition", str(reaction_model))
 
     def test_competitive_inhibition_reaction(self):
         reaction_model = self.create_competitive_inhibition_reaction()
@@ -149,14 +142,11 @@ class Test_MichaelisMenten(unittest.TestCase):
         # Test inhibition
         self.assertEqual(len(reaction_model.inhibition_reactions), 1)
         inhibition = reaction_model.inhibition_reactions[0]
-        self.assertIsInstance(inhibition, CompetitiveInhibition)
-        self.assertEqual(inhibition.ki, 0.1)
+        self.assertIsInstance(inhibition, EnzyemeInhibtion)
+        self.assertEqual(inhibition.competitive_rate, [0.1])
         self.assertEqual(inhibition.substrate, 'S')
-        self.assertEqual(inhibition.inhibitors, 'Inhibitor')
-        self.assertEqual(inhibition.type, "Competitive Inhibition")
+        self.assertEqual(inhibition.inhibitors, ['I'])
 
-        # Test string representation
-        self.assertIn("Michaelis-Menten with Competitive Inhibition", str(reaction_model))
 
     def test_uncompetitive_inhibition_reaction(self):
         reaction_model = self.create_uncompetitive_inhibition_reaction()
@@ -164,14 +154,11 @@ class Test_MichaelisMenten(unittest.TestCase):
         # Test inhibition
         self.assertEqual(len(reaction_model.inhibition_reactions), 1)
         inhibition = reaction_model.inhibition_reactions[0]
-        self.assertIsInstance(inhibition, UnCompetitiveInhibition)
-        self.assertEqual(inhibition.ki, 0.2)
+        self.assertIsInstance(inhibition, EnzyemeInhibtion)
+        self.assertEqual(inhibition.uncompetitive_rate, [0.2])
         self.assertEqual(inhibition.substrate, 'S')
-        self.assertEqual(inhibition.inhibitors, 'Inhibitor')
-        self.assertEqual(inhibition.type, "Uncompetitive Inhibition")
+        self.assertEqual(inhibition.inhibitors, ['I'])
 
-        # Test string representation
-        self.assertIn("Michaelis-Menten with Uncompetitive Inhibition", str(reaction_model))
 
     def test_noncompetitive_inhibition_reaction(self):
         reaction_model = self.create_noncompetitive_inhibition_reaction()
@@ -179,14 +166,10 @@ class Test_MichaelisMenten(unittest.TestCase):
         # Test inhibition
         self.assertEqual(len(reaction_model.inhibition_reactions), 1)
         inhibition = reaction_model.inhibition_reactions[0]
-        self.assertIsInstance(inhibition, NonCompetitiveInhibition)
-        self.assertEqual(inhibition.ki, 0.3)
+        self.assertIsInstance(inhibition, EnzyemeInhibtion)
+        self.assertEqual(inhibition.noncompetitive_rate, [0.3])
         self.assertEqual(inhibition.substrate, 'S')
-        self.assertEqual(inhibition.inhibitors, 'Inhibitor')
-        self.assertEqual(inhibition.type, "Non-competitive Inhibition")
-
-        # Test string representation
-        self.assertIn("Michaelis-Menten with Non-competitive Inhibition", str(reaction_model))
+        self.assertEqual(inhibition.inhibitors, ['I'])
 
     def test_multiple_inhibitors(self):
         component_system = ComponentSystem()
@@ -200,18 +183,18 @@ class Test_MichaelisMenten(unittest.TestCase):
             component_system=component_system,
             components=['S', 'P'],
             coefficients=[-1, 1],
-            name='multiple_inhibitors'
+            name='multiple_inhibitors',
+            km=[0.5],
+            vmax=2.0
         )
-        reaction_model.km = [0.5]
-        reaction_model.vmax = 2.0
 
         # Add inhibition with multiple inhibitors
-        inhibition = CompetitiveInhibition(
-            type="Competitive Inhibition",
+        inhibition = EnzyemeInhibtion(
+            name="MultiInh",
             component_system=component_system,
             substrate='S',
             inhibitors=['Inh1', 'Inh2'],
-            ki=[0.1, 0.2]
+            competitive_rate=[0.1,0.2]
         )
         reaction_model.add_inhibition_reaction(inhibition)
 
@@ -219,7 +202,7 @@ class Test_MichaelisMenten(unittest.TestCase):
         self.assertEqual(len(reaction_model.inhibition_reactions), 1)
         inhibition = reaction_model.inhibition_reactions[0]
         np.testing.assert_array_equal(inhibition.inhibitors, np.array(['Inh1', 'Inh2']))
-        np.testing.assert_array_equal(inhibition.ki, np.array([0.1, 0.2]))
+        np.testing.assert_array_equal(inhibition.competitive_rate, np.array([0.1, 0.2]))
 
 
 if __name__ == '__main__':

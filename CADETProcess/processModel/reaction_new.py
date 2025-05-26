@@ -16,12 +16,13 @@ from CADETProcess.dataStructure import (
     Aggregator, SizedAggregator, SizedClassDependentAggregator,
 )
 from CADETProcess.dataStructure import (
-    Bool, String, SizedList, SizedNdArray, UnsignedInteger, UnsignedFloat, SizedUnsignedList
+    Bool, String, SizedList, SizedNdArray, UnsignedInteger, UnsignedFloat, SizedUnsignedList, List
 )
 
 from CADETProcess.dataStructure import deprecated_alias
 
 from CADETProcess.processModel.componentSystem import ComponentSystem
+
 
 @frozen_attributes
 class ReactionBase(Structure):
@@ -108,110 +109,127 @@ class NoReaction(ReactionBase):
     def __init__(self, *args, **kwargs):
         super().__init__(ComponentSystem(), components=[], coefficients= [], name='NoReaction')
 
-class InhibitionBase():
+class InhibitionBase(Structure):
     """Abstract base class for inhibition reactions."""
 
 
+    _name = String()
+    _parameters = []
+
+    def __init__(self, component_system, name=None, *args, **kwargs):
+        self._component_system = component_system
+        self._name = name
+        super().__init__(*args, **kwargs)
+
+
+class EnzyemeInhibtion(InhibitionBase):
+
+
+    competitive_rate = List()
+    uncompetitive_rate = List()
+    noncompetitive_rate = List()
+
+    substrate = String()
+    inhibitors = List()
+
     _parameters = [
-        'component_system',
         'substrate',
         'inhibitors',
-        'ki'
+        'competitive_rate',
+        'uncompetitive_rate',
+        'noncompetitive_rate',
     ]
 
-    def __init__(
-        self,
-        type: str,
-        component_system: ComponentSystem,
-        substrate: str,
-        inhibitors: str | list[str],
-        ki: float | list[float],
-        ):
+    def __init__(self, component_system,  name=None, *args, **kwargs):
+        super().__init__(component_system, name, *args, **kwargs)
 
-        self._type = type
-        self._component_system = component_system
-        self._substrate = substrate
-        self._inhibitors = inhibitors
-        self._ki = ki
+        # Validate the types and components
+        self.validate_all()
 
-        #check if substrate is in component system
-        self.validate_types()
-        self.validate_components()
+    def validate_all(self):
+        """Perform all validations."""
+        self.validate_required_parameters()
+        self.validate_components(self._component_system)
+        self.validate_inhibition_type()
+        self.validate_rate_consistency()
+        #? kann ein substrat auch ein inhibitor sein?
 
+    def validate_required_parameters(self):
+        """Validate that required parameters are provided."""
+        if not self.substrate:
+            raise ValueError("Substrate must be specified")
 
-    def validate_types(self):
-        """Validate the inhibition reaction."""
-        if not isinstance(self._ki, (float, list)):
-            raise TypeError("Inhibition constant must be a float or list of floats")
-        if isinstance(self._ki, list):
-            for ki in self._ki:
-                if not isinstance(ki, float):
-                    raise TypeError("Inhibition constant must be a float or list of floats")
-        if not isinstance(self._component_system, ComponentSystem):
-            raise TypeError("Component system must be a ComponentSystem object")
+        if not self.inhibitors:
+            raise ValueError("At least one inhibitor must be specified")
 
-    def validate_components(self):
-        """ Validate, if substrate and inhibitors are correctly set """
+        # Check if at least one inhibition type is specified
+        has_competitive = self.competitive_rate and len(self.competitive_rate) > 0
+        has_uncompetitive = self.uncompetitive_rate and len(self.uncompetitive_rate) > 0
+        has_noncompetitive = self.noncompetitive_rate and len(self.noncompetitive_rate) > 0
 
-        if self._substrate not in self._component_system.species:
-            raise ValueError(f"Substrate {self._substrate} not in component system")
+        if not (has_competitive or has_uncompetitive or has_noncompetitive):
+            raise ValueError("At least one inhibition rate (competitive, uncompetitive, or noncompetitive) must be specified")
 
-        if isinstance(self._inhibitors, list):
-            for i in self._inhibitors:
-                if i not in self._component_system.species:
-                    raise ValueError(f"Inhibitor {i} not in component system")
+    def validate_components(self, component_system):
+        """Validate, if substrate and inhibitors are correctly set"""
+        if self.substrate not in component_system.species:
+            raise ValueError(f"Substrate '{self.substrate}' not in component system. Available species: {component_system.species}")
+
+        inhibitors_list = self.inhibitors if isinstance(self.inhibitors, list) else [self.inhibitors]
+
+        for inhibitor in inhibitors_list:
+            if inhibitor not in component_system.species:
+                raise ValueError(f"Inhibitor '{inhibitor}' not in component system. Available species: {component_system.species}")
+
+    def validate_inhibition_type(self):
+        """Validate that only one type of inhibition is active at a time."""
+        active_types = []
+
+        if self.competitive_rate and len(self.competitive_rate) > 0:
+            active_types.append('competitive')
+        if self.uncompetitive_rate and len(self.uncompetitive_rate) > 0:
+            active_types.append('uncompetitive')
+        if self.noncompetitive_rate and len(self.noncompetitive_rate) > 0:
+            active_types.append('noncompetitive')
+
+        if len(active_types) > 1:
+            raise ValueError(f"Multiple inhibition types specified: {active_types}. "
+                         "Only one inhibition type is allowed", UserWarning)
+
+    def validate_rate_consistency(self):
+        """Validate that rates are consistent with number of inhibitors."""
+        inhibitors_list = self.inhibitors if isinstance(self.inhibitors, list) else [self.inhibitors]
+        n_inhibitors = len(inhibitors_list)
+
+        for rate_type, rates in [
+            ('competitive_rate', self.competitive_rate),
+            ('uncompetitive_rate', self.uncompetitive_rate),
+            ('noncompetitive_rate', self.noncompetitive_rate)
+        ]:
+            if rates and len(rates) > 0:
+                if len(rates) != n_inhibitors:
+                    raise ValueError(f"Number of {rate_type} values ({len(rates)}) must match "
+                                   f"number of inhibitors ({n_inhibitors})")
+
+                # Check for negative rates
+                if any(rate < 0 for rate in rates):
+                    raise ValueError(f"All {rate_type} values must be non-negative")
+
+                # Warn about zero rates
+                if any(rate == 0 for rate in rates):
+                    warnings.warn(f"Zero values found in {rate_type}. "
+                                 "This effectively disables inhibition for those inhibitors.", UserWarning)
+    @property
+    def inhibition_type(self):
+        """Get the active inhibition type."""
+        if self.competitive_rate and len(self.competitive_rate) > 0:
+            return 'competitive'
+        elif self.uncompetitive_rate and len(self.uncompetitive_rate) > 0:
+            return 'uncompetitive'
+        elif self.noncompetitive_rate and len(self.noncompetitive_rate) > 0:
+            return 'noncompetitive'
         else:
-            if self._inhibitors not in self._component_system.species:
-                raise ValueError(f"Inhibitor {self._inhibitors} not in component system")
-
-    @property
-    def type(self):
-        """str: Type of inhibition"""
-        return self._type
-
-    @property
-    def ki(self):
-        """float: Inhibition constant."""
-        if isinstance(self._ki, list):
-            return np.array(self._ki)
-        return self._ki
-
-    @ki.setter
-    def ki(self, ki):
-        if isinstance(ki, list):
-            self._ki = np.array(ki)
-        else:
-            self._ki = ki
-
-    @property
-    def component_system(self):
-        """ComponentSystem: Component System"""
-        return self._component_system
-
-    @property
-    def substrate(self):
-        """str: Substrate"""
-        return self._substrate
-
-    @property
-    def inhibitors(self):
-        """str | list[str]: Inhibitors"""
-        if isinstance(self._inhibitors, list):
-            return np.array(self._inhibitors)
-        return self._inhibitors
-
-class CompetitiveInhibition(InhibitionBase):
-    _type = "Competitive Inhibition"
-
-    parameters = [ "ki" ]
-
-class UnCompetitiveInhibition(InhibitionBase):
-    _type = "Uncompetitive Inhibition"
-    parameters = [ "ki" ]
-
-class NonCompetitiveInhibition(InhibitionBase):
-    _type = "Non-competitive Inhibition"
-    parameters = [ "ki" ]
+            return 'none'
 
 class MichaelisMenten(ReactionBase):
 
@@ -227,63 +245,115 @@ class MichaelisMenten(ReactionBase):
     """
     _type = "Michaelis-Menten"
 
+    km = List()
+    vmax = UnsignedFloat()
 
-    _km = list()
-    _vmax = UnsignedFloat()
-    _inhibition_reactions = list()
-
+    _inhibition_reactions = []
+    _inhibited_substrate = []
     _parameters = [ 'km', 'vmax' ]
 
     def __init__(self, component_system, components, coefficients, name=None, *args, **kwargs):
         super().__init__(component_system, components, coefficients, name, *args, **kwargs)
         self._inhibition_reactions = []
+        self._inhibited_substrate = []
+
+        self.validate_reaction_setup()
 
     @property
-    def inhibition_reactions(self):
+    def inhibition_reactions(self) -> list[InhibitionBase]:
         """list[InhibitionBase]: List of inhibition reactions."""
-        if not hasattr(self, '_inhibition_reactions'):
-            self._inhibition_reactions = []
         return self._inhibition_reactions
-
 
     def add_inhibition_reaction(self, inhibition_reaction):
         """Add inhibition reaction to the model."""
         if not isinstance(inhibition_reaction, InhibitionBase):
             raise TypeError('Expected InhibitionBase')
-        self._inhibition_reactions.append(inhibition_reaction)
+
+        # Check if the substrate already has an inhibition of the same type
+        if inhibition_reaction.substrate in self._inhibited_substrate:
+            warnings.warn(f"Substrate {inhibition_reaction.substrate} already has an inhibition of type {inhibition_reaction.type}. "
+                          "Adding multiple inhibitions of the same type is not recommended.", UserWarning)
+        else:
+            self._inhibited_substrate.append(inhibition_reaction.substrate)
+            self._inhibition_reactions.append(inhibition_reaction)
+
+
+    @property
+    def parameters(self):
+        parameters = super().parameters
+
+        parameters["inhibition"] = {
+            inhibition.name: inhibition.parameters
+            for inhibition in self._inhibition_reactions.parameters
+        }
+
+    def validate_reaction_setup(self):
+        """Validate the basic reaction setup."""
+        self.validate_components_coefficients()
+        self.validate_parameters()
+        self.validate_stoichiometry()
+
+    def validate_components_coefficients(self):
+        """Validate components and coefficients consistency."""
+        if len(self.components) != len(self.coefficients):
+            raise ValueError(f"Number of components ({len(self.components)}) must match "
+                           f"number of coefficients ({len(self.coefficients)})")
+
+        # Check if all components exist in component system
+        for component in self.components:
+            if component not in self.component_system.species:
+                raise ValueError(f"Component '{component}' not in component system. "
+                               f"Available species: {self.component_system.species}")
+
+    def validate_parameters(self):
+        """Validate Michaelis-Menten parameters."""
+        # Validate km
+        if not self.km:
+            raise ValueError("km parameter must be specified")
+
+        if any(k <= 0 for k in self.km):
+            raise ValueError("All km values must be positive")
+
+        # Validate vmax
+        if self.vmax is None:
+            raise ValueError("vmax parameter must be specified")
+
+        if self.vmax <= 0:
+            raise ValueError("vmax must be positive")
+
+        # Check if number of km values matches substrates
+        substrates = [comp for comp, coeff in zip(self.components, self.coefficients) if coeff < 0]
+        if len(self.km) != len(substrates):
+            warnings.warn(f"Number of km values ({len(self.km)}) does not match "
+                         f"number of substrates ({len(substrates)}). "
+                         "This may indicate a configuration issue.", UserWarning)
+
+    def validate_stoichiometry(self):
+        """Validate reaction stoichiometry."""
+        if all(coeff >= 0 for coeff in self.coefficients):
+            warnings.warn("No negative coefficients found. "
+                         "This reaction has no substrates (only products).", UserWarning)
+
+        if all(coeff <= 0 for coeff in self.coefficients):
+            warnings.warn("No positive coefficients found. "
+                         "This reaction has no products (only substrates).", UserWarning)
 
 
     def __str__(self):
-        for inh in self.inhibition_reactions:
-            if isinstance(inh, CompetitiveInhibition):
-                return f"{self._type} with {inh.type}"
-            elif isinstance(inh, UnCompetitiveInhibition):
-                return f"{self._type} with {inh.type}"
-            elif isinstance(inh, NonCompetitiveInhibition):
-                return f"{self._type} with {inh.type}"
-        return f"{self._type} without inhibition"
+        """String representation of the Michaelis-Menten reaction."""
+        base_str = f"{self._type}"
 
-    @property
-    def km(self):
-        """float | list[float]: Michaelis-Menten constant."""
-        if isinstance(self._km, list):
-            return np.array(self._km)
-        return self._km
+        if self._inhibition_reactions:
+            inhibition_types = [inh.inhibition_type for inh in self._inhibition_reactions]
+            unique_types = list(set(inhibition_types))
+            if len(unique_types) == 1:
+                base_str += f" with {unique_types[0]} inhibition"
+            else:
+                base_str += f" with multiple inhibitions ({', '.join(unique_types)})"
+        else:
+            base_str += " without inhibition"
 
-    @km.setter
-    def km(self, value):
-        self._km = value
-
-    @property
-    def vmax(self):
-        """float: Michaelis-Menten constant."""
-        return self._vmax
-
-    @vmax.setter
-    def vmax(self, value):
-        self._vmax = value
-
-
+        return base_str
 
 class MassActionLaw(ReactionBase):
     """Parameters for Mass Action Law reaction model."""
