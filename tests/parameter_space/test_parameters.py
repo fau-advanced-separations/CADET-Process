@@ -1,15 +1,12 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Tue May 20 14:18:16 2025
-
-@author: talasunna
-"""
-
 import pytest
 import math
+import sys
+from pathlib import Path
 
-from projects.migrating.parameters import (
+# # Add the CADET-Process root to the Python path
+# sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from CADETProcess.parameter_space.parameters import (
     RangedParameter,
     ChoiceParameter,
     LinearConstraint,
@@ -17,50 +14,7 @@ from projects.migrating.parameters import (
 )
 from CADETProcess import CADETProcessError
 
-
-# # ────────────────────────────  RangedParameter  ──────────────────────────────
-# def test_ranged_parameter_accepts_value_inside_bounds():
-#     p = RangedParameter(lb=0, ub=10, parameter_type=int)
-#     # Should not raise
-#     p.validate(5)
-
-
-# def test_ranged_parameter_rejects_wrong_type():
-#     p = RangedParameter(lb=0, ub=10, parameter_type=int)
-#     with pytest.raises(TypeError):
-#         p.validate(3.14)  # float instead of int
-
-
-# def test_ranged_parameter_rejects_out_of_bounds():
-#     p = RangedParameter(lb=0, ub=10, parameter_type=int)
-#     with pytest.raises(ValueError):
-#         p.validate(42)  # outside upper bound
-
-
-# def test_ranged_parameter_bounds_order_checked():
-#     with pytest.raises(ValueError):
-#         RangedParameter(lb=5, ub=0, parameter_type=int)
-
-
-# # ───────────────────────────── ChoiceParameter  ──────────────────────────────
-# def test_choice_parameter_accepts_valid_choice():
-#     p = ChoiceParameter(valid_values=["red", "green", "blue"])
-#     # Should not raise
-#     p.validate("green")
-
-
-# def test_choice_parameter_rejects_invalid_choice():
-#     p = ChoiceParameter(valid_values=["red", "green", "blue"])
-#     with pytest.raises(ValueError):
-#         p.validate("purple")
-
-
-
-
-#%%
-
-
-# ---------- Fixtures ----------
+# ------------------------ Fixtures ------------------------
 
 @pytest.fixture
 def int_param():
@@ -74,16 +28,15 @@ def float_param():
 def choice_param():
     return ChoiceParameter(name="mode", valid_values=["fast", "slow", "medium"])
 
-# ---------- Tests for RangedParameter ----------
+# ------------------ Tests: RangedParameter ------------------
 
-@pytest.mark.parametrize("value", [0, 5, 11])
-def test_ranged_param_valid(value, int_param):
-    if value == 11:
-        # should raise error for exclusive upper bound test
-        with pytest.raises(ValueError):
-            int_param.validate(value)
-    else:
-        int_param.validate(value)
+@pytest.mark.parametrize("value", [0, 5])
+def test_ranged_param_accepts_valid_values(value, int_param):
+    int_param.validate(value)
+
+def test_ranged_param_rejects_value_above_upper(int_param):
+    with pytest.raises(ValueError):
+        int_param.validate(11)
 
 @pytest.mark.parametrize("value", [-1, 11])
 def test_ranged_param_out_of_bounds(value, int_param):
@@ -95,23 +48,58 @@ def test_ranged_param_type_error(value, int_param):
     with pytest.raises(TypeError):
         int_param.validate(value)
 
-# ---------- Tests for ChoiceParameter ----------
-
-@pytest.mark.parametrize("value", ["fast", "slow", "medium"])
-def test_choice_param_valid(value, choice_param):
-    choice_param.validate(value)
-
-@pytest.mark.parametrize("value", ["ultra", "", 5])
-def test_choice_param_invalid(value, choice_param):
-    with pytest.raises(ValueError):
-        choice_param.validate(value)
-
-# ---------- Optional edge case ----------
-
 def test_invalid_bounds_raise():
     with pytest.raises(ValueError):
         _ = RangedParameter(name="bad", parameter_type=int, lb=10, ub=5)
 
+# ------------------ Tests: ChoiceParameter ------------------
+
+@pytest.mark.parametrize("value", ["fast", "slow", "medium"])
+def test_choice_param_valid_choices(value, choice_param):
+    choice_param.validate(value)
+
+@pytest.mark.parametrize("value", ["ultra", "", 5])
+def test_choice_param_invalid_choices(value, choice_param):
+    with pytest.raises(ValueError):
+        choice_param.validate(value)
+
+# ------------------ Tests: LinearConstraint ------------------
+
+def test_linear_constraint_valid():
+    p1 = RangedParameter(name="p1", lb=0, ub=1, parameter_type=float)
+    p2 = RangedParameter(name="p2", lb=0, ub=1, parameter_type=float)
+    con = LinearConstraint(parameters=[p1, p2], lhs=[1.0, 2.0], b=5.0)
+    assert con.b == 5.0
+    assert len(con.lhs) == 2
+
+def test_linear_constraint_invalid_length():
+    p1 = RangedParameter(name="p1", lb=0, ub=1, parameter_type=float)
+    with pytest.raises(CADETProcessError):
+        LinearConstraint(parameters=[p1], lhs=[1.0, 2.0], b=5.0)
+
+def test_linear_constraint_scalar_lhs():
+    p1 = RangedParameter(name="p1", lb=0, ub=1, parameter_type=float)
+    constraint = LinearConstraint(parameters=[p1], lhs=3.0, b=9.0)
+    assert constraint.lhs == [3.0]
+    assert constraint.b == 9.0
+
+# ------------------ Tests: ParameterSpace ------------------
+
+def test_parameter_space_add_linear_constraint():
+    pspace = ParameterSpace()
+    p = RangedParameter(name="x", lb=0, ub=10, parameter_type=float)
+    pspace._parameters.append(p)
+    pspace.add_linear_constraint(parameters=p, a=2.0, b=10.0)
+    assert len(pspace.linear_constraints) == 1
+    assert pspace.linear_constraints[0].lhs == [2.0]
+
+def test_parameter_space_add_multiple_parameters():
+    pspace = ParameterSpace()
+    pspace._parameters.append(RangedParameter(name="foo", lb=1, ub=2))
+    pspace._parameters.append(RangedParameter(name="bar", lb=-10, ub=0))
+    assert len(pspace.parameters) == 2
+
+# ------------------ Run Tests ------------------
 
 if __name__ == "__main__":
-    pytest.main([__file__])
+    pytest.main([__file__, "-v"])
