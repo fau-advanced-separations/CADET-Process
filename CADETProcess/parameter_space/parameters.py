@@ -49,6 +49,7 @@ class ParameterBase:
         )
 
 
+
 @dataclass
 class RangedParameter(ParameterBase):
     """
@@ -101,6 +102,8 @@ class RangedParameter(ParameterBase):
 
         if not self.lb <= value <= self.ub:
             raise ValueError("Value exceeds bounds")
+
+
 
 
 @dataclass(kw_only=True)
@@ -170,7 +173,7 @@ class LinearConstraint:
         if np.isscalar(self.lhs):
             self.lhs = [float(self.lhs)] * len(self.parameters)
         if len(self.lhs) != len(self.parameters):
-            raise CADETProcessError("Length of lhs must match number of parameters.")
+            raise ValueError("Length of lhs must match number of parameters.")
         self.b = float(self.b)
 
 
@@ -230,20 +233,13 @@ class ParameterSpace:
         """
         return [param for param in self._parameters if param.dependencies]
 
-    def add_parameter(self, name, lb, ub):
-        """
-        Create and add a ranged parameter to the space.
+    def add_parameter(self, parameter: ParameterBase):
+        """Add parameter to parameter space."""
+        """@TODO: type chekcing"""
+        """@TODO: check parameter is not already in param space"""
+        """@TODO: check that the names are unique"""
 
-        Parameters
-        ----------
-        name : str
-            Name of the parameter.
-        lb : float
-            Lower bound.
-        ub : float
-            Upper bound.
-        """
-        pass
+        self._parameters.append(parameter)
 
     @property
     def linear_constraints(self) -> list[LinearConstraint]:
@@ -257,7 +253,7 @@ class ParameterSpace:
         """
         return self._linear_constraints
 
-    def add_linear_constraint(self, parameters, a, b):
+    def add_linear_constraint(self, parameters, lhs, b):
         """
         Add a linear constraint of the form a · x <= b.
 
@@ -265,10 +261,11 @@ class ParameterSpace:
         ----------
         parameters : list of RangedParameter or RangedParameter
             Parameters involved in the constraint.
-        a : float or list of float
+        lhs : float or list of float
             Coefficients for each parameter.
         b : float
             Right-hand side of the constraint.
         """
-        lincon = LinearConstraint(parameters, a, b)
-        self._linear_constraints.append(lincon)
+        if not isinstance(parameters, list):
+            parameters = [parameters]
+            pass
