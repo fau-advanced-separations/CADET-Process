@@ -20,13 +20,20 @@ class ZRMBuilder:
             binding_model: Optional binding model to apply to all zones.
             name: Optional name for the builder instance.
         """
+        self.zones = []
+        self.cstrs_in = []
+        self.cstrs_out = []
+
         self.component_system = component_system
         self.flow_rate = flow_rate
+        if self.flow_rate<0:
+            raise ValueError("The flow rate should be positive float")
         self.segments_area = segments_area
         self.init_c=init_c
+        self.configuration=configuration.lower()
 
-        if configuration not in ['Axial', 'Radial']:
-            raise ValueError("Configuration must be either 'Axial' or 'Radial'")
+        if self.configuration not in ['axial', 'radial']:
+            raise ValueError("Configuration must be either 'axial' or 'radial'")
 
         # Validate that each segment area is positive
         if any(a <= 0 for a in segments_area):
@@ -37,9 +44,6 @@ class ZRMBuilder:
         self.binding_model = binding_model
         self.name = name or 'ZRMBuilder'
 
-        self.zones = []
-        self.cstrs_in = []
-        self.cstrs_out = []
 
         self._flow_sheet = FlowSheet(component_system, name)
         self._process = Process(self._flow_sheet, name)
@@ -63,8 +67,22 @@ class ZRMBuilder:
     @property
     def cycle_time(self):
         return self.process.cycle_time  
+        
+    @cycle_time.setter
+    def cycle_time(self, time):
+        self._cycle_time = time
     
     
+    @property
+    def binding_model(self):
+        return self._binding_model
+    
+    @binding_model.setter
+    def binding_model(self, model):
+        self._binding_model=model
+        for membrane_segment in self.zones:
+            membrane_segment.binding_model=model
+
     def Segments_ratio(self):
         """Returns the surface area ratio of each zone."""
         total_area = sum(self.segments_area)
@@ -88,6 +106,10 @@ class ZRMBuilder:
              volumes_out = volumes_in
          elif len(volumes_out) != self.n:
              raise ValueError(f"Length of volumes_out must be {self.n}, got {len(volumes_out)}")
+         elif any(v_in<0 for v_in in volumes_in):
+             raise ValueError("The cstr volume in volumes_in can not be negative float.")
+             
+
 
     # Proceed with the rest of the build logic here
 
@@ -104,7 +126,7 @@ class ZRMBuilder:
 
         # Create membrane zones
         for i in range(self.n):
-            zone = rate_model(self.component_system, f"zone{i+1}")
+            zone = rate_model(self.component_system, f"zone_{i+1}")
             if self.binding_model:
                 zone.binding_model = self.binding_model
             zone.length = length
@@ -117,8 +139,8 @@ class ZRMBuilder:
        
 
         for i in range(self.n):
-            cstr_in = Cstr(self.component_system, f"cstr_in{i+1}")
-            cstr_out = Cstr(self.component_system, f"cstr_out{i+1}")
+            cstr_in = Cstr(self.component_system, f"cstr_in_{i+1}")
+            cstr_out = Cstr(self.component_system, f"cstr_out_{i+1}")
             cstr_in.init_liquid_volume = volumes_in[i]
             cstr_out.init_liquid_volume =volumes_out[i]
             self.flow_sheet.add_unit(cstr_in)
@@ -138,17 +160,17 @@ class ZRMBuilder:
             self.flow_sheet.add_connection(self.zones[i], self.cstrs_out[i])
 
        # Conditional handling for configuration
-        if self.configuration == 'Axial':
+        if self.configuration == 'axial':
             # Forward connection for second cstr chain
             for i in range(self.n - 1):
                 self.flow_sheet.add_connection(self.cstrs_out[i+1], self.cstrs_out[i])
 
-        elif self.configuration == 'Radial':
+        elif self.configuration == 'radial':
             # Backward connection for second cstr chain
             for i in range(self.n - 1):
                 self.flow_sheet.add_connection(self.cstrs_out[i], self.cstrs_out[i+1])
         else:
-            raise ValueError("Invalid configuration. Must be 'Axial' or 'Radial'.")
+            raise ValueError("Invalid configuration. Must be 'axial' or 'radial'.")
 
         # Set output states for flow splitting
         total_area = sum(self.segments_area)
@@ -160,19 +182,15 @@ class ZRMBuilder:
             zone_fraction = Ratio[i] / remaining_area
             next_cstr_fraction = 1 - zone_fraction
             self.flow_sheet.set_output_state(
-                f'cstr_in{i+1}',
+                f'cstr_in_{i+1}',
                 {
-                    f'cstr_in{i+2}': next_cstr_fraction,
-                    f'zone{i+1}': zone_fraction
+                    f'cstr_in_{i+2}': next_cstr_fraction,
+                    f'zone_{i+1}': zone_fraction
                 }
             )
         # Inlet and outlet connections
         self.flow_sheet.add_connection(self.inlet, self.cstrs_in[0])
-        if self.configuration == 'Axial':
+        if self.configuration == 'axial':
             self.flow_sheet.add_connection(self.cstrs_out[0], self.outlet)
-        else:  # Radial already validated above
+        else:  # radial already validated above
             self.flow_sheet.add_connection(self.cstrs_out[-1], self.outlet)
-
-
-
-
