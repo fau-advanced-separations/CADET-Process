@@ -1405,11 +1405,10 @@ class CarouselSolutionBulk(SolutionBase):
     def plot_at_time(
             self,
             t,
-            overlay=None,
             y_min=None,
             y_max=None,
-            ax=None,
-            lines=None):
+            axs=None,
+            ):
         """Plot bulk solution over space at given time.
 
         Parameters
@@ -1424,7 +1423,7 @@ class CarouselSolutionBulk(SolutionBase):
         CADETProcess.plotting
         """
         n_cols = self.builder.n_columns
-        if ax is None:
+        if axs is None:
             fig, axs = plt.subplots(
                 ncols=n_cols,
                 figsize=(n_cols*4, 6),
@@ -1432,7 +1431,7 @@ class CarouselSolutionBulk(SolutionBase):
                 sharey='row'
             )
         else:
-            axs = ax
+            fig = axs[0].figure
 
         t_i = np.where(t <= self.time)[0][0]
 
@@ -1443,11 +1442,6 @@ class CarouselSolutionBulk(SolutionBase):
         zone_counter = 0
         column_counter = 0
 
-        if lines is None:
-            _lines = []
-        else:
-            _lines = None
-
         for position, ax in enumerate(axs):
             col_index = self.builder.column_indices_at_time(t, position)
 
@@ -1456,12 +1450,7 @@ class CarouselSolutionBulk(SolutionBase):
             y_min_data = min(y_min_data, min(0, np.min(y)))
             y_max_data = max(y_max_data, 1.1*np.max(y))
 
-            if lines is not None:
-                for comp in range(self.n_comp):
-                    lines[position][comp].set_ydata(y[..., comp])
-            else:
-                line = ax.plot(x, y)
-                _lines.append(line)
+            ax.plot(x, y)
 
             zone = self.builder.zones[zone_counter]
 
@@ -1486,7 +1475,4 @@ class CarouselSolutionBulk(SolutionBase):
         for position, ax in enumerate(axs):
             ax.set_ylim((y_min, y_max))
 
-        if _lines is None:
-            _lines = lines
-
-        return axs, _lines
+        return fig, axs
