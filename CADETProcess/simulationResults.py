@@ -264,32 +264,3 @@ class SimulationResults(Structure):
         self._time_complete = time_complete
 
         return time_complete
-
-    def save(self, case_dir=None, unit=None, start=0, end=None):
-        path = settings.working_directory
-        if case_dir is not None:
-            path = os.path.join(settings.working_directory, case_dir)
-
-        if unit is None:
-            units = self.solution.keys()
-        else:
-            units = self.solution[unit]
-
-        for unit in units:
-            self.solution[unit][-1].plot(
-                save_path=path + '/' + unit + '_last.png',
-                start=start, end=end
-            )
-
-        for unit in units:
-            self.solution_complete[unit].plot(
-                save_path=path + '/' + unit + '_complete.png',
-                start=start, end=end
-            )
-
-        for unit in units:
-            self.solution[unit][-1].plot(
-                save_path=path + '/' + unit + '_overlay.png',
-                overlay=[cyc.signal for cyc in self.solution[unit][0:-1]],
-                start=start, end=end
-            )
