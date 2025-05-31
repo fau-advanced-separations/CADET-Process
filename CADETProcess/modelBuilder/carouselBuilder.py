@@ -1368,6 +1368,12 @@ class CarouselSolutionBulk(SolutionBase):
     _coordinates = ['axial_coordinates', 'radial_coordinates']
 
     def __init__(self, builder, simulation_results):
+        if not builder.column.solution_recorder.write_solution_bulk:
+            raise CADETProcessError(
+                "Cannot instantiate CarouselSolutionBulk if solution is not stored. "
+                "Please set "
+                "`builder.column.solution_recorder.write_solution_bulk = True`."
+            )
         self.builder = builder
         self.simulation_results = simulation_results
 
