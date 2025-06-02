@@ -6,8 +6,6 @@ from typing import Any
 
 import numpy as np
 
-from CADETProcess import CADETProcessError
-
 
 @dataclass
 class ParameterBase:
@@ -47,7 +45,6 @@ class ParameterBase:
         raise NotImplementedError(
             "Subclasses must implement `validate` to enforce parameter rules."
         )
-
 
 
 @dataclass
@@ -102,8 +99,6 @@ class RangedParameter(ParameterBase):
 
         if not self.lb <= value <= self.ub:
             raise ValueError("Value exceeds bounds")
-
-
 
 
 @dataclass(kw_only=True)
@@ -234,10 +229,23 @@ class ParameterSpace:
         return [param for param in self._parameters if param.dependencies]
 
     def add_parameter(self, parameter: ParameterBase):
-        """Add parameter to parameter space."""
-        """@TODO: type chekcing"""
-        """@TODO: check parameter is not already in param space"""
-        """@TODO: check that the names are unique"""
+        """
+        Add a parameter to the parameter space.
+
+        Ensures that parameter is valid, not duplicated, and has a unique name.
+
+        Raises
+        ------
+        TypeError
+            If the object is not an instance of ParameterBase.
+        ValueError
+            If a parameter with the same name already exists.
+        """
+        if not isinstance(parameter, ParameterBase):
+            raise TypeError(f"Expected ParameterBase, got {type(parameter).__name__}")
+
+        if any(p.name == parameter.name for p in self._parameters):
+            raise ValueError(f"Parameter name '{parameter.name} already used.")
 
         self._parameters.append(parameter)
 
@@ -268,4 +276,12 @@ class ParameterSpace:
         """
         if not isinstance(parameters, list):
             parameters = [parameters]
-            pass
+        if not isinstance(lhs, list):
+            lhs = [lhs]
+
+        if len(parameters) != len(lhs):
+            raise ValueError
+            ("The number of parameters must match the number of coefficients (lhs)")
+
+        constraint = LinearConstraint(parameters=parameters, lhs=lhs, b=b)
+        self._linear_constraints.append(constraint)
