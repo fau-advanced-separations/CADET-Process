@@ -13,6 +13,8 @@ import numpy as np
 from CADETProcess.optimization import OptimizationProblem, OptimizationResults
 
 __all__ = [
+    'Quadratic',
+    'Hypersphere',
     'Rosenbrock',
     'LinearConstraintsSooTestProblem',
     'LinearConstraintsSooTestProblem2',
@@ -89,6 +91,85 @@ class TestProblem(OptimizationProblem):
     @property
     def x0(self):
         raise NotImplementedError
+
+class Quadratic(TestProblem):
+    """A n-dimensional quadratic function."""
+    def __init__(self, *args, n_var=1, **kwargs):
+        super().__init__('quadratic', *args, **kwargs)
+
+        for i in range(n_var):
+            self.add_variable(f'var_{i}', lb=-10, ub=10)
+
+        self.add_objective(self.nd_quadratic)
+
+    @staticmethod
+    def nd_quadratic(x):
+        return np.sum(x_i**2 for x_i in x)
+
+    @property
+    def optimal_solution(self):
+        x = np.repeat(0, self.n_variables).reshape(1, self.n_variables)
+        f = 0
+
+        return x, f
+
+    @property
+    def x0(self):
+        return np.repeat(2, self.n_variables)
+
+    def test_if_solved(self, optimization_results: OptimizationResults,
+                       test_kwargs=default_test_kwargs):
+        x_true, f_true = self.optimal_solution
+        x = optimization_results.x
+        f = optimization_results.f
+
+        test_kwargs["err_msg"] = error
+        np.testing.assert_allclose(f, f_true, **test_kwargs)
+        np.testing.assert_allclose(x, x_true, **test_kwargs)
+
+
+class Hypersphere(TestProblem):
+    def __init__(self, *args, n_var=1, **kwargs):
+        super().__init__('quadratic', *args, **kwargs)
+
+        for i in range(n_var):
+            self.add_variable(f'x_{i}', lb=-1, ub=1)
+
+        def objective_factory(i):
+            def objective(x):
+                return x[i]
+
+            return objective
+
+        for i in range(n_var):
+            objective = objective_factory(i)
+
+            self.add_objective(objective, name=f"f_{i}")
+
+        self.add_nonlinear_constraint(self.hypersphere_constraint_violation)
+
+    @staticmethod
+    def hypersphere_constraint_violation(point, center=None, radius=1):
+        """
+        Calculate the constraint violation for a point relative to an n-dimensional hypersphere.
+
+        Args:
+        - center (list/tuple): The coordinates of the center of the hypersphere.
+        - radius (float): The radius of the hypersphere.
+        - point (list/tuple): The coordinates of the point to check.
+
+        Returns:
+        - float: Negative value if the point is inside the hypersphere, positive if outside,
+          where the value represents the squared distance from the surface of the hypersphere.
+        """
+        if center is None:
+            center = np.zeros((len(point),))
+
+        if len(center) != len(point):
+            raise ValueError("Center and point must have the same dimensions")
+
+        squared_distance = sum((c - p) ** 2 for c, p in zip(center, point))
+        return squared_distance - radius ** 2
 
 
 class Rosenbrock(TestProblem):
