@@ -81,6 +81,7 @@ class Test_Adapter(unittest.TestCase):
 unit_types = [
     "Cstr",
     "GeneralRateModel",
+    "GeneralRateModel2D",
     "TubularReactor",
     "LumpedRateModelWithoutPores",
     "LumpedRateModelWithPores",
