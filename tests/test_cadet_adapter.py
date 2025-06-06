@@ -283,6 +283,8 @@ class TestProcessWithLWE:
             self.check_cstr(unit, unit_config)
         elif unit.name == "GeneralRateModel":
             self.check_general_rate_model(unit, unit_config)
+        elif unit.name == "GeneralRateModel2D":
+            self.check_general_rate_model_2d(unit, unit_config)
         elif unit.name == "TubularReactor":
             self.check_tubular_reactor(unit, unit_config)
         elif unit.name == "LumpedRateModelWithoutPores":
@@ -337,6 +339,36 @@ class TestProcessWithLWE:
         assert unit_config.CROSS_SECTION_AREA == np.pi * 0.01**2
         assert unit_config.COL_LENGTH == 0.014
         assert unit_config.COL_POROSITY == 0.37
+        assert unit_config.FILM_DIFFUSION == [6.9e-6] * n_comp
+
+        self.check_particle_config(unit_config)
+        self.check_adsorption_config(unit, unit_config)
+        self.check_discretization(unit, unit_config)
+
+    def check_general_rate_model_2d(self, unit, unit_config):
+        """
+        Check the configuration for a 2D General Rate Model unit.
+
+        Parameters
+        ----------
+        unit : Unit
+            The unit object.
+        unit_config : dict
+            The configuration of the unit.
+        """
+        n_comp = unit.component_system.n_comp
+        n_rad = unit.discretization.nrad
+
+        assert unit_config.UNIT_TYPE == 'GENERAL_RATE_MODEL_2D'
+        assert unit_config.INIT_Q == n_rad * n_comp * [0]
+        assert unit_config.INIT_C == n_rad * n_comp * [0]
+        assert unit_config.INIT_CP == n_rad * n_comp * [0]
+        assert unit_config.VELOCITY == unit.flow_direction
+        assert unit_config.COL_DISPERSION == n_rad * n_comp * [5.75e-08]
+        assert unit_config.COL_DISPERSION_RADIAL == n_rad * n_comp * [5.75e-08]
+        assert unit_config.CROSS_SECTION_AREA == np.pi * 0.01 ** 2
+        assert unit_config.COL_LENGTH == 0.014
+        assert unit_config.COL_POROSITY == [0.37] * n_rad
         assert unit_config.FILM_DIFFUSION == [6.9e-6] * n_comp
 
         self.check_particle_config(unit_config)
