@@ -18,6 +18,8 @@ from CADETProcess.dataStructure import (
 from .componentSystem import ComponentSystem
 from .binding import BindingBaseClass, NoBinding
 from .reaction import BulkReactionBase, ParticleReactionBase, NoReaction
+from .reaction_new  import MichaelisMenten, ReactionBase
+
 from .discretization import (
     DiscretizationParametersBase, NoDiscretization,
     LRMDiscretizationFV, LRMDiscretizationDG,
@@ -90,6 +92,9 @@ class UnitBaseClass(Structure):
     has_ports = False
     supports_binding = False
     supports_bulk_reaction = False
+    supports_bulk_reactions: set[ReactionBase] = set()
+    bulk_reactions = []
+
     supports_particle_reaction = False
     discretization_schemes = ()
 
@@ -308,6 +313,7 @@ class UnitBaseClass(Structure):
         """
         return self._bulk_reaction_model
 
+    #can be deleted
     @bulk_reaction_model.setter
     def bulk_reaction_model(self, bulk_reaction_model):
         if not isinstance(bulk_reaction_model, NoReaction):
@@ -323,6 +329,18 @@ class UnitBaseClass(Structure):
                 raise CADETProcessError('Component systems do not match.')
 
         self._bulk_reaction_model = bulk_reaction_model
+
+    @property
+    def bulk_reaction(self) -> list[ReactionBase]:
+        """bulk_reaction: List of bulk reactions."""
+        return self.bulk_reactions
+
+    # this is the alternative to bulk_reaction_model_setter
+    def add_bulk_reaction(self, reaction: ReactionBase):
+        if type(reaction) not in self.supports_bulk_reactions:
+            raise TypeError('Expected supported bulk reaction')
+
+        self.bulk_reactions.append(reaction)
 
     @property
     def particle_reaction_model(self):
@@ -775,6 +793,7 @@ class TubularReactor(TubularReactorBase):
 
     """
     supports_bulk_reaction = True
+    supports_bulk_reactions = {MichaelisMenten}
     discretization_schemes = (LRMDiscretizationFV, LRMDiscretizationDG)
 
     total_porosity = Constant(1)
@@ -820,6 +839,7 @@ class LumpedRateModelWithoutPores(ChromatographicColumnBase):
     """
     supports_binding = True
     supports_bulk_reaction = False
+    supports_bulk_reactions = {MichaelisMenten}
     supports_particle_reaction = True
     discretization_schemes = (LRMDiscretizationFV, LRMDiscretizationDG)
 
@@ -881,6 +901,7 @@ class LumpedRateModelWithPores(ChromatographicColumnBase):
 
     supports_binding = True
     supports_bulk_reaction = True
+    supports_bulk_reactions = {MichaelisMenten}
     supports_particle_reaction = True
     discretization_schemes = (LRMPDiscretizationFV, LRMPDiscretizationDG)
 
@@ -1012,6 +1033,7 @@ class GeneralRateModel(ChromatographicColumnBase):
     """
     supports_binding = True
     supports_bulk_reaction = True
+    supports_bulk_reactions = {MichaelisMenten}
     supports_particle_reaction = True
     discretization_schemes = (GRMDiscretizationFV, GRMDiscretizationDG)
 
@@ -1157,6 +1179,7 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     """
     supports_binding = True
     supports_bulk_reaction = True
+    supports_bulk_reactions = {MichaelisMenten}
     supports_particle_reaction = False
 
     flow_rate_filter = UnsignedFloat(default=0)
@@ -1292,6 +1315,7 @@ class MCT(UnitBaseClass):
     """
     has_ports = True
     supports_bulk_reaction = True
+    supports_bulk_reactions = {MichaelisMenten}
 
     discretization_schemes = (MCTDiscretizationFV)
 
