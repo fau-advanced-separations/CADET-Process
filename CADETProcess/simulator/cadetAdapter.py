@@ -1640,6 +1640,23 @@ adsorption_parameters_map = {
             'HICCWA_BETA1': 'beta_1',
         },
     },
+    'HICUnified': {
+        'name': 'HIC_UNIFIED',
+        'parameters': {
+            'IS_KINETIC': 'is_kinetic',
+            'HICUNI_KA': 'adsorption_rate',
+            'HICUNI_KA_LIN': 'adsorption_rate_linear',
+            'HICUNI_KD': 'desorption_rate',
+            'HICUNI_KP': 'protein_coefficient',
+            'HICUNI_KS': 'salt_coefficient',
+            'HICUNI_EPSILON': 'bound_protein_coefficient',
+            'HICUNI_NU': 'hic_characteristic',
+            'HICUNI_NU_LIN': 'hic_characteristic_linear',
+            'HICUNI_QMAX': 'capacity',
+            'HICUNI_BETA0': 'beta_0',
+            'HICUNI_BETA1': 'beta_1',
+        },
+    },
     'HICWaterOnHydrophobicSurfaces': {
         'name': 'HIC_WATER_ON_HYDROPHOBIC_SURFACES',
         'parameters': {
