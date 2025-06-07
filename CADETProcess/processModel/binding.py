@@ -1093,15 +1093,15 @@ class HICUnified(BindingBaseClass):
 
     """
 
-    adsorption_rate = SizedList(size='n_comp')
-    adsorption_rate_linear = SizedList(size='n_comp')
-    desorption_rate = SizedList(size='n_comp')
-    protein_coefficient = SizedList(size='n_comp')
-    salt_coefficient = SizedList(size='n_comp')
-    bound_protein_coefficient = SizedList(size='n_comp')
-    hic_characteristic = SizedList(size='n_comp')
-    hic_characteristic_linear = SizedList(size='n_comp')
-    capacity = SizedList(size='n_comp')
+    adsorption_rate = SizedFloatList(size='n_comp')
+    adsorption_rate_linear = SizedFloatList(size='n_comp')
+    desorption_rate = SizedFloatList(size='n_comp')
+    protein_coefficient = SizedFloatList(size='n_comp')
+    salt_coefficient = SizedFloatList(size='n_comp')
+    bound_protein_coefficient = SizedFloatList(size='n_comp')
+    hic_characteristic = SizedFloatList(size='n_comp')
+    hic_characteristic_linear = SizedFloatList(size='n_comp')
+    capacity = SizedFloatList(size='n_comp')
 
     beta_0 = UnsignedFloat()
     beta_1 = UnsignedFloat()
