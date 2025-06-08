@@ -179,7 +179,7 @@ class Cadet(SimulatorBase):
         cadet.delete_file()
 
         if return_information.return_code != 0:
-            raise CADETProcessError(return_information)
+            raise CADETProcessError(return_information.error_message)
 
         print("Test simulation completed successfully")
 
@@ -355,6 +355,9 @@ class Cadet(SimulatorBase):
             return_information = cadet.run_simulation(timeout=self.timeout)
         else:
             return_information = cadet.run_load(timeout=self.timeout)
+
+        if return_information.return_code != 0:
+            raise CADETProcessError(return_information.error_message)
 
         return cadet
 
