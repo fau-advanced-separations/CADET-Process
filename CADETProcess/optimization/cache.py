@@ -9,7 +9,8 @@ from CADETProcess.dataStructure import DillDisk
 
 
 class ResultsCache:
-    """Cache to store (intermediate) results.
+    """
+    Cache to store (intermediate) results.
 
     Optinally uses diskcache library to store large objects in sqlite database.
 
@@ -79,7 +80,8 @@ class ResultsCache:
             self.cache = {}
 
     def set(self, key, value, tag=None, close=True):
-        """Add entry to cache.
+        """
+        Add entry to cache.
 
         Parameters
         ----------
@@ -177,7 +179,8 @@ class ResultsCache:
             self.cache.close()
 
     def delete_database(self, reinit=False):
-        """Delte database.
+        """
+        Delte database.
 
         Parameters
         ----------

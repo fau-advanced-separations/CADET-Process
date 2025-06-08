@@ -12,7 +12,7 @@ This module provides functionality for general settings.
 
     Settings
 
-"""
+"""  # noqa
 
 import os
 import shutil
@@ -26,7 +26,8 @@ __all__ = ["Settings"]
 
 
 class Settings(Structure):
-    """A class for managing general settings.
+    """
+    A class for managing general settings.
 
     Attributes
     ----------
@@ -62,7 +63,8 @@ class Settings(Structure):
 
     @property
     def working_directory(self):
-        """The path of the working directory.
+        """
+        The path of the working directory.
 
         If the working directory is not set, the current directory is used.
 
@@ -92,6 +94,7 @@ class Settings(Structure):
         self._working_directory = working_directory
 
     def set_working_directory(self, working_directory):
+        """Set working directory."""
         warn(
             "This function is deprecated, use working_directory property.",
             DeprecationWarning,

@@ -19,7 +19,8 @@ __all__ = ["Fractionator"]
 
 
 class Fractionator(EventHandler):
-    """Class for Chromatogram Fractionation.
+    """
+    Class for Chromatogram Fractionation.
 
     This class is responsible for setting events for starting and ending fractionation,
     handling multiple chromatograms, and calculating various performance metrics.
@@ -31,7 +32,6 @@ class Fractionator(EventHandler):
     performance_keys : list
         Keys for performance metrics including mass, concentration, purity, recovery,
         productivity, and eluent consumption.
-
     """
 
     name = String(default="Fractionator")
@@ -52,7 +52,8 @@ class Fractionator(EventHandler):
         *args: Any,
         **kwargs: Any,
     ) -> None:
-        """Initialize the Fractionator.
+        """
+        Initialize the Fractionator.
 
         Parameters
         ----------
@@ -66,7 +67,6 @@ class Fractionator(EventHandler):
             Variable length argument list.
         **kwargs
             Arbitrary keyword arguments.
-
         """
         self.components: Optional[list[str]] = components
         self.use_total_concentration_components: bool = use_total_concentration_components
@@ -81,7 +81,8 @@ class Fractionator(EventHandler):
 
     @simulation_results.setter
     def simulation_results(self, simulation_results: SimulationResults) -> None:
-        """Set the simulation results.
+        """
+        Set the simulation results.
 
         Parameters
         ----------
@@ -94,7 +95,6 @@ class Fractionator(EventHandler):
             If simulation_results is not of type SimulationResults.
         CADETProcessError
             If the simulation results do not contain any chromatograms.
-
         """
         if not isinstance(simulation_results, SimulationResults):
             raise TypeError("Expected SimulationResults")
@@ -140,7 +140,7 @@ class Fractionator(EventHandler):
         return self.chromatograms[0].component_system
 
     def _call_by_chrom_name(func):
-        """Decorator to enable calling functions with chromatogram object or name."""
+        """Enable calling functions with chromatogram object or name."""
 
         @wraps(func)
         def wrapper_call_by_chrom_name(self, chrom, *args, **kwargs):
@@ -173,7 +173,7 @@ class Fractionator(EventHandler):
 
     @property
     def chromatogram_names(self) -> list[str]:
-        """list: Chromatogram names"""
+        """list[str]: Names of chromatogram."""
         return [chrom.name for chrom in self.chromatograms]
 
     @property
@@ -183,6 +183,7 @@ class Fractionator(EventHandler):
 
     @property
     def chromatogram_events(self) -> dict[SolutionIO, list[Event]]:
+        """dict[SolutionIO, list[Event]]: Events sorted by chromatogram."""
         chrom_events = {
             chrom: sorted(events, key=lambda evt: evt.time)
             for chrom, events in self._chromatogram_events.items()
@@ -197,7 +198,7 @@ class Fractionator(EventHandler):
 
     @property
     def n_comp(self) -> int:
-        """int: Number of components to be fractionized"""
+        """int: Number of components to be fractionized."""
         return self.chromatograms[0].n_comp
 
     @property
@@ -231,7 +232,8 @@ class Fractionator(EventHandler):
         *args: Any,
         **kwargs: Any,
     ) -> Axes:
-        """Plot the signal without the waste fractions.
+        """
+        Plot the signal without the waste fractions.
 
         Parameters
         ----------
@@ -251,7 +253,6 @@ class Fractionator(EventHandler):
         --------
         CADETProcess.plot
         plot_purity
-
         """
         if chromatogram is None:
             chromatogram = list(
@@ -335,7 +336,8 @@ class Fractionator(EventHandler):
     def set_fractionation_state(
         self, chrom: SolutionIO, state: int | list[float]
     ) -> None:
-        """Set fractionation states of Chromatogram.
+        """
+        Set fractionation states of Chromatogram.
 
         Parameters
         ----------
@@ -351,7 +353,6 @@ class Fractionator(EventHandler):
             If state is integer and the state >= the n_comp.
             If the length of the states is unequal the state_length.
             If the sum of the states is not equal to 1.
-
         """
         if chrom not in self.chromatograms:
             raise CADETProcessError("Chromatogram not in Fractionator")
@@ -385,7 +386,8 @@ class Fractionator(EventHandler):
 
     @property
     def fraction_pools(self) -> list[FractionPool]:
-        """List of the component and waste fraction pools.
+        """
+        List of the component and waste fraction pools.
 
         For every event, the end time is determined and a Fraction object is
         created which holds information about start and end time, as well as
@@ -396,7 +398,6 @@ class Fractionator(EventHandler):
         -------
         fraction_pools : list
             List with fraction pools.
-
         """
         if self._fraction_pools is None:
             self._fraction_pools = [
@@ -433,7 +434,8 @@ class Fractionator(EventHandler):
         return self._fraction_pools
 
     def _create_fraction(self, chrom_index: int, start: float, end: float) -> Fraction:
-        """Helper function to create Fraction object calculate mass.
+        """
+        Create Fraction object calculate mass.
 
         Parameters
         ----------
@@ -446,19 +448,18 @@ class Fractionator(EventHandler):
         -------
         fraction : Fraction
             Chromatogram fraction
-
         """
         fraction = self.chromatograms[chrom_index].create_fraction(start, end)
 
         return fraction
 
     def add_fraction(self, fraction: Fraction, target: int) -> None:
-        """Add Fraction to the FractionPool of target component.
+        """
+        Add Fraction to the FractionPool of target component.
 
         Notes
         -----
         Waste is always the last fraction
-
         """
         if not isinstance(fraction, Fraction):
             raise TypeError("Expected Fraction")
@@ -574,7 +575,8 @@ class Fractionator(EventHandler):
         time: float,
         chromatogram: Optional[SolutionIO | str] = None,
     ) -> None:
-        """Add a fractionation event.
+        """
+        Add a fractionation event.
 
         Parameters
         ----------
@@ -592,7 +594,6 @@ class Fractionator(EventHandler):
         ------
         CADETProcessError
             If the chromatogram is not found.
-
         """
         if chromatogram is None and self.n_chromatograms > 1:
             raise CADETProcessError(
@@ -621,7 +622,8 @@ class Fractionator(EventHandler):
         self.reset()
 
     def initial_values(self, purity_required: float | list[float] = 0.95) -> None:
-        """Create events from chromatogram with minimum purity.
+        """
+        Create events from chromatogram with minimum purity.
 
         Function creates fractions for areas in the chromatogram, where the
         local purity profile is higher than the purity required.
@@ -635,7 +637,6 @@ class Fractionator(EventHandler):
         ------
         ValueError
             If the size of the purity parameter does not match the number of components
-
         """
         if isinstance(purity_required, float):
             purity_required = [purity_required] * self.n_comp
@@ -707,6 +708,7 @@ class Fractionator(EventHandler):
 
     @property
     def parameters(self) -> Dict:
+        """dict: Parameters of the fractionator."""
         parameters = super().parameters
         parameters["fractionation_states"] = {
             chrom.name: self.fractionation_states[chrom] for chrom in self.chromatograms
@@ -727,6 +729,7 @@ class Fractionator(EventHandler):
 
     @property
     def section_dependent_parameters(self) -> Dict:
+        """dict: Section dependent parameters of the fractionator."""
         return self.parameters
 
     def save(
@@ -762,4 +765,5 @@ class Fractionator(EventHandler):
             )
 
     def __str__(self) -> str:
+        """str: String representation of the fractionator."""
         return self.__class__.__name__

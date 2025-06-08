@@ -6,7 +6,8 @@ __all__ = ["deprecated_alias", "rename_kwargs"]
 
 
 def deprecated_alias(**aliases: str) -> Callable:
-    """Add alias for deprecated function arguments.
+    """
+    Add alias for deprecated function arguments.
 
     Parameters
     ----------
@@ -38,7 +39,8 @@ def deprecated_alias(**aliases: str) -> Callable:
 
 
 def rename_kwargs(func_name: str, kwargs: Dict[str, Any], aliases: Dict[str, str]):
-    """Helper function for deprecating function arguments.
+    """
+    Automatically rename deprecated function arguments.
 
     Parameters
     ----------

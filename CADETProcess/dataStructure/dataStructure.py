@@ -2,6 +2,7 @@ from abc import ABC, ABCMeta
 from collections import OrderedDict
 from functools import wraps
 from inspect import Parameter, Signature
+from typing import Any, Callable, Optional
 from warnings import warn
 
 from addict import Dict
@@ -9,7 +10,8 @@ from addict import Dict
 
 # %% Descriptors
 class Descriptor(ABC):
-    """Base class for descriptors.
+    """
+    Base class for descriptors.
 
     Descriptors are used to efficiently implement class attributes that
     require checking type, value, size etc.
@@ -23,27 +25,57 @@ class Descriptor(ABC):
     --------
     StructMeta
     Parameters
-
     """
 
     def __init__(self, *args, **kwargs):
         pass
 
-    def __get__(self, instance, cls):
+    def __get__(self, instance: Any, owner: Optional[type[Any]]) -> Any:
+        """
+        Get the attribute value from the instance's dictionary.
+
+        Parameters
+        ----------
+        instance : Any
+            The instance accessing the attribute.
+        owner : Optional[type[Any]]
+            The owner class of the descriptor.
+
+        Returns
+        -------
+        Any
+            The attribute value from the instance's dictionary.
+        """
         return instance.__dict__[self.name]
 
-    def __set__(self, instance, value):
+    def __set__(self, instance: Any, value: Any) -> None:
+        """
+        Set the attribute value in the instance's dictionary.
+
+        Parameters
+        ----------
+        instance : Any
+            The instance to set the attribute on.
+        value : Any
+            The value to set.
+        """
         if value is None:
             try:
                 del instance.__dict__[self.name]
             except KeyError:
                 pass
-
             return
-
         instance.__dict__[self.name] = value
 
-    def __delete__(self, instance):
+    def __delete__(self, instance: Any) -> None:
+        """
+        Delete the attribute from the instance's dictionary.
+
+        Parameters
+        ----------
+        instance : Any
+            The instance to delete the attribute from.
+        """
         del instance.__dict__[self.name]
 
 
@@ -65,6 +97,7 @@ class ProxyList:
     def __setitem__(self, index, value):
         """
         Modify an individual element in the aggregated parameter list.
+
         Ensures changes propagate to the underlying objects.
         """
         current_value = self._get_values_from_aggregator()
@@ -79,8 +112,8 @@ class ProxyList:
         """Return the length of the container."""
         return len(self._get_values_from_aggregator())
 
-    def __repr__(self):
-        """String representation for debugging."""
+    def __repr__(self) -> str:
+        """str: String representation for debugging."""
         return f"ProxyList({self._get_values_from_aggregator().__repr__()})"
 
     def __eq__(self, other):
@@ -106,7 +139,6 @@ class Aggregator:
             Additional positional arguments.
         **kwargs : dict, optional
             Additional keyword arguments.
-
         """
         self.parameter_name = parameter_name
         self.container = container
@@ -159,7 +191,7 @@ class Aggregator:
         ----------
         instance : Any
             Instance to retrieve the descriptor value for.
-        cls : Type[Any], optional
+        cls : type[Any], optional
             Class to which the descriptor belongs. By default None.
 
         Returns
@@ -228,7 +260,6 @@ class Aggregator:
             each element of the container.
         recursive : bool, optional
             If True, perform the check recursively. Defaults to False.
-
         """
         container = self._container_obj(instance)
 
@@ -241,7 +272,20 @@ class Aggregator:
         return
 
 
-def make_signature(names):
+def make_signature(names: list[str]) -> Signature:
+    """
+    Create a signature object from a list of parameter names.
+
+    Parameters
+    ----------
+    names : list[str]
+        List of parameter names.
+
+    Returns
+    -------
+    Signature
+        A Signature object for the given parameter names.
+    """
     return Signature(Parameter(name, Parameter.POSITIONAL_OR_KEYWORD) for name in names)
 
 
@@ -284,10 +328,44 @@ class StructMeta(type):
     """
 
     @classmethod
-    def __prepare__(cls, name, bases):
+    def __prepare__(cls, name: str, bases: tuple) -> OrderedDict:
+        """
+        Prepare the class namespace using an OrderedDict.
+
+        Parameters
+        ----------
+        name : str
+            Name of the class being defined.
+        bases : tuple
+            Tuple of base classes.
+
+        Returns
+        -------
+        OrderedDict
+            Ordered dictionary for the class namespace.
+        """
         return OrderedDict()
 
-    def __new__(cls, clsname, bases, clsdict):
+    def __new__(cls: type, clsname: str, bases: tuple, clsdict: OrderedDict) -> Any:
+        """
+        Create a new class with descriptors and aggregators.
+
+        Parameters
+        ----------
+        cls : type
+            The metaclass itself.
+        clsname : str
+            Name of the class being created.
+        bases : tuple
+            Tuple of base classes.
+        clsdict : OrderedDict
+            Ordered dictionary of class attributes.
+
+        Returns
+        -------
+        Any
+            The newly created class object.
+        """
         # Extract descriptor keys
         descriptors = [
             key for key, val in clsdict.items() if isinstance(val, Descriptor)
@@ -368,6 +446,8 @@ class StructMeta(type):
 
 
 class AbstractStructMeta(StructMeta, ABCMeta):
+    """Base class to allow for abstract metaclass structures."""
+
     pass
 
 
@@ -427,7 +507,8 @@ class Structure(metaclass=AbstractStructMeta):
 
     @parameters.setter
     def parameters(self, parameters):
-        """Set parameters for the instance.
+        """
+        Set parameters for the instance.
 
         Parameters
         ----------
@@ -509,22 +590,32 @@ class Structure(metaclass=AbstractStructMeta):
             return False
 
 
-def frozen_attributes(cls):
-    """Decorate classes to prevent setting attributes after the init method."""
+def frozen_attributes(cls: type) -> type:
+    """
+    Class decorator to prevent setting new attributes after initialization.
+
+    Parameters
+    ----------
+    cls : type
+        The class to decorate.
+
+    Returns
+    -------
+    type
+        The decorated class with frozen attributes after initialization.
+    """
     cls._is_frozen = False
 
-    def frozensetattr(self, key, value):
+    def frozensetattr(self: Any, key: str, value: Any) -> None:
         if self._is_frozen and not hasattr(self, key):
             raise AttributeError(f"{cls.__name__} object has no attribute {key}")
-        else:
-            object.__setattr__(self, key, value)
+        object.__setattr__(self, key, value)
 
-    def init_decorator(func):
+    def init_decorator(func: Callable) -> Callable:
         @wraps(func)
-        def wrapper(self, *args, **kwargs):
+        def wrapper(self: Any, *args: Any, **kwargs: Any) -> None:
             func(self, *args, **kwargs)
             self._is_frozen = True
-
         return wrapper
 
     cls.__setattr__ = frozensetattr

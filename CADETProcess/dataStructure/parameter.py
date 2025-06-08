@@ -215,7 +215,6 @@ class ParameterBase(Descriptor):
             Value to check.
         recursive : bool, optional
             If True, perform the check recursively. Defaults to False.
-
         """
         return
 
@@ -762,7 +761,6 @@ class TypedList(List, Typed):
             Value to check.
         recursive : bool, optional
             If True, perform the check recursively. Defaults to False.
-
         """
         self.check_dtype(value)
 
@@ -771,10 +769,14 @@ class TypedList(List, Typed):
 
 
 class IntegerList(TypedList):
+    """List of integers."""
+
     dtype = int
 
 
 class FloatList(TypedList):
+    """List of floats."""
+
     dtype = float
 
 
@@ -782,7 +784,8 @@ class FloatList(TypedList):
 
 
 class Ranged(ParameterBase):
-    """Descriptor for parameters within specified bounds.
+    """
+    Descriptor for parameters within specified bounds.
 
     Allows setting values constrained by provided lower and upper bounds. The actual comparisons
     against the bounds can be customized using the `lb_op` and `ub_op` comparison functions.
@@ -888,7 +891,6 @@ class Ranged(ParameterBase):
             Value to check.
         recursive : bool, optional
             If True, perform the check recursively. Defaults to False.
-
         """
         self.check_range(value)
 
@@ -911,7 +913,8 @@ class RangedFloat(Float, Ranged):
 
 # Ranged list / array parameters
 class RangedArray(Ranged):
-    """Parameter descriptor for arrays with elements constrained within some bounds.
+    """
+    Parameter descriptor for arrays with elements constrained within some bounds.
 
     This class extends the Ranged descriptor to support array-like structures
     (lists, numpy arrays, etc.). Each element in the array is individually checked
@@ -941,7 +944,8 @@ class RangedArray(Ranged):
     """
 
     def check_range(self, value):
-        """Check each element of an array-like structure against specified bounds.
+        """
+        Check each element of an array-like structure against specified bounds.
 
         Parameters
         ----------
@@ -1079,9 +1083,9 @@ class Sized(ParameterBase):
             flag = False
         return flag
 
-    def get_size(self, value):
+    def get_size(self, value) -> int | tuple[int]:
         """
-        Determines the size of the provided value.
+        Determine the size of the provided value.
 
         Parameters
         ----------
@@ -1090,7 +1094,7 @@ class Sized(ParameterBase):
 
         Returns
         -------
-        Union[int, Tuple[int, ...]]
+        int | tuple[int]
             Size of the value.
         """
         return len(value)
@@ -1244,7 +1248,20 @@ class SizedTuple(Tuple, Sized):
 class SizedNdArray(NdArray, Sized):
     """Descriptor for NumPy arrays whose size may depend on other instance attributes."""
 
-    def get_size(self, value):
+    def get_size(self, value) -> tuple[int, ...]:
+        """
+        Determine the size of the provided value.
+
+        Parameters
+        ----------
+        value : Any
+            The value for which the size needs to be determined.
+
+        Returns
+        -------
+        tuple[int, ...]
+            Size of the value.
+        """
         return value.shape
 
     def get_expected_size(self, instance):
@@ -1395,7 +1412,6 @@ class DimensionalizedArray(NdArray):
     Notes
     -----
     The n_dim attribute can be set during initialization.
-
     """
 
     n_dim = None
@@ -1700,7 +1716,6 @@ class NdPolynomial(SizedNdArray):
         -------
         np.ndarray
             Polynomial matrix of the desired size prepared as per requirements.
-
         """
         if instance is not None:
             dims = self.get_expected_size(instance)
@@ -1757,8 +1772,8 @@ class DependentlyModulated(Sized):
     """
     Mixin for checking parameter shapes based on other instance attributes.
 
-    This mixin ensures that the size of a parameter is modulo an expected size.
-    If this condition is not met, a ValueError is raised.
+    This mixin ensures that the size of a parameter is modulo an expected size. If this
+    condition is not met, a ValueError is raised.
     """
 
     def check_mod_value(self, instance, value):

@@ -62,7 +62,8 @@ __all__ = [
 
 @frozen_attributes
 class UnitBaseClass(Structure):
-    """Base class for all UnitOperation classes.
+    """
+    Base class for all UnitOperation classes.
 
     A UnitOperation object stores model parameters and states of a unit.
     Every unit operation can be assotiated with a binding behavior and a
@@ -115,6 +116,33 @@ class UnitBaseClass(Structure):
         solution_recorder=None,
         **kwargs,
     ):
+        """
+        Initialize UnitBaseClass.
+
+        Parameters
+        ----------
+        component_system : ComponentSystem
+            The component system to which this unit belongs.
+        name : str
+            Name identifier for the unit instance.
+        *args : tuple
+            Positional arguments passed to the superclass constructor.
+        binding_model : BindingBaseClass, optional
+            A model describing specific binding interactions within the unit.
+            If None, a default `NoBinding` model is used.
+        bulk_reaction_model : BulkReactionBase, optional
+            A model for bulk phase reactions. Defaults to `NoReaction` if not provided.
+        particle_reaction_model : ParticleReactionBase, optional
+            A model for reactions within particles. Defaults to `NoReaction`.
+        discretization : DiscretizationParametersBase, optional
+            Parameters defining spatial/temporal discretization of the unit.
+            Defaults to `NoDiscretization` if None.
+        solution_recorder : IORecorder, optional
+            Object responsible for recording the simulation results.
+            Defaults to a new `IORecorder` instance.
+        **kwargs : dict
+            Additional keyword arguments passed to the superclass constructor.
+        """
         self.name = name
         self.component_system = component_system
 
@@ -141,11 +169,13 @@ class UnitBaseClass(Structure):
         super().__init__(*args, **kwargs)
 
     @property
-    def model(self):
+    def model(self) -> str:
+        """str: Return model name."""
         return self.__class__.__name__
 
     @property
-    def component_system(self):
+    def component_system(self) -> ComponentSystem:
+        """ComponentSystem: Component of the unit operation."""
         return self._component_system
 
     @component_system.setter
@@ -155,7 +185,8 @@ class UnitBaseClass(Structure):
         self._component_system = component_system
 
     @property
-    def discretization(self):
+    def discretization(self) -> DiscretizationParametersBase:
+        """DiscretizationParametersBase: Discretization parameters of the unit operation."""
         return self._discretization
 
     @discretization.setter
@@ -172,15 +203,18 @@ class UnitBaseClass(Structure):
         self._discretization = discretization
 
     @property
-    def n_comp(self):
+    def n_comp(self) -> int:
+        """int: Number of components."""
         return self.component_system.n_comp
 
     @property
-    def ports(self):
+    def ports(self) -> list:
+        """list: Ports of the unit operation."""
         return [None]
 
     @property
-    def n_ports(self):
+    def n_ports(self) -> int:
+        """int: Number of ports."""
         return 1
 
     @property
@@ -225,6 +259,7 @@ class UnitBaseClass(Structure):
 
     @property
     def section_dependent_parameters(self):
+        """Return section dependent parameters."""
         parameters = {
             key: value
             for key, value in self.parameters.items()
@@ -249,6 +284,7 @@ class UnitBaseClass(Structure):
 
     @property
     def missing_parameters(self):
+        """Return list of missing parameters."""
         missing_parameters = super().missing_parameters
 
         missing_parameters += [
@@ -258,6 +294,7 @@ class UnitBaseClass(Structure):
         return missing_parameters
 
     def check_required_parameters(self):
+        """Checkf if there are missing parameters left."""
         if len(self.missing_parameters) == 0:
             return True
         else:
@@ -266,8 +303,9 @@ class UnitBaseClass(Structure):
             return False
 
     @property
-    def binding_model(self):
-        """binding_model: BindingModel of the unit operation.
+    def binding_model(self) -> BindingBaseClass:
+        """
+        BindingBaseClass: binding model parameters of the unit operation.
 
         Raises
         ------
@@ -298,13 +336,15 @@ class UnitBaseClass(Structure):
 
     @property
     def n_bound_states(self):
+        """int: Return number of bound states."""
         if isinstance(self.binding_model, NoBinding):
             return 0
         return self.binding_model.n_bound_states
 
     @property
-    def bulk_reaction_model(self):
-        """bulk_reaction_model: Reaction in bulk phase.
+    def bulk_reaction_model(self) -> BulkReactionBase:
+        """
+        BulkReactionBase: Reaction in bulk phase.
 
         Raises
         ------
@@ -332,7 +372,8 @@ class UnitBaseClass(Structure):
 
     @property
     def particle_reaction_model(self):
-        """particle_liquid_reaction_model: Reaction in particle liquid phase.
+        """
+        ParticleReactionBase: Reaction in particle liquid phase.
 
         Raises
         ------
@@ -378,7 +419,8 @@ class UnitBaseClass(Structure):
 
 
 class SourceMixin(Structure):
-    """Mixin class for Units that have Source-like behavior.
+    """
+    Mixin class for Units that have Source-like behavior.
 
     See Also
     --------
@@ -394,7 +436,8 @@ class SourceMixin(Structure):
 
 
 class SinkMixin:
-    """Mixin class for Units that have Sink-like behavior.
+    """
+    Mixin class for Units that have Sink-like behavior.
 
     See Also
     --------
@@ -406,7 +449,8 @@ class SinkMixin:
 
 
 class Inlet(UnitBaseClass, SourceMixin):
-    """Pseudo unit operation model for streams entering the system.
+    """
+    Pseudo unit operation model for streams entering the system.
 
     Attributes
     ----------
@@ -430,7 +474,8 @@ class Inlet(UnitBaseClass, SourceMixin):
 
 
 class Outlet(UnitBaseClass, SinkMixin):
-    """Pseudo unit operation model for streams leaving the system.
+    """
+    Pseudo unit operation model for streams leaving the system.
 
     Attributes
     ----------
@@ -448,7 +493,8 @@ class MixerSplitter(UnitBaseClass):
 
 
 class TubularReactorBase(UnitBaseClass):
-    """Base class for tubular reactors and chromatographic columns.
+    """
+    Base class for tubular reactors and chromatographic columns.
 
     Provides methods for calculating geometric properties such as the cross
     section area and volume, as well as methods for convective and dispersive
@@ -494,7 +540,8 @@ class TubularReactorBase(UnitBaseClass):
 
     @property
     @abstractmethod
-    def total_porosity(self):
+    def total_porosity(self) -> float | None:
+        """Float | None: Total porosity of the unit operation."""
         pass
 
     @property
@@ -515,7 +562,8 @@ class TubularReactorBase(UnitBaseClass):
         self.diameter = (4 * cross_section_area / math.pi) ** 0.5
 
     def set_diameter_from_interstitial_velocity(self, Q, u0):
-        """Set diamter from flow rate and interstitial velocity.
+        """
+        Set diamter from flow rate and interstitial velocity.
 
         In literature, often only the interstitial velocity is given.
         This method, the diameter / cross section area can be inferred from
@@ -532,7 +580,6 @@ class TubularReactorBase(UnitBaseClass):
         Notes
         -----
             Needs to be overwritten depending on the model porosities!
-
         """
         self.cross_section_area = Q / (u0 * self.total_porosity)
 
@@ -552,8 +599,9 @@ class TubularReactorBase(UnitBaseClass):
         return self.total_porosity * self.cross_section_area
 
     @property
-    def volume(self):
-        """float: Volume of the TubularReactor.
+    def volume(self) -> float:
+        """
+        float: Volume of the TubularReactor.
 
         See Also
         --------
@@ -563,8 +611,9 @@ class TubularReactorBase(UnitBaseClass):
         return self.cross_section_area * self.length
 
     @property
-    def volume_interstitial(self):
-        """float: Interstitial volume between particles.
+    def volume_interstitial(self) -> float:
+        """
+        float: Interstitial volume between particles.
 
         See Also
         --------
@@ -574,17 +623,18 @@ class TubularReactorBase(UnitBaseClass):
         return self.cross_section_area_interstitial * self.length
 
     @property
-    def volume_liquid(self):
+    def volume_liquid(self) -> float:
         """float: Volume of the liquid phase."""
         return self.total_porosity * self.cross_section_area * self.length
 
     @property
-    def volume_solid(self):
+    def volume_solid(self) -> float:
         """float: Volume of the solid phase."""
         return (1 - self.total_porosity) * self.cross_section_area * self.length
 
     def calculate_interstitial_rt(self, flow_rate):
-        """Calculate mean residence time of a (non adsorbing) volume element.
+        """
+        Calculate mean residence time of a (non adsorbing) volume element.
 
         Parameters
         ----------
@@ -600,12 +650,12 @@ class TubularReactorBase(UnitBaseClass):
         --------
         calculate_interstitial_velocity
         calculate_superficial_rt
-
         """
         return self.volume_interstitial / flow_rate
 
     def calculate_superficial_rt(self, flow_rate):
-        """Calculate mean residence time of a volume element in an empty column.
+        """
+        Calculate mean residence time of a volume element in an empty column.
 
         Parameters
         ----------
@@ -621,12 +671,12 @@ class TubularReactorBase(UnitBaseClass):
         --------
         calculate_superficial_velocity
         calculate_interstitial_rt
-
         """
         return self.volume / flow_rate
 
     def calculate_interstitial_velocity(self, flow_rate):
-        """Calculate flow velocity of a (non adsorbing) volume element.
+        """
+        Calculate flow velocity of a (non adsorbing) volume element.
 
         Parameters
         ----------
@@ -642,12 +692,12 @@ class TubularReactorBase(UnitBaseClass):
         --------
         calculate_interstitial_rt
         calculate_superficial_velocity
-
         """
         return self.length / self.calculate_interstitial_rt(flow_rate)
 
     def calculate_superficial_velocity(self, flow_rate):
-        """Calculate superficial flow velocity of a volume element in an empty column.
+        """
+        Calculate superficial flow velocity of a volume element in an empty column.
 
         Parameters
         ----------
@@ -664,12 +714,12 @@ class TubularReactorBase(UnitBaseClass):
         calculate_superficial_rt
         calculate_interstitial_velocity
         NTP
-
         """
         return self.length / self.calculate_superficial_rt(flow_rate)
 
     def calculate_flow_rate_from_velocity(self, u0):
-        """Calculate volumetric flow rate from interstitial velocity.
+        """
+        Calculate volumetric flow rate from interstitial velocity.
 
         Parameters
         ----------
@@ -689,7 +739,8 @@ class TubularReactorBase(UnitBaseClass):
         return u0 * self.cross_section_area_interstitial
 
     def NTP(self, flow_rate):
-        r"""Calculate number of theoretical plates.
+        r"""
+        Calculate number of theoretical plates.
 
         Parameters
         ----------
@@ -710,7 +761,8 @@ class TubularReactorBase(UnitBaseClass):
         return u0 * self.length / (2 * np.array(self.axial_dispersion))
 
     def set_axial_dispersion_from_NTP(self, NTP, flow_rate):
-        r"""Set axial dispersion from number of theoretical plates (NTP).
+        r"""
+        Set axial dispersion from number of theoretical plates (NTP).
 
         Parameters
         ----------
@@ -733,13 +785,13 @@ class TubularReactorBase(UnitBaseClass):
         --------
         calculate_interstitial_velocity
         NTP
-
         """
         u0 = self.calculate_interstitial_velocity(flow_rate)
         self.axial_dispersion = u0 * self.length / (2 * NTP)
 
     def calculate_bodenstein_number(self, flow_rate: float) -> float:
-        r"""Calculate the Bodenstein number for a given flow rate.
+        r"""
+        Calculate the Bodenstein number for a given flow rate.
 
         Parameters
         ----------
@@ -763,14 +815,14 @@ class TubularReactorBase(UnitBaseClass):
         --------
         calculate_interstitial_velocity
         NTP
-
         """
         u0 = self.calculate_interstitial_velocity(flow_rate)
         return u0 * self.length / np.array(self.axial_dispersion)
 
 
 class TubularReactor(TubularReactorBase):
-    """Class for tubular reactors and tubing.
+    """
+    Class for tubular reactors and tubing.
 
     Class can be used for a regular tubular reactor.
 
@@ -780,7 +832,6 @@ class TubularReactor(TubularReactorBase):
         Initial concentration of the reactor.
     solution_recorder : TubularReactorRecorder
         Solution recorder for the unit operation.
-
     """
 
     supports_bulk_reaction = True
@@ -803,11 +854,14 @@ class TubularReactor(TubularReactorBase):
 
 
 class ChromatographicColumnBase(TubularReactorBase):
+    """Base class for chromatogrpahic columns."""
+
     pass
 
 
 class LumpedRateModelWithoutPores(ChromatographicColumnBase):
-    """Parameters for a lumped rate model without pores.
+    """
+    Parameters for a lumped rate model without pores.
 
     Attributes
     ----------
@@ -825,7 +879,6 @@ class LumpedRateModelWithoutPores(ChromatographicColumnBase):
     Although technically the LumpedRateModelWithoutPores does not have
     particles, the particle reactions interface is used to support
     reactions in the solid phase and cross-phase reactions.
-
     """
 
     supports_binding = True
@@ -852,7 +905,8 @@ class LumpedRateModelWithoutPores(ChromatographicColumnBase):
         self.solution_recorder = LRMRecorder()
 
     @property
-    def q(self):
+    def q(self) -> float | None:
+        """list[float]: Initial solid phase concentration."""
         return self._q
 
     @q.setter
@@ -865,7 +919,8 @@ class LumpedRateModelWithoutPores(ChromatographicColumnBase):
 
 
 class LumpedRateModelWithPores(ChromatographicColumnBase):
-    """Parameters for the lumped rate model with pores.
+    """
+    Parameters for the lumped rate model with pores.
 
     Attributes
     ----------
@@ -929,7 +984,7 @@ class LumpedRateModelWithPores(ChromatographicColumnBase):
         self.solution_recorder = LRMPRecorder()
 
     @property
-    def total_porosity(self):
+    def total_porosity(self) -> float:
         """float: Total porosity of the column."""
         return self.bed_porosity + (1 - self.bed_porosity) * self.particle_porosity
 
@@ -944,7 +999,8 @@ class LumpedRateModelWithPores(ChromatographicColumnBase):
         return self.bed_porosity * self.cross_section_area
 
     def set_diameter_from_interstitial_velocity(self, Q, u0):
-        """Set diamter from flow rate and interstitial velocity.
+        """
+        Set diamter from flow rate and interstitial velocity.
 
         In literature, often only the interstitial velocity is given.
         This method, the diameter / cross section area can be inferred from
@@ -961,12 +1017,12 @@ class LumpedRateModelWithPores(ChromatographicColumnBase):
         Notes
         -----
             Overwrites parent method.
-
         """
         self.cross_section_area = Q / (u0 * self.bed_porosity)
 
     @property
-    def cp(self):
+    def cp(self) -> list[float]:
+        """list[float]: Initial particle liquid concentration."""
         if self._cp is None:
             return self.c
         else:
@@ -980,6 +1036,7 @@ class LumpedRateModelWithPores(ChromatographicColumnBase):
 
     @property
     def q(self):
+        """list[float]: Initial solid phase concentration."""
         return self._q
 
     @q.setter
@@ -992,7 +1049,8 @@ class LumpedRateModelWithPores(ChromatographicColumnBase):
 
 
 class GeneralRateModel(ChromatographicColumnBase):
-    """Parameters for the general rate model.
+    """
+    Parameters for the general rate model.
 
     Attributes
     ----------
@@ -1018,7 +1076,6 @@ class GeneralRateModel(ChromatographicColumnBase):
         Initial concentration of the bound phase.
     solution_recorder : GRMRecorder
         Solution recorder for the unit operation.
-
     """
 
     supports_binding = True
@@ -1066,8 +1123,8 @@ class GeneralRateModel(ChromatographicColumnBase):
         self.solution_recorder = GRMRecorder()
 
     @property
-    def total_porosity(self):
-        """float: Total porosity of the column"""
+    def total_porosity(self) -> float:
+        """float: Total porosity of the column."""
         return self.bed_porosity + (1 - self.bed_porosity) * self.particle_porosity
 
     @property
@@ -1082,7 +1139,8 @@ class GeneralRateModel(ChromatographicColumnBase):
         return self.bed_porosity * self.cross_section_area
 
     def set_diameter_from_interstitial_velocity(self, Q, u0):
-        """Set diamter from flow rate and interstitial velocity.
+        """
+        Set diamter from flow rate and interstitial velocity.
 
         In literature, often only the interstitial velocity is given.
         This method, the diameter / cross section area can be inferred from
@@ -1099,12 +1157,12 @@ class GeneralRateModel(ChromatographicColumnBase):
         Notes
         -----
             Overwrites parent method.
-
         """
         self.cross_section_area = Q / (u0 * self.bed_porosity)
 
     @property
     def cp(self):
+        """list[float]: Initial particle liquid concentration."""
         if self._cp is None:
             return self.c
         else:
@@ -1118,6 +1176,7 @@ class GeneralRateModel(ChromatographicColumnBase):
 
     @property
     def q(self):
+        """list[float]: Initial solid phase concentration."""
         return self._q
 
     @q.setter
@@ -1129,7 +1188,8 @@ class GeneralRateModel(ChromatographicColumnBase):
         self.parameters["q"] = q
 
     @property
-    def surface_diffusion(self):
+    def surface_diffusion(self) -> list[float] | None:
+        """list[float] | None: Surface diffusion coefficients."""
         return self._surface_diffusion
 
     @surface_diffusion.setter
@@ -1144,7 +1204,8 @@ class GeneralRateModel(ChromatographicColumnBase):
 
 
 class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
-    """Parameters for an ideal mixer.
+    """
+    Parameters for an ideal mixer.
 
     Parameters
     ----------
@@ -1169,7 +1230,6 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     -----
     CADET generally supports particle reactions for the CSTR, however, this is currently
     not exposed since there are some issues with the interface (.
-
     """
 
     supports_binding = True
@@ -1209,7 +1269,8 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         return required_parameters
 
     @property
-    def porosity(self):
+    def porosity(self) -> float:
+        """float: Porosity of the unit operation."""
         if self.const_solid_volume is None or self.init_liquid_volume is None:
             return None
         return self.init_liquid_volume / (
@@ -1219,9 +1280,9 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     @porosity.setter
     def porosity(self, porosity):
         warnings.warn(
-            "Field POROSITY is only supported for backwards compatibility, but the implementation of the CSTR has "
-            "changed, please refer to the documentation. The POROSITY will be used to compute the "
-            "constant solid volume from the total volume V."
+            "Field POROSITY is only supported for backwards compatibility, but the implementation "
+            "of the CSTR has changed, please refer to the documentation. The POROSITY will be "
+            "used to compute the constant solid volume from the total volume V."
         )
         if self.V is None:
             raise RuntimeError("Please set the volume first before setting a porosity.")
@@ -1229,35 +1290,37 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         self.init_liquid_volume = self.V * porosity
 
     @property
-    def V(self):
+    def V(self) -> float:
+        """float: Total volume of the unit operation."""
         return self._V
 
     @V.setter
     def V(self, V):
         warnings.warn(
-            "The field V is only supported for backwards compatibility. Please set initial_liquid_volume and "
-            "const_solid_volume"
+            "The field V is only supported for backwards compatibility. "
+            "Please set initial_liquid_volume and const_solid_volume."
         )
         self.init_liquid_volume = V
         self._V = V
 
     @property
-    def volume(self):
+    def volume(self) -> float:
         """float: Alias for volume."""
         return self.const_solid_volume + self.init_liquid_volume
 
     @property
-    def volume_liquid(self):
+    def volume_liquid(self) -> float:
         """float: Volume of the liquid phase."""
         return self.init_liquid_volume
 
     @property
-    def volume_solid(self):
+    def volume_solid(self) -> float:
         """float: Volume of the solid phase."""
         return self.const_solid_volume
 
     def calculate_interstitial_rt(self, flow_rate):
-        """Calculate mean residence time of a (non adsorbing) volume element.
+        """
+        Calculate mean residence time of a (non adsorbing) volume element.
 
         Parameters
         ----------
@@ -1272,12 +1335,12 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         See Also
         --------
         calculate_interstitial_velocity
-
         """
         return self.volume_liquid / flow_rate
 
     @property
     def q(self):
+        """list[float]: Initial solid phase concentration."""
         return self._q
 
     @q.setter
@@ -1290,7 +1353,8 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
 
 
 class MCT(UnitBaseClass):
-    """Parameters for multi-channel transportmodel.
+    """
+    Parameters for multi-channel transportmodel.
 
     Parameters
     ----------
@@ -1363,16 +1427,19 @@ class MCT(UnitBaseClass):
         self._nchannel = nchannel
 
     @property
-    def ports(self):
+    def ports(self) -> list[str]:
+        """list[str]: Ports of the unit operation."""
         return [f"channel_{i}" for i in range(self.nchannel)]
 
     @property
     def n_ports(self):
+        """int: Number of ports (here the number of channels)."""
         return self.nchannel
 
     @property
-    def volume(self):
-        """float: Combined Volumes of all channels.
+    def volume(self) -> float:
+        """
+        float: Combined Volumes of all channels.
 
         See Also
         --------
@@ -1382,11 +1449,11 @@ class MCT(UnitBaseClass):
         return sum(self.channel_cross_section_areas) * self.length
 
     @property
-    def volume_liquid(self):
+    def volume_liquid(self) -> float:
         """float: Volume of the liquid phase. Equals the volume, since there is no solid phase."""
         return self.volume
 
     @property
-    def volume_solid(self):
+    def volume_solid(self) -> float:
         """float: Volume of the solid phase. Equals zero, since there is no solid phase."""
         return 0

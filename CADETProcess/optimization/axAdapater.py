@@ -295,9 +295,11 @@ class AxInterface(OptimizerBase):
 
     def _post_processing(self, trial):
         """
-        ax holds the data of the model in a dataframe
-        an experiment consists of trials which consist of arms
-        in a sequential experiment, each trial only has one arm.
+        Run post processing.
+
+        Ax holds the data of the model in a dataframe an experiment consists of trials
+        which consist of arms in a sequential experiment, each trial only has one arm.
+
         Arms are evaluated. These hold the parameters.
         """
         op = self.optimization_problem
@@ -356,16 +358,16 @@ class AxInterface(OptimizerBase):
         )
 
     def _setup_model(self):
-        """constructs a pre-instantiated `Model` class that specifies the
-        surrogate model (e.g. Gaussian Process) and acquisition function,
+        """
+        Initialize a pre-instantiated `Model` class.
+
+        The class specifies the surrogate model (e.g. Gaussian Process) and acquisition function,
         which are used in the bayesian optimization algorithm.
         """
         raise NotImplementedError
 
     def _setup_optimization_config(self, objectives, outcome_constraints):
-        """instantiates an optimization configuration for Ax for single objective
-        or multi objective optimization
-        """
+        """Initialize an optimization configuration for Ax."""
         raise NotImplementedError
 
     def _run(self, optimization_problem, x0):
@@ -512,15 +514,14 @@ class MultiObjectiveAxInterface(AxInterface):
 
 
 class GPEI(SingleObjectiveAxInterface):
-    """
-    Bayesian optimization algorithm with a Gaussian Process (GP) surrogate model
-    and a Expected Improvement (EI) acquisition function for single objective
-    """
+    """Gaussian Process with Expected Improvement for single objectives."""
 
     def __repr__(self):
+        """str: String representation of the optimization algorithm."""
         return "GPEI"
 
     def train_model(self):
+        """Train model."""
         return Models.GPEI(
             experiment=self.ax_experiment, data=self.ax_experiment.fetch_data()
         )
@@ -528,13 +529,17 @@ class GPEI(SingleObjectiveAxInterface):
 
 class BotorchModular(SingleObjectiveAxInterface):
     """
-    implements a modular single objective bayesian optimization algorithm.
-    It takes 2 optional arguments and uses the BOTORCH_MODULAR API of Ax
-    to construct a Model, which connects both componenns with the respective
-    transforms necessary
+    Modular bayesian optimization algorithm.
 
-    acquisition_fn: AcquisitionFunction class
-    surrogate_model: Model class
+    BotorchModular takes 2 optional arguments and uses the BOTORCH_MODULAR API of Ax to construct
+    a Model which connects both components with the respective transforms necessary.
+
+    Attributes
+    ----------
+    acquisition_fn: type, optional
+        AcquisitionFunction class. The default is LogExpectedImprovement.
+    surrogate_model: type, optional
+        Model class. The default is SingleTaskGP.
     """
 
     acquisition_fn = Typed(ty=type, default=LogExpectedImprovement)
@@ -543,12 +548,14 @@ class BotorchModular(SingleObjectiveAxInterface):
     _specific_options = ["acquisition_fn", "surrogate_model"]
 
     def __repr__(self):
+        """str: String representation of the optimization algorithm."""
         afn = self.acquisition_fn.__name__
         smn = self.surrogate_model.__name__
 
         return f"BotorchModular({smn}+{afn})"
 
     def train_model(self):
+        """Train model."""
         raise NotImplementedError(
             "This model is currently broken. Please use Only GPEI or NEHVI"
         )
@@ -561,21 +568,19 @@ class BotorchModular(SingleObjectiveAxInterface):
 
 
 class NEHVI(MultiObjectiveAxInterface):
-    """
-    Multi objective Bayesian optimization algorithm, which acquires new points
-    with noisy expected hypervolume improvement (NEHVI) and approximates the
-    model with a Fixed Noise Gaussian Process
-    """
+    """Noisy expected hypervolume improvement multi-objective algorithm."""
 
     supports_single_objective = False
 
     def __repr__(self):
+        """str: String representation of the optimization algorithm."""
         smn = "SingleTaskGP"
         afn = "NEHVI"
 
         return f"{smn}+{afn}"
 
     def train_model(self):
+        """Train model."""
         return Models.MOO(
             experiment=self.ax_experiment, data=self.ax_experiment.fetch_data()
         )
@@ -583,25 +588,30 @@ class NEHVI(MultiObjectiveAxInterface):
 
 class qNParEGO(MultiObjectiveAxInterface):
     """
-    Multi objective Bayesian optimization algorithm with the qNParEGO acquisition function.
-    ParEGO transforms the MOO problem into a single objective problem by applying a randomly weighted augmented
-    Chebyshev scalarization to the objectives, and maximizing the expected improvement of that scalarized
-    quantity (Knowles, 2006). Recently, Daulton et al. (2020) used a multi-output Gaussian process and compositional
-    Monte Carlo objective to extend ParEGO to the batch setting (qParEGO), which proved to be a strong baseline for
-    MOBO. Additionally, the authors proposed a noisy variant (qNParEGO), but the empirical evaluation of qNParEGO
-    was limited. [Daulton et al. 2021 "Parallel Bayesian Optimization of Multiple Noisy Objectives with Expected
-    Hypervolume Improvement"]
+    qNParEGO multi-objective algorithm.
+
+    ParEGO transforms the MOO problem into a single objective problem by applying a
+    randomly weighted augmented Chebyshev scalarization to the objectives, and
+    maximizing the expected improvement of that scalarized quantity (Knowles, 2006).
+    Recently, Daulton et al. (2020) used a multi-output Gaussian process and
+    compositional Monte Carlo objective to extend ParEGO to the batch setting (qParEGO),
+    which proved to be a strong baseline for MOBO. Additionally, the authors proposed a
+    noisy variant (qNParEGO), but the empirical evaluation of qNParEGO was limited.
+    [Daulton et al. 2021 "Parallel Bayesian Optimization of Multiple Noisy Objectives
+    with Expected Hypervolume Improvement"]
     """
 
     supports_single_objective = False
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """str: String representation of the algorithm."""
         smn = "SingleTaskGP"
         afn = "qNParEGO"
 
         return f"{smn}+{afn}"
 
     def train_model(self):
+        """Train model."""
         return Models.MOO(
             experiment=self.ax_experiment,
             data=self.ax_experiment.fetch_data(),

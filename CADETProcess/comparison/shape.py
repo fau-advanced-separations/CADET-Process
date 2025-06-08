@@ -8,31 +8,33 @@ from CADETProcess import CADETProcessError
 
 
 def linear_coeff(x1, y1, x2, y2):
-    "Return paramters that fit y = a*x+b"
+    """Return paramters that fit y = a*x+b."""
     a = (y2 - y1) / (x2 - x1)
     b = y2 - a * x2
     return a, b
 
 
 def exponential_coeff(x1, y1, x2, y2):
-    "Return paramaters that fit y = b*exp(m*x)"
+    """Return paramaters that fit y = b*exp(m*x)."""
     b = (np.log(y2) - np.log(y1)) / (x2 - x1)
     a = y1 * np.exp(-b * x1)
     return a, b
 
 
 def exponential(x, a, b):
-    "Evaluate exponential function."
+    """Evaluate exponential function."""
     return a * np.exp(b * x)
 
 
 def linear(x, a, b):
-    "Evaluate linear function."
+    """Evaluate linear function."""
     return a * x + b
 
 
 def find_opt_poly(x, y, index):
-    """Find optimal overlap between x (offset) and y (pearson).
+    """
+    Find optimal overlap between x (offset) and y (pearson).
+
     Given a curve, find highest point.
     """
     if index == 0:
@@ -63,7 +65,7 @@ def find_opt_poly(x, y, index):
 
 
 def pear_corr(cr):
-    "Flip pearson correlation s.t. 0 is best and 1 is worst."
+    """Flip pearson correlation s.t. 0 is best and 1 is worst."""
     # handle the case where a nan is returned
     if np.isnan(cr):
         return 1.0
@@ -75,9 +77,11 @@ def pear_corr(cr):
 
 @numba.njit(fastmath=True)
 def pearsonr_mat(x, Y, times):
-    """High performance implementation of the pearson correlation.
-    This is to simultaneously evaluate the pearson correlation between a
-    vector and a matrix. Scipy can only evaluate vector/vector.
+    """
+    High performance implementation of the pearson correlation.
+
+    This is to simultaneously evaluate the pearson correlation between a vector and a
+    matrix. Scipy can only evaluate vector/vector.
     """
     r = np.zeros(Y.shape[0])
     xm = x - x.mean()
@@ -121,7 +125,7 @@ def pearson_offset(time, reference_spline, simulation_spline, offset):
 
 
 def eval_offsets(time, reference_spline, simulation_spline, offsets):
-    "Calculate pearson correlation for each offset."
+    """Calculate pearson correlation for each offset."""
     rol_mat = np.zeros([len(offsets), len(time)])
 
     for idx, offset in enumerate(offsets):
@@ -135,7 +139,8 @@ def eval_offsets(time, reference_spline, simulation_spline, offsets):
 def pearson(
     time, reference_spline, simulation_spline, size=20, nest=50, bounds=2, tol=1e-13
 ):
-    """Find highest correlation between reference and simulation.
+    """
+    Find highest correlation between reference and simulation.
 
     The two signals are shifted in time to find the time offset which
     corresponds to highest correlation. To ensure deterministic results, a
@@ -166,9 +171,7 @@ def pearson(
         pearson correlation (inverted).
     dt : float
         time offset.
-
     """
-
     for i in range(nest + 1):
         if i == 0:
             lb = -time[-1]

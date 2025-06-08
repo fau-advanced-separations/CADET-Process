@@ -46,7 +46,6 @@ class IOMixin(Structure):
     write_sensdot_outlet : bool, optional
         If True, write sensitivities derivatives of the unit operation outlet.
         The default is False.
-
     """
 
     write_solution_inlet = Bool(default=True)
@@ -117,7 +116,6 @@ class ParticleMixin(Structure):
     write_sensdot_particle : bool, optional
         If True, write the sensitivities derivatives of the particle liquid phase.
         The default is False.
-
     """
 
     write_solution_particle = Bool(default=False)
@@ -149,7 +147,6 @@ class SolidMixin(Structure):
     write_sensdot_solid : bool, optional
         If True, write the sensitivities derivatives of the particle solid phase.
         The default is False.
-
     """
 
     write_solution_solid = Bool(default=False)
@@ -179,7 +176,6 @@ class FluxMixin(Structure):
         If True, write the sensitivities of the flux. The default is False.
     write_sensdot_flux : bool, optional
         If True, write the sensitivities derivatives of the flux. The default is False.
-
     """
 
     write_solution_flux = Bool(default=False)
@@ -210,7 +206,6 @@ class VolumeMixin(Structure):
     write_sensdot_volume : bool, optional
         If True, write the sensitivities derivatives of the unit volume.
         The default is False.
-
     """
 
     write_solution_volume = Bool(default=True)
@@ -233,7 +228,8 @@ class SolutionRecorderBase:
 
 
 class IORecorder(SolutionRecorderBase, BaseMixin, IOMixin):
-    """Recorder for inlets and outlets.
+    """
+    Recorder for inlets and outlets.
 
     See Also
     --------
@@ -241,14 +237,14 @@ class IORecorder(SolutionRecorderBase, BaseMixin, IOMixin):
     IOMixin
     CADETProcess.processModel.Inlet
     CADETProcess.processModel.Outlet
-
     """
 
     pass
 
 
 class TubularReactorRecorder(SolutionRecorderBase, BaseMixin, IOMixin, BulkMixin):
-    """Recorder for TubularReactor.
+    """
+    Recorder for TubularReactor.
 
     See Also
     --------
@@ -256,14 +252,14 @@ class TubularReactorRecorder(SolutionRecorderBase, BaseMixin, IOMixin, BulkMixin
     IOMixin
     SolutionRecorderBulk
     CADETProcess.processModel.TubularReactor
-
     """
 
     pass
 
 
 class LRMRecorder(SolutionRecorderBase, BaseMixin, IOMixin, BulkMixin, SolidMixin):
-    """Recorder for TubularReactor.
+    """
+    Recorder for TubularReactor.
 
     See Also
     --------
@@ -272,7 +268,6 @@ class LRMRecorder(SolutionRecorderBase, BaseMixin, IOMixin, BulkMixin, SolidMixi
     BulkMixin
     SolidMixin
     CADETProcess.processModel.LumpedRateModelWithoutPores
-
     """
 
     pass
@@ -287,7 +282,8 @@ class LRMPRecorder(
     ParticleMixin,
     SolidMixin,
 ):
-    """Recorder for TubularReactor.
+    """
+    Recorder for TubularReactor.
 
     See Also
     --------
@@ -298,7 +294,6 @@ class LRMPRecorder(
     ParticleMixin
     SolidMixin
     CADETProcess.processModel.LumpedRateModelWithPores
-
     """
 
     pass
@@ -313,7 +308,8 @@ class GRMRecorder(
     ParticleMixin,
     SolidMixin,
 ):
-    """Recorder for TubularReactor.
+    """
+    Recorder for TubularReactor.
 
     See Also
     --------
@@ -324,7 +320,6 @@ class GRMRecorder(
     ParticleMixin
     SolidMixin
     CADETProcess.processModel.GeneralRateModel
-
     """
 
     pass
@@ -333,7 +328,8 @@ class GRMRecorder(
 class CSTRRecorder(
     SolutionRecorderBase, BaseMixin, IOMixin, BulkMixin, SolidMixin, VolumeMixin
 ):
-    """Recorder for TubularReactor.
+    """
+    Recorder for TubularReactor.
 
     See Also
     --------
@@ -343,14 +339,14 @@ class CSTRRecorder(
     SolidMixin
     VolumeMixin
     CADETProcess.processModel.Cstr
-
     """
 
     pass
 
 
 class MCTRecorder(SolutionRecorderBase, BaseMixin, IOMixin, BulkMixin):
-    """Recorder for TubularReactor.
+    """
+    Recorder for TubularReactor.
 
     See Also
     --------
@@ -358,7 +354,6 @@ class MCTRecorder(SolutionRecorderBase, BaseMixin, IOMixin, BulkMixin):
     IOMixin
     BulkMixin
     CADETProcess.processModel.MCT
-
     """
 
     pass

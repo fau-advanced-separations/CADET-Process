@@ -1,3 +1,5 @@
+from typing import Any, Optional
+
 import numpy as np
 
 from CADETProcess import CADETProcessError
@@ -47,7 +49,8 @@ __all__ = [
 
 @frozen_attributes
 class BindingBaseClass(Structure):
-    """Abstract base class for parameters of binding models.
+    """
+    Abstract base class for parameters of binding models.
 
     Attributes
     ----------
@@ -70,7 +73,6 @@ class BindingBaseClass(Structure):
         The default is True.
     parameters : dict
         dict with parameter values.
-
     """
 
     name = String()
@@ -84,18 +86,37 @@ class BindingBaseClass(Structure):
 
     _parameters = ["is_kinetic"]
 
-    def __init__(self, component_system, name=None, *args, **kwargs):
+    def __init__(
+        self,
+        component_system: ComponentSystem,
+        name: Optional[str] = None,
+        *args: Any,
+        **kwargs: Any
+    ) -> None:
+        """
+        Initialize binding model.
+
+        Parameters
+        ----------
+        component_system: ComponentSystem
+            Component system of the binding model.
+        name: str
+            Name of the binding model.
+
+        """
         self.component_system = component_system
         self.name = name
 
         super().__init__(*args, **kwargs)
 
     @property
-    def model(self):
+    def model(self) -> str:
+        """str: Name of the binding model."""
         return self.__class__.__name__
 
     @property
-    def component_system(self):
+    def component_system(self) -> ComponentSystem:
+        """ComponentSystem: Component system of the binding model."""
         return self._component_system
 
     @component_system.setter
@@ -105,11 +126,13 @@ class BindingBaseClass(Structure):
         self._component_system = component_system
 
     @property
-    def n_comp(self):
+    def n_comp(self) -> int:
+        """int: Number of components."""
         return self.component_system.n_comp
 
     @property
-    def bound_states(self):
+    def bound_states(self) -> list[int]:
+        """list[int]: Number of bound states per component."""
         bound_states = self._bound_states
         for i in self.non_binding_component_indices:
             bound_states[i] = 0
@@ -124,24 +147,27 @@ class BindingBaseClass(Structure):
         self._bound_states = bound_states
 
     @property
-    def n_bound_states(self):
+    def n_bound_states(self) -> int:
+        """int: Number of bound states."""
         return sum(self.bound_states)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """str: String representation of the binding model."""
         return f"{self.__class__.__name__}(\
             component_system={self.component_system}, name={self.name})')"
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """str: String representation of the binding model."""
         if self.name is None:
             return self.__class__.__name__
         return self.name
 
 
 class NoBinding(BindingBaseClass):
-    """Dummy class for units that do not experience binging behavior.
+    """
+    Dummy class for units that do not experience binging behavior.
 
     The number of components is set to zero for this class.
-
     """
 
     def __init__(self, *args, **kwargs):
@@ -149,7 +175,8 @@ class NoBinding(BindingBaseClass):
 
 
 class Linear(BindingBaseClass):
-    """Parameters for Linear binding model.
+    """
+    Linear binding model.
 
     Attributes
     ----------
@@ -157,7 +184,6 @@ class Linear(BindingBaseClass):
         Adsorption rate constants. Length depends on `n_comp`.
     desorption_rate : list of unsigned floats.
         Desorption rate constants. Length depends on `n_comp`.
-
     """
 
     adsorption_rate = SizedUnsignedList(size="n_comp")
@@ -170,7 +196,8 @@ class Linear(BindingBaseClass):
 
 
 class Langmuir(BindingBaseClass):
-    """Parameters for Multi Component Langmuir binding model.
+    """
+    Multi Component Langmuir binding model.
 
     Attributes
     ----------
@@ -180,7 +207,6 @@ class Langmuir(BindingBaseClass):
         Desorption rate constants. Length depends on `n_comp`.
     capacity : list of unsigned floats.
         Maximum adsorption capacities. Length depends on `n_comp`.
-
     """
 
     adsorption_rate = SizedUnsignedList(size="n_comp")
@@ -195,8 +221,10 @@ class Langmuir(BindingBaseClass):
 
 
 class LangmuirLDF(BindingBaseClass):
-    """Parameters for Multi Component Langmuir binding model using a linear driving
-    force approximation based on the equilibrium concentration q* for given c.
+    """
+    Multi Component Langmuir binding model with linear driving force approximation.
+
+    Note, this variant is based on the equilibrium concentration q* for given c.
 
     Attributes
     ----------
@@ -206,7 +234,6 @@ class LangmuirLDF(BindingBaseClass):
         Desorption rate constants. Length depends on `n_comp`.
     capacity : list of unsigned floats.
         Maximum adsorption capacities. Length depends on `n_comp`.
-
     """
 
     equilibrium_constant = SizedUnsignedList(size="n_comp")
@@ -221,8 +248,10 @@ class LangmuirLDF(BindingBaseClass):
 
 
 class LangmuirLDFLiquidPhase(BindingBaseClass):
-    """Parameters for Multi Component Langmuir binding model using a linear driving
-    force approximation based on the equilibrium concentration c* for given q.
+    """
+    Multi Component Langmuir binding model with linear driving force approximation.
+
+    Note, this variant is based on the equilibrium concentration c* for given q.
 
     Attributes
     ----------
@@ -232,7 +261,6 @@ class LangmuirLDFLiquidPhase(BindingBaseClass):
         Desorption rate constants. Length depends on `n_comp`.
     capacity : list of unsigned floats.
         Maximum adsorption capacities. Length depends on `n_comp`.
-
     """
 
     equilibrium_constant = SizedUnsignedList(size="n_comp")
@@ -247,7 +275,8 @@ class LangmuirLDFLiquidPhase(BindingBaseClass):
 
 
 class BiLangmuir(BindingBaseClass):
-    """Parameters for Multi Component Bi-Langmuir binding model.
+    """
+    Multi Component Bi-Langmuir binding model.
 
     Attributes
     ----------
@@ -260,7 +289,6 @@ class BiLangmuir(BindingBaseClass):
     capacity : list of unsigned floats.
         Maximum adsorption capacities in state-major ordering.
         Length depends on `n_bound_states`.
-
     """
 
     n_binding_sites = UnsignedInteger(default=2)
@@ -282,7 +310,8 @@ class BiLangmuir(BindingBaseClass):
 
 
 class BiLangmuirLDF(BindingBaseClass):
-    """Parameters for Multi Component Bi-Langmuir binding model.
+    """
+    Multi Component Bi-Langmuir binding model.
 
     Attributes
     ----------
@@ -295,7 +324,6 @@ class BiLangmuirLDF(BindingBaseClass):
     capacity : list of unsigned floats.
         Maximum adsorption capacities in state-major ordering.
         Length depends on `n_bound_states`.
-
     """
 
     n_binding_sites = UnsignedInteger(default=2)
@@ -317,7 +345,8 @@ class BiLangmuirLDF(BindingBaseClass):
 
 
 class FreundlichLDF(BindingBaseClass):
-    """Parameters for the Freundlich isotherm model.
+    """
+    Freundlich isotherm model.
 
     Attributes
     ----------
@@ -327,7 +356,6 @@ class FreundlichLDF(BindingBaseClass):
         Freundlich coefficient for each component. Length depends on `n_comp`.
     exponent : list of unsigned floats.
         Freundlich exponent for each component. Length depends on `n_comp`.
-
     """
 
     driving_force_coefficient = SizedUnsignedList(size="n_comp")
@@ -342,7 +370,8 @@ class FreundlichLDF(BindingBaseClass):
 
 
 class StericMassAction(BindingBaseClass):
-    r"""Parameters for Steric Mass Action Law binding model.
+    r"""
+    Steric Mass Action Law binding model.
 
     Attributes
     ----------
@@ -368,7 +397,6 @@ class StericMassAction(BindingBaseClass):
     reference_solid_phase_conc : unsigned float.
         Reference liquid phase concentration.
         The default is 1.0
-
     """
 
     adsorption_rate = SizedUnsignedList(size="n_comp")
@@ -390,7 +418,8 @@ class StericMassAction(BindingBaseClass):
     ]
 
     @property
-    def adsorption_rate_untransformed(self):
+    def adsorption_rate_untransformed(self) -> list[float] | None:
+        """list[float]: Untransformed adsorption rate."""
         if self.adsorption_rate is None:
             return None
 
@@ -410,7 +439,8 @@ class StericMassAction(BindingBaseClass):
         ).tolist()
 
     @property
-    def desorption_rate_untransformed(self):
+    def desorption_rate_untransformed(self) -> list[float] | None:
+        """list[float]: Untransformed desorption rate."""
         if self.desorption_rate is None:
             return None
 
@@ -431,7 +461,8 @@ class StericMassAction(BindingBaseClass):
 
 
 class AntiLangmuir(BindingBaseClass):
-    """Multi Component Anti-Langmuir adsorption isotherm.
+    """
+    Multi Component Anti-Langmuir adsorption isotherm.
 
     Attributes
     ----------
@@ -443,7 +474,6 @@ class AntiLangmuir(BindingBaseClass):
         Maximum adsorption capacities. Length depends on `n_comp`.
     antilangmuir : list of {-1, 1}.
         Anti-Langmuir coefficients. Length depends on `n_comp`.
-
     """
 
     adsorption_rate = SizedUnsignedList(size="n_comp")
@@ -455,7 +485,8 @@ class AntiLangmuir(BindingBaseClass):
 
 
 class Spreading(BindingBaseClass):
-    """Multi Component Spreading adsorption isotherm.
+    """
+    Multi Component Spreading adsorption isotherm.
 
     Attributes
     ----------
@@ -474,7 +505,6 @@ class Spreading(BindingBaseClass):
     exchange_from_2_1 : list of unsigned floats.
         Exchange rates from the second to the first bound state.
         Length depends on `n_comp`.
-
     """
 
     n_binding_sites = RangedInteger(lb=2, ub=2, default=2)
@@ -495,7 +525,8 @@ class Spreading(BindingBaseClass):
 
 
 class MobilePhaseModulator(BindingBaseClass):
-    """Mobile Phase Modulator adsorption isotherm.
+    """
+    Mobile Phase Modulator adsorption isotherm.
 
     Attributes
     ----------
@@ -535,7 +566,8 @@ class MobilePhaseModulator(BindingBaseClass):
 
 
 class ExtendedMobilePhaseModulator(BindingBaseClass):
-    """Mobile Phase Modulator adsorption isotherm.
+    """
+    Mobile Phase Modulator adsorption isotherm.
 
     Attributes
     ----------
@@ -557,7 +589,6 @@ class ExtendedMobilePhaseModulator(BindingBaseClass):
         1 is linear binding,
         2 is modified Langmuir binding.
         Length depends on `n_comp`.
-
     """
 
     adsorption_rate = SizedUnsignedList(size="n_comp")
@@ -580,7 +611,8 @@ class ExtendedMobilePhaseModulator(BindingBaseClass):
 
 
 class SelfAssociation(BindingBaseClass):
-    r"""Self Association adsorption isotherm.
+    r"""
+    Self Association adsorption isotherm.
 
     Attributes
     ----------
@@ -603,7 +635,6 @@ class SelfAssociation(BindingBaseClass):
     reference_solid_phase_conc : unsigned float.
         Reference liquid phase concentration (optional)
         The default = 1.0
-
     """
 
     adsorption_rate = SizedUnsignedList(size="n_comp")
@@ -628,7 +659,8 @@ class SelfAssociation(BindingBaseClass):
 
 
 class BiStericMassAction(BindingBaseClass):
-    """Bi Steric Mass Action adsorption isotherm.
+    """
+    Bi Steric Mass Action adsorption isotherm.
 
     Attributes
     ----------
@@ -658,7 +690,6 @@ class BiStericMassAction(BindingBaseClass):
         Reference solid phase concentration for each binding site type or one
         value for all types.
         The default is 1.0
-
     """
 
     n_binding_sites = UnsignedInteger(default=2)
@@ -688,7 +719,8 @@ class BiStericMassAction(BindingBaseClass):
 
 
 class MultistateStericMassAction(BindingBaseClass):
-    r"""Multistate Steric Mass Action adsorption isotherm.
+    r"""
+    Multistate Steric Mass Action adsorption isotherm.
 
     Attributes
     ----------
@@ -721,7 +753,6 @@ class MultistateStericMassAction(BindingBaseClass):
     reference_solid_phase_conc : unsigned float, optional
         Reference solid phase concentration.
         The default = 1.0
-
     """
 
     bound_states = SizedUnsignedIntegerList(
@@ -758,7 +789,8 @@ class MultistateStericMassAction(BindingBaseClass):
 
 
 class SimplifiedMultistateStericMassAction(BindingBaseClass):
-    """Simplified multistate Steric Mass Action adsorption isotherm.
+    """
+    Simplified multistate Steric Mass Action adsorption isotherm.
 
     Attributes
     ----------
@@ -819,7 +851,6 @@ class SimplifiedMultistateStericMassAction(BindingBaseClass):
         Reference liquid phase concentration (optional, default value = 1.0).
     reference_solid_phase_conc : list of unsigned floats.
         Reference solid phase concentration (optional, default value = 1.0).
-
     """
 
     bound_states = SizedUnsignedIntegerList(
@@ -866,7 +897,8 @@ class SimplifiedMultistateStericMassAction(BindingBaseClass):
 
 
 class Saska(BindingBaseClass):
-    """Quadratic Isotherm.
+    """
+    Quadratic Isotherm.
 
     Attributes
     ----------
@@ -874,7 +906,6 @@ class Saska(BindingBaseClass):
         The Henry coefficient. Length depends on `n_comp`.
     quadratic_factor : list of unsigned floats.
         Quadratic factors. Length depends on `n_comp`.
-
     """
 
     henry_const = SizedUnsignedList(size="n_comp")
@@ -887,7 +918,8 @@ class Saska(BindingBaseClass):
 
 
 class GeneralizedIonExchange(BindingBaseClass):
-    r"""Generalized Ion Exchange isotherm model.
+    r"""
+    Generalized Ion Exchange isotherm model.
 
     Attributes
     ----------
@@ -958,7 +990,6 @@ class GeneralizedIonExchange(BindingBaseClass):
         Reference liquid phase concentration (optional, default value = 1.0).
     reference_solid_phase_conc : unsigned float.
         Reference liquid phase concentration (optional, default value = 1.0).
-
     """
 
     non_binding_component_indices = [1]
@@ -1030,7 +1061,8 @@ class GeneralizedIonExchange(BindingBaseClass):
 
 
 class HICConstantWaterActivity(BindingBaseClass):
-    """HIC based on Constant Water Activity adsorption isotherm.
+    """
+    HIC based on Constant Water Activity adsorption isotherm.
 
     Attributes
     ----------
@@ -1070,7 +1102,8 @@ class HICConstantWaterActivity(BindingBaseClass):
 
 
 class HICWaterOnHydrophobicSurfaces(BindingBaseClass):
-    """HIC isotherm by Wang et al. based on their 2016 paper.
+    """
+    HIC isotherm by Wang et al. based on their 2016 paper.
 
     Attributes
     ----------
@@ -1110,7 +1143,8 @@ class HICWaterOnHydrophobicSurfaces(BindingBaseClass):
 
 
 class MultiComponentColloidal(BindingBaseClass):
-    """Colloidal isotherm from Xu and Lenhoff 2009.
+    """
+    Colloidal isotherm from Xu and Lenhoff 2009.
 
     Attributes
     ----------
@@ -1152,7 +1186,6 @@ class MultiComponentColloidal(BindingBaseClass):
         Linear threshold.
     use_ph : Boolean.
         Include pH or not.
-
     """
 
     bound_states = SizedUnsignedIntegerList(

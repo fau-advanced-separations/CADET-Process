@@ -1,7 +1,7 @@
 import copy
 import functools
 import importlib
-from typing import NoReturn, Optional
+from typing import Any, Iterator, NoReturn, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -401,10 +401,12 @@ class Comparator(Structure):
 
         return figs, axs
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Any]:
+        """Yield metrics from the instance."""
         yield from self.metrics
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """str: Name of the Comparator."""
         if self.name is not None:
             return self.name
         else:

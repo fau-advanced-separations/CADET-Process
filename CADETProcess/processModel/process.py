@@ -11,12 +11,14 @@ from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import cached_property_if_locked
 from CADETProcess.dynamicEvents import EventHandler, Section, TimeLine
 
+from .componentSystem import ComponentSystem
 from .flowSheet import FlowSheet
 from .unitOperation import Inlet, Outlet
 
 
 class Process(EventHandler):
-    """Class for defining the dynamic changes of a flow sheet.
+    """
+    Class for defining the dynamic changes of a flow sheet.
 
     Attributes
     ----------
@@ -50,15 +52,19 @@ class Process(EventHandler):
         super().__init__(*args, **kwargs)
 
     @property
-    def n_comp(self):
+    def n_comp(self) -> int:
+        """int: Number of components in the process."""
         return self.flow_sheet.n_comp
 
     @property
-    def meta_information(self):
+    def meta_information(self) -> dict:
+        """dict: Meta information of the process."""
+        # TODO: DO we still use this anywhere?
         return self._meta_information
 
     @property
-    def component_system(self):
+    def component_system(self) -> ComponentSystem:
+        """ComponentSystem: Component system of the process."""
         return self.flow_sheet.component_system
 
     @property
@@ -80,10 +86,8 @@ class Process(EventHandler):
         self._flow_sheet = flow_sheet
 
     @cached_property_if_locked
-    def m_feed(self):
-        """ndarray: Mass of feed components entering the system in one cycle.
-        !!! Account for dynamic flow rates and concentrations!
-        """
+    def m_feed(self) -> np.ndarray:
+        """np.ndarray: Mass of feed components entering the system in one cycle."""
         flow_rate_timelines = self.flow_rate_timelines
 
         feed_all = np.zeros((self.n_comp,))
@@ -131,8 +135,8 @@ class Process(EventHandler):
         return sum([unit.volume_solid for unit in self.flow_sheet.units_with_binding])
 
     @cached_property_if_locked
-    def flow_rate_timelines(self):
-        """dict: TimeLine of flow_rate for all unit_operations."""
+    def flow_rate_timelines(self) -> dict:
+        """Return TimeLine of flow_rate for all unit_operations."""
         flow_rate_timelines = {
             unit.name: {
                 "total_in": defaultdict(TimeLine),
@@ -225,8 +229,8 @@ class Process(EventHandler):
         return Dict(flow_rate_timelines)
 
     @cached_property_if_locked
-    def flow_rate_section_states(self):
-        """dict: Flow rates for all units for every section time."""
+    def flow_rate_section_states(self) -> dict:
+        """Return flow rates for all units for every section time."""
         section_states = {
             time: {
                 unit.name: {
@@ -305,7 +309,8 @@ class Process(EventHandler):
         abstols=None,
         factors=None,
     ):
-        """Add parameter sensitivty to Process.
+        """
+        Add parameter sensitivty to Process.
 
         Parameters
         ----------
@@ -327,7 +332,7 @@ class Process(EventHandler):
             The index(es) of the bound state(s) in the associated model(s), if applicable.
             Must only be provided if parameter is specific to a certain bound state.
         section_indices : int or list of int, optional
-            The index(es) of the section(s) in the associated model(s), if applicable. If not provided,
+            The index(es) of the section(s) in the associated model(s), if applicable.
             Must only be provided if parameter is specific to a certain section.
         abstols : float or list of float, optional
             The absolute tolerances for each parameter.
@@ -361,7 +366,6 @@ class Process(EventHandler):
         .. todo::
             - [ ] Check if compoment/reaction/polynomial index are required.
             - [ ] Specify time instead of section index;
-
         """
         if not isinstance(parameter_paths, list):
             parameter_paths = [parameter_paths]
@@ -499,7 +503,8 @@ class Process(EventHandler):
         self._parameter_sensitivities.append(sens)
 
     @property
-    def system_state(self):
+    def system_state(self) -> np.ndarray:
+        """np.ndarray: State of the entire system."""
         return self._system_state
 
     @system_state.setter
@@ -507,7 +512,8 @@ class Process(EventHandler):
         self._system_state = system_state
 
     @property
-    def system_state_derivative(self):
+    def system_state_derivative(self) -> np.ndarray:
+        """np.ndarray: State derivative of the entire system."""
         return self._system_state_derivative
 
     @system_state_derivative.setter
@@ -515,7 +521,8 @@ class Process(EventHandler):
         self._system_state_derivative = system_state_derivative
 
     @property
-    def parameters(self):
+    def parameters(self) -> dict:
+        """dict: Parameters of the process."""
         parameters = super().parameters
 
         parameters["flow_sheet"] = self.flow_sheet.parameters
@@ -532,25 +539,29 @@ class Process(EventHandler):
         super(Process, self.__class__).parameters.fset(self, parameters)
 
     @property
-    def section_dependent_parameters(self):
+    def section_dependent_parameters(self) -> dict:
+        """dict: Section dependent parameters of the process."""
         parameters = Dict()
         parameters.flow_sheet = self.flow_sheet.section_dependent_parameters
         return parameters
 
     @property
-    def polynomial_parameters(self):
+    def polynomial_parameters(self) -> dict:
+        """dict: Polynomial parameters of the process."""
         parameters = super().polynomial_parameters
         parameters.flow_sheet = self.flow_sheet.polynomial_parameters
         return parameters
 
     @property
-    def sized_parameters(self):
+    def sized_parameters(self) -> dict:
+        """dict: Sized parameters of the process."""
         parameters = super().sized_parameters
         parameters.flow_sheet = self.flow_sheet.sized_parameters
         return parameters
 
     @property
-    def initial_state(self):
+    def initial_state(self) -> dict:
+        """dict: Initial state of the process."""
         initial_state = {state: getattr(self, state) for state in self._initial_states}
         initial_state["flow_sheet"] = self.flow_sheet.initial_state
 
@@ -569,7 +580,8 @@ class Process(EventHandler):
             setattr(self, state_name, state_value)
 
     @property
-    def config(self):
+    def config(self) -> dict[str, dict]:
+        """dict[str, dict]: Parameters and initial state of the process."""
         return Dict(
             {"parameters": self.parameters, "initial_state": self.initial_state}
         )
@@ -588,7 +600,8 @@ class Process(EventHandler):
         s: float = 1e-6,
         interpolation_method: Literal["cubic", "pchip", None] = "pchip",
     ) -> None:
-        """Add concentration profile to Process.
+        """
+        Add concentration profile to Process.
 
         Parameters
         ----------
@@ -719,7 +732,8 @@ class Process(EventHandler):
         s: float = 1e-6,
         interpolation_method: Literal["cubic", "pchip", None] = "pchip",
     ) -> None:
-        """Add flow rate profile to a SourceMixin unit operation.
+        """
+        Add flow rate profile to a SourceMixin unit operation.
 
         Parameters
         ----------
@@ -807,13 +821,13 @@ class Process(EventHandler):
             )
 
     def check_config(self):
-        """Validate that process config is setup correctly.
+        """
+        Validate that process config is setup correctly.
 
         Returns
         -------
         check : Bool
             True if process is setup correctly. False otherwise.
-
         """
         flag = super().check_config()
 
@@ -837,13 +851,13 @@ class Process(EventHandler):
         return flag
 
     def check_cstr_volume(self):
-        """Check if CSTRs run empty.
+        """
+        Check if CSTRs run empty.
 
         Returns
         -------
         flag : bool
             False if any of the CSTRs run empty. True otherwise.
-
         """
         flag = True
         for cstr in self.flow_sheet.cstrs:
@@ -860,12 +874,15 @@ class Process(EventHandler):
 
         return flag
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """str: String representation of the process."""
         return self.name
 
 
 @dataclass
 class ParameterSensitivity:
+    """Class for storing parameter sensitivity parameters."""
+
     name: str
     units: list
     parameters: list

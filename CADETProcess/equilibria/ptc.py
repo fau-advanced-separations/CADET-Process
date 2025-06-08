@@ -1,48 +1,52 @@
-"""Pseudo-transient continuation for solving nonlinear equation systems.
+"""
+Pseudo-transient continuation for solving nonlinear equation systems.
 
-The main method is ptc, a pseudo-transient continuation method with
-switched evolution relaxation.
+The main method is ptc, a pseudo-transient continuation method with switched evolution
+relaxation.
 
 This code was written by Samuel Leweke (University of Cologne) in 2020.
-
-"""
+""" # noqa
 
 __author__ = "Samuel Leweke"
 __contact__ = "leweke@math.uni-koeln.de"
 __copyright__ = "Copyright 2020, University of Cologne"
 
-
 import math
+from typing import Callable, Optional
 
 import numpy as np
 import scipy.linalg
 
 
-def scaled_norm2(x, scale):
+def scaled_norm2(x: np.ndarray, scale: np.ndarray) -> float:
+    """Calculate the scaled Euclidean (L2) norm."""
     return math.sqrt(np.sum(np.square(x / scale)) / len(x))
 
 
-def norm2(x):
+def norm2(x: np.ndarray) -> float:
+    """Calculate the karthesian norm."""
     return math.sqrt(np.sum(np.square(x)) / len(x))
 
 
-def jacrow_scale(jacMat, scale):
+def jacrow_scale(jacMat: np.ndarray, scale: np.ndarray) -> np.ndarray:
+    """Scale jacMat with scale."""
     return jacMat / scale[:, None]
 
 
 def ptc(
-    x,
-    f,
-    jacF,
-    tau,
-    tol,
-    scale=None,
-    maxIter=50,
-    maxNonMonotone=5,
-    quiet=True,
-    variant=False,
-):
-    r"""Solve a nonlinear equation system using pseudo-transient continuation.
+        x: np.ndarray,
+        f: Callable[[np.ndarray], np.ndarray],
+        jacF: Callable[[np.ndarray], np.ndarray],
+        tau: float,
+        tol: float,
+        scale: Optional[np.ndarray] = None,
+        maxIter: int = 50,
+        maxNonMonotone: int = 5,
+        quiet: bool = True,
+        variant: bool = False
+    ) -> tuple[int, np.ndarray, float, int]:
+    r"""
+    Solve a nonlinear equation system using pseudo-transient continuation.
 
     The nonlinear equation system f(x) = 0 is solved using pseudo-transient
     continuation (PTC), which introduce pseudo time and computes the steady
@@ -73,7 +77,7 @@ def ptc(
         Initial pseudo time step size.
     tol : TYPE
         Target tolerance for scaled root mean square residual.
-    scale : np.array, optional
+    scale : np.ndarray, optional
         (positive) diagonal scaling coefficients.
         The scaled root mean square norm is given by
         .. math::
@@ -99,13 +103,12 @@ def ptc(
         -1: Failed due to singular Jacobian
          0: Converged with passing residual test
          1: Exceeded maximum number of iterations.
-    x : np.array
+    x : np.ndarray
         Solution.
-    normfk : np.array
+    normfk : np.ndarray
         Scaled root mean square residual.
     k : int
         Number of iterations.
-
     """
     fxk = f(x)
     if scale is None:

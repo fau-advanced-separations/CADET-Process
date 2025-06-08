@@ -93,14 +93,14 @@ fix = true
 [tool.ruff.lint]
 preview = true
 select = [
+  "D",    # docstrings
   "E",    # pycodestyle errors
-  "F",    # Pyflakes (undefined names, etc.)
-  "I",    # isort (import sorting)
+  "F",    # pyflakes
   "W",    # pycodestyle warnings
+  "I",    # isort
 ]
 ignore = [
-  "D100",    # Missing docstring in public module
-  "ANN401",  # Dynamically typed expressions
+  "D100",    # Allow missing docstring in public module
 ]
 
 [tool.ruff.format]
