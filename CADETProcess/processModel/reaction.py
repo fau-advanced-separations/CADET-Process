@@ -386,7 +386,7 @@ class CrossPhaseReaction(Structure):
 
     @property
     def n_comp(self):
-        """ind: number of components."""
+        """int: Number of components."""
         return self.component_system.n_comp
 
     @property
@@ -441,8 +441,6 @@ class ReactionBaseClass(Structure):
 
     Attributes
     ----------
-    n_comp : UnsignedInteger
-        number of components.
     parameters : dict
         dict with parameter values.
     name : String
@@ -450,7 +448,6 @@ class ReactionBaseClass(Structure):
 
     """
     name = String()
-    n_comp = UnsignedInteger()
 
     _parameters = []
 
