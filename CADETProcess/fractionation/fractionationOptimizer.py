@@ -14,7 +14,8 @@ class FractionationEvaluator:
     """Dummy Evaluator to enable caching."""
 
     def evaluate(self, fractionator):
-        """Evaluate the fractionator.
+        """
+        Evaluate the fractionator.
 
         Parameters
         ----------
@@ -30,7 +31,8 @@ class FractionationEvaluator:
 
     __call__ = evaluate
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """str: Name of the FractionationEvaluator."""
         return __class__.__name__
 
 
@@ -38,7 +40,8 @@ class FractionationOptimizer:
     """Configuration for fractionating Chromatograms."""
 
     def __init__(self, optimizer=None, log_level="WARNING"):
-        """Initialize the FractionationOptimizer.
+        """
+        Initialize the FractionationOptimizer.
 
         Parameters
         ----------
@@ -65,7 +68,8 @@ class FractionationOptimizer:
 
     @optimizer.setter
     def optimizer(self, optimizer):
-        """Set the optimizer.
+        """
+        Set the optimizer.
 
         Parameters
         ----------
@@ -89,7 +93,8 @@ class FractionationOptimizer:
         use_total_concentration_components=True,
         allow_empty_fractions=True,
     ):
-        """Set up the Fractionator for optimizing the fractionation times of Chromatograms.
+        """
+        Set up the Fractionator for optimizing the fractionation times of Chromatograms.
 
         Parameters
         ----------
@@ -108,7 +113,6 @@ class FractionationOptimizer:
         -------
         Fractionator
             The Fractionator object that has been set up using the provided arguments.
-
         """
         frac = Fractionator(
             simulation_results,
@@ -146,7 +150,8 @@ class FractionationOptimizer:
         bad_metrics=None,
         n_objectives=1,
     ):
-        """Set up the OptimizationProblem for optimizing the fractionation times.
+        """
+        Set up the OptimizationProblem for optimizing the fractionation times.
 
         Parameters
         ----------
@@ -273,7 +278,8 @@ class FractionationOptimizer:
         return_optimization_results=False,
         save_results=False,
     ):
-        """Optimize the fractionation times with respect to purity constraints.
+        """
+        Optimize the fractionation times with respect to purity constraints.
 
         Parameters
         ----------
@@ -336,7 +342,6 @@ class FractionationOptimizer:
         CADETProcess.solution.SolutionIO
         CADETProcess.optimization.OptimizationProblem
         CADETProcess.optimization.OptimizerBase
-
         """
         if not isinstance(simulation_results, SimulationResults):
             raise TypeError("Expected SimulationResults.")
@@ -401,5 +406,6 @@ class FractionationOptimizer:
     evaluate = optimize_fractionation
     __call__ = evaluate
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Name of the FractionationOptimizer."""
         return self.__class__.__name__

@@ -41,7 +41,9 @@ Notes
 Performance Indicators might be deprecated in future since with new evaluation chains
 it's no longer required for setting up as optimization problem.
 
-"""
+"""  # noqa
+
+from typing import Any
 
 import numpy as np
 
@@ -52,7 +54,8 @@ from CADETProcess.processModel import ComponentSystem
 
 
 class Performance(Structure):
-    """Class for storing the performance parameters after fractionation.
+    """
+    Class for storing the performance parameters after fractionation.
 
     Attributes
     ----------
@@ -85,7 +88,6 @@ class Performance(Structure):
     --------
     CADETProcess.fractionation
     RankedPerformance
-
     """
 
     _performance_keys = [
@@ -117,7 +119,8 @@ class Performance(Structure):
         mass_balance_difference,
         component_system=None,
     ):
-        """Initialize Performance.
+        """
+        Initialize Performance.
 
         Parameters
         ----------
@@ -155,11 +158,11 @@ class Performance(Structure):
         """int: Number of components in the system."""
         return self.component_system.n_comp
 
-    def to_dict(self):
-        """Return a dictionary representation of the object."""
+    def to_dict(self) -> dict:
+        """Return dictionary representation of the object."""
         return {key: getattr(self, key).tolist() for key in self._performance_keys}
 
-    def __getitem__(self, item):
+    def __getitem__(self, item) -> Any:
         """Get an attribute of the object by its name."""
         if item not in self._performance_keys:
             raise AttributeError("Not a valid performance parameter")
@@ -167,7 +170,7 @@ class Performance(Structure):
         return getattr(self, item)
 
     def __repr__(self):
-        """String representation of the object."""
+        """str: String representation of the object."""
         return (
             f"{self.__class__.__name__}(mass={np.array_repr(self.mass)}, "
             f"concentration={np.array_repr(self.concentration)}, "
@@ -180,13 +183,13 @@ class Performance(Structure):
 
 
 class RankedPerformance:
-    """Class for calculating a weighted average of the Performance
+    """
+    Class for calculating a weighted average of the Performance.
 
     See Also
     --------
     Performance
     ranked_objective_decorator
-
     """
 
     _performance_keys = Performance._performance_keys
@@ -200,11 +203,13 @@ class RankedPerformance:
         self.ranking = ranking
 
     @property
-    def performance(self):
+    def performance(self) -> Performance:
+        """Performance: Performance object."""
         return self._performance
 
     @property
-    def ranking(self):
+    def ranking(self) -> list[float]:
+        """list[float]: Relative weighting factors for multi component evaluation."""
         return self._ranking
 
     @ranking.setter
@@ -216,20 +221,24 @@ class RankedPerformance:
 
         self._ranking = ranking
 
-    def to_dict(self):
+    def to_dict(self) -> Any:
+        """Return dictionary representation of the object."""
         return {key: float(getattr(self, key)) for key in self._performance_keys}
 
-    def __getattr__(self, item):
+    def __getattr__(self, item: str) -> float:
+        """Retrieve a performance attribute by its name, weighted by ranking."""
         if item not in self._performance_keys:
             raise AttributeError
         return sum(self._performance[item] * self.ranking) / sum(self.ranking)
 
-    def __getitem__(self, item):
+    def __getitem__(self, item) -> Any:
+        """Retrieve an attribute of the object by its name using indexing syntax."""
         if item not in self._performance_keys:
             raise AttributeError("Not a valid performance parameter")
         return getattr(self, item)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """str: Sting representation of the object."""
         return (
             f"{self.__class__.__name__}(mass={np.array_repr(self.mass)}, "
             f"concentration={np.array_repr(self.concentration)}, "
@@ -242,7 +251,8 @@ class RankedPerformance:
 
 
 class PerformanceIndicator(MetricBase):
-    """Base class for performance indicators used in optimization and fractionation.
+    """
+    Base class for performance indicators used in optimization and fractionation.
 
     See Also
     --------
@@ -250,7 +260,8 @@ class PerformanceIndicator(MetricBase):
     """
 
     def __init__(self, ranking=None):
-        """Initialize PerformanceIndicator.
+        """
+        Initialize PerformanceIndicator.
 
         Parameters
         ----------
@@ -261,6 +272,7 @@ class PerformanceIndicator(MetricBase):
 
     @property
     def ranking(self):
+        """list[float]: Relative weighting factors for multi component evaluation."""
         return self._ranking
 
     @ranking.setter
@@ -268,11 +280,13 @@ class PerformanceIndicator(MetricBase):
         self._ranking = ranking
 
     @property
-    def bad_metrics(self):
+    def bad_metrics(self) -> int:
+        """int: Bad metrics to use when evaluation fails."""
         return 0
 
     def evaluate(self, performance):
-        """Evaluate the performance indicator for the given performance data.
+        """
+        Evaluate the performance indicator for the given performance data.
 
         Parameters
         ----------
@@ -305,18 +319,18 @@ class PerformanceIndicator(MetricBase):
 
     __call__ = evaluate
 
-    def __str__(self):
-        """String representation of the class."""
+    def __str__(self) -> str:
+        """str: String representation of the class."""
         return self.__class__.__name__
 
 
 class Mass(PerformanceIndicator):
-    """Performance indicator based on the mass of each component in the system.
+    """
+    Performance indicator based on the mass of each component in the system.
 
     See Also
     --------
     PerformanceIndicator
-
     """
 
     def _evaluate(self, performance):
@@ -324,12 +338,12 @@ class Mass(PerformanceIndicator):
 
 
 class Recovery(PerformanceIndicator):
-    """Performance indicator based on the recovery of each component in the system.
+    """
+    Performance indicator based on the recovery of each component in the system.
 
     See Also
     --------
     PerformanceIndicator
-
     """
 
     def _evaluate(self, performance):
@@ -337,12 +351,12 @@ class Recovery(PerformanceIndicator):
 
 
 class Productivity(PerformanceIndicator):
-    """Performance indicator based on the productivity of each component in the system.
+    """
+    Performance indicator based on the productivity of each component in the system.
 
     See Also
     --------
     PerformanceIndicator
-
     """
 
     def _evaluate(self, performance):
@@ -350,12 +364,12 @@ class Productivity(PerformanceIndicator):
 
 
 class EluentConsumption(PerformanceIndicator):
-    """Performance indicator based on the specific eluent consumption of each component.
+    """
+    Performance indicator based on the specific eluent consumption of each component.
 
     See Also
     --------
     PerformanceIndicator
-
     """
 
     def _evaluate(self, performance):
@@ -363,12 +377,12 @@ class EluentConsumption(PerformanceIndicator):
 
 
 class Purity(PerformanceIndicator):
-    """Performance indicator based on the purity of each component in the system.
+    """
+    Performance indicator based on the purity of each component in the system.
 
     See Also
     --------
     PerformanceIndicator
-
     """
 
     def _evaluate(self, performance):
@@ -376,12 +390,12 @@ class Purity(PerformanceIndicator):
 
 
 class Concentration(PerformanceIndicator):
-    """Performance indicator based on the concentration of each component in the system.
+    """
+    Performance indicator based on the concentration of each component in the system.
 
     See Also
     --------
     PerformanceIndicator
-
     """
 
     def _evaluate(self, performance):
@@ -389,7 +403,8 @@ class Concentration(PerformanceIndicator):
 
 
 class PerformanceProduct(PerformanceIndicator):
-    """Performance indicator based on the product of several performance indicators.
+    """
+    Performance indicator based on the product of several performance indicators.
 
     See Also
     --------
@@ -397,7 +412,6 @@ class PerformanceProduct(PerformanceIndicator):
     Recovery
     EluentConsumption
     PerformanceIndicator
-
     """
 
     def _evaluate(self, performance):
@@ -409,12 +423,12 @@ class PerformanceProduct(PerformanceIndicator):
 
 
 class MassBalanceDifference(PerformanceIndicator):
-    """Performance indicator based on the mass balance of each component in the system.
+    """
+    Performance indicator based on the mass balance of each component in the system.
 
     See Also
     --------
     PerformanceIndicator
-
     """
 
     def _evaluate(self, performance):

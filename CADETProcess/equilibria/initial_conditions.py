@@ -15,7 +15,8 @@ from CADETProcess.simulator import Cadet
 def simulate_solid_equilibria(
     binding_model, buffer, unit_model="cstr", flush=None, cadet_install_path=None
 ):
-    """Simulate initial conditions for solid phase for given buffer.
+    """
+    Simulate initial conditions for solid phase for given buffer.
 
     Parameters
     ----------
@@ -40,7 +41,6 @@ def simulate_solid_equilibria(
     -------
     list
         Initial conditions for solid phase.
-
     """
     process_name = flow_sheet_name = "initial_conditions"
     component_system = binding_model.component_system

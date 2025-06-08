@@ -38,7 +38,6 @@ def round_to_significant_digits(
     >>> round_to_significant_digits(values, 2)
     array([ 1.2e-05,  6.8e+03,  0.0e+00])
     """
-
     if digits is None:
         return values
 

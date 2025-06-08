@@ -26,7 +26,8 @@ Method to slice a Solution:
    slice_solution
    slice_solution_front
 
-"""
+
+"""  # noqa
 
 from __future__ import annotations
 
@@ -269,6 +270,7 @@ class SolutionIO(SolutionBase):
         super().__init__(name, component_system, time, solution)
 
     def update_solution(self):
+        """Update solution method."""
         self._solution_interpolated = None
         self._dm_dt_interpolated = None
         self.update_transform()
@@ -294,6 +296,7 @@ class SolutionIO(SolutionBase):
         return antiderivative
 
     def update_transform(self) -> NoReturn:
+        """Update the Transformer."""
         self.transform = transform.NormLinearTransformer(
             np.min(self.solution, axis=0),
             np.max(self.solution, axis=0),
@@ -311,6 +314,7 @@ class SolutionIO(SolutionBase):
 
     @property
     def dm_dt_interpolated(self):
+        """Return the dm/dt interpolated signal."""
         if self._dm_dt_interpolated is None:
             dm_dt = self.solution * self.flow_rate.value(self.time)
             self._dm_dt_interpolated = InterpolatedSignal(self.time, dm_dt)
@@ -318,7 +322,7 @@ class SolutionIO(SolutionBase):
         return self._dm_dt_interpolated
 
     def normalize(self) -> "SolutionIO":
-        """ "SolutionIO: Normalize the solution using the transformation function."""
+        """"SolutionIO: Normalize the solution using the transformation function."""
         solution = copy.deepcopy(self)
 
         solution.solution = self.transform.transform(self.solution)
@@ -487,7 +491,6 @@ class SolutionIO(SolutionBase):
         -------
         Fraction
             a Fraction object in the interval [start, end]
-
         """
         if start is None:
             start = self.time[0]
@@ -507,7 +510,7 @@ class SolutionIO(SolutionBase):
         end: Optional[float] = None,
     ) -> np.ndarray:
         """
-        Component mass in a fraction interval
+        Component mass in a fraction interval.
 
         Parameters
         ----------
@@ -817,7 +820,6 @@ class SolutionBulk(SolutionBase):
     Solution in the bulk phase of the ``UnitOperation``.
 
     Dimensions: NCOL * NRAD * NCOMP
-
     """
 
     dimensions = SolutionBase.dimensions + [
@@ -1699,7 +1701,7 @@ class SolutionVolume(SolutionBase):
 
     @property
     def solution_shape(self):
-        """tuple: (Expected) shape of the solution"""
+        """tuple: (Expected) shape of the solution."""
         return (self.nt,)
 
     @plotting.create_and_save_figure
@@ -1939,7 +1941,7 @@ class InterpolatedSignal:
 
     def derivative(self, time: np.ndarray) -> np.ndarray:
         """
-        Derivatives of the solution spline(s) at given time points.
+        Calculate derivatives of the solution spline(s) at given time points.
 
         Parameters
         ----------

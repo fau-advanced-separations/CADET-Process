@@ -4,6 +4,7 @@ import math
 import os
 import random
 import shutil
+import typing as tp
 import uuid
 import warnings
 from functools import wraps
@@ -65,7 +66,8 @@ __all__ = ["OptimizationProblem", "OptimizationVariable"]
 
 @frozen_attributes
 class OptimizationProblem(Structure):
-    """Class for configuring optimization problems.
+    """
+    Class for configuring optimization problems.
 
     Stores information about
     - optimization variables
@@ -101,7 +103,6 @@ class OptimizationProblem(Structure):
         Meta score functions.
     multi_criteria_decision_functions : list
         Multi criteria decision functions.
-
     """
 
     name = String()
@@ -113,7 +114,8 @@ class OptimizationProblem(Structure):
         cache_directory=None,
         log_level="INFO",
     ):
-        """Initialize OptimizationProblem.
+        """
+        Initialize OptimizationProblem.
 
         Parameters
         ----------
@@ -126,7 +128,6 @@ class OptimizationProblem(Structure):
             Only has an effect if `use_diskcache` is True.
         log_level : {'DEBUG', INFO, WARN, ERROR, CRITICAL}, optional
             Log level. The default is 'INFO'.
-
         """
         self.name = name
         self.logger = log.get_logger(self.name, level=log_level)
@@ -255,7 +256,8 @@ class OptimizationProblem(Structure):
         return self._evaluation_objects_dict
 
     def add_evaluation_object(self, evaluation_object, name=None):
-        """Add evaluation object to the optimization problem.
+        """
+        Add evaluation object to the optimization problem.
 
         Parameters
         ----------
@@ -270,7 +272,6 @@ class OptimizationProblem(Structure):
             If evaluation object already exists in optimization problem.
             If evaluation object with same name already exists in optimization
             problem.
-
         """
         if name is None:
             name = str(evaluation_object)
@@ -361,7 +362,8 @@ class OptimizationProblem(Structure):
         significant_digits=None,
         pre_processing=None,
     ):
-        """Add optimization variable to the OptimizationProblem.
+        """
+        Add optimization variable to the OptimizationProblem.
 
         The function encapsulates the creation of OptimizationVariable objects
         in order to prevent invalid OptimizationVariables.
@@ -390,7 +392,7 @@ class OptimizationProblem(Structure):
         significant_digits : int, optional
             Number of significant figures to which variable can be rounded.
             If None, variable is not rounded. The default is None.
-        pre_processing : callable, optional
+        pre_processing : tp.Callable, optional
             Additional step to process the value before setting it. This function must
             accept a single argument (the value) and return the processed value.
 
@@ -404,7 +406,6 @@ class OptimizationProblem(Structure):
         evaluation_objects
         OptimizationVariable
         remove_variable
-
         """
         if name in self.variables_dict:
             raise CADETProcessError("Variable already exists")
@@ -456,7 +457,8 @@ class OptimizationProblem(Structure):
         return var
 
     def remove_variable(self, var_name):
-        """Remove optimization variable from the OptimizationProblem.
+        """
+        Remove optimization variable from the OptimizationProblem.
 
         Parameters
         ----------
@@ -471,7 +473,6 @@ class OptimizationProblem(Structure):
         See Also
         --------
         add_variable
-
         """
         try:
             var = self.variables_dict[var_name]
@@ -567,7 +568,8 @@ class OptimizationProblem(Structure):
     def add_variable_dependency(
         self, dependent_variable, independent_variables, transform
     ):
-        """Add dependency between two optimization variables.
+        """
+        Add dependency between two optimization variables.
 
         Parameters
         ----------
@@ -575,7 +577,7 @@ class OptimizationProblem(Structure):
             OptimizationVariable whose value will depend on other variables.
         independent_variables : {str, list}
             Independent variable name or list of independent variables names.
-        transform : callable
+        transform : tp.Callable
             Function to describe dependency.
             Must take all independent variables as arguments in the order as
             given by independent_variables.
@@ -590,7 +592,6 @@ class OptimizationProblem(Structure):
         --------
         OptimizationVariable
         add_variable
-
         """
         try:
             var = self.variables_dict[dependent_variable]
@@ -608,7 +609,8 @@ class OptimizationProblem(Structure):
     @ensures2d
     @untransforms
     def get_dependent_values(self, X_independent: npt.ArrayLike) -> np.ndarray:
-        """Determine values of dependent optimization variables.
+        """
+        Determine values of dependent optimization variables.
 
         Parameters
         ----------
@@ -624,7 +626,6 @@ class OptimizationProblem(Structure):
         -------
         np.ndarray
             Value of all optimization variables in untransformed space.
-
         """
         if X_independent.shape[1] != self.n_independent_variables:
             raise CADETProcessError(
@@ -645,7 +646,8 @@ class OptimizationProblem(Structure):
     @ensures2d
     @untransforms
     def get_independent_values(self, X: npt.ArrayLike) -> np.ndarray:
-        """Remove dependent values from x.
+        """
+        Remove dependent values from x.
 
         Parameters
         ----------
@@ -662,7 +664,6 @@ class OptimizationProblem(Structure):
         -------
         x_independent : np.ndarray
             Values of all independent optimization variables.
-
         """
         if X.shape[1] != self.n_variables:
             raise CADETProcessError(f"Expected {self.n_variables} value(s).")
@@ -683,7 +684,8 @@ class OptimizationProblem(Structure):
     @untransforms
     @gets_dependent_values
     def set_variables(self, x, evaluation_objects=-1):
-        """Set the values from the x-vector to the EvaluationObjects.
+        """
+        Set the values from the x-vector to the EvaluationObjects.
 
         Parameters
         ----------
@@ -711,14 +713,13 @@ class OptimizationProblem(Structure):
         --------
         OptimizationVariable
         evaluate
-
         """
         for variable, value in zip(self.variables, x):
             variable.set_value(value)
 
     def _evaluate_population(
         self,
-        target_functions: list[callable],
+        target_functions: list[tp.Callable],
         X: npt.ArrayLike,
         parallelization_backend: ParallelizationBackendBase | None = None,
         force: bool = False,
@@ -728,7 +729,7 @@ class OptimizationProblem(Structure):
 
         Parameters
         ----------
-        target_functions : list[callable]
+        target_functions : list[tp.Callable]
             List of evaluation targets (e.g. objectives).
         X : npt.ArrayLike
             Population to be evaluated in untransformed space.
@@ -769,7 +770,7 @@ class OptimizationProblem(Structure):
 
     def _evaluate_individual(
         self,
-        target_functions: list[callable],
+        target_functions: list[tp.Callable],
         x: npt.ArrayLike,
         force=False,
     ) -> np.ndarray:
@@ -780,7 +781,7 @@ class OptimizationProblem(Structure):
         ----------
         x : npt.ArrayLike
             Value of all optimization variables in untransformed space.
-        target_functions: list[callable],
+        target_functions: list[tp.Callable],
             Evaluation functions.
         force : bool
             If True, do not use cached results. The default is False.
@@ -795,7 +796,6 @@ class OptimizationProblem(Structure):
         evaluate_objectives
         evaluate_nonlinear_constraints
         _evaluate
-
         """
         x = np.asarray(x)
         results = np.empty((0,))
@@ -814,7 +814,8 @@ class OptimizationProblem(Structure):
         return results
 
     def _evaluate(self, x, func, force=False):
-        """Iterate over all evaluation objects and evaluate at x.
+        """
+        Iterate over all evaluation objects and evaluate at x.
 
         Parameters
         ----------
@@ -830,7 +831,6 @@ class OptimizationProblem(Structure):
         -------
         results : np.ndarray
             Results of the evaluation functions.
-
         """
         self.logger.debug(f"evaluate {str(func)} at {x}")
 
@@ -917,14 +917,15 @@ class OptimizationProblem(Structure):
         return {evaluator.name: evaluator for evaluator in self.evaluators}
 
     def add_evaluator(self, evaluator, name=None, args=None, kwargs=None):
-        """Add Evaluator to OptimizationProblem.
+        """
+        Add Evaluator to OptimizationProblem.
 
         Evaluators can be referenced by objective and constraint functions to
         perform preprocessing steps.
 
         Parameters
         ----------
-        evaluator : callable
+        evaluator : tp.Callable
             Evaluation function.
         name : str, optional
             Name of the evaluator.
@@ -939,7 +940,6 @@ class OptimizationProblem(Structure):
             If evaluator is not callable.
         CADETProcessError
             If evaluator with same name already exists.
-
         """
         if not callable(evaluator):
             raise TypeError("Expected callable evaluator.")
@@ -998,11 +998,12 @@ class OptimizationProblem(Structure):
         *args,
         **kwargs,
     ):
-        """Add objective function to optimization problem.
+        """
+        Add objective function to optimization problem.
 
         Parameters
         ----------
-        objective : callable or MetricBase
+        objective : tp.Callable or MetricBase
             Objective function.
         name : str, optional
             Name of the objective.
@@ -1038,7 +1039,6 @@ class OptimizationProblem(Structure):
         CADETProcessError
             If EvaluationObject is not found.
             If Evaluator is not found.
-
         """
         if not callable(objective):
             raise TypeError("Expected callable objective.")
@@ -1132,6 +1132,24 @@ class OptimizationProblem(Structure):
         )
 
     def evaluate_objectives_population(self, *args, **kwargs):
+        """
+        Evaluate objective functions for each individual in a population.
+
+        This method is deprecated and will be removed in a future version.
+        Use `evaluate_objectives` instead, which now supports the evaluation of nd arrays.
+
+        Parameters
+        ----------
+        *args : tuple
+            Variable length argument list.
+        **kwargs : dict
+            Arbitrary keyword arguments.
+
+        Notes
+        -----
+        This function issues a deprecation warning to indicate that it will be removed
+        in future versions. Use `evaluate_objectives` for similar functionality.
+        """
         warnings.warn(
             "This function is deprecated; use `evaluate_objectives` instead, which now "
             "directly supports the evaluation of nd arrays.",
@@ -1143,7 +1161,8 @@ class OptimizationProblem(Structure):
     @untransforms
     @gets_dependent_values
     def objective_jacobian(self, x, ensure_minimization=False, dx=1e-3):
-        """Compute jacobian of objective functions using finite differences.
+        """
+        Compute jacobian of objective functions using finite differences.
 
         Parameters
         ----------
@@ -1161,7 +1180,6 @@ class OptimizationProblem(Structure):
         --------
         objectives
         approximate_jac
-
         """
         jacobian = approximate_jac(
             x, self.evaluate_objectives, dx, ensure_minimization=ensure_minimization
@@ -1218,11 +1236,12 @@ class OptimizationProblem(Structure):
         *args,
         **kwargs,
     ):
-        """Add nonliner constraint function to optimization problem.
+        """
+        Add nonliner constraint function to optimization problem.
 
         Parameters
         ----------
-        nonlincon : callable
+        nonlincon : tp.Callable
             Nonlinear constraint function.
         name : str, optional
             Name of the nonlinear constraint.
@@ -1265,7 +1284,6 @@ class OptimizationProblem(Structure):
         CADETProcessError
             If EvaluationObject is not found.
             If Evaluator is not found.
-
         """
         if not callable(nonlincon):
             raise TypeError("Expected callable constraint function.")
@@ -1365,6 +1383,25 @@ class OptimizationProblem(Structure):
         )
 
     def evaluate_nonlinear_constraints_population(self, *args, **kwargs):
+        """
+        Evaluate nonlinear constraint functions for each individual in a population.
+
+        This method is deprecated and will be removed in a future version.
+        Use `evaluate_nonlinear_constraints` instead, which now supports the
+        evaluation of nd arrays.
+
+        Parameters
+        ----------
+        *args : tuple
+            Variable length argument list.
+        **kwargs : dict
+            Arbitrary keyword arguments.
+
+        Notes
+        -----
+        This function issues a deprecation warning to indicate that it will be removed
+        in future versions. Use `evaluate_nonlinear_constraints` for similar functionality.
+        """
         warnings.warn(
             "This function is deprecated; use `evaluate_nonlinear_constraints` "
             "instead, which now directly supports the evaluation of nd arrays.",
@@ -1429,6 +1466,26 @@ class OptimizationProblem(Structure):
         return G_transformed - bounds_transformed
 
     def evaluate_nonlinear_constraints_violation_population(self, *args, **kwargs):
+        """
+        Evaluate nonlinear constraint violation for each individual in a population.
+
+        This method is deprecated and will be removed in a future version.
+        Use `evaluate_nonlinear_constraints_violation` instead, which now supports
+        the evaluation of nd arrays.
+
+        Parameters
+        ----------
+        *args : tuple
+            Variable length argument list.
+        **kwargs : dict
+            Arbitrary keyword arguments.
+
+        Notes
+        -----
+        This function issues a deprecation warning to indicate that it will be removed
+        in future versions. Use `evaluate_nonlinear_constraints_violation` for similar
+        functionality.
+        """
         warnings.warn(
             "This function is deprecated; use "
             "`evaluate_nonlinear_constraints_violation` instead, which now directly "
@@ -1443,7 +1500,8 @@ class OptimizationProblem(Structure):
     def check_nonlinear_constraints(
         self, x: npt.ArrayLike, cv_nonlincon_tol: Optional[float | np.ndarray] = 0.0
     ) -> bool:
-        """Check if all nonlinear constraints are met.
+        """
+        Check if all nonlinear constraints are met.
 
         Parameters
         ----------
@@ -1482,7 +1540,8 @@ class OptimizationProblem(Structure):
     @untransforms
     @gets_dependent_values
     def nonlinear_constraint_jacobian(self, x, dx=1e-3):
-        """Compute jacobian of the nonlinear constraints at point x.
+        """
+        Compute jacobian of the nonlinear constraints at point x.
 
         Parameters
         ----------
@@ -1500,7 +1559,6 @@ class OptimizationProblem(Structure):
         --------
         nonlinear_constraint_fun
         approximate_jac
-
         """
         jacobian = approximate_jac(x, self.evaluate_nonlinear_constraints, dx)
 
@@ -1533,11 +1591,12 @@ class OptimizationProblem(Structure):
         *args,
         **kwargs,
     ):
-        """Add callback function for processing (intermediate) results.
+        """
+        Add callback function for processing (intermediate) results.
 
         Parameters
         ----------
-        callback : callable
+        callback : tp.Callable
             Callback function.
         name : str, optional
             Name of the callback.
@@ -1571,7 +1630,6 @@ class OptimizationProblem(Structure):
         CADETProcessError
             If EvaluationObject is not found.
             If Evaluator is not found.
-
         """
         if not callable(callback):
             raise TypeError("Expected callable callback.")
@@ -1689,6 +1747,24 @@ class OptimizationProblem(Structure):
         parallelization_backend.evaluate(evaluate_callbacks, population)
 
     def evaluate_callbacks_population(self, *args, **kwargs):
+        """
+        Evaluate callbacks functions for each individual in a population.
+
+        This method is deprecated and will be removed in a future version.
+        Use `evaluate_callbacks` instead, which now supports the evaluation of nd arrays.
+
+        Parameters
+        ----------
+        *args : tuple
+            Variable length argument list.
+        **kwargs : dict
+            Arbitrary keyword arguments.
+
+        Notes
+        -----
+        This function issues a deprecation warning to indicate that it will be removed
+        in future versions. Use `evaluate_callbacks` for similar functionality.
+        """
         warnings.warn(
             "This function is deprecated; use `evaluate_callbacks` instead, which now "
             "directly supports the evaluation of nd arrays.",
@@ -1730,11 +1806,12 @@ class OptimizationProblem(Structure):
         evaluation_objects=-1,
         requires=None,
     ):
-        """Add Meta score to the OptimizationProblem.
+        """
+        Add Meta score to the OptimizationProblem.
 
         Parameters
         ----------
-        meta_score : callable
+        meta_score : tp.Callable
             Objective function.
         name : str, optional
             Name of the meta score.
@@ -1762,7 +1839,6 @@ class OptimizationProblem(Structure):
         CADETProcessError
             If EvaluationObject is not found.
             If Evaluator is not found.
-
         """
         if not callable(meta_score):
             raise TypeError("Expected callable meta score.")
@@ -1848,6 +1924,24 @@ class OptimizationProblem(Structure):
         )
 
     def evaluate_meta_scores_population(self, *args, **kwargs):
+        """
+        Evaluate meta scores for each individual in a population.
+
+        This method is deprecated and will be removed in a future version.
+        Use `evaluate_meta_scores` instead, which now supports the evaluation of nd arrays.
+
+        Parameters
+        ----------
+        *args : tuple
+            Variable length argument list.
+        **kwargs : dict
+            Arbitrary keyword arguments.
+
+        Notes
+        -----
+        This function issues a deprecation warning to indicate that it will be removed
+        in future versions. Use `evaluate_meta_scores` for similar functionality.
+        """
         warnings.warn(
             "This function is deprecated; use `evaluate_meta_scores` instead, which now "
             "directly supports the evaluation of nd arrays.",
@@ -1872,11 +1966,12 @@ class OptimizationProblem(Structure):
         return len(self.multi_criteria_decision_functions)
 
     def add_multi_criteria_decision_function(self, decision_function, name=None):
-        """Add multi criteria decision function to OptimizationProblem.
+        """
+        Add multi criteria decision function to OptimizationProblem.
 
         Parameters
         ----------
-        decision_function : callable
+        decision_function : tp.Callable
             Multi criteria decision function.
         name : str, optional
             Name of the multi criteria decision function.
@@ -2033,7 +2128,8 @@ class OptimizationProblem(Structure):
     @untransforms
     @gets_dependent_values
     def evaluate_bounds(self, x):
-        """Calculate bound violation.
+        """
+        Calculate bound violation.
 
         Parameters
         ----------
@@ -2050,7 +2146,6 @@ class OptimizationProblem(Structure):
         check_bounds
         lower_bounds
         upper_bounds
-
         """
         # Calculate the residuals for lower bounds
         lower_residual = np.maximum(0, self.lower_bounds - x)
@@ -2068,7 +2163,8 @@ class OptimizationProblem(Structure):
     def check_bounds(
         self, x: npt.ArrayLike, cv_bounds_tol: Optional[float | np.ndarray] = 0.0
     ) -> bool:
-        """Check if all bound constraints are kept.
+        """
+        Check if all bound constraints are kept.
 
         Parameters
         ----------
@@ -2128,7 +2224,8 @@ class OptimizationProblem(Structure):
         return len(self.linear_constraints)
 
     def add_linear_constraint(self, opt_vars, lhs=1.0, b=0.0):
-        """Add linear inequality constraints.
+        """
+        Add linear inequality constraints.
 
         Parameters
         ----------
@@ -2151,7 +2248,6 @@ class OptimizationProblem(Structure):
         linear_constraints
         remove_linear_constraint
         linear_equality_constraints
-
         """
         if not isinstance(opt_vars, list):
             opt_vars = [opt_vars]
@@ -2175,7 +2271,8 @@ class OptimizationProblem(Structure):
         self._linear_constraints.append(lincon)
 
     def remove_linear_constraint(self, index):
-        """Remove linear inequality constraint.
+        """
+        Remove linear inequality constraint.
 
         Parameters
         ----------
@@ -2186,13 +2283,13 @@ class OptimizationProblem(Structure):
         --------
         add_linear_equality_constraint
         linear_equality_constraint
-
         """
         del self._linear_constraints[index]
 
     @property
     def A(self):
-        """np.ndarray: LHS Matrix of linear inequality constraints.
+        """
+        np.ndarray: LHS Matrix of linear inequality constraints.
 
         See Also
         --------
@@ -2202,7 +2299,6 @@ class OptimizationProblem(Structure):
         A_transformed
         A_independent
         A_independent_transformed
-
         """
         A = np.zeros((len(self.linear_constraints), len(self.variables)))
 
@@ -2215,14 +2311,14 @@ class OptimizationProblem(Structure):
 
     @property
     def A_transformed(self):
-        """np.ndarray: LHS Matrix of linear inequality constraints in transformed space.
+        """
+        np.ndarray: LHS Matrix of linear inequality constraints in transformed space.
 
         See Also
         --------
         A
         A_independent_transformed
         A_independent
-
         """
         A_t = self.A.copy()
         for a in A_t:
@@ -2247,33 +2343,34 @@ class OptimizationProblem(Structure):
 
     @property
     def A_independent(self):
-        """np.ndarray: LHS Matrix of linear inequality constraints for indep variables.
+        """
+        np.ndarray: LHS Matrix of linear inequality constraints for indep variables.
 
         See Also
         --------
         A
         A_transformed
         A_independent_transformed
-
         """
         return self.A[:, self.independent_variable_indices]
 
     @property
     def A_independent_transformed(self):
-        """np.ndarray: LHS of lin ineqs for indep variables in transformed space.
+        """
+        np.ndarray: LHS of lin ineqs for indep variables in transformed space.
 
         See Also
         --------
         A
         A_transformed
         A_independent
-
         """
         return self.A_transformed[:, self.independent_variable_indices]
 
     @property
     def b(self):
-        """np.ndarray: Vector form of linear constraints.
+        """
+        np.ndarray: Vector form of linear constraints.
 
         See Also
         --------
@@ -2281,7 +2378,6 @@ class OptimizationProblem(Structure):
         add_linear_constraint
         remove_linear_constraint
         b_transformed
-
         """
         b = [lincon["b"] for lincon in self.linear_constraints]
 
@@ -2334,7 +2430,8 @@ class OptimizationProblem(Structure):
     @untransforms
     @gets_dependent_values
     def evaluate_linear_constraints(self, x):
-        """Calculate value of linear inequality constraints at point x.
+        """
+        Calculate value of linear inequality constraints at point x.
 
         Parameters
         ----------
@@ -2351,7 +2448,6 @@ class OptimizationProblem(Structure):
         A
         b
         linear_constraints
-
         """
         values = np.array(x, ndmin=1)
 
@@ -2362,7 +2458,8 @@ class OptimizationProblem(Structure):
     def check_linear_constraints(
         self, x: npt.ArrayLike, cv_lincon_tol: Optional[float | np.ndarray] = 0.0
     ) -> bool:
-        """Check if linear inequality constraints are met at point x.
+        """
+        Check if linear inequality constraints are met at point x.
 
         Parameters
         ----------
@@ -2426,7 +2523,8 @@ class OptimizationProblem(Structure):
         return len(self.linear_equality_constraints)
 
     def add_linear_equality_constraint(self, opt_vars, lhs=1, beq=0, eps=0.0):
-        """Add linear equality constraints.
+        """
+        Add linear equality constraints.
 
         Parameters
         ----------
@@ -2449,7 +2547,6 @@ class OptimizationProblem(Structure):
         linear_equality_constraints
         remove_linear_equality_constraint
         linear_constraints
-
         """
         if not isinstance(opt_vars, list):
             opt_vars = [opt_vars]
@@ -2474,7 +2571,8 @@ class OptimizationProblem(Structure):
         self._linear_equality_constraints.append(lineqcon)
 
     def remove_linear_equality_constraint(self, index):
-        """Remove linear equality constraint.
+        """
+        Remove linear equality constraint.
 
         Parameters
         ----------
@@ -2485,20 +2583,19 @@ class OptimizationProblem(Structure):
         --------
         add_linear_equality_constraint
         linear_equality_constraint
-
         """
         del self._linear_equality_constraints[index]
 
     @property
     def Aeq(self):
-        """np.ndarray: LHS Matrix form of linear equality constraints.
+        """
+        np.ndarray: LHS Matrix form of linear equality constraints.
 
         See Also
         --------
         beq
         add_linear_equality_constraint
         remove_linear_equality_constraint
-
         """
         Aeq = np.zeros((len(self.linear_equality_constraints), len(self.variables)))
 
@@ -2511,7 +2608,8 @@ class OptimizationProblem(Structure):
 
     @property
     def Aeq_transformed(self):
-        """np.ndarray: LHS Matrix of linear equality constraints in transformed space.
+        """
+        np.ndarray: LHS Matrix of linear equality constraints in transformed space.
 
         See Also
         --------
@@ -2542,40 +2640,40 @@ class OptimizationProblem(Structure):
 
     @property
     def Aeq_independent(self):
-        """np.ndarray: LHS Matrix of linear inequality constraints for indep variables.
+        """
+        np.ndarray: LHS Matrix of linear inequality constraints for indep variables.
 
         See Also
         --------
         Aeq
         Aeq_transformed
         Aeq_independent_transformed
-
         """
         return self.Aeq[:, self.independent_variable_indices]
 
     @property
     def Aeq_independent_transformed(self):
-        """np.ndarray: LHS of lin ineqs for indep variables in transformed space.
+        """
+        np.ndarray: LHS of lin ineqs for indep variables in transformed space.
 
         See Also
         --------
         Aeq
         Aeq_transformed
         Aeq_independent
-
         """
         return self.Aeq_transformed[:, self.independent_variable_indices]
 
     @property
     def beq(self):
-        """np.ndarray: Vector form of linear equality constraints.
+        """
+        np.ndarray: Vector form of linear equality constraints.
 
         See Also
         --------
         Aeq
         add_linear_equality_constraint
         remove_linear_equality_constraint
-
         """
         beq = [lincon["beq"] for lincon in self.linear_equality_constraints]
 
@@ -2627,7 +2725,8 @@ class OptimizationProblem(Structure):
 
     @property
     def eps_lineq(self):
-        """np.array: Relaxation tolerance for linear equality constraints.
+        """
+        np.array: Relaxation tolerance for linear equality constraints.
 
         See Also
         --------
@@ -2640,7 +2739,8 @@ class OptimizationProblem(Structure):
     @untransforms
     @gets_dependent_values
     def evaluate_linear_equality_constraints(self, x):
-        """Calculate value of linear equality constraints at point x.
+        """
+        Calculate value of linear equality constraints at point x.
 
         Parameters
         ----------
@@ -2657,7 +2757,6 @@ class OptimizationProblem(Structure):
         Aeq
         beq
         linear_equality_constraints
-
         """
         values = np.array(x, ndmin=1)
 
@@ -2670,7 +2769,8 @@ class OptimizationProblem(Structure):
         x: npt.ArrayLike,
         cv_lineq_tol: Optional[float | np.ndarray] = 0.0,
     ) -> bool:
-        """Check if linear equality constraints are met at point x.
+        """
+        Check if linear equality constraints are met at point x.
 
         Parameters
         ----------
@@ -2710,7 +2810,8 @@ class OptimizationProblem(Structure):
 
     @ensures2d
     def transform(self, X_independent: npt.ArrayLike) -> np.ndarray:
-        """Transform independent optimization variables from untransformed parameter space.
+        """
+        Transform independent optimization variables from untransformed parameter space.
 
         Parameters
         ----------
@@ -2734,7 +2835,8 @@ class OptimizationProblem(Structure):
 
     @ensures2d
     def untransform(self, X_transformed: npt.ArrayLike) -> np.ndarray:
-        """Untransform the optimization variables from transformed parameter space.
+        """
+        Untransform the optimization variables from transformed parameter space.
 
         Parameters
         ----------
@@ -2787,7 +2889,7 @@ class OptimizationProblem(Structure):
         self._cache_directory = cache_directory
 
     def setup_cache(self, n_shards=1):
-        """Setup cache to store (intermediate) results."""
+        """Set up cache to store (intermediate) results."""
         self.cache = ResultsCache(self.use_diskcache, self.cache_directory, n_shards)
 
     def delete_cache(self, reinit=False):
@@ -2809,7 +2911,6 @@ class OptimizationProblem(Structure):
             Tag to be removed. The default is 'temp'.
         close : bool, optional
             If True, database will be closed after operation. The default is True.
-
         """
         self.cache.prune(tag, close)
 
@@ -2836,7 +2937,6 @@ class OptimizationProblem(Structure):
         -------
         problem
             hopsy.Problem
-
         """
 
         class CustomModel:
@@ -2911,7 +3011,8 @@ class OptimizationProblem(Structure):
         self,
         include_dependent_variables: Optional[bool] = True,
     ) -> list[float]:
-        """Compute chebychev center.
+        """
+        Compute chebychev center.
 
         The Chebyshev center is the center of the largest Euclidean ball that is fully
         contained within the polytope of the parameter space.
@@ -2944,7 +3045,8 @@ class OptimizationProblem(Structure):
         burn_in: Optional[int] = 100000,
         include_dependent_variables: Optional[bool] = True,
     ) -> np.ndarray:
-        """Create initial value within parameter space.
+        """
+        Create initial value within parameter space.
 
         Uses hopsy (Highly Optimized toolbox for Polytope Sampling) to retrieve
         uniformly distributed samples from the parameter space.
@@ -2972,7 +3074,6 @@ class OptimizationProblem(Structure):
         -------
         values : np.ndarray
             Initial values for starting the optimization.
-
         """
         burn_in = int(burn_in)
 
@@ -3189,7 +3290,8 @@ class OptimizationProblem(Structure):
         return pop
 
     @property
-    def parameters(self):
+    def parameters(self) -> dict:
+        """dict: Parameters of the optimization problem."""
         parameters = Dict()
 
         parameters.variables = {opt.name: opt.parameters for opt in self.variables}
@@ -3199,7 +3301,8 @@ class OptimizationProblem(Structure):
         return parameters
 
     def check_linear_constraints_transforms(self):
-        """Check that variables used in linear constraints only use linear transforms.
+        """
+        Check that variables used in linear constraints only use linear transforms.
 
         Returns
         -------
@@ -3229,7 +3332,8 @@ class OptimizationProblem(Structure):
         return flag
 
     def check_linear_constraints_dependency(self):
-        """Check that variables used in linear constraints are independent.
+        """
+        Check that variables used in linear constraints are independent.
 
         Returns
         -------
@@ -3259,7 +3363,8 @@ class OptimizationProblem(Structure):
         return flag
 
     def check_config(self, ignore_linear_constraints=False):
-        """Check if the OptimizationProblem is configured correctly.
+        """
+        Check if the OptimizationProblem is configured correctly.
 
         Parameters
         ----------
@@ -3270,7 +3375,6 @@ class OptimizationProblem(Structure):
         -------
         bool
             True if the OptimizationProblem is configured correctly, False otherwise.
-
         """
         flag = True
         if self.n_variables == 0:
@@ -3360,12 +3464,14 @@ class OptimizationProblem(Structure):
 
         return flag
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """str: Name of the optimization problem."""
         return self.name
 
 
 class OptimizationVariable:
-    """Class for setting the values for the optimization variables.
+    """
+    Class for setting the values for the optimization variables.
 
     Defines the attributes for optimization variables for creating an
     OptimizationVariable. Tries to get the attr of the evaluation_object.
@@ -3391,7 +3497,7 @@ class OptimizationVariable:
     significant_digits : int, optional
         Number of significant figures to which variable can be rounded.
         If None, variable is not rounded. The default is None.
-    pre_processing : callable, optional
+    pre_processing : tp.Callable, optional
         Additional step to process the value before setting it. This function must
         accept a single argument (the value) and return the processed value.
 
@@ -3576,7 +3682,8 @@ class OptimizationVariable:
         return check_nested(polynomial_parameters, self.parameter_path)
 
     @property
-    def indices(self):
+    def indices(self) -> None | list[int]:
+        """list[int]: List of parameter indices that are modified by optimization variable."""
         if self._indices is None:
             return
 
@@ -3713,13 +3820,14 @@ class OptimizationVariable:
         return self.transformer.untransform(x, *args, **kwargs)
 
     def add_dependency(self, dependencies, transform):
-        """Add dependency of Variable on other Variables.
+        """
+        Add dependency of Variable on other Variables.
 
         Parameters
         ----------
         dependencies : list
             List of OptimizationVariables to be added as dependencies.
-        transform: callable
+        transform: tp.Callable
             Transform function describing dependency on independent variables.
 
         Raises
@@ -3849,7 +3957,7 @@ class OptimizationVariable:
 
                 parameter_type = self._parameter_type(eval_obj)
                 if (
-                    parameter_type is not NumpyProxyArray 
+                    parameter_type is not NumpyProxyArray
                     and not isinstance(new_value, parameter_type)
                 ):
                     new_value = parameter_type(new_value.tolist())
@@ -3874,7 +3982,8 @@ class OptimizationVariable:
         """list: Transformed bounds of the parameter."""
         return [self.transform(self.lb), self.transform(self.ub)]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """str: String representation."""
         if self.evaluation_objects is not None:
             string = (
                 f"{self.__class__.__name__}"
@@ -3923,7 +4032,8 @@ class Evaluator(Structure):
 
     evaluate = __call__
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """str: The name of the evaluator."""
         return self.name
 
 
@@ -4032,7 +4142,8 @@ class Metric(Structure):
 
     evaluate = __call__
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Name of the metric."""
         return self.name
 
 
@@ -4071,7 +4182,8 @@ class NonlinearConstraint(Metric):
 
 
 class Callback(Structure):
-    """Wrapper class to evaluate callbacks.
+    """
+    Wrapper class to evaluate callbacks.
 
     Callable must implement function with the following signature:
         results : obj
@@ -4177,7 +4289,8 @@ class Callback(Structure):
 
     evaluate = __call__
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """str: Name of the callback."""
         return self.name
 
 
@@ -4211,18 +4324,26 @@ class MultiCriteriaDecisionFunction(Structure):
 
     evaluate = __call__
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """str: Name of the multi-criteria decision function."""
         return self.name
 
 
-def approximate_jac(xk, f, epsilon, args=(), **kwargs):
-    """Finite-difference approximation of the jacobian of a vector function
+def approximate_jac(
+        xk: npt.ArrayLike,
+        f: tp.Callable,
+        epsilon: npt.ArrayLike,
+        args: Any = (),
+        **kwargs: Any
+    ) -> np.ndarray:
+    r"""
+    Finite-difference approximation of the jacobian of a vector function.
 
     Parameters
     ----------
     xk : array_like
         The coordinate vector at which to determine the jacobian of `f`.
-    f : callable
+    f : tp.Callable
         The function of which to determine the jacobian (partial derivatives).
         Should take `xk` as first argument, other arguments to `f` can be
         supplied in ``*args``.  Should return a vector, the values of the
@@ -4232,7 +4353,7 @@ def approximate_jac(xk, f, epsilon, args=(), **kwargs):
         If a scalar, uses the same finite difference delta for all partial
         derivatives.  If an array, should contain one value per element of
         `xk`.
-    \\*args : args, optional
+    *args : args, optional
         Any other arguments that are to be passed to `f`.
 
     Returns
@@ -4248,7 +4369,6 @@ def approximate_jac(xk, f, epsilon, args=(), **kwargs):
                  f(xk[i] + epsilon[i]) - f(xk[i])
         f'[:,i] = ---------------------------------
                             epsilon[i]
-
     """
     f0 = np.array(f(*((xk,) + args)))
 

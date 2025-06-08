@@ -3,7 +3,7 @@ import os
 import warnings
 from functools import wraps
 from pathlib import Path
-from typing import Literal, NoReturn
+from typing import Any, Literal, NoReturn
 
 import matplotlib.cm as cmx
 import matplotlib.colors as colors
@@ -29,7 +29,8 @@ cmap_infeas = plt.get_cmap("autumn_r")
 
 
 class OptimizationResults(Structure):
-    """Optimization results.
+    """
+    Optimization results.
 
     Attributes
     ----------
@@ -62,7 +63,6 @@ class OptimizationResults(Structure):
     meta_front : ParetoFront
         Reduced pareto optimal solutions using meta scores and multi-criteria decision
         functions.
-
     """
 
     success = Bool(default=False)
@@ -99,6 +99,7 @@ class OptimizationResults(Structure):
 
     @property
     def results_directory(self) -> Path:
+        """Path: Results directory path."""
         return self._results_directory
 
     @results_directory.setter
@@ -114,37 +115,45 @@ class OptimizationResults(Structure):
 
     @property
     def is_finished(self) -> bool:
+        """bool: True if optimization has finished. False otherwise."""
         if self.exit_flag is None:
             return False
         else:
             return True
 
     @property
-    def optimizer_state(self):
+    def optimizer_state(self) -> dict:
+        """dict: Internal state of the optimizer."""
         return self._optimizer_state
 
     @property
     def populations(self) -> list[Population]:
+        """list[Population]: List of populations per generation."""
         return self._populations
 
     @property
     def population_last(self) -> Population:
+        """Population: Final population."""
         return self.populations[-1]
 
     @property
     def population_all(self) -> Population:
+        """Population: Population with all evaluated individuals."""
         return self._population_all
 
     @property
     def pareto_fronts(self) -> list[ParetoFront]:
+        """list[ParetoFront]: List of Pareto fronts per generation."""
         return self._pareto_fronts
 
     @property
     def pareto_front(self) -> ParetoFront:
+        """ParetoFront: Final Pareto front."""
         return self._pareto_fronts[-1]
 
     @property
     def meta_fronts(self) -> list[Population]:
+        """list[Population]: List of meta fronts per generation."""
         if self._meta_fronts is None:
             return self.pareto_fronts
         else:
@@ -152,13 +161,15 @@ class OptimizationResults(Structure):
 
     @property
     def meta_front(self) -> Population:
+        """Population: Meta front."""
         if self._meta_fronts is None:
             return self.pareto_front
         else:
             return self._meta_fronts[-1]
 
     def update(self, new: Individual | Population):
-        """Update Results.
+        """
+        Update Results.
 
         Parameters
         ----------
@@ -181,7 +192,8 @@ class OptimizationResults(Structure):
         self.population_all.update(population)
 
     def update_pareto(self, pareto_new: Population | None = None):
-        """Update pareto front with new population.
+        """
+        Update pareto front with new population.
 
         Parameters
         ----------
@@ -202,7 +214,8 @@ class OptimizationResults(Structure):
         self._pareto_fronts.append(pareto_front)
 
     def update_meta(self, meta_front: Population):
-        """Update meta front with new population.
+        """
+        Update meta front with new population.
 
         Parameters
         ----------
@@ -377,7 +390,8 @@ class OptimizationResults(Structure):
             return np.array([pop.m_avg for pop in self.meta_fronts])
 
     def plot_figures(self, show=True):
-        """Plot result figures.
+        """
+        Plot result figures.
 
         See Also
         --------
@@ -386,7 +400,6 @@ class OptimizationResults(Structure):
         plot_corner
         plot_pairwise
         plot_pareto
-
         """
         if self.plot_directory is None:
             return
@@ -431,7 +444,8 @@ class OptimizationResults(Structure):
         show=True,
         plot_directory=None,
     ):
-        """Plot objective function values for all optimization generations.
+        """
+        Plot objective function values for all optimization generations.
 
         Parameters
         ----------
@@ -467,7 +481,6 @@ class OptimizationResults(Structure):
         See Also
         --------
         CADETProcess.optimization.Population.plot_objectives
-
         """
         axs = None
         figs = None
@@ -507,7 +520,8 @@ class OptimizationResults(Structure):
     def plot_pareto(
         self, show=True, plot_pareto=True, plot_evolution=False, plot_directory=None
     ):
-        """Plot Pareto fronts for each generation in the optimization.
+        """
+        Plot Pareto fronts for each generation in the optimization.
 
         The Pareto front represents the optimal solutions that cannot be improved in one
         objective without sacrificing another.
@@ -544,7 +558,6 @@ class OptimizationResults(Structure):
         See Also
         --------
         CADETProcess.optimization.Population.plot_pareto
-
         """
         plot = None
         _show = False
@@ -579,14 +592,43 @@ class OptimizationResults(Structure):
         return plot.fig, plot.ax
 
     @wraps(Population.plot_corner)
-    def plot_corner(self, *args, **kwargs):
+    def plot_corner(self, *args: Any, **kwargs: Any) -> None:
+        """Create corner plot of population."""
         return self.population_all.plot_corner(*args, **kwargs)
 
     @wraps(Population.plot_pairwise)
-    def plot_pairwise(self, *args, **kwargs):
+    def plot_pairwise(self, *args: Any, **kwargs: Any) -> tuple[plt.Figure, np.ndarray[plt.Axes]]:
+        """Plot population pairwise."""
         return self.population_all.plot_pairwise(*args, **kwargs)
 
-    def setup_convergence_figure(self, target, plot_individual=False):
+    def setup_convergence_figure(
+        self,
+        target: Literal["objectives", "nonlinear_constraints", "meta_scores"],
+        plot_individual: bool = False,
+    ) -> tuple[list, list]:
+        """
+        Set up figures and axes for plotting convergence of specified targets.
+
+        Parameters
+        ----------
+        target : str
+            The target type for convergence plotting. Options are "objectives",
+            "nonlinear_constraints", or "meta_scores".
+        plot_individual : bool, optional
+            If True, individual figures are created for each target. Otherwise, a single
+            figure with subplots is created. Default is False.
+
+        Returns
+        -------
+        tuple[list, list]
+            A tuple containing lists of matplotlib Figure and Axes objects.
+            Returns individual figures and axes if `plot_individual` is True.
+
+        Raises
+        ------
+        CADETProcessError
+            If the specified target is unknown or not supported.
+        """
         if target == "objectives":
             n = self.optimization_problem.n_objectives
         elif target == "nonlinear_constraints":
@@ -634,7 +676,8 @@ class OptimizationResults(Structure):
         show=True,
         plot_directory=None,
     ):
-        """Plot the convergence of optimization metrics over evaluations.
+        """
+        Plot the convergence of optimization metrics over evaluations.
 
         Parameters
         ----------
@@ -663,7 +706,6 @@ class OptimizationResults(Structure):
             A tuple containing:
             - plt.Figure: The Matplotlib Figure object.
             - npt.NDArray[plt.Axes]: An array of Axes objects representing the subplots.
-
         """
         if axs is None:
             figs, axs = self.setup_convergence_figure(target, plot_individual)
@@ -814,7 +856,6 @@ class OptimizationResults(Structure):
         ----------
         file_name : str
             Path to the checkpoint file.
-
         """
         data = H5()
         data.filename = file_name
@@ -830,7 +871,8 @@ class OptimizationResults(Structure):
         self.update_from_dict(data.root)
 
     def to_dict(self) -> dict:
-        """Convert Results to a dictionary.
+        """
+        Convert Results to a dictionary.
 
         Returns
         -------
@@ -857,7 +899,8 @@ class OptimizationResults(Structure):
         return data
 
     def update_from_dict(self, data: dict):
-        """Update internal state from dictionary.
+        """
+        Update internal state from dictionary.
 
         Parameters
         ----------

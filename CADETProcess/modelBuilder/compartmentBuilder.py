@@ -8,6 +8,17 @@ from CADETProcess.processModel import Cstr, FlowSheet, Inlet, Outlet, Process
 
 
 class CompartmentBuilder(metaclass=StructMeta):
+    """
+    Class to build complex compartment models of bioreactors.
+
+    Attributes
+    ----------
+    name : str
+        Name of the CompartmentBuilder.
+    n_compartments : int
+        Number of compartments in the bioreactor.
+    """
+
     name = String()
     n_compartments = UnsignedInteger()
 
@@ -22,7 +33,8 @@ class CompartmentBuilder(metaclass=StructMeta):
         particle_reaction_model=None,
         name=None,
     ):
-        """Initialize builder.
+        """
+        Initialize builder.
 
         Parameters
         ----------
@@ -42,7 +54,6 @@ class CompartmentBuilder(metaclass=StructMeta):
             Particle reaction model for all compartments. The default is None.
         name : str, optional
             Name of the model. The default is None.
-
         """
         self.component_system = component_system
         if name is None:
@@ -72,7 +83,7 @@ class CompartmentBuilder(metaclass=StructMeta):
 
     @property
     def _real_compartments(self):
-        """list: Compartment units excluding pseudo units s.a. Inlet/Outlet"""
+        """list: Compartment units excluding pseudo units s.a. Inlet/Outlet."""
         compartments = []
         for i in range(self.n_compartments):
             name = f"compartment_{i}"
@@ -85,7 +96,7 @@ class CompartmentBuilder(metaclass=StructMeta):
     @property
     @wraps(Cstr.binding_model)
     def binding_model(self):
-        """Wrapper around master compartment to set binding model"""
+        """Wrapper around master compartment to set binding model."""
         return self._compartment_model.binding_model
 
     @binding_model.setter
@@ -100,7 +111,7 @@ class CompartmentBuilder(metaclass=StructMeta):
     @property
     @wraps(Cstr.bulk_reaction_model)
     def bulk_reaction_model(self):
-        """Wrapper around master compartment to set bulk reaction model"""
+        """Wrapper around master compartment to set bulk reaction model."""
         return self._compartment_model.bulk_reaction_model
 
     @bulk_reaction_model.setter
@@ -115,7 +126,7 @@ class CompartmentBuilder(metaclass=StructMeta):
     @property
     @wraps(Cstr.particle_reaction_model)
     def particle_reaction_model(self):
-        """Wrapper around master compartment to set particle reaction model"""
+        """Wrapper around master compartment to set particle reaction model."""
         return self._compartment_model.particle_reaction_model
 
     @particle_reaction_model.setter
@@ -128,15 +139,18 @@ class CompartmentBuilder(metaclass=StructMeta):
                 compartment.particle_reaction_model = particle_reaction_model
 
     @property
-    def flow_sheet(self):
+    def flow_sheet(self) -> FlowSheet:
+        """FlowSheet: FlowSheet of the compartment builder."""
         return self._flow_sheet
 
     @property
-    def process(self):
+    def process(self) -> Process:
+        """Process: Process of the compartment builder."""
         return self._process
 
     @property
-    def cycle_time(self):
+    def cycle_time(self) -> float:
+        """float: Cycle time of the process."""
         return self.process.cycle_time
 
     @cycle_time.setter
@@ -144,7 +158,7 @@ class CompartmentBuilder(metaclass=StructMeta):
         self.process.cycle_time = cycle_time
 
     def _add_compartments(self, compartment_volumes):
-        """Instantiate compartments and add to FlowSheet"""
+        """Instantiate compartments and add to FlowSheet."""
         self.n_compartments = len(compartment_volumes)
 
         for i, vol in enumerate(compartment_volumes):
@@ -161,7 +175,7 @@ class CompartmentBuilder(metaclass=StructMeta):
             self.flow_sheet.add_unit(unit)
 
     def _add_connections(self, connections_matrix):
-        """Add connections and flow rates between compartments to FlowSheet"""
+        """Add connections and flow rates between compartments to FlowSheet."""
         try:
             if isinstance(connections_matrix, list):
                 arr = np.array(connections_matrix)
@@ -195,7 +209,8 @@ class CompartmentBuilder(metaclass=StructMeta):
 
     @property
     def init_c(self):
-        """np.array: Initial conditions of compartments.
+        """
+        np.array: Initial conditions of compartments.
 
         Parameters
         ----------
@@ -212,8 +227,6 @@ class CompartmentBuilder(metaclass=StructMeta):
         ------
         ValueError
             If init_c does not contain correct shape.
-
-
         """
         return self._init_c
 
@@ -241,7 +254,8 @@ class CompartmentBuilder(metaclass=StructMeta):
     def add_tracer(
         self, compartment_index, c, t_inj, flow_rate, t_start=0, flow_rate_filter=True
     ):
-        """Add tracer injection to compartment model.
+        """
+        Add tracer injection to compartment model.
 
         For this purpose, a new inlet source is instantiated and connected to
         the corresponding compartment. Then, an Event is added which modifies
@@ -267,7 +281,6 @@ class CompartmentBuilder(metaclass=StructMeta):
         ------
         CADETProcessError
             If compartment is not a real compartment.
-
         """
         tracer = Inlet(self.component_system, "tracer")
         tracer.flow_rate = flow_rate
@@ -307,6 +320,6 @@ class CompartmentBuilder(metaclass=StructMeta):
 
 
 class CompartmentModel(Cstr):
-    """Dummy Class for checking binding and reaction models"""
+    """Dummy Class for checking binding and reaction models."""
 
     pass

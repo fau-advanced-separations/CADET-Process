@@ -10,7 +10,8 @@ from CADETProcess.optimization import OptimizationProblem, OptimizerBase
 
 
 class SciPyInterface(OptimizerBase):
-    """Wrapper around scipy's optimization suite.
+    """
+    Wrapper around scipy's optimization suite.
 
     Defines the bounds and all constraints, saved in a constraint_object. Also
     the jacobian matrix is defined for several solvers.
@@ -42,7 +43,6 @@ class SciPyInterface(OptimizerBase):
     CADETProcess.optimization.OptimizationProblem.evaluate_objectives
     options
     scipy.optimize.minimize
-
     """
 
     finite_diff_rel_step = UnsignedFloat()
@@ -50,7 +50,8 @@ class SciPyInterface(OptimizerBase):
     jac = Switch(valid=["2-point", "3-point", "cs"], default="2-point")
 
     def _run(self, optimization_problem: OptimizationProblem, x0=None):
-        """Solve the optimization problem using any of the scipy methods.
+        """
+        Solve the optimization problem using any of the scipy methods.
 
         Returns
         -------
@@ -69,7 +70,6 @@ class SciPyInterface(OptimizerBase):
         CADETProcess.optimization.OptimizationProblem.evaluate_objectives
         options
         scipy.optimize.minimize
-
         """
         self.n_evals = 0
 
@@ -85,7 +85,8 @@ class SciPyInterface(OptimizerBase):
             )[0]
 
         def callback_function(x, state=None):
-            """Internal callback to report progress after evaluation.
+            """
+            Report progress after evaluation.
 
             Notes
             -----
@@ -153,9 +154,9 @@ class SciPyInterface(OptimizerBase):
         self.results.exit_flag = scipy_results.status
         self.results.exit_message = scipy_results.message
 
-    def get_bounds(self, optimization_problem):
-        """Returns the optimized bounds of a given optimization_problem as a
-        Bound object.
+    def get_bounds(self, optimization_problem) -> optimize.Bounds:
+        """
+        Return the optimized bounds of a given optimization_problem as a Bound object.
 
         Optimizes the bounds of the optimization_problem by calling the method
         optimize.Bounds. Keep_feasible is set to True.
@@ -171,8 +172,9 @@ class SciPyInterface(OptimizerBase):
             keep_feasible=True,
         )
 
-    def get_constraint_objects(self, optimization_problem):
-        """Return constraints as objets.
+    def get_constraint_objects(self, optimization_problem) -> list:
+        """
+        Return constraints as objets.
 
         Returns
         -------
@@ -195,7 +197,8 @@ class SciPyInterface(OptimizerBase):
         return [con for con in constraints if con is not None]
 
     def get_lincon_obj(self, optimization_problem):
-        """Return the linear constraints as an object.
+        """
+        Return the linear constraints as an object.
 
         Returns
         -------
@@ -220,7 +223,8 @@ class SciPyInterface(OptimizerBase):
         )
 
     def get_lineqcon_obj(self, optimization_problem):
-        """Return the linear equality constraints as an object.
+        """
+        Return the linear equality constraints as an object.
 
         Returns
         -------
@@ -245,7 +249,8 @@ class SciPyInterface(OptimizerBase):
         )
 
     def get_nonlincon_obj(self, optimization_problem):
-        """Return the optimized nonlinear constraints as an object.
+        """
+        Return the optimized nonlinear constraints as an object.
 
         Returns
         -------
@@ -263,7 +268,8 @@ class SciPyInterface(OptimizerBase):
         opt = optimization_problem
 
         def makeConstraint(i):
-            """Create optimize.NonlinearConstraint object.
+            """
+            Create optimize.NonlinearConstraint object.
 
             Parameters
             ----------
@@ -300,11 +306,13 @@ class SciPyInterface(OptimizerBase):
         return constraints
 
     def __str__(self):
+        """str: String representation."""
         return self.__class__.__name__
 
 
 class TrustConstr(SciPyInterface):
-    """Wrapper for the trust-constr optimization method from the scipy optimization suite.
+    """
+    Wrapper for the trust-constr optimization method from the scipy optimization suite.
 
     It defines the solver options in the 'options' variable as a dictionary.
 
@@ -392,7 +400,6 @@ class TrustConstr(SciPyInterface):
         - 3 for more complete progress report.
     disp : Bool, optional
         If True, then verbose will be set to 1 if it was 0. Default is False.
-
     """
 
     supports_linear_constraints = True
@@ -440,11 +447,13 @@ class TrustConstr(SciPyInterface):
     ]
 
     def __str__(self):
+        """str: String representation."""
         return "trust-constr"
 
 
 class COBYLA(SciPyInterface):
-    """Wrapper for the COBYLA optimization method from the scipy optimization suite.
+    """
+    Wrapper for the COBYLA optimization method from the scipy optimization suite.
 
     It defines the solver options in the 'options' variable as a dictionary.
 
@@ -467,7 +476,6 @@ class COBYLA(SciPyInterface):
         Maximum number of function evaluations.
     catol : float, default 2e-4
         Absolute tolerance for constraint violations.
-
     """
 
     supports_linear_constraints = True
@@ -490,7 +498,8 @@ class COBYLA(SciPyInterface):
 
 
 class NelderMead(SciPyInterface):
-    """Wrapper for the Nelder-Mead optimization method from the scipy optimization suite.
+    """
+    Wrapper for the Nelder-Mead optimization method from the scipy optimization suite.
 
     Supports:
         - Bounds.
@@ -539,12 +548,14 @@ class NelderMead(SciPyInterface):
         "disp",
     ]
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """str: String representation."""
         return "Nelder-Mead"
 
 
 class SLSQP(SciPyInterface):
-    """Wrapper for the SLSQP optimization method from the scipy optimization suite.
+    """
+    Wrapper for the SLSQP optimization method from the scipy optimization suite.
 
     It defines the solver options in the 'options' variable as a dictionary.
 

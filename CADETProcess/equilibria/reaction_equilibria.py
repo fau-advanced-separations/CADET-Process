@@ -1,4 +1,8 @@
+from typing import Optional, Sequence
+
 import numpy as np
+
+from CADETProcess.processModel import MassActionLaw
 
 from . import ptc
 
@@ -6,7 +10,8 @@ from . import ptc
 def calculate_buffer_equilibrium(
     buffer, reaction_system, constant_indices=None, reinit=True, verbose=False
 ):
-    """Calculate buffer equilibrium for given concentration.
+    """
+    Calculate buffer equilibrium for given concentration.
 
     Parameters
     ----------
@@ -56,7 +61,31 @@ def calculate_buffer_equilibrium(
     return np.round(np.abs(sol), 14).tolist()
 
 
-def dydx_mal(c, reaction_system, constant_indices=None, c_init=None):
+def dydx_mal(
+        c: np.ndarray,
+        reaction_system: MassActionLaw,
+        constant_indices: Optional[Sequence[int]] = None,
+        c_init: Optional[np.ndarray] = None
+    ) -> np.ndarray:
+    """
+    Compute the time derivative of concentrations in a mass action law system.
+
+    Parameters
+    ----------
+    c : np.ndarray
+        Concentration vector of components.
+    reaction_system : MassActionLaw
+        Reaction rates and stoichiometric matrix for calculating equilibrium.
+    constant_indices : Optional[Sequence[int]]
+        Indices of components whose concentrations are to be held constant.
+    c_init : Optional[np.ndarray]
+        Initial concentration vector (used to fix constants if constant_indices is provided).
+
+    Returns
+    -------
+    dydx : np.ndarray
+        Time derivative of concentration vector.
+    """
     cc = np.asarray(c, dtype="float64")
     if constant_indices is not None:
         if c_init is None:
@@ -91,7 +120,33 @@ def dydx_mal(c, reaction_system, constant_indices=None, c_init=None):
     return dydx
 
 
-def jac_mal(c, reaction_system, constant_indices=None, c_init=None):
+def jac_mal(
+        c: np.ndarray,
+        reaction_system: MassActionLaw,
+        constant_indices: Optional[Sequence[int]] = None,
+        c_init: Optional[np.ndarray] = None
+    ) -> np.ndarray:
+    """
+    Compute the Jacobian of a mass action law reaction system at given concentrations.
+
+    Parameters
+    ----------
+    c : np.ndarray
+        Current concentrations of components.
+    reaction_system : MassActionLaw
+        Reaction system object containing stoichiometry, exponents, and rate constants.
+    constant_indices : Optional[Sequence[int]]
+        Indices of components to be treated as constant
+        (i.e., their derivatives are zeroed out).
+    c_init : Optional[np.ndarray]
+        Initial concentration vector to reset constants if `constant_indices` is provided.
+
+    Returns
+    -------
+    jac : np.ndarray
+        Jacobian matrix (n_comp x n_comp) of the rate equations.
+
+    """
     cc = np.asarray(c, dtype="float64")
 
     if constant_indices is not None:

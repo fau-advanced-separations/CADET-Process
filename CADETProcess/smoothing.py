@@ -14,7 +14,7 @@ This module provides functionality for smoothing data.
     find_smoothing_factors
     full_smooth
 
-"""
+"""  # noqa
 
 import multiprocessing
 
@@ -216,6 +216,7 @@ def smoothing_filter_signal(func, times, values, crit_fs):
 
 
 def find_smoothing_factors(times, values, rmse_target=1e-4):
+    """Find smoothing factors."""
     sse_target = (rmse_target**2.0) * len(values)
 
     try:
@@ -282,6 +283,7 @@ def smooth_data_derivative(times, values, crit_fs, s, crit_fs_der, smooth=True):
 
 def full_smooth(times, values, crit_fs, s, crit_fs_der, smooth=True):
     # return smooth data derivative of data
+    """Create full smooth data."""
     spline, factor = create_spline(times, values, crit_fs, s)
 
     values_filter = spline(times) / factor

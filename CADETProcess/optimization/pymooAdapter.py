@@ -53,7 +53,8 @@ class PymooInterface(OptimizerBase):
     ]
 
     def _run(self, optimization_problem: OptimizationProblem, x0=None):
-        """Solve optimization problem using functional pymoo implementation.
+        """
+        Solve optimization problem using functional pymoo implementation.
 
         Parameters
         ----------
@@ -72,7 +73,6 @@ class PymooInterface(OptimizerBase):
         --------
         evaluate_objectives
         options
-
         """
         pop_size = self.get_population_size(optimization_problem)
 
@@ -190,13 +190,50 @@ class PymooInterface(OptimizerBase):
 
         return self.results
 
-    def get_population_size(self, optimization_problem):
+    def get_population_size(
+            self,
+            optimization_problem: OptimizationProblem
+    ) -> int:
+        """
+        Determine the population size for an optimization problem.
+
+        This method calculates the population size based on the number of independent
+        variables in the optimization problem. If `pop_size` is not set, it defaults to
+        the minimum of 400 or the maximum of 50 times the number of independent variables
+        and 50.
+
+        Parameters
+        ----------
+        optimization_problem : OptimizationProblem
+            The optimization problem for which to determine the population size.
+
+        Returns
+        -------
+        int
+            The population size.
+        """
         if self.pop_size is None:
             return min(400, max(50 * optimization_problem.n_independent_variables, 50))
         else:
             return self.pop_size
 
-    def get_max_number_of_generations(self, optimization_problem):
+    def get_max_number_of_generations(
+            self,
+            optimization_problem: OptimizationProblem
+    ) -> int:
+        """
+        Determine the maximum number of generations for an optimization problem.
+
+        Parameters
+        ----------
+        optimization_problem : OptimizationProblem
+            The optimization problem for which to determine the maximum number of generations.
+
+        Returns
+        -------
+        int
+            The maximum number of generations.
+        """
         if self.n_max_gen is None:
             return min(100, max(10 * optimization_problem.n_independent_variables, 40))
         else:
@@ -204,20 +241,28 @@ class PymooInterface(OptimizerBase):
 
 
 class NSGA2(PymooInterface):
+    """NSGA2 Algorithm."""
+
     _cls = NSGA2
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """str: String representation."""
         return "NSGA2"
 
 
 class U_NSGA3(PymooInterface):
+    """U-NSGA3 Algorithm."""
+
     _cls = UNSGA3
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """str: String representation."""
         return "UNSGA3"
 
 
 class PymooProblem(Problem):
+    """Class to implement Pymoo Problem interface."""
+
     def __init__(self, optimization_problem, parallelization_backend, **kwargs):
         self.optimization_problem = optimization_problem
         self.parallelization_backend = parallelization_backend
@@ -263,6 +308,8 @@ class PymooProblem(Problem):
 
 
 class RepairIndividuals(Repair):
+    """Class to repair individuals."""
+
     def __init__(self, optimizer, optimization_problem, *args, **kwargs):
         self.optimizer = optimizer
         self.optimization_problem = optimization_problem

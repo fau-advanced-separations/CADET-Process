@@ -14,7 +14,7 @@ Module to evaluate cyclic stationarity of succeeding cycles.
     NRMSE
     StationarityEvaluator
 
-"""
+"""  # noqa
 
 import numpy as np
 from addict import Dict
@@ -58,7 +58,8 @@ class StationarityEvaluator(Comparator):
             *args,
             **kwargs,
     ):
-        """Initialize the stationarity evaluator.
+        """
+        Initialize the stationarity evaluator.
 
         Parameters
         ----------
@@ -83,13 +84,13 @@ class StationarityEvaluator(Comparator):
         return self._criteria
 
     def add_criterion(self, criterion):
-        """Add a criterion to the list of criteria.
+        """
+        Add a criterion to the list of criteria.
 
         Parameters
         ----------
         criterion : CriterionBase
             Criterion to add to the list of criteria.
-
         """
         if not isinstance(criterion, CriterionBase):
             raise TypeError("Expected CriterionBase.")
@@ -97,7 +98,8 @@ class StationarityEvaluator(Comparator):
         self._criteria.append(criterion)
 
     def assert_stationarity(self, simulation_results):
-        """Check stationarity of two succeeding cycles.
+        """
+        Check stationarity of two succeeding cycles.
 
         Parameters
         ----------
@@ -113,7 +115,6 @@ class StationarityEvaluator(Comparator):
         ------
         TypeError
             If simulation_results is not a SimulationResults object.
-
         """
         self._metrics = []
         criteria = Dict()

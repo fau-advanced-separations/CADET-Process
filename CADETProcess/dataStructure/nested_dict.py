@@ -17,7 +17,8 @@ __all__ = [
 
 
 def check_nested(nested_dict: dict[str, Any], path: str | list) -> bool:
-    """Check if a key path exists in a nested dictionary.
+    """
+    Check if a key path exists in a nested dictionary.
 
     Parameters
     ----------
@@ -42,7 +43,8 @@ def check_nested(nested_dict: dict[str, Any], path: str | list) -> bool:
 
 
 def generate_nested_dict(path: str | list, value: Any = None) -> dict[str, Any]:
-    """Generate a nested dictionary from a dot-separated path.
+    """
+    Generate a nested dictionary from a dot-separated path.
 
     Parameters
     ----------
@@ -66,7 +68,8 @@ def generate_nested_dict(path: str | list, value: Any = None) -> dict[str, Any]:
 
 
 def insert_path(nested_dict: dict[str, Any], path: str | list, value: Any) -> None:
-    """Add a key path to an existing dictionary without overwriting existing keys.
+    """
+    Add a key path to an existing dictionary without overwriting existing keys.
 
     Parameters
     ----------
@@ -93,7 +96,8 @@ def insert_path(nested_dict: dict[str, Any], path: str | list, value: Any) -> No
 
 
 def get_leaves(nested_dict: dict[str, Any]) -> Generator[str, None, None]:
-    """Yield leaf keys of a nested dictionary in dot notation.
+    """
+    Yield leaf keys of a nested dictionary in dot notation.
 
     Parameters
     ----------
@@ -114,7 +118,8 @@ def get_leaves(nested_dict: dict[str, Any]) -> Generator[str, None, None]:
 
 
 def set_nested_value(nested_dict: dict[str, Any], path: str | list, value: Any) -> None:
-    """Set a value in a nested dictionary using a dot-separated path.
+    """
+    Set a value in a nested dictionary using a dot-separated path.
 
     Parameters
     ----------
@@ -137,7 +142,8 @@ def set_nested_value(nested_dict: dict[str, Any], path: str | list, value: Any) 
 
 
 def get_nested_value(nested_dict: dict[str, Any], path: str | list) -> Any:
-    """Retrieve a value from a nested dictionary using a dot-separated path.
+    """
+    Retrieve a value from a nested dictionary using a dot-separated path.
 
     Parameters
     ----------
@@ -167,7 +173,8 @@ def update_dict_recursively(
     updates: dict[str, Any],
     only_existing_keys: bool = False,
 ) -> dict[str, Any]:
-    """Recursively update `target_dict` with values from `updates`.
+    """
+    Recursively update `target_dict` with values from `updates`.
 
     Parameters
     ----------
@@ -199,7 +206,8 @@ def update_dict_recursively(
 
 
 def get_nested_attribute(obj: Any, path: str) -> Any:
-    """Access a nested attribute using a dot-separated path.
+    """
+    Access a nested attribute using a dot-separated path.
 
     Parameters
     ----------
@@ -225,7 +233,8 @@ def get_nested_attribute(obj: Any, path: str) -> Any:
 
 
 def set_nested_attribute(obj: Any, attr_string: str, value: Any) -> None:
-    """Set a nested attribute using a dot-separated path.
+    """
+    Set a nested attribute using a dot-separated path.
 
     Parameters
     ----------
@@ -235,7 +244,6 @@ def set_nested_attribute(obj: Any, attr_string: str, value: Any) -> None:
         The dot-separated path to the nested attribute.
     value : Any
         The value to set.
-
     """
     attributes = attr_string.split(".")
     for attr in attributes[:-1]:
@@ -244,7 +252,8 @@ def set_nested_attribute(obj: Any, attr_string: str, value: Any) -> None:
 
 
 def get_nested_list_value(ls: Sequence[Any], idx_tuple: tuple[int, ...]) -> Any:
-    """Retrieve a value from a nested list structure using an index tuple.
+    """
+    Retrieve a value from a nested list structure using an index tuple.
 
     Parameters
     ----------
@@ -269,7 +278,8 @@ def get_nested_list_value(ls: Sequence[Any], idx_tuple: tuple[int, ...]) -> Any:
 def set_nested_list_value(
     ls: Sequence[Any], idx_tuple: tuple[int, ...], value: Any
 ) -> None:
-    """Set a value in a nested list structure using an index tuple.
+    """
+    Set a value in a nested list structure using an index tuple.
 
     Parameters
     ----------

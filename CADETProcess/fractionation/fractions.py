@@ -7,7 +7,8 @@ __all__ = ["Fraction", "FractionPool"]
 
 
 class Fraction(Structure):
-    """A class representing a fraction of a mixture.
+    """
+    A class representing a fraction of a mixture.
 
     A fraction is defined by its mass and volume, and can be used to calculate
     properties such as cumulative mass, purity, and concentration.
@@ -50,7 +51,8 @@ class Fraction(Structure):
 
     @property
     def fraction_mass(self):
-        """np.ndarray: Cumulative mass all species in the fraction.
+        """
+        np.ndarray: Cumulative mass all species in the fraction.
 
         See Also
         --------
@@ -62,7 +64,8 @@ class Fraction(Structure):
 
     @property
     def purity(self):
-        """np.ndarray: Purity of the fraction.
+        """
+        np.ndarray: Purity of the fraction.
 
         Invalid values are replaced by zero.
 
@@ -79,7 +82,8 @@ class Fraction(Structure):
 
     @property
     def concentration(self):
-        """np.ndarray: Component concentrations of the fraction.
+        """
+        np.ndarray: Component concentrations of the fraction.
 
         Invalid values are replaced by zero.
 
@@ -93,12 +97,14 @@ class Fraction(Structure):
 
         return np.nan_to_num(concentration)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """str: String representation of the fraction."""
         return f"{self.__class__.__name__}(mass={self.mass},volume={self.volume})"
 
 
 class FractionPool(Structure):
-    """Collection of pooled fractions.
+    """
+    Collection of pooled fractions.
 
     This class manages multiple fractions of a mixture, facilitating the
     calculation of cumulative properties of the pool, such as total volume,
@@ -137,7 +143,8 @@ class FractionPool(Structure):
     _parameters = ["n_comp"]
 
     def __init__(self, n_comp, *args, **kwargs):
-        """Initialize a FractionPool instance.
+        """
+        Initialize a FractionPool instance.
 
         Parameters
         ----------
@@ -150,7 +157,8 @@ class FractionPool(Structure):
         super().__init__(*args, **kwargs)
 
     def add_fraction(self, fraction):
-        """Add a fraction to the fraction pool.
+        """
+        Add a fraction to the fraction pool.
 
         Parameters
         ----------
@@ -201,7 +209,8 @@ class FractionPool(Structure):
 
     @property
     def purity(self):
-        """Total purity of components in the fraction pool.
+        """
+        Total purity of components in the fraction pool.
 
         Invalid values are replaced by zero.
 
@@ -223,7 +232,8 @@ class FractionPool(Structure):
 
     @property
     def concentration(self):
-        """Total concentration of components in the fraction pool.
+        """
+        Total concentration of components in the fraction pool.
 
         Invalid values are replaced by zero.
 
@@ -236,12 +246,12 @@ class FractionPool(Structure):
         --------
         mass
         volume
-
         """
         with np.errstate(divide="ignore", invalid="ignore"):
             concentration = self.mass / self.volume
 
         return np.nan_to_num(concentration)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """str: String representation of the fraction pool."""
         return f"{self.__class__.__name__}(n_comp={self.n_comp})"

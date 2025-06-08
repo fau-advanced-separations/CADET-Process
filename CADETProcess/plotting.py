@@ -73,15 +73,19 @@ Hlines
     HLines
     add_hlines
 
-"""
+"""  # noqa
 
 import sys
 from functools import wraps
+from typing import Any, Optional
 
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy.typing as npt
 from matplotlib import cycler
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import (
@@ -145,8 +149,9 @@ figure_styles = {
 }
 
 
-def set_figure_style(style="medium"):
-    """Define the sytle of a plot.
+def set_figure_style(style: Optional[str] = "medium"):
+    """
+    Define the sytle of a plot.
 
     Can set the sytle of a plot for small, medium and large plots. The
     figuresize of the figure, the linewitdth and color of the lines and the
@@ -154,7 +159,7 @@ def set_figure_style(style="medium"):
 
     Parameters
     ----------
-    style : str
+    style : str, optional
         Style of a figure plot, default set to small.
 
     Raises
@@ -205,7 +210,6 @@ def get_fig_size(n_rows=1, n_cols=1, style=None):
     -------
     fig_size : tuple
         Size of the figure (width, height)
-
     """
     if style is None:
         style = this.style
@@ -218,26 +222,30 @@ def get_fig_size(n_rows=1, n_cols=1, style=None):
     return fig_size
 
 
-def setup_figure(n_rows=1, n_cols=1, style=None, squeeze=True):
+def setup_figure(
+    n_rows: Optional[int] = 1,
+    n_cols: Optional[int] = 1,
+    style: Optional[str] = None,
+    squeeze: Optional[bool] = True
+) -> tuple[Figure, Axes]:
     """
-    Setup a figure.
+    Set up a matplotlib figure with specified dimensions and style.
 
     Parameters
     ----------
     n_rows : int, optional
-        Number of rows in the figure. The default is 1.
+        Number of rows in the figure, by default 1.
     n_cols : int, optional
-        Number of columns in the figure. The default is 1.
+        Number of columns in the figure, by default 1.
     style : str, optional
-        Style to use for the figure. The default is None.
+        Style to use for the figure. Uses a predefined style if None.
     squeeze : bool, optional
-        If True, extra dimensions are squeezed out from the returned array of Axes.
-        The default is True.
+        If True, extra dimensions are removed from the returned Axes array, by default True.
 
     Returns
     -------
-    fig : Figure
-    ax : Axes or array of Axes
+    tuple[Figure, Axes]
+        A tuple containing the Figure object and an Axes object or an array of Axes objects.
     """
     if style is None:
         style = this.style
@@ -254,6 +262,8 @@ def setup_figure(n_rows=1, n_cols=1, style=None, squeeze=True):
 
 
 class SecondaryAxis(Structure):
+    """Parameters for secondary axis."""
+
     components = List()
     y_label = String()
     y_lim = Tuple()
@@ -261,6 +271,8 @@ class SecondaryAxis(Structure):
 
 
 class Layout(Structure):
+    """General figure layout."""
+
     style = String()
     title = String()
     x_label = String()
@@ -271,7 +283,29 @@ class Layout(Structure):
     y_lim = Tuple()
 
 
-def set_layout(ax, layout, show_legend=True, ax_secondary=None, secondary_layout=None):
+def set_layout(
+    ax: Axes,
+    layout: Layout,
+    show_legend: bool = True,
+    ax_secondary: Optional[SecondaryAxis] = None,
+    secondary_layout: Optional[Layout] = None
+) -> None:
+    """
+    Configure the layout of a matplotlib Axes object.
+
+    Parameters
+    ----------
+    ax : Axes
+        The primary matplotlib Axes object to configure.
+    layout : Layout
+        Layout object containing axis labels, limits, title, and ticks.
+    show_legend : bool, optional
+        Whether to display the legend. Default is True.
+    ax_secondary : Optional[SecondaryAxis], optional
+        The secondary Axes object, if applicable.
+    secondary_layout : Optional[Layout], optional
+        Layout object for the secondary axis, if applicable.
+    """
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
 
@@ -303,23 +337,67 @@ def set_layout(ax, layout, show_legend=True, ax_secondary=None, secondary_layout
 
 
 class Tick(Structure):
+    """Parameters for Axes ticks."""
+
     location: Tuple()
     label: String()
 
 
-def set_yticks(ax, y_ticks):
-    locs = np.array([y_tick["loc"] for y_tick in y_ticks])
-    labels = [y_tick["label"] for y_tick in y_ticks]
+def set_yticks(ax: Axes, y_ticks: list[Tick]) -> None:
+    """
+    Set the y-ticks on a matplotlib Axes object.
+
+    Parameters
+    ----------
+    ax : Axes
+        The matplotlib Axes object to set the y-ticks on.
+    y_ticks : list[Tick]
+        List of Tick objects containing location and label for each y-tick.
+    """
+    locs = np.array([y_tick.location for y_tick in y_ticks])
+    labels = [y_tick.label for y_tick in y_ticks]
     ax.set_yticks(locs, labels)
 
 
-def set_xticks(ax, x_ticks):
-    locs = np.array([x_tick["loc"] for x_tick in x_ticks])
-    labels = [x_tick["label"] for x_tick in x_ticks]
+def set_xticks(ax: Axes, x_ticks: list[Tick]) -> None:
+    """
+    Set the x-ticks on a matplotlib Axes object with rotation.
+
+    Parameters
+    ----------
+    ax : Axes
+        The matplotlib Axes object to set the x-ticks on.
+    x_ticks : list[Tick]
+        List of Tick objects containing location and label for each x-tick.
+    """
+    locs = np.array([x_tick.location for x_tick in x_ticks])
+    labels = [x_tick.label for x_tick in x_ticks]
     plt.xticks(locs, labels, rotation=72, horizontalalignment="center")
 
 
-def add_text(ax, text, position=(0.05, 0.9), tb_props=None, **kwargs):
+def add_text(
+    ax: Axes,
+    text: str,
+    position: tuple[float, float] = (0.05, 0.9),
+    tb_props: Optional[Any] = None,
+    **kwargs: Optional[dict],
+) -> None:
+    """
+    Add text to a matplotlib Axes object.
+
+    Parameters
+    ----------
+    ax : Axes
+        The matplotlib Axes object to add text to.
+    text : str
+        The text to be added.
+    position : tuple[float], optional
+        The position of the text, default is (0.05, 0.9).
+    tb_props : Optional[Any], optional
+        Properties to update the textbox with.
+    **kwargs : Optional[dict]
+        Additional keyword arguments for text customization.
+    """
     if tb_props is not None:
         textbox_props.update(tb_props)
 
@@ -333,9 +411,27 @@ def add_text(ax, text, position=(0.05, 0.9), tb_props=None, **kwargs):
     )
 
 
-def add_overlay(ax, y_overlay, x_overlay=None, **plot_args):
-    if not isinstance(y_overlay, list):
-        y_overlay = [y_overlay]
+def add_overlay(
+    ax: Axes,
+    y_overlay: npt.ArrayLike,
+    x_overlay: Optional[npt.ArrayLike] = None,
+    **plot_args: Optional[dict]
+) -> None:
+    """
+    Add overlay plot(s) to a matplotlib Axes object.
+
+    Parameters
+    ----------
+    ax : Axes
+        The matplotlib Axes object to which the overlay is added.
+    y_overlay : npt.ArrayLike
+        The y-data for the overlay plot(s).
+    x_overlay : Optional[list], optional
+        The x-data for the overlay plot(s). If None, uses x-data from the first line in ax.
+    **plot_args : Optional[dict]
+        Additional keyword arguments for customizing the plot.
+    """
+    y_overlay = np.array(y_overlay)
 
     if x_overlay is None:
         x_overlay = ax.lines[0].get_xdata()
@@ -346,13 +442,19 @@ def add_overlay(ax, y_overlay, x_overlay=None, **plot_args):
 
 
 class Annotation(Structure):
+    """Parameters for text annotations."""
+
     text = String()
     xy = Tuple()
     xytext = Tuple()
     arrowstyle = "-|>"
 
 
-def add_annotations(ax, annotations):
+def add_annotations(
+        ax: Axes,
+        annotations: list[Annotation]
+        ) -> None:
+    """Add list of annotations to axis ax."""
     for annotation in annotations:
         ax.annotate(
             annotation.text,
@@ -367,6 +469,8 @@ def add_annotations(ax, annotations):
 
 
 class FillRegion(Structure):
+    """Parameters for fill region."""
+
     color_index = Integer()
     start = UnsignedFloat()
     end = UnsignedFloat()
@@ -376,7 +480,12 @@ class FillRegion(Structure):
     text = String()
 
 
-def add_fill_regions(ax, fill_regions, x_lim=None):
+def add_fill_regions(
+        ax: Axes,
+        fill_regions: list[FillRegion],
+        x_lim: Optional[npt.ArrayLike] = None
+        ) -> None:
+    """Add FillRegion to axes."""
     for fill in fill_regions:
         color = color_list[fill.color_index]
         ax.fill_between(
@@ -403,38 +512,51 @@ def add_fill_regions(ax, fill_regions, x_lim=None):
 
 
 class HLines(Structure):
+    """Parameters for plotting horizontal lines."""
+
     y = UnsignedFloat()
     x_min = UnsignedFloat()
     x_max = UnsignedFloat()
 
 
-def add_hlines(ax, hlines):
+def add_hlines(ax: Axes, hlines: list[HLines]) -> None:
+    """Add hlines to matplotlib Axes."""
     for line in hlines:
         ax.hlines(line.y, line.x_min, line.x_max)
 
 
 def create_and_save_figure(func):
+    """Wrap plot functions to provide some general utility."""
     @wraps(func)
     def wrapper(
-        *args,
-        fig=None,
-        ax=None,
-        show=True,
-        file_name=None,
-        style="medium",
-        **kwargs,
-    ):
-        """Wrapper around plot function.
+            *args: Any,
+            fig: Optional[Figure] = None,
+            ax: Optional[Axes] = None,
+            show: bool = True,
+            file_name: Optional[str] = None,
+            style: str = 'medium',
+            **kwargs: Any
+            ) -> tuple:
+        """
+        Wrap plot functions to provide some general utility.
 
         Parameters
         ----------
+        *args :
+            Parameters wrapped around.
         fig : Figure, optional
+            Figure object.
         ax : Axes, optional
            Axes to plot on. If None, a new standard figure will be created.
         show : bool, optional
             If True, show plot. The default is False.
         file_name : str, optional
             Path for saving figure. If None, figure is not saved.
+        style : str, optional
+            Style for figure. Default i 'medium'.
+        **kwargs :
+            Additional parameters wrapped around.
+
         """
         if ax is None:
             fig, ax = setup_figure(style=style)

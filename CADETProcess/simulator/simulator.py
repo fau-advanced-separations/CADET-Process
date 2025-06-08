@@ -1,8 +1,9 @@
 from abc import abstractmethod
+from typing import Any, Optional
 
 import numpy as np
 
-from CADETProcess import CADETProcessError
+from CADETProcess import CADETProcessError, SimulationResults
 from CADETProcess.dataStructure import Bool, Structure, UnsignedFloat, UnsignedInteger
 from CADETProcess.log import get_logger, log_exceptions, log_results, log_time
 from CADETProcess.processModel import Process
@@ -10,7 +11,8 @@ from CADETProcess.stationarity import NRMSE, RelativeArea, StationarityEvaluator
 
 
 class SimulatorBase(Structure):
-    """Base class for Solver APIs.
+    """
+    Base class for Solver APIs.
 
     Holds the configuration of the individual solvers and provides an interface
     for calling the run method. The class converts the process configuration
@@ -43,7 +45,6 @@ class SimulatorBase(Structure):
     --------
     CADETProcess.processModel.Process
     CADETProcess.stationarity.StationarityEvaluator
-
     """
 
     time_resolution = UnsignedFloat(default=1)
@@ -56,7 +57,13 @@ class SimulatorBase(Structure):
     n_cycles_max = UnsignedInteger(default=100)
     raise_exception_on_max_cycles = Bool(default=False)
 
-    def __init__(self, stationarity_evaluator=None, *args, **kwargs):
+    def __init__(
+        self,
+        stationarity_evaluator: Optional[StationarityEvaluator] = None,
+        *args: Any,
+        **kwargs: Any
+    ) -> None:
+        """Initialize Simulator Base."""
         super().__init__(*args, **kwargs)
 
         self.logger = get_logger("Simulation")
@@ -70,12 +77,13 @@ class SimulatorBase(Structure):
             self.evaluate_stationarity = True
 
     @property
-    def sig_fig(self):
+    def sig_fig(self) -> int:
         """int: Number of significant figures based on resolution_cutoff."""
         return int(-np.log10(self.resolution_cutoff))
 
-    def get_solution_time(self, process, cycle=1):
-        """Get the time vector for one cycle of a process.
+    def get_solution_time(self, process: Process, cycle: int = 1) -> np.ndarray:
+        """
+        Get the time vector for one cycle of a process.
 
         Parameters
         ----------
@@ -86,14 +94,13 @@ class SimulatorBase(Structure):
 
         Returns
         -------
-        np.array
+        np.ndarray
             Time vector for one cycle.
 
         See Also
         --------
         CADETProcess.processModel.Process.section_times
         get_solution_time_complete
-
         """
         solution_times = np.arange(
             (cycle - 1) * process.cycle_time,
@@ -118,8 +125,9 @@ class SimulatorBase(Structure):
 
         return solution_times
 
-    def get_solution_time_complete(self, process):
-        """Get the time vector for multiple cycles of a process.
+    def get_solution_time_complete(self, process: Process) -> np.ndarray:
+        """
+        Get the time vector for multiple cycles of a process.
 
         Parameters
         ----------
@@ -128,7 +136,7 @@ class SimulatorBase(Structure):
 
         Returns
         -------
-        np.array
+        np.ndarray
             Time vector for multiple cycles of a process.
 
         See Also
@@ -136,7 +144,6 @@ class SimulatorBase(Structure):
         n_cycles
         get_section_times_complete
         get_solution_time
-
         """
         time = self.get_solution_time(process)
 
@@ -148,8 +155,9 @@ class SimulatorBase(Structure):
 
         return solution_times.tolist()
 
-    def get_section_times(self, process):
-        """Get the section times for a single cycle of a process.
+    def get_section_times(self, process: Process) -> list:
+        """
+        Get the section times for a single cycle of a process.
 
         Parameters
         ----------
@@ -166,15 +174,15 @@ class SimulatorBase(Structure):
         get_section_times_complete
         get_solution_time_complete
         CADETProcess.processModel.Process.section_times
-
         """
         section_times = np.array(process.section_times)
         section_times = np.round(section_times, self.sig_fig)
 
         return section_times.tolist()
 
-    def get_section_times_complete(self, process):
-        """Get the section times for multiple cycles of a process.
+    def get_section_times_complete(self, process: Process) -> list:
+        """
+        Get the section times for multiple cycles of a process.
 
         Parameters
         ----------
@@ -192,7 +200,6 @@ class SimulatorBase(Structure):
         n_cycles
         get_solution_time_complete
         CADETProcess.processModel.Process.section_times
-
         """
         sections = np.array(self.get_section_times(process))
         cycle_time = sections[-1]
@@ -208,8 +215,14 @@ class SimulatorBase(Structure):
 
         return section_times_complete.tolist()
 
-    def simulate(self, process, previous_results=None, **kwargs):
-        """Simulate the process.
+    def simulate(
+        self,
+        process: Process,
+        previous_results: Optional[SimulationResults] = None,
+        **kwargs: Any
+    ) -> SimulationResults:
+        """
+        Simulate the process.
 
         Depending on the state of evaluate_stationarity, the process is
         simulated until the termination criterion is reached.
@@ -240,7 +253,6 @@ class SimulatorBase(Structure):
         simulate_n_cycles
         simulate_to_stationarity
         run
-
         """
         if not isinstance(process, Process):
             raise TypeError("Expected Process")
@@ -272,8 +284,15 @@ class SimulatorBase(Structure):
     @log_time("Simulation")
     @log_results("Simulation")
     @log_exceptions("Simulation")
-    def simulate_n_cycles(self, process, n_cyc, previous_results=None, **kwargs):
-        """Simulate the process for a given number of cycles.
+    def simulate_n_cycles(
+        self,
+        process: Process,
+        n_cyc: int,
+        previous_results: Optional[SimulationResults] = None,
+        **kwargs: Any
+    ) -> SimulationResults:
+        """
+        Simulate the process for a given number of cycles.
 
         Parameters
         ----------
@@ -302,7 +321,6 @@ class SimulatorBase(Structure):
         simulate_to_stationarity
         StationarityEvaluator
         run
-
         """
         n_cyc_orig = self.n_cycles
         self.n_cycles = n_cyc
@@ -320,8 +338,14 @@ class SimulatorBase(Structure):
     @log_time("Simulation")
     @log_results("Simulation")
     @log_exceptions("Simulation")
-    def simulate_to_stationarity(self, process, results=None, **kwargs):
-        """Simulate the process until stationarity is reached.
+    def simulate_to_stationarity(
+        self,
+        process: Process,
+        results: Optional[SimulationResults] = None,
+        **kwargs: Any
+    ) -> SimulationResults:
+        """
+        Simulate the process until stationarity is reached.
 
         Parameters
         ----------
@@ -350,7 +374,6 @@ class SimulatorBase(Structure):
         simulate
         run
         StationarityEvaluator
-
         """
         if not isinstance(process, Process):
             raise TypeError("Expected Process")
@@ -396,8 +419,9 @@ class SimulatorBase(Structure):
 
         return results
 
-    def set_state_from_results(self, process, results):
-        """Set the process state from the simulation results.
+    def set_state_from_results(self, process: Process, results: SimulationResults) -> Process:
+        """
+        Set the process state from the simulation results.
 
         Parameters
         ----------
@@ -410,7 +434,6 @@ class SimulatorBase(Structure):
         -------
         Process
             The process with the updated state.
-
         """
         process.system_state = results.system_state["state"]
         process.system_state_derivative = results.system_state["state_derivative"]
@@ -418,8 +441,9 @@ class SimulatorBase(Structure):
         return process
 
     @abstractmethod
-    def _run(process, **kwargs):
-        """Abstract method for running a simulation.
+    def _run(process: Process, **kwargs: Any) -> SimulationResults:
+        """
+        Abstract method for running a simulation.
 
         Parameters
         ----------
@@ -439,7 +463,6 @@ class SimulatorBase(Structure):
             If the process is not an instance of Process.
         CADETProcessError
             If the simulation doesn't terminate successfully.
-
         """
         return
 
@@ -447,13 +470,14 @@ class SimulatorBase(Structure):
     __call__ = simulate
 
     @property
-    def stationarity_evaluator(self):
+    def stationarity_evaluator(self) -> StationarityEvaluator:
         """StationarityEvaluator: The stationarity evaluator."""
         return self._stationarity_evaluator
 
     @stationarity_evaluator.setter
-    def stationarity_evaluator(self, stationarity_evaluator):
-        """Set the stationarity evaluator.
+    def stationarity_evaluator(self, stationarity_evaluator: StationarityEvaluator) -> None:
+        """
+        Set the stationarity evaluator.
 
         Parameters
         ----------
@@ -464,7 +488,6 @@ class SimulatorBase(Structure):
         ------
         CADETProcessError
             If the stationarity evaluator is not an instance of StationarityEvaluator.
-
         """
         if not isinstance(stationarity_evaluator, StationarityEvaluator):
             raise CADETProcessError("Expected StationarityEvaluator")

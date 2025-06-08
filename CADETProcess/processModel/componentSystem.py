@@ -26,7 +26,6 @@ class Species(Structure):
         The molecular weight of the species.
     density : float
         Density of the species.
-
     """
 
     name: String = String()
@@ -66,7 +65,6 @@ class Component(Structure):
     --------
     Species
     ComponentSystem
-
     """
 
     name: String = String()
@@ -80,6 +78,8 @@ class Component(Structure):
         density: float | list[float | None] = None,
     ) -> NoReturn:
         """
+        Initialize Component.
+
         Parameters
         ----------
         name : str | None
@@ -213,7 +213,6 @@ class ComponentSystem(Structure):
     --------
     Species
     Component
-
     """
 
     name: String = String()
@@ -247,9 +246,7 @@ class ComponentSystem(Structure):
         ------
         CADETProcessError
             If the `components` argument is neither an int nor a list.
-
         """
-
         self.name: str | None = name
         self._components: list[Component] = []
 
@@ -322,7 +319,6 @@ class ComponentSystem(Structure):
             The positional arguments to be passed to the component class's constructor.
         **kwargs : dict
             The keyword arguments to be passed to the component class's constructor.
-
         """
         if not isinstance(component, Component):
             component = Component(component, *args, **kwargs)
@@ -347,7 +343,6 @@ class ComponentSystem(Structure):
         ------
         CADETProcessError
             If the component is unknown or not present in the system.
-
         """
         if isinstance(component, str):
             try:

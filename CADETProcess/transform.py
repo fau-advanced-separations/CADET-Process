@@ -17,7 +17,7 @@ This module provides functionality for transforming data.
     NormLogTransformer
     AutoTransformer
 
-"""
+"""  # noqa
 
 from abc import ABC, abstractmethod
 from typing import NoReturn, Optional
@@ -81,7 +81,8 @@ class TransformerBase(ABC):
         allow_extended_input: bool = False,
         allow_extended_output: bool = False,
     ) -> NoReturn:
-        """Initialize TransformerBase.
+        """
+        Initialize TransformerBase.
 
         Parameters
         ----------
@@ -138,7 +139,8 @@ class TransformerBase(ABC):
         pass
 
     def transform(self, x: float | np.ndarray) -> float | np.ndarray:
-        """Transform the input parameter space to the output parameter space.
+        """
+        Transform the input parameter space to the output parameter space.
 
         Applies the transformation function `_transform` to `x` after performing input
         bounds checking. If the transformed value exceeds the output bounds, an error
@@ -175,7 +177,8 @@ class TransformerBase(ABC):
 
     @abstractmethod
     def _transform(self, x: float | np.ndarray) -> float | np.ndarray:
-        """Apply the transformation from input to output parameter space.
+        """
+        Apply the transformation from input to output parameter space.
 
         Must be implemented in the child class.
 
@@ -196,7 +199,8 @@ class TransformerBase(ABC):
         x: float | np.ndarray,
         significant_digits: Optional[int] = None,
     ) -> float | np.ndarray:
-        """Transform the output parameter space back to the input parameter space.
+        """
+        Transform the output parameter space back to the input parameter space.
 
         Parameters
         ----------
@@ -234,7 +238,8 @@ class TransformerBase(ABC):
 
     @abstractmethod
     def _untransform(self, x: float | np.ndarray) -> float | np.ndarray:
-        """Apply the inverse transformation from output to input parameter space.
+        """
+        Apply the inverse transformation from output to input parameter space.
 
         Must be implemented in the child class.
 
@@ -252,7 +257,8 @@ class TransformerBase(ABC):
 
     @plotting.create_and_save_figure
     def plot(self, ax: plt.Axes, use_log_scale: bool = False) -> NoReturn:
-        """Plot the transformed space against the input space.
+        """
+        Plot the transformed space against the input space.
 
         Parameters
         ----------
@@ -282,7 +288,8 @@ class TransformerBase(ABC):
 
 
 class NullTransformer(TransformerBase):
-    """A transformer that performs no transformation.
+    """
+    A transformer that performs no transformation.
 
     This class simply returns the input values as output without modification.
 
@@ -307,7 +314,8 @@ class NullTransformer(TransformerBase):
         return self.ub_input
 
     def _transform(self, x: float | np.ndarray) -> float | np.ndarray:
-        """Return the input value(s) as output without modification.
+        """
+        Return the input value(s) as output without modification.
 
         Parameters
         ----------
@@ -322,7 +330,8 @@ class NullTransformer(TransformerBase):
         return x
 
     def _untransform(self, x: float | np.ndarray) -> float | np.ndarray:
-        """Return the output value(s) as input without modification.
+        """
+        Return the output value(s) as input without modification.
 
         Parameters
         ----------
@@ -338,7 +347,8 @@ class NullTransformer(TransformerBase):
 
 
 class NormLinearTransformer(TransformerBase):
-    """A transformer that normalizes values linearly to the range [0, 1].
+    """
+    A transformer that normalizes values linearly to the range [0, 1].
 
     This transformation scales the input value between the given lower
     and upper bounds into a normalized range of [0,1].
@@ -364,7 +374,8 @@ class NormLinearTransformer(TransformerBase):
         return 1.0
 
     def _transform(self, x: float | np.ndarray) -> float | np.ndarray:
-        """Normalize input values to the range [0,1].
+        """
+        Normalize input values to the range [0,1].
 
         Parameters
         ----------
@@ -379,7 +390,8 @@ class NormLinearTransformer(TransformerBase):
         return (x - self.lb_input) / (self.ub_input - self.lb_input)
 
     def _untransform(self, x: float | np.ndarray) -> float | np.ndarray:
-        """Denormalize output values back to the original range.
+        """
+        Denormalize output values back to the original range.
 
         Parameters
         ----------
@@ -395,7 +407,8 @@ class NormLinearTransformer(TransformerBase):
 
 
 class NormLogTransformer(TransformerBase):
-    """A transformer that normalizes values logarithmically to the range [0, 1].
+    """
+    A transformer that normalizes values logarithmically to the range [0, 1].
 
     This transformation scales input values logarithmically between the given lower
     and upper bounds into a normalized range of [0,1].
@@ -421,7 +434,8 @@ class NormLogTransformer(TransformerBase):
         return 1.0
 
     def _transform(self, x: float | np.ndarray) -> float | np.ndarray:
-        """Normalize input values to the range [0,1] using a logarithmic transformation.
+        """
+        Normalize input values to the range [0,1] using a logarithmic transformation.
 
         Parameters
         ----------
@@ -446,7 +460,8 @@ class NormLogTransformer(TransformerBase):
             return np.log(x / self.lb_input) / np.log(self.ub_input / self.lb_input)
 
     def _untransform(self, x: float | np.ndarray) -> float | np.ndarray:
-        """Denormalize output values back to the original range using logarithmic inverse.
+        """
+        Denormalize output values back to the original range using logarithmic inverse.
 
         Parameters
         ----------
@@ -493,7 +508,8 @@ class AutoTransformer(TransformerBase):
     """
 
     def __init__(self, *args, threshold: int = 100, **kwargs) -> NoReturn:
-        """Initialize an AutoTransformer object.
+        """
+        Initialize an AutoTransformer object.
 
         Parameters
         ----------
@@ -568,7 +584,8 @@ class AutoTransformer(TransformerBase):
         self._ub_input = ub_input
 
     def _transform(self, x: float | np.ndarray) -> float | np.ndarray:
-        """Transform the input value to an output value in the range [0, 1].
+        """
+        Transform the input value to an output value in the range [0, 1].
 
         Parameters
         ----------
@@ -583,7 +600,8 @@ class AutoTransformer(TransformerBase):
         return self.log._transform(x) if self.use_log else self.linear._transform(x)
 
     def _untransform(self, x: float | np.ndarray) -> float | np.ndarray:
-        """Untransform the output value back to the input parameter space.
+        """
+        Untransform the output value back to the input parameter space.
 
         Parameters
         ----------

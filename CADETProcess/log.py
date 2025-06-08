@@ -13,7 +13,7 @@ The CADETProcess.log module provides functionality for logging events in CADET-P
     loggers
     get_logger
 
-"""
+"""  # noqa
 
 import logging
 import time
@@ -31,7 +31,8 @@ loggers = {}
 
 
 def get_logger(name, level=None):
-    """Retrieve logger from loggers dictionary. Create new one if it does not already exist.
+    """
+    Retrieve logger from loggers dictionary. Create new one if it does not already exist.
 
     Parameters
     ----------
@@ -59,7 +60,8 @@ def get_logger(name, level=None):
 
 
 def update_loggers(log_directory, save_log):
-    """Update the file handlers of all logger objects in the loggers dictionary.
+    """
+    Update the file handlers of all logger objects in the loggers dictionary.
 
     Parameters
     ----------
@@ -73,7 +75,8 @@ def update_loggers(log_directory, save_log):
 
 
 def update_file_handlers(log_directory, logger, name, save_log):
-    """Update the file handlers of a logger object.
+    """
+    Update the file handlers of a logger object.
 
     Parameters
     ----------
@@ -99,7 +102,8 @@ def update_file_handlers(log_directory, logger, name, save_log):
 
 
 def add_file_handler(log_directory, logger, name, level, overwrite=False):
-    """Add a file handler to a logger object.
+    """
+    Add a file handler to a logger object.
 
     Parameters
     ----------
@@ -130,14 +134,16 @@ def add_file_handler(log_directory, logger, name, level, overwrite=False):
 
 
 def log_time(logger_name, level=None):
-    """Log execution time of function.
+    """
+    Log execution time of function.
 
     Parameters
     ----------
-    logger_name : str
-        name of the logger
+    logger_name : str, optional
+        Name of the logger.
+    level : int, optional
+        Log level.
     """
-
     def log_time_decorator(function):
         @wraps(function)
         def wrapper(*args, **kwargs):
@@ -154,12 +160,15 @@ def log_time(logger_name, level=None):
 
 
 def log_exceptions(logger_name, level=None):
-    """Log exceptions.
+    """
+    Log exceptions.
 
     Parameters
     ----------
     logger_name : str
-        name of the logger
+        Name of the logger.
+    level : int
+        Log level.
     """
 
     def log_exception_decorator(function):
@@ -183,7 +192,8 @@ def log_exceptions(logger_name, level=None):
 
 
 def log_results(logger_name, level=None):
-    """Log results.
+    """
+    Log results.
 
     Parameters
     ----------
