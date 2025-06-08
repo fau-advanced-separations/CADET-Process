@@ -3466,7 +3466,7 @@ class OptimizationVariable:
         if parameter_path is not None:
             for eval_obj in self.evaluation_objects:
                 parameters = eval_obj.parameters.to_dict()  # Workaround addict issue #136
-                if not check_nested(eval_obj.parameters, parameter_path):
+                if not check_nested(parameters, parameter_path):
                     raise CADETProcessError("Not a valid Optimization variable")
         self._parameter_path = parameter_path
 
