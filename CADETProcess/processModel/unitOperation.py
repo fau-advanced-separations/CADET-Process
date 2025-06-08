@@ -1288,7 +1288,8 @@ class MCT(UnitBaseClass):
     exchange_matrix : List of unsigned floats. Lenght depends on nchannel.
     solution_recorder : MCTRecorder
         Solution recorder for the unit operation.
-    n_channel : int number of channels
+    n_channel : int
+        Number of channels
     """
     has_ports = True
     supports_bulk_reaction = True
@@ -1299,7 +1300,6 @@ class MCT(UnitBaseClass):
     channel_cross_section_areas = SizedFloatList(size='nchannel')
     axial_dispersion = SizedUnsignedList(size=('n_comp', 'nchannel'))
     flow_direction = Switch(valid=[-1, 1], default=1)
-    nchannel = UnsignedInteger()
 
     exchange_matrix = SizedNdArray(size=('nchannel', 'nchannel', 'n_comp'))
 
