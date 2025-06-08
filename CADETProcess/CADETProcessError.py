@@ -12,7 +12,7 @@ Exceptions in **CADET-Process**.
 
     CADETProcessError
 
-"""
+"""  # noqa
 
 
 class CADETProcessError(Exception):

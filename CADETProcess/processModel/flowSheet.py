@@ -16,7 +16,8 @@ from .unitOperation import Cstr, Inlet, Outlet, UnitBaseClass
 
 @frozen_attributes
 class FlowSheet(Structure):
-    """Class to design process flow sheet.
+    """
+    Class to design process flow sheet.
 
     In this class, UnitOperation models are added and connected in a flow
     sheet.
@@ -33,7 +34,6 @@ class FlowSheet(Structure):
         Connections of UnitOperations.
     output_states : dict
         Split ratios of outgoing streams of UnitOperations.
-
     """
 
     name = String()
@@ -72,6 +72,7 @@ class FlowSheet(Structure):
         return self.component_system.n_comp
 
     def unit_name_decorator(func):
+        """Wrap methods to enable calling functions with unit object or unit name."""
         @wraps(func)
         def unit_name_wrapper(self, unit, *args, **kwargs):
             """Enable calling functions with unit object or unit name."""
@@ -85,6 +86,7 @@ class FlowSheet(Structure):
         return unit_name_wrapper
 
     def origin_destination_name_decorator(func):
+        """Wrap methods to enable calling functions using origin and destination units."""
         @wraps(func)
         def origin_destination_name_wrapper(self, origin, destination, *args, **kwargs):
             """Enable calling origin and destination using unit names."""
@@ -105,6 +107,7 @@ class FlowSheet(Structure):
         return origin_destination_name_wrapper
 
     def update_parameters(self):
+        """Update current parameters."""
         for unit in self.units:
             self._parameters[unit.name] = unit.parameters
             self._section_dependent_parameters[unit.name] = (
@@ -126,6 +129,7 @@ class FlowSheet(Structure):
         }
 
     def update_parameters_decorator(func):
+        """Wrap method s.t. parameters dict is automatically updated."""
         @wraps(func)
         def wrapper(self, *args, **kwargs):
             """Update parameters dict to save time."""
@@ -158,7 +162,8 @@ class FlowSheet(Structure):
 
     @unit_name_decorator
     def get_unit_index(self, unit):
-        """Return the unit index of the unit.
+        """
+        Return the unit index of the unit.
 
         Parameters
         ----------
@@ -174,15 +179,15 @@ class FlowSheet(Structure):
         -------
         unit_index : int
             Returns the unit index of the unit_operation.
-
         """
         if unit not in self.units:
             raise CADETProcessError("Unit not in flow sheet")
 
         return self.units.index(unit)
 
-    def get_port_index(self, unit, port):
-        """Return the port index of a unit.
+    def get_port_index(self, unit, port) -> int:
+        """
+        Return the port index of a unit.
 
         Parameters
         ----------
@@ -190,10 +195,12 @@ class FlowSheet(Structure):
             UnitBaseClass object of wich port index is to be returned
         port : string
             Name of port which index is to be returned
+
         Raises
         ------
         CADETProcessError
             If unit or port is not in the current flow sheet.
+
         Returns
         -------
         port_index : int
@@ -238,7 +245,8 @@ class FlowSheet(Structure):
         eluent_inlet=False,
         product_outlet=False,
     ):
-        """Add unit to the flow sheet.
+        """
+        Add unit to the flow sheet.
 
         Parameters
         ----------
@@ -262,7 +270,6 @@ class FlowSheet(Structure):
         See Also
         --------
         remove_unit
-
         """
         if not isinstance(unit, UnitBaseClass):
             raise TypeError("Expected UnitOperation")
@@ -303,7 +310,8 @@ class FlowSheet(Structure):
     @unit_name_decorator
     @update_parameters_decorator
     def remove_unit(self, unit):
-        """Remove unit from flow sheet.
+        """
+        Remove unit from flow sheet.
 
         Removes unit from the list. Tries to remove units which are twice
         located as desinations. For this the origins and destinations are
@@ -327,7 +335,6 @@ class FlowSheet(Structure):
         feed_inlet
         eluent_inlet
         product_outlet
-
         """
         if unit not in self.units:
             raise CADETProcessError("Unit not in flow sheet")
@@ -388,7 +395,8 @@ class FlowSheet(Structure):
     def add_connection(
         self, origin, destination, origin_port=None, destination_port=None
     ):
-        """Add connection between units 'origin' and 'destination'.
+        """
+        Add connection between units 'origin' and 'destination'.
 
         Parameters
         ----------
@@ -412,7 +420,6 @@ class FlowSheet(Structure):
         connections
         remove_connection
         output_state
-
         """
         if origin not in self._units:
             raise CADETProcessError("Origin not in flow sheet")
@@ -476,7 +483,8 @@ class FlowSheet(Structure):
         origin_port=None,
         destination_port=None,
     ):
-        """Remove connection between units 'origin' and 'destination'.
+        """
+        Remove connection between units 'origin' and 'destination'.
 
         Parameters
         ----------
@@ -499,7 +507,6 @@ class FlowSheet(Structure):
         --------
         connections
         add_connection
-
         """
         if origin not in self._units:
             raise CADETProcessError("Origin not in flow sheet")
@@ -579,7 +586,8 @@ class FlowSheet(Structure):
         return False
 
     def check_connections(self):
-        """Validate that units are connected correctly.
+        """
+        Validate that units are connected correctly.
 
         Raises
         ------
@@ -592,7 +600,6 @@ class FlowSheet(Structure):
         -------
         flag : bool
             True if all units are connected correctly. False otherwise.
-
         """
         flag = True
         for unit, connections in self.connections.items():
@@ -630,7 +637,8 @@ class FlowSheet(Structure):
         return flag
 
     @property
-    def missing_parameters(self):
+    def missing_parameters(self) -> dict:
+        """dict: Missing parameters of the flow sheet."""
         missing_parameters = []
 
         for unit in self.units:
@@ -641,13 +649,13 @@ class FlowSheet(Structure):
         return missing_parameters
 
     def check_units_config(self):
-        """Check if units are configured correctly.
+        """
+        Check if units are configured correctly.
 
         Returns
         -------
         flag : bool
             True if units are configured correctly. False otherwise.
-
         """
         flag = True
         for unit in self.units:
@@ -656,7 +664,8 @@ class FlowSheet(Structure):
         return flag
 
     @property
-    def output_states(self):
+    def output_states(self) -> dict:
+        """dict: Output states of the unit operations."""
         output_states_dict = self._output_states.copy()
 
         for unit, ports in output_states_dict.items():
@@ -669,7 +678,8 @@ class FlowSheet(Structure):
     @unit_name_decorator
     @update_parameters_decorator
     def set_output_state(self, unit, state, port=None):
-        """Set split ratio of outgoing streams for UnitOperation.
+        """
+        Set split ratio of outgoing streams for UnitOperation.
 
         Parameters
         ----------
@@ -691,11 +701,11 @@ class FlowSheet(Structure):
         """
 
         def get_port_index(unit_connection_dict, destination, destination_port):
-            """helper function to compute the index of a connection for the output state
+            """
+            Compute the index of a connection for the output state.
 
             Parameters
             ----------
-
             unit_connection_dict : Defaultdict
                 contains dict with connected units and their respective ports
             destination : UnitBaseClass
@@ -787,7 +797,8 @@ class FlowSheet(Structure):
         self._output_states[unit][port] = output_state
 
     def get_flow_rates(self, state=None, eps=5.9e16):
-        r"""Calculate flow rate for all connections.
+        r"""
+        Calculate flow rate for all connections.
 
         Optionally, an additional output state can be passed to update the
         current output states.
@@ -799,6 +810,7 @@ class FlowSheet(Structure):
             Default is None.
         eps : float, optional
             eps as an upper boarder for condition of flow_rate calculation
+
         Returns
         -------
         Dict
@@ -1040,7 +1052,8 @@ class FlowSheet(Structure):
 
     @unit_name_decorator
     def add_feed_inlet(self, feed_inlet):
-        """Add inlet to list of units to be considered for recovery.
+        """
+        Add inlet to list of units to be considered for recovery.
 
         Parameters
         ----------
@@ -1052,7 +1065,6 @@ class FlowSheet(Structure):
         CADETProcessError
             If unit is not an Inlet.
             If unit is already marked as feed inlet.
-
         """
         if feed_inlet not in self.inlets:
             raise CADETProcessError("Expected Inlet")
@@ -1062,13 +1074,13 @@ class FlowSheet(Structure):
 
     @unit_name_decorator
     def remove_feed_inlet(self, feed_inlet):
-        """Remove inlet from list of units to be considered for recovery.
+        """
+        Remove inlet from list of units to be considered for recovery.
 
         Parameters
         ----------
         feed_inlet : SourceMixin
             Unit to be removed from list of feed inlets.
-
         """
         if feed_inlet not in self._feed_inlets:
             raise CADETProcessError(f"Unit '{feed_inlet}' is not a feed inlet.")
@@ -1081,7 +1093,8 @@ class FlowSheet(Structure):
 
     @unit_name_decorator
     def add_eluent_inlet(self, eluent_inlet):
-        """Add inlet to list of units to be considered for eluent consumption.
+        """
+        Add inlet to list of units to be considered for eluent consumption.
 
         Parameters
         ----------
@@ -1093,7 +1106,6 @@ class FlowSheet(Structure):
         CADETProcessError
             If unit is not an Inlet.
             If unit is already marked as eluent inlet.
-
         """
         if eluent_inlet not in self.inlets:
             raise CADETProcessError("Expected Inlet")
@@ -1103,7 +1115,8 @@ class FlowSheet(Structure):
 
     @unit_name_decorator
     def remove_eluent_inlet(self, eluent_inlet):
-        """Remove inlet from list of units considered for eluent consumption.
+        """
+        Remove inlet from list of units considered for eluent consumption.
 
         Parameters
         ----------
@@ -1114,7 +1127,6 @@ class FlowSheet(Structure):
         ------
         CADETProcessError
             If unit is not in eluent inlets.
-
         """
         if eluent_inlet not in self._eluent_inlets:
             raise CADETProcessError(f"Unit '{eluent_inlet}' is not an eluent inlet.")
@@ -1127,7 +1139,8 @@ class FlowSheet(Structure):
 
     @unit_name_decorator
     def add_product_outlet(self, product_outlet):
-        """Add outlet to list of units considered for fractionation.
+        """
+        Add outlet to list of units considered for fractionation.
 
         Parameters
         ----------
@@ -1139,7 +1152,6 @@ class FlowSheet(Structure):
         CADETProcessError
             If unit is not an Outlet.
             If unit is already marked as product outlet.
-
         """
         if product_outlet not in self.outlets:
             raise CADETProcessError("Expected Outlet")
@@ -1151,7 +1163,8 @@ class FlowSheet(Structure):
 
     @unit_name_decorator
     def remove_product_outlet(self, product_outlet):
-        """Remove outlet from list of units to be considered for fractionation.
+        """
+        Remove outlet from list of units to be considered for fractionation.
 
         Parameters
         ----------
@@ -1162,7 +1175,6 @@ class FlowSheet(Structure):
         ------
         CADETProcessError
             If unit is not a product outlet.
-
         """
         if product_outlet not in self._product_outlets:
             raise CADETProcessError(f"Unit '{product_outlet}' is not a product outlet.")
@@ -1233,7 +1245,8 @@ class FlowSheet(Structure):
         return iter(self.units)
 
     def __getitem__(self, unit_name) -> UnitBaseClass:
-        """Make FlowSheet substriptable s.t. units can be used as keys.
+        """
+        Make FlowSheet substriptable s.t. units can be used as keys.
 
         Parameters
         ----------
@@ -1249,7 +1262,6 @@ class FlowSheet(Structure):
         ------
         KeyError
             If unit not in FlowSheet
-
         """
         try:
             return self.units_dict[unit_name]
@@ -1257,7 +1269,8 @@ class FlowSheet(Structure):
             raise KeyError("Not a valid unit")
 
     def __contains__(self, item: UnitBaseClass | str) -> bool:
-        """Check if UnitOperation is part of the FlowSheet.
+        """
+        Check if UnitOperation is part of the FlowSheet.
 
         Parameters
         ----------
@@ -1267,7 +1280,6 @@ class FlowSheet(Structure):
         Returns
         -------
         Bool : True if item is in units, otherwise False.
-
         """
         if (item in self._units) or (item in self.unit_names):
             return True

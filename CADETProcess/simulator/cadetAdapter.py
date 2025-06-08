@@ -58,7 +58,8 @@ __all__ = [
 
 
 class Cadet(SimulatorBase):
-    """CADET class for running a simulation for given process objects.
+    """
+    CADET class for running a simulation for given process objects.
 
     Attributes
     ----------
@@ -92,7 +93,6 @@ class Cadet(SimulatorBase):
     SolverParameters
     SolverTimeIntegratorParameters
     CadetAPI
-
     """
 
     timeout = UnsignedFloat()
@@ -126,6 +126,7 @@ class Cadet(SimulatorBase):
 
     @property
     def temp_dir(self):
+        """Return temp dir."""
         if not self._temp_dir.exists():
             self._temp_dir.mkdir(exist_ok=True, parents=True)
         return self._temp_dir
@@ -182,8 +183,8 @@ class Cadet(SimulatorBase):
         cadet.create_lwe(lwe_hdf5_path)
 
         # Check for CADET-Python >= v1.1, which introduced the .run_simulation interface.
-        # If it's not present, assume CADET-Python <= 1.0.4 and use the old .run_load() interface
-        # This check can be removed at some point in the future.
+        # If it's not present, assume CADET-Python <= 1.0.4 and use the old .run_load()
+        # interface. This check can be removed at some point in the future.
         if hasattr(cadet, "run_simulation"):
             return_information = cadet.run_simulation(timeout=self.timeout)
         else:
@@ -199,12 +200,14 @@ class Cadet(SimulatorBase):
         return True
 
     def get_tempfile_name(self):
+        """Return name of tempfile."""
         f = next(tempfile._get_candidate_names())
         return self.temp_dir / f"{f}.h5"
 
     @locks_process
     def _run(self, process, cadet=None, file_path=None):
-        """Interface to the solver run function.
+        """
+        Interface to the solver run function.
 
         The configuration is extracted from the process object and then saved
         as a temporary .h5 file. After termination, the same file is processed
@@ -235,7 +238,6 @@ class Cadet(SimulatorBase):
         --------
         get_process_config
         get_simulation_results
-
         """
         if not isinstance(process, Process):
             raise TypeError("Expected Process")
@@ -256,8 +258,8 @@ class Cadet(SimulatorBase):
             start = time.time()
 
             # Check for CADET-Python >= v1.1, which introduced the .run_simulation interface.
-            # If it's not present, assume CADET-Python <= 1.0.4 and use the old .run_load() interface
-            # This check can be removed at some point in the future.
+            # If it's not present, assume CADET-Python <= 1.0.4 and use the old .run_load()
+            # interface. This check can be removed at some point in the future.
             if hasattr(cadet, "run_simulation"):
                 return_information = cadet.run_simulation(timeout=self.timeout)
             else:
@@ -344,16 +346,19 @@ class Cadet(SimulatorBase):
             return cadet.cadet_runner.cadet_version
 
     def get_new_cadet_instance(self):
+        """Return new CadetAPI instance."""
         cadet = CadetAPI(install_path=self.install_path, use_dll=self.use_dll)
         return cadet
 
     def save_to_h5(self, process, file_path):
+        """Save process config as h5 file."""
         cadet = self.get_new_cadet_instance()
         cadet.root = self.get_process_config(process)
         cadet.filename = file_path
         cadet.save()
 
     def run_h5(self, file_path):
+        """Load and run h5 file."""
         cadet = self.get_new_cadet_instance()
         cadet.filename = file_path
         cadet.load()
@@ -372,6 +377,7 @@ class Cadet(SimulatorBase):
         return cadet
 
     def load_from_h5(self, file_path):
+        """Load data from HDF5 file."""
         cadet = self.get_new_cadet_instance()
         cadet.filename = file_path
         cadet.load()
@@ -380,11 +386,13 @@ class Cadet(SimulatorBase):
 
     @wraps(CadetAPI.create_lwe)
     def create_lwe(self, *args, **kwargs):
+        """Wrap CadetAPI.create_lwe to create simple Load-Wash-Elute config."""
         return self.get_new_cadet_instance().create_lwe(*args, **kwargs)
 
     @locks_process
     def get_process_config(self, process):
-        """Create the CADET config.
+        """
+        Create the CADET config.
 
         Returns
         -------
@@ -401,7 +409,6 @@ class Cadet(SimulatorBase):
         get_input_solver
         get_input_return
         get_input_sensitivity
-
         """
         config = Dict()
         config.input.model = self.get_input_model(process)
@@ -412,6 +419,7 @@ class Cadet(SimulatorBase):
         return config
 
     def load_simulation_results(self, process, file_path):
+        """Load simulation results."""
         cadet = self.load_from_h5(file_path)
         results = self.get_simulation_results(process, cadet)
 
@@ -425,7 +433,8 @@ class Cadet(SimulatorBase):
         time_elapsed=None,
         return_information=None,
     ):
-        """Read simulation results from CADET configuration.
+        """
+        Read simulation results from CADET configuration.
 
         Parameters
         ----------
@@ -445,7 +454,6 @@ class Cadet(SimulatorBase):
 
         ..todo::
             Implement method to read .h5 files that have no process associated.
-
         """
         if time_elapsed is None:
             time_elapsed = cadet.root.meta.time_sim
@@ -766,7 +774,8 @@ class Cadet(SimulatorBase):
         return results
 
     def get_input_model(self, process):
-        """Config branch /input/model/
+        """
+        Config branch `/input/model/`.
 
         Notes
         -----
@@ -778,7 +787,6 @@ class Cadet(SimulatorBase):
         model_solver
         model_units
         input_model_parameters
-
         """
         input_model = Dict()
 
@@ -795,7 +803,7 @@ class Cadet(SimulatorBase):
         return input_model
 
     def get_model_connections(self, process):
-        """Config branch /input/model/connections"""
+        """Config branch `/input/model/connections`."""
         model_connections = Dict()
         if self._force_constant_flow_rate:
             model_connections["CONNECTIONS_INCLUDE_DYNAMIC_FLOW"] = 0
@@ -879,7 +887,8 @@ class Cadet(SimulatorBase):
         return ls
 
     def get_unit_index(self, process, unit):
-        """Helper function for getting unit index in CADET format unit_xxx.
+        """
+        Return unit index in CADET format unit_xxx.
 
         Parameters
         ----------
@@ -892,13 +901,13 @@ class Cadet(SimulatorBase):
         -------
         unit_index : str
             Return the unit index in CADET format unit_XXX
-
         """
         index = process.flow_sheet.get_unit_index(unit)
         return f"unit_{index:03d}"
 
     def get_port_index(self, flow_sheet, unit, port):
-        """Helper function for getting port index in CADET format xxx.
+        """
+        Return port index in CADET format xxx.
 
         Parameters
         ----------
@@ -906,23 +915,22 @@ class Cadet(SimulatorBase):
             Indexed port
         unit : UnitOperation
             port of unit
+
         Returns
         -------
         port_index : index
             Return the port_index in CADET format xxx
-
         """
-
         return flow_sheet.get_port_index(unit, port)
 
     def get_model_units(self, process):
-        """Config branches for all units /input/model/unit_000 ... unit_xxx.
+        """
+        Config branches for all units `/input/model/unit_000 ... unit_xxx`.
 
         See Also
         --------
         get_unit_config
         get_unit_index
-
         """
         model_units = Dict()
 
@@ -937,7 +945,8 @@ class Cadet(SimulatorBase):
         return model_units
 
     def get_unit_config(self, unit):
-        """Config branch /input/model/unit_xxx for individual unit.
+        """
+        Config branch `/input/model/unit_xxx` for individual unit.
 
         The unit operation parameters are converted to CADET format
 
@@ -949,7 +958,6 @@ class Cadet(SimulatorBase):
         See Also
         --------
         get_adsorption_config
-
         """
         unit_parameters = UnitParameters(unit)
 
@@ -1050,6 +1058,7 @@ class Cadet(SimulatorBase):
                 section_index += 1
 
     def add_inlet_section(self, model_units, sec_index, unit_index, coeffs):
+        """Add piecewise cubic polynomial section to inlet."""
         unit_index = f"unit_{unit_index:03d}"
         section_index = f"sec_{sec_index:03d}"
 
@@ -1076,7 +1085,8 @@ class Cadet(SimulatorBase):
         model_units[unit_index][parameter_name] += list(state.ravel())
 
     def get_adsorption_config(self, binding):
-        """Config branch /input/model/unit_xxx/adsorption for individual unit.
+        """
+        Config branch `/input/model/unit_xxx/adsorption` for individual unit.
 
         Binding model parameters are extracted and converted to CADET format.
 
@@ -1094,7 +1104,8 @@ class Cadet(SimulatorBase):
         return adsorption_config
 
     def get_reaction_config(self, reaction):
-        """Config branch /input/model/unit_xxx/reaction for individual unit.
+        """
+        Config branch `/input/model/unit_xxx/reaction` for individual unit.
 
         Reaction model parameters are extracted and converted to CADET format.
 
@@ -1106,20 +1117,19 @@ class Cadet(SimulatorBase):
         See Also
         --------
         get_unit_config
-
         """
         reaction_config = ReactionParameters(reaction).parameters
 
         return reaction_config
 
     def get_input_solver(self, process):
-        """Config branch /input/solver/
+        """
+        Config branch `/input/solver/`.
 
         See Also
         --------
         solver_sections
         solver_time_integrator
-
         """
         input_solver = Dict()
 
@@ -1131,7 +1141,7 @@ class Cadet(SimulatorBase):
         return input_solver
 
     def get_solver_sections(self, process):
-        """Config branch /input/solver/sections"""
+        """Config branch `/input/solver/sections`."""
         solver_sections = Dict()
 
         solver_sections.nsec = self.n_cycles * process.n_sections
@@ -1143,13 +1153,13 @@ class Cadet(SimulatorBase):
         return solver_sections
 
     def get_input_return(self, process):
-        """Config branch /input/return"""
+        """Config branch `/input/return`."""
         return_parameters = self.return_parameters.parameters
         unit_return_parameters = self.get_unit_return_parameters(process)
         return {**return_parameters, **unit_return_parameters}
 
     def get_unit_return_parameters(self, process):
-        """Config branches for all units /input/return/unit_000 ... unit_xxx"""
+        """Config branches for all units `/input/return/unit_000 ... unit_xxx`."""
         unit_return_parameters = Dict()
         for unit in process.flow_sheet.units:
             unit_index = self.get_unit_index(process, unit)
@@ -1158,13 +1168,13 @@ class Cadet(SimulatorBase):
         return unit_return_parameters
 
     def get_input_sensitivity(self, process):
-        """Config branch /input/sensitivity"""
+        """Config branch `/input/sensitivity`."""
         sensitivity_parameters = self.sensitivity_parameters.parameters
         parameter_sensitivities = self.get_parameter_sensitivities(process)
         return {**sensitivity_parameters, **parameter_sensitivities}
 
     def get_parameter_sensitivities(self, process):
-        """Config branches for all parameter sensitivities /input/sensitivity/param_000 ... param_xxx."""  # noqa: E501
+        """Config branches for all parameter sensitivities `/input/sensitivity/param_000 ... param_xxx`."""  # noqa: E501
         parameter_sensitivities = Dict()
         parameter_sensitivities.nsens = process.n_sensitivities
         for i, sens in enumerate(process.parameter_sensitivities):
@@ -1175,6 +1185,7 @@ class Cadet(SimulatorBase):
         return parameter_sensitivities
 
     def get_sensitivity_config(self, process, sens):
+        """Return sensitivity config."""
         config = Dict()
 
         unit_indices = []
@@ -1253,11 +1264,13 @@ class Cadet(SimulatorBase):
         return config
 
     def __str__(self):
+        """Return string representation."""
         return "CADET"
 
 
 class ModelSolverParameters(Structure):
-    """Converter for model solver parameters from CADETProcess to CADET.
+    """
+    Converter for model solver parameters from CADETProcess to CADET.
 
     Attributes
     ----------
@@ -1287,7 +1300,6 @@ class ModelSolverParameters(Structure):
     See Also
     --------
     Structure
-
     """
 
     gs_type = Switch(default=1, valid=[0, 1])
@@ -1448,14 +1460,14 @@ inv_unit_parameters_map = {
 
 
 class UnitParameters(ParameterWrapper):
-    """Converter for UnitOperation parameters from CADETProcess to CADET.
+    """
+    Converter for UnitOperation parameters from CADETProcess to CADET.
 
     See Also
     --------
     ParameterWrapper
     AdsorptionParameters
     ReactionParameters
-
     """
 
     _baseClass = UnitBaseClass
@@ -1753,7 +1765,8 @@ inv_adsorption_parameters_map = {
 
 
 class AdsorptionParameters(ParameterWrapper):
-    """Converter for Binding model parameters from CADETProcess to CADET.
+    """
+    Converter for Binding model parameters from CADETProcess to CADET.
 
     See Also
     --------
@@ -1817,7 +1830,8 @@ inv_reaction_parameters_map = {
 
 
 class ReactionParameters(ParameterWrapper):
-    """Converter for Reaction model parameters from CADETProcess to CADET.
+    """
+    Converter for Reaction model parameters from CADETProcess to CADET.
 
     See Also
     --------
@@ -1835,7 +1849,8 @@ class ReactionParameters(ParameterWrapper):
 
 
 class SolverParameters(Structure):
-    """Class for defining the solver parameters for CADET.
+    """
+    Class for defining the solver parameters for CADET.
 
     Attributes
     ----------
@@ -1867,10 +1882,6 @@ class SolverParameters(Structure):
         - 7: None once, then lean
         The default is 1.
 
-    See Also
-    --------
-    Parameters
-
     """
 
     nthreads = UnsignedInteger(default=1)
@@ -1881,7 +1892,8 @@ class SolverParameters(Structure):
 
 
 class SolverTimeIntegratorParameters(Structure):
-    """Converter for time integartor parameters from CADETProcess to CADET.
+    """
+    Converter for time integartor parameters from CADETProcess to CADET.
 
     Attributes
     ----------
@@ -1925,7 +1937,6 @@ class SolverTimeIntegratorParameters(Structure):
     See Also
     --------
     Structure
-
     """
 
     abstol = UnsignedFloat(default=1e-8)

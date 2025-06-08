@@ -29,7 +29,8 @@ __all__ = ["OptimizerBase"]
 
 
 class OptimizerBase(Structure):
-    """BaseClass for optimization solver APIs.
+    """
+    BaseClass for optimization solver APIs.
 
     Holds the configuration of the individual solvers and gives an interface
     for calling the run method. The class has to convert the
@@ -144,7 +145,8 @@ class OptimizerBase(Structure):
         *args,
         **kwargs,
     ):
-        """Solve OptimizationProblem.
+        """
+        Solve OptimizationProblem.
 
         Parameters
         ----------
@@ -191,7 +193,6 @@ class OptimizerBase(Structure):
         OptimizationProblem
         OptimizationResults
         CADETProcess.optimization.ResultsCache
-
         """
         self._current_cache_entries = []
 
@@ -323,7 +324,8 @@ class OptimizerBase(Structure):
 
     @abstractmethod
     def _run(optimization_problem, x0=None, *args, **kwargs):
-        """Abstract Method for solving an optimization problem.
+        """
+        Abstract Method for solving an optimization problem.
 
         Parameters
         ----------
@@ -342,7 +344,6 @@ class OptimizerBase(Structure):
         ------
         CADETProcessError
             If solver doesn't terminate successfully
-
         """
         return
 
@@ -360,7 +361,6 @@ class OptimizerBase(Structure):
         flag : bool
             True if the optimization problem is supported and configured correctly,
             False otherwise.
-
         """
         flag = True
         if not optimization_problem.check_config(
@@ -421,7 +421,8 @@ class OptimizerBase(Structure):
         return flag
 
     def check_x0(self, optimization_problem, x0):
-        """Check the initial guess x0 for an optimization problem.
+        """
+        Check the initial guess x0 for an optimization problem.
 
         Parameters
         ----------
@@ -616,7 +617,8 @@ class OptimizerBase(Structure):
         current_generation,
         X_opt_transformed=None,
     ):
-        """Run post-processing of generation.
+        """
+        Run post-processing of generation.
 
         Notes
         -----
@@ -639,7 +641,6 @@ class OptimizerBase(Structure):
         X_opt_transformed : list, optional
             (Currently) best variable values in independent transformed space.
             If None, internal pareto front is used to determine best values.
-
         """
         F = self.optimization_problem.transform_maximization(
             F_minimized, scores="objectives"
@@ -684,6 +685,7 @@ class OptimizerBase(Structure):
         self._log_results(current_generation)
 
     def run_final_processing(self):
+        """Run post processing at the end of the optimization."""
         self.results.plot_figures(show=False)
         if self.optimization_problem.n_callbacks > 0:
             self._evaluate_callbacks(0, "final")
@@ -717,8 +719,9 @@ class OptimizerBase(Structure):
         return self.parallelization_backend._n_cores
 
     @n_cores.setter
-    def n_cores(self, n_cores):
+    def n_cores(self, n_cores: int):
         self.parallelization_backend.n_cores = n_cores
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """str: String representation."""
         return self.__class__.__name__

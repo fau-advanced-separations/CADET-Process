@@ -40,7 +40,8 @@ __all__ = [
 
 
 class ZoneBaseClass(UnitBaseClass):
-    """Base class for a multi-column zone with configurable columns and flow directions.
+    """
+    Base class for a multi-column zone with configurable columns and flow directions.
 
     Attributes
     ----------
@@ -481,7 +482,8 @@ class CarouselBuilder(Structure):
         carousel_positions: np.typing.NDArray[int],
         carousel_state: int,
     ) -> np.ndarray[int]:
-        """Determine index of column unit at given carousel position and state.
+        """
+        Determine index of column unit at given carousel position and state.
 
         Parameters
         ----------
@@ -504,7 +506,8 @@ class CarouselBuilder(Structure):
         t: float,
         carousel_positions: np.typing.NDArray[int],
     ) -> int:
-        """Determine index of column unit at given carousel position and time.
+        """
+        Determine index of column unit at given carousel position and time.
 
         Parameters
         ----------
@@ -1099,7 +1102,6 @@ class LinearSMBBuilder(SMBBuilder):
             Henry coefficient of strongly binding component.
         HB : float
             Henry coefficient of strongly binding component.
-
         """
         # Bounds
         lb = HB - 0.3 * (HA - HB)
@@ -1431,10 +1433,10 @@ class LangmuirSMBBuilder(SMBBuilder):
 
 
 class CarouselSolutionBulk(SolutionBase):
-    """Solution at unit inlet or outlet.
+    """
+    Solution at unit inlet or outlet.
 
     N_COLUMNS * NCOL * NRAD
-
     """
 
     _coordinates = ["axial_coordinates", "radial_coordinates"]
@@ -1482,7 +1484,8 @@ class CarouselSolutionBulk(SolutionBase):
         y_max=None,
         axs=None,
     ):
-        """Plot bulk solution over space at given time.
+        """
+        Plot bulk solution over space at given time.
 
         Parameters
         ----------

@@ -8,7 +8,8 @@ from CADETProcess.dataStructure import Bool, Float, Structure, Vector
 
 
 def hash_array(array: np.ndarray) -> str:
-    """Compute a hash value for an array of floats using the sha256 hash function.
+    """
+    Compute a hash value for an array of floats using the sha256 hash function.
 
     Parameters
     ----------
@@ -202,7 +203,6 @@ class Individual(Structure):
         -------
         np.ndarray
             All constraint violations combined.
-
         """
         cvs = (self.cv_bounds, self.cv_lincon, self.cv_lineqcon, self.cv_nonlincon)
         return np.concatenate([cv for cv in cvs if cv is not None])
@@ -223,7 +223,8 @@ class Individual(Structure):
         return self.m_min / self.m
 
     def dominates(self, other: "Individual") -> bool:
-        """Determine if individual dominates other.
+        """
+        Determine if individual dominates other.
 
         Parameters
         ----------
@@ -269,7 +270,8 @@ class Individual(Structure):
         return False
 
     def is_similar(self, other: "Individual", tol: float = 1e-1) -> bool:
-        """Determine if individual is similar to other.
+        """
+        Determine if individual is similar to other.
 
         Parameters
         ----------
@@ -308,7 +310,8 @@ class Individual(Structure):
         tol: float = 1e-1,
         use_transformed: bool = False,
     ) -> bool:
-        """Determine if individual is similar to other based on parameter values.
+        """
+        Determine if individual is similar to other based on parameter values.
 
         Parameters
         ----------
@@ -331,7 +334,8 @@ class Individual(Structure):
         return similar_x
 
     def is_similar_f(self, other: "Individual", tol: float = 1e-1) -> bool:
-        """Determine if individual is similar to other based on objective values.
+        """
+        Determine if individual is similar to other based on objective values.
 
         Parameters
         ----------
@@ -351,7 +355,8 @@ class Individual(Structure):
         return similar_f
 
     def is_similar_g(self, other: "Individual", tol: float | None = 1e-1) -> bool:
-        """Determine if individual is similar to other based on constraint values.
+        """
+        Determine if individual is similar to other based on constraint values.
 
         Parameters
         ----------
@@ -371,7 +376,8 @@ class Individual(Structure):
         return similar_g
 
     def is_similar_m(self, other: "Individual", tol: float | None = 1e-1) -> bool:
-        """Determine if individual is similar to other based on meta score values.
+        """
+        Determine if individual is similar to other based on meta score values.
 
         Parameters
         ----------
@@ -391,16 +397,19 @@ class Individual(Structure):
         return similar_m
 
     def __str__(self) -> str:
+        """str: String representation of the individual."""
         return str(list(self.x))
 
     def __repr__(self) -> str:
+        """str: String representation of the individual."""
         if self.g is None:
             return f"{self.__class__.__name__}({self.x}, {self.f})"
         else:
             return f"{self.__class__.__name__}({self.x}, {self.f}, {self.g})"
 
     def to_dict(self) -> dict:
-        """Convert individual to a dictionary.
+        """
+        Convert individual to a dictionary.
 
         Returns
         -------
@@ -441,7 +450,8 @@ class Individual(Structure):
 
     @classmethod
     def from_dict(cls, data: dict) -> "Individual":
-        """Create Individual from dictionary representation of its attributes.
+        """
+        Create Individual from dictionary representation of its attributes.
 
         Parameters
         ----------

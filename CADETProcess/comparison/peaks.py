@@ -5,7 +5,8 @@ import scipy.signal
 
 
 def find_peaks(solution, normalize=True, prominence=0.5, find_minima=False):
-    """Find peaks in solution.
+    """
+    Find peaks in solution.
 
     Parameters
     ----------
@@ -24,7 +25,6 @@ def find_peaks(solution, normalize=True, prominence=0.5, find_minima=False):
     peaks : list
         List with list of (time, height) for each peak for every component.
         Regardless of normalization, the actual peak height is returned.
-
     """
     solution_original = solution
     solution = copy.deepcopy(solution)
@@ -51,7 +51,8 @@ def find_peaks(solution, normalize=True, prominence=0.5, find_minima=False):
 
 
 def find_breakthroughs(solution, normalize=True, threshold=0.95):
-    """Find breakthroughs in solution.
+    """
+    Find breakthroughs in solution.
 
     Parameters
     ----------
@@ -69,7 +70,6 @@ def find_breakthroughs(solution, normalize=True, threshold=0.95):
     breakthrough : list
         List with (time, height) for breakthrough of every component.
         Regardless of normalization, the actual breakthroug height is returned.
-
     """
     solution_original = solution
     solution = copy.deepcopy(solution)

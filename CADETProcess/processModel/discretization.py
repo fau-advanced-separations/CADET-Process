@@ -11,7 +11,7 @@ The :class:`~CADETProcess.processModel.DiscretizationParametersBase` class is th
 class for all other classes in this module and defines some common parameters.
 Specific parameters for each scheme are defined as attributes of each class.
 
-"""
+"""  # noqa
 
 from CADETProcess.dataStructure import (
     Bool,
@@ -43,7 +43,8 @@ __all__ = [
 
 @frozen_attributes
 class DiscretizationParametersBase(Structure):
-    """Base class for storing discretization parameters.
+    """
+    Base class for storing discretization parameters.
 
     Attributes
     ----------
@@ -53,7 +54,6 @@ class DiscretizationParametersBase(Structure):
         Parameters for the WENO scheme.
     consistency_solver: ConsistencySolverParameters
         Consistency solver parameters for Cadet.
-
     """
 
     _dimensionality = []
@@ -109,11 +109,14 @@ class NoDiscretization(DiscretizationParametersBase):
 
 
 class DGMixin(DiscretizationParametersBase):
+    """Mixin DG discretization parameters."""
+
     pass
 
 
 class LRMDiscretizationFV(DiscretizationParametersBase):
-    """Discretization parameters of the FV version of the LRM.
+    """
+    Discretization parameters of the FV version of the LRM.
 
     Attributes
     ----------
@@ -126,7 +129,6 @@ class LRMDiscretizationFV(DiscretizationParametersBase):
     reconstruction : Switch, optional
         Method for spatial reconstruction. Valid values are 'WENO' (Weighted
         Essentially Non-Oscillatory). Default is 'WENO'.
-
     """
 
     spatial_method = Constant(value="FV")
@@ -143,7 +145,8 @@ class LRMDiscretizationFV(DiscretizationParametersBase):
 
 
 class LRMDiscretizationDG(DGMixin):
-    """Discretization parameters of the DG version of the LRM.
+    """
+    Discretization parameters of the DG version of the LRM.
 
     Attributes
     ----------
@@ -163,7 +166,6 @@ class LRMDiscretizationDG(DGMixin):
     --------
     CADETProcess.processModel.LRMPDiscretizationFV
     CADETProcess.processModel.LumpedRateModelWithPores
-
     """
 
     spatial_method = Constant(value="DG")
@@ -187,7 +189,8 @@ class LRMDiscretizationDG(DGMixin):
 
 
 class LRMPDiscretizationFV(DiscretizationParametersBase):
-    """Discretization parameters of the FV version of the LRMP.
+    """
+    Discretization parameters of the FV version of the LRMP.
 
     Attributes
     ----------
@@ -222,7 +225,6 @@ class LRMPDiscretizationFV(DiscretizationParametersBase):
     --------
     CADETProcess.processModel.LRMPDiscretizationDG
     CADETProcess.processModel.LumpedRateModelWithPores
-
     """
 
     spatial_method = Constant(value="FV")
@@ -252,7 +254,8 @@ class LRMPDiscretizationFV(DiscretizationParametersBase):
 
 
 class LRMPDiscretizationDG(DGMixin):
-    """Discretization parameters of the DG version of the LRMP.
+    """
+    Discretization parameters of the DG version of the LRMP.
 
     Attributes
     ----------
@@ -276,7 +279,6 @@ class LRMPDiscretizationDG(DGMixin):
     --------
     CADETProcess.processModel.LRMPDiscretizationFV
     CADETProcess.processModel.LumpedRateModelWithPores
-
     """
 
     spatial_method = Constant(value="DG")
@@ -304,7 +306,8 @@ class LRMPDiscretizationDG(DGMixin):
 
 
 class GRMDiscretizationFV(DiscretizationParametersBase):
-    """Discretization parameters of the FV version of the LRMP.
+    """
+    Discretization parameters of the FV version of the LRMP.
 
     Attributes
     ----------
@@ -361,7 +364,6 @@ class GRMDiscretizationFV(DiscretizationParametersBase):
     --------
     CADETProcess.processModel.LRMPDiscretizationDG
     CADETProcess.processModel.LumpedRateModelWithPores
-
     """
 
     spatial_method = Constant(value="FV")
@@ -427,7 +429,8 @@ class GRMDiscretizationFV(DiscretizationParametersBase):
 
 
 class GRMDiscretizationDG(DGMixin):
-    """Discretization parameters of the DG version of the GRM.
+    """
+    Discretization parameters of the DG version of the GRM.
 
     Attributes
     ----------
@@ -465,7 +468,6 @@ class GRMDiscretizationDG(DGMixin):
     --------
     CADETProcess.processModel.GRMDiscretizationDG
     CADETProcess.processModel.GeneralRateModel
-
     """
 
     spatial_method = Constant(value="DG")
@@ -523,7 +525,8 @@ class GRMDiscretizationDG(DGMixin):
 
 @frozen_attributes
 class WenoParameters(Structure):
-    """Discretization parameters for the WENO scheme.
+    """
+    Discretization parameters for the WENO scheme.
 
     Attributes
     ----------
@@ -548,7 +551,6 @@ class WenoParameters(Structure):
     See Also
     --------
     Structure
-
     """
 
     boundary_model = UnsignedInteger(default=0, ub=3)
@@ -559,7 +561,8 @@ class WenoParameters(Structure):
 
 @frozen_attributes
 class ConsistencySolverParameters(Structure):
-    """A class for defining the consistency solver parameters for Cadet.
+    """
+    A class for defining the consistency solver parameters for Cadet.
 
     Parameters
     ----------
@@ -582,7 +585,6 @@ class ConsistencySolverParameters(Structure):
     See Also
     --------
     Structure
-
     """
 
     solver_name = Switch(
@@ -603,7 +605,8 @@ class ConsistencySolverParameters(Structure):
 
 
 class MCTDiscretizationFV(DiscretizationParametersBase):
-    """Discretization parameters of the FV version of the MCT.
+    """
+    Discretization parameters of the FV version of the MCT.
 
     Attributes
     ----------
@@ -616,7 +619,6 @@ class MCTDiscretizationFV(DiscretizationParametersBase):
     reconstruction : Switch, optional
         Method for spatial reconstruction. Valid values are 'WENO' (Weighted
         Essentially Non-Oscillatory). Default is 'WENO'.
-
     """
 
     spatial_method = Constant(value="FV")

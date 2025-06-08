@@ -14,7 +14,7 @@ comparison with ``SimulationResults``
     ReferenceBase
     ReferenceIO
 
-"""
+"""  # noqa
 
 import numpy as np
 
@@ -26,19 +26,20 @@ __all__ = ["ReferenceBase", "ReferenceIO", "FractionationReference"]
 
 
 class ReferenceBase(SolutionBase):
-    """Class representing references to be compared with SimulationResults.
+    """
+    Class representing references to be compared with SimulationResults.
 
     See Also
     --------
     CADETProcess.solution.SolutionBase
-
     """
 
     pass
 
 
 class ReferenceIO(ReferenceBase, SolutionIO):
-    """A class representing reference data of inlet or outlet concentration profiles.
+    """
+    A class representing reference data of inlet or outlet concentration profiles.
 
     Attributes
     ----------
@@ -57,11 +58,11 @@ class ReferenceIO(ReferenceBase, SolutionIO):
     --------
     CADETProcess.reference.ReferenceBase
     CADETProcess.solution.SolutionIO
-
     """
 
     def __init__(self, name, time, solution, flow_rate=None, component_system=None):
-        """Initialize a ReferenceIO object.
+        """
+        Initialize a ReferenceIO object.
 
         Parameters
         ----------
@@ -86,7 +87,6 @@ class ReferenceIO(ReferenceBase, SolutionIO):
         ValueError
             If the time and solution arrays are not the same length.
             If the flow rate array and time array are not the same length.
-
         """
         time = np.array(time, dtype=np.float64).reshape(-1)
 
@@ -110,7 +110,8 @@ class ReferenceIO(ReferenceBase, SolutionIO):
 
 
 class FractionationReference(ReferenceBase):
-    """A class representing reference data of fractionation data.
+    """
+    A class representing reference data of fractionation data.
 
     Attributes
     ----------

@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any, Optional
+
 import numpy as np
 
 from .dataStructure import Aggregator
@@ -6,7 +10,22 @@ from .dataStructure import Aggregator
 class NumpyProxyArray(np.ndarray):
     """A numpy array that dynamically updates attributes of container elements."""
 
-    def __new__(cls, aggregator, instance):
+    def __new__(cls, aggregator: Aggregator, instance: Any) -> Optional[NumpyProxyArray]:
+        """
+        Create a new NumpyProxyArray instance using data from an aggregator.
+
+        Parameters
+        ----------
+        aggregator : Aggregator
+            The aggregator from which to obtain values.
+        instance : Any
+            The instance associated with the values.
+
+        Returns
+        -------
+        Optional[NumpyProxyArray]
+            A new instance of the class if values are available, otherwise None.
+        """
         values = aggregator._get_values_from_container(instance, transpose=True)
 
         if values is None:
@@ -30,6 +49,7 @@ class NumpyProxyArray(np.ndarray):
     def __setitem__(self, index, value):
         """
         Modify an individual element in the aggregated parameter list.
+
         This ensures changes are propagated back to the objects.
         """
         current_value = self._get_values_from_aggregator()
@@ -50,10 +70,7 @@ class NumpyProxyArray(np.ndarray):
         self.instance = getattr(obj, "instance", None)
 
     def __array_function__(self, func, types, *args, **kwargs):
-        """
-        Ensures that high-level NumPy functions (like np.dot, np.linalg.norm) return a
-        normal np.ndarray.
-        """
+        """Ensure that high-level NumPy functions return a normal np.ndarray."""
         result = super().__array_function__(func, types, *args, **kwargs)
         return np.asarray(result)
 
@@ -196,7 +213,6 @@ class ClassDependentAggregator(Aggregator):
             Additional positional arguments.
         **kwargs : dict, optional
             Additional keyword arguments.
-
         """
         self.mapping = mapping
 
@@ -228,4 +244,6 @@ class ClassDependentAggregator(Aggregator):
 
 
 class SizedClassDependentAggregator(SizedAggregator, ClassDependentAggregator):
+    """Aggregator where parameter name and size changes depending on instance type."""
+
     pass

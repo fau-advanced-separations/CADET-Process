@@ -2,7 +2,8 @@ from CADETProcess import CADETProcessError
 
 
 class ParameterWrapper:
-    """Base class for converting the config from objects such as units.
+    """
+    Base class for converting the config from objects such as units.
 
     Attributes
     ----------
@@ -15,7 +16,6 @@ class ParameterWrapper:
     ------
     CADETProcessError
         If the wrapped_object is no instance of the base_class.
-
     """
 
     _base_class = object
@@ -33,7 +33,8 @@ class ParameterWrapper:
         self._wrapped_object = wrapped_object
 
     @property
-    def parameters(self):
+    def parameters(self) -> dict:
+        """dict: Parameters dictionary."""
         model_parameters = {}
 
         model_parameters[self._model_type] = self.model_parameters["name"]

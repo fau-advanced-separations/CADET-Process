@@ -13,7 +13,7 @@ This module provides a class for storing simulation results.
 
     SimulationResults
 
-"""
+"""  # noqa
 
 import copy
 
@@ -34,7 +34,8 @@ __all__ = ["SimulationResults"]
 
 
 class SimulationResults(Structure):
-    """Class for storing simulation results including the solver configuration.
+    """
+    Class for storing simulation results including the solver configuration.
 
     Attributes
     ----------
@@ -69,7 +70,6 @@ class SimulationResults(Structure):
     -----
         Ideally, the final state for each unit operation should be saved.
         However, CADET does currently provide this functionality.
-
     """
 
     solver_name = String()
@@ -114,6 +114,7 @@ class SimulationResults(Structure):
         self._sensitivity = None
 
     def update(self, new_results):
+        """Update the simulation results with results from a new cycle."""
         if self.process.name != new_results.process.name:
             raise CADETProcessError("Process does not match")
 
@@ -135,6 +136,7 @@ class SimulationResults(Structure):
 
     @property
     def component_system(self):
+        """ComponentSystem: The component system used in the simulation."""
         solution = self.solution_cycles[self._first_unit][self._first_solution]
         return solution[0].component_system
 
@@ -236,6 +238,7 @@ class SimulationResults(Structure):
 
     @property
     def n_cycles(self):
+        """int: Number of simulated cycles."""
         return len(self.solution_cycles[self._first_unit][self._first_solution])
 
     @property
@@ -248,11 +251,12 @@ class SimulationResults(Structure):
 
     @property
     def time_cycle(self):
-        """np.array: Solution times vector"""
+        """np.array: Solution times vector."""
         return self.solution_cycles[self._first_unit][self._first_solution][0].time
 
     @property
     def time_complete(self):
+        """np.ndarray: Solution times vector for all cycles."""
         if self._time_complete is not None:
             return self._time_complete
 

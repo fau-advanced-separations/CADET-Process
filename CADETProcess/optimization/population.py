@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import uuid
 import warnings
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import corner
 import matplotlib.pyplot as plt
@@ -15,7 +17,8 @@ from CADETProcess.optimization.individual import Individual, hash_array
 
 
 class Population:
-    """Collection of Individuals evaluated during Optimization.
+    """
+    Collection of Individuals evaluated during Optimization.
 
     Attributes
     ----------
@@ -26,11 +29,11 @@ class Population:
     --------
     CADETProcess.optimization.Individual
     ParetoFront
-
     """
 
     def __init__(self, id=None):
-        """Initialize the Population.
+        """
+        Initialize the Population.
 
         Parameters
         ----------
@@ -85,8 +88,8 @@ class Population:
         return self.individuals[0].n_m
 
     @property
-    def dimensions(self) -> tuple[int]:
-        """tuple: Individual dimensions (n_x, n_f, n_g, n_m)"""
+    def dimensions(self) -> tuple[int] | None:
+        """tuple: Individual dimensions (n_x, n_f, n_g, n_m)."""
         if self.n_individuals == 0:
             return None
 
@@ -135,7 +138,8 @@ class Population:
         individual: Individual,
         ignore_duplicate: bool | None = True,
     ):
-        """Add individual to population.
+        """
+        Add individual to population.
 
         Parameters
         ----------
@@ -151,7 +155,6 @@ class Population:
         CADETProcessError
             If the individual does not match the dimensions.
             If the individual already exists.
-
         """
         if not isinstance(individual, Individual):
             raise TypeError("Expected Individual")
@@ -168,7 +171,8 @@ class Population:
         self._individuals[individual.id] = individual
 
     def remove_individual(self, individual):
-        """Remove an individual from the population.
+        """
+        Remove an individual from the population.
 
         Parameters
         ----------
@@ -181,7 +185,6 @@ class Population:
             If the individual is not an instance of Individual.
         CADETProcessError
             If the individual is not in the population.
-
         """
         if not isinstance(individual, Individual):
             raise TypeError("Expected Individual")
@@ -191,7 +194,8 @@ class Population:
         self._individuals.pop(individual.id)
 
     def update(self, other):
-        """Update the population with individuals from another population.
+        """
+        Update the population with individuals from another population.
 
         Parameters
         ----------
@@ -204,7 +208,6 @@ class Population:
             If other is not an instance of Population.
         CADETProcessError
             If the dimensions do not match.
-
         """
         if not isinstance(other, Population):
             raise TypeError("Expected Population")
@@ -393,11 +396,16 @@ class Population:
 
     @property
     def is_feasilbe(self) -> bool:
-        """np.array: False if any constraint is not met. True otherwise."""
+        """
+        np.array: False if any constraint is not met.
+
+        True otherwise.
+        """
         return np.array([ind.is_feasible for ind in self.individuals])
 
     def setup_objectives_figure(self, include_meta=True, plot_individual=False):
-        """Set up figure and axes for plotting objectives.
+        """
+        Set up figure and axes for plotting objectives.
 
         Parameters
         ----------
@@ -457,7 +465,8 @@ class Population:
         show=True,
         plot_directory=None,
     ):
-        """Plot the objective function values for each design variable.
+        """
+        Plot the objective function values for each design variable.
 
         Parameters
         ----------
@@ -592,7 +601,8 @@ class Population:
             return figs[0], axs
 
     def setup_pareto(self, include_meta: bool = False):
-        """Set up base figure for plotting the Pareto front.
+        """
+        Set up base figure for plotting the Pareto front.
 
         Parameters
         ----------
@@ -628,7 +638,8 @@ class Population:
         show=True,
         plot_directory=None,
     ):
-        """Plot pairwise Pareto fronts for each generation in the optimization.
+        """
+        Plot pairwise Pareto fronts for each generation in the optimization.
 
         The Pareto front represents the optimal solutions that cannot be improved in one
         objective without sacrificing another. The method shows a pairwise Pareto plot,
@@ -758,7 +769,8 @@ class Population:
         return fig, axs
 
     def plot_corner(self, use_transformed=False, show=True, plot_directory=None):
-        """Create a corner plot of the independent variables.
+        """
+        Create a corner plot of the independent variables.
 
         Parameters
         ----------
@@ -817,7 +829,8 @@ class Population:
             plt.close(fig)
 
     def __contains__(self, other):
-        """Check if the population contains a specific individual.
+        """
+        Check if the population contains a specific individual.
 
         Parameters
         ----------
@@ -842,7 +855,8 @@ class Population:
             return False
 
     def __getitem__(self, x):
-        """Get an individual from the population using its hashable representation.
+        """
+        Get an individual from the population using its hashable representation.
 
         Parameters
         ----------
@@ -859,7 +873,8 @@ class Population:
         return self._individuals[key]
 
     def __len__(self):
-        """Get the number of individuals in the population.
+        """
+        Get the number of individuals in the population.
 
         Returns
         -------
@@ -869,7 +884,8 @@ class Population:
         return self.n_individuals
 
     def __iter__(self):
-        """Iterate over the individuals in the population.
+        """
+        Iterate over the individuals in the population.
 
         Returns
         -------
@@ -879,7 +895,8 @@ class Population:
         return iter(self.individuals)
 
     def to_dict(self):
-        """Convert Population to a dictionary.
+        """
+        Convert Population to a dictionary.
 
         Returns
         -------
@@ -896,7 +913,8 @@ class Population:
 
     @classmethod
     def from_dict(cls, data):
-        """Create a Population from a dictionary.
+        """
+        Create a Population from a dictionary.
 
         Parameters
         ----------
@@ -919,26 +937,43 @@ class Population:
 
 
 class ParetoFront(Population):
-    def __init__(self, similarity_tol=1e-1, *args, **kwargs):
+    """Class representing a Pareto front in a multi-objective optimization problem."""
+
+    def __init__(
+            self,
+            similarity_tol: float = 1e-1,
+            *args: Any,
+            **kwargs: Any
+    ) -> None:
+        """
+        Initialize a ParetoFront with a specified similarity tolerance.
+
+        Parameters
+        ----------
+        similarity_tol : float, optional
+            Tolerance for similarity between individuals. Default is 1e-1.
+        *args : tuple
+            Additional positional arguments for the parent class.
+        **kwargs : dict
+            Additional keyword arguments for the parent class.
+        """
         self.similarity_tol = similarity_tol
         super().__init__(*args, **kwargs)
 
-    def update_population(self, population: Population):
-        """Update the Pareto front with new population.
-
-        If any individual in the pareto front is dominated, it is removed.
+    def update_population(self, population: Population) -> tuple[list, bool]:
+        """
+        Update the Pareto front with a new population.
 
         Parameters
         ----------
         population : Population
-            Population to update the pareto front with.
+            The population used to update the Pareto front.
 
         Returns
         -------
-        new_members : list
-            New members added to the pareto front.
-        significant_improvement : bool
-            True if pareto front has improved significantly. False otherwise.
+        tuple[list, bool]
+            A tuple containing new members added to the Pareto front and a boolean indicating
+            if there was a significant improvement.
         """
         new_members = []
         significant = []
@@ -1019,14 +1054,14 @@ class ParetoFront(Population):
 
         return new_members, any(significant)
 
-    def remove_infeasible(self):
-        """Remove infeasible individuals from pareto front."""
+    def remove_infeasible(self) -> None:
+        """Remove infeasible individuals from the Pareto front."""
         for ind in self.individuals.copy():
             if not ind.is_feasible:
                 self.remove_individual(ind)
 
-    def remove_dominated(self):
-        """Remove dominated individuals from pareto front."""
+    def remove_dominated(self) -> None:
+        """Remove dominated individuals from the Pareto front."""
         for ind in self.individuals.copy():
             dominates_one = False
             to_remove = []
@@ -1045,13 +1080,15 @@ class ParetoFront(Population):
                 except CADETProcessError:
                     pass
 
-    def to_dict(self):
-        """Convert ParetoFront to a dictionary.
+    def to_dict(self) -> dict:
+        """
+        Convert the ParetoFront to a dictionary.
 
         Returns
         -------
         dict
-            ParetoFront as a dictionary with individuals stored as list of dictionaries.
+            A dictionary representation of the ParetoFront, including individuals and
+            similarity tolerance if set.
         """
         front = super().to_dict()
         if self.similarity_tol:
@@ -1060,18 +1097,19 @@ class ParetoFront(Population):
         return front
 
     @classmethod
-    def from_dict(cls, data):
-        """Create ParetoFront from dictionary.
+    def from_dict(cls, data: dict) -> ParetoFront:
+        """
+        Create a ParetoFront instance from a dictionary.
 
         Parameters
         ----------
         data : dict
-            Dictionary containing population data.
+            Dictionary containing the ParetoFront data.
 
         Returns
         -------
         ParetoFront
-            ParetoFront created from data.
+            An instance of ParetoFront created from the dictionary.
         """
         front = cls(similarity_tol=data.get("similarity_tol"), id=data["id"])
         for individual_data in data["individuals"].values():
@@ -1110,6 +1148,7 @@ def plot_pairwise(
     axs : Optional[npt.NDArray[plt.Axes]], default=None
         An optional array of Matplotlib Axes. If none is provided, new axes will be
         created.
+
     Returns
     -------
     tuple

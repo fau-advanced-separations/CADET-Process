@@ -39,7 +39,8 @@ __all__ = [
 
 
 def sigmoid_distance(measurement, target, normalization=1):
-    """Calculate the distance between two values using a sigmoid function.
+    """
+    Calculate the distance between two values using a sigmoid function.
 
     The distance is defined as the sigmoid transformation of the difference between the
     measurement and target values, normalized by a user-specified factor.
@@ -116,7 +117,8 @@ class DifferenceBase(MetricBase):
         smooth=False,
         normalize=False,
     ):
-        """Initialize an instance of DifferenceBase.
+        """
+        Initialize an instance of DifferenceBase.
 
         Parameters
         ----------
@@ -143,7 +145,6 @@ class DifferenceBase(MetricBase):
             If True, smooth data. The default is False.
         normalize : bool, optional
             If True, normalize data. The default is False.
-
         """
         self.components = components
         self.use_total_concentration = use_total_concentration
@@ -201,10 +202,10 @@ class DifferenceBase(MetricBase):
         self._reference = reference
 
     def checks_dimensions(func):
-        """Decorator to automatically check reference and solution dimensions."""
-
+        """Wrap method automatically check reference and solution dimensions."""
         @wraps(func)
         def wrapper(self, solution, *args, **kwargs):
+            """Automatically check reference and solution dimensions before further processing."""
             if solution.solution.shape != self.reference.solution.shape:
                 raise CADETProcessError("Simulation shape does not match experiment")
             value = func(self, solution, *args, **kwargs)
@@ -213,10 +214,10 @@ class DifferenceBase(MetricBase):
         return wrapper
 
     def slices_solution(func):
-        """Decorator to automatically slice solution."""
-
+        """Wrap method to automatically slice solution."""
         @wraps(func)
         def wrapper(self, solution, slice=True, *args, **kwargs):
+            """Automatically slice solution before further processing."""
             if slice:
                 solution = slice_solution(
                     solution,
@@ -233,10 +234,10 @@ class DifferenceBase(MetricBase):
         return wrapper
 
     def resamples_normalizes_and_smoothes_solution(func):
-        """Decorator to automatically resample, normalize, and smooth solution."""
-
+        """Wrap metho to automatically resample, normalize, and smooth solution."""
         @wraps(func)
         def wrapper(self, solution, *args, **kwargs):
+            """Automatically resample, normalize, and smooth solution before further processing."""
             solution = copy.deepcopy(solution)
             if self.resample:
                 solution = solution.resample(
@@ -255,10 +256,10 @@ class DifferenceBase(MetricBase):
         return wrapper
 
     def transforms_solution(func):
-        """Decorator to automatically transform solution data."""
-
+        """Wrap method s.t. solution is automatically transformed."""
         @wraps(func)
         def wrapper(self, solution, *args, **kwargs):
+            """Automatically transforme solution data before further processing."""
             if self.transform is not None:
                 solution = copy.deepcopy(solution)
 
@@ -274,7 +275,8 @@ class DifferenceBase(MetricBase):
 
     @abstractmethod
     def _evaluate(self):
-        """Abstract method to compute the difference metric.
+        """
+        Abstract method to compute the difference metric.
 
         Returns
         -------
@@ -288,7 +290,8 @@ class DifferenceBase(MetricBase):
     @transforms_solution
     @checks_dimensions
     def evaluate(self, solution):
-        """Compute the difference between the reference solution and the input solution.
+        """
+        Compute the difference between the reference solution and the input solution.
 
         Parameters
         ----------
@@ -299,7 +302,6 @@ class DifferenceBase(MetricBase):
         -------
         np.ndarray
             The difference between the two solutions.
-
         """
         metric = self._evaluate(solution)
         return metric
@@ -310,7 +312,8 @@ class DifferenceBase(MetricBase):
     @slices_solution
     @transforms_solution
     def slice_and_transform(self, solution):
-        """Slice the solution and applies the transform callable (if defined).
+        """
+        Slice the solution and applies the transform callable (if defined).
 
         Parameters
         ----------
@@ -326,7 +329,8 @@ class DifferenceBase(MetricBase):
 
 
 def calculate_sse(simulation, reference):
-    """Calculate the sum of squared errors (SSE) between simulation and reference.
+    """
+    Calculate the sum of squared errors (SSE) between simulation and reference.
 
     Parameters
     ----------
@@ -355,7 +359,8 @@ class SSE(DifferenceBase):
 
 
 def calculate_rmse(simulation, reference):
-    """Calculate the root mean squared error (RMSE) between simulation and reference.
+    """
+    Calculate the root mean squared error (RMSE) between simulation and reference.
 
     Parameters
     ----------
@@ -396,7 +401,8 @@ class NRMSE(DifferenceBase):
 
 
 class Norm(DifferenceBase):
-    """Norm difference metric.
+    """
+    Norm difference metric.
 
     Attributes
     ----------
@@ -434,13 +440,13 @@ class AbsoluteArea(DifferenceBase):
     _valid_references = (SolutionIO, ReferenceIO)
 
     def _evaluate(self, solution):
-        """np.array: Absolute difference in area compared to reference.
+        """
+        np.array: Absolute difference in area compared to reference.
 
         Parameters
         ----------
         solution : SolutionIO
             Concentration profile of simulation.
-
         """
         area_ref = simpson(self.reference.solution, self.reference.time, axis=0)
         area_sol = simpson(solution.solution, solution.time, axis=0)
@@ -454,13 +460,13 @@ class RelativeArea(DifferenceBase):
     _valid_references = (SolutionIO, ReferenceIO)
 
     def _evaluate(self, solution):
-        """np.array: Relative difference in area compared to reference.
+        """
+        np.array: Relative difference in area compared to reference.
 
         Parameters
         ----------
         solution : SolutionIO
             Concentration profile of simulation.
-
         """
         area_ref = simpson(self.reference.solution, x=self.reference.time, axis=0)
         area_new = simpson(solution.solution, x=solution.time, axis=0)
@@ -469,7 +475,8 @@ class RelativeArea(DifferenceBase):
 
 
 class Shape(DifferenceBase):
-    """Shape similarity difference metric.
+    """
+    Shape similarity difference metric.
 
     The similarity is calculated using the Pearson correlation between the reference
     and solution profiles, as well as the time offset between their peak positions, and
@@ -492,7 +499,6 @@ class Shape(DifferenceBase):
     Notes
     -----
     Currently, this class only works for single-component systems with one peak.
-
     """
 
     _valid_references = (SolutionIO, ReferenceIO)
@@ -506,7 +512,8 @@ class Shape(DifferenceBase):
         normalization_factor=None,
         **kwargs,
     ):
-        """Initialize Shape metric.
+        """
+        Initialize Shape metric.
 
         Parameters
         ----------
@@ -524,7 +531,6 @@ class Shape(DifferenceBase):
             Default is None, which sets it to 1/10 of the simulation time.
         **kwargs : dict
             Keyword arguments passed to the base class constructor.
-
         """
         super().__init__(*args, **kwargs)
 
@@ -546,7 +552,8 @@ class Shape(DifferenceBase):
         self.normalization_factor = normalization_factor
 
     @property
-    def n_metrics(self):
+    def n_metrics(self) -> int:
+        """int: Number of metrics."""
         n_metrics = 2
 
         if self.use_derivative:
@@ -556,6 +563,7 @@ class Shape(DifferenceBase):
 
     @property
     def labels(self):
+        """list[str]: List of difference metric names."""
         labels = ["Pearson Correleation", "Time offset"]
         if self.use_derivative:
             labels += ["Pearson Correlation Derivative"]
@@ -738,7 +746,8 @@ class ShapeFront(Shape):
 
 
 class PeakHeight(DifferenceBase):
-    """Absolute difference in peak height difference metric.
+    """
+    Absolute difference in peak height difference metric.
 
     Attributes
     ----------
@@ -763,7 +772,8 @@ class PeakHeight(DifferenceBase):
         normalization_factor=None,
         **kwargs,
     ):
-        """Initialize the PeakHeight object.
+        """
+        Initialize the PeakHeight object.
 
         Parameters
         ----------
@@ -780,7 +790,6 @@ class PeakHeight(DifferenceBase):
             The default is None.
         **kwargs : dict
             Keyword arguments passed to the base class constructor.
-
         """
         super().__init__(*args, **kwargs)
 
@@ -801,17 +810,18 @@ class PeakHeight(DifferenceBase):
         self.normalization_factor = normalization_factor
 
     @property
-    def n_metrics(self):
+    def n_metrics(self) -> int:
+        """int: Number of metrics."""
         return sum([len(peak) for peak in self.reference_peaks])
 
     def _evaluate(self, solution):
-        """np.array: Difference in peak height (concentration).
+        """
+        np.array: Difference in peak height (concentration).
 
         Parameters
         ----------
         solution : SolutionIO
             Concentration profile of simulation.
-
         """
         solution_peaks = find_peaks(solution, find_minima=self.find_minima)
 
@@ -836,7 +846,8 @@ class PeakHeight(DifferenceBase):
 
 
 class PeakPosition(DifferenceBase):
-    """Absolute difference in peak peak position difference metric.
+    """
+    Absolute difference in peak peak position difference metric.
 
     Attributes
     ----------
@@ -854,7 +865,8 @@ class PeakPosition(DifferenceBase):
     def __init__(
         self, *args, normalize_metrics=True, normalization_factor=None, **kwargs
     ):
-        """Initialize PeakPosition object.
+        """
+        Initialize PeakPosition object.
 
         Parameters
         ----------
@@ -869,7 +881,6 @@ class PeakPosition(DifferenceBase):
             None.
         **kwargs : dict
             Keyword arguments passed to the base class constructor.
-
         """
         super().__init__(*args, **kwargs)
 
@@ -890,17 +901,18 @@ class PeakPosition(DifferenceBase):
         self.normalization_factor = normalization_factor
 
     @property
-    def n_metrics(self):
+    def n_metrics(self) -> int:
+        """int: Number of metrics."""
         return sum([len(peak) for peak in self.reference_peaks])
 
     def _evaluate(self, solution):
-        """np.array: Difference in peak position (time).
+        """
+        np.array: Difference in peak position (time).
 
         Parameters
         ----------
         solution : SolutionIO
             Concentration profile of simulation.
-
         """
         solution_peaks = find_peaks(solution)
 
@@ -925,7 +937,8 @@ class PeakPosition(DifferenceBase):
 
 
 class BreakthroughHeight(DifferenceBase):
-    """Absolute difference in breakthrough curve height difference metric.
+    """
+    Absolute difference in breakthrough curve height difference metric.
 
     Attributes
     ----------
@@ -933,14 +946,14 @@ class BreakthroughHeight(DifferenceBase):
         Whether to normalize the difference scores based on a sigmoid function.
     reference_bt : list of tuple
         List of breakthrough curves in the reference solution.
-
     """
 
     _valid_references = (SolutionIO, ReferenceIO)
 
     @wraps(DifferenceBase.__init__)
     def __init__(self, *args, normalize_metrics=True, **kwargs):
-        """Initialize BreakthroughHeight metric.
+        """
+        Initialize BreakthroughHeight metric.
 
         Parameters
         ----------
@@ -958,17 +971,18 @@ class BreakthroughHeight(DifferenceBase):
         self.reference_bt = find_breakthroughs(self.reference)
 
     @property
-    def n_metrics(self):
+    def n_metrics(self) -> int:
+        """int: Number of metrics."""
         return len(self.reference_bt)
 
     def _evaluate(self, solution):
-        """np.array: Difference in breakthrough height (concentration).
+        """
+        np.array: Difference in breakthrough height (concentration).
 
         Parameters
         ----------
         solution : SolutionIO
             Concentration profile of simulation.
-
         """
         solution_bt = find_breakthroughs(solution)
 
@@ -1008,7 +1022,6 @@ class BreakthroughPosition(DifferenceBase):
             the reference breakthrough.
         **kwargs : dict
             Keyword arguments passed to the base class constructor.
-
         """
         super().__init__(*args, **kwargs)
 
@@ -1025,17 +1038,18 @@ class BreakthroughPosition(DifferenceBase):
         self.normalization_factor = normalization_factor
 
     @property
-    def n_metrics(self):
+    def n_metrics(self) -> int:
+        """int: Number of metrics."""
         return len(self.reference_bt)
 
     def _evaluate(self, solution):
-        """np.array: Difference in breakthrough position (time).
+        """
+        np.array: Difference in breakthrough position (time).
 
         Parameters
         ----------
         solution : SolutionIO
             Concentration profile of simulation.
-
         """
         solution_bt = find_breakthroughs(solution)
 
@@ -1075,7 +1089,6 @@ class FractionationSSE(DifferenceBase):
             the reference breakthrough.
         **kwargs : dict
             Keyword arguments passed to the base class constructor.
-
         """
         super().__init__(*args, resample=False, only_transforms_array=False, **kwargs)
 
@@ -1085,6 +1098,7 @@ class FractionationSSE(DifferenceBase):
             )
 
         def transform(solution):
+            """Transform solution."""
             solution = copy.deepcopy(solution)
             solution_fractions = [
                 solution.create_fraction(frac.start, frac.end)
@@ -1103,13 +1117,13 @@ class FractionationSSE(DifferenceBase):
         self.transform = transform
 
     def _evaluate(self, solution):
-        """np.array: Difference in breakthrough position (time).
+        """
+        np.array: Difference in breakthrough position (time).
 
         Parameters
         ----------
         solution : SolutionIO
             Concentration profile of simulation.
-
         """
         sse = calculate_sse(solution.solution, self.reference.solution)
 

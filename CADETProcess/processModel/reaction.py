@@ -19,7 +19,8 @@ from .componentSystem import ComponentSystem
 
 
 class Reaction(Structure):
-    """Helper class to store information about individual Mass Action Law Reactions.
+    """
+    Helper class to store information about individual Mass Action Law Reactions.
 
     This class represents an individual reaction within a MAL model, and
     stores information about the reaction's stoichiometry, rate constants,
@@ -85,7 +86,8 @@ class Reaction(Structure):
         exponents_fwd=None,
         exponents_bwd=None,
     ):
-        """Initialize individual Mass Action Law Reaction.
+        """
+        Initialize individual Mass Action Law Reaction.
 
         Parameters
         ----------
@@ -113,7 +115,6 @@ class Reaction(Structure):
             Concentration exponents of the components in order of components for
             backward reaction. If None is given, values are inferred from the
             stoichiometric coefficients. The default is None.
-
         """
         self.component_system = component_system
         super().__init__()
@@ -166,7 +167,8 @@ class Reaction(Structure):
         """float: Equilibrium constant (Ratio of forward and backward reaction)."""
         return self.k_fwd / self.k_bwd
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """str: String representation of the Reaction."""
         educts = []
         products = []
         for i, nu in enumerate(self.stoich):
@@ -285,7 +287,8 @@ class CrossPhaseReaction(Structure):
         exponents_fwd_solid=None,
         exponents_bwd_solid=None,
     ):
-        """Initialize individual cross-phase MAL reaction.
+        """
+        Initialize individual cross-phase MAL reaction.
 
         Parameters
         ----------
@@ -325,7 +328,6 @@ class CrossPhaseReaction(Structure):
             Concentration exponents of the components in order of indices for
             backward reaction in solid phase. If None is given, values are
             inferred from the stoichiometric coefficients. The default is None.
-
         """
         self.component_system = component_system
         super().__init__()
@@ -415,6 +417,7 @@ class CrossPhaseReaction(Structure):
         return self.k_fwd / self.k_bwd
 
     def __str__(self):
+        """str: String representation of the Reaction."""
         educts = []
         products = []
         for i, nu in enumerate(self.stoich_liquid):
@@ -449,7 +452,8 @@ class CrossPhaseReaction(Structure):
 
 
 class ReactionBaseClass(Structure):
-    """Abstract base class for parameters of reaction models.
+    """
+    Abstract base class for parameters of reaction models.
 
     Attributes
     ----------
@@ -457,7 +461,6 @@ class ReactionBaseClass(Structure):
         dict with parameter values.
     name : String
         name of the reaction model.
-
     """
 
     name = String()
@@ -471,12 +474,13 @@ class ReactionBaseClass(Structure):
         super().__init__(*args, **kwargs)
 
     @property
-    def model(self):
+    def model(self) -> str:
+        """str: Name of the reaction model."""
         return self.__class__.__name__
 
     @property
-    def component_system(self):
-        """ComponentSystem: Component System"""
+    def component_system(self) -> ComponentSystem:
+        """ComponentSystem: Component System."""
         return self._component_system
 
     @component_system.setter
@@ -491,19 +495,21 @@ class ReactionBaseClass(Structure):
         return self.component_system.n_comp
 
     def __repr__(self):
+        """str: String representation of the Reaction."""
         return f"{self.__class__.__name__}(n_comp={self.n_comp}, name={self.name})"
 
     def __str__(self):
+        """str: String representation of the Reaction."""
         if self.name is None:
             return self.__class__.__name__
         return self.name
 
 
 class NoReaction(ReactionBaseClass):
-    """Dummy class for units that do not experience reaction behavior.
+    """
+    Dummy class for units that do not experience reaction behavior.
 
     The number of components is set to zero for this class.
-
     """
 
     def __init__(self, *args, **kwargs):
@@ -715,7 +721,8 @@ class MassActionLawParticle(ParticleReactionBase):
 
 
 def scale_to_rapid_equilibrium(k_eq, k_fwd_min=10):
-    """Scale forward and backward reaction rates if only k_eq is known.
+    """
+    Scale forward and backward reaction rates if only k_eq is known.
 
     Parameters
     ----------
@@ -730,7 +737,6 @@ def scale_to_rapid_equilibrium(k_eq, k_fwd_min=10):
         Forward reaction rate.
     k_bwd : float
         Backward reaction rate.
-
     """
     k_fwd = k_fwd_min
     k_bwd = k_fwd_min / k_eq

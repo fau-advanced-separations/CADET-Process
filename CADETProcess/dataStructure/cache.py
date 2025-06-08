@@ -1,9 +1,33 @@
+from typing import Any, Optional
+
 from .dataStructure import Structure
 from .parameter import Bool
 
 
 class cached_property_if_locked(property):
-    def __get__(self, instance, cls=None):
+    """
+    A property that caches its value if the instance is locked.
+
+    This property extends the built-in property to cache its value when the instance
+    is locked. The cached value is stored in the instance's `cached_properties` dictionary.
+    """
+
+    def __get__(self, instance: Any, cls: Optional[type] = None) -> Any:
+        """
+        Get the value of the property, using the cache if the instance is locked.
+
+        Parameters
+        ----------
+        instance : Any
+            The instance from which to retrieve the property value.
+        cls : Optional[type], optional
+            The class of the instance, by default None.
+
+        Returns
+        -------
+        Any
+            The value of the property.
+        """
         if instance.lock:
             try:
                 return instance.cached_properties[self.name]
@@ -18,7 +42,8 @@ class cached_property_if_locked(property):
         return value
 
     @property
-    def name(self):
+    def name(self) -> str:
+        """str: name of the property."""
         return self.fget.__name__
 
 

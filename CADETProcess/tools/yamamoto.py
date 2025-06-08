@@ -17,6 +17,8 @@ __all__ = [
 
 
 class GradientExperiment:
+    """Gradient Experiment Class."""
+
     def __init__(
         self,
         time: npt.ArrayLike,
@@ -305,7 +307,8 @@ class YamamotoResults:
 
 
 def fit_parameters(experiments, column):
-    """Fit parameters using Yamamoto's method.
+    """
+    Fit parameters using Yamamoto's method.
 
     Parameters
     ----------
@@ -318,7 +321,6 @@ def fit_parameters(experiments, column):
     -------
     yamamoto_results : YamamotoResults
         Parameter values.
-
     """
     if not isinstance(column, TubularReactorBase):
         raise TypeError("Expected Column Model.")
