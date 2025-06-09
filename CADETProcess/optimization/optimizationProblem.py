@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import copy
 import inspect
 import math
@@ -109,11 +111,11 @@ class OptimizationProblem(Structure):
 
     def __init__(
         self,
-        name,
-        use_diskcache=True,
-        cache_directory=None,
-        log_level="INFO",
-    ):
+        name: str,
+        use_diskcache: bool = True,
+        cache_directory: Optional[str] = None,
+        log_level: str = "INFO",
+    ) -> None:
         """
         Initialize OptimizationProblem.
 
@@ -149,11 +151,17 @@ class OptimizationProblem(Structure):
         self._multi_criteria_decision_functions = []
         self._callbacks = []
 
-    def untransforms(func):
+    def untransforms(func: tp.Callable) -> tp.Callable:
         """Untransform population or individual before calling function."""
 
         @wraps(func)
-        def wrapper_untransforms(self, x, *args, untransform=False, **kwargs):
+        def wrapper_untransforms(
+            self: OptimizationProblem,
+            x: npt.ArrayLike,
+            *args: Any,
+            untransform: Optional[bool] = False,
+            **kwargs: Any,
+        ) -> Any:
             x = np.array(x, ndmin=1)
             if untransform:
                 x = self.untransform(x)
@@ -162,13 +170,17 @@ class OptimizationProblem(Structure):
 
         return wrapper_untransforms
 
-    def gets_dependent_values(func):
+    def gets_dependent_values(func: tp.Callable) -> tp.Callable:
         """Get dependent values of individual before calling function."""
 
         @wraps(func)
         def wrapper_gets_dependent_values(
-            self, x, *args, get_dependent_values=False, **kwargs
-        ):
+            self: OptimizationProblem,
+            x: npt.ArrayLike,
+            *args: Any,
+            get_dependent_values: Optional[bool] = False,
+            **kwargs: Any,
+        ) -> Any:
             if get_dependent_values:
                 x = self.get_dependent_values(x)
 
@@ -176,11 +188,16 @@ class OptimizationProblem(Structure):
 
         return wrapper_gets_dependent_values
 
-    def ensures2d(func):
+    def ensures2d(func: tp.Callable) -> tp.Callable:
         """Ensure X array is an ndarray with ndmin=2."""
 
         @wraps(func)
-        def wrapper_ensures2d(self, X: npt.ArrayLike, *args, **kwargs) -> Any:
+        def wrapper_ensures2d(
+            self: OptimizationProblem,
+            X: npt.ArrayLike,
+            *args: Any,
+            **kwargs: Any,
+        ) -> Any:
             # Convert to 2D population
             X = np.array(X)
             X_2d = np.array(X, ndmin=2)
@@ -197,14 +214,17 @@ class OptimizationProblem(Structure):
 
         return wrapper_ensures2d
 
-    def ensures_minimization(scores):
+    def ensures_minimization(scores: npt.ArrayLike) -> tp.Callable:
         """Convert maximization problems to minimization problems."""
 
-        def wrap(func):
+        def wrap(func: tp.Callable) -> tp.Callable:
             @wraps(func)
             def wrapper_ensures_minimization(
-                self, *args, ensure_minimization=False, **kwargs
-            ):
+                self: OptimizationProblem,
+                *args: Any,
+                ensure_minimization: bool = False,
+                **kwargs: Any,
+            ) -> Any:
                 s = func(self, *args, **kwargs)
 
                 if ensure_minimization:
@@ -216,7 +236,9 @@ class OptimizationProblem(Structure):
 
         return wrap
 
-    def transform_maximization(self, s, scores):
+    def transform_maximization(
+        self: Any, s: list[float], scores: str | list
+    ) -> list[float]:
         """Transform maximization problems to minimization problems."""
         factors = []
         if scores == "objectives":
@@ -235,7 +257,7 @@ class OptimizationProblem(Structure):
         return s
 
     @property
-    def evaluation_objects(self):
+    def evaluation_objects(self) -> list:
         """list: Objects to be evaluated during optimization.
 
         See Also
@@ -251,11 +273,15 @@ class OptimizationProblem(Structure):
         return list(self._evaluation_objects_dict.values())
 
     @property
-    def evaluation_objects_dict(self):
+    def evaluation_objects_dict(self) -> dict:
         """dict: Evaluation objects names and objects."""
         return self._evaluation_objects_dict
 
-    def add_evaluation_object(self, evaluation_object, name=None):
+    def add_evaluation_object(
+        self,
+        evaluation_object: Any,
+        name: Optional[str] = None,
+    ) -> None:
         """
         Add evaluation object to the optimization problem.
 
@@ -287,17 +313,17 @@ class OptimizationProblem(Structure):
         self._evaluation_objects_dict[name] = evaluation_object
 
     @property
-    def variables(self):
+    def variables(self) -> list:
         """list: List of all optimization variables."""
         return self._variables
 
     @property
-    def variable_names(self):
+    def variable_names(self) -> list:
         """list: Optimization variable names."""
         return [var.name for var in self.variables]
 
     @property
-    def n_variables(self):
+    def n_variables(self) -> int:
         """int: Number of optimization variables."""
         return len(self.variables)
 
@@ -317,7 +343,7 @@ class OptimizationProblem(Structure):
         return len(self.independent_variables)
 
     @property
-    def independent_variable_indices(self):
+    def independent_variable_indices(self) -> list:
         """list: Indices of indpeendent variables."""
         return [
             i
@@ -326,42 +352,42 @@ class OptimizationProblem(Structure):
         ]
 
     @property
-    def dependent_variables(self):
+    def dependent_variables(self) -> list:
         """list: OptimizationVaribles with dependencies."""
         return list(filter(lambda var: var.is_independent is False, self.variables))
 
     @property
-    def dependent_variable_names(self):
+    def dependent_variable_names(self) -> list:
         """list: Dependent optimization variable names."""
         return [var.name for var in self.dependent_variables]
 
     @property
-    def n_dependent_variables(self):
+    def n_dependent_variables(self) -> int:
         """int: Number of dependent optimization variables."""
         return len(self.dependent_variables)
 
     @property
-    def variables_dict(self):
+    def variables_dict(self) -> dict:
         """dict: All optimization variables indexed by variable name."""
         return {var.name: var for var in self.variables}
 
     @property
-    def variable_values(self):
-        """list: Values of optimization variables."""
+    def variable_values(self) -> np.ndarray:
+        """np.ndarray: Values of optimization variables."""
         return np.array([var.value for var in self.variables])
 
     def add_variable(
         self,
-        name,
-        evaluation_objects=-1,
-        parameter_path=None,
-        lb=-math.inf,
-        ub=math.inf,
-        transform=None,
-        indices=None,
-        significant_digits=None,
-        pre_processing=None,
-    ):
+        name: str,
+        evaluation_objects: Optional[list | object | int] = -1,
+        parameter_path: Optional[str] = None,
+        lb: float = -math.inf,
+        ub: float = math.inf,
+        transform: Optional[str] = None,
+        indices: Optional[int | tuple[int]] = None,
+        significant_digits: Optional[int] = None,
+        pre_processing: Optional[tp.Callable] = None,
+    ) -> None:
         """
         Add optimization variable to the OptimizationProblem.
 
@@ -456,7 +482,7 @@ class OptimizationProblem(Structure):
 
         return var
 
-    def remove_variable(self, var_name):
+    def remove_variable(self, var_name: str) -> None:
         """
         Remove optimization variable from the OptimizationProblem.
 
@@ -483,7 +509,7 @@ class OptimizationProblem(Structure):
         self.__dict__.pop(var_name)
 
     @property
-    def parameter_variables(self):
+    def parameter_variables(self) -> dict:
         """dict: List of variables for every evaluation object parameter.
 
         Notes
@@ -527,7 +553,7 @@ class OptimizationProblem(Structure):
 
         return parameter_variables
 
-    def check_duplicate_variables(self):
+    def check_duplicate_variables(self) -> bool:
         """Raise warning if duplicate variables exist."""
         flag = True
 
@@ -566,8 +592,11 @@ class OptimizationProblem(Structure):
         return flag
 
     def add_variable_dependency(
-        self, dependent_variable, independent_variables, transform
-    ):
+        self,
+        dependent_variable: str,
+        independent_variables: str | list,
+        transform: tp.Callable,
+    ) -> None:
         """
         Add dependency between two optimization variables.
 
@@ -683,7 +712,11 @@ class OptimizationProblem(Structure):
 
     @untransforms
     @gets_dependent_values
-    def set_variables(self, x, evaluation_objects=-1):
+    def set_variables(
+        self,
+        x: npt.ArrayLike,
+        evaluation_objects: Optional[list | object | int] = -1,
+    ) -> list:
         """
         Set the values from the x-vector to the EvaluationObjects.
 
@@ -699,7 +732,7 @@ class OptimizationProblem(Structure):
 
         Returns
         -------
-        evaluation_object : list
+        list
             Evaluation Objects with set parameters.
 
         Raises
@@ -755,7 +788,7 @@ class OptimizationProblem(Structure):
         if not self.cache.use_diskcache and parallelization_backend.n_cores != 1:
             raise CADETProcessError("Cannot use dict cache for multiprocessing.")
 
-        def target_wrapper(x):
+        def target_wrapper(x: npt.ArrayLike) -> np.ndarray:
             results = self._evaluate_individual(
                 target_functions=target_functions,
                 x=x,
@@ -772,7 +805,7 @@ class OptimizationProblem(Structure):
         self,
         target_functions: list[tp.Callable],
         x: npt.ArrayLike,
-        force=False,
+        force: bool = False,
     ) -> np.ndarray:
         """
         Evaluate target functions for set of parameters.
@@ -813,7 +846,12 @@ class OptimizationProblem(Structure):
 
         return results
 
-    def _evaluate(self, x, func, force=False):
+    def _evaluate(
+        self,
+        x: npt.ArrayLike,
+        func: Evaluator,
+        force: bool = False,
+    ) -> np.ndarray:
         """
         Iterate over all evaluation objects and evaluate at x.
 
@@ -902,21 +940,27 @@ class OptimizationProblem(Structure):
         return results
 
     @property
-    def evaluators(self):
+    def evaluators(self) -> list[Evaluator]:
         """list: Evaluators in OptimizationProblem."""
         return self._evaluators
 
     @property
-    def evaluators_dict_reference(self):
+    def evaluators_dict_reference(self) -> dict:
         """dict: Evaluator objects indexed by original_callable."""
         return {evaluator.evaluator: evaluator for evaluator in self.evaluators}
 
     @property
-    def evaluators_dict(self):
+    def evaluators_dict(self) -> dict:
         """dict: Evaluator objects indexed by name."""
         return {evaluator.name: evaluator for evaluator in self.evaluators}
 
-    def add_evaluator(self, evaluator, name=None, args=None, kwargs=None):
+    def add_evaluator(
+        self,
+        evaluator: tp.Callable,
+        name: Optional[str] = None,
+        args: Optional[tuple] = None,
+        kwargs: Optional[dict] = None,
+    ) -> None:
         """
         Add Evaluator to OptimizationProblem.
 
@@ -962,17 +1006,17 @@ class OptimizationProblem(Structure):
         self._evaluators.append(evaluator)
 
     @property
-    def objectives(self):
+    def objectives(self) -> list:
         """list: Objective functions."""
         return self._objectives
 
     @property
-    def objective_names(self):
+    def objective_names(self) -> list:
         """list: Objective function names."""
         return [obj.name for obj in self.objectives]
 
     @property
-    def objective_labels(self):
+    def objective_labels(self) -> list:
         """list: Objective function metric labels."""
         labels = []
         for obj in self.objectives:
@@ -981,23 +1025,23 @@ class OptimizationProblem(Structure):
         return labels
 
     @property
-    def n_objectives(self):
+    def n_objectives(self) -> int:
         """int: Number of objectives."""
         return sum([obj.n_total_metrics for obj in self.objectives])
 
     def add_objective(
         self,
-        objective,
-        name=None,
-        n_objectives=1,
-        minimize=True,
-        bad_metrics=None,
-        evaluation_objects=-1,
-        labels=None,
-        requires=None,
-        *args,
-        **kwargs,
-    ):
+        objective: tp.callable | MetricBase,
+        name: Optional[str] = None,
+        n_objectives: Optional[int] = 1,
+        minimize: Optional[bool] = True,
+        bad_metrics: Optional[float | list[float]] = None,
+        evaluation_objects: None | int | list = -1,
+        labels: Optional[str] = None,
+        requires: Optional[Evaluator | list] = None,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
         """
         Add objective function to optimization problem.
 
@@ -1131,7 +1175,7 @@ class OptimizationProblem(Structure):
             force=force,
         )
 
-    def evaluate_objectives_population(self, *args, **kwargs):
+    def evaluate_objectives_population(self, *args: Any, **kwargs: Any) -> None:
         """
         Evaluate objective functions for each individual in a population.
 
@@ -1160,7 +1204,12 @@ class OptimizationProblem(Structure):
 
     @untransforms
     @gets_dependent_values
-    def objective_jacobian(self, x, ensure_minimization=False, dx=1e-3):
+    def objective_jacobian(
+        self,
+        x: npt.ArrayLike,
+        ensure_minimization: Optional[bool] = False,
+        dx: Optional[float] = 1e-3,
+    ) -> np.ndarray:
         """
         Compute jacobian of objective functions using finite differences.
 
@@ -1168,12 +1217,14 @@ class OptimizationProblem(Structure):
         ----------
         x : array_like
             Value of the optimization variables in untransformed space.
+        ensure_minimization : bool, default=False
+            Flag that ensures minimization objective.
         dx : float
             Increment to x to use for determining the function gradient.
 
         Returns
         -------
-        jacobian: np.array
+        jacobian: npt.ArrayLike
             Value of the partial derivatives at point x.
 
         See Also
@@ -1182,23 +1233,26 @@ class OptimizationProblem(Structure):
         approximate_jac
         """
         jacobian = approximate_jac(
-            x, self.evaluate_objectives, dx, ensure_minimization=ensure_minimization
+            x,
+            self.evaluate_objectives,
+            dx,
+            ensure_minimization=ensure_minimization,
         )
 
         return jacobian
 
     @property
-    def nonlinear_constraints(self):
+    def nonlinear_constraints(self) -> list:
         """list: Nonlinear constraint functions."""
         return self._nonlinear_constraints
 
     @property
-    def nonlinear_constraint_names(self):
+    def nonlinear_constraint_names(self) -> list:
         """list: Nonlinear constraint function names."""
         return [nonlincon.name for nonlincon in self.nonlinear_constraints]
 
     @property
-    def nonlinear_constraint_labels(self):
+    def nonlinear_constraint_labels(self) -> list:
         """list: Nonlinear constraint function metric labels."""
         labels = []
         for nonlincon in self.nonlinear_constraints:
@@ -1207,7 +1261,7 @@ class OptimizationProblem(Structure):
         return labels
 
     @property
-    def nonlinear_constraints_bounds(self):
+    def nonlinear_constraints_bounds(self) -> list:
         """list: Bounds of nonlinear constraint functions."""
         bounds = []
         for nonlincon in self.nonlinear_constraints:
@@ -1216,7 +1270,7 @@ class OptimizationProblem(Structure):
         return bounds
 
     @property
-    def n_nonlinear_constraints(self):
+    def n_nonlinear_constraints(self) -> int:
         """int: Number of nonlinear_constraints."""
         return sum(
             [nonlincon.n_total_metrics for nonlincon in self.nonlinear_constraints]
@@ -1224,18 +1278,18 @@ class OptimizationProblem(Structure):
 
     def add_nonlinear_constraint(
         self,
-        nonlincon,
-        name=None,
-        n_nonlinear_constraints=1,
-        bad_metrics=None,
-        evaluation_objects=-1,
-        bounds=0,
-        comparison_operator="le",
-        labels=None,
-        requires=None,
-        *args,
-        **kwargs,
-    ):
+        nonlincon: tp.Callable,
+        name: Optional[str] = None,
+        n_nonlinear_constraints: Optional[int] = 1,
+        bad_metrics: Optional[float | list[float]] = None,
+        evaluation_objects: Optional[int | list | object] = -1,
+        bounds: Optional[float | list[float]] = 0,
+        comparison_operator: Optional[str] = "le",
+        labels: Optional[str] = None,
+        requires: Optional[list | Evaluator] = None,
+        *args: Optional[tuple],
+        **kwargs: Optional[dict],
+    ) -> None:
         """
         Add nonliner constraint function to optimization problem.
 
@@ -1382,7 +1436,9 @@ class OptimizationProblem(Structure):
             force=force,
         )
 
-    def evaluate_nonlinear_constraints_population(self, *args, **kwargs):
+    def evaluate_nonlinear_constraints_population(
+        self, *args: Any, **kwargs: Any
+    ) -> None:
         """
         Evaluate nonlinear constraint functions for each individual in a population.
 
@@ -1465,7 +1521,9 @@ class OptimizationProblem(Structure):
 
         return G_transformed - bounds_transformed
 
-    def evaluate_nonlinear_constraints_violation_population(self, *args, **kwargs):
+    def evaluate_nonlinear_constraints_violation_population(
+        self, *args: Any, **kwargs: Any
+    ) -> None:
         """
         Evaluate nonlinear constraint violation for each individual in a population.
 
@@ -1498,7 +1556,9 @@ class OptimizationProblem(Structure):
     @untransforms
     @gets_dependent_values
     def check_nonlinear_constraints(
-        self, x: npt.ArrayLike, cv_nonlincon_tol: Optional[float | np.ndarray] = 0.0
+        self,
+        x: npt.ArrayLike,
+        cv_nonlincon_tol: Optional[float | np.ndarray] = 0.0,
     ) -> bool:
         """
         Check if all nonlinear constraints are met.
@@ -1539,7 +1599,9 @@ class OptimizationProblem(Structure):
 
     @untransforms
     @gets_dependent_values
-    def nonlinear_constraint_jacobian(self, x, dx=1e-3):
+    def nonlinear_constraint_jacobian(
+        self, x: npt.ArrayLike, dx: float = 1e-3
+    ) -> npt.ArrayLike:
         """
         Compute jacobian of the nonlinear constraints at point x.
 
@@ -1565,32 +1627,32 @@ class OptimizationProblem(Structure):
         return jacobian
 
     @property
-    def callbacks(self):
+    def callbacks(self) -> list:
         """list: Callback functions for recording progress."""
         return self._callbacks
 
     @property
-    def callback_names(self):
+    def callback_names(self) -> list:
         """list: Callback function names."""
         return [obj.name for obj in self.callbacks]
 
     @property
-    def n_callbacks(self):
+    def n_callbacks(self) -> int:
         """int: Number of callback functions."""
         return len(self.callbacks)
 
     def add_callback(
         self,
-        callback,
-        name=None,
-        evaluation_objects=-1,
-        requires=None,
-        frequency=1,
-        callbacks_dir=None,
-        keep_progress=False,
-        *args,
-        **kwargs,
-    ):
+        callback: tp.Callable,
+        name: Optional[str] = None,
+        evaluation_objects: Optional[int | list | object] = -1,
+        requires: Optional[Evaluator | list] = None,
+        frequency: int = 1,
+        callbacks_dir: Optional[str] = None,
+        keep_progress: bool = False,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
         """
         Add callback function for processing (intermediate) results.
 
@@ -1726,7 +1788,7 @@ class OptimizationProblem(Structure):
         if not self.cache.use_diskcache and parallelization_backend.n_cores != 1:
             raise CADETProcessError("Cannot use dict cache for multiprocessing.")
 
-        def evaluate_callbacks(ind):
+        def evaluate_callbacks(ind: Individual) -> None:
             for callback in self.callbacks:
                 if not (
                     current_iteration == "final"
@@ -1746,7 +1808,7 @@ class OptimizationProblem(Structure):
 
         parallelization_backend.evaluate(evaluate_callbacks, population)
 
-    def evaluate_callbacks_population(self, *args, **kwargs):
+    def evaluate_callbacks_population(self, *args: Any, **kwargs: Any) -> None:
         """
         Evaluate callbacks functions for each individual in a population.
 
@@ -1774,17 +1836,17 @@ class OptimizationProblem(Structure):
         self.evaluate_callbacks(*args, *kwargs)
 
     @property
-    def meta_scores(self):
+    def meta_scores(self) -> list:
         """list: Meta scores for multi criteria selection."""
         return self._meta_scores
 
     @property
-    def meta_score_names(self):
+    def meta_score_names(self) -> list:
         """list: Meta score function names."""
         return [meta_score.name for meta_score in self.meta_scores]
 
     @property
-    def meta_score_labels(self):
+    def meta_score_labels(self) -> int:
         """int: Meta score function metric labels."""
         labels = []
         for meta_score in self.meta_scores:
@@ -1793,19 +1855,19 @@ class OptimizationProblem(Structure):
         return labels
 
     @property
-    def n_meta_scores(self):
+    def n_meta_scores(self) -> int:
         """int: Number of meta score functions."""
         return sum([meta_score.n_total_metrics for meta_score in self.meta_scores])
 
     def add_meta_score(
         self,
-        meta_score,
-        name=None,
-        n_meta_scores=1,
-        minimize=True,
-        evaluation_objects=-1,
-        requires=None,
-    ):
+        meta_score: tp.Callable,
+        name: Optional[str] = None,
+        n_meta_scores: int = 1,
+        minimize: bool = True,
+        evaluation_objects: Optional[object | int | list] = -1,
+        requires: Optional[Evaluator | list] = None,
+    ) -> None:
         """
         Add Meta score to the OptimizationProblem.
 
@@ -1923,7 +1985,7 @@ class OptimizationProblem(Structure):
             force=force,
         )
 
-    def evaluate_meta_scores_population(self, *args, **kwargs):
+    def evaluate_meta_scores_population(self, *args: Any, **kwargs: Any) -> None:
         """
         Evaluate meta scores for each individual in a population.
 
@@ -1951,21 +2013,25 @@ class OptimizationProblem(Structure):
         self.evaluate_meta_scores(*args, *kwargs)
 
     @property
-    def multi_criteria_decision_functions(self):
+    def multi_criteria_decision_functions(self) -> list:
         """list: Multi criteria decision functions."""
         return self._multi_criteria_decision_functions
 
     @property
-    def multi_criteria_decision_function_names(self):
+    def multi_criteria_decision_function_names(self) -> list:
         """list: Multi criteria decision function names."""
         return [mcdf.name for mcdf in self.multi_criteria_decision_functions]
 
     @property
-    def n_multi_criteria_decision_functions(self):
+    def n_multi_criteria_decision_functions(self) -> int:
         """int: number of multi criteria decision functions."""
         return len(self.multi_criteria_decision_functions)
 
-    def add_multi_criteria_decision_function(self, decision_function, name=None):
+    def add_multi_criteria_decision_function(
+        self,
+        decision_function: tp.Callable,
+        name: Optional[str] = None,
+    ) -> None:
         """
         Add multi criteria decision function to OptimizationProblem.
 
@@ -2038,7 +2104,7 @@ class OptimizationProblem(Structure):
         return pareto_population
 
     @property
-    def lower_bounds(self):
+    def lower_bounds(self) -> list:
         """list: Lower bounds of all OptimizationVariables.
 
         See Also
@@ -2049,7 +2115,7 @@ class OptimizationProblem(Structure):
         return [var.lb for var in self.variables]
 
     @property
-    def lower_bounds_transformed(self):
+    def lower_bounds_transformed(self) -> list:
         """list: Transformed lower bounds of all OptimizationVariables.
 
         See Also
@@ -2060,7 +2126,7 @@ class OptimizationProblem(Structure):
         return [var.transformer.lb for var in self.variables]
 
     @property
-    def lower_bounds_independent(self):
+    def lower_bounds_independent(self) -> list:
         """list: Lower bounds of independent OptimizationVariables.
 
         See Also
@@ -2071,7 +2137,7 @@ class OptimizationProblem(Structure):
         return [var.lb for var in self.independent_variables]
 
     @property
-    def lower_bounds_independent_transformed(self):
+    def lower_bounds_independent_transformed(self) -> list:
         """list: Transformed lower bounds of independent OptimizationVariables.
 
         See Also
@@ -2082,7 +2148,7 @@ class OptimizationProblem(Structure):
         return [var.transformer.lb for var in self.independent_variables]
 
     @property
-    def upper_bounds(self):
+    def upper_bounds(self) -> list:
         """list: Upper bounds of all OptimizationVariables.
 
         See Also
@@ -2093,7 +2159,7 @@ class OptimizationProblem(Structure):
         return [var.ub for var in self.variables]
 
     @property
-    def upper_bounds_transformed(self):
+    def upper_bounds_transformed(self) -> list:
         """list: Transformed upper bounds of all OptimizationVariables.
 
         See Also
@@ -2104,7 +2170,7 @@ class OptimizationProblem(Structure):
         return [var.transformer.ub for var in self.variables]
 
     @property
-    def upper_bounds_independent(self):
+    def upper_bounds_independent(self) -> list:
         """list: Upper bounds of independent OptimizationVariables.
 
         See Also
@@ -2115,7 +2181,7 @@ class OptimizationProblem(Structure):
         return [var.ub for var in self.independent_variables]
 
     @property
-    def upper_bounds_independent_transformed(self):
+    def upper_bounds_independent_transformed(self) -> list:
         """list: Transformed upper bounds of independent OptimizationVariables.
 
         See Also
@@ -2127,7 +2193,7 @@ class OptimizationProblem(Structure):
 
     @untransforms
     @gets_dependent_values
-    def evaluate_bounds(self, x):
+    def evaluate_bounds(self, x: npt.ArrayLike) -> np.ndarray:
         """
         Calculate bound violation.
 
@@ -2161,7 +2227,9 @@ class OptimizationProblem(Structure):
     @untransforms
     @gets_dependent_values
     def check_bounds(
-        self, x: npt.ArrayLike, cv_bounds_tol: Optional[float | np.ndarray] = 0.0
+        self,
+        x: npt.ArrayLike,
+        cv_bounds_tol: Optional[float | np.ndarray] = 0.0,
     ) -> bool:
         """
         Check if all bound constraints are kept.
@@ -2206,7 +2274,7 @@ class OptimizationProblem(Structure):
         return flag
 
     @property
-    def linear_constraints(self):
+    def linear_constraints(self) -> list:
         """list: Linear inequality constraints of OptimizationProblem.
 
         See Also
@@ -2219,11 +2287,16 @@ class OptimizationProblem(Structure):
         return self._linear_constraints
 
     @property
-    def n_linear_constraints(self):
+    def n_linear_constraints(self) -> int:
         """int: Number of linear inequality constraints."""
         return len(self.linear_constraints)
 
-    def add_linear_constraint(self, opt_vars, lhs=1.0, b=0.0):
+    def add_linear_constraint(
+        self,
+        opt_vars: list[str],
+        lhs: Optional[float | list[float]] = 1.0,
+        b: Optional[float] = 0.0,
+    ) -> None:
         """
         Add linear inequality constraints.
 
@@ -2231,7 +2304,7 @@ class OptimizationProblem(Structure):
         ----------
         opt_vars : list of strings
             Names of the OptimizationVariable to be added.
-        lhs : float or list, optional
+        lhs : float or list of float, optional
             Left-hand side / coefficients of the constraints.
             If scalar, same coefficient is used for all variables.
         b : float, optional
@@ -2270,7 +2343,7 @@ class OptimizationProblem(Structure):
 
         self._linear_constraints.append(lincon)
 
-    def remove_linear_constraint(self, index):
+    def remove_linear_constraint(self, index: int) -> None:
         """
         Remove linear inequality constraint.
 
@@ -2287,7 +2360,7 @@ class OptimizationProblem(Structure):
         del self._linear_constraints[index]
 
     @property
-    def A(self):
+    def A(self) -> np.ndarray:
         """
         np.ndarray: LHS Matrix of linear inequality constraints.
 
@@ -2310,7 +2383,7 @@ class OptimizationProblem(Structure):
         return A
 
     @property
-    def A_transformed(self):
+    def A_transformed(self) -> np.ndarray:
         """
         np.ndarray: LHS Matrix of linear inequality constraints in transformed space.
 
@@ -2342,7 +2415,7 @@ class OptimizationProblem(Structure):
         return A_t
 
     @property
-    def A_independent(self):
+    def A_independent(self) -> np.ndarray:
         """
         np.ndarray: LHS Matrix of linear inequality constraints for indep variables.
 
@@ -2355,7 +2428,7 @@ class OptimizationProblem(Structure):
         return self.A[:, self.independent_variable_indices]
 
     @property
-    def A_independent_transformed(self):
+    def A_independent_transformed(self) -> np.ndarray:
         """
         np.ndarray: LHS of lin ineqs for indep variables in transformed space.
 
@@ -2368,7 +2441,7 @@ class OptimizationProblem(Structure):
         return self.A_transformed[:, self.independent_variable_indices]
 
     @property
-    def b(self):
+    def b(self) -> np.ndarray:
         """
         np.ndarray: Vector form of linear constraints.
 
@@ -2384,7 +2457,7 @@ class OptimizationProblem(Structure):
         return np.array(b)
 
     @property
-    def b_transformed(self):
+    def b_transformed(self) -> np.ndarray:
         """list: Vector form of linear constraints in transformed space.
 
         Transforms b to multiple variables. When the bounds of an optimization
@@ -2396,7 +2469,6 @@ class OptimizationProblem(Structure):
         See Also
         --------
         b
-
         """
         # TODO: weird error when b_t is not float that b is not incremented
         b_t = self.b.copy()
@@ -2429,7 +2501,7 @@ class OptimizationProblem(Structure):
 
     @untransforms
     @gets_dependent_values
-    def evaluate_linear_constraints(self, x):
+    def evaluate_linear_constraints(self, x: npt.ArrayLike) -> np.ndarray:
         """
         Calculate value of linear inequality constraints at point x.
 
@@ -2456,7 +2528,9 @@ class OptimizationProblem(Structure):
     @untransforms
     @gets_dependent_values
     def check_linear_constraints(
-        self, x: npt.ArrayLike, cv_lincon_tol: Optional[float | np.ndarray] = 0.0
+        self,
+        x: npt.ArrayLike,
+        cv_lincon_tol: Optional[float | np.ndarray] = 0.0,
     ) -> bool:
         """
         Check if linear inequality constraints are met at point x.
@@ -2505,7 +2579,7 @@ class OptimizationProblem(Structure):
         return flag
 
     @property
-    def linear_equality_constraints(self):
+    def linear_equality_constraints(self) -> list:
         """list: Linear equality constraints of OptimizationProblem.
 
         See Also
@@ -2518,11 +2592,17 @@ class OptimizationProblem(Structure):
         return self._linear_equality_constraints
 
     @property
-    def n_linear_equality_constraints(self):
+    def n_linear_equality_constraints(self) -> int:
         """int: Number of linear equality constraints."""
         return len(self.linear_equality_constraints)
 
-    def add_linear_equality_constraint(self, opt_vars, lhs=1, beq=0, eps=0.0):
+    def add_linear_equality_constraint(
+        self,
+        opt_vars: list[str],
+        lhs: Optional[float | list[float]] = 1.0,
+        beq: Optional[float] = 0.0,
+        eps: Optional[float] = 0.0,
+    ) -> None:
         """
         Add linear equality constraints.
 
@@ -2533,8 +2613,11 @@ class OptimizationProblem(Structure):
         lhs : float or list, optional
             Left-hand side / coefficients of the constraints.
             If scalar, same coefficient is used for all variables.
-        b : float, optional
-            Constraint of inequality constraint. The default is zero.
+            The default is 1.0
+        beq : float, optional
+            Constraint of inequality constraint. The default is 0.0.
+        eps : float, optional
+            Error tolerance. The default is 0.0.
 
         Raises
         ------
@@ -2570,7 +2653,7 @@ class OptimizationProblem(Structure):
 
         self._linear_equality_constraints.append(lineqcon)
 
-    def remove_linear_equality_constraint(self, index):
+    def remove_linear_equality_constraint(self, index: int) -> None:
         """
         Remove linear equality constraint.
 
@@ -2587,7 +2670,7 @@ class OptimizationProblem(Structure):
         del self._linear_equality_constraints[index]
 
     @property
-    def Aeq(self):
+    def Aeq(self) -> np.ndarray:
         """
         np.ndarray: LHS Matrix form of linear equality constraints.
 
@@ -2607,7 +2690,7 @@ class OptimizationProblem(Structure):
         return Aeq
 
     @property
-    def Aeq_transformed(self):
+    def Aeq_transformed(self) -> np.ndarray:
         """
         np.ndarray: LHS Matrix of linear equality constraints in transformed space.
 
@@ -2639,7 +2722,7 @@ class OptimizationProblem(Structure):
         return Aeq_t
 
     @property
-    def Aeq_independent(self):
+    def Aeq_independent(self) -> np.ndarray:
         """
         np.ndarray: LHS Matrix of linear inequality constraints for indep variables.
 
@@ -2652,7 +2735,7 @@ class OptimizationProblem(Structure):
         return self.Aeq[:, self.independent_variable_indices]
 
     @property
-    def Aeq_independent_transformed(self):
+    def Aeq_independent_transformed(self) -> np.ndarray:
         """
         np.ndarray: LHS of lin ineqs for indep variables in transformed space.
 
@@ -2665,7 +2748,7 @@ class OptimizationProblem(Structure):
         return self.Aeq_transformed[:, self.independent_variable_indices]
 
     @property
-    def beq(self):
+    def beq(self) -> np.ndarray:
         """
         np.ndarray: Vector form of linear equality constraints.
 
@@ -2680,7 +2763,7 @@ class OptimizationProblem(Structure):
         return np.array(beq)
 
     @property
-    def beq_transformed(self):
+    def beq_transformed(self) -> np.ndarray:
         """list: Vector form of linear constraints in transformed space.
 
         Transforms b to multiple variables. When the bounds of an optimization
@@ -2724,7 +2807,7 @@ class OptimizationProblem(Structure):
         return beq_t
 
     @property
-    def eps_lineq(self):
+    def eps_lineq(self) -> np.ndarray:
         """
         np.array: Relaxation tolerance for linear equality constraints.
 
@@ -2738,7 +2821,7 @@ class OptimizationProblem(Structure):
 
     @untransforms
     @gets_dependent_values
-    def evaluate_linear_equality_constraints(self, x):
+    def evaluate_linear_equality_constraints(self, x: npt.ArrayLike) -> np.array:
         """
         Calculate value of linear equality constraints at point x.
 
@@ -2749,7 +2832,7 @@ class OptimizationProblem(Structure):
 
         Returns
         -------
-        constraints: np.array
+        constraints: npt.ArrayLike
             Value of the linear euqlity constraints at point x
 
         See Also
@@ -2859,12 +2942,12 @@ class OptimizationProblem(Structure):
         return untransform
 
     @property
-    def cached_steps(self):
+    def cached_steps(self) -> list:
         """list: Cached evaluation steps."""
         return self.objectives + self.nonlinear_constraints + self.meta_scores
 
     @property
-    def cache_directory(self):
+    def cache_directory(self) -> str:
         """pathlib.Path: Path for results cache database."""
         if self._cache_directory is None:
             if "XDG_CACHE_HOME" in os.environ:
@@ -2885,14 +2968,14 @@ class OptimizationProblem(Structure):
         return _cache_directory
 
     @cache_directory.setter
-    def cache_directory(self, cache_directory):
+    def cache_directory(self, cache_directory: str) -> None:
         self._cache_directory = cache_directory
 
-    def setup_cache(self, n_shards=1):
+    def setup_cache(self, n_shards: Optional[int] = 1) -> None:
         """Set up cache to store (intermediate) results."""
         self.cache = ResultsCache(self.use_diskcache, self.cache_directory, n_shards)
 
-    def delete_cache(self, reinit=False):
+    def delete_cache(self, reinit: Optional[bool] = False) -> None:
         """Delete cache with (intermediate) results."""
         try:
             self.cache.delete_database()
@@ -2901,7 +2984,9 @@ class OptimizationProblem(Structure):
         if reinit:
             self.setup_cache()
 
-    def prune_cache(self, tag=None, close=True):
+    def prune_cache(
+        self, tag: Optional[str] = None, close: Optional[bool] = True
+    ) -> None:
         """
         Prune cache with (intermediate) results.
 
@@ -2940,10 +3025,10 @@ class OptimizationProblem(Structure):
         """
 
         class CustomModel:
-            def __init__(self, log_space_indices: list):
+            def __init__(self, log_space_indices: list) -> None:
                 self.log_space_indices = log_space_indices
 
-            def compute_negative_log_likelihood(self, x):
+            def compute_negative_log_likelihood(self, x: np.ndarray) -> float:
                 return np.sum(np.log(x[self.log_space_indices]))
 
         if include_dependent_variables:
@@ -3300,7 +3385,7 @@ class OptimizationProblem(Structure):
 
         return parameters
 
-    def check_linear_constraints_transforms(self):
+    def check_linear_constraints_transforms(self) -> bool:
         """
         Check that variables used in linear constraints only use linear transforms.
 
@@ -3331,7 +3416,7 @@ class OptimizationProblem(Structure):
 
         return flag
 
-    def check_linear_constraints_dependency(self):
+    def check_linear_constraints_dependency(self) -> bool:
         """
         Check that variables used in linear constraints are independent.
 
@@ -3362,7 +3447,7 @@ class OptimizationProblem(Structure):
 
         return flag
 
-    def check_config(self, ignore_linear_constraints=False):
+    def check_config(self, ignore_linear_constraints: Optional[bool] = False) -> bool:
         """
         Check if the OptimizationProblem is configured correctly.
 
@@ -3511,16 +3596,17 @@ class OptimizationVariable:
 
     def __init__(
         self,
-        name,
-        evaluation_objects=None,
-        parameter_path=None,
-        lb=-math.inf,
-        ub=math.inf,
-        transform=None,
-        indices=None,
-        significant_digits=None,
-        pre_processing=None,
-    ):
+        name: str,
+        evaluation_objects: Optional[list] = None,
+        parameter_path: Optional[str] = None,
+        lb: float = -math.inf,
+        ub: float = math.inf,
+        transform: Optional[TransformerBase] = None,
+        indices: Optional[int] = None,
+        significant_digits: Optional[int] = None,
+        pre_processing: Optional[tp.Callable] = None,
+    ) -> None:
+        """Initialize Optimization Variable."""
         self.name = name
         self._value = None
 
@@ -3563,12 +3649,12 @@ class OptimizationVariable:
         self.pre_processing = pre_processing
 
     @property
-    def parameter_path(self):
+    def parameter_path(self) -> str:
         """str: Path of the evaluation_object parameter in dot notation."""
         return self._parameter_path
 
     @parameter_path.setter
-    def parameter_path(self, parameter_path):
+    def parameter_path(self, parameter_path: str) -> None:
         if parameter_path is not None:
             for eval_obj in self.evaluation_objects:
                 parameters = eval_obj.parameters.to_dict()  # Workaround addict issue #136
@@ -3577,25 +3663,25 @@ class OptimizationVariable:
         self._parameter_path = parameter_path
 
     @property
-    def parameter_sequence(self):
+    def parameter_sequence(self) -> tuple:
         """tuple: Tuple of parameters path elements."""
         return tuple(self.parameter_path.split("."))
 
     @property
-    def performer(self):
+    def performer(self) -> str:
         """str: The name of the performer of the variable."""
         if len(self.parameter_sequence) == 1:
             return self.parameter_sequence[0]
         else:
             return ".".join(self.parameter_sequence[:-1])
 
-    def _performer_obj(self, evaluation_object):
+    def _performer_obj(self, evaluation_object: Any) -> Any:
         if len(self.parameter_sequence) == 1:
             return evaluation_object
 
         return get_nested_attribute(evaluation_object, self.performer)
 
-    def _parameter_descriptor(self, evaluation_object):
+    def _parameter_descriptor(self, evaluation_object: Any) -> Any:
         performer_obj = self._performer_obj(evaluation_object)
         performer_class = type(performer_obj)
         try:
@@ -3608,7 +3694,7 @@ class OptimizationVariable:
 
         return descriptor
 
-    def _parameter_type(self, evaluation_object):
+    def _parameter_type(self, evaluation_object: Any) -> type:
         """type: Type of the parameter."""
         parameter_descriptor = self._parameter_descriptor(evaluation_object)
         if isinstance(parameter_descriptor, Typed):
@@ -3622,7 +3708,9 @@ class OptimizationVariable:
 
         return type(current_value)
 
-    def _get_parameter_shape(self, evaluation_object):
+    def _get_parameter_shape(
+        self, evaluation_object: object
+    ) -> list[tuple[int, ...]] | tuple[int, ...]:
         parameter_descriptor = self._parameter_descriptor(evaluation_object)
 
         if isinstance(parameter_descriptor, (Float, Integer, Bool)):
@@ -3647,7 +3735,7 @@ class OptimizationVariable:
 
         return shape
 
-    def _current_value(self, evaluation_object):
+    def _current_value(self, evaluation_object: Any) -> Any:
         parameter_descriptor = self._parameter_descriptor(evaluation_object)
 
         if parameter_descriptor is not None:
@@ -3658,7 +3746,7 @@ class OptimizationVariable:
                 get_nested_value(evaluation_object.parameters, self.parameter_path)
             )
 
-    def _is_sized(self, evaluation_object):
+    def _is_sized(self, evaluation_object: Any) -> bool:
         """bool: True if descriptor is instance of Sized. False otherwise."""
         parameter_descriptor = self._parameter_descriptor(evaluation_object)
 
@@ -3676,13 +3764,13 @@ class OptimizationVariable:
             )
         return np.array(current_value, dtype=object).size > 1
 
-    def _is_polynomial(self, evaluation_object):
+    def _is_polynomial(self, evaluation_object: Any) -> bool:
         """bool: True if descriptor is instance of NdPolynomial. False otherwise."""
         polynomial_parameters = evaluation_object.polynomial_parameters.to_dict()  # Workaround addict issue #136 # noqa: E501
         return check_nested(polynomial_parameters, self.parameter_path)
 
     @property
-    def indices(self) -> None | list[int]:
+    def indices(self) -> list[int]:
         """list[int]: List of parameter indices that are modified by optimization variable."""
         if self._indices is None:
             return
@@ -3704,7 +3792,7 @@ class OptimizationVariable:
         return indices
 
     @indices.setter
-    def indices(self, indices):
+    def indices(self, indices: list | int | None) -> None:
         if self.evaluation_objects is None and indices is not None:
             raise ValueError("Cannot specify indices without evaluation object.")
 
@@ -3738,7 +3826,7 @@ class OptimizationVariable:
             raise e
 
     @property
-    def is_index_specific(self):
+    def is_index_specific(self) -> bool:
         """bool: True if variable modifies entry of a parameter array, False otherwise."""
         if self.indices is not None:
             return True
@@ -3746,7 +3834,7 @@ class OptimizationVariable:
             return False
 
     @property
-    def full_indices(self):
+    def full_indices(self) -> list[int]:
         """list: Full indices."""
         full_indices = []
         for eval_ind, eval_obj in zip(self.indices, self.evaluation_objects):
@@ -3767,7 +3855,7 @@ class OptimizationVariable:
         return full_indices
 
     @property
-    def n_indices(self):
+    def n_indices(self) -> int:
         """int: Number of (full) indices."""
         if self.indices is not None:
             return len(self.full_indices)
@@ -3819,7 +3907,7 @@ class OptimizationVariable:
         """
         return self.transformer.untransform(x, *args, **kwargs)
 
-    def add_dependency(self, dependencies, transform):
+    def add_dependency(self, dependencies: list, transform: tp.Callable) -> None:
         """
         Add dependency of Variable on other Variables.
 
@@ -3843,17 +3931,17 @@ class OptimizationVariable:
         self.dependency_transform = transform
 
     @property
-    def dependencies(self):
+    def dependencies(self) -> list:
         """list: Independent variables on which the Variable depends."""
         return self._dependencies
 
     @property
-    def is_independent(self):
+    def is_independent(self) -> bool:
         """bool: True if Variable is independent, False otherwise."""
         return len(self.dependencies) == 0
 
     @property
-    def value(self):
+    def value(self) -> float:
         """float: Value of the parameter.
 
         If the Variable is not independent, the value is calculated from its
@@ -3876,13 +3964,13 @@ class OptimizationVariable:
             return value
 
     @value.setter
-    def value(self, value):
+    def value(self, value: Any) -> None:
         if not self.is_independent:
             raise CADETProcessError("Cannot set value for dependent variables")
 
         self.set_value(value)
 
-    def set_value(self, value):
+    def set_value(self, value: Any) -> None:
         """Set value to evaluation_objects."""
         if not np.isscalar(value):
             raise TypeError("Expected scalar value")
@@ -3965,7 +4053,7 @@ class OptimizationVariable:
             # Set the value:
             self._set_value_in_evaluation_object(eval_obj, new_value)
 
-    def _set_value_in_evaluation_object(self, evaluation_object, value):
+    def _set_value_in_evaluation_object(self, evaluation_object: object, value: Any) -> None:
         """Set the value to the evaluation object."""
         if self.pre_processing is not None:
             value = self.pre_processing(value)
@@ -3978,7 +4066,7 @@ class OptimizationVariable:
             evaluation_object.parameters = parameters
 
     @property
-    def transformed_bounds(self):
+    def transformed_bounds(self) -> list:
         """list: Transformed bounds of the parameter."""
         return [self.transform(self.lb), self.transform(self.ub)]
 
@@ -4008,14 +4096,20 @@ class Evaluator(Structure):
     args = Tuple()
     kwargs = Dict()
 
-    def __init__(self, evaluator, name, args=None, kwargs=None):
+    def __init__(
+        self,
+        evaluator: tp.Callable,
+        name: str,
+        args: Any = None,
+        kwargs: Any = None,
+    ) -> None:
         self.evaluator = evaluator
         self.name = name
         self.args = args
         self.kwargs = kwargs
         self.id = uuid.uuid4()
 
-    def __call__(self, request):
+    def __call__(self, request: Any) -> Any:
         if self.args is None:
             args = ()
         else:
@@ -4047,16 +4141,16 @@ class Metric(Structure):
 
     def __init__(
         self,
-        func,
-        name,
-        n_metrics=1,
-        bad_metrics=np.inf,
-        evaluation_objects=None,
-        evaluators=None,
-        labels=None,
-        args=None,
-        kwargs=None,
-    ):
+        func: tp.Callable,
+        name: str,
+        n_metrics: int = 1,
+        bad_metrics: float | np.ndarray = np.inf,
+        evaluation_objects: Optional[object] = None,
+        evaluators: Optional[list[Evaluator]] = None,
+        labels: list[str] = None,
+        args: Any = None,
+        kwargs: Any = None,
+    ) -> None:
         self.func = func
         self.name = name
 
@@ -4077,13 +4171,13 @@ class Metric(Structure):
         self.id = uuid.uuid4()
 
     @property
-    def n_total_metrics(self):
+    def n_total_metrics(self) -> int:
         """int: Total number of objectives."""
         n_eval_objects = len(self.evaluation_objects) if self.evaluation_objects else 1
         return n_eval_objects * self.n_metrics
 
     @property
-    def labels(self):
+    def labels(self) -> list[str]:
         """list: List of metric labels."""
         if self._labels is not None:
             return self._labels
@@ -4104,14 +4198,14 @@ class Metric(Structure):
         return labels
 
     @labels.setter
-    def labels(self, labels):
+    def labels(self, labels: list[str]) -> None:
         if labels is not None:
             if len(labels) != self.n_metrics:
                 raise CADETProcessError(f"Expected {self.n_metrics} labels.")
 
         self._labels = labels
 
-    def __call__(self, request):
+    def __call__(self, request: Any) -> np.ndarray:
         """
         Evaluate the metric function with the given request and predefined arguments.
 
@@ -4154,7 +4248,9 @@ class Objective(Metric):
     n_objectives = Metric.n_metrics
     minimize = Bool(default=True)
 
-    def __init__(self, *args, n_objectives=1, minimize=True, **kwargs):
+    def __init__(
+        self, *args: Any, n_objectives: int = 1, minimize: bool = True, **kwargs: Any
+    ) -> None:
         self.minimize = minimize
 
         super().__init__(*args, n_metrics=n_objectives, **kwargs)
@@ -4169,12 +4265,12 @@ class NonlinearConstraint(Metric):
 
     def __init__(
         self,
-        *args,
-        n_nonlinear_constraints=1,
-        bounds=0,
-        comparison_operator="le",
-        **kwargs,
-    ):
+        *args: Any,
+        n_nonlinear_constraints: int = 1,
+        bounds: int = 0,
+        comparison_operator: str = "le",
+        **kwargs: Any,
+    ) -> None:
         self.bounds = bounds
         self.comparison_operator = comparison_operator
 
@@ -4205,16 +4301,16 @@ class Callback(Structure):
 
     def __init__(
         self,
-        callback,
-        name,
-        evaluation_objects=None,
-        evaluators=None,
-        frequency=10,
-        callbacks_dir=None,
-        keep_progress=False,
-        args=None,
-        kwargs=None,
-    ):
+        callback: tp.Callable,
+        name: str,
+        evaluation_objects: Optional[list[object]] = None,
+        evaluators: Optional[list[Evaluator]] = None,
+        frequency: int = 10,
+        callbacks_dir: Optional[str] = None,
+        keep_progress: bool = False,
+        args: Any = None,
+        kwargs: Any = None,
+    ) -> None:
         self.callback = callback
         self.name = name
 
@@ -4236,7 +4332,7 @@ class Callback(Structure):
 
         self.id = uuid.uuid4()
 
-    def cleanup(self, callbacks_dir, current_iteration):
+    def cleanup(self, callbacks_dir: str, current_iteration: int) -> None:
         if (
             not current_iteration % self.frequency == 0
             or current_iteration <= self.frequency
@@ -4259,7 +4355,7 @@ class Callback(Structure):
                 shutil.copy(file, new_directory)
             file.unlink()
 
-    def __call__(self, request, evaluation_object):
+    def __call__(self, request: Any, evaluation_object: Any) -> Any:
         if self.args is None:
             args = ()
         else:
@@ -4301,7 +4397,9 @@ class MetaScore(Metric):
     n_meta_scores = Metric.n_metrics
     minimize = Bool(default=True)
 
-    def __init__(self, *args, n_meta_scores=1, minimize=True, **kwargs):
+    def __init__(
+        self, *args: Any, n_meta_scores: int = 1, minimize: bool = True, **kwargs: Any
+    ) -> None:
         self.minimize = minimize
 
         super().__init__(*args, n_metrics=n_meta_scores, **kwargs)
@@ -4313,13 +4411,13 @@ class MultiCriteriaDecisionFunction(Structure):
     decision_function = Callable()
     name = String()
 
-    def __init__(self, decision_function, name):
+    def __init__(self, decision_function: tp.Callable, name: str) -> None:
         self.decision_function = decision_function
         self.name = name
 
         self.id = uuid.uuid4()
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
         return self.decision_function(*args, **kwargs)
 
     evaluate = __call__
@@ -4330,12 +4428,12 @@ class MultiCriteriaDecisionFunction(Structure):
 
 
 def approximate_jac(
-        xk: npt.ArrayLike,
-        f: tp.Callable,
-        epsilon: npt.ArrayLike,
-        args: Any = (),
-        **kwargs: Any
-    ) -> np.ndarray:
+    xk: npt.ArrayLike,
+    f: tp.Callable,
+    epsilon: npt.ArrayLike,
+    args: Any = (),
+    **kwargs: Any,
+) -> np.ndarray:
     r"""
     Finite-difference approximation of the jacobian of a vector function.
 
@@ -4355,6 +4453,8 @@ def approximate_jac(
         `xk`.
     *args : args, optional
         Any other arguments that are to be passed to `f`.
+    **kwargs
+        Additional arguments that are to be passed to `f`.
 
     Returns
     -------

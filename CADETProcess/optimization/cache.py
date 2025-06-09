@@ -2,6 +2,7 @@ import shutil
 import tempfile
 from collections import defaultdict
 from pathlib import Path
+from typing import Any, Optional
 
 from diskcache import Cache, FanoutCache
 
@@ -39,7 +40,13 @@ class ResultsCache:
     CADETProcess.optimization.OptimizationProblem.add_evaluator
     """
 
-    def __init__(self, use_diskcache=False, directory=None, n_shards=1):
+    def __init__(
+        self,
+        use_diskcache: bool = False,
+        directory: Optional[str] = None,
+        n_shards: int = 1,
+    ) -> None:
+        """Initialize ResultsCache Object."""
         self.use_diskcache = use_diskcache
         self.directory = directory
         self.n_shards = n_shards
@@ -47,7 +54,7 @@ class ResultsCache:
 
         self.tags = defaultdict(list)
 
-    def init_cache(self):
+    def init_cache(self) -> None:
         """Initialize ResultsCache."""
         if self.use_diskcache:
             if self.directory is None:
@@ -79,7 +86,13 @@ class ResultsCache:
         else:
             self.cache = {}
 
-    def set(self, key, value, tag=None, close=True):
+    def set(
+        self,
+        key: Any,
+        value: Any,
+        tag: Optional[str] = None,
+        close: bool = True,
+    ) -> None:
         """
         Add entry to cache.
 
@@ -104,7 +117,7 @@ class ResultsCache:
         if close:
             self.close()
 
-    def get(self, key, close=True):
+    def get(self, key: Any, close: bool = True) -> Any:
         """
         Get entry from cache.
 
@@ -127,7 +140,7 @@ class ResultsCache:
 
         return value
 
-    def delete(self, key, close=True):
+    def delete(self, key: Any, close: Optional[bool] = True) -> None:
         """
         Remove entry from cache.
 
@@ -148,7 +161,7 @@ class ResultsCache:
         if close:
             self.close()
 
-    def prune(self, tag, close=True):
+    def prune(self, tag: str, close: Optional[bool] = True) -> None:
         """
         Remove tagged entries from cache.
 
@@ -173,12 +186,12 @@ class ResultsCache:
         if close:
             self.close()
 
-    def close(self):
+    def close(self) -> None:
         """Close cache."""
         if self.use_diskcache:
             self.cache.close()
 
-    def delete_database(self, reinit=False):
+    def delete_database(self, reinit: Optional[bool] = False) -> None:
         """
         Delte database.
 

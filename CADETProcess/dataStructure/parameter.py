@@ -1,8 +1,11 @@
 import copy
 import math
 import operator
+import typing as tp
+from typing import Any, Optional, Union
 
 import numpy as np
+import numpy.typing as npt
 
 from .dataStructure import Descriptor
 
@@ -48,13 +51,13 @@ class ParameterBase(Descriptor):
 
     def __init__(
         self,
-        *args,
-        default=None,
-        is_optional=False,
-        unit=None,
-        description=None,
-        **kwargs,
-    ):
+        *args: Any,
+        default: Optional[Any] = None,
+        is_optional: bool = False,
+        unit: Optional[str] = None,
+        description: Optional[str] = None,
+        **kwargs: Any,
+    ) -> None:
         """
         Initialize a Parameter instance.
 
@@ -81,12 +84,12 @@ class ParameterBase(Descriptor):
         super().__init__(*args, **kwargs)
 
     @property
-    def default(self):
+    def default(self) -> Any:
         """Any: Get or set the default value of the parameter."""
         return copy.deepcopy(self._default)
 
     @default.setter
-    def default(self, value):
+    def default(self, value: Any) -> None:
         """
         Set the default value of the parameter.
 
@@ -101,7 +104,7 @@ class ParameterBase(Descriptor):
 
         self._default = value
 
-    def get_default_value(self, instance):
+    def get_default_value(self, instance: Any) -> Any:
         """
         Return default values if necessary.
 
@@ -109,8 +112,8 @@ class ParameterBase(Descriptor):
 
         Parameters
         ----------
-        value : Any
-            Value to cast.
+        instance : Any
+            Instance to retrieve the default value for.
 
         Returns
         -------
@@ -126,7 +129,7 @@ class ParameterBase(Descriptor):
 
         return default
 
-    def __get__(self, instance, cls):
+    def __get__(self, instance: Any, cls: type) -> Any:
         """
         Retrieve the descriptor value for the given instance.
 
@@ -155,7 +158,7 @@ class ParameterBase(Descriptor):
 
         return value
 
-    def __set__(self, instance, value):
+    def __set__(self, instance: Any, value: Any) -> None:
         """
         Set the descriptor value for the given instance.
 
@@ -181,7 +184,7 @@ class ParameterBase(Descriptor):
 
         super().__set__(instance, value)
 
-    def _prepare(self, instance, value, recursive=False):
+    def _prepare(self, instance: Any, value: Any, recursive: bool = False) -> Any:
         """
         Prepare value for setting if necessary.
 
@@ -193,6 +196,8 @@ class ParameterBase(Descriptor):
             Instance to retrieve the descriptor value for.
         value : Any
             Value to cast.
+        recursive : bool, optional
+            If True, prepare values recursively.
 
         Returns
         -------
@@ -201,7 +206,7 @@ class ParameterBase(Descriptor):
         """
         return value
 
-    def _check(self, instance, value, recursive=False):
+    def _check(self, instance: Any, value: Any, recursive: bool = False) -> Any:
         """
         Check the given value.
 
@@ -236,7 +241,7 @@ class Constant(ParameterBase):
     Once set, the value of a Constant parameter cannot be modified.
     """
 
-    def __init__(self, value, *args, **kwargs):
+    def __init__(self, value: Any, *args: Any, **kwargs: Any) -> None:
         """
         Initialize a Constant instance.
 
@@ -251,7 +256,7 @@ class Constant(ParameterBase):
         """
         super().__init__(*args, default=value, **kwargs)
 
-    def __set__(self, instance, value):
+    def __set__(self, instance: Any, value: Any) -> None:
         """
         Disallow modification of the value of a Constant parameter.
 
@@ -277,7 +282,7 @@ class Switch(ParameterBase):
     Assign a value to this parameter from the `valid` list.
     """
 
-    def __init__(self, *args, valid, **kwargs):
+    def __init__(self, *args: Any, valid: list, **kwargs: Any) -> None:
         """
         Initialize a Switch instance.
 
@@ -305,7 +310,7 @@ class Switch(ParameterBase):
 
         super().__init__(*args, **kwargs)
 
-    def _check(self, instance, value, recursive=False):
+    def _check(self, instance: Any, value: Any, recursive: bool = False) -> None:
         """
         Verify if the value belongs to the valid options.
 
@@ -317,11 +322,6 @@ class Switch(ParameterBase):
             The value to check.
         recursive : bool, optional
             If True, perform the check recursively. Defaults to False.
-
-        Returns
-        -------
-        bool
-            True if the value is among the valid options, otherwise raises an exception.
 
         Raises
         ------
@@ -385,7 +385,7 @@ class Typed(ParameterBase):
     Dictionary
     """
 
-    def __init__(self, *args, ty=None, **kwargs):
+    def __init__(self, *args: Any, ty: Optional[type] = None, **kwargs: Any) -> None:
         """
         Initialize a Typed instance.
 
@@ -405,7 +405,7 @@ class Typed(ParameterBase):
 
         super().__init__(*args, **kwargs)
 
-    def cast_value(self, value):
+    def cast_value(self, value: Any) -> Any:
         """
         Cast the type of the given value.
 
@@ -423,7 +423,7 @@ class Typed(ParameterBase):
         """
         return value
 
-    def _prepare(self, instance, value, recursive=False):
+    def _prepare(self, instance: Any, value: Any, recursive: bool = False) -> Any:
         """
         Prepare and optionally type-cast the value before type validation.
 
@@ -455,7 +455,7 @@ class Typed(ParameterBase):
 
         return value
 
-    def _check(self, instance, value, recursive=False):
+    def _check(self, instance: Any, value: Any, recursive: bool = False) -> None:
         """
         Validate the value's type against `ty`.
 
@@ -467,11 +467,6 @@ class Typed(ParameterBase):
             Value to check.
         recursive : bool, optional
             If True, perform the check recursively. Defaults to False.
-
-        Returns
-        -------
-        bool
-            True if value's type matches, else raises an exception.
 
         Raises
         ------
@@ -496,7 +491,7 @@ class Bool(Typed):
 
     ty = bool
 
-    def cast_value(self, value):
+    def cast_value(self, value: Any) -> Union[bool, Any]:
         """
         Convert integers 0 and 1 to their respective boolean values.
 
@@ -532,7 +527,7 @@ class Float(Typed):
 
     ty = float
 
-    def cast_value(self, value):
+    def cast_value(self, value: Any) -> Union[float, Any]:
         """
         Convert integers and numpy numbers to float.
 
@@ -591,7 +586,7 @@ class NdArray(Typed):
 
     ty = np.ndarray
 
-    def cast_value(self, value):
+    def cast_value(self, value: Any) -> Any | np.ndarray:
         """
         Cast lists or scalars (int or float) to numpy arrays.
 
@@ -639,7 +634,7 @@ class Callable(ParameterBase):
     Typed
     """
 
-    def _check(self, instance, value, recursive=False):
+    def _check(self, instance: Any, value: Any, recursive: bool = False) -> None:
         """
         Check if the given value is callable.
 
@@ -670,7 +665,7 @@ class TypedList(List, Typed):
 
     ty = list
 
-    def __init__(self, *args, dtype=None, **kwargs):
+    def __init__(self, *args: Any, dtype: Optional[type] = None, **kwargs: Any) -> None:
         """
         Initialize a Typed instance.
 
@@ -690,7 +685,7 @@ class TypedList(List, Typed):
 
         super().__init__(*args, **kwargs)
 
-    def _prepare(self, instance, value, recursive=False):
+    def _prepare(self, instance: Any, value: Any, recursive: bool = False) -> Any:
         """
         Prepare and optionally cast the array dtype.
 
@@ -725,7 +720,7 @@ class TypedList(List, Typed):
 
         return value
 
-    def check_dtype(self, value):
+    def check_dtype(self, value: Any) -> None:
         """
         Validate if the dtype of values is correct.
 
@@ -744,7 +739,7 @@ class TypedList(List, Typed):
         if value_array.dtype != self.dtype:
             raise ValueError(f"Value entries must be of type {self.dtype}")
 
-    def _check(self, instance, value, recursive=False):
+    def _check(self, instance: Any, value: Any, recursive: bool = False) -> None:
         """
         Validate the value against the range.
 
@@ -823,18 +818,20 @@ class Ranged(ParameterBase):
 
     def __init__(
         self,
-        *args,
-        lb=-math.inf,
-        lb_op=operator.lt,
-        ub=math.inf,
-        ub_op=operator.gt,
-        **kwargs,
-    ):
+        *args: Any,
+        lb: float = -math.inf,
+        lb_op: tp.Callable = operator.lt,
+        ub: float = math.inf,
+        ub_op: tp.Callable = operator.gt,
+        **kwargs: Any,
+    ) -> None:
         """
         Initialize the Ranged descriptor.
 
         Parameters
         ----------
+        *args :
+            Parameters for Parameter Base.
         lb : numeric, optional
             Lower bound. Defaults to negative infinity.
         lb_op : callable, optional
@@ -843,6 +840,9 @@ class Ranged(ParameterBase):
             Upper bound. Defaults to positive infinity.
         ub_op : callable, optional
             Comparison for the upper bound. Defaults to greater than.
+        **kwargs: Optional
+            Additional Parameters for ParameterBase.
+
         """
         self.lb = lb
         self.lb_op = lb_op
@@ -851,7 +851,7 @@ class Ranged(ParameterBase):
 
         super().__init__(*args, **kwargs)
 
-    def check_range(self, value):
+    def check_range(self, value: Any) -> None:
         """
         Validate if the value is within the defined range.
 
@@ -873,7 +873,7 @@ class Ranged(ParameterBase):
         elif self.ub_op(value, self.ub):
             raise ValueError(f"Value {value} is above the upper bound of {self.ub}")
 
-    def _check(self, instance, value, recursive=False):
+    def _check(self, instance: Any, value: Any, recursive: bool = False) -> None:
         """
         Validate the value against the range.
 
@@ -936,7 +936,7 @@ class RangedArray(Ranged):
     Ranged
     """
 
-    def check_range(self, value):
+    def check_range(self, value: npt.ArrayLike) -> None:
         """
         Check each element of an array-like structure against specified bounds.
 
@@ -982,7 +982,8 @@ class RangedNdArray(NdArray, RangedArray):
 class Unsigned(Ranged):
     """Parameter descriptor for non-negative parameters."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize unsigned parameter."""
         super().__init__(*args, lb=0, lb_op=operator.lt, **kwargs)
 
 
@@ -1043,15 +1044,19 @@ class Sized(ParameterBase):
         Validates that the provided value's size matches the expected size.
     """
 
-    def __init__(self, *args, size, **kwargs):
+    def __init__(self, *args: Any, size: Union[int, tuple], **kwargs: Any) -> None:
         """
         Initialize the Sized descriptor.
 
         Parameters
         ----------
+        *args :
+            Parameters for Parameter Base.
         size : int or tuple
             The expected size or dimensions of the parameter. Individual elements
             can be either integers or strings (indicating other instance parameters).
+        **kwargs :
+            Additional parameters for Parameter Base.
         """
         if not isinstance(size, tuple):
             size = (size,)
@@ -1061,7 +1066,7 @@ class Sized(ParameterBase):
         super().__init__(*args, **kwargs)
 
     @property
-    def is_independent(self):
+    def is_independent(self) -> bool:
         """
         Determine whether the size is independent of other parameters.
 
@@ -1076,7 +1081,7 @@ class Sized(ParameterBase):
             flag = False
         return flag
 
-    def get_size(self, value) -> int | tuple[int]:
+    def get_size(self, value: Any) -> int | tuple[int, ...]:
         """
         Determine the size of the provided value.
 
@@ -1087,12 +1092,12 @@ class Sized(ParameterBase):
 
         Returns
         -------
-        int | tuple[int]
+        int | tuple[int, ...]
             Size of the value.
         """
         return len(value)
 
-    def get_expected_size(self, instance):
+    def get_expected_size(self, instance: Any) -> int:
         """
         Compute the expected size based on the instance's other attributes.
 
@@ -1128,7 +1133,7 @@ class Sized(ParameterBase):
 
         return np.prod(size)
 
-    def check_size(self, instance, value):
+    def check_size(self, instance: Any, value: Any) -> None:
         """
         Validate that the provided value's size matches the expected size.
 
@@ -1155,7 +1160,7 @@ class Sized(ParameterBase):
         if size != expected_size:
             raise ValueError(f"Expected size {expected_size}")
 
-    def _prepare(self, instance, value, recursive=False):
+    def _prepare(self, instance: Any, value: Any, recursive: bool = False) -> Any:
         """
         Prepare the value by typecasting and adjusting its size.
 
@@ -1205,7 +1210,7 @@ class Sized(ParameterBase):
 
         return value
 
-    def _check(self, instance, value, recursive=False):
+    def _check(self, instance: Any, value: Any, recursive: bool = False) -> None:
         """
         Validate the provided value's size.
 
@@ -1239,7 +1244,7 @@ class SizedTuple(Tuple, Sized):
 class SizedNdArray(NdArray, Sized):
     """Descriptor for NumPy arrays whose size may depend on other instance attributes."""
 
-    def get_size(self, value) -> tuple[int, ...]:
+    def get_size(self, value: np.ndarray) -> tuple[int, ...]:
         """
         Determine the size of the provided value.
 
@@ -1255,7 +1260,7 @@ class SizedNdArray(NdArray, Sized):
         """
         return value.shape
 
-    def get_expected_size(self, instance):
+    def get_expected_size(self, instance: Optional[Any]) -> tuple:
         """
         Calculate the expected size of a numpy array based on the instance's other attributes.
 
@@ -1288,7 +1293,12 @@ class SizedNdArray(NdArray, Sized):
 
         return expected_size
 
-    def _prepare(self, instance, value, recursive=False):
+    def _prepare(
+        self,
+        instance: object,
+        value: Union[int, float, npt.ArrayLike],
+        recursive: bool = False,
+    ) -> np.ndarray:
         """
         Prepare the value for a NumPy array, ensuring it has the expected shape.
 
@@ -1406,7 +1416,7 @@ class DimensionalizedArray(NdArray):
 
     n_dim = None
 
-    def __init__(self, n_dim=None, *args, **kwargs):
+    def __init__(self, n_dim: Optional[int] = None, *args: Any, **kwargs: Any) -> None:
         """
         Initialize the DimensionalizedArray descriptor.
 
@@ -1415,6 +1425,10 @@ class DimensionalizedArray(NdArray):
         n_dim : int, optional
             The number of dimensions the array must have. If not specified,
             it must be set before usage.
+        *args : optional
+            Parameters for NdArray.
+        **kwargs : optional
+            Additional Parameters for NdArray.
 
         Raises
         ------
@@ -1432,7 +1446,7 @@ class DimensionalizedArray(NdArray):
         if self.n_dim is None:
             raise ValueError("Dimensionality (n_dim) must be set during initialization.")
 
-    def _check(self, instance, value, recursive=False):
+    def _check(self, instance: Any, value: npt.ArrayLike, recursive: bool = False) -> None:
         """
         Check the dimensionality of the given value.
 
@@ -1551,7 +1565,13 @@ class NdPolynomial(SizedNdArray):
         Prepare the given polynomial matrix s.t. it adheres to the expected size.
     """
 
-    def __init__(self, *args, n_entries=None, n_coeff=None, **kwargs):
+    def __init__(
+        self,
+        *args: Any,
+        n_entries: Optional[int] = None,
+        n_coeff: Optional[int] = None,
+        **kwargs: Any,
+    ) -> None:
         """
         Initialize an NdPolynomial descriptor with specific entries and coefficients.
 
@@ -1623,7 +1643,9 @@ class NdPolynomial(SizedNdArray):
 
         super().__init__(*args, **kwargs)
 
-    def fill_values(self, dims, value):
+    def fill_values(
+        self, dims: tuple[int], value: Union[int, float, np.ndarray, list]
+    ) -> np.ndarray:
         """
         Fill values to generate the polynomial matrix of the desired size.
 
@@ -1683,7 +1705,12 @@ class NdPolynomial(SizedNdArray):
 
         return _value
 
-    def _prepare(self, instance, value, recursive=False):
+    def _prepare(
+        self,
+        instance: object,
+        value: Union[int, float, np.ndarray, list],
+        recursive: bool = False,
+    ) -> np.ndarray:
         """
         Prepare the given polynomial matrix s.t. it adheres to the expected size.
 
@@ -1728,7 +1755,7 @@ class Polynomial(NdPolynomial):
         'n_entries'.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         """
         Initialize a Polynomial descriptor with a specific coefficient length.
 
@@ -1760,7 +1787,7 @@ class DependentlyModulated(Sized):
     condition is not met, a ValueError is raised.
     """
 
-    def check_mod_value(self, instance, value):
+    def check_mod_value(self, instance: Any, value: Any) -> None:
         """
         Check if the size of the parameter modulo its expected size is zero.
 
@@ -1769,7 +1796,7 @@ class DependentlyModulated(Sized):
 
         Parameters
         ----------
-        instance : object
+        instance : Any
             The instance associated with the parameter.
         value : Any
             The value whose size needs to be validated.

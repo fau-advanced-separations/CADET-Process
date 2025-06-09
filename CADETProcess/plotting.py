@@ -149,7 +149,7 @@ figure_styles = {
 }
 
 
-def set_figure_style(style: Optional[str] = "medium"):
+def set_figure_style(style: Optional[str] = "medium") -> None:
     """
     Define the sytle of a plot.
 
@@ -193,7 +193,11 @@ def set_figure_style(style: Optional[str] = "medium"):
 set_figure_style()
 
 
-def get_fig_size(n_rows=1, n_cols=1, style=None):
+def get_fig_size(
+    n_rows: Optional[int] = 1,
+    n_cols: Optional[int] = 1,
+    style: Optional[str] = None,
+) -> tuple[float, float]:
     """
     Get figure size for figures with multiple Axes.
 
@@ -226,7 +230,7 @@ def setup_figure(
     n_rows: Optional[int] = 1,
     n_cols: Optional[int] = 1,
     style: Optional[str] = None,
-    squeeze: Optional[bool] = True
+    squeeze: Optional[bool] = True,
 ) -> tuple[Figure, Axes]:
     """
     Set up a matplotlib figure with specified dimensions and style.
@@ -288,7 +292,7 @@ def set_layout(
     layout: Layout,
     show_legend: bool = True,
     ax_secondary: Optional[SecondaryAxis] = None,
-    secondary_layout: Optional[Layout] = None
+    secondary_layout: Optional[Layout] = None,
 ) -> None:
     """
     Configure the layout of a matplotlib Axes object.
@@ -415,7 +419,7 @@ def add_overlay(
     ax: Axes,
     y_overlay: npt.ArrayLike,
     x_overlay: Optional[npt.ArrayLike] = None,
-    **plot_args: Optional[dict]
+    **plot_args: Optional[dict],
 ) -> None:
     """
     Add overlay plot(s) to a matplotlib Axes object.
@@ -451,9 +455,9 @@ class Annotation(Structure):
 
 
 def add_annotations(
-        ax: Axes,
-        annotations: list[Annotation]
-        ) -> None:
+    ax: Axes,
+    annotations: list[Annotation],
+) -> None:
     """Add list of annotations to axis ax."""
     for annotation in annotations:
         ax.annotate(
@@ -481,10 +485,10 @@ class FillRegion(Structure):
 
 
 def add_fill_regions(
-        ax: Axes,
-        fill_regions: list[FillRegion],
-        x_lim: Optional[npt.ArrayLike] = None
-        ) -> None:
+    ax: Axes,
+    fill_regions: list[FillRegion],
+    x_lim: Optional[npt.ArrayLike] = None,
+) -> None:
     """Add FillRegion to axes."""
     for fill in fill_regions:
         color = color_list[fill.color_index]
@@ -525,18 +529,19 @@ def add_hlines(ax: Axes, hlines: list[HLines]) -> None:
         ax.hlines(line.y, line.x_min, line.x_max)
 
 
-def create_and_save_figure(func):
+def create_and_save_figure(func: Callable) -> Callable:
     """Wrap plot functions to provide some general utility."""
+
     @wraps(func)
     def wrapper(
-            *args: Any,
-            fig: Optional[Figure] = None,
-            ax: Optional[Axes] = None,
-            show: bool = True,
-            file_name: Optional[str] = None,
-            style: str = 'medium',
-            **kwargs: Any
-            ) -> tuple:
+        *args: Any,
+        fig: Optional[Figure] = None,
+        ax: Optional[Axes] = None,
+        show: bool = True,
+        file_name: Optional[str] = None,
+        style: str = "medium",
+        **kwargs: Any,
+    ) -> tuple:
         """
         Wrap plot functions to provide some general utility.
 

@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 from abc import ABC, ABCMeta
 from collections import OrderedDict
 from functools import wraps
 from inspect import Parameter, Signature
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Iterable, Iterator, Optional, Type
 from warnings import warn
 
 from addict import Dict
@@ -27,7 +29,7 @@ class Descriptor(ABC):
     Parameters
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         pass
 
     def __get__(self, instance: Any, owner: Optional[type[Any]]) -> Any:
@@ -82,19 +84,20 @@ class Descriptor(ABC):
 class ProxyList:
     """A proxy list that dynamically updates attributes of container elements."""
 
-    def __init__(self, aggregator, instance):
+    def __init__(self, aggregator: Aggregator, instance: Any) -> None:
+        """Initialize Proxy List."""
         self.aggregator = aggregator
         self.instance = instance
 
-    def _get_values_from_aggregator(self):
+    def _get_values_from_aggregator(self) -> Any:
         """Fetch the latest values from the aggregator."""
         return self.aggregator._get_values_from_container(self.instance, check=True)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int) -> Any:
         """Retrieve an item from the aggregated parameter list (live view)."""
         return self._get_values_from_aggregator()[index]
 
-    def __setitem__(self, index, value):
+    def __setitem__(self, index: int, value: Any) -> None:
         """
         Modify an individual element in the aggregated parameter list.
 
@@ -104,11 +107,11 @@ class ProxyList:
         current_value[index] = value
         self.aggregator.__set__(self.instance, current_value)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator:
         """Iterate over aggregated values."""
         return iter(self._get_values_from_aggregator())
 
-    def __len__(self):
+    def __len__(self) -> int:
         """Return the length of the container."""
         return len(self._get_values_from_aggregator())
 
@@ -116,7 +119,7 @@ class ProxyList:
         """str: String representation for debugging."""
         return f"ProxyList({self._get_values_from_aggregator().__repr__()})"
 
-    def __eq__(self, other):
+    def __eq__(self, other: ProxyList) -> bool:
         """Equality comparison."""
         return list(self._get_values_from_aggregator()) == other
 
@@ -124,7 +127,13 @@ class ProxyList:
 class Aggregator:
     """Descriptor aggregating parameters from iterable container of other objects."""
 
-    def __init__(self, parameter_name, container, *args, **kwargs):
+    def __init__(
+        self,
+        parameter_name: str,
+        container: str,
+        *args: dict,
+        **kwargs: dict,
+    ) -> None:
         """
         Initialize the Aggregator.
 
@@ -143,7 +152,7 @@ class Aggregator:
         self.parameter_name = parameter_name
         self.container = container
 
-    def _container_obj(self, instance):
+    def _container_obj(self, instance: Any) -> Iterable:
         """
         Retrieve the iterable container of the instance.
 
@@ -169,10 +178,10 @@ class Aggregator:
 
         return container
 
-    def _n_instances(self, instance):
+    def _n_instances(self, instance: Any) -> int:
         return len(self._container_obj(instance))
 
-    def _get_values_from_container(self, instance, check=False):
+    def _get_values_from_container(self, instance: Any, check: bool = False) -> Any:
         container = self._container_obj(instance)
 
         value = [getattr(el, self.parameter_name) for el in container]
@@ -183,7 +192,7 @@ class Aggregator:
 
         return value
 
-    def __get__(self, instance, cls):
+    def __get__(self, instance: Any, cls: Type) -> ProxyList:
         """
         Retrieve the descriptor value for the given instance.
 
@@ -204,7 +213,7 @@ class Aggregator:
 
         return ProxyList(self, instance)
 
-    def __set__(self, instance, value):
+    def __set__(self, instance: Any, value: Iterable) -> None:
         """
         Set the descriptor value for the given instance.
 
@@ -225,7 +234,7 @@ class Aggregator:
         for el, el_value in zip(container, value):
             setattr(el, self.parameter_name, el_value)
 
-    def _prepare(self, instance, value, recursive=False):
+    def _prepare(self, instance: Any, value: Any, recursive: bool = False) -> Any:
         """
         Prepare value for setting if necessary.
 
@@ -237,6 +246,9 @@ class Aggregator:
             Instance to retrieve the descriptor value for.
         value : Any
             Value to cast.
+        recursive : bool, optional
+            If True, perform the check recursively. Defaults to False. Only works in
+            case of overriding.
 
         Returns
         -------
@@ -245,7 +257,7 @@ class Aggregator:
         """
         return value
 
-    def _check(self, instance, value, recursive=False):
+    def _check(self, instance: Any, value: Iterable, recursive: bool = False) -> None:
         """
         Check the given value.
 
@@ -466,7 +478,7 @@ class Structure(metaclass=AbstractStructMeta):
         List of parameters that have a default value of None.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         """
         Initialize a Structure instance.
 
@@ -492,7 +504,7 @@ class Structure(metaclass=AbstractStructMeta):
             self._parameters_dict[param] = value
 
     @property
-    def parameters(self):
+    def parameters(self) -> dict:
         """dict: Parameters of the instance."""
         parameters = self._parameters_dict
 
@@ -501,7 +513,7 @@ class Structure(metaclass=AbstractStructMeta):
         return parameters
 
     @parameters.setter
-    def parameters(self, parameters):
+    def parameters(self, parameters: dict) -> None:
         """
         Set parameters for the instance.
 
@@ -523,7 +535,7 @@ class Structure(metaclass=AbstractStructMeta):
                 self._parameters_dict[param] = value
 
     @property
-    def sized_parameters(self):
+    def sized_parameters(self) -> Dict:
         """dict: Sized parameters of the instance."""
         parameters = {
             key: value for key, value in self.parameters.items() if key in self._sized_parameters
@@ -531,13 +543,13 @@ class Structure(metaclass=AbstractStructMeta):
         return Dict(parameters)
 
     @property
-    def aggregated_parameters(self):
+    def aggregated_parameters(self) -> Dict:
         """dict: Aggregated parameters of the instance."""
         parameters = {key: getattr(self, key) for key in self._aggregators}
         return Dict(parameters)
 
     @property
-    def polynomial_parameters(self):
+    def polynomial_parameters(self) -> Dict:
         """dict: Polynomial parameters of the instance."""
         parameters = {
             key: value
@@ -547,12 +559,12 @@ class Structure(metaclass=AbstractStructMeta):
         return Dict(parameters)
 
     @property
-    def required_parameters(self):
+    def required_parameters(self) -> list:
         """list: Parameters that have no default value."""
         return self._required_parameters
 
     @property
-    def missing_parameters(self):
+    def missing_parameters(self) -> list:
         """list: Parameters that are required but not set."""
         missing_parameters = []
         for param in self.required_parameters:
@@ -561,7 +573,7 @@ class Structure(metaclass=AbstractStructMeta):
 
         return missing_parameters
 
-    def check_required_parameters(self):
+    def check_required_parameters(self) -> bool:
         """
         Verify if all required parameters are set.
 
@@ -570,9 +582,7 @@ class Structure(metaclass=AbstractStructMeta):
         bool
             True if all required parameters are set. False otherwise.
 
-        Raises
-        ------
-        Warning
+        Warning:
             If any of the required parameters are missing.
         """
         if len(self.missing_parameters) == 0:
@@ -599,16 +609,17 @@ def frozen_attributes(cls: type) -> type:
     """
     cls._is_frozen = False
 
-    def frozensetattr(self: Any, key: str, value: Any) -> None:
+    def frozensetattr(self: Structure, key: str, value: Any) -> None:
         if self._is_frozen and not hasattr(self, key):
             raise AttributeError(f"{cls.__name__} object has no attribute {key}")
         object.__setattr__(self, key, value)
 
     def init_decorator(func: Callable) -> Callable:
         @wraps(func)
-        def wrapper(self: Any, *args: Any, **kwargs: Any) -> None:
+        def wrapper(self: Structure, *args: Any, **kwargs: Any) -> None:
             func(self, *args, **kwargs)
             self._is_frozen = True
+
         return wrapper
 
     cls.__setattr__ = frozensetattr

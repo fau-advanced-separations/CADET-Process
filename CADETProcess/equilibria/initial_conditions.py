@@ -1,7 +1,10 @@
+from typing import Optional
+
 import numpy as np
 
 from CADETProcess import CADETProcessError
 from CADETProcess.processModel import (
+    BindingBaseClass,
     Cstr,
     FlowSheet,
     Inlet,
@@ -13,8 +16,12 @@ from CADETProcess.simulator import Cadet
 
 
 def simulate_solid_equilibria(
-    binding_model, buffer, unit_model="cstr", flush=None, cadet_install_path=None
-):
+    binding_model: BindingBaseClass,
+    buffer: list,
+    unit_model: Optional[str] = "cstr",
+    flush: Optional[list] = None,
+    cadet_install_path: Optional[str] = None,
+) -> list:
     """
     Simulate initial conditions for solid phase for given buffer.
 

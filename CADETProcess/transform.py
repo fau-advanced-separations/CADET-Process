@@ -20,7 +20,7 @@ This module provides functionality for transforming data.
 """  # noqa
 
 from abc import ABC, abstractmethod
-from typing import NoReturn, Optional
+from typing import Any, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -78,9 +78,9 @@ class TransformerBase(ABC):
         self,
         lb_input: float | np.ndarray = -np.inf,
         ub_input: float | np.ndarray = np.inf,
-        allow_extended_input: bool = False,
-        allow_extended_output: bool = False,
-    ) -> NoReturn:
+        allow_extended_input: Optional[bool] = False,
+        allow_extended_output: Optional[bool] = False,
+    ) -> None:
         """
         Initialize TransformerBase.
 
@@ -114,7 +114,7 @@ class TransformerBase(ABC):
         return self._lb_input
 
     @lb_input.setter
-    def lb_input(self, lb_input: float | np.ndarray) -> NoReturn:
+    def lb_input(self, lb_input: float | np.ndarray) -> None:
         self._lb_input = lb_input
 
     @property
@@ -123,7 +123,7 @@ class TransformerBase(ABC):
         return self._ub_input
 
     @ub_input.setter
-    def ub_input(self, ub_input: float | np.ndarray) -> NoReturn:
+    def ub_input(self, ub_input: float | np.ndarray) -> None:
         self._ub_input = ub_input
 
     @property
@@ -256,7 +256,7 @@ class TransformerBase(ABC):
         pass
 
     @plotting.create_and_save_figure
-    def plot(self, ax: plt.Axes, use_log_scale: bool = False) -> NoReturn:
+    def plot(self, ax: plt.Axes, use_log_scale: bool = False) -> None:
         """
         Plot the transformed space against the input space.
 
@@ -507,7 +507,7 @@ class AutoTransformer(TransformerBase):
     NormLogTransformer
     """
 
-    def __init__(self, *args, threshold: int = 100, **kwargs) -> NoReturn:
+    def __init__(self, *args: Any, threshold: int = 100, **kwargs: Any) -> None:
         """
         Initialize an AutoTransformer object.
 
@@ -517,7 +517,7 @@ class AutoTransformer(TransformerBase):
             Arguments for the :class:`TransformerBase` class.
         threshold : int, optional
             The maximum threshold to switch from linear to logarithmic
-            transformation. The default is 1000.
+            transformation. The default is 100.
         **kwargs : dict
             Keyword arguments for the :class:`TransformerBase` class.
         """
@@ -565,7 +565,7 @@ class AutoTransformer(TransformerBase):
         return self._lb_input
 
     @lb_input.setter
-    def lb_input(self, lb_input: float | np.ndarray) -> NoReturn:
+    def lb_input(self, lb_input: float | np.ndarray) -> None:
         """Set the lower bounds of the input parameter space."""
         self.linear.lb_input = lb_input
         self.log.lb_input = lb_input
@@ -577,7 +577,7 @@ class AutoTransformer(TransformerBase):
         return self._ub_input
 
     @ub_input.setter
-    def ub_input(self, ub_input: float | np.ndarray) -> NoReturn:
+    def ub_input(self, ub_input: float | np.ndarray) -> None:
         """Set the upper bounds of the input parameter space."""
         self.linear.ub_input = ub_input
         self.log.ub_input = ub_input

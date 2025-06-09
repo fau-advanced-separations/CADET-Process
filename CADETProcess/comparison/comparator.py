@@ -1,7 +1,7 @@
 import copy
 import functools
 import importlib
-from typing import Any, Iterator, NoReturn, Optional
+from typing import Any, Iterator, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -37,7 +37,7 @@ class Comparator(Structure):
     def __init__(
         self,
         name: Optional[str] = None,
-    ) -> NoReturn:
+    ) -> None:
         """
         Initialize a new Comparator instance.
 
@@ -56,7 +56,7 @@ class Comparator(Structure):
         reference: SolutionBase,
         update: Optional[bool] = False,
         smooth: Optional[bool] = False,
-    ) -> NoReturn:
+    ) -> None:
         """
         Add reference to the Comparator.
 
@@ -136,8 +136,8 @@ class Comparator(Structure):
         difference_metric: str,
         reference: str | SolutionBase,
         solution_path: str,
-        *args,
-        **kwargs,
+        *args: Any,
+        **kwargs: Any,
     ) -> DifferenceBase:
         """
         Add a difference metric to the Comparator.
@@ -187,7 +187,9 @@ class Comparator(Structure):
         return metric
 
     def extract_solution(
-        self, simulation_results: SimulationResults, metric: DifferenceBase
+        self,
+        simulation_results: SimulationResults,
+        metric: DifferenceBase,
     ) -> SolutionBase:
         """
         Extract the solution for a given metric from the SimulationResults object.
@@ -395,7 +397,7 @@ class Comparator(Structure):
 
         return figs, axs
 
-    def __iter__(self) -> Iterator[Any]:
+    def __iter__(self) -> Iterator[list[DifferenceBase]]:
         """Yield metrics from the instance."""
         yield from self.metrics
 

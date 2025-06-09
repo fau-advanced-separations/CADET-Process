@@ -1,7 +1,11 @@
+from __future__ import annotations
+
 import itertools
 import warnings
+from typing import Optional
 
 import numpy as np
+import numpy.typing as npt
 import scipy
 from matplotlib.axes import Axes
 from numpy.exceptions import VisibleDeprecationWarning
@@ -38,7 +42,14 @@ class Section(Structure):
 
     coeffs = NdPolynomial(size=("n_entries", "n_poly_coeffs"))
 
-    def __init__(self, start, end, coeffs, is_polynomial=False):
+    def __init__(
+        self,
+        start: float,
+        end: float,
+        coeffs: int | float | npt.ArrayLike,
+        is_polynomial: bool = False,
+    ) -> None:
+        """Construct section object."""
         if start > end:
             raise ValueError("End time must be greater than start time")
 
@@ -76,19 +87,19 @@ class Section(Structure):
                 self._poly_der.append(poly_der)
 
     @property
-    def is_polynomial(self):
+    def is_polynomial(self) -> bool:
         """bool: True if Section represents polynomial parameter. False otherwise."""
         if self.degree > 0:
             return True
         return False
 
     @property
-    def n_poly_coeffs(self):
+    def n_poly_coeffs(self) -> int:
         """int: Number of polynomial coefficients."""
         return self.degree + 1
 
     @property
-    def is_single_entry(self):
+    def is_single_entry(self) -> bool:
         """bool: True if Section contains single entry. False otherwise."""
         if self.n_entries > 1:
             return True
@@ -98,7 +109,7 @@ class Section(Structure):
 
         return False
 
-    def value(self, t):
+    def value(self, t: float) -> float:
         """
         Return value of parameter section at time t.
 
@@ -126,7 +137,7 @@ class Section(Structure):
 
     __call__ = value
 
-    def coefficients(self, offset=0):
+    def coefficients(self, offset: float = 0.0) -> np.ndarray:
         """
         Get coefficients at (time) offset.
 
@@ -150,7 +161,7 @@ class Section(Structure):
 
         return np.array(coeffs).reshape(self.parameter_shape)
 
-    def derivative(self, t, order=1):
+    def derivative(self, t: float, order: Optional[int] = 1) -> np.ndarray:
         """
         Return derivative of parameter section at time t.
 
@@ -158,6 +169,8 @@ class Section(Structure):
         ----------
         t : float
             Time at which function is evaluated.
+        order : int, default=1
+            Order of deriviation. @TODO: Not yet implemented.
 
         Returns
         -------
@@ -178,7 +191,9 @@ class Section(Structure):
 
         return deriv
 
-    def integral(self, start=None, end=None):
+    def integral(
+        self, start: Optional[float] = None, end: Optional[float] = None
+    ) -> np.ndarray:
         """
         Return integral of function in interval [start, end].
 
@@ -191,7 +206,7 @@ class Section(Structure):
 
         Returns
         -------
-        Y : float
+        Y : np.ndarray
             Value of definite integral between start and end.
 
         Raises
@@ -233,27 +248,28 @@ class TimeLine:
         List of Sections that make up the timeline.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """Initialize TimeLine object."""
         self._sections = []
 
     @property
-    def sections(self):
+    def sections(self) -> list:
         """list: Sections of the TimeLine."""
         return self._sections
 
     @property
-    def degree(self):
+    def degree(self) -> int:
         """int: Degree of the polynomial functions used to represent each Section."""
         if len(self.sections) > 0:
             return self.sections[0].degree
 
     @property
-    def n_entries(self):
+    def n_entries(self) -> int:
         """int: Number of entries in the parameter vector for each Section."""
         if len(self.sections) > 0:
             return self.sections[0].n_entries
 
-    def add_section(self, section):
+    def add_section(self, section: Section) -> None:
         """
         Add a Section to the timeline.
 
@@ -286,7 +302,7 @@ class TimeLine:
 
         self.update_piecewise_poly()
 
-    def update_piecewise_poly(self):
+    def update_piecewise_poly(self) -> None:
         """Update the piecewise polynomial representation of the timeline."""
         x = []
         coeffs = []
@@ -305,13 +321,13 @@ class TimeLine:
         self._piecewise_poly = piecewise_poly
 
     @property
-    def piecewise_poly(self):
+    def piecewise_poly(self) -> list:
         """list: scipy.interpolate.PPoly for each dimension."""
         return self._piecewise_poly
 
-    def value(self, time):
+    def value(self, time: float) -> np.ndarray:
         """
-        np.array: Value of parameter at given time.
+        np.ndarray: Value of parameter at given time.
 
         Parameters
         ----------
@@ -320,7 +336,7 @@ class TimeLine:
         """
         return np.array([p(time) for p in self.piecewise_poly]).T
 
-    def coefficients(self, time):
+    def coefficients(self, time: float) -> np.ndarray:
         """
         Return coefficient of polynomial at given time.
 
@@ -331,7 +347,7 @@ class TimeLine:
 
         Returns
         -------
-        coefficients : np.array
+        coefficients : np.ndarray
             !!! Array of coefficients in ORDER !!!
         """
         section_index = self.section_index(time)
@@ -339,7 +355,9 @@ class TimeLine:
 
         return c
 
-    def integral(self, start=None, end=None):
+    def integral(
+        self, start: Optional[float] = None, end: Optional[float] = None
+    ) -> np.ndarray:
         """
         Calculate integral of sections in interval [start, end].
 
@@ -352,7 +370,7 @@ class TimeLine:
 
         Returns
         -------
-        Y : float
+        Y : np.ndarray
             Value of definite integral between start and end.
 
         Raises
@@ -370,7 +388,7 @@ class TimeLine:
 
         return np.array([p.integrate(start, end) for p in self.piecewise_poly]).T
 
-    def section_index(self, time):
+    def section_index(self, time: float) -> int:
         """
         Return the index of the section that contains the specified time.
 
@@ -389,7 +407,7 @@ class TimeLine:
         return np.argmin(time >= section_times) - 1
 
     @property
-    def section_times(self):
+    def section_times(self) -> list[float]:
         """List of float: The start and end times of all sections in the timeline."""
         if len(self.sections) == 0:
             return []
@@ -397,17 +415,17 @@ class TimeLine:
         return [self.sections[0].start] + [sec.end for sec in self.sections]
 
     @property
-    def start(self):
+    def start(self) -> float:
         """float: The start time of the timeline."""
         return self.section_times[0]
 
     @property
-    def end(self):
+    def end(self) -> float:
         """float: The end time of the timeline."""
         return self.section_times[-1]
 
     @plotting.create_and_save_figure
-    def plot(self, ax, x_axis_in_minutes: bool = True) -> Axes:
+    def plot(self, ax: Axes, x_axis_in_minutes: bool = True) -> Axes:
         """
         Plot the state of the timeline over time.
 
@@ -448,7 +466,7 @@ class TimeLine:
         return ax
 
     @classmethod
-    def from_constant(cls, start, end, value):
+    def from_constant(cls, start: float, end: float, value: float) -> TimeLine:
         """
         Create a timeline with a constant value for a given time range.
 
@@ -472,7 +490,12 @@ class TimeLine:
         return tl
 
     @classmethod
-    def from_profile(cls, time, profile, s=1e-6):
+    def from_profile(
+        cls,
+        time: npt.ArrayLike,
+        profile: npt.ArrayLike,
+        s: float = 1e-6,
+    ) -> TimeLine:
         """
         Create a timeline from a profile.
 
@@ -514,7 +537,7 @@ class MultiTimeLine:
 
     Attributes
     ----------
-    base_state : np.array
+    base_state : np.ndarray
         The base state that each TimeLine represents.
     n_entries : int
         The number of entries in each TimeLine.
@@ -524,7 +547,7 @@ class MultiTimeLine:
         The degree of the polynomials in each section.
     """
 
-    def __init__(self, base_state, is_polynomial=False):
+    def __init__(self, base_state: list, is_polynomial: bool = False) -> None:
         """
         Initialize a MultiTimeLine instance.
 
@@ -532,6 +555,9 @@ class MultiTimeLine:
         ----------
         base_state : list
             The base state that each TimeLine represents.
+        is_polynomial : bool, optional
+            Option wheter MultiTimeLine is polynomial. The default is False
+
         """
         base_state = np.array(base_state, ndmin=1, dtype=np.float64)
         self.is_polynomial = is_polynomial
@@ -550,28 +576,28 @@ class MultiTimeLine:
         self.time_lines = [TimeLine() for _ in range(self.size)]
 
     @property
-    def degree(self):
+    def degree(self) -> int:
         """int: The degree of the polynomials in each section."""
         return self._degree
 
     @degree.setter
-    def degree(self, degree):
+    def degree(self, degree: int) -> None:
         self._degree = degree
 
     @property
-    def n_entries(self):
+    def n_entries(self) -> int:
         """int: Number of entries handled by MultiTimeline."""
         if self.degree > 0:
             return len(self.base_state)
         return self.base_state.size
 
     @property
-    def size(self):
+    def size(self) -> int:
         """int: Total number of internal TimeLines handled Number by MultiTimeline."""
         return self.base_state.size
 
     @property
-    def section_times(self):
+    def section_times(self) -> list:
         """list: Combined section times of all TimeLines."""
         time_line_sections = [tl.section_times for tl in self.time_lines]
 
@@ -579,7 +605,7 @@ class MultiTimeLine:
 
         return sorted(list(section_times))
 
-    def add_section(self, section, entry_index):
+    def add_section(self, section: Section, entry_index: tuple) -> None:
         """
         Add section to TimeLine with specific entry index.
 
@@ -601,7 +627,7 @@ class MultiTimeLine:
         self.time_lines[index].add_section(section)
 
     @property
-    def combined_time_line(self):
+    def combined_time_line(self) -> TimeLine:
         """TimeLine: Object representing combination of all timelines in the MultiTimeLine."""
         tl = TimeLine()
 
@@ -646,7 +672,10 @@ class MultiTimeLine:
         return tl
 
 
-def generate_indices(shape, indices=None):
+def generate_indices(
+    shape: tuple[int, ...],
+    indices: Optional[list[list[int]]] = None,
+) -> list[tuple]:
     """
     Generate tuples representing indices for an array with a given shape.
 
@@ -704,7 +733,7 @@ def generate_indices(shape, indices=None):
     return indices
 
 
-def _validate_indices(shape, indices):
+def _validate_indices(shape: tuple[int, ...], indices: list[list[int]]) -> None:
     """Validate that all indices can be set in an array with shape `shape`."""
     param_ref = np.arange(np.prod(shape)).reshape(shape)
 
@@ -712,7 +741,7 @@ def _validate_indices(shape, indices):
         param_ref[ind]
 
 
-def unravel(shape, indices):
+def unravel(shape: tuple[int, ...], indices: list[int] | tuple) -> list[tuple]:
     """
     Unravel indices of a multi-dimensional array.
 
@@ -746,7 +775,7 @@ def unravel(shape, indices):
     return indices_unraveled
 
 
-def flatten_index(shape, indices):
+def flatten_index(shape: tuple[int], indices: tuple | list[tuple]) -> list[int]:
     """
     Flatten indices to access array.
 
@@ -770,7 +799,7 @@ def flatten_index(shape, indices):
     return [indices_flat_ref[i] for i in indices]
 
 
-def unflatten_index(shape, indices_flat):
+def unflatten_index(shape: tuple[int, ...], indices_flat: int | list[int]) -> list[int]:
     """
     Unflatten indices to access array.
 
@@ -795,7 +824,7 @@ def unflatten_index(shape, indices_flat):
     return indices
 
 
-def get_inhomogeneous_shape(value):
+def get_inhomogeneous_shape(value: np.ndarray) -> list[tuple[int, ...]]:
     """If array is inhomogeneous, return list with shape of every element."""
     with warnings.catch_warnings():  # Catch warnings for compatibility with numpy<1.24
         warnings.simplefilter("error")
@@ -813,7 +842,7 @@ def get_inhomogeneous_shape(value):
     return shape
 
 
-def get_full_shape(inhomogeneous_shape):
+def get_full_shape(inhomogeneous_shape: list) -> tuple[int]:
     """Create full shape from inhomogeneous shape to be used with numpy arrays."""
     first_dimension = len(inhomogeneous_shape)
 
@@ -837,7 +866,9 @@ def get_full_shape(inhomogeneous_shape):
     return dims
 
 
-def extract_inhomogeneous_array(full_array, inhomogeneous_shape):
+def extract_inhomogeneous_array(
+    full_array: np.ndarray, inhomogeneous_shape: tuple[int, ...]
+) -> None:
     """Get inhomogeneous array from full_array."""
     array = []
     for i in inhomogeneous_shape:

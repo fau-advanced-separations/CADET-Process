@@ -61,7 +61,7 @@ class SimulatorBase(Structure):
         self,
         stationarity_evaluator: Optional[StationarityEvaluator] = None,
         *args: Any,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> None:
         """Initialize Simulator Base."""
         super().__init__(*args, **kwargs)
@@ -219,7 +219,7 @@ class SimulatorBase(Structure):
         self,
         process: Process,
         previous_results: Optional[SimulationResults] = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> SimulationResults:
         """
         Simulate the process.
@@ -289,7 +289,7 @@ class SimulatorBase(Structure):
         process: Process,
         n_cyc: int,
         previous_results: Optional[SimulationResults] = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> SimulationResults:
         """
         Simulate the process for a given number of cycles.
@@ -342,7 +342,7 @@ class SimulatorBase(Structure):
         self,
         process: Process,
         results: Optional[SimulationResults] = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> SimulationResults:
         """
         Simulate the process until stationarity is reached.
@@ -419,7 +419,11 @@ class SimulatorBase(Structure):
 
         return results
 
-    def set_state_from_results(self, process: Process, results: SimulationResults) -> Process:
+    def set_state_from_results(
+        self,
+        process: Process,
+        results: SimulationResults,
+    ) -> Process:
         """
         Set the process state from the simulation results.
 
@@ -475,7 +479,10 @@ class SimulatorBase(Structure):
         return self._stationarity_evaluator
 
     @stationarity_evaluator.setter
-    def stationarity_evaluator(self, stationarity_evaluator: StationarityEvaluator) -> None:
+    def stationarity_evaluator(
+        self,
+        stationarity_evaluator: StationarityEvaluator,
+    ) -> None:
         """
         Set the stationarity evaluator.
 

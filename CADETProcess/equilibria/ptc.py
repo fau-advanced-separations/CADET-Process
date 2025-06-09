@@ -5,7 +5,7 @@ The main method is ptc, a pseudo-transient continuation method with switched evo
 relaxation.
 
 This code was written by Samuel Leweke (University of Cologne) in 2020.
-""" # noqa
+"""  # noqa
 
 __author__ = "Samuel Leweke"
 __contact__ = "leweke@math.uni-koeln.de"
@@ -34,17 +34,17 @@ def jacrow_scale(jacMat: np.ndarray, scale: np.ndarray) -> np.ndarray:
 
 
 def ptc(
-        x: np.ndarray,
-        f: Callable[[np.ndarray], np.ndarray],
-        jacF: Callable[[np.ndarray], np.ndarray],
-        tau: float,
-        tol: float,
-        scale: Optional[np.ndarray] = None,
-        maxIter: int = 50,
-        maxNonMonotone: int = 5,
-        quiet: bool = True,
-        variant: bool = False
-    ) -> tuple[int, np.ndarray, float, int]:
+    x: np.ndarray,
+    f: Callable[[np.ndarray], np.ndarray],
+    jacF: Callable[[np.ndarray], np.ndarray],
+    tau: float,
+    tol: float,
+    scale: Optional[np.ndarray] = None,
+    maxIter: int = 50,
+    maxNonMonotone: int = 5,
+    quiet: bool = True,
+    variant: bool = False,
+) -> tuple[int, np.ndarray, float, int]:
     r"""
     Solve a nonlinear equation system using pseudo-transient continuation.
 

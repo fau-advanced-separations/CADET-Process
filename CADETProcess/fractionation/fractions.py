@@ -1,3 +1,5 @@
+from typing import Any
+
 import numpy as np
 
 from CADETProcess import CADETProcessError
@@ -45,12 +47,12 @@ class Fraction(Structure):
     _parameters = ["mass", "volume", "start", "end"]
 
     @property
-    def n_comp(self):
+    def n_comp(self) -> int:
         """int: Number of components in the fraction."""
         return self.mass.size
 
     @property
-    def fraction_mass(self):
+    def fraction_mass(self) -> np.ndarray:
         """
         np.ndarray: Cumulative mass all species in the fraction.
 
@@ -63,7 +65,7 @@ class Fraction(Structure):
         return sum(self.mass)
 
     @property
-    def purity(self):
+    def purity(self) -> np.ndarray:
         """
         np.ndarray: Purity of the fraction.
 
@@ -81,7 +83,7 @@ class Fraction(Structure):
         return np.nan_to_num(purity)
 
     @property
-    def concentration(self):
+    def concentration(self) -> np.ndarray:
         """
         np.ndarray: Component concentrations of the fraction.
 
@@ -142,7 +144,7 @@ class FractionPool(Structure):
 
     _parameters = ["n_comp"]
 
-    def __init__(self, n_comp, *args, **kwargs):
+    def __init__(self, n_comp: int, *args: Any, **kwargs: Any) -> None:
         """
         Initialize a FractionPool instance.
 
@@ -150,13 +152,17 @@ class FractionPool(Structure):
         ----------
         n_comp : int
             The number of components each fraction in the pool should have.
+        *args : Optional
+            Optional Parameters for Structure class.
+        **kwargs : Optional
+            Additional Parameters for Structure class.
         """
         self._fractions = []
         self.n_comp = n_comp
 
         super().__init__(*args, **kwargs)
 
-    def add_fraction(self, fraction):
+    def add_fraction(self, fraction: Fraction) -> None:
         """
         Add a fraction to the fraction pool.
 
@@ -181,34 +187,34 @@ class FractionPool(Structure):
         self._fractions.append(fraction)
 
     @property
-    def fractions(self):
+    def fractions(self) -> list[Fraction]:
         """list: List of fractions in the pool."""
         if len(self._fractions) == 0:
             return [Fraction(np.zeros((self.n_comp,)), 0)]
         return self._fractions
 
     @property
-    def n_fractions(self):
+    def n_fractions(self) -> int:
         """int: Number of fractions in the pool."""
         return len(self._fractions)
 
     @property
-    def volume(self):
+    def volume(self) -> float:
         """float: Sum of all fraction volumes in the fraction pool."""
         return sum(frac.volume for frac in self.fractions)
 
     @property
-    def mass(self):
+    def mass(self) -> np.ndarray:
         """np.ndarray: Cumulative component mass in the fraction pool."""
         return np.sum([frac.mass for frac in self.fractions], axis=0)
 
     @property
-    def pool_mass(self):
+    def pool_mass(self) -> float:
         """float: Sum of cumulative component mass in the fraction pool."""
         return sum(frac.fraction_mass for frac in self.fractions)
 
     @property
-    def purity(self):
+    def purity(self) -> np.ndarray:
         """
         Total purity of components in the fraction pool.
 
@@ -231,7 +237,7 @@ class FractionPool(Structure):
         return np.nan_to_num(purity)
 
     @property
-    def concentration(self):
+    def concentration(self) -> np.ndarray:
         """
         Total concentration of components in the fraction pool.
 

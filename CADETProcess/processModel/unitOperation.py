@@ -1,6 +1,7 @@
 import math
 import warnings
 from abc import abstractmethod
+from typing import Any, Optional
 
 import numpy as np
 
@@ -106,16 +107,16 @@ class UnitBaseClass(Structure):
 
     def __init__(
         self,
-        component_system,
-        name,
-        *args,
-        binding_model=None,
-        bulk_reaction_model=None,
-        particle_reaction_model=None,
-        discretization=None,
-        solution_recorder=None,
-        **kwargs,
-    ):
+        component_system: ComponentSystem,
+        name: str,
+        *args: Optional[tuple],
+        binding_model: Optional[BindingBaseClass] = None,
+        bulk_reaction_model: Optional[BulkReactionBase] = None,
+        particle_reaction_model: Optional[ParticleReactionBase] = None,
+        discretization: Optional[DiscretizationParametersBase] = None,
+        solution_recorder: Optional[IORecorder] = None,
+        **kwargs: Optional[dict],
+    ) -> None:
         """
         Initialize UnitBaseClass.
 
@@ -179,7 +180,7 @@ class UnitBaseClass(Structure):
         return self._component_system
 
     @component_system.setter
-    def component_system(self, component_system):
+    def component_system(self, component_system: ComponentSystem) -> None:
         if not isinstance(component_system, ComponentSystem):
             raise TypeError("Expected ComponentSystem")
         self._component_system = component_system
@@ -190,7 +191,7 @@ class UnitBaseClass(Structure):
         return self._discretization
 
     @discretization.setter
-    def discretization(self, discretization):
+    def discretization(self, discretization: DiscretizationParametersBase) -> None:
         if not isinstance(discretization, DiscretizationParametersBase):
             raise TypeError("Expected DiscretizationParametersBase")
 
@@ -218,7 +219,7 @@ class UnitBaseClass(Structure):
         return 1
 
     @property
-    def parameters(self):
+    def parameters(self) -> dict:
         """dict: Dictionary with parameter values."""
         parameters = super().parameters
 
@@ -235,7 +236,7 @@ class UnitBaseClass(Structure):
         return parameters
 
     @parameters.setter
-    def parameters(self, parameters):
+    def parameters(self, parameters: dict) -> None:
         try:
             self.binding_model.parameters = parameters.pop("binding_model")
         except KeyError:
@@ -258,7 +259,7 @@ class UnitBaseClass(Structure):
         super(UnitBaseClass, self.__class__).parameters.fset(self, parameters)
 
     @property
-    def section_dependent_parameters(self):
+    def section_dependent_parameters(self) -> dict:
         """Return section dependent parameters."""
         parameters = {
             key: value
@@ -268,14 +269,14 @@ class UnitBaseClass(Structure):
         return parameters
 
     @property
-    def initial_state(self):
+    def initial_state(self) -> dict:
         """dict: Dictionary with initial states."""
         initial_state = {st: getattr(self, st) for st in self._initial_state}
 
         return initial_state
 
     @initial_state.setter
-    def initial_state(self, initial_state):
+    def initial_state(self, initial_state: dict) -> None:
         for st, value in initial_state.items():
             if st not in self._initial_state:
                 raise CADETProcessError("Not a valid parameter")
@@ -283,7 +284,7 @@ class UnitBaseClass(Structure):
                 setattr(self, st, value)
 
     @property
-    def missing_parameters(self):
+    def missing_parameters(self) -> list:
         """Return list of missing parameters."""
         missing_parameters = super().missing_parameters
 
@@ -293,7 +294,7 @@ class UnitBaseClass(Structure):
 
         return missing_parameters
 
-    def check_required_parameters(self):
+    def check_required_parameters(self) -> bool:
         """Checkf if there are missing parameters left."""
         if len(self.missing_parameters) == 0:
             return True
@@ -318,7 +319,7 @@ class UnitBaseClass(Structure):
         return self._binding_model
 
     @binding_model.setter
-    def binding_model(self, binding_model):
+    def binding_model(self, binding_model: BindingBaseClass) -> None:
         if not isinstance(binding_model, BindingBaseClass):
             raise TypeError("Expected BindingBaseClass")
 
@@ -335,7 +336,7 @@ class UnitBaseClass(Structure):
         self._binding_model = binding_model
 
     @property
-    def n_bound_states(self):
+    def n_bound_states(self) -> int:
         """int: Return number of bound states."""
         if isinstance(self.binding_model, NoBinding):
             return 0
@@ -358,7 +359,7 @@ class UnitBaseClass(Structure):
         return self._bulk_reaction_model
 
     @bulk_reaction_model.setter
-    def bulk_reaction_model(self, bulk_reaction_model):
+    def bulk_reaction_model(self, bulk_reaction_model: BulkReactionBase) -> None:
         if not isinstance(bulk_reaction_model, NoReaction):
             if not isinstance(bulk_reaction_model, BulkReactionBase):
                 raise TypeError("Expected BulkReactionBase")
@@ -371,7 +372,7 @@ class UnitBaseClass(Structure):
         self._bulk_reaction_model = bulk_reaction_model
 
     @property
-    def particle_reaction_model(self):
+    def particle_reaction_model(self) -> ParticleReactionBase:
         """
         ParticleReactionBase: Reaction in particle liquid phase.
 
@@ -387,7 +388,9 @@ class UnitBaseClass(Structure):
         return self._particle_reaction_model
 
     @particle_reaction_model.setter
-    def particle_reaction_model(self, particle_reaction_model):
+    def particle_reaction_model(
+        self, particle_reaction_model: ParticleReactionBase | BulkReactionBase
+    ) -> None:
         if isinstance(particle_reaction_model, BulkReactionBase):
             try:
                 warnings.warn(
@@ -409,11 +412,11 @@ class UnitBaseClass(Structure):
 
         self._particle_reaction_model = particle_reaction_model
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """str: String-representation of the object."""
         return f"{self.__class__.__name__}(n_comp={self.n_comp}, name={self.name})"
 
-    def __str__(self):
+    def __str__(self) -> str:
         """str: String-representation of the object."""
         return self.name
 
@@ -540,12 +543,12 @@ class TubularReactorBase(UnitBaseClass):
 
     @property
     @abstractmethod
-    def total_porosity(self) -> float | None:
+    def total_porosity(self) -> None:
         """Float | None: Total porosity of the unit operation."""
         pass
 
     @property
-    def cross_section_area(self):
+    def cross_section_area(self) -> float:
         """float: Cross section area of a Column.
 
         See Also
@@ -558,10 +561,10 @@ class TubularReactorBase(UnitBaseClass):
             return math.pi / 4 * self.diameter**2
 
     @cross_section_area.setter
-    def cross_section_area(self, cross_section_area):
+    def cross_section_area(self, cross_section_area: float) -> None:
         self.diameter = (4 * cross_section_area / math.pi) ** 0.5
 
-    def set_diameter_from_interstitial_velocity(self, Q, u0):
+    def set_diameter_from_interstitial_velocity(self, Q: float, u0: float) -> None:
         """
         Set diamter from flow rate and interstitial velocity.
 
@@ -584,7 +587,7 @@ class TubularReactorBase(UnitBaseClass):
         self.cross_section_area = Q / (u0 * self.total_porosity)
 
     @property
-    def cross_section_area_interstitial(self):
+    def cross_section_area_interstitial(self) -> float:
         """float: Interstitial area between particles.
 
         Notes
@@ -632,7 +635,7 @@ class TubularReactorBase(UnitBaseClass):
         """float: Volume of the solid phase."""
         return (1 - self.total_porosity) * self.cross_section_area * self.length
 
-    def calculate_interstitial_rt(self, flow_rate):
+    def calculate_interstitial_rt(self, flow_rate: float) -> float:
         """
         Calculate mean residence time of a (non adsorbing) volume element.
 
@@ -653,7 +656,7 @@ class TubularReactorBase(UnitBaseClass):
         """
         return self.volume_interstitial / flow_rate
 
-    def calculate_superficial_rt(self, flow_rate):
+    def calculate_superficial_rt(self, flow_rate: float) -> float:
         """
         Calculate mean residence time of a volume element in an empty column.
 
@@ -674,7 +677,7 @@ class TubularReactorBase(UnitBaseClass):
         """
         return self.volume / flow_rate
 
-    def calculate_interstitial_velocity(self, flow_rate):
+    def calculate_interstitial_velocity(self, flow_rate: float) -> float:
         """
         Calculate flow velocity of a (non adsorbing) volume element.
 
@@ -695,7 +698,7 @@ class TubularReactorBase(UnitBaseClass):
         """
         return self.length / self.calculate_interstitial_rt(flow_rate)
 
-    def calculate_superficial_velocity(self, flow_rate):
+    def calculate_superficial_velocity(self, flow_rate: float) -> float:
         """
         Calculate superficial flow velocity of a volume element in an empty column.
 
@@ -717,7 +720,7 @@ class TubularReactorBase(UnitBaseClass):
         """
         return self.length / self.calculate_superficial_rt(flow_rate)
 
-    def calculate_flow_rate_from_velocity(self, u0):
+    def calculate_flow_rate_from_velocity(self, u0: float) -> float:
         """
         Calculate volumetric flow rate from interstitial velocity.
 
@@ -738,7 +741,7 @@ class TubularReactorBase(UnitBaseClass):
         """
         return u0 * self.cross_section_area_interstitial
 
-    def NTP(self, flow_rate):
+    def NTP(self, flow_rate: float) -> float:
         r"""
         Calculate number of theoretical plates.
 
@@ -760,7 +763,7 @@ class TubularReactorBase(UnitBaseClass):
         u0 = self.calculate_interstitial_velocity(flow_rate)
         return u0 * self.length / (2 * np.array(self.axial_dispersion))
 
-    def set_axial_dispersion_from_NTP(self, NTP, flow_rate):
+    def set_axial_dispersion_from_NTP(self, NTP: float, flow_rate: float) -> float:
         r"""
         Set axial dispersion from number of theoretical plates (NTP).
 
@@ -839,7 +842,9 @@ class TubularReactor(TubularReactorBase):
 
     total_porosity = Constant(1)
 
-    def __init__(self, *args, discretization_scheme="FV", **kwargs):
+    def __init__(
+        self, *args: Any, discretization_scheme: Optional[str] = "FV", **kwargs: Any
+    ) -> None:
         if discretization_scheme == "FV":
             discretization = LRMDiscretizationFV()
         elif discretization_scheme == "DG":
@@ -894,7 +899,9 @@ class LumpedRateModelWithoutPores(ChromatographicColumnBase):
     _initial_state = ChromatographicColumnBase._initial_state + ["q"]
     _parameters = _parameters + _initial_state
 
-    def __init__(self, *args, discretization_scheme="FV", **kwargs):
+    def __init__(
+        self, *args: Any, discretization_scheme: Optional[str] = "FV", **kwargs: Any
+    ) -> None:
         super().__init__(*args, **kwargs)
 
         if discretization_scheme == "FV":
@@ -905,12 +912,12 @@ class LumpedRateModelWithoutPores(ChromatographicColumnBase):
         self.solution_recorder = LRMRecorder()
 
     @property
-    def q(self) -> float | None:
+    def q(self) -> list:
         """list[float]: Initial solid phase concentration."""
         return self._q
 
     @q.setter
-    def q(self, q):
+    def q(self, q: list) -> None:
         if isinstance(self.binding_model, NoBinding) and q not in (None, []):
             raise CADETProcessError("Cannot set q without binding model.")
         self._q = q
@@ -973,7 +980,9 @@ class LumpedRateModelWithPores(ChromatographicColumnBase):
     _initial_state = ChromatographicColumnBase._initial_state + ["cp", "q"]
     _parameters = _parameters + _initial_state
 
-    def __init__(self, *args, discretization_scheme="FV", **kwargs):
+    def __init__(
+        self, *args: Any, discretization_scheme: Optional[str] = "FV", **kwargs: Any
+    ) -> None:
         super().__init__(*args, **kwargs)
 
         if discretization_scheme == "FV":
@@ -989,7 +998,7 @@ class LumpedRateModelWithPores(ChromatographicColumnBase):
         return self.bed_porosity + (1 - self.bed_porosity) * self.particle_porosity
 
     @property
-    def cross_section_area_interstitial(self):
+    def cross_section_area_interstitial(self) -> float:
         """float: Interstitial area between particles.
 
         See Also
@@ -998,7 +1007,7 @@ class LumpedRateModelWithPores(ChromatographicColumnBase):
         """
         return self.bed_porosity * self.cross_section_area
 
-    def set_diameter_from_interstitial_velocity(self, Q, u0):
+    def set_diameter_from_interstitial_velocity(self, Q: float, u0: float) -> None:
         """
         Set diamter from flow rate and interstitial velocity.
 
@@ -1029,18 +1038,18 @@ class LumpedRateModelWithPores(ChromatographicColumnBase):
             return self._cp
 
     @cp.setter
-    def cp(self, cp):
+    def cp(self, cp: list[float]) -> None:
         self._cp = cp
 
         self.parameters["cp"] = cp
 
     @property
-    def q(self):
+    def q(self) -> list[float]:
         """list[float]: Initial solid phase concentration."""
         return self._q
 
     @q.setter
-    def q(self, q):
+    def q(self, q: list) -> None:
         if isinstance(self.binding_model, NoBinding) and q not in (None, []):
             raise CADETProcessError("Cannot set q without binding model.")
         self._q = q
@@ -1112,7 +1121,9 @@ class GeneralRateModel(ChromatographicColumnBase):
     _initial_state = ChromatographicColumnBase._initial_state + ["cp", "q"]
     _parameters = _parameters + _initial_state
 
-    def __init__(self, *args, discretization_scheme="FV", **kwargs):
+    def __init__(
+        self, *args: Any, discretization_scheme: Optional[str] = "FV", **kwargs: Any
+    ) -> None:
         super().__init__(*args, **kwargs)
 
         if discretization_scheme == "FV":
@@ -1128,7 +1139,7 @@ class GeneralRateModel(ChromatographicColumnBase):
         return self.bed_porosity + (1 - self.bed_porosity) * self.particle_porosity
 
     @property
-    def cross_section_area_interstitial(self):
+    def cross_section_area_interstitial(self) -> float:
         """float: Interstitial area between particles.
 
         See Also
@@ -1138,7 +1149,7 @@ class GeneralRateModel(ChromatographicColumnBase):
         """
         return self.bed_porosity * self.cross_section_area
 
-    def set_diameter_from_interstitial_velocity(self, Q, u0):
+    def set_diameter_from_interstitial_velocity(self, Q: float, u0: float) -> None:
         """
         Set diamter from flow rate and interstitial velocity.
 
@@ -1161,7 +1172,7 @@ class GeneralRateModel(ChromatographicColumnBase):
         self.cross_section_area = Q / (u0 * self.bed_porosity)
 
     @property
-    def cp(self):
+    def cp(self) -> list[float]:
         """list[float]: Initial particle liquid concentration."""
         if self._cp is None:
             return self.c
@@ -1169,18 +1180,18 @@ class GeneralRateModel(ChromatographicColumnBase):
             return self._cp
 
     @cp.setter
-    def cp(self, cp):
+    def cp(self, cp: list[float]) -> None:
         self._cp = cp
 
         self.parameters["cp"] = cp
 
     @property
-    def q(self):
+    def q(self) -> list[float]:
         """list[float]: Initial solid phase concentration."""
         return self._q
 
     @q.setter
-    def q(self, q):
+    def q(self, q: list[float]) -> None:
         if isinstance(self.binding_model, NoBinding) and q not in (None, []):
             raise CADETProcessError("Cannot set q without binding model.")
         self._q = q
@@ -1188,12 +1199,12 @@ class GeneralRateModel(ChromatographicColumnBase):
         self.parameters["q"] = q
 
     @property
-    def surface_diffusion(self) -> list[float] | None:
+    def surface_diffusion(self) -> list[float]:
         """list[float] | None: Surface diffusion coefficients."""
         return self._surface_diffusion
 
     @surface_diffusion.setter
-    def surface_diffusion(self, surface_diffusion):
+    def surface_diffusion(self, surface_diffusion: list[float]) -> None:
         if isinstance(self.binding_model, NoBinding):
             raise CADETProcessError(
                 "Cannot set surface diffusion without binding model."
@@ -1253,12 +1264,12 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     _initial_state = UnitBaseClass._initial_state + ["c", "q", "init_liquid_volume"]
     _parameters = _parameters + _initial_state
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.solution_recorder = CSTRRecorder()
 
     @property
-    def required_parameters(self):
+    def required_parameters(self) -> list:
         """
         Remove 'flow_rate' from required parameters.
 
@@ -1278,7 +1289,7 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         )
 
     @porosity.setter
-    def porosity(self, porosity):
+    def porosity(self, porosity: float) -> None:
         warnings.warn(
             "Field POROSITY is only supported for backwards compatibility, but the implementation "
             "of the CSTR has changed, please refer to the documentation. The POROSITY will be "
@@ -1295,7 +1306,7 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         return self._V
 
     @V.setter
-    def V(self, V):
+    def V(self, V: float) -> None:
         warnings.warn(
             "The field V is only supported for backwards compatibility. "
             "Please set initial_liquid_volume and const_solid_volume."
@@ -1318,7 +1329,7 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         """float: Volume of the solid phase."""
         return self.const_solid_volume
 
-    def calculate_interstitial_rt(self, flow_rate):
+    def calculate_interstitial_rt(self, flow_rate: float) -> float:
         """
         Calculate mean residence time of a (non adsorbing) volume element.
 
@@ -1339,12 +1350,12 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         return self.volume_liquid / flow_rate
 
     @property
-    def q(self):
+    def q(self) -> list:
         """list[float]: Initial solid phase concentration."""
         return self._q
 
     @q.setter
-    def q(self, q):
+    def q(self, q: list) -> None:
         if isinstance(self.binding_model, NoBinding) and q not in (None, []):
             raise CADETProcessError("Cannot set q without binding model.")
         self._q = q
@@ -1407,7 +1418,8 @@ class MCT(UnitBaseClass):
     _initial_state = UnitBaseClass._initial_state + ["c"]
     _parameters = _parameters + _initial_state
 
-    def __init__(self, *args, nchannel, **kwargs):
+    def __init__(self, *args: Any, nchannel: int, **kwargs: Any) -> None:
+        """Initialize MCT."""
         discretization = MCTDiscretizationFV()
         self._nchannel = nchannel
         super().__init__(
@@ -1418,21 +1430,21 @@ class MCT(UnitBaseClass):
         )
 
     @property
-    def nchannel(self):
+    def nchannel(self) -> int:
         """int: The number of channels in the MCT."""
         return self._nchannel
 
     @nchannel.setter
-    def nchannel(self, nchannel):
+    def nchannel(self, nchannel: int) -> None:
         self._nchannel = nchannel
 
     @property
-    def ports(self) -> list[str]:
+    def ports(self) -> list:
         """list[str]: Ports of the unit operation."""
         return [f"channel_{i}" for i in range(self.nchannel)]
 
     @property
-    def n_ports(self):
+    def n_ports(self) -> int:
         """int: Number of ports (here the number of channels)."""
         return self.nchannel
 

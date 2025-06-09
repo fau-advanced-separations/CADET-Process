@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 from collections import defaultdict
 from functools import wraps
-from typing import Iterator, NoReturn
+from typing import Any, Callable, Iterator, Optional
 from warnings import warn
 
 import numpy as np
@@ -11,7 +13,7 @@ from CADETProcess.dataStructure import String, Structure, frozen_attributes
 
 from .binding import NoBinding
 from .componentSystem import ComponentSystem
-from .unitOperation import Cstr, Inlet, Outlet, UnitBaseClass
+from .unitOperation import Cstr, Inlet, Outlet, SourceMixin, UnitBaseClass
 
 
 @frozen_attributes
@@ -38,7 +40,13 @@ class FlowSheet(Structure):
 
     name = String()
 
-    def __init__(self, component_system, *args, **kwargs):
+    def __init__(
+        self,
+        component_system: ComponentSystem,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
+        """Initialize flow sheet."""
         super().__init__(*args, **kwargs)
 
         self.component_system = component_system
@@ -61,20 +69,26 @@ class FlowSheet(Structure):
         return self._component_system
 
     @component_system.setter
-    def component_system(self, component_system):
+    def component_system(self, component_system: ComponentSystem) -> None:
         if not isinstance(component_system, ComponentSystem):
             raise TypeError("Expected ComponentSystem")
         self._component_system = component_system
 
     @property
-    def n_comp(self):
+    def n_comp(self) -> int:
         """int: The number of components."""
         return self.component_system.n_comp
 
-    def unit_name_decorator(func):
+    def unit_name_decorator(func: Callable) -> Callable:
         """Wrap methods to enable calling functions with unit object or unit name."""
+
         @wraps(func)
-        def unit_name_wrapper(self, unit, *args, **kwargs):
+        def unit_name_wrapper(
+            self: FlowSheet,
+            unit: str | UnitBaseClass,
+            *args: Any,
+            **kwargs: Any,
+        ) -> Any:
             """Enable calling functions with unit object or unit name."""
             if isinstance(unit, str):
                 try:
@@ -85,10 +99,17 @@ class FlowSheet(Structure):
 
         return unit_name_wrapper
 
-    def origin_destination_name_decorator(func):
+    def origin_destination_name_decorator(func: Callable) -> Callable:
         """Wrap methods to enable calling functions using origin and destination units."""
+
         @wraps(func)
-        def origin_destination_name_wrapper(self, origin, destination, *args, **kwargs):
+        def origin_destination_name_wrapper(
+            self: FlowSheet,
+            origin: str | UnitBaseClass,
+            destination: str | UnitBaseClass,
+            *args: Any,
+            **kwargs: Any,
+        ) -> Any:
             """Enable calling origin and destination using unit names."""
             if isinstance(origin, str):
                 try:
@@ -106,7 +127,7 @@ class FlowSheet(Structure):
 
         return origin_destination_name_wrapper
 
-    def update_parameters(self):
+    def update_parameters(self) -> None:
         """Update current parameters."""
         for unit in self.units:
             self._parameters[unit.name] = unit.parameters
@@ -128,10 +149,11 @@ class FlowSheet(Structure):
             unit.name: self.output_states[unit] for unit in self.units
         }
 
-    def update_parameters_decorator(func):
+    def update_parameters_decorator(func: Callable) -> Callable:
         """Wrap method s.t. parameters dict is automatically updated."""
+
         @wraps(func)
-        def wrapper(self, *args, **kwargs):
+        def wrapper(self: FlowSheet, *args: Any, **kwargs: Any) -> Any:
             """Update parameters dict to save time."""
             results = func(self, *args, **kwargs)
             self.update_parameters()
@@ -141,27 +163,27 @@ class FlowSheet(Structure):
         return wrapper
 
     @property
-    def units(self):
+    def units(self) -> list[UnitBaseClass]:
         """list: list of all unit_operations in the flow sheet."""
         return self._units
 
     @property
-    def units_dict(self):
+    def units_dict(self) -> dict[str, UnitBaseClass]:
         """dict: Unit operation names and objects."""
         return {unit.name: unit for unit in self.units}
 
     @property
-    def unit_names(self):
+    def unit_names(self) -> list[str]:
         """list: Names of unit operations."""
         return [unit.name for unit in self.units]
 
     @property
-    def number_of_units(self):
+    def number_of_units(self) -> int:
         """int: Number of unit operations in the FlowSheet."""
         return len(self._units)
 
     @unit_name_decorator
-    def get_unit_index(self, unit):
+    def get_unit_index(self, unit: UnitBaseClass) -> int:
         """
         Return the unit index of the unit.
 
@@ -185,7 +207,7 @@ class FlowSheet(Structure):
 
         return self.units.index(unit)
 
-    def get_port_index(self, unit, port) -> int:
+    def get_port_index(self, unit: UnitBaseClass, port: str) -> int:
         """
         Return the port index of a unit.
 
@@ -214,22 +236,22 @@ class FlowSheet(Structure):
         return port_index
 
     @property
-    def inlets(self):
+    def inlets(self) -> list[Inlet]:
         """list: All Inlets in the system."""
         return [unit for unit in self._units if isinstance(unit, Inlet)]
 
     @property
-    def outlets(self):
+    def outlets(self) -> list[Outlet]:
         """list: All Outlets in the system."""
         return [unit for unit in self._units if isinstance(unit, Outlet)]
 
     @property
-    def cstrs(self):
+    def cstrs(self) -> list[Cstr]:
         """list: All Cstrs in the system."""
         return [unit for unit in self._units if isinstance(unit, Cstr)]
 
     @property
-    def units_with_binding(self):
+    def units_with_binding(self) -> list[UnitBaseClass]:
         """list: UnitOperations with binding models."""
         return [
             unit
@@ -240,11 +262,11 @@ class FlowSheet(Structure):
     @update_parameters_decorator
     def add_unit(
         self,
-        unit,
-        feed_inlet=False,
-        eluent_inlet=False,
-        product_outlet=False,
-    ):
+        unit: UnitBaseClass,
+        feed_inlet: bool = False,
+        eluent_inlet: bool = False,
+        product_outlet: bool = False,
+    ) -> None:
         """
         Add unit to the flow sheet.
 
@@ -309,7 +331,7 @@ class FlowSheet(Structure):
 
     @unit_name_decorator
     @update_parameters_decorator
-    def remove_unit(self, unit):
+    def remove_unit(self, unit: UnitBaseClass) -> None:
         """
         Remove unit from flow sheet.
 
@@ -379,7 +401,7 @@ class FlowSheet(Structure):
         self.__dict__.pop(unit.name)
 
     @property
-    def connections(self):
+    def connections(self) -> Dict:
         """dict: In- and outgoing connections for each unit.
 
         See Also
@@ -393,8 +415,12 @@ class FlowSheet(Structure):
     @origin_destination_name_decorator
     @update_parameters_decorator
     def add_connection(
-        self, origin, destination, origin_port=None, destination_port=None
-    ):
+        self,
+        origin: UnitBaseClass,
+        destination: UnitBaseClass,
+        origin_port: Optional[str] = None,
+        destination_port: Optional[str] = None,
+    ) -> None:
         """
         Add connection between units 'origin' and 'destination'.
 
@@ -404,9 +430,9 @@ class FlowSheet(Structure):
             UnitBaseClass from which the connection originates.
         destination : UnitBaseClass
             UnitBaseClass where the connection terminates.
-        origin_port : str
+        origin_port : str, optional
             Port from which connection originates.
-        destination_port : str
+        destination_port : str, optional
             Port where connection terminates.
 
         Raises
@@ -478,11 +504,11 @@ class FlowSheet(Structure):
     @update_parameters_decorator
     def remove_connection(
         self,
-        origin,
-        destination,
-        origin_port=None,
-        destination_port=None,
-    ):
+        origin: UnitBaseClass,
+        destination: UnitBaseClass,
+        origin_port: Optional[str] = None,
+        destination_port: Optional[str] = None,
+    ) -> None:
         """
         Remove connection between units 'origin' and 'destination'.
 
@@ -537,12 +563,13 @@ class FlowSheet(Structure):
     @origin_destination_name_decorator
     def connection_exists(
         self,
-        origin,
-        destination,
-        origin_port=None,
-        destination_port=None,
-    ):
-        """bool: check if connection exists in flow sheet.
+        origin: UnitBaseClass,
+        destination: UnitBaseClass,
+        origin_port: Optional[str] = None,
+        destination_port: Optional[str] = None,
+    ) -> bool:
+        """
+        bool: check if connection exists in flow sheet.
 
         Parameters
         ----------
@@ -550,6 +577,10 @@ class FlowSheet(Structure):
             UnitBaseClass from which the connection originates.
         destination : UnitBaseClass
             UnitBaseClass where the connection terminates.
+        origin_port : Port, optional
+            If origin unit operation has ports, origin port can be specified.
+        destination_port : Port optional
+            if destination unit operation has ports, destination port can be specified.
 
         """
         if origin.has_ports and not origin_port:
@@ -585,13 +616,12 @@ class FlowSheet(Structure):
 
         return False
 
-    def check_connections(self):
+    def check_connections(self) -> bool:
         """
         Validate that units are connected correctly.
 
-        Raises
-        ------
-        Warning
+        Warning:
+        -------
             If Inlets have ingoing streams.
             If Outlets have outgoing streams.
             If Units (other than Cstr) are not fully connected.
@@ -637,7 +667,7 @@ class FlowSheet(Structure):
         return flag
 
     @property
-    def missing_parameters(self) -> dict:
+    def missing_parameters(self) -> list[str]:
         """dict: Missing parameters of the flow sheet."""
         missing_parameters = []
 
@@ -648,7 +678,7 @@ class FlowSheet(Structure):
 
         return missing_parameters
 
-    def check_units_config(self):
+    def check_units_config(self) -> bool:
         """
         Check if units are configured correctly.
 
@@ -664,7 +694,7 @@ class FlowSheet(Structure):
         return flag
 
     @property
-    def output_states(self) -> dict:
+    def output_states(self) -> Dict:
         """dict: Output states of the unit operations."""
         output_states_dict = self._output_states.copy()
 
@@ -677,7 +707,12 @@ class FlowSheet(Structure):
 
     @unit_name_decorator
     @update_parameters_decorator
-    def set_output_state(self, unit, state, port=None):
+    def set_output_state(
+        self,
+        unit: UnitBaseClass,
+        state: int | list[float] | dict,
+        port: Optional[str] = None,
+    ) -> None:
         """
         Set split ratio of outgoing streams for UnitOperation.
 
@@ -687,7 +722,7 @@ class FlowSheet(Structure):
             UnitOperation of flowsheet.
         state : int or list of floats or dict
             new output state of the unit.
-        port : int
+        port : str
             Port for which to set the output state.
 
         Raises
@@ -697,10 +732,14 @@ class FlowSheet(Structure):
             If state is integer and the state >= the state_length.
             If the length of the states is unequal the state_length.
             If the sum of the states is not equal to 1.
-            If port exceeds the number of ports
+            If port cannot be found in the unit operation.
         """
 
-        def get_port_index(unit_connection_dict, destination, destination_port):
+        def get_port_index(
+            unit_connection_dict: Dict,
+            destination: UnitBaseClass,
+            destination_port: str,
+        ) -> int:
             """
             Compute the index of a connection for the output state.
 
@@ -710,7 +749,7 @@ class FlowSheet(Structure):
                 contains dict with connected units and their respective ports
             destination : UnitBaseClass
                 destination object
-            destination_port : int
+            destination_port : str
                 destination Port
             """
             ret_index = 0
@@ -796,7 +835,7 @@ class FlowSheet(Structure):
 
         self._output_states[unit][port] = output_state
 
-    def get_flow_rates(self, state=None, eps=5.9e16):
+    def get_flow_rates(self, state: Optional[Dict] = None, eps: float = 5.9e16) -> Dict:
         r"""
         Calculate flow rate for all connections.
 
@@ -1033,7 +1072,7 @@ class FlowSheet(Structure):
 
         return return_flow_rates
 
-    def check_flow_rates(self, state=None) -> NoReturn:
+    def check_flow_rates(self, state: Optional[dict] = None) -> None:
         """Check if in and outgoing flow rates of unit operations are balanced."""
         flow_rates = self.get_flow_rates(state)
         for unit, q in flow_rates.items():
@@ -1046,12 +1085,12 @@ class FlowSheet(Structure):
                 raise CADETProcessError(f"Unbalanced flow rate for unit '{unit}'.")
 
     @property
-    def feed_inlets(self):
+    def feed_inlets(self) -> list[UnitBaseClass]:
         """list: Inlets considered for calculating recovery yield."""
         return self._feed_inlets
 
     @unit_name_decorator
-    def add_feed_inlet(self, feed_inlet):
+    def add_feed_inlet(self, feed_inlet: SourceMixin) -> None:
         """
         Add inlet to list of units to be considered for recovery.
 
@@ -1073,7 +1112,7 @@ class FlowSheet(Structure):
         self._feed_inlets.append(feed_inlet)
 
     @unit_name_decorator
-    def remove_feed_inlet(self, feed_inlet):
+    def remove_feed_inlet(self, feed_inlet: SourceMixin) -> None:
         """
         Remove inlet from list of units to be considered for recovery.
 
@@ -1087,12 +1126,12 @@ class FlowSheet(Structure):
         self._feed_inlets.remove(feed_inlet)
 
     @property
-    def eluent_inlets(self):
+    def eluent_inlets(self) -> list[UnitBaseClass]:
         """list: Inlets to be considered for eluent consumption."""
         return self._eluent_inlets
 
     @unit_name_decorator
-    def add_eluent_inlet(self, eluent_inlet):
+    def add_eluent_inlet(self, eluent_inlet: SourceMixin) -> None:
         """
         Add inlet to list of units to be considered for eluent consumption.
 
@@ -1114,7 +1153,7 @@ class FlowSheet(Structure):
         self._eluent_inlets.append(eluent_inlet)
 
     @unit_name_decorator
-    def remove_eluent_inlet(self, eluent_inlet):
+    def remove_eluent_inlet(self, eluent_inlet: SourceMixin) -> None:
         """
         Remove inlet from list of units considered for eluent consumption.
 
@@ -1133,12 +1172,12 @@ class FlowSheet(Structure):
         self._eluent_inlets.remove(eluent_inlet)
 
     @property
-    def product_outlets(self):
+    def product_outlets(self) -> list[UnitBaseClass]:
         """list: Outlets to be considered for fractionation."""
         return self._product_outlets
 
     @unit_name_decorator
-    def add_product_outlet(self, product_outlet):
+    def add_product_outlet(self, product_outlet: Outlet) -> None:
         """
         Add outlet to list of units considered for fractionation.
 
@@ -1162,7 +1201,7 @@ class FlowSheet(Structure):
         self._product_outlets.append(product_outlet)
 
     @unit_name_decorator
-    def remove_product_outlet(self, product_outlet):
+    def remove_product_outlet(self, product_outlet: Outlet) -> None:
         """
         Remove outlet from list of units to be considered for fractionation.
 
@@ -1186,7 +1225,7 @@ class FlowSheet(Structure):
         return self._parameters
 
     @parameters.setter
-    def parameters(self, parameters):
+    def parameters(self, parameters: dict) -> None:
         try:
             output_states = parameters.pop("output_states")
             for unit, state in output_states.items():
@@ -1208,17 +1247,17 @@ class FlowSheet(Structure):
         self.update_parameters()
 
     @property
-    def sized_parameters(self) -> list:
+    def sized_parameters(self) -> list[str]:
         """list: List of sized parameters."""
         return self._sized_parameters
 
     @property
-    def polynomial_parameters(self) -> list:
+    def polynomial_parameters(self) -> list[str]:
         """list: List of polynomial parameters."""
         return self._polynomial_parameters
 
     @property
-    def section_dependent_parameters(self) -> list:
+    def section_dependent_parameters(self) -> list[str]:
         """list: List of section dependent parameters."""
         return self._section_dependent_parameters
 
@@ -1230,7 +1269,7 @@ class FlowSheet(Structure):
         return initial_state
 
     @initial_state.setter
-    def initial_state(self, initial_state):
+    def initial_state(self, initial_state: dict) -> None:
         for unit, st in initial_state.items():
             if unit not in self.units_dict:
                 raise CADETProcessError("Not a valid unit")
@@ -1244,7 +1283,7 @@ class FlowSheet(Structure):
         """Iterate over the unit operations in the system."""
         return iter(self.units)
 
-    def __getitem__(self, unit_name) -> UnitBaseClass:
+    def __getitem__(self, unit_name: str) -> UnitBaseClass:
         """
         Make FlowSheet substriptable s.t. units can be used as keys.
 
@@ -1285,6 +1324,3 @@ class FlowSheet(Structure):
             return True
         else:
             return False
-
-        def __iter__(self):
-            yield from self.units

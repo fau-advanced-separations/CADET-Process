@@ -1,6 +1,8 @@
 import warnings
+from typing import Optional
 
 import numpy as np
+import numpy.typing as npt
 from scipy import optimize
 from scipy.optimize import OptimizeWarning
 
@@ -43,18 +45,23 @@ class SciPyInterface(OptimizerBase):
     CADETProcess.optimization.OptimizationProblem.evaluate_objectives
     options
     scipy.optimize.minimize
+
     """
 
     finite_diff_rel_step = UnsignedFloat()
     tol = UnsignedFloat()
     jac = Switch(valid=["2-point", "3-point", "cs"], default="2-point")
 
-    def _run(self, optimization_problem: OptimizationProblem, x0=None):
+    def _run(
+        self,
+        optimization_problem: OptimizationProblem,
+        x0: Optional[list] = None,
+    ) -> None:
         """
         Solve the optimization problem using any of the scipy methods.
 
-        Returns
-        -------
+        Parameters
+        ----------
         results : OptimizationResults
             Optimization results including optimization_problem and solver
             configuration.
@@ -76,7 +83,7 @@ class SciPyInterface(OptimizerBase):
         if optimization_problem.n_objectives > 1:
             raise CADETProcessError("Can only handle single objective.")
 
-        def objective_function(x):
+        def objective_function(x: npt.ArrayLike) -> np.ndarray:
             return optimization_problem.evaluate_objectives(
                 x,
                 untransform=True,
@@ -84,7 +91,7 @@ class SciPyInterface(OptimizerBase):
                 ensure_minimization=True,
             )[0]
 
-        def callback_function(x, state=None):
+        def callback_function(x: npt.ArrayLike, state: dict = None) -> bool:
             """
             Report progress after evaluation.
 
@@ -154,7 +161,7 @@ class SciPyInterface(OptimizerBase):
         self.results.exit_flag = scipy_results.status
         self.results.exit_message = scipy_results.message
 
-    def get_bounds(self, optimization_problem) -> optimize.Bounds:
+    def get_bounds(self, optimization_problem: OptimizationProblem) -> optimize.Bounds:
         """
         Return the optimized bounds of a given optimization_problem as a Bound object.
 
@@ -172,7 +179,7 @@ class SciPyInterface(OptimizerBase):
             keep_feasible=True,
         )
 
-    def get_constraint_objects(self, optimization_problem) -> list:
+    def get_constraint_objects(self, optimization_problem: OptimizationProblem) -> list:
         """
         Return constraints as objets.
 
@@ -196,7 +203,9 @@ class SciPyInterface(OptimizerBase):
 
         return [con for con in constraints if con is not None]
 
-    def get_lincon_obj(self, optimization_problem):
+    def get_lincon_obj(
+        self, optimization_problem: OptimizationProblem
+    ) -> optimize.LinearConstraint:
         """
         Return the linear constraints as an object.
 
@@ -222,7 +231,9 @@ class SciPyInterface(OptimizerBase):
             optimization_problem.A_independent_transformed, lb, ub, keep_feasible=True
         )
 
-    def get_lineqcon_obj(self, optimization_problem):
+    def get_lineqcon_obj(
+        self, optimization_problem: OptimizationProblem
+    ) -> optimize.LinearConstraint:
         """
         Return the linear equality constraints as an object.
 
@@ -248,7 +259,7 @@ class SciPyInterface(OptimizerBase):
             optimization_problem.Aeq_independent_transformed, lb, ub, keep_feasible=True
         )
 
-    def get_nonlincon_obj(self, optimization_problem):
+    def get_nonlincon_obj(self, optimization_problem: OptimizationProblem) -> list:
         """
         Return the optimized nonlinear constraints as an object.
 
@@ -267,7 +278,7 @@ class SciPyInterface(OptimizerBase):
 
         opt = optimization_problem
 
-        def makeConstraint(i):
+        def makeConstraint(i: int) -> optimize.NonlinearConstraint:
             """
             Create optimize.NonlinearConstraint object.
 
@@ -305,7 +316,7 @@ class SciPyInterface(OptimizerBase):
 
         return constraints
 
-    def __str__(self):
+    def __str__(self) -> str:
         """str: String representation."""
         return self.__class__.__name__
 
@@ -446,7 +457,7 @@ class TrustConstr(SciPyInterface):
         "disp",
     ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         """str: String representation."""
         return "trust-constr"
 
