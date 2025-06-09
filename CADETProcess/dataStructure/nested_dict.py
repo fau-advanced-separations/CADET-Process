@@ -278,7 +278,9 @@ def get_nested_list_value(ls: Sequence[Any], idx_tuple: tuple[int, ...]) -> Any:
 
 
 def set_nested_list_value(
-    ls: Sequence[Any], idx_tuple: tuple[int, ...], value: Any
+    ls: Sequence[Any],
+    idx_tuple: tuple[int, ...],
+    value: Any
 ) -> None:
     """
     Set a value in a nested list structure using an index tuple.

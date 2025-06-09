@@ -1,6 +1,8 @@
 import warnings
+from typing import Any, Optional
 
 import numpy as np
+import numpy.typing as npt
 from pymoo.algorithms.moo.nsga2 import NSGA2
 from pymoo.algorithms.moo.unsga3 import UNSGA3
 from pymoo.core.population import Population
@@ -11,7 +13,11 @@ from pymoo.util.display.multi import MultiObjectiveOutput
 from pymoo.util.ref_dirs import get_reference_directions
 
 from CADETProcess.dataStructure import UnsignedFloat, UnsignedInteger
-from CADETProcess.optimization import OptimizationProblem, OptimizerBase
+from CADETProcess.optimization import (
+    OptimizationProblem,
+    OptimizerBase,
+    ParallelizationBackendBase,
+)
 
 
 class PymooInterface(OptimizerBase):
@@ -52,7 +58,7 @@ class PymooInterface(OptimizerBase):
         "n_skip",
     ]
 
-    def _run(self, optimization_problem: OptimizationProblem, x0=None):
+    def _run(self, optimization_problem: OptimizationProblem, x0: Optional[list] = None) -> None:
         """
         Solve optimization problem using functional pymoo implementation.
 
@@ -263,7 +269,11 @@ class U_NSGA3(PymooInterface):
 class PymooProblem(Problem):
     """Class to implement Pymoo Problem interface."""
 
-    def __init__(self, optimization_problem, parallelization_backend, **kwargs):
+    def __init__(
+        self, optimization_problem: OptimizationProblem,
+        parallelization_backend: ParallelizationBackendBase,
+        **kwargs: Any
+    ) -> None:
         self.optimization_problem = optimization_problem
         self.parallelization_backend = parallelization_backend
 
@@ -276,7 +286,7 @@ class PymooProblem(Problem):
             **kwargs,
         )
 
-    def _evaluate(self, X, out, *args, **kwargs):
+    def _evaluate(self, X: npt.ArrayLike, out: dict, *args: Any, **kwargs: Any) -> None:
         opt = self.optimization_problem
         if opt.n_objectives > 0:
             F = opt.evaluate_objectives(
@@ -310,12 +320,19 @@ class PymooProblem(Problem):
 class RepairIndividuals(Repair):
     """Class to repair individuals."""
 
-    def __init__(self, optimizer, optimization_problem, *args, **kwargs):
+    def __init__(
+        self,
+        optimizer: OptimizerBase,
+        optimization_problem: OptimizationProblem,
+        *args: Any,
+        **kwargs: Any
+    ) -> None:
+        """Initialize repair individual object."""
         self.optimizer = optimizer
         self.optimization_problem = optimization_problem
         super().__init__(*args, **kwargs)
 
-    def _do(self, problem, X, **kwargs):
+    def _do(self, problem: OptimizationProblem, X: npt.ArrayLike, **kwargs: Any) -> npt.ArrayLike:
         # Check if linear (equality) constraints are met
         X_new = None
         for i, ind in enumerate(X):

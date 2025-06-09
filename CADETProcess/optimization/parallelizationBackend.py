@@ -31,7 +31,7 @@ class ParallelizationBackendBase(Structure):
     _parameters = ["n_cores"]
 
     @property
-    def _n_cores(self):
+    def _n_cores(self) -> int:
         if self.n_cores == 0:
             return cpu_count
 
@@ -63,7 +63,7 @@ class ParallelizationBackendBase(Structure):
         """
         pass
 
-    def __str__(self):
+    def __str__(self) -> str:
         """Return the class name as a string."""
         return self.__class__.__name__
 

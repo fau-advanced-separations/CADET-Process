@@ -1,11 +1,17 @@
 import warnings
+from typing import Callable, Optional
 
 import numpy as np
 
 from CADETProcess import CADETProcessError, SimulationResults
 from CADETProcess.fractionation import Fractionator
-from CADETProcess.optimization import COBYLA, OptimizationProblem, OptimizerBase
-from CADETProcess.performance import Mass, Purity
+from CADETProcess.optimization import (
+    COBYLA,
+    OptimizationProblem,
+    OptimizationResults,
+    OptimizerBase,
+)
+from CADETProcess.performance import Mass, Performance, Purity
 
 __all__ = ["FractionationOptimizer"]
 
@@ -13,7 +19,7 @@ __all__ = ["FractionationOptimizer"]
 class FractionationEvaluator:
     """Dummy Evaluator to enable caching."""
 
-    def evaluate(self, fractionator):
+    def evaluate(self, fractionator: Fractionator) -> Performance:
         """
         Evaluate the fractionator.
 
@@ -39,7 +45,11 @@ class FractionationEvaluator:
 class FractionationOptimizer:
     """Configuration for fractionating Chromatograms."""
 
-    def __init__(self, optimizer=None, log_level="WARNING"):
+    def __init__(
+        self,
+        optimizer: Optional[OptimizerBase] = None,
+        log_level: str = 'WARNING'
+    ) -> None:
         """
         Initialize the FractionationOptimizer.
 
@@ -62,12 +72,12 @@ class FractionationOptimizer:
         self.log_level = log_level
 
     @property
-    def optimizer(self):
+    def optimizer(self) -> 'OptimizerBase':
         """OptimizerBase: Optimizer for optimizing the fractionation times."""
         return self._optimizer
 
     @optimizer.setter
-    def optimizer(self, optimizer):
+    def optimizer(self, optimizer: OptimizerBase) -> None:
         """
         Set the optimizer.
 
@@ -87,12 +97,12 @@ class FractionationOptimizer:
 
     def _setup_fractionator(
         self,
-        simulation_results,
-        purity_required,
-        components=None,
-        use_total_concentration_components=True,
-        allow_empty_fractions=True,
-    ):
+        simulation_results: SimulationResults,
+        purity_required: list[float],
+        components: Optional[list] = None,
+        use_total_concentration_components: bool = True,
+        allow_empty_fractions: bool = True
+    ) -> Fractionator:
         """
         Set up the Fractionator for optimizing the fractionation times of Chromatograms.
 
@@ -141,15 +151,15 @@ class FractionationOptimizer:
 
     def _setup_optimization_problem(
         self,
-        frac,
-        purity_required,
-        allow_empty_fractions=True,
-        ranking=1,
-        obj_fun=None,
-        minimize=True,
-        bad_metrics=None,
-        n_objectives=1,
-    ):
+        frac: Fractionator,
+        purity_required: list[float],
+        allow_empty_fractions: bool = True,
+        ranking: Optional[int | list[float]] = 1,
+        obj_fun: Optional[Callable] = None,
+        minimize: bool = True,
+        bad_metrics: Optional[float | list[float]] = None,
+        n_objectives: int = 1
+    ) -> tuple[OptimizationProblem, list[float]]:
         """
         Set up the OptimizationProblem for optimizing the fractionation times.
 
@@ -157,11 +167,11 @@ class FractionationOptimizer:
         ----------
         frac : Fractionator
             The Fractionator object.
-        purity_required : list
+        purity_required : list[float]
             Minimum purity required for the components in the fractionation.
         allow_empty_fractions: bool, optional
             If True, allow empty fractions. The default is True.
-        ranking : list, 1 or None, optional
+        ranking : Optional[int | list[float]] = 1,
             Weighting factors for individual components.
             If 1, the same value is assumed for all components.
             If None, no ranking is used and the problem is solved as multi-objective.
@@ -264,20 +274,20 @@ class FractionationOptimizer:
 
     def optimize_fractionation(
         self,
-        simulation_results,
-        purity_required,
-        components=None,
-        use_total_concentration_components=True,
-        ranking=1,
-        obj_fun=None,
-        n_objectives=1,
-        bad_metrics=0,
-        minimize=True,
-        allow_empty_fractions=True,
-        ignore_failed=False,
-        return_optimization_results=False,
-        save_results=False,
-    ):
+        simulation_results: 'SimulationResults',
+        purity_required: float | list[float],
+        components: Optional[list[str]] = None,
+        use_total_concentration_components: bool = True,
+        ranking: Optional[int | list[float]] = 1,
+        obj_fun: Optional[Callable] = None,
+        n_objectives: int = 1,
+        bad_metrics: float | list[float] = 0,
+        minimize: bool = True,
+        allow_empty_fractions: bool = True,
+        ignore_failed: bool = False,
+        return_optimization_results: bool = False,
+        save_results: bool = False
+    ) -> Fractionator | tuple[Fractionator, OptimizationResults]:
         """
         Optimize the fractionation times with respect to purity constraints.
 
@@ -290,7 +300,9 @@ class FractionationOptimizer:
             value is assumed for all components.
         components : list
             List of components to consider in the fractionation process.
-        ranking : list, 1 or None, optional
+        use_total_concentration_components : bool, Default=True
+            Flag wheter to use the total concentration components.
+        ranking : Optional[int | list[float]] = 1,
             Weighting factors for individual components.
             If 1, the same value is assumed for all components.
             If None, no ranking is used and the problem is solved as multi-objective.

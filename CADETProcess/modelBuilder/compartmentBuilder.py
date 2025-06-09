@@ -1,10 +1,23 @@
 from functools import wraps
+from typing import Optional
 
 import numpy as np
+import numpy.typing as npt
 
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import String, StructMeta, UnsignedInteger
-from CADETProcess.processModel import Cstr, FlowSheet, Inlet, Outlet, Process
+from CADETProcess.processModel import (
+    BindingBaseClass,
+    BulkReactionBase,
+    ComponentSystem,
+    Cstr,
+    FlowSheet,
+    Inlet,
+    Outlet,
+    ParticleReactionBase,
+    Process,
+    ReactionBaseClass,
+)
 
 
 class CompartmentBuilder(metaclass=StructMeta):
@@ -24,15 +37,15 @@ class CompartmentBuilder(metaclass=StructMeta):
 
     def __init__(
         self,
-        component_system,
-        compartment_volumes,
-        flow_rate_matrix,
-        init_c=0,
-        binding_model=None,
-        bulk_reaction_model=None,
-        particle_reaction_model=None,
-        name=None,
-    ):
+        component_system: ComponentSystem,
+        compartment_volumes: list[float],
+        flow_rate_matrix: list[float],
+        init_c: int | float | list | np.ndarray = 0,
+        binding_model: Optional[BindingBaseClass] = None,
+        bulk_reaction_model: Optional[BulkReactionBase] = None,
+        particle_reaction_model: Optional[ParticleReactionBase] = None,
+        name: Optional[str] = None
+    ) -> None:
         """
         Initialize builder.
 
@@ -77,12 +90,12 @@ class CompartmentBuilder(metaclass=StructMeta):
         self.init_c = init_c
 
     @property
-    def n_comp(self):
+    def n_comp(self) -> int:
         """int: Number of components."""
         return self.component_system.n_comp
 
     @property
-    def _real_compartments(self):
+    def _real_compartments(self) -> list[str]:
         """list: Compartment units excluding pseudo units s.a. Inlet/Outlet."""
         compartments = []
         for i in range(self.n_compartments):
@@ -95,13 +108,13 @@ class CompartmentBuilder(metaclass=StructMeta):
 
     @property
     @wraps(Cstr.binding_model)
-    def binding_model(self):
+    def binding_model(self) -> ReactionBaseClass:
         """Wrapper around master compartment to set binding model."""
         return self._compartment_model.binding_model
 
     @binding_model.setter
     @wraps(Cstr.binding_model)
-    def binding_model(self, binding_model):
+    def binding_model(self, binding_model: BindingBaseClass) -> None:
         if binding_model is not None:
             self._compartment_model.binding_model = binding_model
 
@@ -110,13 +123,13 @@ class CompartmentBuilder(metaclass=StructMeta):
 
     @property
     @wraps(Cstr.bulk_reaction_model)
-    def bulk_reaction_model(self):
+    def bulk_reaction_model(self) -> BindingBaseClass:
         """Wrapper around master compartment to set bulk reaction model."""
         return self._compartment_model.bulk_reaction_model
 
     @bulk_reaction_model.setter
     @wraps(Cstr.bulk_reaction_model)
-    def bulk_reaction_model(self, bulk_reaction_model):
+    def bulk_reaction_model(self, bulk_reaction_model: BulkReactionBase) -> None:
         if bulk_reaction_model is not None:
             self._compartment_model.bulk_reaction_model = bulk_reaction_model
 
@@ -125,13 +138,13 @@ class CompartmentBuilder(metaclass=StructMeta):
 
     @property
     @wraps(Cstr.particle_reaction_model)
-    def particle_reaction_model(self):
+    def particle_reaction_model(self) -> ReactionBaseClass:
         """Wrapper around master compartment to set particle reaction model."""
         return self._compartment_model.particle_reaction_model
 
     @particle_reaction_model.setter
     @wraps(Cstr.particle_reaction_model)
-    def particle_reaction_model(self, particle_reaction_model):
+    def particle_reaction_model(self, particle_reaction_model: ParticleReactionBase) -> None:
         if particle_reaction_model is not None:
             self._compartment_model.particle_reaction_model = particle_reaction_model
 
@@ -154,10 +167,10 @@ class CompartmentBuilder(metaclass=StructMeta):
         return self.process.cycle_time
 
     @cycle_time.setter
-    def cycle_time(self, cycle_time):
+    def cycle_time(self, cycle_time: float) -> None:
         self.process.cycle_time = cycle_time
 
-    def _add_compartments(self, compartment_volumes):
+    def _add_compartments(self, compartment_volumes: list[float]) -> None:
         """Instantiate compartments and add to FlowSheet."""
         self.n_compartments = len(compartment_volumes)
 
@@ -174,7 +187,7 @@ class CompartmentBuilder(metaclass=StructMeta):
 
             self.flow_sheet.add_unit(unit)
 
-    def _add_connections(self, connections_matrix):
+    def _add_connections(self, connections_matrix: npt.ArrayLike) -> None:
         """Add connections and flow rates between compartments to FlowSheet."""
         try:
             if isinstance(connections_matrix, list):
@@ -208,7 +221,7 @@ class CompartmentBuilder(metaclass=StructMeta):
             self.flow_sheet.set_output_state(origin, output_state)
 
     @property
-    def init_c(self):
+    def init_c(self) -> int | float | list | np.ndarray:
         """
         np.array: Initial conditions of compartments.
 
@@ -231,7 +244,7 @@ class CompartmentBuilder(metaclass=StructMeta):
         return self._init_c
 
     @init_c.setter
-    def init_c(self, init_c):
+    def init_c(self, init_c: int | float | list | np.ndarray) -> None:
         if isinstance(init_c, (int, float)):
             init_c = init_c * np.ones((self.n_compartments, self.n_comp))
         elif isinstance(init_c, list) and len(init_c) == self.n_comp:
@@ -252,8 +265,14 @@ class CompartmentBuilder(metaclass=StructMeta):
                 compartment.c = init_c[i, :].tolist()
 
     def add_tracer(
-        self, compartment_index, c, t_inj, flow_rate, t_start=0, flow_rate_filter=True
-    ):
+        self,
+        compartment_index: int,
+        c: list,
+        t_inj: float,
+        flow_rate: Optional[float],
+        t_start: Optional[float] = 0,
+        flow_rate_filter: Optional[bool] = True
+    ) -> None:
         """
         Add tracer injection to compartment model.
 
@@ -298,7 +317,7 @@ class CompartmentBuilder(metaclass=StructMeta):
         self.process.add_event("tracer_on", "flow_sheet.tracer.c", c, t_start)
         self.process.add_event("tracer_off", "flow_sheet.tracer.c", 0, t_start + t_inj)
 
-    def validate_flow_rates(self):
+    def validate_flow_rates(self) -> None:
         """Validate that compartment volume is constant."""
         flow_rates = self.flow_sheet.get_flow_rates()
 

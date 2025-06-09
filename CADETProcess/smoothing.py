@@ -17,12 +17,15 @@ This module provides functionality for smoothing data.
 """  # noqa
 
 import multiprocessing
+from typing import Any, Callable, Optional
 
 import numpy as np
+import numpy.typing as npt
 import scipy.signal
 from pymoo.algorithms.soo.nonconvex.pattern import PatternSearch
 from pymoo.core.problem import ElementwiseProblem
 from pymoo.optimize import minimize
+from scipy.interpolate import UnivariateSpline
 
 butter_order = 3
 
@@ -30,14 +33,28 @@ __all__ = ["find_smoothing_factors", "full_smooth"]
 
 
 class TargetProblem(ElementwiseProblem):
-    def __init__(self, lb, ub, sse_target, func, values, fs):
+    def __init__(
+        self,
+        lb: float,
+        ub: float,
+        sse_target: float,
+        func: Callable,
+        values: npt.ArrayLike,
+        fs: float,
+    ) -> None:
         super().__init__(n_var=1, n_obj=1, n_constr=0, xl=lb, xu=ub)
         self.sse_target = sse_target
         self.func = func
         self.values = values
         self.fs = fs
 
-    def _evaluate(self, crit_fs, out, *args, **kwargs):
+    def _evaluate(
+        self,
+        crit_fs: float,
+        out: dict,
+        *args: Optional[tuple],
+        **kwargs: Optional[dict]
+    ) -> None:
         crit_fs = 10**crit_fs
         try:
             sos = self.func(crit_fs, self.fs)
@@ -51,7 +68,19 @@ class TargetProblem(ElementwiseProblem):
 
 
 class MaxDistance(ElementwiseProblem):
-    def __init__(self, lb, ub, func, fs, values, x_min, y_min, p1, p2, factor):
+    def __init__(
+        self,
+        lb: float,
+        ub: float,
+        func: Callable,
+        fs: float,
+        values: npt.ArrayLike,
+        x_min: float,
+        y_min: float,
+        p1: float,
+        p2: float,
+        factor: float,
+    ) -> None:
         super().__init__(n_var=1, n_obj=1, n_constr=0, xl=lb, xu=ub)
         self.func = func
         self.fs = fs
@@ -62,7 +91,13 @@ class MaxDistance(ElementwiseProblem):
         self.p2 = p2
         self.factor = factor
 
-    def _evaluate(self, crit_fs, out, *args, **kwargs):
+    def _evaluate(
+        self,
+        crit_fs: float,
+        out: dict,
+        *args: Optional[tuple],
+        **kwargs: Optional[dict]
+    ) -> None:
         crit_fs = 10.0 ** crit_fs[0]
         try:
             sos = self.func(crit_fs, self.fs)
@@ -86,7 +121,7 @@ class MaxDistance(ElementwiseProblem):
         out["F"] = -d
 
 
-def get_p(x, y):
+def get_p(x: npt.ArrayLike, y: npt.ArrayLike) -> tuple:
     x = np.array(x)
     y = np.array(y)
 
@@ -107,7 +142,7 @@ def get_p(x, y):
     return x, min(x), y, min(y), p1, p2, p3, factor
 
 
-def signal_bessel(crit_fs, fs):
+def signal_bessel(crit_fs: float, fs: float) -> np.ndarray:
     return scipy.signal.bessel(
         butter_order,
         crit_fs,
@@ -119,13 +154,21 @@ def signal_bessel(crit_fs, fs):
     )
 
 
-def signal_butter(crit_fs, fs):
+def signal_butter(crit_fs: float, fs: float) -> np.ndarray:
     return scipy.signal.butter(
         butter_order, crit_fs, btype="lowpass", analog=False, fs=fs, output="sos"
     )
 
 
-def refine_signal(func, times, values, x, y, fs, start):
+def refine_signal(
+    func: Callable,
+    times: npt.ArrayLike,
+    values: npt.ArrayLike,
+    x: npt.ArrayLike,
+    y: npt.ArrayLike,
+    fs: float,
+    start: float,
+) -> float:
     x, x_min, y, y_min, p1, p2, p3, factor = get_p(x, y)
 
     lb = np.log10(x[0])
@@ -142,7 +185,7 @@ def refine_signal(func, times, values, x, y, fs, start):
     return crit_fs
 
 
-def find_L(x, y):
+def find_L(x: npt.ArrayLike, y: npt.ArrayLike) -> tuple[float, float]:
     # find the largest value greater than 0
     # otherwise return none to just turn off butter filter
     x, x_min, y, y_min, p1, p2, p3, factor = get_p(x, y)
@@ -160,7 +203,12 @@ def find_L(x, y):
     return l_x, l_y
 
 
-def find_signal(func, times, values, sse_target):
+def find_signal(
+    func: Callable,
+    times: npt.ArrayLike,
+    values: npt.ArrayLike,
+    sse_target: float
+) -> float:
     filters = []
     sse = []
 
@@ -191,7 +239,14 @@ def find_signal(func, times, values, sse_target):
     return L_x
 
 
-def find_max_signal(func, times, values, sse_target, filters, sse):
+def find_max_signal(
+    func: Callable,
+    times: npt.ArrayLike,
+    values: npt.ArrayLike,
+    sse_target: float,
+    filters: list,
+    sse: Any
+) -> float:
     fs = 1.0 / (times[1] - times[0])
 
     filters = np.log10(filters)
@@ -206,7 +261,12 @@ def find_max_signal(func, times, values, sse_target, filters, sse):
     return crit_fs
 
 
-def smoothing_filter_signal(func, times, values, crit_fs):
+def smoothing_filter_signal(
+    func: Callable,
+    times: npt.ArrayLike,
+    values: npt.ArrayLike,
+    crit_fs: float,
+) -> np.ndarray:
     if crit_fs is None:
         return values
     fs = 1.0 / (times[1] - times[0])
@@ -215,7 +275,11 @@ def smoothing_filter_signal(func, times, values, crit_fs):
     return low_passed
 
 
-def find_smoothing_factors(times, values, rmse_target=1e-4):
+def find_smoothing_factors(
+    times: npt.ArrayLike,
+    values: npt.ArrayLike,
+    rmse_target: float = 1e-4,
+) -> tuple:
     """Find smoothing factors."""
     sse_target = (rmse_target**2.0) * len(values)
 
@@ -245,7 +309,12 @@ def find_smoothing_factors(times, values, rmse_target=1e-4):
     return s, crit_fs, crit_fs_der
 
 
-def create_spline(times, values, crit_fs, s):
+def create_spline(
+    times: npt.ArrayLike,
+    values: npt.ArrayLike,
+    crit_fs: float,
+    s: Optional[float],
+) -> tuple[UnivariateSpline, float]:
     factor = 1.0 / np.max(values)
     values = values * factor
     values_filter = smoothing_filter_signal(signal_bessel, times, values, crit_fs)
@@ -256,13 +325,20 @@ def create_spline(times, values, crit_fs, s):
     )
 
 
-def smooth_data(times, values, crit_fs, s):
+def smooth_data(times: npt.ArrayLike, values: npt.ArrayLike, crit_fs: float, s: float) -> float:
     spline, factor = create_spline(times, values, crit_fs, s)
 
     return spline(times) / factor
 
 
-def smooth_data_derivative(times, values, crit_fs, s, crit_fs_der, smooth=True):
+def smooth_data_derivative(
+    times: npt.ArrayLike,
+    values: npt.ArrayLike,
+    crit_fs: float,
+    s: float,
+    crit_fs_der: float,
+    smooth: bool = True,
+) -> float:
     spline, factor = create_spline(times, values, crit_fs, s)
 
     if smooth:
@@ -281,8 +357,14 @@ def smooth_data_derivative(times, values, crit_fs, s, crit_fs_der, smooth=True):
     return values_filter_der
 
 
-def full_smooth(times, values, crit_fs, s, crit_fs_der, smooth=True):
-    # return smooth data derivative of data
+def full_smooth(
+    times: npt.ArrayLike,
+    values: npt.ArrayLike,
+    crit_fs: float,
+    s: float,
+    crit_fs_der: float,
+    smooth: bool = True,
+) -> tuple:
     """Create full smooth data."""
     spline, factor = create_spline(times, values, crit_fs, s)
 
@@ -307,7 +389,11 @@ def full_smooth(times, values, crit_fs, s, crit_fs_der, smooth=True):
     return values_filter, values_filter_der
 
 
-def butter(times, values, crit_fs_der):
+def butter(
+    times: npt.ArrayLike,
+    values: npt.ArrayLike,
+    crit_fs_der: float,
+) -> np.ndarray:
     values_filter = smoothing_filter_signal(signal_bessel, times, values, crit_fs_der)
 
     return values_filter

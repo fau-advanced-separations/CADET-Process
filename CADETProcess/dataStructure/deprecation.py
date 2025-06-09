@@ -27,9 +27,9 @@ def deprecated_alias(**aliases: str) -> Callable:
     """
 
     # Decorator function: takes the f and returns a f with the new argument names
-    def decorator(f: Callable):
+    def decorator(f: Callable) -> Callable:
         @functools.wraps(f)
-        def wrap_decorated_argument(*args, **kwargs):
+        def wrap_decorated_argument(*args: Any, **kwargs: Any) -> Any:
             rename_kwargs(f.__name__, kwargs, aliases)
             return f(*args, **kwargs)
 
@@ -38,7 +38,7 @@ def deprecated_alias(**aliases: str) -> Callable:
     return decorator
 
 
-def rename_kwargs(func_name: str, kwargs: Dict[str, Any], aliases: Dict[str, str]):
+def rename_kwargs(func_name: str, kwargs: Dict[str, Any], aliases: Dict[str, str]) -> None:
     """
     Automatically rename deprecated function arguments.
 

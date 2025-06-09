@@ -1,4 +1,4 @@
-from typing import NoReturn, Optional
+from typing import Callable, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -6,7 +6,11 @@ import numpy.typing as npt
 from scipy.optimize import curve_fit
 
 from CADETProcess import CADETProcessError
-from CADETProcess.processModel import StericMassAction, TubularReactorBase
+from CADETProcess.processModel import (
+    ChromatographicColumnBase,
+    StericMassAction,
+    TubularReactorBase,
+)
 
 __all__ = [
     "GradientExperiment",
@@ -27,7 +31,7 @@ class GradientExperiment:
         gradient_volume: float,
         c_salt_start: Optional[float] = None,
         c_salt_end: Optional[float] = None,
-    ) -> NoReturn:
+    ) -> None:
         """
         Initialize a GradientExperiment instance.
 
@@ -83,7 +87,9 @@ class GradientExperiment:
         return self.time[max_c_protein]
 
     def calculate_normalized_gradient_slope(
-        self, column_volume, total_porosity
+        self,
+        column_volume: float,
+        total_porosity: float
     ) -> float:
         """
         Calculate normalized concentration gradient slope.
@@ -152,7 +158,7 @@ class GradientExperiment:
         return fig, ax, sec_ax
 
 
-def plot_experiments(experiments: list[GradientExperiment]):
+def plot_experiments(experiments: list[GradientExperiment]) -> None:
     """
     Plot multiple gradient experiments in a single figure.
 
@@ -223,11 +229,11 @@ class YamamotoResults:
 
     def __init__(
         self,
-        column,
+        column: ChromatographicColumnBase,
         experiments: list[GradientExperiment],
         log_gradient_slope: npt.ArrayLike,
         log_c_salt_at_max_M: npt.ArrayLike,
-    ) -> NoReturn:
+        ) -> None:
         """
         Initialize YamamotoResults with column, experiments, and log-transformed data.
 
@@ -306,7 +312,7 @@ class YamamotoResults:
         return fig, ax
 
 
-def fit_parameters(experiments, column):
+def fit_parameters(experiments: list, column: ChromatographicColumnBase) -> YamamotoResults:
     """
     Fit parameters using Yamamoto's method.
 
@@ -392,7 +398,7 @@ def _fit_yamamoto(
     """
     bounds = ((0, 1e-10), (1000, 1000))
 
-    def yamamoto_wrapper(c_s, nu, k_eq):
+    def yamamoto_wrapper(c_s: float, nu: float, k_eq: float) -> Callable:
         return yamamoto_equation(c_s, lambda_, nu, k_eq)
 
     results, pcov = curve_fit(

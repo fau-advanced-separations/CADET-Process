@@ -29,6 +29,8 @@ from CADETProcess.dataStructure import (
     UnsignedFloat,
     UnsignedInteger,
 )
+from CADETProcess.processModel import ComponentSystem, Process, UnitBaseClass
+from CADETProcess.solution import SolutionBase
 
 __all__ = ["SimulationResults"]
 
@@ -84,17 +86,18 @@ class SimulationResults(Structure):
 
     def __init__(
         self,
-        solver_name,
-        solver_parameters,
-        exit_flag,
-        exit_message,
-        time_elapsed,
-        process,
-        solution_cycles,
-        sensitivity_cycles,
-        system_state,
-        chromatograms,
-    ):
+        solver_name: str,
+        solver_parameters: dict,
+        exit_flag: int,
+        exit_message: str,
+        time_elapsed: float,
+        process: Process,
+        solution_cycles: dict,
+        sensitivity_cycles: dict,
+        system_state: dict,
+        chromatograms: list
+    ) -> None:
+        """Initialize SimulationResults."""
         self.solver_name = solver_name
         self.solver_parameters = solver_parameters
 
@@ -113,7 +116,7 @@ class SimulationResults(Structure):
         self._solution = None
         self._sensitivity = None
 
-    def update(self, new_results):
+    def update(self, new_results: 'SimulationResults') -> None:
         """Update the simulation results with results from a new cycle."""
         if self.process.name != new_results.process.name:
             raise CADETProcessError("Process does not match")
@@ -135,13 +138,13 @@ class SimulationResults(Structure):
         self._sensitivity = None
 
     @property
-    def component_system(self):
+    def component_system(self) -> ComponentSystem:
         """ComponentSystem: The component system used in the simulation."""
         solution = self.solution_cycles[self._first_unit][self._first_solution]
         return solution[0].component_system
 
     @property
-    def solution(self):
+    def solution(self) -> Dict:
         """Construct complete solution from individual cyles."""
         if self._solution is not None:
             return self._solution
@@ -194,7 +197,7 @@ class SimulationResults(Structure):
         return solution
 
     @property
-    def sensitivity(self):
+    def sensitivity(self) -> Dict:
         """Construct complete sensitivity from individual cyles."""
         if self._sensitivity is not None:
             return self._sensitivity
@@ -237,25 +240,25 @@ class SimulationResults(Structure):
         return sensitivity
 
     @property
-    def n_cycles(self):
+    def n_cycles(self) -> int:
         """int: Number of simulated cycles."""
         return len(self.solution_cycles[self._first_unit][self._first_solution])
 
     @property
-    def _first_unit(self):
+    def _first_unit(self) -> UnitBaseClass:
         return next(iter(self.solution_cycles))
 
     @property
-    def _first_solution(self):
+    def _first_solution(self) -> SolutionBase:
         return next(iter(self.solution_cycles[self._first_unit]))
 
     @property
-    def time_cycle(self):
+    def time_cycle(self) -> np.ndarray:
         """np.array: Solution times vector."""
         return self.solution_cycles[self._first_unit][self._first_solution][0].time
 
     @property
-    def time_complete(self):
+    def time_complete(self) -> np.ndarray:
         """np.ndarray: Solution times vector for all cycles."""
         if self._time_complete is not None:
             return self._time_complete

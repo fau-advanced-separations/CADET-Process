@@ -1,7 +1,8 @@
 import warnings
-from typing import Any, Dict, Union
+from typing import Any, Dict, Optional, Union
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 from ax import (
     Arm,
@@ -58,7 +59,11 @@ class CADETProcessMetric(Metric):
     ) -> None:
         super().__init__(name, lower_is_better, properties)
 
-    def fetch_trial_data(self, trial: BaseTrial, **kwargs: Any) -> MetricFetchResult:
+    def fetch_trial_data(
+        self,
+        trial: BaseTrial,
+        **kwargs: Any
+    ) -> MetricFetchResult:
         try:
             trial_results = trial.run_metadata
             records = []
@@ -149,7 +154,13 @@ class CADETProcessRunner(Runner):
         return trial_metadata
 
     @staticmethod
-    def get_metadata(trial, F, objective_labels, CV, nonlincon_labels):
+    def get_metadata(
+        trial: BaseTrial,
+        F: np.ndarray,
+        objective_labels: list[str],
+        CV: np.ndarray,
+        nonlincon_labels: list[str]
+    ) -> dict:
         trial_metadata = {"name": str(trial.index)}
         trial_metadata.update({"arms": {}})
 
@@ -195,7 +206,7 @@ class AxInterface(OptimizerBase):
     ]
 
     @staticmethod
-    def _setup_parameters(optimizationProblem: OptimizationProblem):
+    def _setup_parameters(optimizationProblem: OptimizationProblem) -> list:
         parameters = []
         for var in optimizationProblem.independent_variables:
             lb, ub = var.transformed_bounds
@@ -212,7 +223,7 @@ class AxInterface(OptimizerBase):
         return parameters
 
     @staticmethod
-    def _setup_linear_constraints(optimizationProblem: OptimizationProblem):
+    def _setup_linear_constraints(optimizationProblem: OptimizationProblem) -> list:
         A_transformed = optimizationProblem.A_independent_transformed
         b_transformed = optimizationProblem.b_transformed
         indep_vars = optimizationProblem.independent_variables
@@ -227,13 +238,13 @@ class AxInterface(OptimizerBase):
         return parameter_constraints
 
     @classmethod
-    def _setup_searchspace(cls, optimizationProblem):
+    def _setup_searchspace(cls, optimizationProblem: OptimizationProblem) -> SearchSpace:
         return SearchSpace(
             parameters=cls._setup_parameters(optimizationProblem),
             parameter_constraints=cls._setup_linear_constraints(optimizationProblem),
         )
 
-    def _setup_objectives(self):
+    def _setup_objectives(self) -> list:
         """Parse objective functions from optimization problem."""
         objective_names = self.optimization_problem.objective_labels
 
@@ -249,7 +260,7 @@ class AxInterface(OptimizerBase):
 
         return objectives
 
-    def _setup_outcome_constraints(self):
+    def _setup_outcome_constraints(self) -> list:
         """Parse nonliear constraint functions from optimization problem."""
         nonlincon_names = self.optimization_problem.nonlinear_constraint_labels
 
@@ -267,14 +278,16 @@ class AxInterface(OptimizerBase):
 
         return outcome_constraints
 
-    def _create_manual_data(self, trial, F, G=None):
+    def _create_manual_data(
+        self, trial: BaseTrial, F: npt.ArrayLike, G: Optional[npt.ArrayLike] = None
+    ) -> dict:
         objective_labels = self.optimization_problem.objective_labels
         nonlincon_labels = self.optimization_problem.nonlinear_constraint_labels
         return CADETProcessRunner.get_metadata(
             trial, F, objective_labels, G, nonlincon_labels
         )
 
-    def _create_manual_trial(self, X):
+    def _create_manual_trial(self, X: npt.ArrayLike) -> None:
         """Create trial from pre-evaluated data."""
         variables = self.optimization_problem.independent_variable_names
 
@@ -293,7 +306,7 @@ class AxInterface(OptimizerBase):
             # When returning to batch trials, the Arms can be initialized here
             # and then collectively returned. See commit history
 
-    def _post_processing(self, trial):
+    def _post_processing(self, trial: BaseTrial) -> None:
         """
         Run post processing.
 
@@ -357,7 +370,7 @@ class AxInterface(OptimizerBase):
             X_opt_transformed=None,
         )
 
-    def _setup_model(self):
+    def _setup_model(self) -> None:
         """
         Initialize a pre-instantiated `Model` class.
 
@@ -366,11 +379,16 @@ class AxInterface(OptimizerBase):
         """
         raise NotImplementedError
 
-    def _setup_optimization_config(self, objectives, outcome_constraints):
         """Initialize an optimization configuration for Ax."""
+
+    def _setup_optimization_config(
+        self,
+        objectives: list[Objective],
+        outcome_constraints: OutcomeConstraint
+    ) -> None:
         raise NotImplementedError
 
-    def _run(self, optimization_problem, x0):
+    def _run(self, optimization_problem: OptimizationProblem, x0: npt.ArrayLike) -> None:
         search_space = self._setup_searchspace(self.optimization_problem)
         objectives = self._setup_objectives()
         outcome_constraints = self._setup_outcome_constraints()
@@ -497,7 +515,11 @@ class AxInterface(OptimizerBase):
 
 
 class SingleObjectiveAxInterface(AxInterface):
-    def _setup_optimization_config(self, objectives, outcome_constraints):
+    def _setup_optimization_config(
+        self,
+        objectives: list[Objective],
+        outcome_constraints: OutcomeConstraint
+    ) -> OptimizationConfig:
         return OptimizationConfig(
             objective=objectives[0], outcome_constraints=outcome_constraints
         )
@@ -506,7 +528,11 @@ class SingleObjectiveAxInterface(AxInterface):
 class MultiObjectiveAxInterface(AxInterface):
     supports_multi_objective = True
 
-    def _setup_optimization_config(self, objectives, outcome_constraints):
+    def _setup_optimization_config(
+        self,
+        objectives: list[Objective],
+        outcome_constraints: OutcomeConstraint
+    ) -> MultiObjectiveOptimizationConfig:
         return MultiObjectiveOptimizationConfig(
             objective=MultiObjective(objectives),
             outcome_constraints=outcome_constraints,
@@ -516,11 +542,11 @@ class MultiObjectiveAxInterface(AxInterface):
 class GPEI(SingleObjectiveAxInterface):
     """Gaussian Process with Expected Improvement for single objectives."""
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """str: String representation of the optimization algorithm."""
         return "GPEI"
 
-    def train_model(self):
+    def train_model(self) -> Models:
         """Train model."""
         return Models.GPEI(
             experiment=self.ax_experiment, data=self.ax_experiment.fetch_data()
@@ -547,14 +573,14 @@ class BotorchModular(SingleObjectiveAxInterface):
 
     _specific_options = ["acquisition_fn", "surrogate_model"]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """str: String representation of the optimization algorithm."""
         afn = self.acquisition_fn.__name__
         smn = self.surrogate_model.__name__
 
         return f"BotorchModular({smn}+{afn})"
 
-    def train_model(self):
+    def train_model(self) -> NotImplementedError:
         """Train model."""
         raise NotImplementedError(
             "This model is currently broken. Please use Only GPEI or NEHVI"
@@ -572,14 +598,14 @@ class NEHVI(MultiObjectiveAxInterface):
 
     supports_single_objective = False
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """str: String representation of the optimization algorithm."""
         smn = "SingleTaskGP"
         afn = "NEHVI"
 
         return f"{smn}+{afn}"
 
-    def train_model(self):
+    def train_model(self) -> Models:
         """Train model."""
         return Models.MOO(
             experiment=self.ax_experiment, data=self.ax_experiment.fetch_data()
@@ -610,7 +636,7 @@ class qNParEGO(MultiObjectiveAxInterface):
 
         return f"{smn}+{afn}"
 
-    def train_model(self):
+    def train_model(self) -> Models:
         """Train model."""
         return Models.MOO(
             experiment=self.ax_experiment,

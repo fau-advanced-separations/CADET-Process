@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import warnings
 from functools import wraps
+from typing import Any, Optional
 
 import numpy as np
 
@@ -76,16 +79,16 @@ class Reaction(Structure):
     @deprecated_alias(indices="components")
     def __init__(
         self,
-        component_system,
-        components,
-        coefficients,
-        k_fwd,
-        k_bwd=1,
-        is_kinetic=True,
-        k_fwd_min=100,
-        exponents_fwd=None,
-        exponents_bwd=None,
-    ):
+        component_system: ComponentSystem,
+        components: list[int | str],
+        coefficients: np.ndarray,
+        k_fwd: float,
+        k_bwd: float = 1,
+        is_kinetic: bool = True,
+        k_fwd_min: float = 100,
+        exponents_fwd: Optional[list[float]] = None,
+        exponents_bwd: Optional[list[float]] = None
+    ) -> None:
         """
         Initialize individual Mass Action Law Reaction.
 
@@ -158,12 +161,12 @@ class Reaction(Structure):
         self.exponents_bwd = e_bwd
 
     @property
-    def n_comp(self):
+    def n_comp(self) -> int:
         """int: Number of components."""
         return self.component_system.n_comp
 
     @property
-    def k_eq(self):
+    def k_eq(self) -> float:
         """float: Equilibrium constant (Ratio of forward and backward reaction)."""
         return self.k_fwd / self.k_bwd
 
@@ -274,19 +277,19 @@ class CrossPhaseReaction(Structure):
     @deprecated_alias(indices="components")
     def __init__(
         self,
-        component_system,
-        components,
-        coefficients,
-        phases,
-        k_fwd,
-        k_bwd=1,
-        is_kinetic=True,
-        k_fwd_min=100,
-        exponents_fwd_liquid=None,
-        exponents_bwd_liquid=None,
-        exponents_fwd_solid=None,
-        exponents_bwd_solid=None,
-    ):
+        component_system: ComponentSystem,
+        components: list[list | str],
+        coefficients: list[float],
+        phases: list[int],
+        k_fwd: float,
+        k_bwd: float = 1,
+        is_kinetic: bool = True,
+        k_fwd_min: float = 100,
+        exponents_fwd_liquid: Optional[list[float]] = None,
+        exponents_bwd_liquid: Optional[list[float]] = None,
+        exponents_fwd_solid: Optional[list[float]] = None,
+        exponents_bwd_solid: Optional[list[float]] = None
+    ) -> None:
         """
         Initialize individual cross-phase MAL reaction.
 
@@ -407,16 +410,16 @@ class CrossPhaseReaction(Structure):
         self.exponents_bwd_solid = e_bwd
 
     @property
-    def n_comp(self):
+    def n_comp(self) -> int:
         """int: Number of components."""
         return self.component_system.n_comp
 
     @property
-    def k_eq(self):
+    def k_eq(self) -> float:
         """float: Equilibrium constant (Ratio of forward and backward reaction)."""
         return self.k_fwd / self.k_bwd
 
-    def __str__(self):
+    def __str__(self) -> str:
         """str: String representation of the Reaction."""
         educts = []
         products = []
@@ -467,7 +470,14 @@ class ReactionBaseClass(Structure):
 
     _parameters = []
 
-    def __init__(self, component_system, name=None, *args, **kwargs):
+    def __init__(
+        self,
+        component_system: ComponentSystem,
+        name: Optional[str] = None,
+        *args: Any,
+        **kwargs: Any
+    ) -> None:
+        """Initialize reaction base."""
         self.component_system = component_system
         self.name = name
 
@@ -484,22 +494,22 @@ class ReactionBaseClass(Structure):
         return self._component_system
 
     @component_system.setter
-    def component_system(self, component_system):
+    def component_system(self, component_system: ComponentSystem) -> None:
         if not isinstance(component_system, ComponentSystem):
             raise TypeError("Expected ComponentSystem")
         self._component_system = component_system
 
     @property
-    def n_comp(self):
+    def n_comp(self) -> int:
         """int: Number of components."""
         return self.component_system.n_comp
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """str: String representation of the Reaction."""
         return f"{self.__class__.__name__}(n_comp={self.n_comp}, name={self.name})"
 
-    def __str__(self):
-        """str: String representation of the Reaction."""
+    def __str__(self) -> str:
+        """str: Name of the Reaction."""
         if self.name is None:
             return self.__class__.__name__
         return self.name
@@ -512,7 +522,8 @@ class NoReaction(ReactionBaseClass):
     The number of components is set to zero for this class.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize NoReaction."""
         super().__init__(ComponentSystem(), name="NoReaction")
 
 
@@ -520,7 +531,7 @@ class BulkReactionBase(ReactionBaseClass):
     """Base class for bulk reaction systems."""
 
     @classmethod
-    def to_particle_model():
+    def to_particle_model() -> ParticleReactionBase:
         """Convert bulk reaction model to particle reaction model."""
         raise NotImplementedError
 
@@ -536,12 +547,13 @@ class MassActionLaw(BulkReactionBase):
 
     _parameters = ["stoich", "exponents_fwd", "exponents_bwd", "k_fwd", "k_bwd"]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize MassActionLaw."""
         self._reactions = []
         super().__init__(*args, **kwargs)
 
     @wraps(Reaction.__init__)
-    def add_reaction(self, *args, **kwargs) -> Reaction:
+    def add_reaction(self, *args: Any, **kwargs: Any) -> Reaction:
         """Add reaction to ReactionSystem."""
         r = Reaction(self.component_system, *args, **kwargs)
         self._reactions.append(r)
@@ -549,21 +561,21 @@ class MassActionLaw(BulkReactionBase):
         return r
 
     @property
-    def reactions(self):
+    def reactions(self) -> int:
         """list: Reactions in ReactionSystem."""
         return self._reactions
 
     @property
-    def n_reactions(self):
+    def n_reactions(self) -> int:
         """int: Number of Reactions."""
         return len(self.reactions)
 
     @property
-    def k_eq(self):
+    def k_eq(self) -> list:
         """list: Equilibrium constants of liquid phase Reactions."""
         return [r.k_eq for r in self.reactions]
 
-    def to_particle_model(self):
+    def to_particle_model(self) -> 'MassActionLawParticle':
         """Convert Bulk Reaction Model to Particle Reaction Model."""
         particle_model = MassActionLawParticle(self.component_system, self.name)
         particle_model._liquid_reactions = self.reactions
@@ -651,7 +663,8 @@ class MassActionLawParticle(ParticleReactionBase):
         "exponents_bwd_solid_modliquid",
     ]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize MassActionLawParticle."""
         self._liquid_reactions = []
         self._solid_reactions = []
         self._cross_phase_reactions = []
@@ -659,68 +672,68 @@ class MassActionLawParticle(ParticleReactionBase):
         super().__init__(*args, **kwargs)
 
     @wraps(Reaction.__init__)
-    def add_liquid_reaction(self, *args, **kwargs):
+    def add_liquid_reaction(self, *args: Any, **kwargs: Any) -> None:
         """Add liquid phase to ReactionSystem."""
         r = Reaction(self.component_system, *args, **kwargs)
         self._liquid_reactions.append(r)
 
     @wraps(Reaction.__init__)
-    def add_solid_reaction(self, *args, **kwargs):
+    def add_solid_reaction(self, *args: Any, **kwargs: Any) -> None:
         """Add solid phase to ReactionSystem."""
         r = Reaction(self.component_system, *args, **kwargs)
         self._solid_reactions.append(r)
 
     @wraps(CrossPhaseReaction.__init__)
-    def add_cross_phase_reaction(self, *args, **kwargs):
+    def add_cross_phase_reaction(self, *args: Any, **kwargs: Any) -> None:
         """Add cross phase to ReactionSystem."""
         r = CrossPhaseReaction(self.component_system, *args, **kwargs)
         self._cross_phase_reactions.append(r)
 
     # Pore Liquid
     @property
-    def liquid_reactions(self):
+    def liquid_reactions(self) -> list:
         """list: Liquid phase Reactions."""
         return self._liquid_reactions + self.cross_phase_reactions
 
     @property
-    def n_liquid_reactions(self):
+    def n_liquid_reactions(self) -> int:
         """int: Number of liquid phase Reactions."""
         return len(self.liquid_reactions)
 
     @property
-    def k_eq_liquid(self):
+    def k_eq_liquid(self) -> list:
         """list: Equilibrium constants of liquid phase Reactions."""
         return [r.k_eq for r in self.liquid_reactions]
 
     # Solid
     @property
-    def solid_reactions(self):
+    def solid_reactions(self) -> list:
         """list: Solid phase Reactions."""
         return self._solid_reactions + self.cross_phase_reactions
 
     @property
-    def n_solid_reactions(self):
+    def n_solid_reactions(self) -> int:
         """int: Number of solid phase Reactions."""
         return len(self.solid_reactions)
 
     @property
-    def k_eq_solid(self):
+    def k_eq_solid(self) -> list:
         """list: Equilibrium constants of solid phase Reactions."""
         return [r.k_eq for r in self.solid_reactions]
 
     # Cross Phase
     @property
-    def cross_phase_reactions(self):
+    def cross_phase_reactions(self) -> list:
         """list: Cross phase reactions."""
         return self._cross_phase_reactions
 
     @property
-    def n_cross_phase_reactions(self):
+    def n_cross_phase_reactions(self) -> int:
         """int: Number of cross phase Reactions."""
         return len(self.cross_phase_reactions)
 
 
-def scale_to_rapid_equilibrium(k_eq, k_fwd_min=10):
+def scale_to_rapid_equilibrium(k_eq: float, k_fwd_min: float = 10) -> tuple[float, float]:
     """
     Scale forward and backward reaction rates if only k_eq is known.
 

@@ -16,7 +16,10 @@ comparison with ``SimulationResults``
 
 """  # noqa
 
+from typing import Any, Optional
+
 import numpy as np
+import numpy.typing as npt
 
 from CADETProcess import CADETProcessError
 from CADETProcess.processModel import ComponentSystem
@@ -60,7 +63,14 @@ class ReferenceIO(ReferenceBase, SolutionIO):
     CADETProcess.solution.SolutionIO
     """
 
-    def __init__(self, name, time, solution, flow_rate=None, component_system=None):
+    def __init__(
+        self,
+        name: str,
+        time: npt.ArrayLike,
+        solution: npt.ArrayLike,
+        flow_rate: Optional[float | npt.ArrayLike] = None,
+        component_system: Optional[ComponentSystem] = None
+    ) -> None:
         """
         Initialize a ReferenceIO object.
 
@@ -132,7 +142,15 @@ class FractionationReference(ReferenceBase):
 
     dimensions = SolutionBase.dimensions + ["component_coordinates"]
 
-    def __init__(self, name, fractions, component_system=None, *args, **kwargs):
+    def __init__(
+        self,
+        name: str,
+        fractions: list,
+        component_system: Optional[ComponentSystem] = None,
+        *args: Any,
+        **kwargs:  Any,
+        ) -> None:
+        """Initialize FractionationReference object."""
         from CADETProcess.fractionation import Fraction
 
         for frac in fractions:

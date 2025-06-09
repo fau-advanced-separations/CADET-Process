@@ -7,6 +7,7 @@ import warnings
 from collections import defaultdict
 from functools import wraps
 from pathlib import Path
+from typing import Any, Callable, Optional
 
 import numpy as np
 from addict import Dict
@@ -24,6 +25,7 @@ from CADETProcess.dataStructure import (
 from CADETProcess.processModel import (
     BindingBaseClass,
     Cstr,
+    FlowSheet,
     Inlet,
     LumpedRateModelWithoutPores,
     NoBinding,
@@ -101,11 +103,11 @@ class Cadet(SimulatorBase):
 
     def __init__(
         self,
-        install_path=None,
-        temp_dir=None,
-        *args,
-        **kwargs,
-    ):
+        install_path: Optional[str] = None,
+        temp_dir: Optional[str] = None,
+        *args: Any, **kwargs: Any
+    ) -> None:
+        """Initialize Cadet implementation of Simulator Base."""
         super().__init__(*args, **kwargs)
 
         if install_path is None:
@@ -125,21 +127,21 @@ class Cadet(SimulatorBase):
         self.temp_dir = temp_dir
 
     @property
-    def temp_dir(self):
+    def temp_dir(self) -> dict:
         """Return temp dir."""
         if not self._temp_dir.exists():
             self._temp_dir.mkdir(exist_ok=True, parents=True)
         return self._temp_dir
 
     @temp_dir.setter
-    def temp_dir(self, temp_dir):
+    def temp_dir(self, temp_dir: str) -> None:
         self._temp_dir = temp_dir
 
-    def locks_process(func):
+    def locks_process(func: Callable) -> Callable:
         """Lock process to enable caching."""
 
         @wraps(func)
-        def wrapper(self, process, *args, **kwargs):
+        def wrapper(self: Any, process: Process, *args: Any, **kwargs: Any) -> Any:
             locked_process = False
 
             if not process.lock:
@@ -155,7 +157,7 @@ class Cadet(SimulatorBase):
 
         return wrapper
 
-    def check_cadet(self):
+    def check_cadet(self) -> bool:
         """
         Check if CADET installation can run a basic LWE example.
 
@@ -199,13 +201,18 @@ class Cadet(SimulatorBase):
 
         return True
 
-    def get_tempfile_name(self):
+    def get_tempfile_name(self) -> str:
         """Return name of tempfile."""
         f = next(tempfile._get_candidate_names())
         return self.temp_dir / f"{f}.h5"
 
     @locks_process
-    def _run(self, process, cadet=None, file_path=None):
+    def _run(
+        self,
+        process: Process,
+        cadet: CadetAPI = None,
+        file_path: Optional[os.PathLike] = None,
+    ) -> SimulationResults:
         """
         Interface to the solver run function.
 
@@ -223,6 +230,10 @@ class Cadet(SimulatorBase):
         ----------
         process : Process
             process to be simulated
+        cadet : Cadet, Optional, Default=None
+            Cadet instance. If None, new Cadet instance will be initialized.
+        file_path : os.PathLike
+            File path where to save Cadet files.
 
         Returns
         -------
@@ -345,19 +356,19 @@ class Cadet(SimulatorBase):
         else:
             return cadet.cadet_runner.cadet_version
 
-    def get_new_cadet_instance(self):
+    def get_new_cadet_instance(self) -> CadetAPI:
         """Return new CadetAPI instance."""
         cadet = CadetAPI(install_path=self.install_path, use_dll=self.use_dll)
         return cadet
 
-    def save_to_h5(self, process, file_path):
+    def save_to_h5(self, process: Process, file_path: os.PathLike) -> None:
         """Save process config as h5 file."""
         cadet = self.get_new_cadet_instance()
         cadet.root = self.get_process_config(process)
         cadet.filename = file_path
         cadet.save()
 
-    def run_h5(self, file_path):
+    def run_h5(self, file_path: os.PathLike) -> CadetAPI:
         """Load and run h5 file."""
         cadet = self.get_new_cadet_instance()
         cadet.filename = file_path
@@ -376,7 +387,7 @@ class Cadet(SimulatorBase):
 
         return cadet
 
-    def load_from_h5(self, file_path):
+    def load_from_h5(self, file_path: os.PathLike) -> CadetAPI:
         """Load data from HDF5 file."""
         cadet = self.get_new_cadet_instance()
         cadet.filename = file_path
@@ -385,12 +396,12 @@ class Cadet(SimulatorBase):
         return cadet
 
     @wraps(CadetAPI.create_lwe)
-    def create_lwe(self, *args, **kwargs):
+    def create_lwe(self, *args: Any, **kwargs: Any) -> 'Cadet':
         """Wrap CadetAPI.create_lwe to create simple Load-Wash-Elute config."""
         return self.get_new_cadet_instance().create_lwe(*args, **kwargs)
 
     @locks_process
-    def get_process_config(self, process):
+    def get_process_config(self, process: Process) -> Dict:
         """
         Create the CADET config.
 
@@ -418,7 +429,11 @@ class Cadet(SimulatorBase):
 
         return config
 
-    def load_simulation_results(self, process, file_path):
+    def load_simulation_results(
+        self,
+        process: Process,
+        file_path: os.PathLike
+    ) -> SimulationResults:
         """Load simulation results."""
         cadet = self.load_from_h5(file_path)
         results = self.get_simulation_results(process, cadet)
@@ -428,11 +443,11 @@ class Cadet(SimulatorBase):
     @locks_process
     def get_simulation_results(
         self,
-        process,
-        cadet,
-        time_elapsed=None,
-        return_information=None,
-    ):
+        process: Process,
+        cadet: CadetAPI,
+        time_elapsed: Optional[float] = None,
+        return_information: Optional[dict] = None
+    ) -> SimulationResults:
         """
         Read simulation results from CADET configuration.
 
@@ -773,7 +788,7 @@ class Cadet(SimulatorBase):
 
         return results
 
-    def get_input_model(self, process):
+    def get_input_model(self, process: Process) -> Dict:
         """
         Config branch `/input/model/`.
 
@@ -802,7 +817,7 @@ class Cadet(SimulatorBase):
 
         return input_model
 
-    def get_model_connections(self, process):
+    def get_model_connections(self, process: Process) -> Dict:
         """Config branch `/input/model/connections`."""
         model_connections = Dict()
         if self._force_constant_flow_rate:
@@ -831,7 +846,7 @@ class Cadet(SimulatorBase):
 
         return model_connections
 
-    def cadet_connections(self, flow_rates, flow_sheet):
+    def cadet_connections(self, flow_rates: dict, flow_sheet: FlowSheet) -> list:
         """list: Connections matrix for flow_rates state.
 
         Parameters
@@ -886,7 +901,7 @@ class Cadet(SimulatorBase):
 
         return ls
 
-    def get_unit_index(self, process, unit):
+    def get_unit_index(self, process: Process, unit: UnitBaseClass) -> str:
         """
         Return unit index in CADET format unit_xxx.
 
@@ -905,7 +920,7 @@ class Cadet(SimulatorBase):
         index = process.flow_sheet.get_unit_index(unit)
         return f"unit_{index:03d}"
 
-    def get_port_index(self, flow_sheet, unit, port):
+    def get_port_index(self, flow_sheet: FlowSheet, unit: UnitBaseClass, port: str) -> int:
         """
         Return port index in CADET format xxx.
 
@@ -923,7 +938,7 @@ class Cadet(SimulatorBase):
         """
         return flow_sheet.get_port_index(unit, port)
 
-    def get_model_units(self, process):
+    def get_model_units(self, process: Process) -> Dict:
         """
         Config branches for all units `/input/model/unit_000 ... unit_xxx`.
 
@@ -944,7 +959,7 @@ class Cadet(SimulatorBase):
 
         return model_units
 
-    def get_unit_config(self, unit):
+    def get_unit_config(self, unit: UnitBaseClass) -> Dict:
         """
         Config branch `/input/model/unit_xxx` for individual unit.
 
@@ -1017,7 +1032,9 @@ class Cadet(SimulatorBase):
 
         return unit_config
 
-    def set_section_dependent_parameters(self, model_units, process):
+    def set_section_dependent_parameters(
+        self, model_units: Dict, process: Process
+    ) -> None:
         """Add time dependent model parameters to units."""
         section_states = process.section_states.values()
 
@@ -1057,7 +1074,9 @@ class Cadet(SimulatorBase):
 
                 section_index += 1
 
-    def add_inlet_section(self, model_units, sec_index, unit_index, coeffs):
+    def add_inlet_section(
+        self, model_units: Dict, sec_index: int, unit_index: int, coeffs: np.ndarray
+    ) -> None:
         """Add piecewise cubic polynomial section to inlet."""
         unit_index = f"unit_{unit_index:03d}"
         section_index = f"sec_{sec_index:03d}"
@@ -1069,13 +1088,13 @@ class Cadet(SimulatorBase):
 
     def add_parameter_section(
         self,
-        model_units,
-        sec_index,
-        unit_index,
-        unit_model,
-        parameter,
-        state,
-    ):
+        model_units: Dict,
+        sec_index: int,
+        unit_index: int,
+        unit_model: UnitBaseClass,
+        parameter: str,
+        state: np.ndarray
+    ) -> None:
         """Add section value to parameter branch."""
         unit_index = f"unit_{unit_index:03d}"
         parameter_name = inv_unit_parameters_map[unit_model]["parameters"][parameter]
@@ -1084,7 +1103,7 @@ class Cadet(SimulatorBase):
             model_units[unit_index][parameter_name] = []
         model_units[unit_index][parameter_name] += list(state.ravel())
 
-    def get_adsorption_config(self, binding):
+    def get_adsorption_config(self, binding: BindingBaseClass) -> Dict:
         """
         Config branch `/input/model/unit_xxx/adsorption` for individual unit.
 
@@ -1103,7 +1122,7 @@ class Cadet(SimulatorBase):
 
         return adsorption_config
 
-    def get_reaction_config(self, reaction):
+    def get_reaction_config(self, reaction: ReactionBaseClass) -> Dict:
         """
         Config branch `/input/model/unit_xxx/reaction` for individual unit.
 
@@ -1122,7 +1141,7 @@ class Cadet(SimulatorBase):
 
         return reaction_config
 
-    def get_input_solver(self, process):
+    def get_input_solver(self, process: Process) -> Dict:
         """
         Config branch `/input/solver/`.
 
@@ -1140,7 +1159,7 @@ class Cadet(SimulatorBase):
 
         return input_solver
 
-    def get_solver_sections(self, process):
+    def get_solver_sections(self, process: Process) -> Dict:
         """Config branch `/input/solver/sections`."""
         solver_sections = Dict()
 
@@ -1152,13 +1171,13 @@ class Cadet(SimulatorBase):
 
         return solver_sections
 
-    def get_input_return(self, process):
+    def get_input_return(self, process: Process) -> dict:
         """Config branch `/input/return`."""
         return_parameters = self.return_parameters.parameters
         unit_return_parameters = self.get_unit_return_parameters(process)
         return {**return_parameters, **unit_return_parameters}
 
-    def get_unit_return_parameters(self, process):
+    def get_unit_return_parameters(self, process: Process) -> Dict:
         """Config branches for all units `/input/return/unit_000 ... unit_xxx`."""
         unit_return_parameters = Dict()
         for unit in process.flow_sheet.units:
@@ -1167,13 +1186,13 @@ class Cadet(SimulatorBase):
 
         return unit_return_parameters
 
-    def get_input_sensitivity(self, process):
+    def get_input_sensitivity(self, process: Process) -> dict:
         """Config branch `/input/sensitivity`."""
         sensitivity_parameters = self.sensitivity_parameters.parameters
         parameter_sensitivities = self.get_parameter_sensitivities(process)
         return {**sensitivity_parameters, **parameter_sensitivities}
 
-    def get_parameter_sensitivities(self, process):
+    def get_parameter_sensitivities(self, process: Process) -> Dict:
         """Config branches for all parameter sensitivities `/input/sensitivity/param_000 ... param_xxx`."""  # noqa: E501
         parameter_sensitivities = Dict()
         parameter_sensitivities.nsens = process.n_sensitivities
@@ -1184,7 +1203,7 @@ class Cadet(SimulatorBase):
 
         return parameter_sensitivities
 
-    def get_sensitivity_config(self, process, sens):
+    def get_sensitivity_config(self, process: Process, sens: Dict) -> Dict:
         """Return sensitivity config."""
         config = Dict()
 
@@ -1263,7 +1282,7 @@ class Cadet(SimulatorBase):
 
         return config
 
-    def __str__(self):
+    def __str__(self) -> str:
         """Return string representation."""
         return "CADET"
 

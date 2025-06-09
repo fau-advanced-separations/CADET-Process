@@ -93,6 +93,7 @@ fix = true
 [tool.ruff.lint]
 preview = true
 select = [
+  "ANN",  # type annotations
   "D",    # docstrings
   "E",    # pycodestyle errors
   "F",    # pyflakes
@@ -100,6 +101,7 @@ select = [
   "I",    # isort
 ]
 ignore = [
+  "ANN401",  # Allow dynamically typed expressions like `Any`
   "D100",    # Allow missing docstring in public module
 ]
 

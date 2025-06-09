@@ -8,31 +8,34 @@ from . import ptc
 
 
 def calculate_buffer_equilibrium(
-    buffer, reaction_system, constant_indices=None, reinit=True, verbose=False
-):
+    buffer: Sequence[float],
+    reaction_system: MassActionLaw,
+    constant_indices: Optional[Sequence[int]] = None,
+    reinit: bool = True,
+    verbose: bool = False
+) -> list[float]:
     """
     Calculate buffer equilibrium for given concentration.
 
     Parameters
     ----------
     buffer : list of floats
-        buffer concentration in mM
+        Buffer concentration in mM
     reaction_system : MassActionLaw
-        reaction rates and stoichiometric matrix for calculating equilibrium.
+        Reaction rates and stoichiometric matrix for calculating equilibrium.
     constant_indices : list, optional
         Indices of fixed target concentration (e.g. proton concentration/pH).
     reinit: Bool, optional
-        if True, run CADET with initial values to get 'smooth' initial values
+        If True, run CADET with initial values to get 'smooth' initial values
     verbose : Bool, optional
-        if True, print information at every ptc iteration.
+        If True, print information at every ptc iteration.
 
     Returns
     -------
     sol : list of floats.
-        buffer equilbrium concentrations
+        Buffer equilbrium concentrations
     """
-
-    def residual(c):
+    def residual(c: np.ndarray) -> np.ndarray:
         return dydx_mal(
             c,
             reaction_system,
@@ -40,7 +43,7 @@ def calculate_buffer_equilibrium(
             buffer.copy(),
         )
 
-    def jacobian(c):
+    def jacobian(c: np.ndarray) -> np.ndarray:
         return jac_mal(
             c,
             reaction_system,
@@ -52,7 +55,7 @@ def calculate_buffer_equilibrium(
         np.array(buffer.copy()),
         residual,
         jacobian,
-        1e-4,  # init step size
+        1e-4,   # init step size
         1e-14,  # tolerance (scaled l2)
         quiet=not (verbose),
         maxIter=10000,

@@ -16,6 +16,8 @@ Module to evaluate cyclic stationarity of succeeding cycles.
 
 """  # noqa
 
+from typing import Any, Optional
+
 import numpy as np
 from addict import Dict
 
@@ -30,7 +32,7 @@ __all__ = ["RelativeArea", "NRMSE", "StationarityEvaluator"]
 class CriterionBase(Structure):
     threshold = UnsignedFloat(default=1e-3)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.__class__.__name__
 
 
@@ -52,12 +54,12 @@ class StationarityEvaluator(Comparator):
     valid_criteria = ["RelativeArea", "NRMSE"]
 
     def __init__(
-            self,
-            criteria=None,
-            log_level="WARNING",
-            *args,
-            **kwargs,
-    ):
+        self,
+        criteria: Optional[list[CriterionBase]] = None,
+        log_level: str = 'WARNING',
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
         """
         Initialize the stationarity evaluator.
 
@@ -79,11 +81,11 @@ class StationarityEvaluator(Comparator):
         self._criteria = []
 
     @property
-    def criteria(self):
+    def criteria(self) -> list:
         """list: List of criteria."""
         return self._criteria
 
-    def add_criterion(self, criterion):
+    def add_criterion(self, criterion: CriterionBase) -> None:
         """
         Add a criterion to the list of criteria.
 
@@ -97,7 +99,7 @@ class StationarityEvaluator(Comparator):
 
         self._criteria.append(criterion)
 
-    def assert_stationarity(self, simulation_results):
+    def assert_stationarity(self, simulation_results: SimulationResults) -> bool:
         """
         Check stationarity of two succeeding cycles.
 

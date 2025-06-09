@@ -19,6 +19,7 @@ import logging
 import time
 from functools import wraps
 from pathlib import Path
+from typing import Any, Callable, Optional
 
 import pathos
 
@@ -30,7 +31,7 @@ LOG_FORMAT = logging.Formatter("%(asctime)s:%(levelname)s:%(name)s:%(message)s")
 loggers = {}
 
 
-def get_logger(name, level=None):
+def get_logger(name: str, level: Optional[str] = None) -> logging.Logger:
     """
     Retrieve logger from loggers dictionary. Create new one if it does not already exist.
 
@@ -59,7 +60,7 @@ def get_logger(name, level=None):
     return logger
 
 
-def update_loggers(log_directory, save_log):
+def update_loggers(log_directory: str, save_log: bool) -> None:
     """
     Update the file handlers of all logger objects in the loggers dictionary.
 
@@ -74,7 +75,12 @@ def update_loggers(log_directory, save_log):
         update_file_handlers(log_directory, logger, name, save_log)
 
 
-def update_file_handlers(log_directory, logger, name, save_log):
+def update_file_handlers(
+    log_directory: str,
+    logger: logging.Logger,
+    name: str,
+    save_log: Optional[bool]
+) -> None:
     """
     Update the file handlers of a logger object.
 
@@ -101,7 +107,13 @@ def update_file_handlers(log_directory, logger, name, save_log):
         add_file_handler(log_directory, logger, name, level)
 
 
-def add_file_handler(log_directory, logger, name, level, overwrite=False):
+def add_file_handler(
+    log_directory: str,
+    logger: logging.Logger,
+    name: str,
+    level: str,
+    overwrite: Optional[bool] = False
+) -> None:
     """
     Add a file handler to a logger object.
 
@@ -133,7 +145,7 @@ def add_file_handler(log_directory, logger, name, level, overwrite=False):
     logger.addHandler(file_handler)
 
 
-def log_time(logger_name, level=None):
+def log_time(logger_name: str, level: Optional[int] = None) -> Callable:
     """
     Log execution time of function.
 
@@ -144,9 +156,9 @@ def log_time(logger_name, level=None):
     level : int, optional
         Log level.
     """
-    def log_time_decorator(function):
+    def log_time_decorator(function: Callable) -> Any:
         @wraps(function)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             start = time.time()
             result = function(*args, **kwargs)
             elapsed = time.time() - start
@@ -159,7 +171,7 @@ def log_time(logger_name, level=None):
     return log_time_decorator
 
 
-def log_exceptions(logger_name, level=None):
+def log_exceptions(logger_name: str, level: Optional[int] = None) -> Callable:
     """
     Log exceptions.
 
@@ -171,9 +183,9 @@ def log_exceptions(logger_name, level=None):
         Log level.
     """
 
-    def log_exception_decorator(function):
+    def log_exception_decorator(function: Callable) -> Callable:
         @wraps(function)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             logger = get_logger(logger_name, level=None)
             try:
                 return function(*args, **kwargs)
@@ -191,27 +203,27 @@ def log_exceptions(logger_name, level=None):
     return log_exception_decorator
 
 
-def log_results(logger_name, level=None):
+def log_results(logger_name: str, level: Optional[int] = None) -> Callable:
     """
     Log results.
 
     Parameters
     ----------
     logger_name : str
-        name of the logger
+        Name of the logger
+    level : int
+        Log level.
     """
-
-    def log_results_decorator(function):
+    def log_results_decorator(function: Callable) -> Callable:
         @wraps(function)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             logger = get_logger(logger_name, level=None)
 
-            logger.debug("{} was called with {}, {}".format(function, *args, **kwargs))
+            logger.debug('{} was called with {}, {}'.format(
+                    function, *args, **kwargs))
             results = function(*args, **kwargs)
-            logger.debug(f"Results: {results}")
+            logger.debug(f'Results: {results}')
 
             return results
-
         return wrapper
-
     return log_results_decorator

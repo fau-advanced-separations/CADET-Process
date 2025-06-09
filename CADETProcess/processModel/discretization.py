@@ -58,7 +58,7 @@ class DiscretizationParametersBase(Structure):
 
     _dimensionality = []
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize a new DiscretizationParametersBase instance."""
         self.weno_parameters = WenoParameters()
         self.consistency_solver = ConsistencySolverParameters()
@@ -66,7 +66,7 @@ class DiscretizationParametersBase(Structure):
         super().__init__()
 
     @property
-    def dimensionality(self):
+    def dimensionality(self) -> dict:
         """dict: Dimensionality of the parameters."""
         dim = {}
         for d in self._dimensionality:
@@ -78,7 +78,7 @@ class DiscretizationParametersBase(Structure):
         return dim
 
     @property
-    def parameters(self):
+    def parameters(self) -> dict:
         """dict: Dictionary with parameter values."""
         parameters = super().parameters
         parameters["weno"] = self.weno_parameters.parameters
@@ -87,7 +87,7 @@ class DiscretizationParametersBase(Structure):
         return parameters
 
     @parameters.setter
-    def parameters(self, parameters):
+    def parameters(self, parameters: dict) -> None:
         try:
             self.weno_parameters.parameters = parameters.pop("weno")
         except KeyError:
@@ -183,7 +183,7 @@ class LRMDiscretizationDG(DGMixin):
     _dimensionality = ["axial_dof"]
 
     @property
-    def axial_dof(self):
+    def axial_dof(self) -> int:
         """int: Number of degrees of freedom in the axial discretization."""
         return self.nelem * (self.polydeg + 1)
 
@@ -300,7 +300,7 @@ class LRMPDiscretizationDG(DGMixin):
     _dimensionality = ["axial_dof"]
 
     @property
-    def axial_dof(self):
+    def axial_dof(self) -> int:
         """int: Number of axial degrees of freedom in the spatial discretization."""
         return self.nelem * (self.polydeg + 1)
 
@@ -423,7 +423,7 @@ class GRMDiscretizationFV(DiscretizationParametersBase):
     _dimensionality = ["ncol", "npar"]
 
     @property
-    def par_disc_vector_length(self):
+    def par_disc_vector_length(self) -> int:
         """int: Number of entries in the particle discretization vector."""
         return self.npar + 1
 
@@ -508,17 +508,17 @@ class GRMDiscretizationDG(DGMixin):
     _dimensionality = ["axial_dof", "par_dof"]
 
     @property
-    def axial_dof(self):
+    def axial_dof(self) -> int:
         """int: Number of axial degrees of freedom in the axial discretization."""
         return self.nelem * (self.polydeg + 1)
 
     @property
-    def par_dof(self):
+    def par_dof(self) -> int:
         """int: Number of particle degrees of freedom in the axial discretization."""
         return self.axial_dof * self.par_disc_vector_length
 
     @property
-    def par_disc_vector_length(self):
+    def par_disc_vector_length(self) -> int:
         """int: Number of entries in the particle discretization vector."""
         return self.par_nelem * (self.par_polydeg + 1)
 

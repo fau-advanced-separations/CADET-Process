@@ -149,7 +149,7 @@ figure_styles = {
 }
 
 
-def set_figure_style(style: Optional[str] = "medium"):
+def set_figure_style(style: Optional[str] = 'medium') -> None:
     """
     Define the sytle of a plot.
 
@@ -193,7 +193,11 @@ def set_figure_style(style: Optional[str] = "medium"):
 set_figure_style()
 
 
-def get_fig_size(n_rows=1, n_cols=1, style=None):
+def get_fig_size(
+    n_rows: Optional[int] = 1,
+    n_cols: Optional[int] = 1,
+    style: Optional[str] = None
+) -> tuple[float, float]:
     """
     Get figure size for figures with multiple Axes.
 
@@ -288,7 +292,7 @@ def set_layout(
     layout: Layout,
     show_legend: bool = True,
     ax_secondary: Optional[SecondaryAxis] = None,
-    secondary_layout: Optional[Layout] = None
+    secondary_layout: Optional[Layout] = None,
 ) -> None:
     """
     Configure the layout of a matplotlib Axes object.
@@ -525,7 +529,7 @@ def add_hlines(ax: Axes, hlines: list[HLines]) -> None:
         ax.hlines(line.y, line.x_min, line.x_max)
 
 
-def create_and_save_figure(func):
+def create_and_save_figure(func: Callable) -> Callable:
     """Wrap plot functions to provide some general utility."""
     @wraps(func)
     def wrapper(
@@ -535,7 +539,7 @@ def create_and_save_figure(func):
             show: bool = True,
             file_name: Optional[str] = None,
             style: str = 'medium',
-            **kwargs: Any
+            **kwargs: Any,
             ) -> tuple:
         """
         Wrap plot functions to provide some general utility.

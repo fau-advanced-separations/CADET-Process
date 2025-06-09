@@ -1,7 +1,7 @@
 import os
 from collections import defaultdict
 from functools import wraps
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 import numpy as np
 from addict import Dict
@@ -139,11 +139,13 @@ class Fractionator(EventHandler):
         """ComponentSystem: The component system of the chromatograms."""
         return self.chromatograms[0].component_system
 
-    def _call_by_chrom_name(func):
         """Enable calling functions with chromatogram object or name."""
 
+    def _call_by_chrom_name(func: Callable) -> Callable:
         @wraps(func)
-        def wrapper_call_by_chrom_name(self, chrom, *args, **kwargs):
+        def wrapper_call_by_chrom_name(
+                self: 'Fractionator', chrom: str | SolutionIO, *args: Any, **kwargs: Any
+            ) -> Any:
             """Enable calling functions with chromatogram object or name."""
             if isinstance(chrom, str):
                 try:
@@ -156,7 +158,8 @@ class Fractionator(EventHandler):
 
     @property
     def chromatograms(self) -> list[SolutionIO]:
-        """list: Chromatograms to be fractionized.
+        """
+        list[SolutionIO]: Chromatograms to be fractionized.
 
         See Also
         --------
@@ -203,7 +206,8 @@ class Fractionator(EventHandler):
 
     @property
     def cycle_time(self) -> float:
-        """float: The cycle time of the Fractionator.
+        """
+        The cycle time of the Fractionator.
 
         Note that in some situations, it might be desired to set a custom cycle time
         for calculating the performance indicators. For this purpose, overwrite the
@@ -243,6 +247,10 @@ class Fractionator(EventHandler):
             Axes to plot on. If None, a new figure is created.
         x_axis_in_minutes: bool, optional
             Option to use x-aches (time) in minutes, default is set to True.
+        *args : Any
+            Optional Parameter passed down to plot function.
+        **kwargs : Any
+            Additional Parameter passed down to plot function.
 
         Returns
         -------
@@ -439,9 +447,11 @@ class Fractionator(EventHandler):
 
         Parameters
         ----------
+        chrom_index : int
+            index of the chromatogram
         start : float
             start time of the fraction
-        start : float
+        end : float
             end time of the fraction
 
         Returns
@@ -509,7 +519,8 @@ class Fractionator(EventHandler):
 
     @property
     def mass_balance_difference(self) -> np.ndarray:
-        """ndarray: Difference in mass balance between m_feed and fraction pools.
+        """
+        ndarray: Difference in mass balance between m_feed and fraction pools.
 
         The mass balance is calculated as the difference between the feed mass (m_feed)
         and the mass in the fraction pools. It represents the discrepancy or change in
@@ -537,7 +548,8 @@ class Fractionator(EventHandler):
 
     @property
     def eluent_consumption(self) -> np.ndarray:
-        """ndarray: Specific eluent consumption in corresponding fraction pool.
+        """
+        ndarray: Specific eluent consumption in corresponding fraction pool.
 
         Notes
         -----
@@ -733,7 +745,10 @@ class Fractionator(EventHandler):
         return self.parameters
 
     def save(
-        self, case_dir: str, start: float = 0, end: Optional[float] = None
+        self,
+        case_dir: str,
+        start: float = 0,
+        end: Optional[float] = None
     ) -> None:
         """
         Save chromatogram and purity plots to a specified directory.

@@ -3,8 +3,15 @@ import copy
 import numpy as np
 import scipy.signal
 
+from CADETProcess.solution import SolutionIO
 
-def find_peaks(solution, normalize=True, prominence=0.5, find_minima=False):
+
+def find_peaks(
+    solution: SolutionIO,
+    normalize: bool = True,
+    prominence: float = 0.5,
+    find_minima: bool = False
+) -> list[list[tuple[float, float]]]:
     """
     Find peaks in solution.
 
@@ -50,7 +57,11 @@ def find_peaks(solution, normalize=True, prominence=0.5, find_minima=False):
     return peaks
 
 
-def find_breakthroughs(solution, normalize=True, threshold=0.95):
+def find_breakthroughs(
+    solution: SolutionIO,
+    normalize: bool = True,
+    threshold: float = 0.95
+) -> list[(float, float)]:
     """
     Find breakthroughs in solution.
 

@@ -1,6 +1,6 @@
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 from warnings import warn
 
 import numpy as np
@@ -26,7 +26,7 @@ class Process(EventHandler):
         Name of the process object to be simulated.
     system_state : np.ndarray
         State of the process object
-    system_state_derivate : ndarray
+    system_state_derivate : np.ndarray
         Derivative of the state
 
     See Also
@@ -38,7 +38,8 @@ class Process(EventHandler):
 
     _initial_states = ["system_state", "system_state_derivative"]
 
-    def __init__(self, flow_sheet, name, *args, **kwargs):
+    def __init__(self, flow_sheet: FlowSheet, name: str, *args: Any, **kwargs: Any) -> None:
+        """Initialize Process."""
         self.flow_sheet = flow_sheet
         self.name = name
 
@@ -68,7 +69,7 @@ class Process(EventHandler):
         return self.flow_sheet.component_system
 
     @property
-    def flow_sheet(self):
+    def flow_sheet(self) -> FlowSheet:
         """FlowSheet: flow sheet of the process model.
 
         Raises
@@ -80,7 +81,7 @@ class Process(EventHandler):
         return self._flow_sheet
 
     @flow_sheet.setter
-    def flow_sheet(self, flow_sheet):
+    def flow_sheet(self, flow_sheet: FlowSheet) -> None:
         if not isinstance(flow_sheet, FlowSheet):
             raise TypeError("Expected FlowSheet")
         self._flow_sheet = flow_sheet
@@ -117,7 +118,7 @@ class Process(EventHandler):
         return feed_all
 
     @cached_property_if_locked
-    def V_eluent(self):
+    def V_eluent(self) -> float:
         """float: Volume of the eluent entering the system in one cycle."""
         flow_rate_timelines = self.flow_rate_timelines
 
@@ -130,7 +131,7 @@ class Process(EventHandler):
         return float(V_all)
 
     @cached_property_if_locked
-    def V_solid(self):
+    def V_solid(self) -> float:
         """float: Volume of all solid phase material used in flow sheet."""
         return sum([unit.volume_solid for unit in self.flow_sheet.units_with_binding])
 
@@ -283,32 +284,32 @@ class Process(EventHandler):
         return Dict(section_states)
 
     @property
-    def n_sensitivities(self):
+    def n_sensitivities(self) -> int:
         """int: Number of parameter sensitivities."""
         return len(self.parameter_sensitivities)
 
     @property
-    def parameter_sensitivities(self):
+    def parameter_sensitivities(self) -> list:
         """list: Parameter sensitivites."""
         return self._parameter_sensitivities
 
     @property
-    def parameter_sensitivity_names(self):
+    def parameter_sensitivity_names(self) -> list:
         """list: Parameter sensitivity names."""
         return [sens.name for sens in self.parameter_sensitivities]
 
     def add_parameter_sensitivity(
         self,
-        parameter_paths,
-        name=None,
-        components=None,
-        polynomial_coefficients=None,
-        reaction_indices=None,
-        bound_state_indices=None,
-        section_indices=None,
-        abstols=None,
-        factors=None,
-    ):
+        parameter_paths: str | list[str],
+        name: Optional[str] = None,
+        components: Optional[str | list[str]] = None,
+        polynomial_coefficients: Optional[str | list[str]] = None,
+        reaction_indices: Optional[int | list[int]] = None,
+        bound_state_indices: Optional[int | list[int]] = None,
+        section_indices: Optional[int | list[int]] = None,
+        abstols: Optional[float | list[float]] = None,
+        factors: Optional[int | list[int]] = None
+    ) -> None:
         """
         Add parameter sensitivty to Process.
 
@@ -508,7 +509,7 @@ class Process(EventHandler):
         return self._system_state
 
     @system_state.setter
-    def system_state(self, system_state):
+    def system_state(self, system_state: np.ndarray) -> None:
         self._system_state = system_state
 
     @property
@@ -517,7 +518,7 @@ class Process(EventHandler):
         return self._system_state_derivative
 
     @system_state_derivative.setter
-    def system_state_derivative(self, system_state_derivative):
+    def system_state_derivative(self, system_state_derivative: np.ndarray) -> None:
         self._system_state_derivative = system_state_derivative
 
     @property
@@ -530,7 +531,7 @@ class Process(EventHandler):
         return parameters
 
     @parameters.setter
-    def parameters(self, parameters):
+    def parameters(self, parameters: dict) -> None:
         try:
             self.flow_sheet.parameters = parameters.pop("flow_sheet")
         except KeyError:
@@ -539,21 +540,21 @@ class Process(EventHandler):
         super(Process, self.__class__).parameters.fset(self, parameters)
 
     @property
-    def section_dependent_parameters(self) -> dict:
+    def section_dependent_parameters(self) -> Dict:
         """dict: Section dependent parameters of the process."""
         parameters = Dict()
         parameters.flow_sheet = self.flow_sheet.section_dependent_parameters
         return parameters
 
     @property
-    def polynomial_parameters(self) -> dict:
+    def polynomial_parameters(self) -> Dict:
         """dict: Polynomial parameters of the process."""
         parameters = super().polynomial_parameters
         parameters.flow_sheet = self.flow_sheet.polynomial_parameters
         return parameters
 
     @property
-    def sized_parameters(self) -> dict:
+    def sized_parameters(self) -> Dict:
         """dict: Sized parameters of the process."""
         parameters = super().sized_parameters
         parameters.flow_sheet = self.flow_sheet.sized_parameters
@@ -568,7 +569,7 @@ class Process(EventHandler):
         return initial_state
 
     @initial_state.setter
-    def initial_state(self, initial_state):
+    def initial_state(self, initial_state: dict) -> None:
         try:
             self.flow_sheet.initial_state = initial_state.pop("flow_sheet")
         except KeyError:
@@ -580,14 +581,14 @@ class Process(EventHandler):
             setattr(self, state_name, state_value)
 
     @property
-    def config(self) -> dict[str, dict]:
+    def config(self) -> Dict:
         """dict[str, dict]: Parameters and initial state of the process."""
         return Dict(
             {"parameters": self.parameters, "initial_state": self.initial_state}
         )
 
     @config.setter
-    def config(self, config):
+    def config(self, config: dict) -> None:
         self.parameters = config["parameters"]
         self.initial_state = config["initial_state"]
 
@@ -820,7 +821,7 @@ class Process(EventHandler):
                 t,
             )
 
-    def check_config(self):
+    def check_config(self) -> bool:
         """
         Validate that process config is setup correctly.
 
@@ -850,7 +851,7 @@ class Process(EventHandler):
 
         return flag
 
-    def check_cstr_volume(self):
+    def check_cstr_volume(self) -> bool:
         """
         Check if CSTRs run empty.
 

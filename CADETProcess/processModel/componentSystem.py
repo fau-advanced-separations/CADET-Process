@@ -1,6 +1,6 @@
 from collections import defaultdict
 from functools import wraps
-from typing import NoReturn
+from typing import Any, Iterator
 
 from addict import Dict
 
@@ -76,7 +76,7 @@ class Component(Structure):
         charge: int | list[int | None] = None,
         molecular_weight: float | list[float | None] = None,
         density: float | list[float | None] = None,
-    ) -> NoReturn:
+    ) -> None:
         """
         Initialize Component.
 
@@ -85,13 +85,13 @@ class Component(Structure):
         name : str | None
             Name of the component.
         species : str | list[str | None]
-            Names of the subspecies.
+            Name(s) of the subspecies to initialize. If None, the component's name is used.
         charge : int | list [int | None]
-            Charges of the subspecies.
+            Charges of the subspecies. Defaults to None for each species.
         molecular_weight : float | list[float | None]
-            Molecular weights of the subspecies.
+            Molecular weights of the subspecies. Defaults to None for each species.
         density : float | list[float | None]
-            Density of component (including species).
+            Density of component (including species). Defaults to None for each species.
         """
         self.name: str | None = name
         self._species: list[Species] = []
@@ -121,14 +121,16 @@ class Component(Structure):
     def add_species(
         self,
         species: str | Species,
-        *args,
-        **kwargs,
+        *args: Any,
+        **kwargs: Any
     ) -> Species:
         """
         Add a subspecies to the component.
 
         Parameters
         ----------
+        species: string | Species
+            Species to add
         *args
             Variable length argument list.
         **kwargs
@@ -173,7 +175,7 @@ class Component(Structure):
         """str: String representation of the component."""
         return self.name
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Species]:
         """Iterate over the subspecies of the component."""
         yield from self.species
 
@@ -305,9 +307,9 @@ class ComponentSystem(Structure):
     def add_component(
         self,
         component: str | Component,
-        *args: list,
-        **kwargs: dict,
-    ) -> NoReturn:
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
         """
         Add a component to the system.
 
@@ -315,9 +317,9 @@ class ComponentSystem(Structure):
         ----------
         component : str | Component
             The component instance or name of the component to be added.
-        *args : list
+        *args : Any
             The positional arguments to be passed to the component class's constructor.
-        **kwargs : dict
+        **kwargs : Any
             The keyword arguments to be passed to the component class's constructor.
         """
         if not isinstance(component, Component):
@@ -330,7 +332,7 @@ class ComponentSystem(Structure):
 
         self._components.append(component)
 
-    def remove_component(self, component: str | Component) -> NoReturn:
+    def remove_component(self, component: str | Component) -> None:
         """
         Remove a component from the system.
 
@@ -442,7 +444,7 @@ class ComponentSystem(Structure):
         """int: Return the number of components in the system."""
         return self.n_comp
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Component]:
         """Iterate over components in the system."""
         yield from self.components
 

@@ -43,7 +43,7 @@ it's no longer required for setting up as optimization problem.
 
 """  # noqa
 
-from typing import Any
+from typing import Any, Optional
 
 import numpy as np
 
@@ -110,15 +110,15 @@ class Performance(Structure):
 
     def __init__(
         self,
-        mass,
-        concentration,
-        purity,
-        recovery,
-        productivity,
-        eluent_consumption,
-        mass_balance_difference,
-        component_system=None,
-    ):
+        mass: np.ndarray,
+        concentration: np.ndarray,
+        purity: np.ndarray,
+        recovery: np.ndarray,
+        productivity: np.ndarray,
+        eluent_consumption: np.ndarray,
+        mass_balance_difference: np.ndarray,
+        component_system: Optional[ComponentSystem] = None
+    ) -> None:
         """
         Initialize Performance.
 
@@ -154,7 +154,7 @@ class Performance(Structure):
         self.mass_balance_difference = mass_balance_difference
 
     @property
-    def n_comp(self):
+    def n_comp(self) -> int:
         """int: Number of components in the system."""
         return self.component_system.n_comp
 
@@ -162,14 +162,14 @@ class Performance(Structure):
         """Return dictionary representation of the object."""
         return {key: getattr(self, key).tolist() for key in self._performance_keys}
 
-    def __getitem__(self, item) -> Any:
+    def __getitem__(self, item: str) -> Any:
         """Get an attribute of the object by its name."""
         if item not in self._performance_keys:
             raise AttributeError("Not a valid performance parameter")
 
         return getattr(self, item)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """str: String representation of the object."""
         return (
             f"{self.__class__.__name__}(mass={np.array_repr(self.mass)}, "
@@ -194,7 +194,8 @@ class RankedPerformance:
 
     _performance_keys = Performance._performance_keys
 
-    def __init__(self, performance, ranking=1.0):
+    def __init__(self, performance: Performance, ranking: Optional[float] = 1.0) -> None:
+        """Initialize RankedPerformance."""
         if not isinstance(performance, Performance):
             raise TypeError("Expected Performance")
 
@@ -208,12 +209,12 @@ class RankedPerformance:
         return self._performance
 
     @property
-    def ranking(self) -> list[float]:
+    def ranking(self) -> float:
         """list[float]: Relative weighting factors for multi component evaluation."""
         return self._ranking
 
     @ranking.setter
-    def ranking(self, ranking):
+    def ranking(self, ranking: tuple[float | int] | np.ndarray) -> None:
         if isinstance(ranking, (float, int)):
             ranking = self.performance.n_comp * [ranking]
         elif len(ranking) != self.performance.n_comp:
@@ -221,7 +222,7 @@ class RankedPerformance:
 
         self._ranking = ranking
 
-    def to_dict(self) -> Any:
+    def to_dict(self) -> dict:
         """Return dictionary representation of the object."""
         return {key: float(getattr(self, key)) for key in self._performance_keys}
 
@@ -231,7 +232,7 @@ class RankedPerformance:
             raise AttributeError
         return sum(self._performance[item] * self.ranking) / sum(self.ranking)
 
-    def __getitem__(self, item) -> Any:
+    def __getitem__(self, item: str) -> Any:
         """Retrieve an attribute of the object by its name using indexing syntax."""
         if item not in self._performance_keys:
             raise AttributeError("Not a valid performance parameter")
@@ -259,7 +260,7 @@ class PerformanceIndicator(MetricBase):
     RankedPerformance
     """
 
-    def __init__(self, ranking=None):
+    def __init__(self, ranking: Optional[list[float]] = None) -> None:
         """
         Initialize PerformanceIndicator.
 
@@ -271,12 +272,12 @@ class PerformanceIndicator(MetricBase):
         self.ranking = ranking
 
     @property
-    def ranking(self):
+    def ranking(self) -> float:
         """list[float]: Relative weighting factors for multi component evaluation."""
         return self._ranking
 
     @ranking.setter
-    def ranking(self, ranking):
+    def ranking(self, ranking: list[float]) -> None:
         self._ranking = ranking
 
     @property
@@ -284,7 +285,7 @@ class PerformanceIndicator(MetricBase):
         """int: Bad metrics to use when evaluation fails."""
         return 0
 
-    def evaluate(self, performance):
+    def evaluate(self, performance: Performance) -> list:
         """
         Evaluate the performance indicator for the given performance data.
 
@@ -333,7 +334,7 @@ class Mass(PerformanceIndicator):
     PerformanceIndicator
     """
 
-    def _evaluate(self, performance):
+    def _evaluate(self, performance: Performance) -> np.ndarray:
         return performance.mass
 
 
@@ -346,7 +347,7 @@ class Recovery(PerformanceIndicator):
     PerformanceIndicator
     """
 
-    def _evaluate(self, performance):
+    def _evaluate(self, performance: Performance) -> np.ndarray:
         return performance.recovery
 
 
@@ -359,7 +360,7 @@ class Productivity(PerformanceIndicator):
     PerformanceIndicator
     """
 
-    def _evaluate(self, performance):
+    def _evaluate(self, performance: Performance) -> np.ndarray:
         return performance.productivity
 
 
@@ -372,7 +373,7 @@ class EluentConsumption(PerformanceIndicator):
     PerformanceIndicator
     """
 
-    def _evaluate(self, performance):
+    def _evaluate(self, performance: Performance) -> np.ndarray:
         return performance.eluent_consumption
 
 
@@ -385,7 +386,7 @@ class Purity(PerformanceIndicator):
     PerformanceIndicator
     """
 
-    def _evaluate(self, performance):
+    def _evaluate(self, performance: Performance) -> np.ndarray:
         return performance.purity
 
 
@@ -398,7 +399,7 @@ class Concentration(PerformanceIndicator):
     PerformanceIndicator
     """
 
-    def _evaluate(self, performance):
+    def _evaluate(self, performance: Performance) -> np.ndarray:
         return performance.concentration
 
 
@@ -414,7 +415,7 @@ class PerformanceProduct(PerformanceIndicator):
     PerformanceIndicator
     """
 
-    def _evaluate(self, performance):
+    def _evaluate(self, performance: Performance) -> np.ndarray:
         return (
             performance.productivity
             * performance.recovery
@@ -431,5 +432,5 @@ class MassBalanceDifference(PerformanceIndicator):
     PerformanceIndicator
     """
 
-    def _evaluate(self, performance):
+    def _evaluate(self, performance: Performance) -> np.ndarray:
         return np.abs(performance.mass_balance_difference)
