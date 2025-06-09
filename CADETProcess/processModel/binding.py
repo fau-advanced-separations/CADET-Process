@@ -91,7 +91,7 @@ class BindingBaseClass(Structure):
         component_system: ComponentSystem,
         name: Optional[str] = None,
         *args: Any,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> None:
         """
         Initialize binding model.
@@ -120,7 +120,7 @@ class BindingBaseClass(Structure):
         return self._component_system
 
     @component_system.setter
-    def component_system(self, component_system):
+    def component_system(self, component_system: ComponentSystem) -> None:
         if not isinstance(component_system, ComponentSystem):
             raise TypeError("Expected ComponentSystem")
         self._component_system = component_system
@@ -139,7 +139,7 @@ class BindingBaseClass(Structure):
         return bound_states
 
     @bound_states.setter
-    def bound_states(self, bound_states):
+    def bound_states(self, bound_states: np.ndarray) -> None:
         indices = self.non_binding_component_indices
         if any(bound_states[i] > 0 for i in indices):
             raise CADETProcessError("Cannot set bound state for non-binding component.")
@@ -170,7 +170,8 @@ class NoBinding(BindingBaseClass):
     The number of components is set to zero for this class.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize NoBinding."""
         super().__init__(ComponentSystem(), name="NoBinding")
 
 
@@ -303,7 +304,8 @@ class BiLangmuir(BindingBaseClass):
         "capacity",
     ]
 
-    def __init__(self, *args, n_binding_sites=2, **kwargs):
+    def __init__(self, *args: Any, n_binding_sites: int = 2, **kwargs: Any) -> None:
+        """Initialize BiLangmuir."""
         self.n_binding_sites = n_binding_sites
 
         super().__init__(*args, **kwargs)
@@ -338,7 +340,8 @@ class BiLangmuirLDF(BindingBaseClass):
         "capacity",
     ]
 
-    def __init__(self, *args, n_binding_sites=2, **kwargs):
+    def __init__(self, *args: Any, n_binding_sites: int = 2, **kwargs: Any) -> None:
+        """Initialize BiLangmuirLDF."""
         self.n_binding_sites = n_binding_sites
 
         super().__init__(*args, **kwargs)
@@ -418,7 +421,7 @@ class StericMassAction(BindingBaseClass):
     ]
 
     @property
-    def adsorption_rate_untransformed(self) -> list[float] | None:
+    def adsorption_rate_untransformed(self) -> list[UnsignedFloat]:
         """list[float]: Untransformed adsorption rate."""
         if self.adsorption_rate is None:
             return None
@@ -427,7 +430,10 @@ class StericMassAction(BindingBaseClass):
         return self.adsorption_rate * self.reference_solid_phase_conc ** (-nu)
 
     @adsorption_rate_untransformed.setter
-    def adsorption_rate_untransformed(self, adsorption_rate_untransformed):
+    def adsorption_rate_untransformed(
+        self,
+        adsorption_rate_untransformed: list[float],
+    ) -> None:
         if self.characteristic_charge is None:
             raise ValueError(
                 "Please set nu before setting an untransformed rate constant."
@@ -439,7 +445,7 @@ class StericMassAction(BindingBaseClass):
         ).tolist()
 
     @property
-    def desorption_rate_untransformed(self) -> list[float] | None:
+    def desorption_rate_untransformed(self) -> list[UnsignedFloat]:
         """list[float]: Untransformed desorption rate."""
         if self.desorption_rate is None:
             return None
@@ -448,7 +454,10 @@ class StericMassAction(BindingBaseClass):
         return self.desorption_rate * self.reference_liquid_phase_conc ** (-nu)
 
     @desorption_rate_untransformed.setter
-    def desorption_rate_untransformed(self, desorption_rate_untransformed):
+    def desorption_rate_untransformed(
+        self,
+        desorption_rate_untransformed: list[float],
+    ) -> None:
         if self.characteristic_charge is None:
             raise ValueError(
                 "Please set nu before setting a transformed rate constant."
@@ -713,7 +722,8 @@ class BiStericMassAction(BindingBaseClass):
         "reference_solid_phase_conc",
     ]
 
-    def __init__(self, *args, n_states=2, **kwargs):
+    def __init__(self, *args: Any, n_states: int = 2, **kwargs: Any) -> None:
+        """Initialize BiStericMassAction class."""
         self.n_states = n_states
         super().__init__(*args, **kwargs)
 
@@ -780,7 +790,7 @@ class MultistateStericMassAction(BindingBaseClass):
     ]
 
     @property
-    def _conversion_entries(self):
+    def _conversion_entries(self) -> int:
         n = 0
         for state in self.bound_states:
             n += state**2
@@ -1049,7 +1059,7 @@ class GeneralizedIonExchange(BindingBaseClass):
     ]
 
     @property
-    def n_pieces(self):
+    def n_pieces(self) -> int:
         """int: Number of pieces for cubic polynomial description of nu."""
         if self.characteristic_charge_breaks is None:
             return 1

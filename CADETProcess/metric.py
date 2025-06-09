@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Any
 
 import numpy as np
 
@@ -20,7 +21,7 @@ class MetricBase(ABC):
     bad_metrics = np.inf
 
     @abstractmethod
-    def evaluate(self):
+    def evaluate(self) -> Any:
         """
         Evaluate the metric.
 
@@ -28,7 +29,7 @@ class MetricBase(ABC):
         """
         pass
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """
         Invoke the evaluate method.
 
@@ -46,7 +47,7 @@ class MetricBase(ABC):
         """
         return self.evaluate(*args, **kwargs)
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         Return the class name as the string representation of the instance.
 

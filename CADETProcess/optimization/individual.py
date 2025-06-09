@@ -1,6 +1,8 @@
 import hashlib
+from typing import Optional
 
 import numpy as np
+import numpy.typing as npt
 from addict import Dict
 
 from CADETProcess import CADETProcessError
@@ -85,24 +87,25 @@ class Individual(Structure):
 
     def __init__(
         self,
-        x,
-        f=None,
-        g=None,
-        f_min=None,
-        x_transformed=None,
-        cv_bounds=None,
-        cv_lincon=None,
-        cv_lineqcon=None,
-        cv_nonlincon=None,
-        m=None,
-        m_min=None,
-        independent_variable_names=None,
-        objective_labels=None,
-        nonlinear_constraint_labels=None,
-        meta_score_labels=None,
-        variable_names=None,
-        is_feasible=True,
-    ):
+        x: npt.ArrayLike,
+        f: Optional[npt.ArrayLike] = None,
+        g: Optional[npt.ArrayLike] = None,
+        f_min: Optional[npt.ArrayLike] = None,
+        x_transformed: Optional[npt.ArrayLike] = None,
+        cv_bounds: Optional[npt.ArrayLike] = None,
+        cv_lincon: Optional[npt.ArrayLike] = None,
+        cv_lineqcon: Optional[npt.ArrayLike] = None,
+        cv_nonlincon: Optional[npt.ArrayLike] = None,
+        m: Optional[npt.ArrayLike] = None,
+        m_min: Optional[npt.ArrayLike] = None,
+        independent_variable_names: list[str] = None,
+        objective_labels: list[str] = None,
+        nonlinear_constraint_labels: list[str] = None,
+        meta_score_labels: list[str] = None,
+        variable_names: list[str] = None,
+        is_feasible: bool = True,
+    ) -> None:
+        """Initialize Individual Object."""
         self.x = x
         if x_transformed is None:
             x_transformed = x

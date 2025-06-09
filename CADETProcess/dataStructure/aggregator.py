@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any, Callable, Iterable, Mapping, Optional
 
 import numpy as np
+import numpy.typing as npt
 
 from .dataStructure import Aggregator
 
@@ -10,13 +11,15 @@ from .dataStructure import Aggregator
 class NumpyProxyArray(np.ndarray):
     """A numpy array that dynamically updates attributes of container elements."""
 
-    def __new__(cls, aggregator: Aggregator, instance: Any) -> Optional[NumpyProxyArray]:
+    def __new__(
+        cls, aggregator: SizedAggregator, instance: Any
+    ) -> Optional[NumpyProxyArray]:
         """
         Create a new NumpyProxyArray instance using data from an aggregator.
 
         Parameters
         ----------
-        aggregator : Aggregator
+        aggregator : SizedAggregator
             The aggregator from which to obtain values.
         instance : Any
             The instance associated with the values.
@@ -38,15 +41,15 @@ class NumpyProxyArray(np.ndarray):
 
         return obj
 
-    def _get_values_from_aggregator(self):
+    def _get_values_from_aggregator(self) -> Any:
         """Refresh data from the underlying container."""
         return self.aggregator._get_values_from_container(self.instance, transpose=True, check=True)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int) -> Any:
         """Retrieve an item from the aggregated parameter array."""
         return self._get_values_from_aggregator()[index]
 
-    def __setitem__(self, index, value):
+    def __setitem__(self, index: int, value: Any) -> None:
         """
         Modify an individual element in the aggregated parameter list.
 
@@ -56,7 +59,7 @@ class NumpyProxyArray(np.ndarray):
         current_value[index] = value
         self.aggregator.__set__(self.instance, current_value)
 
-    def __array_finalize__(self, obj):
+    def __array_finalize__(self, obj: NumpyProxyArray) -> Optional[np.ndarray]:
         """Ensure attributes are copied when creating a new view or slice."""
         if obj is None:
             self.aggregator = None
@@ -69,12 +72,18 @@ class NumpyProxyArray(np.ndarray):
         self.aggregator = getattr(obj, "aggregator", None)
         self.instance = getattr(obj, "instance", None)
 
-    def __array_function__(self, func, types, *args, **kwargs):
+    def __array_function__(
+        self,
+        func: Callable,
+        types: Iterable[type],
+        *args: Iterable[Any],
+        **kwargs: Mapping[str, Any],
+    ) -> np.ndarray:
         """Ensure that high-level NumPy functions return a normal np.ndarray."""
         result = super().__array_function__(func, types, *args, **kwargs)
         return np.asarray(result)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Return a fresh representation that reflects live data."""
         return f"NumpyProxyA{self._get_values_from_aggregator().__repr__()[1:]}"
 
@@ -82,7 +91,7 @@ class NumpyProxyArray(np.ndarray):
 class SizedAggregator(Aggregator):
     """Aggregator for sized parameters."""
 
-    def __init__(self, *args, transpose=False, **kwargs):
+    def __init__(self, *args: Any, transpose: bool = False, **kwargs: Any) -> None:
         """
         Initialize a SizedAggregator instance.
 
@@ -101,7 +110,7 @@ class SizedAggregator(Aggregator):
 
         super().__init__(*args, **kwargs)
 
-    def _parameter_shape(self, instance):
+    def _parameter_shape(self, instance: Any) -> tuple[int, ...]:
         values = self._get_values_from_container(instance, transpose=False)
 
         shapes = [el.shape for el in values]
@@ -114,13 +123,15 @@ class SizedAggregator(Aggregator):
 
         return shapes[0]
 
-    def _expected_shape(self, instance):
+    def _expected_shape(self, instance: Any) -> tuple[int, ...]:
         if self.transpose:
             return self._parameter_shape(instance) + (self._n_instances(instance),)
         else:
             return (self._n_instances(instance),) + self._parameter_shape(instance)
 
-    def _get_values_from_container(self, instance, transpose=False, check=False):
+    def _get_values_from_container(
+        self, instance: Any, transpose: bool = False, check: bool = False
+    ) -> np.ndarray:
         value = super()._get_values_from_container(instance, check=False)
 
         if value is None or len(value) == 0:
@@ -137,7 +148,13 @@ class SizedAggregator(Aggregator):
 
         return value
 
-    def _check(self, instance, value, transpose=True, recursive=False):
+    def _check(
+        self,
+        instance: Any,
+        value: npt.ArrayLike,
+        transpose: bool = True,
+        recursive: bool = False,
+    ) -> None:
         value_array = np.array(value, ndmin=2)
         if transpose and self.transpose:
             value_array = value_array.T
@@ -151,7 +168,13 @@ class SizedAggregator(Aggregator):
         if recursive:
             super()._check(instance, value, recursive)
 
-    def _prepare(self, instance, value, transpose=False, recursive=False):
+    def _prepare(
+        self,
+        instance: Any,
+        value: npt.ArrayLike,
+        transpose: bool = False,
+        recursive: bool = False,
+    ) -> np.ndarray:
         value = np.array(value, ndmin=2)
 
         if transpose and self.transpose:
@@ -162,7 +185,7 @@ class SizedAggregator(Aggregator):
 
         return value
 
-    def __get__(self, instance, cls):
+    def __get__(self, instance: Any, cls: type) -> NumpyProxyArray:
         """
         Retrieve the descriptor value for the given instance.
 
@@ -183,7 +206,7 @@ class SizedAggregator(Aggregator):
 
         return NumpyProxyArray(self, instance)
 
-    def __set__(self, instance, value):
+    def __set__(self, instance: Any, value: Any) -> None:
         """
         Set the descriptor value for the given instance.
 
@@ -201,7 +224,7 @@ class SizedAggregator(Aggregator):
 class ClassDependentAggregator(Aggregator):
     """Aggregator where parameter name changes depending on instance type."""
 
-    def __init__(self, *args, mapping, **kwargs):
+    def __init__(self, *args: Any, mapping: dict, **kwargs: Any) -> None:
         """
         Initialize the Aggregator descriptor.
 
@@ -218,7 +241,7 @@ class ClassDependentAggregator(Aggregator):
 
         super().__init__(*args, **kwargs)
 
-    def _get_values_from_container(self, instance, check=False):
+    def _get_values_from_container(self, instance: Any, check: bool = False) -> list:
         container = self._container_obj(instance)
 
         values = []

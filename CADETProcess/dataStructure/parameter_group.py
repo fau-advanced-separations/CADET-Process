@@ -1,3 +1,5 @@
+from typing import Any
+
 from CADETProcess import CADETProcessError
 
 
@@ -20,7 +22,8 @@ class ParameterWrapper:
 
     _base_class = object
 
-    def __init__(self, wrapped_object):
+    def __init__(self, wrapped_object: Any) -> None:
+        """Construct ParameterWrapper object."""
         if not isinstance(wrapped_object, self._baseClass):
             raise CADETProcessError(f"Expected {self._baseClass}")
 

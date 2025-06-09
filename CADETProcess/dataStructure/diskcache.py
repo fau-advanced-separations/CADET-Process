@@ -3,6 +3,7 @@ import io
 import os.path as op
 import pickletools
 import sqlite3
+from typing import Any, Union
 
 import dill as pickle
 import diskcache
@@ -14,11 +15,12 @@ __all__ = ["DillDisk"]
 class DillDisk(diskcache.Disk):
     """Cache key and value serialization for SQLite database and files."""
 
-    def put(self, key):
+    def put(self, key: Any) -> None:
         """
         Convert `key` to fields key and raw for Cache table.
 
-        :param key: key to convert :return: (database key, raw boolean) pair
+        :param key: key to convert
+        :return: (database key, raw boolean) pair
         """
         # pylint: disable=unidiomatic-typecheck
         type_key = type(key)
@@ -36,12 +38,13 @@ class DillDisk(diskcache.Disk):
             result = pickletools.optimize(data)
             return sqlite3.Binary(result), False
 
-    def get(self, key, raw):
+    def get(self, key: Any, raw: Any) -> Any:
         """
         Convert fields `key` and `raw` from Cache table to key.
 
-        :param key: database key to convert :param bool raw: flag indicating raw
-        database storage :return: corresponding Python key
+        :param key: database key to convert
+        :param bool raw: flag indicating raw database storage
+        :return: corresponding Python key
         """
         # pylint: disable=no-self-use,unidiomatic-typecheck
         if raw:
@@ -49,13 +52,19 @@ class DillDisk(diskcache.Disk):
         else:
             return pickle.load(io.BytesIO(key))
 
-    def store(self, value, read, key=UNKNOWN):
+    def store(
+        self,
+        value: Any,
+        read: bool,
+        key: Any = UNKNOWN,
+    ) -> tuple[int, int, Union[str, None], Union[Any, sqlite3.Binary]]:
         """
         Convert `value` to fields size, mode, filename, and value for Cache table.
 
-        :param value: value to convert :param bool read: True when value is file-like object :param
-        key: key for item (default UNKNOWN) :return: (size, mode, filename, value) tuple for Cache
-        table
+        :param value: value to convert
+        :param bool read: True when value is file-like object
+        :param key: key for item (default UNKNOWN)
+        :return: (size, mode, filename, value) tuple for Cache table
         """
         # pylint: disable=unidiomatic-typecheck
         type_value = type(value)
@@ -95,13 +104,15 @@ class DillDisk(diskcache.Disk):
                 self._write(full_path, io.BytesIO(result), "xb")
                 return len(result), MODE_PICKLE, filename, None
 
-    def fetch(self, mode, filename, value, read):
+    def fetch(self, mode: int, filename: str, value: Any, read: bool) -> Any:
         """
         Convert fields `mode`, `filename`, and `value` from Cache table to value.
 
-        :param int mode: value mode raw, binary, text, or pickle :param str filename:
-        filename of corresponding value :param value: database value :param bool read:
-        when True, return an open file handle :return: corresponding Python value
+        :param int mode: value mode raw, binary, text, or pickle
+        :param str filename: filename of corresponding value
+        :param value: database value
+        :param bool read: when True, return an open file handle
+        :return: corresponding Python value
         :raises: IOError if the value cannot be read
         """
         # pylint: disable=no-self-use,unidiomatic-typecheck,consider-using-with

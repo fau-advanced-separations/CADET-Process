@@ -63,16 +63,17 @@ class CachedPropertiesMixin(Structure):
 
     _lock = Bool(default=False)
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize Cached Properties Mixin Object."""
         super().__init__(*args, **kwargs)
         self.cached_properties = {}
 
     @property
-    def lock(self):
+    def lock(self) -> bool:
         """bool: If True, properties are cached. False otherwise."""
         return self._lock
 
     @lock.setter
-    def lock(self, lock):
+    def lock(self, lock: bool) -> None:
         self._lock = lock
         self.cached_properties = {}

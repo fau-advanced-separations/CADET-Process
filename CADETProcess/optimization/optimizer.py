@@ -4,10 +4,11 @@ import time
 import warnings
 from abc import abstractmethod
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional, Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy.typing as npt
 
 from CADETProcess import CADETProcessError, log, settings
 from CADETProcess.dataStructure import (
@@ -125,7 +126,8 @@ class OptimizerBase(Structure):
         "similarity_tol",
     ]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize OptimizerBase."""
         self.parallelization_backend = Joblib()
 
         super().__init__(*args, **kwargs)
@@ -133,18 +135,18 @@ class OptimizerBase(Structure):
     def optimize(
         self,
         optimization_problem: OptimizationProblem,
-        x0=None,
-        save_results=True,
-        results_directory=None,
-        use_checkpoint=False,
-        overwrite_results_directory=False,
-        exist_ok=True,
-        log_level="INFO",
-        reinit_cache=True,
-        delete_cache=True,
-        *args,
-        **kwargs,
-    ):
+        x0: Optional[list] = None,
+        save_results: Optional[bool] = True,
+        results_directory: Optional[str] = None,
+        use_checkpoint: Optional[bool] = False,
+        overwrite_results_directory: Optional[bool] = False,
+        exist_ok: Optional[bool] = True,
+        log_level: Optional[str] = "INFO",
+        reinit_cache: Optional[bool] = True,
+        delete_cache: bool = True,
+        *args: Any,
+        **kwargs: Any,
+    ) -> OptimizationResults:
         """
         Solve OptimizationProblem.
 
@@ -170,6 +172,8 @@ class OptimizerBase(Structure):
         log_level : str, optional
             log level. The default is "INFO".
         reinit_cache : bool, optional
+            If True, reinitialize the Cache. The default is True.
+        delete_cache : bool, optional
             If True, delete ResultsCache after finishing. The default is True.
         *args : TYPE
             Additional arguments for Optimizer.
@@ -323,7 +327,9 @@ class OptimizerBase(Structure):
         return results
 
     @abstractmethod
-    def _run(optimization_problem, x0=None, *args, **kwargs):
+    def _run(
+        optimization_problem, x0: Optional[list] = None, *args: Any, **kwargs: Any
+    ) -> None:
         """
         Abstract Method for solving an optimization problem.
 
@@ -333,6 +339,10 @@ class OptimizerBase(Structure):
             Optimization problem to be solved.
         x0 : list, optional
             Initial population of independent variables in untransformed space.
+        *args : args, optional
+            Additional args that may be processed.
+        **kwargs : kwargs, optional
+            Additional kwargs that may be processed.
 
         Returns
         -------
@@ -347,7 +357,9 @@ class OptimizerBase(Structure):
         """
         return
 
-    def check_optimization_problem(self, optimization_problem):
+    def check_optimization_problem(
+        self, optimization_problem: OptimizationProblem
+    ) -> bool:
         """
         Check if problem is configured correctly and supported by the optimizer.
 
@@ -420,7 +432,9 @@ class OptimizerBase(Structure):
 
         return flag
 
-    def check_x0(self, optimization_problem, x0):
+    def check_x0(
+        self, optimization_problem: OptimizationProblem, x0: npt.ArrayLike
+    ) -> tuple:
         """
         Check the initial guess x0 for an optimization problem.
 
@@ -486,7 +500,14 @@ class OptimizerBase(Structure):
 
         return flag, x0
 
-    def _create_population(self, X_transformed, F, F_min, G, CV_nonlincon):
+    def _create_population(
+        self,
+        X_transformed: npt.ArrayLike,
+        F: npt.ArrayLike,
+        F_min: npt.ArrayLike,
+        G: npt.ArrayLike,
+        CV_nonlincon: npt.ArrayLike,
+    ) -> Population:
         """Create new population from current generation for post procesing."""
         X_transformed = np.array(X_transformed, ndmin=2)
         F = np.array(F, ndmin=2)
@@ -538,7 +559,7 @@ class OptimizerBase(Structure):
 
         return population
 
-    def _create_pareto_front(self, X_opt_transformed):
+    def _create_pareto_front(self, X_opt_transformed: npt.ArrayLike) -> Population:
         """Create new pareto front from current generation for post procesing."""
         if X_opt_transformed is None:
             pareto_front = None
@@ -554,7 +575,7 @@ class OptimizerBase(Structure):
 
         return pareto_front
 
-    def _create_meta_front(self):
+    def _create_meta_front(self) -> Population:
         """Create new meta front from current generation for post procesing."""
         if self.optimization_problem.n_multi_criteria_decision_functions == 0:
             meta_front = None
@@ -573,7 +594,11 @@ class OptimizerBase(Structure):
 
         return meta_front
 
-    def _evaluate_callbacks(self, current_generation, sub_dir=None):
+    def _evaluate_callbacks(
+        self,
+        current_generation: int,
+        sub_dir: str = None,
+    ) -> None:
         if sub_dir is not None:
             callbacks_dir = self.callbacks_dir / sub_dir
             callbacks_dir.mkdir(exist_ok=True, parents=True)
@@ -596,7 +621,7 @@ class OptimizerBase(Structure):
             parallelization_backend=self.parallelization_backend,
         )
 
-    def _log_results(self, current_generation):
+    def _log_results(self, current_generation: int) -> None:
         self.logger.info(f"Finished Generation {current_generation}.")
         for ind in self.results.meta_front:
             message = f"x: {ind.x}, f: {ind.f}"
@@ -610,13 +635,13 @@ class OptimizerBase(Structure):
 
     def run_post_processing(
         self,
-        X_transformed,
-        F_minimized,
-        G,
-        CV_nonlincon,
-        current_generation,
-        X_opt_transformed=None,
-    ):
+        X_transformed: Sequence[Sequence[float]],
+        F_minimized: Sequence[float | Sequence[float]],
+        G: Sequence[float | Sequence[float]],
+        CV_nonlincon: Sequence[float],
+        current_generation: int,
+        X_opt_transformed: Optional[Sequence[float]] = None,
+    ) -> None:
         """
         Run post-processing of generation.
 
@@ -684,7 +709,7 @@ class OptimizerBase(Structure):
 
         self._log_results(current_generation)
 
-    def run_final_processing(self):
+    def run_final_processing(self) -> None:
         """Run post processing at the end of the optimization."""
         self.results.plot_figures(show=False)
         if self.optimization_problem.n_callbacks > 0:
@@ -692,7 +717,7 @@ class OptimizerBase(Structure):
         self.results.save_results("final")
 
     @property
-    def options(self):
+    def options(self) -> dict:
         """dict: Optimizer options."""
         return {
             opt: getattr(self, opt)
@@ -700,12 +725,12 @@ class OptimizerBase(Structure):
         }
 
     @property
-    def specific_options(self):
+    def specific_options(self) -> dict:
         """dict: Optimizer spcific options."""
         return {opt: getattr(self, opt) for opt in (self._specific_options)}
 
     @property
-    def n_cores(self):
+    def n_cores(self) -> int:
         """int: Proxy to the number of cores used by the parallelization backend.
 
         Note, this will always return the actual number of cores used, even if negative
@@ -714,12 +739,11 @@ class OptimizerBase(Structure):
         See Also
         --------
         parallelization_backend
-
         """
         return self.parallelization_backend._n_cores
 
     @n_cores.setter
-    def n_cores(self, n_cores: int):
+    def n_cores(self, n_cores: int) -> None:
         self.parallelization_backend.n_cores = n_cores
 
     def __str__(self) -> str:

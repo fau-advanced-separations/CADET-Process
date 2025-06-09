@@ -2,36 +2,44 @@ import warnings
 
 import numba
 import numpy as np
+import numpy.typing as npt
 import scipy
+from scipy.interpolate import PchipInterpolator
 
 from CADETProcess import CADETProcessError
 
 
-def linear_coeff(x1, y1, x2, y2):
+def linear_coeff(x1: float, y1: float, x2: float, y2: float) -> tuple[float, float]:
     """Return paramters that fit y = a*x+b."""
     a = (y2 - y1) / (x2 - x1)
     b = y2 - a * x2
     return a, b
 
 
-def exponential_coeff(x1, y1, x2, y2):
+def exponential_coeff(
+    x1: float, y1: float, x2: float, y2: float
+) -> tuple[float, float]:
     """Return paramaters that fit y = b*exp(m*x)."""
     b = (np.log(y2) - np.log(y1)) / (x2 - x1)
     a = y1 * np.exp(-b * x1)
     return a, b
 
 
-def exponential(x, a, b):
+def exponential(x: float, a: float, b: float) -> float:
     """Evaluate exponential function."""
     return a * np.exp(b * x)
 
 
-def linear(x, a, b):
+def linear(x: float, a: float, b: float) -> float:
     """Evaluate linear function."""
     return a * x + b
 
 
-def find_opt_poly(x, y, index):
+def find_opt_poly(
+    x: np.ndarray,
+    y: np.ndarray,
+    index: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Find optimal overlap between x (offset) and y (pearson).
 
@@ -64,7 +72,7 @@ def find_opt_poly(x, y, index):
     return root, x, y
 
 
-def pear_corr(cr):
+def pear_corr(cr: float) -> float:
     """Flip pearson correlation s.t. 0 is best and 1 is worst."""
     # handle the case where a nan is returned
     if np.isnan(cr):
@@ -76,7 +84,7 @@ def pear_corr(cr):
 
 
 @numba.njit(fastmath=True)
-def pearsonr_mat(x, Y, times):
+def pearsonr_mat(x: np.ndarray, Y: np.ndarray, times: np.ndarray) -> np.ndarray:
     """
     High performance implementation of the pearson correlation.
 
@@ -107,7 +115,12 @@ def pearsonr_mat(x, Y, times):
     return r
 
 
-def pearson_offset(time, reference_spline, simulation_spline, offset):
+def pearson_offset(
+    time: npt.ArrayLike,
+    reference_spline: PchipInterpolator,
+    simulation_spline: PchipInterpolator,
+    offset: float,
+) -> float:
     """Calculate single pearson correlation at offset."""
     simulation_data_offset = simulation_spline(time - offset)
     reference_data = reference_spline(time)
@@ -124,7 +137,12 @@ def pearson_offset(time, reference_spline, simulation_spline, offset):
     return score_local
 
 
-def eval_offsets(time, reference_spline, simulation_spline, offsets):
+def eval_offsets(
+    time: float,
+    reference_spline: PchipInterpolator,
+    simulation_spline: PchipInterpolator,
+    offsets: np.ndarray,
+) -> np.ndarray:
     """Calculate pearson correlation for each offset."""
     rol_mat = np.zeros([len(offsets), len(time)])
 
@@ -137,8 +155,14 @@ def eval_offsets(time, reference_spline, simulation_spline, offsets):
 
 
 def pearson(
-    time, reference_spline, simulation_spline, size=20, nest=50, bounds=2, tol=1e-13
-):
+    time: np.ndarray,
+    reference_spline: PchipInterpolator,
+    simulation_spline: PchipInterpolator,
+    size: int = 20,
+    nest: int = 50,
+    bounds: int = 2,
+    tol: float = 1e-13,
+) -> tuple[float, float]:
     """
     Find highest correlation between reference and simulation.
 
@@ -148,11 +172,11 @@ def pearson(
 
     Parameters
     ----------
-    time: np.array
+    time: np.ndarray
         Time points.
-    reference_spline : np.array
+    reference_spline : PchipInterpolator
         Reference data points.
-    simulation_spline : np.array
+    simulation_spline : PchipInterpolator
         Simulation Data points.
     size : int, optional
         Number of points to be generated between upper and lower bounds.

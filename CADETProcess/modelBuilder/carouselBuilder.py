@@ -1,12 +1,16 @@
 import warnings
 from copy import deepcopy
 from functools import wraps
-from typing import Any, NoReturn, Optional
+from typing import Any, NoReturn, Optional, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy.typing as npt
+from addict import Dict
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 
-from CADETProcess import CADETProcessError, plotting
+from CADETProcess import CADETProcessError, SimulationResults, plotting
 from CADETProcess.dataStructure import (
     Integer,
     Structure,
@@ -61,11 +65,11 @@ class ZoneBaseClass(UnitBaseClass):
         name: str,
         n_columns: int = 1,
         flow_direction: int = 1,
-        initial_state: list = None,
-        valve_parameters: dict = None,
-        *args,
-        **kwargs,
-    ) -> NoReturn:
+        initial_state: Optional[list] = None,
+        valve_parameters: Optional[dict] = None,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
         """
         Initialize a ZoneBaseClass instance.
 
@@ -83,6 +87,10 @@ class ZoneBaseClass(UnitBaseClass):
             Initial state of the zone.
         valve_parameters : dict
             Additional parameters to setup mixer/splitter valves.
+        *args : Optional
+            Additional Parameters passed down to UnitBaseClass
+        **kwargs : Optional
+            Additional Parameters passed down to UnitBaseClass
         """
         self.n_columns = n_columns
         self.flow_direction = flow_direction
@@ -106,7 +114,8 @@ class ZoneBaseClass(UnitBaseClass):
 
     @initial_state.setter
     def initial_state(
-        self, initial_state: list[dict[str, list]] | dict[str, list]
+        self,
+        initial_state: list[dict[str, list]] | dict[str, list],
     ) -> NoReturn:
         if initial_state is None:
             self._initial_state = initial_state
@@ -122,11 +131,11 @@ class ZoneBaseClass(UnitBaseClass):
 
     def _setup_valve(
         self,
-        component_system,
-        name,
-        unit_type=Cstr,
-        **valve_parameters,
-    ):
+        component_system: ComponentSystem,
+        name: str,
+        unit_type: Union[Cstr, TubularReactor] = Cstr,
+        **valve_parameters: dict,
+    ) -> None:
         if unit_type not in (Cstr, TubularReactor):
             raise ValueError(
                 "Unknown unit type. Must be one of `Cstr`, `TubularReactor`."
@@ -235,17 +244,17 @@ class CarouselBuilder(Structure):
         self._column = column
 
     @wraps(FlowSheet.add_unit)
-    def add_unit(self, *args, **kwargs):
+    def add_unit(self, *args: Any, **kwargs: Any) -> None:
         """Wrap FlowSheet.add_unit to add a unit to the flow sheet."""
         self.flow_sheet.add_unit(*args, **kwargs)
 
     @wraps(FlowSheet.add_connection)
-    def add_connection(self, *args, **kwargs):
+    def add_connection(self, *args: Any, **kwargs: Any) -> None:
         """Wrap FlowSheet.add_connection to add a connection between units."""
         self.flow_sheet.add_connection(*args, **kwargs)
 
     @wraps(FlowSheet.set_output_state)
-    def set_output_state(self, *args, **kwargs) -> NoReturn:
+    def set_output_state(self, *args: Any, **kwargs: Any) -> None:
         """Wrap FlowSheet.set_output_state to set the output state of a unit."""
         self.flow_sheet.set_output_state(*args, **kwargs)
 
@@ -304,7 +313,7 @@ class CarouselBuilder(Structure):
 
         return flow_sheet
 
-    def _add_units(self, flow_sheet: FlowSheet) -> NoReturn:
+    def _add_units(self, flow_sheet: FlowSheet) -> None:
         """Add units to flow_sheet."""
         col_index = 0
         for unit in self.flow_sheet.units:
@@ -394,7 +403,7 @@ class CarouselBuilder(Structure):
         """float: cycle time of the process."""
         return self.n_columns * self.switch_time
 
-    def _add_events(self, process):
+    def _add_events(self, process: Process) -> None:
         """Add events to process."""
         process.cycle_time = self.n_columns * self.switch_time
         process.add_duration("switch_time", self.switch_time)
@@ -467,13 +476,19 @@ class CarouselBuilder(Structure):
 
                 position_counter += zone.n_columns
 
-    def carousel_state(self, t) -> float:
-        """int: Carousel state at given time.
+    def carousel_state(self, t: float) -> int:
+        """
+        Return carousel state at given time.
 
         Parameters
         ----------
         t: float
             Time
+
+        Returns
+        -------
+        int:
+             Carousel state at given time.
         """
         return int(np.floor((t % self.cycle_time) / self.switch_time))
 
@@ -630,7 +645,7 @@ class SMBBuilder(CarouselBuilder):
 
         self.add_connection(zone_IV, zone_I)
 
-    def _validate_binding_model(self, binding_model):
+    def _validate_binding_model(self, binding_model: BindingBaseClass) -> None:
         """
         Validate that the provided binding model matches the required type.
 
@@ -649,7 +664,7 @@ class SMBBuilder(CarouselBuilder):
                 f"Invalid binding model. Expected {self.binding_model_type}."
             )
 
-    def _get_zone_flow_rates(self, m, switch_time):
+    def _get_zone_flow_rates(self, m: list, switch_time: float) -> list[float]:
         m1, m2, m3, m4 = m
 
         Vc = self.column.volume
@@ -662,7 +677,7 @@ class SMBBuilder(CarouselBuilder):
 
         return [Q_I, Q_II, Q_III, Q_IV]
 
-    def _get_unit_flow_rates(self, Q_zones):
+    def _get_unit_flow_rates(self, Q_zones: list[float]) -> list[float]:
         Q_I, Q_II, Q_III, Q_IV = Q_zones
 
         Q_feed = Q_III - Q_II
@@ -672,7 +687,9 @@ class SMBBuilder(CarouselBuilder):
 
         return [Q_feed, Q_eluent, Q_raffinate, Q_extract]
 
-    def _get_split_ratios(self, Q_zones, Q_units):
+    def _get_split_ratios(
+        self, Q_zones: list[float], Q_units: list[float]
+    ) -> tuple[float, float]:
         Q_I, Q_II, Q_III, Q_IV = Q_zones
         Q_feed, Q_eluent, Q_raffinate, Q_extract = Q_units
 
@@ -908,7 +925,7 @@ class SMBBuilder(CarouselBuilder):
 
         return fig, ax
 
-    def _plot_triangle(self, ax, *design_parameters):
+    def _plot_triangle(self, ax: Axes, *design_parameters: Any) -> None:
         """
         Plot a theoretical triangle diagram for SMB processes.
 
@@ -944,7 +961,7 @@ class LinearSMBBuilder(SMBBuilder):
 
     binding_model_type = Linear
 
-    def _validate_binding_model(self, binding_model):
+    def _validate_binding_model(self, binding_model: BindingBaseClass) -> None:
         """
         Validate the binding model for compatibility with Langmuir SMB systems.
 
@@ -1082,7 +1099,7 @@ class LinearSMBBuilder(SMBBuilder):
 
     def _plot_triangle(
         self,
-        ax,
+        ax: Axes,
         HA: float,
         HB: float,
     ) -> NoReturn:
@@ -1365,7 +1382,18 @@ class LangmuirSMBBuilder(SMBBuilder):
 
         return [m1, m2, m3, m4]
 
-    def _plot_triangle(self, ax, HA, HB, bA, bB, cFA, cFB, wG, wF):
+    def _plot_triangle(
+        self,
+        ax: Axes,
+        HA: float,
+        HB: float,
+        bA: float,
+        bB: float,
+        cFA: float,
+        cFB: float,
+        wG: float,
+        wF: float,
+    ) -> None:
         """
         Plot SMB triangle for Langmuir isotherm.
 
@@ -1441,7 +1469,11 @@ class CarouselSolutionBulk(SolutionBase):
 
     _coordinates = ["axial_coordinates", "radial_coordinates"]
 
-    def __init__(self, builder, simulation_results):
+    def __init__(
+        self,
+        builder: CarouselBuilder,
+        simulation_results: SimulationResults,
+    ) -> None:
         if not builder.column.solution_recorder.write_solution_bulk:
             raise CADETProcessError(
                 "Cannot instantiate CarouselSolutionBulk if solution is not stored. "
@@ -1452,45 +1484,49 @@ class CarouselSolutionBulk(SolutionBase):
         self.simulation_results = simulation_results
 
     @property
-    def component_system(self):
+    def component_system(self) -> ComponentSystem:
         return self.builder.component_system
 
     @property
-    def solution(self):
+    def solution(self) -> Dict:
         return self.simulation_results.solution
 
     @property
-    def axial_coordinates(self):
+    def axial_coordinates(self) -> npt.ArrayLike:
         return self.simulation_results.solution.column_0.bulk.axial_coordinates
 
     @property
-    def radial_coordinates(self):
-        radial_coordinates = (
+    def radial_coordinates(self) -> npt.ArrayLike:
+        radial_coordinates = \
             self.simulation_results.solution.column_0.bulk.radial_coordinates
-        )
         if radial_coordinates is not None and len(radial_coordinates) == 1:
             radial_coordinates = None
 
         return radial_coordinates
 
     @property
-    def time(self):
+    def time(self) -> float:
         return self.simulation_results.solution.column_0.bulk.time
 
     def plot_at_time(
         self,
-        t,
-        y_min=None,
-        y_max=None,
-        axs=None,
-    ):
-        """
-        Plot bulk solution over space at given time.
+        t: float,
+        y_min: Optional[float] = None,
+        y_max: Optional[float] = None,
+        axs: Optional[Axes] = None,
+    ) -> tuple[Figure, Axes]:
+        """Plot bulk solution over space at given time.
 
         Parameters
         ----------
         t : float
             time for plotting
+        y_min : float, optional
+            Set minimum for plotting purposes.
+            If None, y_min is set to minimum of the data.
+        y_max : float, optional
+            Set maximum for plotting purposes.
+            If None, y_max is set to minimum of the data
         ax : Axes
             Axes to plot on.
 
