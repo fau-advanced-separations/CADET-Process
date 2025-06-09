@@ -74,6 +74,7 @@ class StationarityEvaluator(Comparator):
         kwargs : dict
             Additional keyword arguments.
         """
+        # TODO: Check why cirteria are not stored.
         super().__init__(*args, **kwargs)
 
         self.logger = log.get_logger("StationarityEvaluator", level=log_level)
