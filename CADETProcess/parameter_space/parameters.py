@@ -6,6 +6,13 @@ from typing import Any
 
 import numpy as np
 
+from CADETProcess.dataStructure import (
+    check_nested,
+    get_nested_value,
+    get_nested_attribute,
+    generate_nested_dict,
+)
+
 
 @dataclass
 class ParameterBase:
@@ -160,7 +167,43 @@ class LinearConstraint:
 
         Raises
         ------
-        CADETProcessError
+        ValueError
+            If number of coefficients does not match number of parameters.
+        """
+        if not isinstance(self.parameters, list):
+            self.parameters = [self.parameters]
+        if np.isscalar(self.lhs):
+            self.lhs = [float(self.lhs)] * len(self.parameters)
+        if len(self.lhs) != len(self.parameters):
+            raise ValueError("Length of lhs must match number of parameters.")
+        self.b = float(self.b)
+
+@dataclass
+class LinearEqualityConstraint:
+    """
+    Represents a linear equality constraint of the form: lhs · parameters = b.
+
+    Attributes
+    ----------
+    parameters : list of RangedParameter
+        Parameters involved in the constraint.
+    lhs : list of float or float
+        Coefficients applied to parameters.
+    b : float
+        Right-hand side of the equation.
+    """
+
+    parameters: list[RangedParameter]
+    lhs: list[float] = 1.0
+    b: float = 0.0
+
+    def __post_init__(self):
+        """
+        Normalize and validate the constraint structure.
+
+        Raises
+        ------
+        ValueError
             If number of coefficients does not match number of parameters.
         """
         if not isinstance(self.parameters, list):
@@ -190,6 +233,8 @@ class ParameterMapping:
     param: ParameterBase
     path: str
     eval_obj: callable
+
+
 
 
 class ParameterSpace:
@@ -261,6 +306,18 @@ class ParameterSpace:
         """
         return self._linear_constraints
 
+    @property
+    def linear_equality_constraints(self) -> list[LinearEqualityConstraint]:
+        """
+        Return all defined linear equality constraijnts.
+
+        Returns
+        -------
+        list of LinearEqualityConstraint
+            List of equality constraints.
+        """
+        return self._linear_equality_constraints
+
     def add_linear_constraint(self, parameters, lhs, b):
         """
         Add a linear constraint of the form a · x <= b.
@@ -280,8 +337,33 @@ class ParameterSpace:
             lhs = [lhs]
 
         if len(parameters) != len(lhs):
-            raise ValueError
-            ("The number of parameters must match the number of coefficients (lhs)")
+            raise ValueError(
+                "The number of parameters must match the number of coefficients (lhs)")
 
         constraint = LinearConstraint(parameters=parameters, lhs=lhs, b=b)
         self._linear_constraints.append(constraint)
+
+    def add_linear_equality_constraint(self, parameters, lhs, b):
+        """
+        Add a linear equality uaconstraint of the form a · x = b.
+
+        Parameters
+        ----------
+        parameters : list of RangedParameter or RangedParameter
+            Parameters involved in the constraint.
+        lhs : float or list of float
+            Coefficients for each parameter.
+        b : float
+            Right-hand side of the constraint.
+        """
+        if not isinstance(parameters, list):
+            parameters = [parameters]
+        if not isinstance(lhs, list):
+            lhs = [lhs]
+
+        if len(parameters) != len(lhs):
+            raise ValueError
+            ("The number of parameters must match the number of coefficients (lhs)")
+
+        constraint = LinearEqualityConstraint(parameters=parameters, lhs=lhs, b=b)
+        self._linear_equality_constraints.append(constraint)

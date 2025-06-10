@@ -9,6 +9,7 @@ from CADETProcess.parameter_space.parameters import (
     RangedParameter,
     ChoiceParameter,
     LinearConstraint,
+    LinearEqualityConstraint,
     ParameterSpace,
 )
 
@@ -111,6 +112,34 @@ def test_parameter_space_add_multiple_parameters():
     pspace._parameters.append(RangedParameter(name="bar", lb=-10, ub=0))
     assert len(pspace.parameters) == 2
 
+def test_linear_equality_constraint_valid():
+    p1 = RangedParameter(name="p1", lb=0, ub=1, parameter_type=float)
+    p2 = RangedParameter(name="p2", lb=0, ub=1, parameter_type=float)
+    con = LinearEqualityConstraint(parameters=[p1, p2], lhs=[1.0, 2.0], b=3.0)
+    assert con.b == 3.0
+    assert len(con.lhs) == 2
+
+
+def test_linear_equality_constraint_invalid_length():
+    p1 = RangedParameter(name="p1", lb=0, ub=1, parameter_type=float)
+    with pytest.raises(ValueError):
+        LinearEqualityConstraint(parameters=[p1], lhs=[1.0, 2.0], b=3.0)
+
+
+def test_linear_equality_constraint_scalar_lhs():
+    p1 = RangedParameter(name="p1", lb=0, ub=1, parameter_type=float)
+    con = LinearEqualityConstraint(parameters=[p1], lhs=4.0, b=4.0)
+    assert con.lhs == [4.0]
+    assert con.b == 4.0
+
+
+def test_parameter_space_add_linear_equality_constraint():
+    pspace = ParameterSpace()
+    p = RangedParameter(name="x", lb=0, ub=10, parameter_type=float)
+    pspace.add_parameter(p)
+    pspace.add_linear_equality_constraint(parameters=p, lhs=3.0, b=6.0)
+    assert len(pspace.linear_equality_constraints) == 1
+    assert pspace.linear_equality_constraints[0].lhs == [3.0]
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
