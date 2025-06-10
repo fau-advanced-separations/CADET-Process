@@ -1,5 +1,5 @@
 {
-    "title": "CADET-Process v0.10.0",
+    "title": "CADET-Process v0.11.0",
     "upload_type": "software",
     "creators": [
         {
@@ -39,7 +39,7 @@
         "general rate model",
         "Python"
     ],
-    "version": "0.10.1",
+    "version": "0.11.0",
     "access_right": "open",
     "communities": [{"identifier": "open-source"}],
     "doi": "10.5281/zenodo.14202878"
