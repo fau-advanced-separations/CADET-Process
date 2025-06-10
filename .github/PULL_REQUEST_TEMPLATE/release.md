@@ -1,7 +1,7 @@
 ## Workflow to release a new version `vX.Y.Z`
 
 - [ ] Create new branch `vX.Y.Z` from `dev`
-- [ ] Bump version in `setup.cfg` and `CADETProcess/__init__.py`
+- [ ] Bump version in `CADETProcess/__init__.py` and `.zenodo.json`
 - [ ] Add release notes
   - [ ] General description
   - [ ] Deprecations / other changes
