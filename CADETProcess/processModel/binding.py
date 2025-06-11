@@ -501,13 +501,13 @@ class Spreading(BindingBaseClass):
     ----------
     adsorption_rate : list of unsigned floats.
         Adsorption rate constants in state-major ordering.
-        Length depends on `n_total_bound`.
+        Length depends on `n_bound_states`.
     desorption_rate : list of unsigned floats.
         Desorption rate constants in state-major ordering.
-        Length depends on `n_total_bound`.
+        Length depends on `n_bound_states`.
     capacity : list of unsigned floats.
         Maximum adsorption capacities in state-major ordering.
-        Length depends on `n_total_bound`.
+        Length depends on `n_bound_states`.
     exchange_from_1_2 : list of unsigned floats.
         Exchange rates from the first to the second bound state.
         Length depends on `n_comp`.
@@ -518,9 +518,9 @@ class Spreading(BindingBaseClass):
 
     n_binding_sites = RangedInteger(lb=2, ub=2, default=2)
 
-    adsorption_rate = SizedUnsignedList(size="n_total_bound")
-    desorption_rate = SizedUnsignedList(size="n_total_bound")
-    capacity = SizedUnsignedList(size="n_total_bound")
+    adsorption_rate = SizedUnsignedList(size="n_bound_states")
+    desorption_rate = SizedUnsignedList(size="n_bound_states")
+    capacity = SizedUnsignedList(size="n_bound_states")
     exchange_from_1_2 = SizedUnsignedList(size="n_comp")
     exchange_from_2_1 = SizedUnsignedList(size="n_comp")
 
