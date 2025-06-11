@@ -13,11 +13,6 @@
             "affiliation": "Forschungszentrum Jülich"
         },
         {
-            "name": "Schunck, Florian",
-            "orcid": "0000-0001-7245-953X",
-            "affiliation": "Forschungszentrum Jülich"
-        },
-        {
             "name": "Klauß, Daniel",
             "orcid": "0009-0005-2022-7776",
             "affiliation": "Forschungszentrum Jülich"
@@ -25,6 +20,16 @@
         {
             "name": "Lanzrath, Hannah",
             "orcid": "0000-0002-2675-9002",
+            "affiliation": "Forschungszentrum Jülich"
+        },
+        {
+            "name": "Schunck, Florian",
+            "orcid": "0000-0001-7245-953X",
+            "affiliation": "Forschungszentrum Jülich"
+        },
+        {
+            "name": "Berger, Antonia",
+            "orcid": "0009-0002-0207-9042",
             "affiliation": "Forschungszentrum Jülich"
         }
     ],
