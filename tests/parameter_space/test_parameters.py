@@ -77,11 +77,9 @@ def test_choice_param_invalid_choices(value, choice_param):
 
 
 def test_dependent_parameters_detected():
-    # Base parameters (independent)
     p1 = RangedParameter(name="a", parameter_type=int, lb=0, ub=10)
     p2 = RangedParameter(name="b", parameter_type=float, lb=0.0, ub=5.0)
 
-    # Dependent parameter
     dep_param = RangedParameter(
         name="c",
         parameter_type=float,
@@ -97,6 +95,26 @@ def test_dependent_parameters_detected():
 
     dependent = space.dependent_parameters
     assert dependent == [dep_param]
+
+
+def test_transform_execution():
+    val1 = 3
+    val2 = 4.5
+
+    def transform(x, y):
+        return x + y
+
+    param = RangedParameter(
+        name="sum_param",
+        parameter_type=float,
+        lb=0,
+        ub=10,
+        dependencies=[],
+        transform=transform,
+    )
+
+    result = param.transform(val1, val2)
+    assert result == pytest.approx(7.5)
 
 
 def test_linear_constraint_valid():
@@ -134,6 +152,7 @@ def test_parameter_space_add_multiple_parameters():
     pspace._parameters.append(RangedParameter(name="foo", lb=1, ub=2))
     pspace._parameters.append(RangedParameter(name="bar", lb=-10, ub=0))
     assert len(pspace.parameters) == 2
+
 
 def test_linear_equality_constraint_valid():
     p1 = RangedParameter(name="p1", lb=0, ub=1, parameter_type=float)
