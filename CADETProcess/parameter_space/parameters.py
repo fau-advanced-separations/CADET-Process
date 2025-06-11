@@ -1,17 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import math
-from typing import Any
+from dataclasses import dataclass
+from typing import Any, NoReturn
 
 import numpy as np
-
-from CADETProcess.dataStructure import (
-    check_nested,
-    get_nested_value,
-    get_nested_attribute,
-    generate_nested_dict,
-)
 
 
 @dataclass
@@ -35,7 +28,7 @@ class ParameterBase:
     dependencies: list[ParameterBase] | None = None
     transform: callable | None = None
 
-    def validate(self, value):
+    def validate(self, value: Any) -> NoReturn:
         """
         Validate a value against the parameter's constraints.
 
@@ -52,6 +45,14 @@ class ParameterBase:
         raise NotImplementedError(
             "Subclasses must implement `validate` to enforce parameter rules."
         )
+
+    def set_value(self, value: Any) -> None:
+        """
+        Validate the value.
+
+        Iterates over parameter mappers and sets the value.
+        """
+        pass
 
 
 @dataclass
@@ -73,7 +74,7 @@ class RangedParameter(ParameterBase):
     lb: float = -math.inf
     ub: float = math.inf
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """
         Validate bounds after initialization.
 
@@ -85,7 +86,7 @@ class RangedParameter(ParameterBase):
         if self.lb >= self.ub:
             raise ValueError("Lower bound must be < upper bound.")
 
-    def validate(self, value):
+    def validate(self, value: Any) -> None:
         """
         Validate that the value matches the type and lies within bounds.
 
@@ -121,7 +122,7 @@ class ChoiceParameter(ParameterBase):
 
     valid_values: list[Any]
 
-    def validate(self, value):
+    def validate(self, value: Any) -> None:
         """
         Validate that the value is one of the allowed choices.
 
@@ -137,8 +138,8 @@ class ChoiceParameter(ParameterBase):
         """
         if value not in self.valid_values:
             raise ValueError(
-               f"{value!r} is not a valid choice; "
-               f"must be one of {self.valid_values!r}."
+                f"{value!r} is not a valid choice; "
+                f"must be one of {self.valid_values!r}."
             )
 
 
@@ -161,7 +162,7 @@ class LinearConstraint:
     lhs: list[float] = 1.0
     b: float = 0.0
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """
         Normalize and validate the constraint structure.
 
@@ -177,6 +178,7 @@ class LinearConstraint:
         if len(self.lhs) != len(self.parameters):
             raise ValueError("Length of lhs must match number of parameters.")
         self.b = float(self.b)
+
 
 @dataclass
 class LinearEqualityConstraint:
@@ -197,7 +199,7 @@ class LinearEqualityConstraint:
     lhs: list[float] = 1.0
     b: float = 0.0
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """
         Normalize and validate the constraint structure.
 
@@ -235,8 +237,6 @@ class ParameterMapping:
     eval_obj: callable
 
 
-
-
 class ParameterSpace:
     """
     Container for managing parameters and constraints.
@@ -244,10 +244,10 @@ class ParameterSpace:
     Provides methods to add parameters and define linear relationships.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._parameters: list[ParameterBase] = []
         self._linear_constraints: list[LinearConstraint] = []
-        self._linear_equality_constraints = []
+        self._linear_equality_constraints: list[LinearEqualityConstraint] = []
 
     @property
     def parameters(self) -> list[ParameterBase]:
@@ -273,7 +273,7 @@ class ParameterSpace:
         """
         return [param for param in self._parameters if param.dependencies]
 
-    def add_parameter(self, parameter: ParameterBase):
+    def add_parameter(self, parameter: ParameterBase) -> None:
         """
         Add a parameter to the parameter space.
 
@@ -290,7 +290,7 @@ class ParameterSpace:
             raise TypeError(f"Expected ParameterBase, got {type(parameter).__name__}")
 
         if any(p.name == parameter.name for p in self._parameters):
-            raise ValueError(f"Parameter name '{parameter.name} already used.")
+            raise ValueError(f"Parameter name '{parameter.name}' already used.")
 
         self._parameters.append(parameter)
 
@@ -309,7 +309,7 @@ class ParameterSpace:
     @property
     def linear_equality_constraints(self) -> list[LinearEqualityConstraint]:
         """
-        Return all defined linear equality constraijnts.
+        Return all defined linear equality constraints.
 
         Returns
         -------
@@ -318,7 +318,12 @@ class ParameterSpace:
         """
         return self._linear_equality_constraints
 
-    def add_linear_constraint(self, parameters, lhs, b):
+    def add_linear_constraint(
+        self,
+        parameters: list[RangedParameter] | RangedParameter,
+        lhs: float | list[float],
+        b: float,
+    ) -> None:
         """
         Add a linear constraint of the form a · x <= b.
 
@@ -338,14 +343,20 @@ class ParameterSpace:
 
         if len(parameters) != len(lhs):
             raise ValueError(
-                "The number of parameters must match the number of coefficients (lhs)")
+                "The number of parameters must match the number of coefficients (lhs)"
+            )
 
         constraint = LinearConstraint(parameters=parameters, lhs=lhs, b=b)
         self._linear_constraints.append(constraint)
 
-    def add_linear_equality_constraint(self, parameters, lhs, b):
+    def add_linear_equality_constraint(
+        self,
+        parameters: list[RangedParameter] | RangedParameter,
+        lhs: float | list[float],
+        b: float,
+    ) -> None:
         """
-        Add a linear equality uaconstraint of the form a · x = b.
+        Add a linear equality constraint of the form a · x = b.
 
         Parameters
         ----------
@@ -362,8 +373,9 @@ class ParameterSpace:
             lhs = [lhs]
 
         if len(parameters) != len(lhs):
-            raise ValueError
-            ("The number of parameters must match the number of coefficients (lhs)")
+            raise ValueError(
+                "The number of parameters must match the number of coefficients (lhs)"
+            )
 
         constraint = LinearEqualityConstraint(parameters=parameters, lhs=lhs, b=b)
         self._linear_equality_constraints.append(constraint)
