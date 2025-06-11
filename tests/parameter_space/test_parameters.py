@@ -76,6 +76,29 @@ def test_choice_param_invalid_choices(value, choice_param):
         choice_param.validate(value)
 
 
+def test_dependent_parameters_detected():
+    # Base parameters (independent)
+    p1 = RangedParameter(name="a", parameter_type=int, lb=0, ub=10)
+    p2 = RangedParameter(name="b", parameter_type=float, lb=0.0, ub=5.0)
+
+    # Dependent parameter
+    dep_param = RangedParameter(
+        name="c",
+        parameter_type=float,
+        lb=0.0,
+        ub=20.0,
+        dependencies=[p1, p2],
+    )
+
+    space = ParameterSpace()
+    space.add_parameter(p1)
+    space.add_parameter(p2)
+    space.add_parameter(dep_param)
+
+    dependent = space.dependent_parameters
+    assert dependent == [dep_param]
+
+
 def test_linear_constraint_valid():
     p1 = RangedParameter(name="p1", lb=0, ub=1, parameter_type=float)
     p2 = RangedParameter(name="p2", lb=0, ub=1, parameter_type=float)
