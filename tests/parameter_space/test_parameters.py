@@ -1,16 +1,17 @@
-import pytest
 import sys
 from pathlib import Path
+
+import pytest
 
 # # Add the CADET-Process root to the Python path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from CADETProcess.parameter_space.parameters import (
-    RangedParameter,
     ChoiceParameter,
     LinearConstraint,
     LinearEqualityConstraint,
     ParameterSpace,
+    RangedParameter,
 )
 
 
@@ -117,6 +118,34 @@ def test_transform_execution():
     assert result == pytest.approx(7.5)
 
 
+def test_dependent_parameter_with_transform():
+    p1 = RangedParameter(name="a", parameter_type=int, lb=0, ub=10)
+    p2 = RangedParameter(name="b", parameter_type=float, lb=0.0, ub=5.0)
+
+    def transform(x, y):
+        return x + y
+
+    dep_param = RangedParameter(
+        name="sum_param",
+        parameter_type=float,
+        lb=0.0,
+        ub=20.0,
+        dependencies=[p1, p2],
+        transform=transform,
+    )
+
+    space = ParameterSpace()
+    space.add_parameter(p1)
+    space.add_parameter(p2)
+    space.add_parameter(dep_param)
+
+    assert dep_param in space.dependent_parameters
+    assert len(space.dependent_parameters) == 1
+
+    result = dep_param.transform(3, 2.5)
+    assert result == pytest.approx(5.5)
+
+
 def test_linear_constraint_valid():
     p1 = RangedParameter(name="p1", lb=0, ub=1, parameter_type=float)
     p2 = RangedParameter(name="p2", lb=0, ub=1, parameter_type=float)
@@ -182,6 +211,7 @@ def test_parameter_space_add_linear_equality_constraint():
     pspace.add_linear_equality_constraint(parameters=p, lhs=3.0, b=6.0)
     assert len(pspace.linear_equality_constraints) == 1
     assert pspace.linear_equality_constraints[0].lhs == [3.0]
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
