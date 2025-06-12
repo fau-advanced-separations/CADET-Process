@@ -1,10 +1,10 @@
 import warnings
-from typing import Optional
+from typing import Callable, Optional
 
 import numpy as np
 import numpy.typing as npt
 from scipy import optimize
-from scipy.optimize import OptimizeWarning
+from scipy.optimize import OptimizeResult, OptimizeWarning
 
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import (
@@ -99,42 +99,6 @@ class SciPyInterface(OptimizerBase):
                 ensure_minimization=True,
             )[0]
 
-        def callback_function(x: npt.ArrayLike, state: dict = None) -> bool:
-            """
-            Report progress after evaluation.
-
-            Notes
-            -----
-            Currently, this evaluates all functions again. This should not be a problem
-            since objectives and constraints are automatically cached.
-
-            Unfortunately, only `trust-constr` returns a `state` which contains the
-            current best point. Hence, the internal pareto front is used.
-            """
-            self.n_evals += 1
-
-            x = x.tolist()
-            f = optimization_problem.evaluate_objectives(
-                x,
-                untransform=True,
-                get_dependent_values=True,
-                ensure_minimization=True,
-            )
-            g = optimization_problem.evaluate_nonlinear_constraints(
-                x,
-                untransform=True,
-                get_dependent_values=True,
-            )
-            cv = optimization_problem.evaluate_nonlinear_constraints_violation(
-                x,
-                untransform=True,
-                get_dependent_values=True,
-            )
-
-            self.run_post_processing(x, f, g, cv, self.n_evals)
-
-            return False
-
         if x0 is None:
             x0 = optimization_problem.create_initial_values(
                 1, include_dependent_variables=False
@@ -162,7 +126,7 @@ class SciPyInterface(OptimizerBase):
                 constraints=self.get_constraint_objects(optimization_problem),
                 bounds=self.get_bounds(optimization_problem),
                 options=options,
-                callback=callback_function,
+                callback=self.get_callback(optimization_problem),
             )
 
         self.results.success = bool(scipy_results.success)
@@ -171,15 +135,17 @@ class SciPyInterface(OptimizerBase):
 
     def get_bounds(self, optimization_problem: OptimizationProblem) -> optimize.Bounds:
         """
-        Return the optimized bounds of a given optimization_problem as a Bound object.
+        Configure the bound constraints of a given optimization problem.
 
-        Optimizes the bounds of the optimization_problem by calling the method
-        optimize.Bounds. Keep_feasible is set to True.
+        Parameters
+        ----------
+        optimization_problem : OptimizationProblem
+            The given optimizaiton problem.
 
         Returns
         -------
         bounds : Bounds
-            Returns the optimized bounds as an object called bounds.
+            Bound constraints of the optimization problem.
         """
         return optimize.Bounds(
             optimization_problem.lower_bounds_independent_transformed,
@@ -189,7 +155,12 @@ class SciPyInterface(OptimizerBase):
 
     def get_constraint_objects(self, optimization_problem: OptimizationProblem) -> list:
         """
-        Return constraints as objets.
+        Return the constraints as an object.
+
+        Parameters
+        ----------
+        optimization_problem : OptimizationProblem
+            The given optimizaiton problem.
 
         Returns
         -------
@@ -323,6 +294,98 @@ class SciPyInterface(OptimizerBase):
             constraints.append(makeConstraint(i))
 
         return constraints
+
+    def get_callback(self, optimization_problem: OptimizationProblem) -> Callable:
+        """
+        Configure callback function.
+
+        Parameters
+        ----------
+        optimization : OptimizationProblem
+
+        Returns
+        -------
+        Callable
+            The callback funcction
+
+        Note, different optimizers in Scipy support different callback signatures.
+        We try to use the more modern `OptimizeResult` signature which is more likely
+        to also contain the current best value. For older optimizers, `xk` is used.
+        However, there is ambiguity in what that point actually is (see also:
+        https://github.com/scipy/scipy/issues/21061).
+
+        Returns
+        -------
+        Callable
+            The callback function.
+
+        """
+        if isinstance(self, (COBYLA, SLSQP)):
+            def callback(x: npt.ArrayLike, state: dict = None) -> bool:
+                """
+                Report progress after evaluation.
+
+                Notes
+                -----
+                Currently, this evaluates all functions again. This should not be a problem
+                since objectives and constraints are automatically cached.
+                """
+                self.n_evals += 1
+
+                x = x.tolist()
+                f = optimization_problem.evaluate_objectives(
+                    x,
+                    untransform=True,
+                    get_dependent_values=True,
+                    ensure_minimization=True,
+                )
+                g = optimization_problem.evaluate_nonlinear_constraints(
+                    x,
+                    untransform=True,
+                    get_dependent_values=True,
+                )
+                cv = optimization_problem.evaluate_nonlinear_constraints_violation(
+                    x,
+                    untransform=True,
+                    get_dependent_values=True,
+                )
+
+                self.run_post_processing(x, f, g, cv, self.n_evals)
+
+                return False
+
+            return callback
+
+        def callback(intermediate_result: OptimizeResult) -> None:
+            """
+            Report progress after evaluation.
+
+            Parameters
+            ----------
+            intermediate_result: OptimizeResult
+                The current state of the optimization.
+            """
+            self.n_evals += 1
+
+            x_transformed = intermediate_result.x
+            f = intermediate_result.fun
+
+            g = optimization_problem.evaluate_nonlinear_constraints(
+                x_transformed,
+                untransform=True,
+                get_dependent_values=True,
+            )
+            cv_nonlincon = (
+                optimization_problem.evaluate_nonlinear_constraints_violation(
+                    x_transformed,
+                    untransform=True,
+                    get_dependent_values=True,
+                )
+            )
+
+            self.run_post_processing(x_transformed, f, g, cv_nonlincon, self.n_evals)
+
+        return callback
 
     def __str__(self) -> str:
         """str: String representation."""
