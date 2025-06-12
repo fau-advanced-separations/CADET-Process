@@ -1090,6 +1090,11 @@ class HICUnified(BindingBaseClass):
     beta_1 : unsigned float.
         Parameter describing the change in the number of highly ordered water molecules that stabilize
         the hydrophobic surfaces with respect to changes in the salt concentration.
+    reference_liquid_phase_conc_c1 : unsigned float.
+       Reference for component 1 (optional, defaults to :math:`0.0`)
+    rho : unsigned float.
+        Osmotic effect of :math:`c_0` on the water activity,
+        calculated as osmotic_coefficient * molar_weight_of_water * ion_number. Optional, defaults to 3.35e-5 for NaCl
 
     """
 
@@ -1105,6 +1110,8 @@ class HICUnified(BindingBaseClass):
 
     beta_0 = UnsignedFloat()
     beta_1 = UnsignedFloat()
+    reference_liquid_phase_conc_c1 = UnsignedFloat(default=0.0)
+    rho = UnsignedFloat(degault=3.35e-5)
 
     _parameters = [
         'adsorption_rate',
@@ -1118,6 +1125,8 @@ class HICUnified(BindingBaseClass):
         'capacity',
         'beta_0',
         'beta_1',
+        'reference_liquid_phase_conc_c1',
+        'rho',
     ]
 
 

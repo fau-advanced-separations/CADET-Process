@@ -1655,6 +1655,8 @@ adsorption_parameters_map = {
             'HICUNI_QMAX': 'capacity',
             'HICUNI_BETA0': 'beta_0',
             'HICUNI_BETA1': 'beta_1',
+            'HICUNI_REFC1': 'reference_liquid_phase_conc_c1',
+            'HICUNI_RHO': 'rho',
         },
     },
     'HICWaterOnHydrophobicSurfaces': {
