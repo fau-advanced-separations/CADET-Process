@@ -1,4 +1,6 @@
 import unittest
+from collections import defaultdict
+from typing import Any, Dict, Union
 
 import numpy as np
 from CADETProcess import CADETProcessError
@@ -7,45 +9,68 @@ from CADETProcess.processModel import (
     ComponentSystem,
     Cstr,
     FlowSheet,
+    GeneralRateModel2D,
     Inlet,
     LumpedRateModelWithoutPores,
     Outlet,
 )
 
 
-def assert_almost_equal_dict(dict_actual, dict_expected, decimal=7, verbose=True):
-    """Helper function to assert nested dicts are (almost) equal.
+def normalize_dict(d: Union[Dict[Any, Any], defaultdict]) -> Any:
+    """Recursively convert all defaultdicts in a nested dict to regular dicts."""
+    if isinstance(d, defaultdict):
+        d = dict(d)
+    if isinstance(d, dict):
+        return {k: normalize_dict(v) for k, v in d.items()}
+    return d
 
-    Because of floating point calculations, it is necessary to use
-    `np.assert_almost_equal` to check the flow rates. However, this does not
-    work well with nested dicts which is why this helper function was written.
 
-    Parameters
-    ----------
-    dict_actual : dict
-        The object to check.
-    dict_expected : dict
-        The expected object.
-    decimal : int, optional
-        Desired precision, default is 7.
-    err_msg : str, optional
-        The error message to be printed in case of failure.
-    verbose : bool, optional
-        If True, the conflicting values are appended to the error message.
+def assert_almost_equal_dict(
+    dict_actual: Any,
+    dict_expected: Any,
+    decimal: int = 7,
+    verbose: bool = True,
+    path: str = "root",
+) -> None:
+    """Helper function to assert nested dict-like structures are (almost) equal."""
+    if isinstance(dict_actual, defaultdict):
+        dict_actual = dict(dict_actual)
+    if isinstance(dict_expected, defaultdict):
+        dict_expected = dict(dict_expected)
 
-    """
-    for key in dict_actual:
-        if isinstance(dict_actual[key], dict):
-            assert_almost_equal_dict(dict_actual[key], dict_expected[key])
-
-        else:
-            np.testing.assert_almost_equal(
-                dict_actual[key],
-                dict_expected[key],
-                decimal=decimal,
-                err_msg=f"Dicts are not equal in key {key}.",
-                verbose=verbose,
+    if isinstance(dict_actual, dict) and isinstance(dict_expected, dict):
+        assert dict_actual.keys() == dict_expected.keys(), (
+            f"Key mismatch at {path}: {dict_actual.keys()} != {dict_expected.keys()}"
+        )
+        for k in dict_actual:
+            assert_almost_equal_dict(
+                dict_actual[k], dict_expected[k], decimal, verbose, path + f"->{k}"
             )
+
+    elif isinstance(dict_actual, (list, tuple)) and isinstance(
+        dict_expected, (list, tuple)
+    ):
+        assert len(dict_actual) == len(dict_expected), (
+            f"Length mismatch at {path}: {len(dict_actual)} != {len(dict_expected)}"
+        )
+        for i, (a, e) in enumerate(zip(dict_actual, dict_expected)):
+            assert_almost_equal_dict(a, e, decimal, verbose, path + f"[{i}]")
+
+    elif isinstance(dict_actual, (float, int, np.ndarray, np.generic)) and isinstance(
+        dict_expected, (float, int, np.ndarray, np.generic)
+    ):
+        try:
+            np.testing.assert_almost_equal(dict_actual, dict_expected, decimal=decimal)
+        except AssertionError as e:
+            if verbose:
+                raise AssertionError(f"{path}: {str(e)}") from e
+            else:
+                raise
+
+    else:
+        assert dict_actual == dict_expected, (
+            f"Value mismatch at {path}: {dict_actual} != {dict_expected}"
+        )
 
 
 def setup_single_cstr_flow_sheet(component_system=None):
@@ -168,7 +193,9 @@ class TestFlowSheet(unittest.TestCase):
         self.component_system = ComponentSystem(2)
 
         # Single Cstr
-        self.single_cstr_flow_sheet = setup_single_cstr_flow_sheet(self.component_system)
+        self.single_cstr_flow_sheet = setup_single_cstr_flow_sheet(
+            self.component_system
+        )
 
         # Batch
         self.batch_flow_sheet = setup_batch_elution_flow_sheet(self.component_system)
@@ -990,8 +1017,68 @@ class TestCstrFlowRate(unittest.TestCase):
 class TestPorts(unittest.TestCase):
     def setUp(self):
         self.setup_mct_flow_sheet()
-
+        self.setup_grm2d_flow_sheet()
         self.setup_ccc_flow_sheet()
+
+    def setup_grm2d_flow_sheet(self):
+        self.component_system = ComponentSystem(1)
+
+        grm2d_flow_sheet = FlowSheet(self.component_system)
+
+        inlet = Inlet(self.component_system, name="inlet")
+        column1 = GeneralRateModel2D(self.component_system, nrad=1, name="column1")
+        column2 = GeneralRateModel2D(self.component_system, nrad=3, name="column2")
+        column3 = GeneralRateModel2D(self.component_system, nrad=5, name="column3")
+        outlet = Outlet(self.component_system, name="outlet")
+
+        grm2d_flow_sheet.add_unit(inlet)
+        grm2d_flow_sheet.add_unit(column1)
+        grm2d_flow_sheet.add_unit(column2)
+        grm2d_flow_sheet.add_unit(column3)
+        grm2d_flow_sheet.add_unit(outlet)
+
+        grm2d_flow_sheet.add_connection(
+            inlet, column1, destination_port="radial_cell_0"
+        )
+        grm2d_flow_sheet.add_connection(
+            column1,
+            column2,
+            origin_port="radial_cell_0",
+            destination_port="radial_cell_0",
+        )
+        grm2d_flow_sheet.add_connection(
+            column1,
+            column2,
+            origin_port="radial_cell_0",
+            destination_port="radial_cell_1",
+        )
+        grm2d_flow_sheet.add_connection(
+            column1,
+            column2,
+            origin_port="radial_cell_0",
+            destination_port="radial_cell_2",
+        )
+        grm2d_flow_sheet.add_connection(
+            column2,
+            column3,
+            origin_port="radial_cell_0",
+            destination_port="radial_cell_0",
+        )
+        grm2d_flow_sheet.add_connection(
+            column2,
+            column3,
+            origin_port="radial_cell_1",
+            destination_port="radial_cell_1",
+        )
+        grm2d_flow_sheet.add_connection(
+            column2,
+            column3,
+            origin_port="radial_cell_2",
+            destination_port="radial_cell_2",
+        )
+        grm2d_flow_sheet.add_connection(column3, outlet, origin_port="radial_cell_4")
+
+        self.grm2d_flow_sheet = grm2d_flow_sheet
 
     def setup_mct_flow_sheet(self):
         self.component_system = ComponentSystem(1)
@@ -1055,6 +1142,150 @@ class TestPorts(unittest.TestCase):
         ccc_flow_sheet.add_connection(ccc3, outlet, origin_port="channel_0")
 
         self.ccc_flow_sheet = ccc_flow_sheet
+
+    def test_grm2d_connections(self):
+        inlet = self.grm2d_flow_sheet["inlet"]
+        column1 = self.grm2d_flow_sheet["column1"]
+        column2 = self.grm2d_flow_sheet["column2"]
+        column3 = self.grm2d_flow_sheet["column3"]
+        outlet = self.grm2d_flow_sheet["outlet"]
+
+        expected_connections = {
+            inlet: {
+                "origins": None,
+                "destinations": {
+                    None: {
+                        column1: ["radial_cell_0"],
+                    },
+                },
+            },
+            column1: {
+                "origins": {
+                    "radial_cell_0": {
+                        inlet: [None],
+                    },
+                },
+                "destinations": {
+                    "radial_cell_0": {
+                        column2: ["radial_cell_0", "radial_cell_1", "radial_cell_2"],
+                    },
+                },
+            },
+            column2: {
+                "origins": {
+                    "radial_cell_0": {
+                        column1: ["radial_cell_0"],
+                    },
+                    "radial_cell_1": {
+                        column1: ["radial_cell_0"],
+                    },
+                    "radial_cell_2": {
+                        column1: ["radial_cell_0"],
+                    },
+                },
+                "destinations": {
+                    "radial_cell_0": {
+                        column3: ["radial_cell_0"],
+                    },
+                    "radial_cell_1": {
+                        column3: ["radial_cell_1"],
+                    },
+                    "radial_cell_2": {
+                        column3: ["radial_cell_2"],
+                    },
+                },
+            },
+            column3: {
+                "origins": {
+                    "radial_cell_0": {
+                        column2: ["radial_cell_0"],
+                    },
+                    "radial_cell_1": {
+                        column2: ["radial_cell_1"],
+                    },
+                    "radial_cell_2": {
+                        column2: ["radial_cell_2"],
+                    },
+                    "radial_cell_3": {},
+                    "radial_cell_4": {},
+                },
+                "destinations": {
+                    "radial_cell_0": {},
+                    "radial_cell_1": {},
+                    "radial_cell_2": {},
+                    "radial_cell_3": {},
+                    "radial_cell_4": {outlet: [None]},
+                },
+            },
+            outlet: {
+                "origins": {
+                    None: {
+                        column3: ["radial_cell_4"],
+                    },
+                },
+                "destinations": None,
+            },
+        }
+
+        assert_almost_equal_dict(
+            self.grm2d_flow_sheet.connections, expected_connections
+        )
+
+        self.assertTrue(
+            self.grm2d_flow_sheet.connection_exists(
+                inlet, column1, destination_port="radial_cell_0"
+            )
+        )
+
+        self.assertTrue(
+            self.grm2d_flow_sheet.connection_exists(
+                inlet, column1, destination_port="radial_cell_0"
+            )
+        )
+        self.assertTrue(
+            self.grm2d_flow_sheet.connection_exists(
+                column1, column2, "radial_cell_0", "radial_cell_0"
+            )
+        )
+        self.assertTrue(
+            self.grm2d_flow_sheet.connection_exists(
+                column1, column2, "radial_cell_0", "radial_cell_1"
+            )
+        )
+        self.assertTrue(
+            self.grm2d_flow_sheet.connection_exists(
+                column1, column2, "radial_cell_0", "radial_cell_2"
+            )
+        )
+        self.assertTrue(
+            self.grm2d_flow_sheet.connection_exists(
+                column2, column3, "radial_cell_0", "radial_cell_0"
+            )
+        )
+        self.assertTrue(
+            self.grm2d_flow_sheet.connection_exists(
+                column2, column3, "radial_cell_1", "radial_cell_1"
+            )
+        )
+        self.assertTrue(
+            self.grm2d_flow_sheet.connection_exists(
+                column2, column3, "radial_cell_2", "radial_cell_2"
+            )
+        )
+        self.assertTrue(
+            self.grm2d_flow_sheet.connection_exists(column3, outlet, "radial_cell_4")
+        )
+
+        self.assertFalse(
+            self.grm2d_flow_sheet.connection_exists(
+                column2, column3, "radial_cell_1", "radial_cell_2"
+            )
+        )
+        self.assertFalse(
+            self.grm2d_flow_sheet.connection_exists(
+                inlet, column3, destination_port="radial_cell_0"
+            )
+        )
 
     def test_mct_connections(self):
         inlet = self.mct_flow_sheet["inlet"]
@@ -1144,16 +1375,24 @@ class TestPorts(unittest.TestCase):
         self.assertDictEqual(self.mct_flow_sheet.connections, expected_connections)
 
         self.assertTrue(
-            self.mct_flow_sheet.connection_exists(inlet, mct_3c, destination_port="channel_0")
+            self.mct_flow_sheet.connection_exists(
+                inlet, mct_3c, destination_port="channel_0"
+            )
         )
         self.assertTrue(
-            self.mct_flow_sheet.connection_exists(mct_3c, mct_2c1, "channel_0", "channel_0")
+            self.mct_flow_sheet.connection_exists(
+                mct_3c, mct_2c1, "channel_0", "channel_0"
+            )
         )
         self.assertTrue(
-            self.mct_flow_sheet.connection_exists(mct_3c, mct_2c1, "channel_0", "channel_1")
+            self.mct_flow_sheet.connection_exists(
+                mct_3c, mct_2c1, "channel_0", "channel_1"
+            )
         )
         self.assertTrue(
-            self.mct_flow_sheet.connection_exists(mct_3c, mct_2c2, "channel_1", "channel_0")
+            self.mct_flow_sheet.connection_exists(
+                mct_3c, mct_2c2, "channel_1", "channel_0"
+            )
         )
         self.assertTrue(
             self.mct_flow_sheet.connection_exists(mct_2c1, outlet1, "channel_0")
