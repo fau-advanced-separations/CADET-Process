@@ -14,6 +14,8 @@ from CADETProcess.processModel import (
 )
 from CADETProcess.simulator import Cadet
 
+__all__ = ["simulate_solid_equilibria"]
+
 
 def simulate_solid_equilibria(
     binding_model: BindingBaseClass,

@@ -10,7 +10,7 @@ from addict import Dict
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
-from CADETProcess import CADETProcessError, SimulationResults, plotting
+from CADETProcess import CADETProcessError, plotting
 from CADETProcess.dataStructure import (
     Integer,
     Structure,
@@ -31,6 +31,7 @@ from CADETProcess.processModel import (
     TubularReactorBase,
     UnitBaseClass,
 )
+from CADETProcess.simulationResults import SimulationResults
 from CADETProcess.solution import SolutionBase
 
 __all__ = [

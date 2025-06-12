@@ -15,7 +15,7 @@ import numpy as np
 from addict import Dict
 from cadet import Cadet as CadetAPI
 
-from CADETProcess import CADETProcessError, SimulationResults, settings
+from CADETProcess import CADETProcessError, settings
 from CADETProcess.dataStructure import (
     Bool,
     ParameterWrapper,
@@ -38,6 +38,7 @@ from CADETProcess.processModel import (
     TubularReactor,
     UnitBaseClass,
 )
+from CADETProcess.simulationResults import SimulationResults
 from CADETProcess.solution import (
     SolutionBulk,
     SolutionIO,

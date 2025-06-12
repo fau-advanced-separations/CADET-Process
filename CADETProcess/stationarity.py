@@ -21,10 +21,11 @@ from typing import Any, Optional
 import numpy as np
 from addict import Dict
 
-from CADETProcess import SimulationResults, log
+from CADETProcess import log
 from CADETProcess.comparison import Comparator
 from CADETProcess.dataStructure import Structure, UnsignedFloat
 from CADETProcess.processModel import Inlet
+from CADETProcess.simulationResults import SimulationResults
 
 __all__ = ["RelativeArea", "NRMSE", "StationarityEvaluator"]
 
