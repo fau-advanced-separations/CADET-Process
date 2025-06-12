@@ -6,6 +6,8 @@ from CADETProcess.processModel import MassActionLaw
 
 from . import ptc
 
+__all__ = ["calculate_buffer_equilibrium"]
+
 
 def calculate_buffer_equilibrium(
     buffer: Sequence[float],

@@ -34,6 +34,8 @@ if TYPE_CHECKING:
 cmap_feas = plt.get_cmap("winter_r")
 cmap_infeas = plt.get_cmap("autumn_r")
 
+__all__ = ["OptimizationResults"]
+
 
 class OptimizationResults(Structure):
     """

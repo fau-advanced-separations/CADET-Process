@@ -50,51 +50,53 @@ class TestReactionEquilibrium(unittest.TestCase):
 
     def test_dydx(self):
         buffer = [1, 0]
-        dydx = equilibria.dydx_mal(buffer, self.single_1)
+        dydx = equilibria.reaction_equilibria.dydx_mal(buffer, self.single_1)
         dydx_expected = [-1, 1]
         np.testing.assert_almost_equal(dydx, dydx_expected)
 
         buffer = [1, 0, 0]
-        dydx = equilibria.dydx_mal(buffer, self.single_2)
+        dydx = equilibria.reaction_equilibria.dydx_mal(buffer, self.single_2)
         dydx_expected = [-1, 1, 0]
         np.testing.assert_almost_equal(dydx, dydx_expected)
 
         buffer = [1, 0, 0]
-        dydx = equilibria.dydx_mal(buffer, self.single_2, constant_indices=[0])
+        dydx = equilibria.reaction_equilibria.dydx_mal(
+            buffer, self.single_2, constant_indices=[0]
+        )
         dydx_expected = [0, 1, 0]
         np.testing.assert_almost_equal(dydx, dydx_expected)
 
         buffer = [1, 0, 0]
         buffer_init = [2, 0, 0]
-        dydx = equilibria.dydx_mal(
+        dydx = equilibria.reaction_equilibria.dydx_mal(
             buffer, self.single_2, constant_indices=[0], c_init=buffer_init
         )
         dydx_expected = [0, 2, 0]
         np.testing.assert_almost_equal(dydx, dydx_expected)
 
         buffer = [1, 0, 0]
-        dydx = equilibria.dydx_mal(buffer, self.multi)
+        dydx = equilibria.reaction_equilibria.dydx_mal(buffer, self.multi)
         dydx_expected = [-1, 1, 0]
         np.testing.assert_almost_equal(dydx, dydx_expected)
 
         buffer = [1, 1, 0]
-        dydx = equilibria.dydx_mal(buffer, self.multi)
+        dydx = equilibria.reaction_equilibria.dydx_mal(buffer, self.multi)
         dydx_expected = [0, -1, 1]
         np.testing.assert_almost_equal(dydx, dydx_expected)
 
         buffer = [1, 1, 1]
-        dydx = equilibria.dydx_mal(buffer, self.multi)
+        dydx = equilibria.reaction_equilibria.dydx_mal(buffer, self.multi)
         dydx_expected = [0, 0, 0]
         np.testing.assert_almost_equal(dydx, dydx_expected)
 
         buffer = [0, 1, 0]
-        dydx = equilibria.dydx_mal(buffer, self.multi)
+        dydx = equilibria.reaction_equilibria.dydx_mal(buffer, self.multi)
         dydx_expected = [1, -2, 1]
         np.testing.assert_almost_equal(dydx, dydx_expected)
 
     def test_jac(self):
         buffer = [1, 0]
-        jac = equilibria.jac_mal(buffer, self.single_0)
+        jac = equilibria.reaction_equilibria.jac_mal(buffer, self.single_0)
         jac_expected = [[-2, 2], [2, -2]]
         np.testing.assert_almost_equal(jac, jac_expected)
 

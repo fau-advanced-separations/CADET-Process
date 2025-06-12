@@ -9,11 +9,14 @@ import numpy.typing as npt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
-from CADETProcess import CADETProcessError, SimulationResults, plotting
+from CADETProcess import CADETProcessError, plotting
 from CADETProcess.comparison import DifferenceBase
 from CADETProcess.dataStructure import String, Structure, get_nested_value
 from CADETProcess.numerics import round_to_significant_digits
+from CADETProcess.simulationResults import SimulationResults
 from CADETProcess.solution import SolutionBase
+
+__all__ = ["Comparator"]
 
 
 class Comparator(Structure):

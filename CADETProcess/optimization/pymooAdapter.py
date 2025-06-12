@@ -19,6 +19,8 @@ from CADETProcess.optimization import (
     ParallelizationBackendBase,
 )
 
+__all__ = ["NSGA2", "U_NSGA3"]
+
 
 class PymooInterface(OptimizerBase):
     """Wrapper around pymoo."""

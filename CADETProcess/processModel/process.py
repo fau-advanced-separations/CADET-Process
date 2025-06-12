@@ -15,6 +15,8 @@ from .componentSystem import ComponentSystem
 from .flowSheet import FlowSheet
 from .unitOperation import Inlet, Outlet
 
+__all__ = ["Process"]
+
 
 class Process(EventHandler):
     """

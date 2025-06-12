@@ -3,6 +3,8 @@ from typing import Any
 
 import numpy as np
 
+__all__ = ["NumpyArrayEncoder"]
+
 
 class NumpyArrayEncoder(json.JSONEncoder):
     """

@@ -7,12 +7,13 @@ import numpy as np
 from addict import Dict
 from matplotlib.axes import Axes
 
-from CADETProcess import CADETProcessError, SimulationResults, plotting, settings
+from CADETProcess import CADETProcessError, plotting, settings
 from CADETProcess.dataStructure import String
 from CADETProcess.dynamicEvents import Event, EventHandler
 from CADETProcess.fractionation.fractions import Fraction, FractionPool
 from CADETProcess.performance import Performance
 from CADETProcess.processModel import ComponentSystem, Process
+from CADETProcess.simulationResults import SimulationResults
 from CADETProcess.solution import SolutionIO, slice_solution
 
 __all__ = ["Fractionator"]

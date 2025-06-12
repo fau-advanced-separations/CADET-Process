@@ -8,6 +8,8 @@ from diskcache import Cache, FanoutCache
 
 from CADETProcess.dataStructure import DillDisk
 
+__all__ = ["ResultsCache"]
+
 
 class ResultsCache:
     """

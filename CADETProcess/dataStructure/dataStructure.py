@@ -9,6 +9,16 @@ from warnings import warn
 
 from addict import Dict
 
+__all__ = [
+    "Descriptor",
+    "ProxyList",
+    "Aggregator",
+    "StructMeta",
+    "AbstractStructMeta",
+    "Structure",
+    "frozen_attributes",
+]
+
 
 # %% Descriptors
 class Descriptor(ABC):

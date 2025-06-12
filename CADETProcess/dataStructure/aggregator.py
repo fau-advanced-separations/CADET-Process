@@ -7,6 +7,13 @@ import numpy.typing as npt
 
 from .dataStructure import Aggregator
 
+__all__ = [
+    "NumpyProxyArray",
+    "SizedAggregator",
+    "ClassDependentAggregator",
+    "SizedClassDependentAggregator"
+]
+
 
 class NumpyProxyArray(np.ndarray):
     """A numpy array that dynamically updates attributes of container elements."""

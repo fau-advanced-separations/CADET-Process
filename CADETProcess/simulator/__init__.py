@@ -52,5 +52,5 @@ After simulation, the ``Simulator`` returns a ``SimulationResults`` object.
 
 """
 
-from .simulator import *
-from .cadetAdapter import *
+from .simulator import SimulatorBase
+from .cadetAdapter import Cadet

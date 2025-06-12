@@ -3,6 +3,11 @@ from typing import Any, Optional
 from .dataStructure import Structure
 from .parameter import Bool
 
+__all__ = [
+    "CachedPropertiesMixin",
+    "cached_property_if_locked",
+]
+
 
 class cached_property_if_locked(property):
     """

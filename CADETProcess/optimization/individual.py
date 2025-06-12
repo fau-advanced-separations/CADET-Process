@@ -8,6 +8,8 @@ from addict import Dict
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import Bool, Float, Structure, Vector
 
+__all__ = ["hash_array", "Individual"]
+
 
 def hash_array(array: np.ndarray) -> str:
     """

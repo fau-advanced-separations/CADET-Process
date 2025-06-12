@@ -3,11 +3,14 @@ from typing import Any, Optional
 
 import numpy as np
 
-from CADETProcess import CADETProcessError, SimulationResults
+from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import Bool, Structure, UnsignedFloat, UnsignedInteger
 from CADETProcess.log import get_logger, log_exceptions, log_results, log_time
 from CADETProcess.processModel import Process
+from CADETProcess.simulationResults import SimulationResults
 from CADETProcess.stationarity import NRMSE, RelativeArea, StationarityEvaluator
+
+__all__ = ["SimulatorBase"]
 
 
 class SimulatorBase(Structure):
