@@ -19,6 +19,8 @@ from CADETProcess.processModel import (
     ReactionBaseClass,
 )
 
+__all__ = ["CompartmentBuilder"]
+
 
 class CompartmentBuilder(metaclass=StructMeta):
     """

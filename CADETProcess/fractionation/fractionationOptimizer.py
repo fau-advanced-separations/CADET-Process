@@ -3,7 +3,7 @@ from typing import Callable, Optional
 
 import numpy as np
 
-from CADETProcess import CADETProcessError, SimulationResults
+from CADETProcess import CADETProcessError
 from CADETProcess.fractionation import Fractionator
 from CADETProcess.optimization import (
     COBYLA,
@@ -12,6 +12,7 @@ from CADETProcess.optimization import (
     OptimizerBase,
 )
 from CADETProcess.performance import Mass, Performance, Purity
+from CADETProcess.simulationResults import SimulationResults
 
 __all__ = ["FractionationOptimizer"]
 

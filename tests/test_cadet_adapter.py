@@ -6,9 +6,10 @@ from typing import Optional
 import numpy as np
 import numpy.testing as npt
 import pytest
-from CADETProcess import CADETProcessError, SimulationResults
+from CADETProcess import CADETProcessError
 from CADETProcess.processModel import Process
 from CADETProcess.processModel.discretization import NoDiscretization
+from CADETProcess.simulationResults import SimulationResults
 from CADETProcess.simulator import Cadet
 
 from tests.create_LWE import create_lwe

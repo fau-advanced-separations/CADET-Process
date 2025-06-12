@@ -2,6 +2,8 @@ from typing import Any
 
 from CADETProcess import CADETProcessError
 
+__all__ = ["ParameterWrapper"]
+
 
 class ParameterWrapper:
     """

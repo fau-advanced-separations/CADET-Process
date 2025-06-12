@@ -15,6 +15,8 @@ from .binding import NoBinding
 from .componentSystem import ComponentSystem
 from .unitOperation import Cstr, Inlet, Outlet, SourceMixin, UnitBaseClass
 
+__all__ = ["FlowSheet"]
+
 
 @frozen_attributes
 class FlowSheet(Structure):

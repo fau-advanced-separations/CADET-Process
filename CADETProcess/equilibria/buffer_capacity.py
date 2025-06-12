@@ -9,6 +9,14 @@ from matplotlib.axes import Axes
 from CADETProcess import CADETProcessError, plotting
 from CADETProcess.processModel import ComponentSystem, MassActionLaw, ReactionBaseClass
 
+__all__ = [
+    "buffer_capacity",
+    "ionic_strength",
+    "charge_distribution",
+    "plot_buffer_capacity",
+    "plot_charge_distribution",
+]
+
 
 def preprocessing(
     reaction_system: ReactionBaseClass,

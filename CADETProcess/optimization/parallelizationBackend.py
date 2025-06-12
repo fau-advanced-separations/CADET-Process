@@ -11,7 +11,7 @@ from CADETProcess.dataStructure import (
 
 cpu_count = multiprocessing.cpu_count()
 
-__all__ = ["ParallelizationBackendBase", "SequentialBackend"]
+__all__ = ["ParallelizationBackendBase", "SequentialBackend", "Joblib", "Pathos",]
 
 
 class ParallelizationBackendBase(Structure):

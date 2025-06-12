@@ -17,6 +17,8 @@ from pymoo.visualization.scatter import Scatter
 from CADETProcess import CADETProcessError, plotting
 from CADETProcess.optimization.individual import Individual, hash_array
 
+__all__ = ["Population", "ParetoFront"]
+
 
 class Population:
     """

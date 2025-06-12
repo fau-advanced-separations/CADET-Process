@@ -10,6 +10,7 @@ This code was written by Samuel Leweke (University of Cologne) in 2020.
 __author__ = "Samuel Leweke"
 __contact__ = "leweke@math.uni-koeln.de"
 __copyright__ = "Copyright 2020, University of Cologne"
+__all__ = ["ptc"]
 
 import math
 from typing import Callable, Optional
