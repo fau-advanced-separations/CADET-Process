@@ -417,7 +417,7 @@ def add_text(
 
 def add_overlay(
     ax: Axes,
-    y_overlay: npt.ArrayLike,
+    y_overlay: npt.ArrayLike | list[npt.ArrayLike],
     x_overlay: Optional[npt.ArrayLike] = None,
     **plot_args: Optional[dict],
 ) -> None:
@@ -428,14 +428,15 @@ def add_overlay(
     ----------
     ax : Axes
         The matplotlib Axes object to which the overlay is added.
-    y_overlay : npt.ArrayLike
+    y_overlay : npt.ArrayLike | list[npt.ArrayLike]
         The y-data for the overlay plot(s).
     x_overlay : Optional[list], optional
         The x-data for the overlay plot(s). If None, uses x-data from the first line in ax.
     **plot_args : Optional[dict]
         Additional keyword arguments for customizing the plot.
     """
-    y_overlay = np.array(y_overlay)
+    if not isinstance(y_overlay, list):
+        y_overlay = [y_overlay]
 
     if x_overlay is None:
         x_overlay = ax.lines[0].get_xdata()
