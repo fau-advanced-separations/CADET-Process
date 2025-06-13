@@ -559,7 +559,6 @@ class Population:
                 if autoscale and np.min(x_all) > 0:
                     if np.max(x_all) / np.min(x_all[x_all > 0]) > 100.0:
                         ax.set_xscale("log")
-                        layout.x_label = f"$log_{{10}}$({var})"
 
                 y_min = np.nanmin(v_all)
                 y_max = np.nanmax(v_all)
@@ -568,7 +567,6 @@ class Population:
                 if autoscale and np.min(v_all) > 0:
                     if np.max(v_all) / np.min(v_all[v_all > 0]) > 100.0:
                         ax.set_yscale("log")
-                        layout.y_label = f"$log_{{10}}$({label})"
                         y_lim = (y_min / 2, y_max * 2)
                 if y_min != y_max:
                     layout.y_lim = y_lim
