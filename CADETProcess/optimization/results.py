@@ -807,7 +807,6 @@ class OptimizationResults(Structure):
                 if autoscale and y_min > 0:
                     if y_max / y_min > 100.0:
                         ax.set_yscale("log")
-                        layout.y_label = f"$log_{{10}}$({label})"
 
                 try:
                     plotting.set_layout(ax, layout)
