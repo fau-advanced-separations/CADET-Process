@@ -1,14 +1,42 @@
 from __future__ import annotations
 
 import math
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, NoReturn
+from typing import Any, Callable, Literal
 
 import numpy as np
 
+__all__ = [
+    "ParameterBase",
+    "RangedParameter",
+    "ChoiceParameter",
+    "LinearConstraint",
+    "LinearEqualityConstraint",
+    "ParameterMapping",
+    "ParameterSpace",
+]
+
 
 @dataclass
-class ParameterBase:
+class ParameterDependency():
+    """
+    Class to specify a parameter depdendence.
+
+    Attributes
+    ----------
+    independent_parameters: list[ParameterBase]
+        list of dependent parameters
+    transform : callable
+        Transformation function to derive the value from dependencies.
+    """
+
+    independent_parameters: list[ParameterBase]
+    transform: Callable
+
+
+@dataclass
+class ParameterBase(ABC):
     """
     Abstract base class for all parameters.
 
@@ -18,20 +46,13 @@ class ParameterBase:
     ----------
     name : str
         Name of the parameter.
-    dependencies : list of ParameterBase or None
-        Other parameters this parameter depends on.
-    transform : callable or None
-        Transformation function to derive the value from dependencies.
-    value : Any or None
-        The current value of the parameter.
     """
 
     name: str
-    dependencies: list[ParameterBase] | None = None
-    transform: callable | None = None
-    value: Any | None = None
+    dependency: ParameterDependency | None = None
 
-    def validate(self, value: Any) -> NoReturn:
+    @abstractmethod
+    def validate(self, value: Any) -> bool:
         """
         Validate a value against the parameter's constraints.
 
@@ -40,21 +61,26 @@ class ParameterBase:
         value : Any
             The value to validate.
 
-        Raises
-        ------
-        NotImplementedError
-            Always, unless overridden in subclasses.
+        Returns
+        -------
+        bool
+            True if value is valid. False otherwise
+
+        Notes
+        -----
+        Subclasses must implement `validate` to enforce parameter rules.
+
         """
-        raise NotImplementedError(
-            "Subclasses must implement `validate` to enforce parameter rules."
-        )
+        pass
 
     def set_value(self, value: Any) -> None:
         """
-        Validate the value.
+        Set the value in the mapped objects.
 
         Iterates over parameter mappers and sets the value.
-        @TODO: implement this method.
+        TODO: implement this method.
+        TODO: What's the purpose of this method? Call the mapper?
+        TODO: Raise error if value is not independent?
         """
         pass
 
@@ -72,11 +98,15 @@ class RangedParameter(ParameterBase):
         Lower bound (inclusive).
     ub : float, default=inf
         Upper bound (inclusive).
+    normalization : Literal["auto", "linear", "normal"]
+        Method to normalize parameter.
+    TODO: Is normalization a Literal or an instance of some NormalizationBase?
     """
 
     parameter_type: type[float | int] = int
     lb: float = -math.inf
     ub: float = math.inf
+    normalization: Literal["auto", "linear", "normal"] | None = None
 
     def __post_init__(self) -> None:
         """
@@ -228,19 +258,20 @@ class ParameterMapping:
 
     Attributes
     ----------
-    param : ParameterBase
+    parameter : ParameterBase
         The parameter being mapped.
-    path : str
-        A path or key to the parameter's location.
-    eval_obj : callable
-        Function used to evaluate the mapped parameter.
+    evaluation_objects : list[Any]
+        The objects to which the parameter is mapped.
+    setter: Callable
+        Function to set mapped parameter.
     """
 
-    param: ParameterBase
-    path: str
-    eval_obj: callable
+    parameter: ParameterBase
+    evaluation_objects: list[Any]
+    setter: Callable
 
 
+@dataclass
 class ParameterSpace:
     """
     Container for managing parameters and constraints.
@@ -248,22 +279,100 @@ class ParameterSpace:
     Provides methods to add parameters and define linear relationships.
     """
 
-    def __init__(self) -> None:
-        self._parameters: list[ParameterBase] = []
-        self._linear_constraints: list[LinearConstraint] = []
-        self._linear_equality_constraints: list[LinearEqualityConstraint] = []
+    parameters: list[ParameterBase] | None = None
+    linear_constraints: list[LinearConstraint] | None = None
+    linear_equality_constraints: list[LinearEqualityConstraint] | None = None
+    parameter_dependencies: list[ParameterDependency] | None = None
+
+    def __post_init__(self) -> None:
+        """Initialize lists after initialization."""
+        if self.parameters is None:
+            self.parameters = []
+        if self.linear_constraints is None:
+            self.linear_constraints = []
+        if self.linear_equality_constraints is None:
+            self.linear_equality_constraints = []
+        if self.parameter_dependencies is None:
+            self.parameter_dependencies = []
 
     @property
-    def parameters(self) -> list[ParameterBase]:
-        """
-        Get all registered parameters.
+    def n_parameters(self) -> int:
+        """Returns the number of parameters in the space."""
+        return len(self.parameters)
 
-        Returns
-        -------
-        list of ParameterBase
-            All parameters in the space.
+    def add_parameter(self, parameter: ParameterBase) -> None:
         """
-        return self._parameters
+        Add a parameter to the parameter space.
+
+        Parameters
+        ----------
+        parameters: ParameterBase
+            The parameter to be added.
+
+        Raises
+        ------
+        ValueError
+            If a parameter with the same name already exists.
+        """
+        if any(p.name == parameter.name for p in self.parameters):
+            raise ValueError(f"Parameter name '{parameter.name}' already used.")
+
+        self.parameters.append(parameter)
+
+    def add_linear_constraint(
+        self,
+        linear_constraint: LinearConstraint,
+    ) -> None:
+        """
+        Add a linear constraint to the parameter space.
+
+        Parameters
+        ----------
+        linear_constraint: LinearConstraint,
+            Linear constraint.
+
+        TODO: Check that all parameters are actually part of the parameter space.
+        """
+        self.linear_constraints.append(linear_constraint)
+
+    def add_linear_equality_constraint(
+        self,
+        linear_equality_constraint: LinearEqualityConstraint,
+    ) -> None:
+        """
+        Add a linear equality constraint to the parameter space.
+
+        Parameters
+        ----------
+        linear_equality_constraint: LinearEqualityConstraint,
+            Linear equality constraint.
+
+        TODO: Check that all parameters are actually part of the parameter space.
+        """
+        self.linear_equality_constraints.append(linear_equality_constraint)
+
+    def add_parameter_dependency(
+        self,
+        parameter_dependency: ParameterDependency,
+    ) -> None:
+        """
+        Add a parameter dependency to the parameter space.
+
+        Parameters
+        ----------
+        parameter_dependency : ParameterDependency,
+            The parameter dependency.
+
+        TODO: Check that parameter is not already dependent.
+        TODO: Should we add the dependency to the Parameter itself?
+        """
+        self.parameter_dependencies.append(parameter_dependency)
+
+    @property
+    def _parameter_dependencies(self) -> dict[ParameterBase: ParameterDependency]:
+        return {
+            param.dependent_parameter: param for param in self.parameter_dependencies
+        }
 
     @property
     def dependent_parameters(self) -> list[ParameterBase]:
@@ -275,7 +384,9 @@ class ParameterSpace:
         list of ParameterBase
             Parameters that depend on others.
         """
-        return [param for param in self._parameters if param.dependencies]
+        return [
+            param for param in self.parameters if param in self._parameter_dependencies
+        ]
 
     @property
     def independent_parameters(self) -> list[ParameterBase]:
@@ -287,116 +398,7 @@ class ParameterSpace:
         list of ParameterBase
             Parameters that are independent of others.
         """
-        return [param for param in self._parameters if not param.dependencies]
-
-    @property
-    def n_parameters(self) -> int:
-        """Returns the number of parameters in the space."""
-        return len(self._parameters)
-
-    def add_parameter(self, parameter: ParameterBase) -> None:
-        """
-        Add a parameter to the parameter space.
-
-        Ensures that parameter is valid, not duplicated, and has a unique name.
-
-        Raises
-        ------
-        TypeError
-            If the object is not an instance of ParameterBase.
-        ValueError
-            If a parameter with the same name already exists.
-        """
-        if not isinstance(parameter, ParameterBase):
-            raise TypeError(f"Expected ParameterBase, got {type(parameter).__name__}")
-
-        if any(p.name == parameter.name for p in self._parameters):
-            raise ValueError(f"Parameter name '{parameter.name}' already used.")
-
-        self._parameters.append(parameter)
-
-    @property
-    def linear_constraints(self) -> list[LinearConstraint]:
-        """
-        Return all defined linear inequality constraints.
-
-        Returns
-        -------
-        list of LinearConstraint
-            List of inequality constraints.
-        """
-        return self._linear_constraints
-
-    @property
-    def linear_equality_constraints(self) -> list[LinearEqualityConstraint]:
-        """
-        Return all defined linear equality constraints.
-
-        Returns
-        -------
-        list of LinearEqualityConstraint
-            List of equality constraints.
-        """
-        return self._linear_equality_constraints
-
-    def add_linear_constraint(
-        self,
-        parameters: list[RangedParameter] | RangedParameter,
-        lhs: float | list[float],
-        b: float,
-    ) -> None:
-        """
-        Add a linear constraint of the form a · x <= b.
-
-        Parameters
-        ----------
-        parameters : list of RangedParameter or RangedParameter
-            Parameters involved in the constraint.
-        lhs : float or list of float
-            Coefficients for each parameter.
-        b : float
-            Right-hand side of the constraint.
-        """
-        if not isinstance(parameters, list):
-            parameters = [parameters]
-        if not isinstance(lhs, list):
-            lhs = [lhs]
-
-        if len(parameters) != len(lhs):
-            raise ValueError(
-                "The number of parameters must match the number of coefficients (lhs)"
-            )
-
-        constraint = LinearConstraint(parameters=parameters, lhs=lhs, b=b)
-        self._linear_constraints.append(constraint)
-
-    def add_linear_equality_constraint(
-        self,
-        parameters: list[RangedParameter] | RangedParameter,
-        lhs: float | list[float],
-        b: float,
-    ) -> None:
-        """
-        Add a linear equality constraint of the form a · x = b.
-
-        Parameters
-        ----------
-        parameters : list of RangedParameter or RangedParameter
-            Parameters involved in the constraint.
-        lhs : float or list of float
-            Coefficients for each parameter.
-        b : float
-            Right-hand side of the constraint.
-        """
-        if not isinstance(parameters, list):
-            parameters = [parameters]
-        if not isinstance(lhs, list):
-            lhs = [lhs]
-
-        if len(parameters) != len(lhs):
-            raise ValueError(
-                "The number of parameters must match the number of coefficients (lhs)"
-            )
-
-        constraint = LinearEqualityConstraint(parameters=parameters, lhs=lhs, b=b)
-        self._linear_equality_constraints.append(constraint)
+        return [
+            param for param in self.parameters
+            if param not in self._parameter_dependencies
+        ]
