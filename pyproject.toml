@@ -63,7 +63,7 @@ dev = [
 
 [project.optional-dependencies]
 ax = [
-    "ax-platform >=0.3.5,<0.5.0"
+    "ax-platform >=1.0.0,<2.0.0"
 ]
 all = [
    "CADET-Process[ax]",
