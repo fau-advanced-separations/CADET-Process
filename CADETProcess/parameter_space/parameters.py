@@ -22,11 +22,14 @@ class ParameterBase:
         Other parameters this parameter depends on.
     transform : callable or None
         Transformation function to derive the value from dependencies.
+    value : Any or None
+        The current value of the parameter.
     """
 
     name: str
     dependencies: list[ParameterBase] | None = None
     transform: callable | None = None
+    value: Any | None = None
 
     def validate(self, value: Any) -> NoReturn:
         """
@@ -51,6 +54,7 @@ class ParameterBase:
         Validate the value.
 
         Iterates over parameter mappers and sets the value.
+        @TODO: implement this method.
         """
         pass
 
@@ -272,6 +276,23 @@ class ParameterSpace:
             Parameters that depend on others.
         """
         return [param for param in self._parameters if param.dependencies]
+
+    @property
+    def independent_parameters(self) -> list[ParameterBase]:
+        """
+        Get all independent parameters.
+
+        Returns
+        -------
+        list of ParameterBase
+            Parameters that are independent of others.
+        """
+        return [param for param in self._parameters if not param.dependencies]
+
+    @property
+    def n_parameters(self) -> int:
+        """Returns the number of parameters in the space."""
+        return len(self._parameters)
 
     def add_parameter(self, parameter: ParameterBase) -> None:
         """

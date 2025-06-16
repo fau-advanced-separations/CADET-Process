@@ -178,9 +178,9 @@ def test_parameter_space_add_linear_constraint():
 
 def test_parameter_space_add_multiple_parameters():
     pspace = ParameterSpace()
-    pspace._parameters.append(RangedParameter(name="foo", lb=1, ub=2))
-    pspace._parameters.append(RangedParameter(name="bar", lb=-10, ub=0))
-    assert len(pspace.parameters) == 2
+    pspace.add_parameter(RangedParameter(name="foo", lb=1, ub=2))
+    pspace.add_parameter(RangedParameter(name="bar", lb=-10, ub=0))
+    assert pspace.n_parameters == 2
 
 
 def test_linear_equality_constraint_valid():
