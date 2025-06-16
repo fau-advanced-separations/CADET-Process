@@ -1,0 +1,41 @@
+name: Feature request
+description: Suggest a new feature or enhancement for the project
+labels: [enhancement]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Feature Request Checklist
+
+        - Ensure that this feature is not already implemented or suggested in another issue.
+        - Provide a clear and descriptive title for the feature request.
+        - Clearly describe the feature, its purpose, and any potential benefits.
+        - Include relevant examples or use cases that illustrate the need.
+        - Consider potential challenges or impacts.
+
+  - type: textarea
+    id: feature_description
+    attributes:
+      label: Feature Description
+      description: Describe the feature, including purpose, functionality, use cases, and any other relevant info.
+      placeholder: |
+        - Purpose: What problem does this solve?
+        - Functionality: How should it work?
+        - Use Cases: Where would it be useful?
+        - Additional info: Diagrams, references, mockups, etc.
+      render: markdown
+    validations:
+      required: true
+
+  - type: textarea
+    id: potential_challenges
+    attributes:
+      label: Potential Challenges
+      description: List any technical limitations, compatibility issues, or implementation concerns.
+      placeholder: E.g. impacts on existing modules, performance concerns, platform dependencies...
+      render: markdown
+    validations:
+      required: false
+

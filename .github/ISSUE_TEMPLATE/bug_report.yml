@@ -1,0 +1,79 @@
+name: Bug report
+description: Report a reproducible bug or unexpected behavior
+labels: [bug]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Bug Report Checklist
+
+        - Ensure the bug hasn’t already been reported.
+        - Provide a minimal, reproducible example if possible.
+        - Clearly describe what you expected and what actually happened.
+        - Include relevant environment info and error messages.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: What happened? What did you expect to happen?
+      placeholder: A clear and concise description of the problem.
+      render: markdown
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps_to_reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this bug?
+      placeholder: |
+        1. Run command X
+        2. Pass input Y
+        3. Observe output Z
+      render: markdown
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: CADET-Process Version
+      description: Provide the exact version or commit hash you were using.
+      placeholder: e.g. v0.6.0 or commit `abc123`
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Describe the environment in which the bug occurred.
+      placeholder: |
+        - OS: Ubuntu 22.04
+        - Python: 3.11.3
+        - Conda environment: yes/no
+        - CADET-Process: v0.11.0
+        - CADET-Python: v1.0.0
+        - CADET-Core: v5.0.4
+
+      render: markdown
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs or Tracebacks
+      description: Paste any relevant log output, error messages, or stack traces.
+      placeholder: |
+        ```
+        Traceback (most recent call last):
+          File ...
+        ```
+      render: text
+    validations:
+      required: false
+
