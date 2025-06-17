@@ -15,8 +15,6 @@ skip_ax = False
 try:
     from CADETProcess.optimization import (
         GPEI,
-        NEHVI,
-        qNParEGO,
     )
 except ImportError:
     skip_ax = True
@@ -121,19 +119,19 @@ if not skip_ax:
         early_stopping_improvement_window = 10
         n_max_evals = 50
 
-    class NEHVI(NEHVI):
-        cv_lincon_tol = CV_LINCON_TOL
-        n_init_evals = 50
-        early_stopping_improvement_bar = 1e-4
-        early_stopping_improvement_window = 10
-        n_max_evals = 60
+    # class NEHVI(NEHVI):
+    #     cv_lincon_tol = CV_LINCON_TOL
+    #     n_init_evals = 50
+    #     early_stopping_improvement_bar = 1e-4
+    #     early_stopping_improvement_window = 10
+    #     n_max_evals = 60
 
-    class qNParEGO(qNParEGO):
-        cv_lincon_tol = CV_LINCON_TOL
-        n_init_evals = 50
-        early_stopping_improvement_bar = 1e-4
-        early_stopping_improvement_window = 10
-        n_max_evals = 70
+    # class qNParEGO(qNParEGO):
+    #     cv_lincon_tol = CV_LINCON_TOL
+    #     n_init_evals = 50
+    #     early_stopping_improvement_bar = 1e-4
+    #     early_stopping_improvement_window = 10
+    #     n_max_evals = 70
 
 
 # %% Test problem factory
@@ -174,8 +172,6 @@ if not skip_ax:
     params.extend(
         [
             GPEI,
-            NEHVI,
-            qNParEGO,
         ]
     )
     EXCLUDE_COMBINATIONS.append(
@@ -183,9 +179,9 @@ if not skip_ax:
     )
 
     # this helps to test optimizers for hard problems
-    NON_DEFAULT_PARAMETERS.append(
-        (NEHVI, LinearConstraintsMooTestProblem, {"n_init_evals": 20, "n_max_evals": 40})
-    )
+    # NON_DEFAULT_PARAMETERS.append(
+    #     (NEHVI, LinearConstraintsMooTestProblem, {"n_init_evals": 20, "n_max_evals": 40})
+    # )
 
 
 @pytest.fixture(params=params)
