@@ -35,6 +35,7 @@ from . import reference
 from .simulationResults import SimulationResults
 from . import metric
 from . import performance
+from . import parameter_space
 from . import optimization
 from . import comparison
 from . import stationarity
