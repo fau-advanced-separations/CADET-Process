@@ -1,13 +1,19 @@
 import warnings
-from typing import Optional
+from typing import Callable, Optional
 
 import numpy as np
 import numpy.typing as npt
 from scipy import optimize
-from scipy.optimize import OptimizeWarning
+from scipy.optimize import OptimizeResult, OptimizeWarning
 
 from CADETProcess import CADETProcessError
-from CADETProcess.dataStructure import Bool, Switch, UnsignedFloat, UnsignedInteger
+from CADETProcess.dataStructure import (
+    Bool,
+    Float,
+    Switch,
+    UnsignedFloat,
+    UnsignedInteger,
+)
 from CADETProcess.optimization import OptimizationProblem, OptimizerBase
 
 
@@ -39,6 +45,7 @@ class SciPyInterface(OptimizerBase):
     See Also
     --------
     COBYLA
+    COBYQA
     TrustConstr
     NelderMead
     SLSQP
@@ -71,6 +78,7 @@ class SciPyInterface(OptimizerBase):
         See Also
         --------
         COBYLA
+        COBYQA
         TrustConstr
         NelderMead
         SLSQP
@@ -91,42 +99,6 @@ class SciPyInterface(OptimizerBase):
                 ensure_minimization=True,
             )[0]
 
-        def callback_function(x: npt.ArrayLike, state: dict = None) -> bool:
-            """
-            Report progress after evaluation.
-
-            Notes
-            -----
-            Currently, this evaluates all functions again. This should not be a problem
-            since objectives and constraints are automatically cached.
-
-            Unfortunately, only `trust-constr` returns a `state` which contains the
-            current best point. Hence, the internal pareto front is used.
-            """
-            self.n_evals += 1
-
-            x = x.tolist()
-            f = optimization_problem.evaluate_objectives(
-                x,
-                untransform=True,
-                get_dependent_values=True,
-                ensure_minimization=True,
-            )
-            g = optimization_problem.evaluate_nonlinear_constraints(
-                x,
-                untransform=True,
-                get_dependent_values=True,
-            )
-            cv = optimization_problem.evaluate_nonlinear_constraints_violation(
-                x,
-                untransform=True,
-                get_dependent_values=True,
-            )
-
-            self.run_post_processing(x, f, g, cv, self.n_evals)
-
-            return False
-
         if x0 is None:
             x0 = optimization_problem.create_initial_values(
                 1, include_dependent_variables=False
@@ -139,8 +111,8 @@ class SciPyInterface(OptimizerBase):
             x0 = self.results.population_last.x[0, :]
             self.n_evals = self.results.n_evals
             options["maxiter"] = self.maxiter - self.n_evals
-            if str(self) == "COBYLA":
-                options["maxiter"] -= 1
+            if str(self) in ["COBYLA", "COBYQA"]:
+                options['maxiter'] -= 1
 
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=OptimizeWarning)
@@ -154,7 +126,7 @@ class SciPyInterface(OptimizerBase):
                 constraints=self.get_constraint_objects(optimization_problem),
                 bounds=self.get_bounds(optimization_problem),
                 options=options,
-                callback=callback_function,
+                callback=self.get_callback(optimization_problem),
             )
 
         self.results.success = bool(scipy_results.success)
@@ -163,15 +135,17 @@ class SciPyInterface(OptimizerBase):
 
     def get_bounds(self, optimization_problem: OptimizationProblem) -> optimize.Bounds:
         """
-        Return the optimized bounds of a given optimization_problem as a Bound object.
+        Configure the bound constraints of a given optimization problem.
 
-        Optimizes the bounds of the optimization_problem by calling the method
-        optimize.Bounds. Keep_feasible is set to True.
+        Parameters
+        ----------
+        optimization_problem : OptimizationProblem
+            The given optimizaiton problem.
 
         Returns
         -------
         bounds : Bounds
-            Returns the optimized bounds as an object called bounds.
+            Bound constraints of the optimization problem.
         """
         return optimize.Bounds(
             optimization_problem.lower_bounds_independent_transformed,
@@ -181,7 +155,12 @@ class SciPyInterface(OptimizerBase):
 
     def get_constraint_objects(self, optimization_problem: OptimizationProblem) -> list:
         """
-        Return constraints as objets.
+        Return the constraints as an object.
+
+        Parameters
+        ----------
+        optimization_problem : OptimizationProblem
+            The given optimizaiton problem.
 
         Returns
         -------
@@ -315,6 +294,98 @@ class SciPyInterface(OptimizerBase):
             constraints.append(makeConstraint(i))
 
         return constraints
+
+    def get_callback(self, optimization_problem: OptimizationProblem) -> Callable:
+        """
+        Configure callback function.
+
+        Parameters
+        ----------
+        optimization : OptimizationProblem
+
+        Returns
+        -------
+        Callable
+            The callback funcction
+
+        Note, different optimizers in Scipy support different callback signatures.
+        We try to use the more modern `OptimizeResult` signature which is more likely
+        to also contain the current best value. For older optimizers, `xk` is used.
+        However, there is ambiguity in what that point actually is (see also:
+        https://github.com/scipy/scipy/issues/21061).
+
+        Returns
+        -------
+        Callable
+            The callback function.
+
+        """
+        if isinstance(self, (COBYLA, SLSQP)):
+            def callback(x: npt.ArrayLike, state: dict = None) -> bool:
+                """
+                Report progress after evaluation.
+
+                Notes
+                -----
+                Currently, this evaluates all functions again. This should not be a problem
+                since objectives and constraints are automatically cached.
+                """
+                self.n_evals += 1
+
+                x = x.tolist()
+                f = optimization_problem.evaluate_objectives(
+                    x,
+                    untransform=True,
+                    get_dependent_values=True,
+                    ensure_minimization=True,
+                )
+                g = optimization_problem.evaluate_nonlinear_constraints(
+                    x,
+                    untransform=True,
+                    get_dependent_values=True,
+                )
+                cv = optimization_problem.evaluate_nonlinear_constraints_violation(
+                    x,
+                    untransform=True,
+                    get_dependent_values=True,
+                )
+
+                self.run_post_processing(x, f, g, cv, self.n_evals)
+
+                return False
+
+            return callback
+
+        def callback(intermediate_result: OptimizeResult) -> None:
+            """
+            Report progress after evaluation.
+
+            Parameters
+            ----------
+            intermediate_result: OptimizeResult
+                The current state of the optimization.
+            """
+            self.n_evals += 1
+
+            x_transformed = intermediate_result.x
+            f = intermediate_result.fun
+
+            g = optimization_problem.evaluate_nonlinear_constraints(
+                x_transformed,
+                untransform=True,
+                get_dependent_values=True,
+            )
+            cv_nonlincon = (
+                optimization_problem.evaluate_nonlinear_constraints_violation(
+                    x_transformed,
+                    untransform=True,
+                    get_dependent_values=True,
+                )
+            )
+
+            self.run_post_processing(x_transformed, f, g, cv_nonlincon, self.n_evals)
+
+        return callback
 
     def __str__(self) -> str:
         """str: String representation."""
@@ -506,6 +577,76 @@ class COBYLA(SciPyInterface):
     n_max_iter = maxiter        # Alias for uniform interface
 
     _specific_options = ["rhobeg", "tol", "maxiter", "disp", "catol"]
+
+
+class COBYQA(SciPyInterface):
+    """Wrapper for the COBYQA optimization method from the scipy optimization suite.
+
+    It defines the solver options in the 'options' variable as a dictionary.
+
+    Supports:
+        - Linear constraints
+        - Linear equality constraints
+        - Nonlinear constraints
+        - Bounds
+
+    Parameters
+    ----------
+    disp : bool, default False
+        Set to True to print information about the optimization procedure.
+    maxfev : int
+        Maximum number of function evaluations.
+        The default is None.
+    maxiter : int
+        Maximum number of iterations.
+        The default is None.
+    f_target : float
+        Target value for the objective function.The optimization procedure is
+        terminated when the objective function value of a feasible point (see
+        `feasibility_tol` below) is less than or equal to this target.
+        The default is `-np.inf`
+    feasibility_tol : float
+        Absolute tolerance for the constraint violation.
+        The default is 1e-8
+    initial_tr_radius : float
+        Initial trust-region radius. Typically, this value should be in the order of one
+        tenth of the greatest expected change to the variables.
+        The default is 1.0
+    final_tr_radius : float
+        Final trust-region radius. It should indicate the accuracy required in the final
+        values of the variables. If provided, this option overrides the value of `tol`
+        in the `minimize` function.
+        The default is 1e-6
+    """
+
+    supports_linear_constraints = True
+    supports_linear_equality_constraints = True
+    supports_nonlinear_constraints = True
+    supports_bounds = True
+
+    disp = Bool(default=False)
+
+    maxfev = UnsignedInteger()
+    maxiter = UnsignedInteger()
+    f_target = Float(default=-np.inf)
+    feasibility_tol = UnsignedFloat(default=1e-8)
+    initial_tr_radius = UnsignedFloat(default=1.0)
+    final_tr_radius = UnsignedFloat(default=1e-6)
+
+    x_tol = final_tr_radius             # Alias for uniform interface
+    cv_nonlincon_tol = feasibility_tol  # Alias for uniform interface
+    n_max_evals = maxfev                # Alias for uniform interface
+    n_max_iter = maxiter                # Alias for uniform interface
+
+    _specific_options = [
+        "disp",
+        "maxfev",
+        "maxiter",
+        "f_target",
+        "feasibility_tol",
+        "initial_tr_radius",
+        "final_tr_radius",
+    ]
 
 
 class NelderMead(SciPyInterface):

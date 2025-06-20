@@ -36,6 +36,7 @@ Scipy
 
    TrustConstr
    COBYLA
+   COBYQA
    NelderMead
    SLSQP
 
@@ -101,7 +102,7 @@ from .results import *
 from .optimizationProblem import *
 from .parallelizationBackend import *
 from .optimizer import *
-from .scipyAdapter import COBYLA, TrustConstr, NelderMead, SLSQP
+from .scipyAdapter import COBYLA, COBYQA, TrustConstr, NelderMead, SLSQP
 from .pymooAdapter import NSGA2, U_NSGA3
 
 import importlib
