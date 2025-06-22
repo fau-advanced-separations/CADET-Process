@@ -313,12 +313,12 @@ class OptimizationProblem(Structure):
         self._evaluation_objects_dict[name] = evaluation_object
 
     @property
-    def variables(self) -> list:
+    def variables(self) -> list[OptimizationVariable]:
         """list: List of all optimization variables."""
         return self._variables
 
     @property
-    def variable_names(self) -> list:
+    def variable_names(self) -> list[str]:
         """list: Optimization variable names."""
         return [var.name for var in self.variables]
 
@@ -715,8 +715,7 @@ class OptimizationProblem(Structure):
     def set_variables(
         self,
         x: npt.ArrayLike,
-        evaluation_objects: Optional[list | object | int] = -1,
-    ) -> list:
+    ) -> None:
         """
         Set the values from the x-vector to the EvaluationObjects.
 
@@ -724,23 +723,6 @@ class OptimizationProblem(Structure):
         ----------
         x : array_like
             Value of all optimization variables in untransformed space.
-        evaluation_objects : list or EvaluationObject or None or -1
-            Evaluations objects to set variables in.
-            If None, do not set variables.
-            If -1, variables are set to all evaluation objects.
-            The default is -1.
-
-        Returns
-        -------
-        list
-            Evaluation Objects with set parameters.
-
-        Raises
-        ------
-        CADETProcessError
-            If x does not have correct length.
-        ValueError
-            If value of variable exceeds bounds.
 
         See Also
         --------
