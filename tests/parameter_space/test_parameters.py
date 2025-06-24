@@ -162,3 +162,83 @@ def test_parameter_is_dependent():
     assert c in space.dependent_parameters
     assert a not in space.dependent_parameters
     assert b not in space.dependent_parameters
+
+
+@pytest.mark.parametrize(
+    "norm_type, lb, ub, value, expected",
+    [
+        ("linear", 0.0, 10.0, 5.0, 0.5),
+        ("log", 1.0, 100.0, 10.0, 0.5),
+        ("auto", 1.0, 100.0, 10.0, pytest.approx(0.5, abs=0.1)),
+        (None, 0.0, 10.0, 5.0, 5.0),
+    ],
+)
+def test_ranged_parameter_normalization(norm_type, lb, ub, value, expected):
+    param = RangedParameter(
+        name="test_param",
+        parameter_type=float,
+        lb=lb,
+        ub=ub,
+        normalization=norm_type,
+    )
+    normalized = param.normalize(value)
+    denormalized = param.denormalize(normalized)
+
+    if isinstance(expected, float):
+        assert normalized == pytest.approx(expected)
+    else:
+        assert normalized == expected
+
+    assert denormalized == pytest.approx(value, rel=1e-5)
+
+
+def test_normalization_requires_finite_bounds():
+    """Ensure normalization raises if bounds are infinite."""
+    with pytest.raises(ValueError, match="Normalization requires finite bounds"):
+        RangedParameter(
+            name="test_inf",
+            parameter_type=float,
+            lb=0.0,
+            ub=float("inf"),
+            normalization="linear",
+        )
+
+
+def test_invalid_normalization_type():
+    """Check error is raised for unknown normalization type."""
+    with pytest.raises(ValueError, match="Unknown normalization type"):
+        RangedParameter(
+            name="invalid_norm",
+            parameter_type=float,
+            lb=1.0,
+            ub=10.0,
+            normalization="invalid_type",
+        )
+
+
+def test_normalize_without_normalizer_raises():
+    """Manually unset normalizer and ensure it raises at runtime."""
+    param = RangedParameter(
+        name="manual_fail",
+        parameter_type=float,
+        lb=0.0,
+        ub=1.0,
+        normalization="linear",
+    )
+    param.normalizer = None  # forcefully break internal state
+    with pytest.raises(AttributeError):  # might raise AttributeError or RuntimeError
+        param.normalize(0.5)
+
+
+def test_denormalize_without_normalizer_raises():
+    """Manually unset normalizer and ensure denormalization fails."""
+    param = RangedParameter(
+        name="manual_fail",
+        parameter_type=float,
+        lb=0.0,
+        ub=1.0,
+        normalization="linear",
+    )
+    param.normalizer = None
+    with pytest.raises(AttributeError):
+        param.denormalize(0.5)
