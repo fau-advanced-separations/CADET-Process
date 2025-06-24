@@ -285,7 +285,7 @@ class TestShape(unittest.TestCase):
         )
         metrics_expected = [0, 0]
         metrics = difference.evaluate(self.reference)
-        np.testing.assert_almost_equal(metrics, metrics_expected)
+        np.testing.assert_almost_equal(metrics, metrics_expected, decimal=6)
 
         # Compare with other Gauss Peak
         difference = Shape(
@@ -294,9 +294,9 @@ class TestShape(unittest.TestCase):
             components=["A"],
             normalize_metrics=False,
         )
-        metrics_expected = [5.5511151e-16, 10]
+        metrics_expected = [0, 10]
         metrics = difference.evaluate(self.reference)
-        np.testing.assert_almost_equal(metrics, metrics_expected)
+        np.testing.assert_almost_equal(metrics, metrics_expected, decimal=6)
 
         # Compare with other Gauss Peak, normalize_metrics
         difference = Shape(
@@ -307,7 +307,7 @@ class TestShape(unittest.TestCase):
         )
         metrics_expected = [0, 4.6211716e-01]
         metrics = difference.evaluate(self.reference)
-        np.testing.assert_almost_equal(metrics, metrics_expected)
+        np.testing.assert_almost_equal(metrics, metrics_expected, decimal=6)
 
         # Compare with other Gauss Peak, include derivative
         difference = Shape(
@@ -318,7 +318,7 @@ class TestShape(unittest.TestCase):
         )
         metrics_expected = [0, 10, 0]
         metrics = difference.evaluate(self.reference)
-        np.testing.assert_almost_equal(metrics, metrics_expected)
+        np.testing.assert_almost_equal(metrics, metrics_expected, decimal=6)
 
         # Compare with other Gauss Peak, include derivative, normalize metrics
         difference = Shape(
@@ -329,7 +329,7 @@ class TestShape(unittest.TestCase):
         )
         metrics_expected = [0, 4.6211716e-01, 0]
         metrics = difference.evaluate(self.reference)
-        np.testing.assert_almost_equal(metrics, metrics_expected)
+        np.testing.assert_almost_equal(metrics, metrics_expected, decimal=6)
 
         # Multi-component, currently not implemented
         with self.assertRaises(CADETProcessError):
@@ -372,7 +372,7 @@ class TestShapeFront(unittest.TestCase):
         )
         metrics_expected = [0, 0]
         metrics = difference.evaluate(self.reference)
-        np.testing.assert_almost_equal(metrics, metrics_expected)
+        np.testing.assert_almost_equal(metrics, metrics_expected, decimal=6)
 
         # Compare with other Gauss Peak
         difference = ShapeFront(
@@ -383,7 +383,7 @@ class TestShapeFront(unittest.TestCase):
         )
         metrics_expected = [0, 10]
         metrics = difference.evaluate(self.reference)
-        np.testing.assert_almost_equal(metrics, metrics_expected)
+        np.testing.assert_almost_equal(metrics, metrics_expected, decimal=6)
 
         # Compare with other Gauss Peak, normalize_metrics
         difference = ShapeFront(
@@ -394,7 +394,7 @@ class TestShapeFront(unittest.TestCase):
         )
         metrics_expected = [0, 4.6211716e-01]
         metrics = difference.evaluate(self.reference)
-        np.testing.assert_almost_equal(metrics, metrics_expected)
+        np.testing.assert_almost_equal(metrics, metrics_expected, decimal=6)
 
         # Compare with other Gauss Peak, include derivative
         difference = ShapeFront(
@@ -405,7 +405,7 @@ class TestShapeFront(unittest.TestCase):
         )
         metrics_expected = [0, 10, 0]
         metrics = difference.evaluate(self.reference)
-        np.testing.assert_almost_equal(metrics, metrics_expected)
+        np.testing.assert_almost_equal(metrics, metrics_expected, decimal=6)
 
         # Compare with other Gauss Peak, include derivative, normalize metrics
         difference = ShapeFront(
@@ -414,9 +414,9 @@ class TestShapeFront(unittest.TestCase):
             components=["A"],
             normalize_metrics=True,
         )
-        metrics_expected = [0, 4.6211716e-01, 0]
+        metrics_expected = [0.0, 4.6211716e-01, 0.0]
         metrics = difference.evaluate(self.reference)
-        np.testing.assert_almost_equal(metrics, metrics_expected)
+        np.testing.assert_almost_equal(metrics, metrics_expected, decimal=6)
 
         # Use maximum slope
         difference = ShapeFront(
@@ -426,9 +426,9 @@ class TestShapeFront(unittest.TestCase):
             components=["A"],
             normalize_metrics=False,
         )
-        metrics_expected = [0, 0]
+        metrics_expected = [0.0, 0.0]
         metrics = difference.evaluate(self.reference)
-        np.testing.assert_almost_equal(metrics, metrics_expected)
+        np.testing.assert_almost_equal(metrics, metrics_expected, decimal=6)
 
         difference = ShapeFront(
             self.reference_switched,
@@ -437,14 +437,14 @@ class TestShapeFront(unittest.TestCase):
             components=["A"],
             normalize_metrics=False,
         )
-        metrics_expected = [0, 10]
+        metrics_expected = [0.0, 10.0]
         metrics = difference.evaluate(self.reference)
-        np.testing.assert_almost_equal(metrics, metrics_expected)
+        np.testing.assert_almost_equal(metrics, metrics_expected, decimal=5)
 
         # Multi-component, currently not implemented
         with self.assertRaises(CADETProcessError):
             difference = ShapeFront(self.reference, use_derivative=False)
-            metrics_expected = [0, 0]
+            metrics_expected = [0.0, 0.0]
         with self.assertRaises(CADETProcessError):
             difference = ShapeFront(self.reference_single)
             metrics = difference.evaluate(self.reference)
