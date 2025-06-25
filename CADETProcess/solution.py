@@ -1489,6 +1489,11 @@ class SolutionSolid(SolutionBase):
         return sum(self.bound_states)
 
     @property
+    def n_comp(self) -> int:
+        """int: Number of bound states."""
+        return self.n_bound
+
+    @property
     def ncol(self) -> int:
         """int: Number of axial discretization points."""
         if self.axial_coordinates is None:
