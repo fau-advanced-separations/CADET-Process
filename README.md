@@ -1,7 +1,7 @@
 [![GitHub Release](https://img.shields.io/github/v/release/fau-advanced-separations/CADET-Process?color=%22blue%22)](https://github.com/fau-advanced-separations/CADET-Process/releases/latest)
 [![CI](https://github.com/fau-advanced-separations/CADET-Process/actions/workflows/pipeline.yml/badge.svg)](https://github.com/fau-advanced-separations/CADET-Process/actions/workflows/pipeline.yml)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/CADET-Process)](https://pypi.org/project/CADET-Process/)
-[![Zenodo DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15676626.svg)](https://zenodo.org/records/15676626)
+[![Zenodo DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14501346.svg)](https://zenodo.org/records/14501346)
 
 # CADET-Process
 
