@@ -30,6 +30,13 @@ def choice_param():
     return ChoiceParameter(name="mode", valid_values=["fast", "slow", "medium"])
 
 
+@pytest.fixture
+def mapped_param():
+    return RangedParameter(
+        name="mapped_param", parameter_type=float, lb=0.0, ub=5.0
+    )
+
+
 @pytest.mark.parametrize("value", [0, 5, 10])
 def test_ranged_param_accepts_valid(value, int_param):
     int_param.validate(value)  # Should not raise

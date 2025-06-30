@@ -56,6 +56,7 @@ class ParameterBase:
     """
 
     name: str
+    mapping: ParameterMapping | None = None
 
     def validate(self, value: Any) -> None:
         """
@@ -77,11 +78,13 @@ class ParameterBase:
         Set the value in the mapped objects.
 
         Iterates over parameter mappers and sets the value.
-        TODO: implement this method.
-        TODO: What's the purpose of this method? Call the mapper?
-        TODO: Raise error if value is not independent?
         """
-        pass
+        self.validate(value)
+
+        if self.mapping is None:
+            return
+
+        self.mapping.set_value(value)
 
 
 @dataclass
@@ -296,6 +299,11 @@ class ParameterMapping:
     parameter: ParameterBase
     evaluation_objects: list[Any]
     setter: Callable
+
+    def set_value(self, x: list[Any]) -> None:
+        """Set value in evaluation objects."""
+        for obj in self.evaluation_objects:
+            self.setter(obj, x)
 
 
 @dataclass
