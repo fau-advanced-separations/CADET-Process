@@ -171,6 +171,9 @@ def test_parameter_is_dependent():
     assert b not in space.dependent_parameters
 
 
+# TODO: Test calculating the actual dependent value.
+
+
 @pytest.mark.parametrize(
     "norm_type, lb, ub, value, expected",
     [
