@@ -403,3 +403,59 @@ class ParameterSpace:
             Parameters that are independent of others.
         """
         return [p for p in self.parameters if p not in self.dependent_parameters]
+
+    def get_dependent_variables(self, x_independent: list[Any]) -> list:
+        """
+        Compute dependent variable values.
+
+        Parameters
+        ----------
+        x_independent: list[Any]
+            Values of the independent variables
+
+        Returns
+        -------
+        list[Any]
+            Values of all variable.
+
+        TODO
+        - Add tests
+        - Consider using numpy arrays instead of lists.
+        """
+        # Create a dictionary to map parameter names to their values
+        param_values = {}
+
+        # Set the values for independent parameters
+        for param, value in zip(self.independent_parameters, x_independent):
+            param_values[param.name] = value
+
+        # Resolve dependencies in a loop until all dependencies are met
+        # Since dependencies can have their own dependencies
+        changed = True
+        while changed:
+            changed = False
+            for dep in self.parameter_dependencies:
+                # Check if the dependent parameter is already calculated
+                if dep.dependent_parameter.name in param_values:
+                    continue
+
+                # Attempt to gather independent values
+                try:
+                    indep_values = [
+                        param_values[param.name] for param in dep.independent_parameters
+                    ]
+                except KeyError:
+                    continue  # Skip if dependencies are not yet available
+
+                # Compute the dependent parameter value
+                dependent_value = dep.transform(*indep_values)
+                if (
+                    dep.dependent_parameter.name not in param_values
+                    or param_values[dep.dependent_parameter.name] != dependent_value
+                ):
+                    param_values[dep.dependent_parameter.name] = dependent_value
+                    changed = True
+
+        # Extract values in the order of parameters
+        result = list(param_values.values())
+        return result
