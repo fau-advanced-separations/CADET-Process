@@ -56,7 +56,6 @@ class ParameterBase:
     """
 
     name: str
-    dependency: ParameterDependency | None = None
 
     def validate(self, value: Any) -> None:
         """
