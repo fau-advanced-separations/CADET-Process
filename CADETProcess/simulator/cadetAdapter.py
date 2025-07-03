@@ -1793,6 +1793,19 @@ adsorption_parameters_map = {
             "COL_USE_PH": "use_ph",
         },
     },
+    "AffinityComplexTitration": {
+        "name": "AFFINITY_COMPLEX_TITRATION",
+        "parameters": {
+            "IS_KINETIC": "is_kinetic",
+            "ACT_KA": "adsorption_rate",
+            "ACT_KD": "desorption_rate",
+            "ACT_QMAX": "capacity",
+            "ACT_ETAA": "eta_a",
+            "ACT_ETAG": "eta_g",
+            "ACT_PKAA": "pka_a",
+            "ACT_PKAG": "pka_g",
+        },
+    },
 }
 
 inv_adsorption_parameters_map = {
