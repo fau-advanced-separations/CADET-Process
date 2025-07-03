@@ -44,6 +44,7 @@ __all__ = [
     "HICConstantWaterActivity",
     "HICWaterOnHydrophobicSurfaces",
     "MultiComponentColloidal",
+    "AffinityComplexTitration",
 ]
 
 
@@ -1242,4 +1243,49 @@ class MultiComponentColloidal(BindingBaseClass):
         "kinetic_rate_constant",
         "linear_threshold",
         "use_ph",
+    ]
+
+
+class AffinityComplexTitration(BindingBaseClass):
+    """
+    Colloidal isotherm from Xu and Lenhoff 2009.
+
+    Attributes
+    ----------
+    adsorption_rate: list of unsigned floats.
+        Adsorption rate. Size depends on `n_comp`.
+    desorption_rate: list of unsigned floats.
+        Desorption rate. Size depends on `n_comp`.
+    capacity: list of unsigned floats.
+        Maximum adsorption capacities. Length depends on `n_comp`.
+    eta_a: list of unsigned floats.
+        Hill-type coefficients denoting the slope for the binding capacity changes as a
+        function of pH changes. Length depends on `n_comp`.
+    eta_g: list of unsigned floats.
+        Hill-type coefficients denoting the slope for the equilibrium constant changes
+        as a function of pH changes. Length depends on `n_comp`.
+    pka_a: list of unsigned floats.
+        Center point for the binding capacity changes as a function of pH changes.
+        Length depends on `n_comp`.
+    pka_g: list of unsigned floats.
+        Center point for the equilibrium constant changes as a function of pH changes.
+        Length depends on `n_comp`.
+    """
+
+    adsorption_rate = SizedFloatList(size="n_comp")
+    desorption_rate = SizedFloatList(size="n_comp")
+    capacity = SizedUnsignedList(size="n_comp")
+    eta_a = SizedUnsignedList(size="n_comp")
+    eta_g = SizedUnsignedList(size="n_comp")
+    pka_a = SizedUnsignedList(size="n_comp")
+    pka_g = SizedUnsignedList(size="n_comp")
+
+    _parameters = [
+        "adsorption_rate",
+        "desorption_rate",
+        "capacity",
+        "eta_a",
+        "eta_g",
+        "pka_a",
+        "pka_g",
     ]
