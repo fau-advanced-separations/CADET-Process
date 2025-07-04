@@ -5,7 +5,7 @@ on:
     branches:
       - master
       - dev
-      - 144-monitor-test-coverage
+      - test_ci
   workflow_dispatch:
       inputs:
         slow:
@@ -70,7 +70,11 @@ jobs:
       - name: Coverage Run
         run: |
           if [ ${{ github.event.inputs.slow }} ]; then
-            pytest --cov=./CADETProcess --cov=./tests --cov-report term-missing tests
+            pytest --cov=./CADETProcess --cov=./tests --cov-branch --cov-report term-missing --cov-report xml tests
           else
-            pytest -m "not slow" --cov=./CADETProcess --cov=./tests --cov-report term-missing tests
+            pytest -m "not slow" --cov=./CADETProcess --cov=./tests --cov-branch --cov-report term-missing --cov-report xml tests
           fi
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
