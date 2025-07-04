@@ -21,7 +21,7 @@ from CADETProcess.solution import (
 )
 
 from .peaks import find_breakthroughs, find_peaks
-from .shape import pearson, pearson_offset
+from .shape import determine_optimal_offset, shape
 
 __all__ = [
     "DifferenceBase",
@@ -624,7 +624,7 @@ class Shape(DifferenceBase):
         np.ndarray
             Array of similarity metrics.
         """
-        corr, offset_original = pearson(
+        corr, offset_original = determine_optimal_offset(
             self.reference.time,
             self.reference.solution_interpolated.solutions[0],
             solution.solution_interpolated.solutions[0],
@@ -640,11 +640,12 @@ class Shape(DifferenceBase):
         if not self.use_derivative:
             return np.array([corr, offset])
 
-        corr_der = pearson_offset(
+        corr_der = shape(
             self.reference_der.time,
             self.reference_der.solution_interpolated.solutions[0],
             solution.derivative.solution_interpolated.solutions[0],
             offset_original,
+            flip=True,
         )
 
         return np.array(
@@ -745,7 +746,7 @@ class ShapeFront(Shape):
             return_indices=True,
         )
 
-        corr, offset_original = pearson(
+        corr, offset_original = determine_optimal_offset(
             times,
             self.reference_front.solution_interpolated.solutions[0],
             solution_front.solution_interpolated.solutions[0],
@@ -770,11 +771,12 @@ class ShapeFront(Shape):
         )
         solution_der_front.update_solution()
 
-        corr_der = pearson_offset(
+        corr_der = shape(
             self.reference_der_front.time,
             self.reference_der_front.solution_interpolated.solutions[0],
             solution_der_front.solution_interpolated.solutions[0],
             offset_original,
+            flip=True,
         )
 
         return np.array(
