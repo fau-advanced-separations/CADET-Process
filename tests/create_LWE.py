@@ -108,10 +108,6 @@ def setup_flow_sheet(unit, component_system: ComponentSystem) -> FlowSheet:
         flow_sheet.add_connection(unit, outlet, origin_port="radial_cell_1")
         flow_sheet.add_connection(inlet, unit, destination_port="radial_cell_2")
         flow_sheet.add_connection(unit, outlet, origin_port="radial_cell_2")
-        flow_sheet.add_connection(inlet, unit, destination_port="radial_cell_3")
-        flow_sheet.add_connection(unit, outlet, origin_port="radial_cell_3")
-        flow_sheet.add_connection(inlet, unit, destination_port="radial_cell_4")
-        flow_sheet.add_connection(unit, outlet, origin_port="radial_cell_4")
     else:
         flow_sheet.add_connection(inlet, unit)
         flow_sheet.add_connection(unit, outlet)
@@ -203,15 +199,15 @@ def configure_general_rate_model_2d(
         The configured general rate model.
     """
 
-    n_rad: int = kwargs.get("n_rad", 5)
+    n_rad: int = kwargs.get("n_rad", 3)
 
     grm2d = GeneralRateModel2D(component_system, nrad=n_rad, name="GeneralRateModel2D")
 
     grm2d.length = 0.014
     grm2d.diameter = 0.01 * 2
-    grm2d.bed_porosity = [0.37] * 5
-    grm2d.axial_dispersion = [5.75e-8] * 5 * 4
-    grm2d.col_dispersion_radial = [5.75e-8] * 5 * 4
+    grm2d.bed_porosity = [0.37] * 3
+    grm2d.axial_dispersion = [5.75e-8] * 3 * 4
+    grm2d.col_dispersion_radial = [5.75e-8] * 3 * 4
     grm2d.pore_diffusion = [7e-10, 6.07e-11, 6.07e-11, 6.07e-11]
 
     configure_solution_recorder(grm2d, **kwargs)
@@ -377,7 +373,7 @@ def configure_discretization(unit_operation, **kwargs) -> None:
     **kwargs : dict
         Additional parameters for configuring the discretization.
     """
-    n_col: int = kwargs.get("n_col", 100)
+    n_col: int = kwargs.get("n_col", 20)
     n_par: int = kwargs.get("n_par", 2)
     ad_jacobian: bool = kwargs.get("ad_jacobian", False)
 
