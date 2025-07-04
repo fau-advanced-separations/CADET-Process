@@ -41,6 +41,7 @@ __all__ = [
     "SimplifiedMultistateStericMassAction",
     "Saska",
     "GeneralizedIonExchange",
+    "HICUnified",
     "HICConstantWaterActivity",
     "HICWaterOnHydrophobicSurfaces",
     "MultiComponentColloidal",
@@ -793,7 +794,7 @@ class MultistateStericMassAction(BindingBaseClass):
     def _conversion_entries(self) -> int:
         n = 0
         for state in self.bound_states:
-            n += state**2
+            n += state ** 2
 
         return n
 
@@ -1108,6 +1109,67 @@ class HICConstantWaterActivity(BindingBaseClass):
         "capacity",
         "beta_0",
         "beta_1",
+    ]
+
+
+class HICUnified(BindingBaseClass):
+    """HIC based on Constant Water Activity adsorption isotherm.
+
+    Attributes
+    ----------
+    adsorption_rate : list of unsigned floats
+        Adsorption rate constants. Size depends on `n_comp`.
+    desorption_rate : list of unsigned floats.
+        Desorption rate constants. Size depends on `n_comp`.
+    capacity : list of unsigned floats
+        Maximum adsorption capacities. Size depends on `n_comp`.
+    hic_characteristic : list of unsigned floats.
+        Parameters describing the number of ligands per ligand-protein interaction.
+        Size depends on `n_comp`.
+    beta_0 : unsigned float
+        Parameter describing the number of highly ordered water molecules that stabilize
+        the hydrophobic surfaces at infinitely diluted salt concentration.
+    beta_1 : unsigned float
+        Parameter describing the change in the number of highly ordered water molecules
+        that stabilize the hydrophobic surfaces with respect to changes in the salt
+        concentration.
+    reference_liquid_phase_conc_c1 : unsigned float.
+       Reference for component 1 (optional, defaults to :math:`0.0`)
+    rho : unsigned float
+        Osmotic effect of :math:`c_0` on the water activity,
+        calculated as osmotic_coefficient * molar_weight_of_water * ion_number.
+        Optional, defaults to 3.35e-5 for NaCl
+    """
+
+    adsorption_rate = SizedFloatList(size="n_comp")
+    adsorption_rate_linear = SizedFloatList(size="n_comp")
+    desorption_rate = SizedFloatList(size="n_comp")
+    protein_coefficient = SizedFloatList(size="n_comp")
+    salt_coefficient = SizedFloatList(size="n_comp")
+    bound_protein_coefficient = SizedFloatList(size="n_comp")
+    hic_characteristic = SizedFloatList(size="n_comp")
+    hic_characteristic_linear = SizedFloatList(size="n_comp")
+    capacity = SizedFloatList(size="n_comp")
+
+    beta_0 = UnsignedFloat()
+    beta_1 = UnsignedFloat()
+    reference_liquid_phase_conc_c1 = UnsignedFloat(default=0.0)
+    rho = UnsignedFloat(degault=3.35e-5)
+
+    _parameters = [
+        "adsorption_rate",
+        "adsorption_rate_linear",
+        "desorption_rate",
+        "protein_coefficient",
+        "salt_coefficient",
+        "bound_protein_coefficient",
+        "hic_characteristic",
+        "hic_characteristic_linear",
+        "capacity",
+        "beta_0",
+        "beta_1",
+        "reference_liquid_phase_conc_c1",
+        "rho",
     ]
 
 
