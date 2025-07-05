@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, Literal, Optional
@@ -15,7 +17,7 @@ from .componentSystem import ComponentSystem
 from .flowSheet import FlowSheet
 from .unitOperation import Inlet, Outlet
 
-__all__ = ["Process"]
+__all__ = ["Process", "ProcessMetaInformation"]
 
 
 class Process(EventHandler):
@@ -56,8 +58,6 @@ class Process(EventHandler):
 
         self._parameter_sensitivities = []
 
-        self._meta_information = Dict()
-
         super().__init__(*args, **kwargs)
 
     @property
@@ -66,10 +66,16 @@ class Process(EventHandler):
         return self.flow_sheet.n_comp
 
     @property
-    def meta_information(self) -> dict:
+    def meta_information(self) -> ProcessMetaInformation:
         """dict: Meta information of the process."""
         # TODO: DO we still use this anywhere?
-        return self._meta_information
+        return ProcessMetaInformation(
+            name=self.name,
+            cycle_time=self.cycle_time,
+            m_feed=self.m_feed,
+            V_solid=self.V_solid,
+            V_eluent=self.V_eluent,
+        )
 
     @property
     def component_system(self) -> ComponentSystem:
@@ -903,3 +909,14 @@ class ParameterSensitivity:
     section_indices: list = None
     abstols: list = None
     factors: list = None
+
+
+@dataclass
+class ProcessMetaInformation:
+    """Process meta inormation."""
+
+    name: str
+    cycle_time: float
+    m_feed: np.ndarray
+    V_solid: np.ndarray
+    V_eluent: np.ndarray
