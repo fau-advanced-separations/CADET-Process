@@ -305,16 +305,10 @@ class LinearEqualityConstraint:
 
 
 def _traverse_mixed_path(root: Any, keys: Sequence[str]) -> tuple[Any, str]:
-    """
-    Follow *keys* up to the parent of the leaf and return (parent, leaf_key).
-
-    Traverses dict keys *or* object attributes at each hop.
-    Raises KeyError / AttributeError if the path is incomplete.
-    """
-    current = root
+    cur = root
     for k in keys[:-1]:
-        current = current[k] if isinstance(current, Mapping) else getattr(current, k)
-    return current, keys[-1]
+        cur = cur[k] if isinstance(cur, Mapping) else getattr(cur, k)
+    return cur, keys[-1]
 
 
 @dataclass(slots=True)
@@ -325,25 +319,15 @@ class ParameterMapperBase:
 
     def set_value(self, value: Any) -> None:
         """
-        Broadcast a parameter value to every evaluation object in.
-
-        ``self.evaluation_objects``.
-
-        The method loops over the list of *evaluation objects* and delegates the
-        actual write-operation to the subclass-specific :py:meth:`_set_value`
-        implementation.
+        Broadcast *value* into every object listed in ``self.evaluation_objects``.
 
         Parameters
         ----------
         value : Any
-            The value that should be written into each evaluation object.
-
+            The parameter value to write into each evaluation object.
         """
         for obj in self.evaluation_objects:
             self._set_value(obj, value)
-
-    def _set_value(self, evaluation_object: Any, value: Any) -> None:
-        raise NotImplementedError
 
 
 @dataclass(slots=True)
@@ -351,17 +335,18 @@ class ParameterDotPathSetter(ParameterMapperBase):
     """
     Writes *value* to the leaf referenced by a dot-separated path.
 
-    • Traverses dicts *and* objects in the same path.
+    Traverses dicts **and** objects in the same path; missing hops raise.
     """
 
     path: str
 
+    _keys: Sequence[str] = field(init=False, repr=False)
+
     def __post_init__(self) -> None:
-        self._keys: Sequence[str] = self.path.split(".")
+        self._keys = self.path.split(".")
 
     def _set_value(self, evaluation_object: Any, value: Any) -> None:
         parent, leaf = _traverse_mixed_path(evaluation_object, self._keys)
-
         if isinstance(parent, Mapping):
             parent[leaf] = value
         else:
