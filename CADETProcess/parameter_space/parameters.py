@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any, Callable, Literal, Optional
+from typing import Any, Callable, Literal, Optional, Sequence
 
 import numpy as np
+import numpy.typing as npt
 
 from CADETProcess.normalize import (
     AutoNormalizer,
@@ -20,7 +22,7 @@ __all__ = [
     "ChoiceParameter",
     "LinearConstraint",
     "LinearEqualityConstraint",
-    "ParameterMapping",
+    "ParameterMapperBase",
     "ParameterSpace",
 ]
 
@@ -53,10 +55,31 @@ class ParameterBase:
     ----------
     name : str
         Name of the parameter.
+    mappers: ParameterMapper
+        Parameter mapper.
     """
 
     name: str
-    mapping: ParameterMapping | None = None
+    mappers: ParameterMapperBase | list[ParameterMapperBase] | None = None
+
+    def __post_init__(self) -> None:
+        """
+        Normalise *mappers* to a list so the rest of the class can iterate.
+
+        without type-checking.
+        """
+        if self.mappers is None:
+            return
+
+        if not isinstance(self.mappers, list):
+            self.mappers = [self.mappers]
+
+        for mapper in self.mappers:
+            if not isinstance(mapper, ParameterMapperBase):
+                raise TypeError(
+                    f"All mappers must inherit from ParameterMapperBase, "
+                    f"got {type(mapper).__name__!r}"
+                )
 
     def validate(self, value: Any) -> None:
         """
@@ -81,10 +104,10 @@ class ParameterBase:
         """
         self.validate(value)
 
-        if self.mapping is None:
+        if self.mappers is None:
             return
-
-        self.mapping.set_value(value)
+        for mapper in self.mappers:
+            mapper.set_value(value)
 
 
 @dataclass
@@ -281,29 +304,68 @@ class LinearEqualityConstraint:
         self.b = float(self.b)
 
 
-@dataclass
-class ParameterMapping:
+def _traverse_mixed_path(root: Any, keys: Sequence[str]) -> tuple[Any, str]:
     """
-    Maps a parameter to an evaluation path and function.
+    Follow *keys* up to the parent of the leaf and return (parent, leaf_key).
 
-    Attributes
-    ----------
-    parameter : ParameterBase
-        The parameter being mapped.
-    evaluation_objects : list[Any]
-        The objects to which the parameter is mapped.
-    setter: Callable
-        Function to set mapped parameter.
+    Traverses dict keys *or* object attributes at each hop.
+    Raises KeyError / AttributeError if the path is incomplete.
     """
+    current = root
+    for k in keys[:-1]:
+        current = current[k] if isinstance(current, Mapping) else getattr(current, k)
+    return current, keys[-1]
 
-    parameter: ParameterBase
-    evaluation_objects: list[Any]
-    setter: Callable
 
-    def set_value(self, x: list[Any]) -> None:
-        """Set value in evaluation objects."""
+@dataclass(slots=True)
+class ParameterMapperBase:
+    """Abstract base that writes a single parameter into multiple targets."""
+
+    evaluation_objects: list[Any] = field(repr=False)
+
+    def set_value(self, value: Any) -> None:
+        """
+        Broadcast a parameter value to every evaluation object in.
+
+        ``self.evaluation_objects``.
+
+        The method loops over the list of *evaluation objects* and delegates the
+        actual write-operation to the subclass-specific :py:meth:`_set_value`
+        implementation.
+
+        Parameters
+        ----------
+        value : Any
+            The value that should be written into each evaluation object.
+
+        """
         for obj in self.evaluation_objects:
-            self.setter(obj, x)
+            self._set_value(obj, value)
+
+    def _set_value(self, evaluation_object: Any, value: Any) -> None:
+        raise NotImplementedError
+
+
+@dataclass(slots=True)
+class ParameterDotPathSetter(ParameterMapperBase):
+    """
+    Writes *value* to the leaf referenced by a dot-separated path.
+
+    • Traverses dicts *and* objects in the same path.
+    """
+
+    path: str
+
+    def __post_init__(self) -> None:
+        self._keys: Sequence[str] = self.path.split(".")
+
+    def _set_value(self, evaluation_object: Any, value: Any) -> None:
+        parent, leaf = _traverse_mixed_path(evaluation_object, self._keys)
+
+        if isinstance(parent, Mapping):
+            parent[leaf] = value
+        else:
+            setattr(parent, leaf, value)
 
 
 @dataclass
@@ -412,58 +474,45 @@ class ParameterSpace:
         """
         return [p for p in self.parameters if p not in self.dependent_parameters]
 
-    def get_dependent_variables(self, x_independent: list[Any]) -> list:
+    def get_dependent_variables(
+        self,
+        x_independent: npt.ArrayLike
+    ) -> npt.NDArray[Any]:
         """
-        Compute dependent variable values.
+        Compute values for all parameters.
 
         Parameters
         ----------
-        x_independent: list[Any]
-            Values of the independent variables
+        x_independent : ArrayLike
+            Values of the independent parameters (list, tuple, ndarray …).
 
         Returns
         -------
-        list[Any]
-            Values of all variable.
-
-        TODO
-        - Add tests
-        - Consider using numpy arrays instead of lists.
+        npt.NDArray[Any]
+            Independent values first, then dependent values.
         """
-        # Create a dictionary to map parameter names to their values
-        param_values = {}
+        x_independent = np.asarray(x_independent, dtype=object).ravel()
 
-        # Set the values for independent parameters
+        param_values: dict[str, Any] = {}
         for param, value in zip(self.independent_parameters, x_independent):
             param_values[param.name] = value
 
-        # Resolve dependencies in a loop until all dependencies are met
-        # Since dependencies can have their own dependencies
         changed = True
         while changed:
             changed = False
             for dep in self.parameter_dependencies:
-                # Check if the dependent parameter is already calculated
                 if dep.dependent_parameter.name in param_values:
                     continue
-
-                # Attempt to gather independent values
                 try:
-                    indep_values = [
-                        param_values[param.name] for param in dep.independent_parameters
-                    ]
+                    indep_vals = [param_values[p.name]
+                                  for p in dep.independent_parameters
+                                  ]
                 except KeyError:
-                    continue  # Skip if dependencies are not yet available
-
-                # Compute the dependent parameter value
-                dependent_value = dep.transform(*indep_values)
-                if (
-                    dep.dependent_parameter.name not in param_values
-                    or param_values[dep.dependent_parameter.name] != dependent_value
-                ):
-                    param_values[dep.dependent_parameter.name] = dependent_value
+                    continue
+                val = dep.transform(*indep_vals)
+                if param_values.get(dep.dependent_parameter.name) != val:
+                    param_values[dep.dependent_parameter.name] = val
                     changed = True
 
-        # Extract values in the order of parameters
-        result = list(param_values.values())
-        return result
+        ordered = self.independent_parameters + self.dependent_parameters
+        return np.asarray([param_values[p.name] for p in ordered], dtype=object)
