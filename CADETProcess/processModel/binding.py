@@ -1006,7 +1006,7 @@ class GeneralizedIonExchange(BindingBaseClass):
     non_binding_component_indices = [1]
 
     adsorption_rate = SizedFloatList(size="n_comp")
-    adsorption_rate_linear = SizedFloatList(size="n_comp")
+    adsorption_rate_linear = SizedFloatList(size="n_comp", default=0)
     adsorption_rate_quadratic = SizedFloatList(size="n_comp", default=0)
     adsorption_rate_cubic = SizedFloatList(size="n_comp", default=0)
     adsorption_rate_salt = SizedFloatList(size="n_comp", default=0)
