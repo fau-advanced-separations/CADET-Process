@@ -36,3 +36,9 @@ A module for building compartment model systems.
 from . import carouselBuilder
 from .carouselBuilder import *
 from .compartmentBuilder import *
+
+from .batchElutionBuilder import BatchElution
+from .clrBuilder import CLR
+from .flipFlopBuilder import FlipFlop
+from .lweBuilder import LWE
+from .mrssrBuilder import MRSSR

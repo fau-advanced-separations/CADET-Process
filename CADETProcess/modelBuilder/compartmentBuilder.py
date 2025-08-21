@@ -5,7 +5,7 @@ import numpy as np
 import numpy.typing as npt
 
 from CADETProcess import CADETProcessError
-from CADETProcess.dataStructure import String, StructMeta, UnsignedInteger
+from CADETProcess.dataStructure import String, Structure, UnsignedInteger
 from CADETProcess.processModel import (
     BindingBaseClass,
     BulkReactionBase,
@@ -22,7 +22,7 @@ from CADETProcess.processModel import (
 __all__ = ["CompartmentBuilder"]
 
 
-class CompartmentBuilder(metaclass=StructMeta):
+class CompartmentBuilder(Structure):
     """
     Class to build complex compartment models of bioreactors.
 
