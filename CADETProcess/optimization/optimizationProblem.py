@@ -20,12 +20,14 @@ from addict import Dict
 
 from CADETProcess import CADETProcessError, log, settings
 from CADETProcess.dataStructure import (
+    Aggregator,
     Bool,
     Callable,
     Float,
     Integer,
     NumpyProxyArray,
     ParameterBase,
+    ProxyList,
     RangedInteger,
     Sized,
     SizedNdArray,
@@ -3671,7 +3673,7 @@ class OptimizationVariable:
         except AttributeError:
             return None
 
-        if not isinstance(descriptor, ParameterBase):
+        if not isinstance(descriptor, (ParameterBase, Aggregator)):
             return None
 
         return descriptor
@@ -3735,7 +3737,7 @@ class OptimizationVariable:
         if isinstance(parameter_descriptor, (Float, Integer, Bool)):
             return False
 
-        if isinstance(parameter_descriptor, Sized):
+        if isinstance(parameter_descriptor, (Sized, Aggregator)):
             return True
 
         current_value = self._current_value(evaluation_object)
@@ -4027,7 +4029,7 @@ class OptimizationVariable:
 
                 parameter_type = self._parameter_type(eval_obj)
                 if (
-                    parameter_type is not NumpyProxyArray
+                    parameter_type not in [NumpyProxyArray, ProxyList]
                     and not isinstance(new_value, parameter_type)
                 ):
                     new_value = parameter_type(new_value.tolist())

@@ -99,7 +99,7 @@ from .individual import *
 from .population import *
 from .cache import *
 from .results import *
-from .optimizationProblem import *
+from .optimizationProblem import OptimizationProblem, OptimizationVariable
 from .parallelizationBackend import *
 from .optimizer import *
 from .scipyAdapter import COBYLA, COBYQA, TrustConstr, NelderMead, SLSQP
