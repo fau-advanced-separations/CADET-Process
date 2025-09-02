@@ -113,8 +113,6 @@ class ReferenceIO(ReferenceBase, SolutionIO):
 
         if flow_rate is None:
             flow_rate = 1
-        if isinstance(flow_rate, (int, float)):
-            flow_rate = flow_rate * np.ones(time.shape)
 
         super().__init__(name, component_system, time, solution, flow_rate)
 

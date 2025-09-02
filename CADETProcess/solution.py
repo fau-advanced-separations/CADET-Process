@@ -264,6 +264,9 @@ class SolutionIO(SolutionBase):
         flow_rate : TimeLine | npt.ArrayLike
             The flow rate data, which can be a TimeLine object or an array-like structure.
         """
+        if np.isscalar(flow_rate):
+            flow_rate = flow_rate * np.ones(time.shape)
+
         if not isinstance(flow_rate, TimeLine):
             flow_rate = TimeLine.from_profile(time, flow_rate)
         self.flow_rate = flow_rate
