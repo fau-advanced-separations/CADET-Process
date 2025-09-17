@@ -48,15 +48,12 @@ class Field:
                 coord_units[dim] = coord[1]
             else:
                 coords[dim] = np.asarray(coord)
+
         self.coordinates = coords
 
         # Build shape and dims
-        dims = list(coords.keys())
-        if components is not None:
-            dims.append("component")
-
         # Handle 0D case
-        if not dims:
+        if not coords:
             # Scalar field: data is 0D, dims is empty
             grid_shape = ()
         else:
@@ -76,13 +73,11 @@ class Field:
 
         # Build DataArray coordinates
         da_coords = coords.copy()
-        dims = list(coords.keys())
         if components is not None:
             da_coords["component"] = components
-            dims.append("component")
 
         # Store DataArray
-        self._data = xr.DataArray(data, coords=da_coords, dims=dims, name=name)
+        self._data = xr.DataArray(data, coords=da_coords, name=name)
 
         # Set unit for data
         if unit is not None:
@@ -111,6 +106,48 @@ class Field:
             else None
         )
 
+    @property
+    def has_components(self) -> bool:
+        """Return True if Field has components."""
+        return self.components is not None
+
+    def wraps_xr_selection(method_name: str) -> Callable:
+        """Specialized wrapper for sel/isel to handle 'component' separately."""
+        def selection_decorator(func: Callable) -> Callable:
+            @wraps(func)
+            def selection_wrapper(self: "Field", *args: Any, **kwargs: Any) -> "Field":
+                # Pop 'component' to handle it separately
+                component = kwargs.pop("component", None)
+
+                # Select component if specified
+                da = self._data
+                if component is not None:
+                    da = getattr(da, method_name)(component=component)
+
+                # Call the xarray method
+                da = getattr(da, method_name)(*args, **kwargs)
+
+                # Process result
+                coords = {k: da.coords[k].values for k in da.dims if k != "component"}
+                comps = (
+                    da.coords["component"].values.tolist()
+                    if "component" in da.dims
+                    else None
+                )
+                return Field(coords, data=da.values, components=comps)
+            return selection_wrapper
+        return selection_decorator
+
+    @wraps_xr_selection("sel")
+    def sel(self, **kwargs: Any) -> "Field":
+        """Slice the field using xarray's sel."""
+        pass
+
+    @wraps_xr_selection("isel")
+    def isel(self, **kwargs: Any) -> "Field":
+        """Slice the field using xarray's isel (by integer index)."""
+        pass
+
     def wraps_xr(method_name: str) -> Callable:
         """Wrap xr.DataArray method."""
         def xr_decorator(func: Callable) -> Callable:
@@ -131,16 +168,6 @@ class Field:
                 return Field(coords, data=da.values, components=comps)
             return xr_wrapper
         return xr_decorator
-
-    @wraps_xr("sel")
-    def sel(self, **kwargs: Any) -> "Field":
-        """Slice the field using xarray's sel."""
-        pass
-
-    @wraps_xr("isel")
-    def isel(self, drop: bool = False, **kwargs: Any) -> "Field":
-        """Slice the field using xarray's isel (by integer index)."""
-        pass
 
     @wraps_xr("interp")
     def interp(self, **kwargs: Any) -> "Field":
@@ -181,9 +208,12 @@ class Field:
         plt.Axes | np.ndarray[plt.Axes]
             The axes object(s) that were used for plotting
         """
-        da = self._data
+        field = self
+
         if sel is not None:
-            da = da.sel(sel, method="nearest")
+            field = self.sel(**sel, method="nearest")
+
+        da = field._data
 
         plot_dims = [d for d in da.dims if d != "component"]
         ndim = len(plot_dims)

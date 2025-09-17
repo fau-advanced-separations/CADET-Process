@@ -57,10 +57,17 @@ def test_vector_field_interp(coords, components):
 def test_sel_component(coords):
     """Test selection and indexing of components."""
     f = Field({"time": np.linspace(0, 10, 11)}, components=["A", "B", "C"])
+
     fa = f.sel(component="A")
     assert "component" not in fa.data.dims
+
     fab = f.sel(component=["A", "B"])
     assert "component" in fab.data.dims
+
+    fabt = f.sel(component="A", time=0.1234, method="nearest")
+    assert "component" not in fabt.data.dims
+    assert "time" not in fabt.data.dims
+
     fb = f.isel(component=1)
     assert "component" not in fb.data.dims
 
