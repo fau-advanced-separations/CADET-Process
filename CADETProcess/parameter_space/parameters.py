@@ -355,7 +355,10 @@ class ParameterDotPathSetter(ParameterMapperBase):
 
 @dataclass
 class ParameterSpace:
-    """Container for managing parameters and constraints."""
+    """Container for managing parameters and constraints.
+
+    @TODO add methods to check and evaluate bounds and linear cons
+    """
 
     parameters: list[ParameterBase] = field(default_factory=list)
     linear_constraints: list[LinearConstraint] = field(default_factory=list)
@@ -423,8 +426,6 @@ class ParameterSpace:
         parameter_dependency : ParameterDependency,
             The parameter dependency.
 
-        TODO: Check that parameter is not already dependent.
-        TODO: Should we add the dependency to the Parameter itself?
         """
         if any(
             d.dependent_parameter == parameter_dependency.dependent_parameter
@@ -501,3 +502,177 @@ class ParameterSpace:
 
         ordered = self.independent_parameters + self.dependent_parameters
         return np.asarray([param_values[p.name] for p in ordered], dtype=object)
+
+    @property
+    def n_variables(self) -> int:
+        """Number of independent (optimization) variables."""
+        return len(self.independent_parameters)
+
+    @property
+    def lower_bounds(self) -> np.ndarray:
+        """
+        Lower bounds for independent variables.
+
+        Returns
+        -------
+        np.ndarray
+            Vector of length `n_variables`; parameters without explicit bounds are
+            treated as unbounded (-inf).
+        """
+        lbs: list[float] = []
+        for p in self.independent_parameters:
+            lb = getattr(p, "lb", None)
+            lbs.append(-np.inf if lb is None else float(lb))
+        return np.asarray(lbs, dtype=float)
+
+    @property
+    def upper_bounds(self) -> np.ndarray:
+        """
+        Upper bounds for independent variables.
+
+        Returns
+        -------
+        np.ndarray
+            Vector of length `n_variables`; parameters without explicit bounds are
+            treated as unbounded (+inf).
+        """
+        ubs: list[float] = []
+        for p in self.independent_parameters:
+            ub = getattr(p, "ub", None)
+            ubs.append(+np.inf if ub is None else float(ub))
+        return np.asarray(ubs, dtype=float)
+
+    def check_bounds(
+        self,
+        x: npt.ArrayLike,
+        cv_bounds_tol: Optional[float | npt.ArrayLike] = 0.0,
+    ) -> bool:
+        """
+        Check if all bound constraints are satisfied for the **independent** variables.
+
+        Parameters
+        ----------
+        x : ArrayLike
+            Values of the independent optimization variables (untransformed space)
+            in the order of ``self.independent_parameters``.
+        cv_bounds_tol : float or ArrayLike, optional
+            Tolerance for checking bound constraints. If a scalar is provided, the
+            same tolerance is applied to all variables; otherwise must match
+            ``n_variables``. Default is 0.0.
+
+        Returns
+        -------
+        flag : bool
+            ``True`` if every variable satisfies ``lb - tol <= x <= ub + tol``,
+            ``False`` otherwise.
+
+        Raises
+        ------
+        ValueError
+            If the length of ``x`` (or of ``cv_bounds_tol`` when array-like) does
+            not match the number of independent variables.
+
+        """
+        vals = np.asarray(x, dtype=float).ravel()
+        n = self.n_variables
+        if vals.size != n:
+            raise ValueError(f"Length of `x` ({vals.size}) does not match {n}.")
+
+        if np.isscalar(cv_bounds_tol):
+            tol = np.full(n, float(cv_bounds_tol), dtype=float)
+        else:
+            tol = np.asarray(cv_bounds_tol, dtype=float).ravel()
+            if tol.size != n:
+                raise ValueError(
+                    f"Length of `cv_bounds_tol` ({tol.size}) does not match {n}."
+                )
+
+        lbs = self.lower_bounds
+        ubs = self.upper_bounds
+
+        below = vals < (lbs - tol)
+        above = vals > (ubs + tol)
+        return not (np.any(below) or np.any(above))
+
+    @property
+    def ordered_parameters(self) -> list[ParameterBase]:
+        """
+        Independent parameters followed by dependent parameters.
+
+        This mirrors the ordering returned by `get_dependent_variables`.
+        """
+        return self.independent_parameters + self.dependent_parameters
+
+    def set_values(
+        self,
+        x_independent: npt.ArrayLike,
+        *,
+        compute_dependents: bool = True,
+        validate_bounds: bool = False,
+        cv_bounds_tol: Optional[float | npt.ArrayLike] = 0.0,
+    ) -> None:
+        """
+        Set values on all parameters (independent first, then dependent).
+
+        Parameters
+        ----------
+        x_independent : ArrayLike
+            Values for the independent parameters, in the order of
+            `self.independent_parameters`.
+        compute_dependents : bool, default=True
+            If True (recommended), compute dependent parameter values using
+            `get_dependent_variables` before setting. If False, `x_independent`
+            is assumed to already contain values for *all* parameters in the
+            order `independent + dependent`.
+        validate_bounds : bool, default=False
+            If True, check bound feasibility on the independent variables using
+            `check_bounds` before setting.
+        cv_bounds_tol : float or ArrayLike, default=0.0
+            Tolerance passed to `check_bounds` when `validate_bounds` is True.
+
+        Notes
+        -----
+        - This calls each parameter's own `set_value`, which in turn runs its
+          `validate` method and writes into its mappers.
+        - Ordering: independent parameters first, then dependent parameters.
+        """
+        if validate_bounds:
+            ok = self.check_bounds(x_independent, cv_bounds_tol=cv_bounds_tol)
+            if not ok:
+                raise ValueError("Independent values violate bound constraints.")
+
+        if compute_dependents:
+            all_values = self.get_dependent_variables(x_independent)
+            if all_values.size != len(self.ordered_parameters):
+                raise RuntimeError(
+                    "Computed number of parameter values does not match the number of parameters."
+                )
+        else:
+            all_values = np.asarray(x_independent, dtype=object).ravel()
+            expected = len(self.ordered_parameters)
+            if all_values.size != expected:
+                raise ValueError(
+                    f"When compute_dependents=False, expected {expected} values "
+                    f"(independent + dependent), got {all_values.size}."
+                )
+
+        for param, value in zip(self.ordered_parameters, all_values):
+            param.set_value(value)
+
+    @property
+    def evaluation_objects(self) -> set[Any]:
+        """
+        Unique evaluation objects gathered from all parameter mappers.
+
+        Returns
+        -------
+        set[Any]
+            A set of unique evaluation objects found across all parameters'
+            mappers.
+        """
+        return {
+            evaluation_object
+            for p in self.parameters if p.mappers
+            for m in p.mappers if m.evaluation_objects
+            for evaluation_object in m.evaluation_objects
+        }
