@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import copy
-import inspect
 from typing import Any, Callable, Optional, Sequence
 
 from CADETProcess.fractionation import FractionationOptimizer
@@ -25,8 +24,8 @@ class EvaluationPipeline:
     parameter_space : ParameterSpace
         Parameter space that knows how to set values on the evaluation objects.
     root_input_name : str, optional
-        Explicit name of the first evaluator's root input argument.
-        If not given, inferred from the first evaluator's signature.
+        Explicit name of the root input argument that receives the evaluation object.
+        If not given, it is inferred via `Pipeline.all_root_args(target)`.
 
     Attributes
     ----------
@@ -107,31 +106,35 @@ class EvaluationPipeline:
             )
         return self._pipeline
 
-    def _infer_root_input_name(self) -> str:
+    def _get_root_arg_from_pipeline(self, target: str) -> str:
         """
-        Determine the name of the root input argument for the first evaluator.
+        Ask the Pipeline which root argument(s) are needed to compute `target`.
 
-        Returns
-        -------
-        str
-            The inferred parameter name.
+        Then choose the one that should receive the evaluation object.
 
-        Raises
-        ------
-        RuntimeError
-            If it cannot locate a suitable callable/parameter.
+        If user provided `self._root_input_name`, ensure it's in roots and return it.
         """
+        roots_map = self.pipeline.all_root_args
+        if target not in roots_map:
+            available = list(roots_map.keys())
+            raise RuntimeError(
+                f"Target '{target}' not found in pipeline outputs with root args. "
+                f"Available targets: {available}"
+            )
+
+        roots = roots_map[target]
+        roots = list(roots)
+
         if self._root_input_name:
+            if self._root_input_name not in roots:
+                raise RuntimeError(
+                    f"Provided root_input_name='{self._root_input_name}' is not among "
+                    f"pipeline roots for target '{target}': {roots}"
+                )
             return self._root_input_name
-        first_node = next(iter(self.evaluators.values()))
-        fn = getattr(first_node, "func", None) or getattr(first_node, "__call__", None)
-        if fn is None:
-            raise RuntimeError("Could not locate the underlying callable of the first evaluator.")
-        sig = inspect.signature(fn)
-        for p in sig.parameters.values():
-            if p.kind in (inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY):
-                return p.name
-        raise RuntimeError("No suitable input parameter found on the first evaluator.")
+
+        if len(roots) == 1:
+            return roots[0]
 
     def __call__(self, target: str, x: Sequence[float], **kwargs: Any) -> list[Any]:
         """
@@ -151,19 +154,20 @@ class EvaluationPipeline:
         -------
         list[Any]
             List of results, one per evaluation object in
-            parameter_space.evaluation_objects`.
+            `parameter_space.evaluation_objects`.
         """
+        # Push x into all evaluation objects via ParameterSpace
         self.parameter_space.set_values(x)
-        root_kw = self._infer_root_input_name()
+
+        # Discover which kwarg name the pipeline expects at the root for `target`
+        root_kw = self._get_root_arg_from_pipeline(target)
 
         results: list[Any] = []
         for evaluation_object in self.parameter_space.evaluation_objects:
+            # Call the pipeline, passing the evaluation object under the discovered root kwarg.
             result = self.pipeline(target, **{root_kw: evaluation_object}, **kwargs)
             results.append(result)
         return results
-
-
-new_process = copy.deepcopy(process)
 
 
 def build_parameter_space(new_process: Any) -> ParameterSpace:
@@ -200,7 +204,7 @@ def build_parameter_space(new_process: Any) -> ParameterSpace:
     ps.add_parameter(cycle)
     ps.add_parameter(feed)
     ps.add_linear_constraint(
-        LinearConstraint(parameters=[feed, cycle], lhs=[1.0, -1.0], b=-1e-9)  # feed < cycle
+        LinearConstraint(parameters=[feed, cycle], lhs=[1.0, -1.0], b=-1e-9)
     )
     return ps
 
@@ -299,6 +303,8 @@ def eval_eluentcons(frac: Any) -> float:
     """
     return frac.eluent_consumption
 
+
+new_process = copy.deepcopy(process)
 
 parameter_space = build_parameter_space(new_process)
 batch_elution_evaluation_pipeline = EvaluationPipeline(parameter_space)
