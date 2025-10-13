@@ -311,49 +311,51 @@ class AxInterface(OptimizerBase):
             # When returning to batch trials, the Arms can be initialized here
             # and then collectively returned. See commit history
 
-    def _post_processing(self, trial: BaseTrial) -> None:
+    def _post_processing(
+            self,
+            trials: Dict[int, Dict[str, float]],
+            results: Dict[int, Dict[str, float]],
+            generation: int,
+        ) -> None:
         """
         Run post processing.
 
-        Ax holds the data of the model in a dataframe an experiment consists of trials
-        which consist of arms in a sequential experiment, each trial only has one arm.
+        Expects a Dictionary of Dicts that hold the variable names : values pairs
+        the same for results (objective function, nonlinear constraints)
 
-        Arms are evaluated. These hold the parameters.
+        Parameters
+        ----------
+
+        trials: Dict[int, Dict[str, float]]
+            The values (variables) for which the problem was evaluated. Each index
+            corresponds to a complete trial and holds its variable:value pairs
+        results: Dict[int, Dict[str, float]]
+            The values (objective function results) of the problem evaluated at the
+            corresponding variable values. Each index corresponds to a complete trial
+            and holds its variable:value pairs
+        generation: int
+            Index of the batch trial
         """
         op = self.optimization_problem
 
-        # get the trial level data as a dataframe
-        trial_data = self.ax_experiment.fetch_trials_data([trial.index])
-        data = trial_data.df
-
-        # DONE: Update for multi-processing. If n_cores > 1: len(arms) > 1 (oder @Flo?)
-        X = np.array([list(arm.parameters.values()) for arm in trial.arms])
-        objective_labels = [
-            f"{obj_name}_axidx_{i}" for i, obj_name in enumerate(op.objective_labels)
-        ]
-
-        n_ind = len(X)
+        # Get variable value in the order of the optimization problem
+        X = np.array([
+            [trial[var] for var in op.variable_names]
+            for _, trial in trials.items()
+        ])
 
         # Get objective values
-        F_data = data[data["metric_name"].isin(objective_labels)]
-        assert np.all(
-            F_data["metric_name"].values
-            == np.repeat(objective_labels, len(X)).astype(object)
-        )
-        F = F_data["mean"].values.reshape((op.n_objectives, n_ind)).T
+        F = np.array([
+            [result[obj_label] for obj_label in op.objective_labels]
+            for _, result in results.items()
+        ])
 
-        # Get nonlinear constraint values
+        # Get nonlinear constraints values
         if op.n_nonlinear_constraints > 0:
-            nonlincon_labels = [
-                f"{name}_axidx_{i}"
-                for i, name in enumerate(op.nonlinear_constraint_labels)
-            ]
-            G_data = data[data["metric_name"].isin(nonlincon_labels)]
-            assert np.all(
-                G_data["metric_name"].values.tolist()
-                == np.repeat(nonlincon_labels, len(X))
-            )
-            G = G_data["mean"].values.reshape((op.n_nonlinear_constraints, n_ind)).T
+            G = np.array([
+                [result[obj_label] for obj_label in op.nonlinear_constraint_labels]
+                for _, result in results.items()
+            ])
 
             nonlincon_cv_fun = op.evaluate_nonlinear_constraints_violation
             CV = nonlincon_cv_fun(X, untransform=True, get_dependent_values=True)
@@ -371,7 +373,7 @@ class AxInterface(OptimizerBase):
             F_minimized=F,
             G=G,
             CV_nonlincon=CV,
-            current_generation=self.ax_experiment.num_trials,
+            current_generation=generation,
             X_opt_transformed=None,
         )
 
@@ -497,13 +499,14 @@ class AxInterface(OptimizerBase):
 
                 # tell
                 for trial_index, trial in trials.items():
-                    # self._post_processing(trial)
+                    self._post_processing(results=results, trials=trials, generation=n_iter)
 
                     print(f"Completed {trial_index=} with {results[trial_index]=}")
                     client.complete_trial(
                         trial_index=trial_index,
                         raw_data=results[trial_index]
                     )
+
 
                 # # The strategy itself will check if enough trials have already been
                 # # completed.
