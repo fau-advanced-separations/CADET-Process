@@ -292,24 +292,22 @@ class AxInterface(OptimizerBase):
             trial, F, objective_labels, G, nonlincon_labels
         )
 
-    def _create_manual_trial(self, X: npt.ArrayLike) -> None:
+    def _create_manual_trials(self, X: npt.ArrayLike) -> None:
         """Create trial from pre-evaluated data."""
-        # variables = self.optimization_problem.independent_variable_names
+        variables = self.optimization_problem.independent_variable_names
 
+        trials = {}
         for i, x in enumerate(X):
-            trial = self.ax_experiment.new_trial()
-            # trial_data = {
-            #     "input": {var: x_i for var, x_i in zip(variables, x)},
-            # }
+            par = {var: x_i for var, x_i in zip(variables, x)}
 
-            # arm_name = f"{trial.index}_{0}"
-            # trial.add_arm(Arm(parameters=trial_data["input"], name=arm_name))
-            trial.run()
-            trial.mark_completed()
-            self._post_processing(trial)
+            trial_index = self.client.attach_trial(
+                arm_name=i,
+                parameters=par
+            )
+            trials.update({trial_index: par})
 
-            # When returning to batch trials, the Arms can be initialized here
-            # and then collectively returned. See commit history
+        return trials
+
 
     def _post_processing(
             self,
@@ -399,10 +397,10 @@ class AxInterface(OptimizerBase):
         self, optimization_problem: OptimizationProblem, x0: npt.ArrayLike
     ) -> None:
 
-        client = Client()
+        self.client = Client()
 
         parameters, constraints = self._setup_searchspace(self.optimization_problem)
-        client.configure_experiment(
+        self.client.configure_experiment(
             parameters=parameters,
             parameter_constraints=constraints,
             name=str(optimization_problem),
@@ -413,10 +411,16 @@ class AxInterface(OptimizerBase):
 
         objectives = self._setup_objectives()
         outcome_constraints = self._setup_outcome_constraints()
-        client.configure_optimization(
+        self.client.configure_optimization(
             objective=objectives,
             outcome_constraints=outcome_constraints
         )
+
+        self.runner = CADETProcessRunner(
+            optimization_problem=self.optimization_problem,
+            parallelization_backend=SequentialBackend(),
+        )
+
 
         if False:
             self.global_stopping_strategy = ImprovementGlobalStoppingStrategy(
@@ -426,51 +430,61 @@ class AxInterface(OptimizerBase):
                 inactive_when_pending_trials=True,
             )
 
+            # TODO: remove. Old.
             # Internal storage for tracking data
-            self._data = self.ax_experiment.fetch_data()
+            # self._data = self.ax_experiment.fetch_data()
 
             # Restore previous results from checkpoint
-            if len(self.results.populations) > 0:
-                for pop in self.results.populations:
-                    X, F, G = pop.x, pop.f, pop.g
-                    trial = self._create_manual_trial(X)
-                    trial.mark_running(no_runner_required=True)
+        if len(self.results.populations) > 0:
+            for pop in self.results.populations:
+                X, F, G = pop.x, pop.f, pop.g
+                trials = self._create_manual_trials(X)
 
-                    trial_data = self._create_manual_data(trial, F, G)
-                    trial.run_metadata.update(trial_data)
-                    trial.mark_completed()
+                # trial_data = self._create_manual_data(trial, F, G)
+                # trial.run_metadata.update(trial_data)
+                # trial.mark_completed()
+
+        else:
+            if x0 is not None:
+                x0_init = np.array(x0, ndmin=2)
+
+                if len(x0_init) < self.n_init_evals:
+                    warnings.warn(
+                        "Initial population smaller than popsize. " +
+                        "Creating missing entries."
+                    )
+                    n_remaining = self.n_init_evals - len(x0_init)
+                    x0_remaining = optimization_problem.create_initial_values(
+                        n_remaining, seed=self.seed, include_dependent_variables=False
+                    )
+                    x0_init = np.vstack((x0_init, x0_remaining))
+                elif len(x0_init) > self.n_init_evals:
+                    warnings.warn(
+                        "Initial population larger than popsize. Omitting overhead."
+                    )
+                    x0_init = x0_init[0 : self.n_init_evals]
 
             else:
-                if x0 is not None:
-                    x0_init = np.array(x0, ndmin=2)
+                # Create initial samples if they are not provided
+                x0_init = self.optimization_problem.create_initial_values(
+                    n_samples=self.n_init_evals,
+                    include_dependent_variables=False,
+                    seed=self.seed + 5641,
+                )
 
-                    if len(x0_init) < self.n_init_evals:
-                        warnings.warn(
-                            "Initial population smaller than popsize. "
-                            "Creating missing entries."
-                        )
-                        n_remaining = self.n_init_evals - len(x0_init)
-                        x0_remaining = optimization_problem.create_initial_values(
-                            n_remaining, seed=self.seed, include_dependent_variables=False
-                        )
-                        x0_init = np.vstack((x0_init, x0_remaining))
-                    elif len(x0_init) > self.n_init_evals:
-                        warnings.warn(
-                            "Initial population larger than popsize. Omitting overhead."
-                        )
-                        x0_init = x0_init[0 : self.n_init_evals]
+            x0_init_transformed = np.array(optimization_problem.transform(x0_init))
+            trials = self._create_manual_trials(x0_init_transformed)
+            # print(exp_to_df(self.ax_experiment))
 
-                else:
-                    # Create initial samples if they are not provided
-                    x0_init = self.optimization_problem.create_initial_values(
-                        n_samples=self.n_init_evals,
-                        include_dependent_variables=False,
-                        seed=self.seed + 5641,
-                    )
-
-                x0_init_transformed = np.array(optimization_problem.transform(x0_init))
-                self._create_manual_trial(x0_init_transformed)
-                # print(exp_to_df(self.ax_experiment))
+        # complete initial trials
+        results = self.runner.run_trials(trials=trials)
+        self._post_processing(trials=trials, results=results, generation=0)
+        for trial_index, trial in trials.items():
+            print(f"Completed {trial_index=} with {results[trial_index]=}")
+            self.client.complete_trial(
+                trial_index=trial_index,
+                raw_data=results[trial_index]
+            )
 
         n_iter = self.results.n_gen
         n_evals = self.results.n_evals
@@ -479,30 +493,25 @@ class AxInterface(OptimizerBase):
 
         if n_evals >= self.n_max_evals:
             raise CADETProcessError(
-                f"Initial number of evaluations exceeds `n_max_evals` "
+                "Initial number of evaluations exceeds `n_max_evals` " +
                 f"({self.n_max_evals})."
             )
-
-        runner = CADETProcessRunner(
-            optimization_problem=self.optimization_problem,
-            parallelization_backend=SequentialBackend(),
-        )
 
         with manual_seed(seed=self.seed):
             while not (n_evals >= self.n_max_evals or n_iter >= self.n_max_iter):
                 print(f"Running optimization trial {n_evals + 1}/{self.n_max_evals}...")
 
                 # ask
-                trials = client.get_next_trials(max_trials=3)
+                trials = self.client.get_next_trials(max_trials=3)
 
-                results = runner.run_trials(trials=trials)
+                # compute
+                results = self.runner.run_trials(trials=trials)
+                self._post_processing(results=results, trials=trials, generation=n_iter)
 
                 # tell
                 for trial_index, trial in trials.items():
-                    self._post_processing(results=results, trials=trials, generation=n_iter)
-
                     print(f"Completed {trial_index=} with {results[trial_index]=}")
-                    client.complete_trial(
+                    self.client.complete_trial(
                         trial_index=trial_index,
                         raw_data=results[trial_index]
                     )
@@ -524,7 +533,7 @@ class AxInterface(OptimizerBase):
                 n_iter += 1
                 n_evals += len(trials)
 
-        best_parameters, prediction, index, name = client.get_best_parameterization()
+        best_parameters, prediction, index, name = self.client.get_best_parameterization()
         print("Best Parameters:", best_parameters)
         print("Prediction (mean, variance):", prediction)
 
