@@ -16,6 +16,7 @@ from CADETProcess.dataStructure import (
     String,
     Structure,
     Switch,
+    Typed,
     UnsignedFloat,
     frozen_attributes,
 )
@@ -33,6 +34,7 @@ from .discretization import (
     MCTDiscretizationFV,
     NoDiscretization,
 )
+from .parameterDependency import ParameterParameterDependencyBase
 from .reaction import BulkReactionBase, NoReaction, ParticleReactionBase
 from .solutionRecorder import (
     CSTRRecorder,
@@ -55,8 +57,11 @@ __all__ = [
     "TubularReactor",
     "ChromatographicColumnBase",
     "LumpedRateModelWithoutPores",
+    "RadialLumpedRateModelWithoutPores",
     "LumpedRateModelWithPores",
+    "RadialLumpedRateModelWithPores",
     "GeneralRateModel",
+    "RadialGeneralRateModel",
     "MCT",
 ]
 
@@ -96,6 +101,7 @@ class UnitBaseClass(Structure):
     name = String()
 
     _parameters = []
+    _parameter_dependencies = []
     _section_dependent_parameters = []
     _initial_state = []
 
@@ -219,6 +225,13 @@ class UnitBaseClass(Structure):
         return 1
 
     @property
+    def parameter_dependencies(self) -> dict[str, ParameterParameterDependencyBase | None]:
+        """dict[str, ParameterParameterDependencyBase | None]: Parameter dependencies."""
+        return {
+            dep: getattr(self, dep) for dep in self._parameter_dependencies
+        }
+
+    @property
     def parameters(self) -> dict:
         """dict: Dictionary with parameter values."""
         parameters = super().parameters
@@ -232,6 +245,11 @@ class UnitBaseClass(Structure):
                 self.particle_reaction_model.parameters
         if not isinstance(self.discretization, NoDiscretization):
             parameters["discretization"] = self.discretization.parameters
+
+        for dep_name, dep in self.parameter_dependencies.items():
+            if dep is None:
+                continue
+            parameters[dep_name] = dep.parameters
 
         return parameters
 
@@ -292,16 +310,15 @@ class UnitBaseClass(Structure):
             f"binding_model.{param}" for param in self.binding_model.missing_parameters
         ]
 
-        return missing_parameters
+        for dep_name, dep in self.parameter_dependencies.items():
+            if dep is None:
+                continue
+            missing_parameters += [
+                f"{dep_name}.{param}"
+                for param in dep.missing_parameters
+            ]
 
-    def check_required_parameters(self) -> bool:
-        """Checkf if there are missing parameters left."""
-        if len(self.missing_parameters) == 0:
-            return True
-        else:
-            for param in self.missing_parameters:
-                warnings.warn(f'Unit {self.name}: Missing parameter "{param}".')
-            return False
+        return missing_parameters
 
     @property
     def binding_model(self) -> BindingBaseClass:
@@ -923,6 +940,61 @@ class LumpedRateModelWithoutPores(ChromatographicColumnBase):
         self.parameters["q"] = self._q
 
 
+class RadialLumpedRateModelWithoutPores(LumpedRateModelWithoutPores):
+    """
+    Parameters for lumped rate model without pores with radial flow.
+
+    Parameters
+    ----------
+    inner_diameter : UnsignedFloat
+        Inner diameter of radial flow column.
+    outer_diameter : UnsignedFloat
+        Outer diameter of radial flow column.
+    axial_dispersion_dependency :  ParameterParameterDependencyBase
+        Parameter dependence of axial dispersion on the interstitial velocity.
+    """
+
+    inner_diameter = UnsignedFloat()
+    outer_diameter = UnsignedFloat()
+
+    diameter = outer_diameter
+
+    axial_dispersion_dependency = Typed(ty=ParameterParameterDependencyBase)
+
+    _parameters = [
+        "inner_diameter",
+        "outer_diameter",
+    ]
+
+    _parameter_dependencies = [
+        "axial_dispersion_dependency",
+    ]
+
+    @property
+    def inner_radius(self) -> float | None:
+        """float: Inner radius of radial flow column."""
+        if self.outer_diameter is None:
+            return
+        return self.inner_diameter / 2
+
+    @inner_radius.setter
+    def inner_radius(self, inner_radius: float) -> None:
+        """Set inner radius of radial flow column."""
+        self.inner_diameter = inner_radius * 2
+
+    @property
+    def outer_radius(self) -> float | None:
+        """float: Outer radius of radial flow column."""
+        if self.outer_diameter is None:
+            return
+        return self.outer_diameter / 2
+
+    @outer_radius.setter
+    def outer_radius(self, outer_radius: float) -> None:
+        """Set outer radius of radial flow column."""
+        self.outer_diameter = outer_radius * 2
+
+
 class LumpedRateModelWithPores(ChromatographicColumnBase):
     """
     Parameters for the lumped rate model with pores.
@@ -1053,6 +1125,65 @@ class LumpedRateModelWithPores(ChromatographicColumnBase):
         self._q = q
 
         self.parameters["q"] = q
+
+
+class RadialLumpedRateModelWithPores(LumpedRateModelWithPores):
+    """
+    Parameters for lumped rate model with pores with radial flow.
+
+    Parameters
+    ----------
+    inner_diameter : UnsignedFloat
+        Inner diameter of radial flow column.
+    outer_diameter : UnsignedFloat
+        Outer diameter of radial flow column.
+    axial_dispersion_dependency :  ParameterParameterDependencyBase
+        Parameter dependence of axial dispersion on the interstitial velocity.
+    film_diffusion_dependency :  ParameterParameterDependencyBase
+        Parameter dependence of film diffusion on the interstitial velocity.
+    """
+
+    inner_diameter = UnsignedFloat()
+    outer_diameter = UnsignedFloat()
+
+    diameter = outer_diameter
+
+    axial_dispersion_dependency = Typed(ty=ParameterParameterDependencyBase)
+    film_diffusion_dependency = Typed(ty=ParameterParameterDependencyBase)
+
+    _parameters = [
+        "inner_diameter",
+        "outer_diameter",
+    ]
+
+    _parameter_dependencies = [
+        "axial_dispersion_dependency",
+        "film_diffusion_dependency",
+    ]
+
+    @property
+    def inner_radius(self) -> float | None:
+        """float: Inner radius of radial flow column."""
+        if self.outer_diameter is None:
+            return
+        return self.inner_diameter / 2
+
+    @inner_radius.setter
+    def inner_radius(self, inner_radius: float) -> None:
+        """Set inner radius of radial flow column."""
+        self.inner_diameter = inner_radius * 2
+
+    @property
+    def outer_radius(self) -> float | None:
+        """float: Outer radius of radial flow column."""
+        if self.outer_diameter is None:
+            return
+        return self.outer_diameter / 2
+
+    @outer_radius.setter
+    def outer_radius(self, outer_radius: float) -> None:
+        """Set outer radius of radial flow column."""
+        self.outer_diameter = outer_radius * 2
 
 
 class GeneralRateModel(ChromatographicColumnBase):
@@ -1210,6 +1341,65 @@ class GeneralRateModel(ChromatographicColumnBase):
         self._surface_diffusion = surface_diffusion
 
         self.parameters["surface_diffusion"] = surface_diffusion
+
+
+class RadialGeneralRateModel(GeneralRateModel):
+    """
+    Parameters for general rate model with radial flow.
+
+    Parameters
+    ----------
+    inner_diameter : UnsignedFloat
+        Inner diameter of radial flow column.
+    outer_diameter : UnsignedFloat
+        Outer diameter of radial flow column.
+    axial_dispersion_dependency :  ParameterParameterDependencyBase
+        Parameter dependence of axial dispersion on the interstitial velocity.
+    film_diffusion_dependency :  ParameterParameterDependencyBase
+        Parameter dependence of film diffusion on the interstitial velocity.
+    """
+
+    inner_diameter = UnsignedFloat()
+    outer_diameter = UnsignedFloat()
+
+    diameter = outer_diameter
+
+    axial_dispersion_dependency = Typed(ty=ParameterParameterDependencyBase)
+    film_diffusion_dependency = Typed(ty=ParameterParameterDependencyBase)
+
+    _parameters = [
+        "inner_diameter",
+        "outer_diameter",
+    ]
+
+    _parameter_dependencies = [
+        "axial_dispersion_dependency",
+        "film_diffusion_dependency",
+    ]
+
+    @property
+    def inner_radius(self) -> float | None:
+        """float: Inner radius of radial flow column."""
+        if self.outer_diameter is None:
+            return
+        return self.inner_diameter / 2
+
+    @inner_radius.setter
+    def inner_radius(self, inner_radius: float) -> None:
+        """Set inner radius of radial flow column."""
+        self.inner_diameter = inner_radius * 2
+
+    @property
+    def outer_radius(self) -> float | None:
+        """float: Outer radius of radial flow column."""
+        if self.outer_diameter is None:
+            return
+        return self.outer_diameter / 2
+
+    @outer_radius.setter
+    def outer_radius(self, outer_radius: float) -> None:
+        """Set outer radius of radial flow column."""
+        self.outer_diameter = outer_radius * 2
 
 
 class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
