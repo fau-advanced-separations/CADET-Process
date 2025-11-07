@@ -226,6 +226,8 @@ def test_from_initial_values(
             optimization_problem.test_if_solved(results, SOO_TEST_KWARGS)
         else:
             optimization_problem.test_if_solved(results, MOO_TEST_KWARGS)
+    else:
+        pytest.skip()
 
 
 class AbortingCallback:

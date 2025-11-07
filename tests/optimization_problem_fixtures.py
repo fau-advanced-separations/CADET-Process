@@ -252,7 +252,9 @@ class NonlinearConstraintsSooTestProblem(TestProblem):
         constraints.
         TODO: Bounds are probably redundant
         """
-        nlc_fun_0 = lambda x: -1 * x[0] - 0.5 * x[1]
+        def nlc_fun_0(x):
+            return -1 * x[0] - 0.5 * x[1]
+
         self.add_nonlinear_constraint(
             nlc_fun_0,
             bounds=0,

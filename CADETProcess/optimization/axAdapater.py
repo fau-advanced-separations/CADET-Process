@@ -175,7 +175,7 @@ class AxInterface(OptimizerBase):
     """Wrapper around Ax's bayesian optimization API."""
 
     supports_bounds = True
-    supports_multi_objective = False
+    supports_multi_objective = True
     supports_linear_constraints = True
     supports_linear_equality_constraints = False
     supports_nonlinear_constraints = True
@@ -202,7 +202,7 @@ class AxInterface(OptimizerBase):
 
             if "-" in var.name or "+" in var.name:
                 raise CADETProcessError(
-                    f"Bad parameter name: '{var.name}'. Ax does not "
+                    f"Bad parameter name: '{var.name}'. Ax does not " +
                     "support dashes ('-','+') in parameter names."
                 )
 
@@ -246,12 +246,6 @@ class AxInterface(OptimizerBase):
 
         objectives = []
         for i, obj_name in enumerate(objective_names):
-            # ax_metric = CADETProcessMetric(
-            #     name=f"{obj_name}_axidx_{i}",
-            #     lower_is_better=True,
-            # )
-            # obj = Objective(metric=ax_metric, minimize=True)
-
             # TODO: add +
             if "-" in obj_name:
                 raise CADETProcessError(
@@ -266,18 +260,20 @@ class AxInterface(OptimizerBase):
 
     def _setup_outcome_constraints(self) -> list:
         """Parse nonliear constraint functions from optimization problem."""
-        nonlincon_names = self.optimization_problem.nonlinear_constraint_labels
-
         outcome_constraints = []
-        for i_constr, name in enumerate(nonlincon_names):
-            raise NotImplementedError("Migrate to ax 1.0.0")
-            # ax_metric = CADETProcessMetric(name=f"{name}_axidx_{i_constr}")
-
-            nonlincon = OutcomeConstraint(
-                # metric=ax_metric,
-                op=ComparisonOp.LEQ,
-                bound=0.0,
-                relative=False,
+        for constr_label, constr_bound in zip(
+            self.optimization_problem.nonlinear_constraint_labels,
+            self.optimization_problem.nonlinear_constraints_bounds,
+        ):
+            if "<lambda>" in constr_label:
+                raise CADETProcessError(
+                    "lambda functions are not allowed as nonlinear constraints " +
+                    "under Ax usage."
+                )
+            # TODO: @Jo is it correct that the operator is always leq?
+            nonlincon = "{constraint} <= {bound}".format(
+                constraint=constr_label,
+                bound=constr_bound,
             )
             outcome_constraints.append(nonlincon)
 
@@ -308,7 +304,6 @@ class AxInterface(OptimizerBase):
 
         return trials
 
-
     def _post_processing(
             self,
             trials: Dict[int, Dict[str, float]],
@@ -323,7 +318,6 @@ class AxInterface(OptimizerBase):
 
         Parameters
         ----------
-
         trials: Dict[int, Dict[str, float]]
             The values (variables) for which the problem was evaluated. Each index
             corresponds to a complete trial and holds its variable:value pairs
@@ -334,7 +328,7 @@ class AxInterface(OptimizerBase):
         generation: int
             Index of the batch trial
         """
-        op = self.optimization_problem
+        op: OptimizationProblem = self.optimization_problem
 
         # Get variable value in the order of the optimization problem
         X = np.array([
@@ -533,9 +527,11 @@ class AxInterface(OptimizerBase):
                 n_iter += 1
                 n_evals += len(trials)
 
-        best_parameters, prediction, index, name = self.client.get_best_parameterization()
-        print("Best Parameters:", best_parameters)
-        print("Prediction (mean, variance):", prediction)
+
+        # pareto = self.client.get_pareto_frontier()
+        # best_parameters, prediction, index, name = self.client.get_best_parameterization()
+        # print("Best Parameters:", best_parameters)
+        # print("Prediction (mean, variance):", prediction)
 
         self.results.success = True
         self.results.exit_flag = 0
