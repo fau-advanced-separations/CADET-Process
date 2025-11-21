@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Callable, Optional
 
 import matplotlib.pyplot as plt
@@ -51,7 +53,7 @@ class GradientExperiment:
             Ending salt concentration in mM.
         """
         self.time = np.array(time)
-        self.c_salt = np.array(c_salt)
+        self.c_salt = np.array(c_salt).squeeze()
 
         c_protein = np.array(c_protein)
         if len(c_protein.shape) == 1:
@@ -101,6 +103,7 @@ class GradientExperiment:
         total_porosity : float
             Total porosity of column.
 
+
         Returns
         -------
         normalized_slope : float
@@ -115,6 +118,7 @@ class GradientExperiment:
         fig: Optional[plt.Figure] = None,
         ax: Optional[plt.Axes] = None,
         sec_ax: Optional[plt.Axes] = None,
+        x_axis_in_minutes: Optional[bool] = True
     ) -> tuple[plt.Figure, plt.Axes, plt.Axes]:
         """
         Plot the gradient experiment data.
@@ -127,6 +131,8 @@ class GradientExperiment:
             Existing matplotlib Axes object for primary plot.
         sec_ax : Optional[plt.Axes], default=None
             Existing secondary Axes for salt concentration.
+        x_axis_in_minutes : Optional[bool], default=True
+            If True, the x-axis will be plotted using minutes.
 
         Returns
         -------
@@ -137,21 +143,29 @@ class GradientExperiment:
         sec_ax : plt.Axes
             The secondary axes object for the salt concentration.
         """
+        time = self.time
+        t_at_max = self.t_at_max
+        time_unit = "s"
+        if x_axis_in_minutes:
+            time = time / 60
+            t_at_max = t_at_max / 60
+            time_unit = "min"
+
         if ax is None:
             fig, ax = plt.subplots()
 
-            ax.set_xlabel("$Time / s$")
+            ax.set_xlabel(f"$Time / {time_unit}$")
             ax.set_ylabel("$c_{Protein} / mM$")
 
             sec_ax = ax.twinx()
             sec_ax.set_ylabel("$c_{Salt} / mM$")
 
-        ax.plot(self.time, self.c_protein, label="Protein")
+        ax.plot(time, self.c_protein, label="Protein")
 
         c_p_max = np.max(self.c_protein, axis=0)
-        ax.vlines(self.t_at_max, ymin=0, ymax=c_p_max, color="k", linestyle="--")
-        sec_ax.plot(self.time, self.c_salt, "k", label="Salt")
-        sec_ax.plot(self.t_at_max, self.c_salt_at_max, "ro")
+        ax.vlines(t_at_max, ymin=0, ymax=c_p_max, color="k", linestyle="--")
+        sec_ax.plot(time, self.c_salt, "k", label="Salt")
+        sec_ax.plot(t_at_max, self.c_salt_at_max, "ro")
 
         fig.tight_layout()
 
@@ -219,8 +233,9 @@ def yamamoto_equation(
     """
     lambda_M = lambda_ / 1000
 
-    return np.multiply((nu + 1), log_c_salt_at_max_M) - np.log10(
-        k_eq * lambda_M**nu * (nu + 1)
+    return np.multiply(
+        (nu + 1),
+        log_c_salt_at_max_M) - np.log10(k_eq * lambda_M**nu * (nu + 1)
     )
 
 
@@ -264,7 +279,8 @@ class YamamotoResults:
         return np.array(self.column.binding_model.adsorption_rate[1:])
 
     def plot(
-        self, fig: Optional[plt.Figure] = None, ax: Optional[plt.Axes] = None
+        self, fig: Optional[plt.Figure] = None,
+        ax: Optional[plt.Axes] = None
     ) -> tuple[plt.Figure, plt.Axes]:
         """
         Plot the normalized gradient slope against the peak salt concentration.
@@ -306,7 +322,10 @@ class YamamotoResults:
                 k_eq=k_eq,
             )
             ax.plot(x, y, "k")
-            ax.plot(self.log_c_salt_at_max_M[:, i_p], self.log_gradient_slope, "ro")
+            ax.plot(
+                self.log_c_salt_at_max_M[:, i_p],
+                self.log_gradient_slope, "ro"
+            )
 
         fig.tight_layout()
         return fig, ax
@@ -358,7 +377,7 @@ def fit_parameters(
     )
 
     for i_p in range(experiments[0].n_proteins):
-        c_salt_at_max = [exp.c_salt_at_max[i_p] for exp in experiments]
+        c_salt_at_max = np.array([exp.c_salt_at_max[i_p] for exp in experiments])
         log_c_salt_at_max_M[:, i_p] = np.log10(np.array(c_salt_at_max) / 1000)
 
         nu[i_p], k_eq[i_p] = _fit_yamamoto(
@@ -369,6 +388,7 @@ def fit_parameters(
 
     column.binding_model.characteristic_charge = [0, *nu.tolist()]
     column.binding_model.adsorption_rate = [0, *k_eq.tolist()]
+    column.binding_model.desorption_rate = column.n_comp * [1.0]
 
     yamamoto_results = YamamotoResults(
         column, experiments, log_gradient_slope, log_c_salt_at_max_M
