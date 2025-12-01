@@ -7,7 +7,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy.optimize import curve_fit
 
-from CADETProcess import CADETProcessError
+from CADETProcess import CADETProcessError, plotting
 from CADETProcess.processModel import (
     ChromatographicColumnBase,
     StericMassAction,
@@ -125,10 +125,8 @@ class GradientExperiment:
 
         Parameters
         ----------
-        fig : Optional[plt.Figure], default=None
-            Existing matplotlib Figure object.
-        ax : Optional[plt.Axes], default=None
-            Existing matplotlib Axes object for primary plot.
+        ax : plt.Axes
+            Matplotlib Axes.
         sec_ax : Optional[plt.Axes], default=None
             Existing secondary Axes for salt concentration.
         x_axis_in_minutes : Optional[bool], default=True
@@ -151,8 +149,10 @@ class GradientExperiment:
             t_at_max = t_at_max / 60
             time_unit = "min"
 
-        if ax is None:
-            fig, ax = plt.subplots()
+        # Example usage
+        with plotting.mpl_style_context("1.5_column"):
+            if ax is None:
+                fig, ax = plotting.setup_figure()
 
             ax.set_xlabel(rf"$Time / {time_unit}$")
             ax.set_ylabel(r"$c_{Protein} / \text{mM}$")
@@ -160,14 +160,14 @@ class GradientExperiment:
             sec_ax = ax.twinx()
             sec_ax.set_ylabel(r"$c_{\text{Salt}} / \text{mM}$")
 
-        ax.plot(time, self.c_protein, label="Protein")
+            ax.plot(time, self.c_protein, label="Protein")
 
-        c_p_max = np.max(self.c_protein, axis=0)
-        ax.vlines(t_at_max, ymin=0, ymax=c_p_max, color="k", linestyle="--")
-        sec_ax.plot(time, self.c_salt, "k", label="Salt")
-        sec_ax.plot(t_at_max, self.c_salt_at_max, "ro")
+            c_p_max = np.max(self.c_protein, axis=0)
+            ax.vlines(t_at_max, ymin=0, ymax=c_p_max, color="k", linestyle="--")
+            sec_ax.plot(time, self.c_salt, "k", label="Salt")
+            sec_ax.plot(t_at_max, self.c_salt_at_max, "ro")
 
-        fig.tight_layout()
+            fig.tight_layout()
 
         return fig, ax, sec_ax
 
@@ -185,6 +185,8 @@ def plot_experiments(experiments: list[GradientExperiment]) -> None:
 
     for exp in experiments:
         fig, ax, sec_ax = exp.plot(fig, ax, sec_ax)
+
+    return fig, ax, sec_ax
 
 
 def yamamoto_equation(
@@ -278,8 +280,9 @@ class YamamotoResults:
         """np.ndarray: Equilibrium constants of the binding model."""
         return np.array(self.column.binding_model.adsorption_rate[1:])
 
+    @plotting.create_and_save_figure
     def plot(
-        self, fig: Optional[plt.Figure] = None,
+        self,
         ax: Optional[plt.Axes] = None
     ) -> tuple[plt.Figure, plt.Axes]:
         """
@@ -299,12 +302,10 @@ class YamamotoResults:
         ax : plt.Axes
             The axes object for the plot.
         """
-        if ax is None:
-            fig, ax = plt.subplots()
-            ax.set_ylabel("Normalized Gradient Slope $GH$ / $M$")
-            ax.set_xlabel("Peak Salt Concentration $I_R$ / $M$")
-
         n_proteins = self.experiments[0].n_proteins
+
+        ax.set_ylabel(r"Normalized Gradient Slope $GH$ / $\text{M}$")
+        ax.set_xlabel(r"Peak Salt Concentration $I_R$ / $\text{M}$")
 
         for i_p in range(n_proteins):
             k_eq = self.k_eq[i_p]
@@ -327,8 +328,7 @@ class YamamotoResults:
                 self.log_gradient_slope, "ro"
             )
 
-        fig.tight_layout()
-        return fig, ax
+        return ax
 
 
 def fit_parameters(
