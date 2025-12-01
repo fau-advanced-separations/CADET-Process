@@ -854,10 +854,10 @@ class EventHandler(CachedPropertiesMixin, Structure):
 
             layout = plotting.Layout()
             layout.title = str(parameter)
-            layout.x_label = "$time~/~s$"
+            layout.x_label = r"$time~/~\text{s}$"
             if x_axis_in_minutes:
-                layout.x_label = "$time~/~min$"
-            layout.y_label = "$state$"
+                layout.x_label = r"$time~/~\text{min}$"
+            layout.y_label = r"$state$"
 
             ax.plot(time_ax, y)
 
