@@ -74,12 +74,13 @@ Hlines
     add_hlines
 
 """  # noqa
-
+import os
 import sys
+from contextlib import contextmanager
 from functools import wraps
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
-import matplotlib
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
@@ -87,7 +88,6 @@ from matplotlib import cycler
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
-from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import (
     Callable,
     Integer,
@@ -100,15 +100,18 @@ from CADETProcess.dataStructure import (
 
 this = sys.modules[__name__]
 
-style = "medium"
+
+# %% Style
+
+style = "single_column"
 
 color_dict = {
-    "blue": matplotlib.colors.to_rgb("#000099"),
-    "red": matplotlib.colors.to_rgb("#990000"),
-    "green": matplotlib.colors.to_rgb("#009900"),
-    "orange": matplotlib.colors.to_rgb("#D79B00"),
-    "purple": matplotlib.colors.to_rgb("#896999"),
-    "grey": matplotlib.colors.to_rgb("#444444"),
+    "blue": mpl.colors.to_rgb("#000099"),
+    "red": mpl.colors.to_rgb("#990000"),
+    "green": mpl.colors.to_rgb("#009900"),
+    "orange": mpl.colors.to_rgb("#D79B00"),
+    "purple": mpl.colors.to_rgb("#896999"),
+    "grey": mpl.colors.to_rgb("#444444"),
 }
 color_list = list(color_dict.values())
 chromapy_cycler = cycler(color=color_list)
@@ -118,85 +121,59 @@ linestyle_cycler = cycler("linestyle", ["--", ":", "-."])
 textbox_props = dict(facecolor="white", alpha=1)
 
 
+def mm_to_inches(mm: float) -> float:
+    """
+    Convert mm to inches.
+
+    Parameters
+    ----------
+    mm : float
+        Value in mm.
+
+    Returns
+    -------
+    float
+        Value in inches.
+    """
+    return mm / 25.4
+
+
 figure_styles = {
-    "small": {
-        "width": 5,
-        "height": 3,
-        "linewidth": 2,
-        "font_small": 8,
-        "font_medium": 10,
-        "font_large": 12,
+    "single_column": {
+        "width": mm_to_inches(90),
+        "height": mm_to_inches(60),
+        "linewidth": 1.0,
+        "font_small": 8,    # Ticks, legend
+        "font_medium": 10,  # Axis labels
+        "font_large": 12,   # Title
         "color_cycler": chromapy_cycler,
     },
-    "medium": {
-        "width": 10,
-        "height": 6,
-        "linewidth": 4,
-        "font_small": 20,
-        "font_medium": 24,
-        "font_large": 28,
+    "1.5_column": {
+        "width": mm_to_inches(140),
+        "height": mm_to_inches(93.33),
+        "linewidth": 1.2,
+        "font_small": 9,    # Ticks, legend
+        "font_medium": 11,  # Axis labels
+        "font_large": 14,   # Title
         "color_cycler": chromapy_cycler,
     },
-    "large": {
-        "width": 15,
-        "height": 9,
-        "linewidth": 6,
-        "font_small": 25,
-        "font_medium": 30,
-        "font_large": 40,
+    "double_column": {
+        "width": mm_to_inches(190),
+        "height": mm_to_inches(126.67),
+        "linewidth": 1.5,
+        "font_small": 10,   # Ticks, legend
+        "font_medium": 12,  # Axis labels
+        "font_large": 16,   # Title
         "color_cycler": chromapy_cycler,
     },
 }
 
 
-def set_figure_style(style: Optional[str] = "medium") -> None:
-    """
-    Define the sytle of a plot.
-
-    Can set the sytle of a plot for small, medium and large plots. The
-    figuresize of the figure, the linewitdth and color of the lines and the
-    size of the font can be changed by switching the style.
-
-    Parameters
-    ----------
-    style : str, optional
-        Style of a figure plot, default set to small.
-
-    Raises
-    ------
-    CADETProcessError
-        If no valid style has been chosen as parameter.
-    """
-    if style not in figure_styles:
-        raise CADETProcessError("Not a valid style")
-
-    width = figure_styles[style]["width"]
-    height = figure_styles[style]["height"]
-    linewidth = figure_styles[style]["linewidth"]
-    font_small = figure_styles[style]["font_small"]
-    font_medium = figure_styles[style]["font_medium"]
-    font_large = figure_styles[style]["font_large"]
-    color_cycler = figure_styles[style]["color_cycler"]
-
-    plt.rcParams["figure.figsize"] = (width, height)
-    plt.rcParams["lines.linewidth"] = linewidth
-    plt.rcParams["font.size"] = font_small  # controls default text sizes
-    plt.rcParams["axes.titlesize"] = font_small  # fontsize of the axes title
-    plt.rcParams["axes.labelsize"] = font_medium  # fontsize of the x and y labels
-    plt.rcParams["xtick.labelsize"] = font_small  # fontsize of the tick labels
-    plt.rcParams["ytick.labelsize"] = font_small  # fontsize of the tick labels
-    plt.rcParams["legend.fontsize"] = font_small  # legend fontsize
-    plt.rcParams["figure.titlesize"] = font_large  # fontsize of the figure title
-    plt.rcParams["axes.prop_cycle"] = color_cycler
-
-
-set_figure_style()
-
-
 def get_fig_size(
-    n_rows: Optional[int] = 1,
-    n_cols: Optional[int] = 1,
-    style: Optional[str] = None,
+    n_rows: int = 1,
+    n_cols: int = 1,
+    style: Optional[Literal["single_column", "1.5_column", "double_column"]] = "single_column",
+    scale_with_subplots: Optional[bool] = False,
 ) -> tuple[float, float]:
     """
     Get figure size for figures with multiple Axes.
@@ -207,71 +184,87 @@ def get_fig_size(
         Number of rows in the figure. The default is 1.
     n_cols : int, optional
         Number of columns in the figure. The default is 1.
-    style : str, optional
-        Style to use for the figure. The default is None.
+    style : Optional[Literal["single_column", "1.5_column", "double_column"]]
+        Figure style ("single_column", "1.5_column", or "double_column").
+        The default is "single_column".
+    scale_with_subplots: Optional[bool] = False
+        If True, scale figure size with number of column / rows.
 
     Returns
     -------
     fig_size : tuple
         Size of the figure (width, height)
     """
-    if style is None:
-        style = this.style
-
     width = figure_styles[style]["width"]
     height = figure_styles[style]["height"]
-
-    fig_size = (n_cols * width + 2, n_rows * height + 2)
-
-    return fig_size
+    if scale_with_subplots:
+        return (n_cols * width + 2, n_rows * height + 2)
+    else:
+        return (width, height)
 
 
 def setup_figure(
     n_rows: Optional[int] = 1,
     n_cols: Optional[int] = 1,
-    style: Optional[str] = None,
+    style: Optional[Literal["single_column", "1.5_column", "double_column"]] = "single_column",
+    scale_with_subplots: Optional[bool] = False,
     squeeze: Optional[bool] = True,
 ) -> tuple[Figure, Axes]:
     """
-    Set up a matplotlib figure with specified dimensions and style.
+    Set up a matplotlib figure with local styling and flexible options.
 
     Parameters
     ----------
     n_rows : int, optional
-        Number of rows in the figure, by default 1.
+        Number of rows in the subplot grid.
     n_cols : int, optional
-        Number of columns in the figure, by default 1.
-    style : str, optional
-        Style to use for the figure. Uses a predefined style if None.
+        Number of columns in the subplot grid.
+    style : Literal["single_column", "1.5_column", "double_column"] = "single_column"
+        Figure style ("single_column", "1.5_column", or "double_column").
+    scale_with_subplots: Optional[bool] = False
+        If True, scale figure size with number of column / rows.
     squeeze : bool, optional
-        If True, extra dimensions are removed from the returned Axes array, by default True.
+        If True, extra dimensions are removed from the Axes array.
 
     Returns
     -------
     tuple[Figure, Axes]
-        A tuple containing the Figure object and an Axes object or an array of Axes objects.
+        Figure and Axes object(s).
     """
-    if style is None:
-        style = this.style
-    set_figure_style(style)
+    # Resolve figure dimensions
+    fig_size = get_fig_size(n_rows, n_cols, style, scale_with_subplots)
 
-    fig_size = get_fig_size(n_rows, n_cols)
+    # Create figure
     fig, axs = plt.subplots(
-        nrows=n_rows, ncols=n_cols, squeeze=squeeze, figsize=fig_size
+        nrows=n_rows,
+        ncols=n_cols,
+        squeeze=squeeze,
+        figsize=fig_size,
     )
 
     fig.tight_layout()
-
     return fig, axs
 
 
-class SecondaryAxis(Structure):
-    """Parameters for secondary axis."""
-
-    components = List()
-    y_label = String()
-    y_lim = Tuple()
-    transform = Callable()
+@contextmanager
+def mpl_style_context(
+    style: Literal["single_column", "1.5_column", "double_column"] = "single_column",
+) -> None:
+    """Context manager to temporarily set matplotlib rc parameters for a given style."""
+    style_settings = figure_styles[style]
+    rc_params = {
+        "figure.titlesize": style_settings["font_large"],
+        "font.size": style_settings["font_small"],
+        "axes.titlesize": style_settings["font_large"],
+        "axes.labelsize": style_settings["font_medium"],
+        "xtick.labelsize": style_settings["font_small"],
+        "ytick.labelsize": style_settings["font_small"],
+        "legend.fontsize": style_settings["font_small"],
+        "axes.prop_cycle": style_settings["color_cycler"],
+        "lines.linewidth": style_settings["linewidth"],
+    }
+    with mpl.rc_context(rc_params):
+        yield
 
 
 class Layout(Structure):
@@ -285,6 +278,15 @@ class Layout(Structure):
     y_ticks = List()
     x_lim = Tuple()
     y_lim = Tuple()
+
+
+class SecondaryAxis(Structure):
+    """Parameters for secondary axis."""
+
+    components = List()
+    y_label = String()
+    y_lim = Tuple()
+    transform = Callable()
 
 
 def set_layout(
@@ -340,6 +342,8 @@ def set_layout(
             ax.legend()
 
 
+# %% Ticks
+
 class Tick(Structure):
     """Parameters for Axes ticks."""
 
@@ -379,6 +383,8 @@ def set_xticks(ax: Axes, x_ticks: list[Tick]) -> None:
     plt.xticks(locs, labels, rotation=72, horizontalalignment="center")
 
 
+# %% Text
+
 def add_text(
     ax: Axes,
     text: str,
@@ -415,6 +421,8 @@ def add_text(
     )
 
 
+# %% Overlay
+
 def add_overlay(
     ax: Axes,
     y_overlay: npt.ArrayLike | list[npt.ArrayLike],
@@ -446,6 +454,8 @@ def add_overlay(
         ax.set_prop_cycle(None)
 
 
+# %% Annotation
+
 class Annotation(Structure):
     """Parameters for text annotations."""
 
@@ -472,6 +482,8 @@ def add_annotations(
             },
         )
 
+
+# %% FillRegion
 
 class FillRegion(Structure):
     """Parameters for fill region."""
@@ -516,6 +528,7 @@ def add_fill_regions(
             )
 
 
+# %% HLines
 class HLines(Structure):
     """Parameters for plotting horizontal lines."""
 
@@ -530,6 +543,21 @@ def add_hlines(ax: Axes, hlines: list[HLines]) -> None:
         ax.hlines(line.y, line.x_min, line.x_max)
 
 
+def show_or_reopen(fig: Figure) -> None:
+    """Show figure, reopening it in a GUI window if necessary."""
+    if fig.number not in plt.get_fignums():
+        dummy = plt.figure(figsize=fig.get_size_inches())
+        manager = dummy.canvas.manager
+        manager.canvas.figure = fig
+        fig.set_canvas(manager.canvas)
+        fig.show()
+        plt.close(dummy)
+    else:
+        fig.show()
+
+
+# %% Create and save figure decorator
+
 def create_and_save_figure(func: Callable) -> Callable:
     """Wrap plot functions to provide some general utility."""
 
@@ -537,51 +565,54 @@ def create_and_save_figure(func: Callable) -> Callable:
     def wrapper(
         *args: Any,
         fig: Optional[Figure] = None,
-        ax: Optional[Axes] = None,
+        ax: Optional[Axes | npt.NDArray[Axes]] = None,
+        setup_figure_kwargs: Optional[dict] = None,
         show: bool = True,
-        file_name: Optional[str] = None,
-        style: str = "medium",
+        file_name: Optional[os.PathLike] = None,
         **kwargs: Any,
-    ) -> tuple:
+    ) -> tuple[Figure, Axes | npt.NDArray[Axes]]:
         """
         Wrap plot functions to provide some general utility.
 
         Parameters
         ----------
-        *args :
-            Parameters wrapped around.
-        fig : Figure, optional
+        *args : Any
+            Additional parameters to be passed to plot method.
+        fig : Optional[Figure] = None
             Figure object.
-        ax : Axes, optional
-           Axes to plot on. If None, a new standard figure will be created.
-        show : bool, optional
-            If True, show plot. The default is False.
-        file_name : str, optional
+        ax : Optional[Axes | npt.NDArray[Axes]] = None
+            Axes to plot on. If None, a new axes will be created.
+        setup_figure_kwargs : Optional[dict]
+            Additional keyword arguments to pass to `setup_figure`.
+        show : bool
+            If True, show plot. The default is True.
+        file_name : Optional[os.PathLike]
             Path for saving figure. If None, figure is not saved.
-        style : str, optional
-            Style for figure. Default i 'medium'.
-        **kwargs :
-            Additional parameters wrapped around.
+        **kwargs : Any
+            Additional keyword parameters to be passed to plot method.
 
+        Returns
+        -------
+        tuple[Figure, Axes | npt.NDArray[Axes]]
+            The figure and axes objects used for plotting.
         """
-        if ax is None:
-            fig, ax = setup_figure(style=style)
+        # Use context manager to set default styles locally
+        with mpl_style_context(style):
+            if ax is None:
+                fig, ax = setup_figure(**setup_figure_kwargs)
 
-        func(*args, ax=ax, **kwargs)
+            func(*args, ax=ax, **kwargs)
 
         if fig is not None:
             fig.tight_layout()
 
         if file_name is not None:
-            plt.savefig(file_name)
+            plt.savefig(file_name, dpi=300)
 
+        if show:
+            show_or_reopen(fig)
+        else:
             plt.close(fig)
-            if show:
-                dummy = plt.figure(figsize=fig.get_size_inches())
-                new_manager = dummy.canvas.manager
-                new_manager.canvas.figure = fig
-                fig.set_canvas(new_manager.canvas)
-                plt.show()
 
         return fig, ax
 
