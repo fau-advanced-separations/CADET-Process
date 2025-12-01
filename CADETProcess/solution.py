@@ -660,10 +660,10 @@ class SolutionIO(SolutionBase):
 
         if layout is None:
             layout = plotting.Layout()
-            layout.x_label = "$time~/~s$"
+            layout.x_label = r"$time~/~\text{s}$"
             if x_axis_in_minutes:
-                layout.x_label = "$time~/~min$"
-            layout.y_label = "$c~/~mM$"
+                layout.x_label = r"$time~/~\text{min}$"
+            layout.y_label = r"$c~/~\text{mM}$"
             layout.x_lim = (start, end)
         if y_max is not None:
             layout.y_lim = (None, y_max)
@@ -762,9 +762,9 @@ class SolutionIO(SolutionBase):
 
         if layout is None:
             layout = plotting.Layout()
-            layout.x_label = r"$time~/~s$"
+            layout.x_label = r"$time~/~\text{s}$"
             if x_axis_in_minutes:
-                layout.x_label = r"$time~/~min$"
+                layout.x_label = r"$time~/~\text{min}$"
             layout.y_label = r"$Purity ~/~\%$"
             if start is not None:
                 start /= 60
@@ -968,10 +968,10 @@ class SolutionBulk(SolutionBase):
 
         if layout is None:
             layout = plotting.Layout()
-            layout.x_label = "$time~/~s$"
+            layout.x_label = r"$time~/~\text{s}$"
             if x_axis_in_minutes:
-                layout.x_label = "$time~/~min$"
-            layout.y_label = "$c~/~mM$"
+                layout.x_label = r"$time~/~\text{min}$"
+            layout.y_label = r"$c~/~\text{mM}$"
             layout.x_lim = (start, end)
             if y_max is not None:
                 layout.y_lim = (None, y_max)
@@ -1034,7 +1034,7 @@ class SolutionBulk(SolutionBase):
         if layout is None:
             layout = plotting.Layout()
             layout.x_label = "$z~/~m$"
-            layout.y_label = "$c~/~mM$"
+            layout.y_label = "$c~/~\text{mM}$"
 
         ax = _plot_solution_1D(ax, x, solution, layout, *args, **kwargs)
 
@@ -1114,10 +1114,10 @@ class SolutionBulk(SolutionBase):
 
         if layout is None:
             layout = plotting.Layout()
-            layout.x_label = "$time~/~s$"
+            layout.x_label = "$time~/~\text{s}$"
             if x_axis_in_minutes:
-                layout.x_label = "$time~/~min$"
-            layout.y_label = "$c~/~mM$"
+                layout.x_label = "$time~/~\text{min}$"
+            layout.y_label = "$c~/~\text{mM}$"
 
         ax = _plot_solution_1D(ax, x, solution, layout, *args, **kwargs)
 
@@ -1278,10 +1278,10 @@ class SolutionParticle(SolutionBase):
 
         if layout is None:
             layout = plotting.Layout()
-            layout.x_label = "$time~/~s$"
+            layout.x_label = r"$time~/~\text{s}$"
             if x_axis_in_minutes:
-                layout.x_label = "$time~/~min$"
-            layout.y_label = "$c~/~mM$"
+                layout.x_label = r"$time~/~\text{min}$"
+            layout.y_label = r"$c~/~\text{mM}$"
             layout.x_lim = (start, end)
         if y_max is not None:
             layout.y_lim = (None, y_max)
@@ -1343,7 +1343,7 @@ class SolutionParticle(SolutionBase):
         if layout is None:
             layout = plotting.Layout()
             layout.x_label = "$z~/~m$"
-            layout.y_label = "$c~/~mM$"
+            layout.y_label = "$c~/~\text{mM}$"
 
         ax = _plot_solution_1D(ax, x, solution, layout, *args, **kwargs)
 
@@ -1377,8 +1377,8 @@ class SolutionParticle(SolutionBase):
         plotting.add_text(ax, f"time = {t:.2f} s")
 
         layout = plotting.Layout()
-        layout.x_label = "$z~/~m$"
-        layout.y_label = "$r~/~m$"
+        layout.x_label = "$z~/~\text{m}$"
+        layout.y_label = "$r~/~\text{m}$"
         layout.title = f"Solid phase concentration, comp={comp}"
 
         plotting.set_layout(ax, layout)
@@ -1596,10 +1596,10 @@ class SolutionSolid(SolutionBase):
 
         if layout is None:
             layout = plotting.Layout()
-            layout.x_label = "$time~/~s$"
+            layout.x_label = r"$time~/~\text{s}$"
             if x_axis_in_minutes:
-                layout.x_label = "$time~/~min$"
-            layout.y_label = "$c~/~mM$"
+                layout.x_label = r"$time~/~\text{min}$"
+            layout.y_label = r"$c~/~\text{mM}$"
             layout.x_lim = (start, end)
         if y_max is not None:
             layout.y_lim = (None, y_max)
@@ -1663,7 +1663,7 @@ class SolutionSolid(SolutionBase):
         if layout is None:
             layout = plotting.Layout()
             layout.x_label = "$z~/~m$"
-            layout.y_label = "$c~/~mM$"
+            layout.y_label = "$c~/~\text{mM}$"
 
         ax = _plot_solution_1D(ax, x, solution, layout, *args, **kwargs)
 
@@ -1699,8 +1699,8 @@ class SolutionSolid(SolutionBase):
         layout.title = (
             f"Solid phase concentration, comp={comp}, bound_state={bound_state}"
         )
-        layout.x_label = "$z~/~m$"
-        layout.y_label = "$r~/~m$"
+        layout.x_label = "$z~/~\text{m}$"
+        layout.y_label = "$r~/~\text{m}$"
         layout.labels = self.component_system.species[c_i]
         plotting.set_layout(ax, layout)
 
@@ -1816,10 +1816,10 @@ class SolutionVolume(SolutionBase):
         y_max = 1.1 * np.max(y)
 
         layout = plotting.Layout()
-        layout.x_label = "$time~/~s$"
+        layout.x_label = r"$time~/~\text{s}$"
         if x_axis_in_minutes:
-            layout.x_label = "$time~/~min$"
-        layout.y_label = "$V~/~L$"
+            layout.x_label = r"$time~/~\text{min}$"
+        layout.y_label = r"$V~/~\text{L}$"
         layout.x_lim = (start, end)
         layout.y_lim = (y_min, y_max)
         ax.plot(x, y, **kwargs)

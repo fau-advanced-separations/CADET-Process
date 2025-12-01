@@ -154,11 +154,11 @@ class GradientExperiment:
         if ax is None:
             fig, ax = plt.subplots()
 
-            ax.set_xlabel(f"$Time / {time_unit}$")
-            ax.set_ylabel("$c_{Protein} / mM$")
+            ax.set_xlabel(rf"$Time / {time_unit}$")
+            ax.set_ylabel(r"$c_{Protein} / \text{mM}$")
 
             sec_ax = ax.twinx()
-            sec_ax.set_ylabel("$c_{Salt} / mM$")
+            sec_ax.set_ylabel(r"$c_{\text{Salt}} / \text{mM}$")
 
         ax.plot(time, self.c_protein, label="Protein")
 

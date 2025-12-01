@@ -454,10 +454,10 @@ class TimeLine:
         ax.plot(time, y)
 
         layout = plotting.Layout()
-        layout.x_label = "$time~/~s$"
+        layout.x_label = r"$time~/~\text{s}$"
         if x_axis_in_minutes:
-            layout.x_label = "$time~/~min$"
-        layout.y_label = "$state$"
+            layout.x_label = r"$time~/~\text{min}$"
+        layout.y_label = r"$state$"
         layout.x_lim = (start, end)
         layout.y_lim = (np.min(y), 1.1 * np.max(y))
 
