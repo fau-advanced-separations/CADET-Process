@@ -282,17 +282,6 @@ class Population:
         return np.array([ind.f for ind in self.individuals])
 
     @property
-    def f_minimized(self) -> np.ndarray:
-        """np.ndarray: All evaluated objective function values as if minimized."""
-        return np.array([ind.f_min for ind in self.individuals])
-
-    @property
-    def f_best(self) -> np.ndarray:
-        """np.ndarray: Best objective values."""
-        f_best = np.min(self.f_minimized, axis=0)
-        return np.multiply(self.objectives_minimization_factors, f_best)
-
-    @property
     def f_min(self) -> np.ndarray:
         """np.ndarray: Minimum objective values."""
         return np.min(self.f, axis=0)
@@ -308,16 +297,26 @@ class Population:
         return np.mean(self.f, axis=0)
 
     @property
+    def f_minimized(self) -> np.ndarray:
+        """np.ndarray: All evaluated objective function values as if minimized."""
+        return np.array([ind.f_min for ind in self.individuals])
+
+    @property
+    def f_best(self) -> np.ndarray:
+        """np.ndarray: Best objective values."""
+        f_best = np.min(self.f_minimized, axis=0)
+        return np.multiply(self.objectives_minimization_factors, f_best)
+
+    @property
+    def f_best_indices(self) -> np.ndarray:
+        """np.ndarray: Indices of the best objective values."""
+        return np.argmin(self.f_minimized, axis=0)
+
+    @property
     def g(self) -> np.ndarray:
         """np.ndarray: All evaluated nonlinear constraint function values."""
         if self.dimensions[2] > 0:
             return np.array([ind.g for ind in self.individuals])
-
-    @property
-    def g_best(self) -> np.ndarray:
-        """np.ndarray: Best nonlinear constraint values."""
-        indices = np.argmin(self.cv_nonlincon, axis=0)
-        return [self.g[ind, i] for i, ind in enumerate(indices)]
 
     @property
     def g_min(self) -> np.ndarray:
@@ -336,6 +335,12 @@ class Population:
         """np.ndarray: Average nonlinear constraint values."""
         if self.dimensions[2] > 0:
             return np.mean(self.g, axis=0)
+
+    @property
+    def g_best(self) -> np.ndarray:
+        """np.ndarray: Best nonlinear constraint values."""
+        indices = np.argmin(self.cv_nonlincon, axis=0)
+        return [self.g[ind, i] for i, ind in enumerate(indices)]
 
     @property
     def cv_nonlincon(self) -> np.ndarray:
