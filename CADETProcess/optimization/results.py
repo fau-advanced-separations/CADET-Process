@@ -282,6 +282,11 @@ class OptimizationResults(Structure):
         return self.meta_front.f_best
 
     @property
+    def f_best_indices(self) -> np.ndarray:
+        """np.ndarray: Indices of the best objective values."""
+        return self.meta_front.f_best_indices
+
+    @property
     def g(self) -> np.ndarray:
         """np.ndarray: Nonlinear constraint function values of optimal points."""
         return self.meta_front.g
