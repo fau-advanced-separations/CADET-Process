@@ -277,6 +277,11 @@ class OptimizationResults(Structure):
         return self.meta_front.f
 
     @property
+    def f_minimized(self) -> np.ndarray:
+        """np.ndarray: All evaluated objective function values as if minimized."""
+        return self.meta_front.f_minimized
+
+    @property
     def f_best(self) -> np.ndarray:
         """np.ndarray: Best objective function values of optimal points."""
         return self.meta_front.f_best
