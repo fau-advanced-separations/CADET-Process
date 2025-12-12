@@ -1,3 +1,4 @@
+import copy
 import warnings
 from typing import Callable, Optional
 
@@ -206,6 +207,7 @@ class FractionationOptimizer:
         n_fractions = np.array([pool.n_fractions for pool in frac.fraction_pools])
         empty_fractions = np.where(n_fractions[0:-1] == 0)[0]
         if len(empty_fractions) > 0 and allow_empty_fractions:
+            purity_required = copy.deepcopy(purity_required)
             for empty_fraction in empty_fractions:
                 purity_required[empty_fraction] = 0
 
