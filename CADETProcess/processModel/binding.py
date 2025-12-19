@@ -197,6 +197,16 @@ class Linear(BindingBaseClass):
         "desorption_rate",
     ]
 
+    @property
+    def k_eq(self) -> list[float]:
+        """list[float]: Equilibrium constant."""
+        return np.divide(self.adsorption_rate, self.desorption_rate).tolist()
+
+    @property
+    def henry_coefficient(self) -> list[float]:
+        """list[float]: Henry coefficient."""
+        return self.k_eq
+
 
 class Langmuir(BindingBaseClass):
     """
@@ -221,6 +231,16 @@ class Langmuir(BindingBaseClass):
         "desorption_rate",
         "capacity",
     ]
+
+    @property
+    def k_eq(self) -> list[float]:
+        """list[float]: Equilibrium constant."""
+        return np.divide(self.adsorption_rate, self.desorption_rate).tolist()
+
+    @property
+    def henry_coefficient(self) -> list[float]:
+        """list[float]: Henry coefficient."""
+        return np.multiply(self.k_eq, self.capacity).tolist()
 
 
 class LangmuirLDF(BindingBaseClass):
