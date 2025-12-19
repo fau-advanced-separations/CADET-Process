@@ -1,3 +1,6 @@
+import copy
+import warnings
+
 from CADETProcess.processModel import (
     ChromatographicColumnBase,
     Cstr,
@@ -58,6 +61,14 @@ class CLR(Process):
         pump_volume : float, optional
             Volume of the auxiliary pump unit. Defaults to 1e-9.
         """
+        if not isinstance(column, ChromatographicColumnBase):
+            raise TypeError("Expected ChromatographicColumnBase.")
+
+        column = copy.deepcopy(column)
+        if not column.name == "column":
+            warnings.warn("Renaming column to `column` for consistency")
+            column.name = "column"
+
         flow_sheet = self._build_flow_sheet(
             column=column,
             c_feed=c_feed,

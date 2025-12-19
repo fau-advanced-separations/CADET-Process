@@ -1,3 +1,6 @@
+import copy
+import warnings
+
 from CADETProcess.processModel import (
     ChromatographicColumnBase,
     FlowSheet,
@@ -64,6 +67,14 @@ class LWE(Process):
         set_initial_conditions : bool, optional
             Whether to set initial column conditions. Defaults to True.
         """
+        if not isinstance(column, ChromatographicColumnBase):
+            raise TypeError("Expected ChromatographicColumnBase.")
+
+        column = copy.deepcopy(column)
+        if not column.name == "column":
+            warnings.warn("Renaming column to `column` for consistency")
+            column.name = "column"
+
         flow_sheet = self._build_flow_sheet(
             column=column,
             c_load=c_load,
