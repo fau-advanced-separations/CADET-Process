@@ -1,3 +1,6 @@
+import copy
+import warnings
+
 from CADETProcess.processModel import (
     ChromatographicColumnBase,
     FlowSheet,
@@ -54,6 +57,14 @@ class FlipFlop(Process):
         c_eluent : list[float] | float | None, optional
             Eluent concentration. Defaults to 0.0.
         """
+        if not isinstance(column, ChromatographicColumnBase):
+            raise TypeError("Expected ChromatographicColumnBase.")
+
+        column = copy.deepcopy(column)
+        if not column.name == "column":
+            warnings.warn("Renaming column to `column` for consistency")
+            column.name = "column"
+
         flow_sheet = self._build_flow_sheet(
             column=column,
             c_feed=c_feed,
