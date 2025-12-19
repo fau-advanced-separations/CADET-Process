@@ -31,6 +31,21 @@ A module for building compartment model systems.
 
    CompartmentBuilder
 
+ProcessBuilder
+==================
+
+A module for building common chromatographic processes.
+
+.. autosummary::
+   :toctree: generated/
+
+   BatchElution
+   CLR
+   FlipFlop
+   LWE
+   MRSSR
+   SerialColumns
+
 """
 
 from . import carouselBuilder
@@ -42,3 +57,4 @@ from .clrBuilder import CLR
 from .flipFlopBuilder import FlipFlop
 from .lweBuilder import LWE
 from .mrssrBuilder import MRSSR
+from .serialColumnsBuilder import SerialColumns
