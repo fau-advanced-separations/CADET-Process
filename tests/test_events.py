@@ -18,9 +18,9 @@ Maybe this is too complicated, just use Process instead?
 
 import unittest
 
-import CADETProcess
 import numpy as np
 from addict import Dict
+from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import (
     Float,
     NdPolynomial,
@@ -31,6 +31,7 @@ from CADETProcess.dataStructure import (
     Structure,
     Switch,
 )
+from CADETProcess.dynamicEvents import EventHandler
 
 plot = True
 
@@ -82,7 +83,7 @@ class PerformerFixture(Structure):
         return parameters
 
 
-class HandlerFixture(CADETProcess.dynamicEvents.EventHandler):
+class HandlerFixture(EventHandler):
     def __init__(self):
         self.name = None
         self.performer = PerformerFixture()
@@ -139,7 +140,7 @@ class Test_Events(unittest.TestCase):
         event_handler = self.setup_event_handler()
 
         # Invalid path
-        with self.assertRaises(CADETProcess.CADETProcessError):
+        with self.assertRaises(CADETProcessError):
             event_handler.add_event("wrong_path", "performer.wrong", 1)
 
         # Invalid state
@@ -147,12 +148,12 @@ class Test_Events(unittest.TestCase):
             event_handler.add_event("wrong_value", "performer.scalar_float", "wrong")
 
         # Duplicate name
-        with self.assertRaises(CADETProcess.CADETProcessError):
+        with self.assertRaises(CADETProcessError):
             event_handler.add_event("duplicate", "performer.scalar_float", 1)
             event_handler.add_event("duplicate", "performer.scalar_float", 1)
 
         # Not section dependent
-        with self.assertRaises(CADETProcess.CADETProcessError):
+        with self.assertRaises(CADETProcessError):
             event_handler.add_event("not_sec_dependent", "performer.switch", 1)
 
     def test_event_scalar(self):
@@ -878,19 +879,19 @@ class Test_Events(unittest.TestCase):
         self.assertEqual(event_handler.event_times, [0, 1, 2, 3])
 
         # Dependent event
-        with self.assertRaises(CADETProcess.CADETProcessError):
+        with self.assertRaises(CADETProcessError):
             event_handler.evt1.time = 1
 
         # Event does not exist
-        with self.assertRaises(CADETProcess.CADETProcessError):
+        with self.assertRaises(CADETProcessError):
             event_handler.add_event_dependency("evt3", "evt0")
 
         # Duplicate dependency
-        with self.assertRaises(CADETProcess.CADETProcessError):
+        with self.assertRaises(CADETProcessError):
             event_handler.add_event_dependency("evt1", "evt0")
 
         # Linear factors not matching
-        with self.assertRaises(CADETProcess.CADETProcessError):
+        with self.assertRaises(CADETProcessError):
             event_handler.add_event_dependency("evt1", "evt0", [1, 1])
 
     def test_section_states(self):

@@ -209,6 +209,7 @@ def setup_figure(
     style: Optional[Literal["single_column", "1.5_column", "double_column"]] = "single_column",
     scale_with_subplots: Optional[bool] = False,
     squeeze: Optional[bool] = True,
+    **kwargs: Any
 ) -> tuple[Figure, Axes]:
     """
     Set up a matplotlib figure with local styling and flexible options.
@@ -240,9 +241,11 @@ def setup_figure(
         ncols=n_cols,
         squeeze=squeeze,
         figsize=fig_size,
+        **kwargs,
     )
 
     fig.tight_layout()
+
     return fig, axs
 
 

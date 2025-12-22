@@ -845,27 +845,40 @@ class EventHandler(CachedPropertiesMixin, Structure):
         if x_axis_in_minutes:
             time_ax = time_ax / 60
 
-        axs: list[Axes] = []
+        # Create a single figure with subplots, one row per parameter
+        fig, axs = plotting.setup_figure(
+            n_rows=len(self.parameter_timelines),
+            n_cols=1,
+            scale_with_subplots=True,
+            squeeze=False,
+            sharex=True,
+        )
+        axs = axs.reshape((-1,))
 
-        for parameter, tl in self.parameter_timelines.items():
-            fig, ax = plotting.setup_figure()
-
+        # Plot each parameter in its own subplot
+        for (parameter, tl), ax in zip(self.parameter_timelines.items(), axs):
             y = tl.value(time_s)
-
-            layout = plotting.Layout()
-            layout.title = str(parameter)
-            layout.x_label = r"$time~/~\text{s}$"
-            if x_axis_in_minutes:
-                layout.x_label = r"$time~/~\text{min}$"
-            layout.y_label = r"$state$"
-
             ax.plot(time_ax, y)
 
-            plotting.set_layout(ax, layout)
+            # Add text box
+            ax.text(
+                0.05, 0.9,
+                str(parameter),
+                transform=ax.transAxes,
+                verticalalignment='top',
+                bbox=dict(facecolor='white', alpha=0.7, edgecolor='none', boxstyle='round,pad=0.3')
+            )
+            ax.set_ylabel(r"$state$", labelpad=10)
+            ax.grid(True)
 
-            axs.append(ax)
+            # Only set x-label for the bottom subplot to avoid redundancy
+            if ax is axs[-1]:
+                x_label = r"$time~/~\text{min}$" if x_axis_in_minutes else r"$time~/~\text{s}$"
+                ax.set_xlabel(x_label)
 
-        return axs
+        fig.subplots_adjust(hspace=0.1)
+
+        return fig, axs
 
 
 class Event:
