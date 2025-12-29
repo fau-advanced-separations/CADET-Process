@@ -197,7 +197,7 @@ class RankedPerformance:
     def __init__(
         self,
         performance: Performance,
-        ranking: Optional[float] = 1.0,
+        ranking: str | list[float] | int,
     ) -> None:
         """Initialize RankedPerformance."""
         if not isinstance(performance, Performance):
@@ -213,15 +213,19 @@ class RankedPerformance:
         return self._performance
 
     @property
-    def ranking(self) -> float:
+    def ranking(self) -> list[float]:
         """list[float]: Relative weighting factors for multi component evaluation."""
         return self._ranking
 
     @ranking.setter
-    def ranking(self, ranking: tuple[float | int] | np.ndarray) -> None:
-        if isinstance(ranking, (float, int)):
-            ranking = self.performance.n_comp * [ranking]
-        elif len(ranking) != self.performance.n_comp:
+    def ranking(self, ranking: str | list[float] | int = None) -> None:
+        if ranking == "equal":
+            ranking = self.performance.n_comp * [1.0]
+        if isinstance(ranking, int):
+            index = ranking
+            ranking = self.performance.n_comp * [0.0]
+            ranking[index] = 1
+        if len(ranking) != self.performance.n_comp:
             raise CADETProcessError("Number of components does not match.")
 
         self._ranking = ranking
@@ -264,7 +268,7 @@ class PerformanceIndicator(MetricBase):
     RankedPerformance
     """
 
-    def __init__(self, ranking: Optional[list[float]] = None) -> None:
+    def __init__(self, ranking: Optional[str | list[float] | int] = None) -> None:
         """
         Initialize PerformanceIndicator.
 
@@ -276,12 +280,12 @@ class PerformanceIndicator(MetricBase):
         self.ranking = ranking
 
     @property
-    def ranking(self) -> float:
+    def ranking(self) -> str | list[float] | int | None:
         """list[float]: Relative weighting factors for multi component evaluation."""
         return self._ranking
 
     @ranking.setter
-    def ranking(self, ranking: list[float]) -> None:
+    def ranking(self, ranking: Optional[str | list[float] | int]) -> None:
         self._ranking = ranking
 
     @property

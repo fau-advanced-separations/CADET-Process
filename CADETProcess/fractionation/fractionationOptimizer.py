@@ -156,7 +156,7 @@ class FractionationOptimizer:
         frac: Fractionator,
         purity_required: list[float],
         allow_empty_fractions: bool = True,
-        ranking: Optional[int | list[float]] = 1,
+        ranking: str | list[float] | int = "equal",
         obj_fun: Optional[Callable] = None,
         minimize: bool = True,
         bad_metrics: Optional[float | list[float]] = None,
@@ -173,11 +173,10 @@ class FractionationOptimizer:
             Minimum purity required for the components in the fractionation.
         allow_empty_fractions: bool, optional
             If True, allow empty fractions. The default is True.
-        ranking : Optional[int | list[float]] = 1,
+        ranking : str | list[float] | int, optional, default="equal",
             Weighting factors for individual components.
-            If 1, the same value is assumed for all components.
-            If None, no ranking is used and the problem is solved as multi-objective.
-            The default is 1.
+            If "equal", the same value is assumed for all components.
+            If integer, only component of that index is used.
         obj_fun : callable, optional
             Alternative objective function.
             If no function is provided, the fraction mass is maximized.
@@ -281,7 +280,7 @@ class FractionationOptimizer:
         purity_required: float | list[float],
         components: Optional[list[str]] = None,
         use_total_concentration_components: bool = True,
-        ranking: Optional[int | list[float]] = 1,
+        ranking: str | list[float] | int = "equal",
         obj_fun: Optional[Callable] = None,
         n_objectives: int = 1,
         bad_metrics: float | list[float] = 0,
@@ -305,11 +304,11 @@ class FractionationOptimizer:
             List of components to consider in the fractionation process.
         use_total_concentration_components : bool, Default=True
             Flag wheter to use the total concentration components.
-        ranking : Optional[int | list[float]] = 1,
+        ranking : str | list[float] | int, optional, default="equal"
             Weighting factors for individual components.
-            If 1, the same value is assumed for all components.
-            If None, no ranking is used and the problem is solved as multi-objective.
-            The default is 1.
+            If integer, only component of that index is used.
+            If None, the same value is assumed for all components.
+            The default is None.
         obj_fun : function, optional
             Objective function used for OptimizationProblem.
             If COBYLA is used, must return single objective.
