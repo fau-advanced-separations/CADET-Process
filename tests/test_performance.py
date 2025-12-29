@@ -84,42 +84,65 @@ class RankedPerformanceTestCase(unittest.TestCase):
             mass_balance_difference,
         )
 
-        self.ranked_performance_equal = RankedPerformance(performance, ranking=1)
+        self.ranked_performance_equal = RankedPerformance(performance, ranking="equal")
+        self.ranked_performance_single = RankedPerformance(performance, ranking=0)
         self.ranked_performance_diff = RankedPerformance(performance, ranking=[0, 1, 2])
 
     def test_attributes(self):
+        # Equal ranking
         np.testing.assert_array_equal(self.ranked_performance_equal.mass, 20)
-        np.testing.assert_array_equal(
-            self.ranked_performance_diff.mass, 26.666666666666668
-        )
         np.testing.assert_array_equal(
             self.ranked_performance_equal.concentration, 0.39999999999999997
         )
-        np.testing.assert_array_equal(
-            self.ranked_performance_diff.concentration, 0.3333333333333333
-        )
         np.testing.assert_array_equal(self.ranked_performance_equal.purity, 0.9)
-        np.testing.assert_array_equal(
-            self.ranked_performance_diff.purity, 0.9166666666666666
-        )
         np.testing.assert_array_equal(
             self.ranked_performance_equal.recovery, 0.8166666666666668
         )
-        np.testing.assert_array_equal(self.ranked_performance_diff.recovery, 0.85)
         np.testing.assert_array_equal(
             self.ranked_performance_equal.productivity, 0.6499999999999999
-        )
-        np.testing.assert_array_equal(
-            self.ranked_performance_diff.productivity, 0.6333333333333333
         )
         np.testing.assert_array_equal(
             self.ranked_performance_equal.eluent_consumption, 1.5666666666666667
         )
         np.testing.assert_array_equal(
-            self.ranked_performance_diff.eluent_consumption, 1.4666666666666668
+            self.ranked_performance_equal.mass_balance_difference, 0.06666666666666668
+        )
+
+        # Single component
+        np.testing.assert_array_equal(self.ranked_performance_single.mass, 10.0)
+        np.testing.assert_array_equal(
+            self.ranked_performance_single.concentration, 0.5
         )
         np.testing.assert_array_equal(
-            self.ranked_performance_equal.mass_balance_difference, 0.06666666666666668
+            self.ranked_performance_single.purity, 0.9
+        )
+        np.testing.assert_array_equal(self.ranked_performance_single.recovery, 0.8)
+        np.testing.assert_array_equal(
+            self.ranked_performance_single.productivity, 0.7
+        )
+        np.testing.assert_array_equal(
+            self.ranked_performance_single.eluent_consumption, 1.5
+        )
+        np.testing.assert_array_equal(
+            self.ranked_performance_single.mass_balance_difference, 0.2
+        )
+
+        # Different rankings
+        np.testing.assert_array_equal(
+            self.ranked_performance_diff.mass, 26.666666666666668
+        )
+        np.testing.assert_array_equal(
+            self.ranked_performance_diff.concentration, 0.3333333333333333
+        )
+        np.testing.assert_array_equal(
+            self.ranked_performance_diff.purity, 0.9166666666666666
+        )
+        np.testing.assert_array_equal(self.ranked_performance_diff.recovery, 0.85)
+        np.testing.assert_array_equal(
+            self.ranked_performance_diff.productivity, 0.6333333333333333
+        )
+        np.testing.assert_array_equal(
+            self.ranked_performance_diff.eluent_consumption, 1.4666666666666668
         )
         np.testing.assert_array_equal(
             self.ranked_performance_diff.mass_balance_difference, -0.03333333333333333
