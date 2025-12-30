@@ -164,11 +164,11 @@ def optimization_problem(request):
 
 
 params = [
-    # TrustConstr,
-    # COBYLA,
-    # SLSQP,
-    # NelderMead,
-    # U_NSGA3,
+    TrustConstr,
+    COBYLA,
+    SLSQP,
+    NelderMead,
+    U_NSGA3,
 ]
 
 if not skip_ax:
