@@ -23,7 +23,6 @@ from ax.core import (
 )
 from ax.core.base_trial import BaseTrial
 from ax.global_stopping.strategies.improvement import ImprovementGlobalStoppingStrategy
-
 # from ax.models.torch.botorch_defaults import get_qLogNEI
 # from ax.models.torch.botorch_modular.surrogate import Surrogate
 # from ax.service.utils.report_utils import exp_to_df
@@ -31,6 +30,7 @@ from ax.global_stopping.strategies.improvement import ImprovementGlobalStoppingS
 # from botorch.acquisition.analytic import LogExpectedImprovement
 # from botorch.models.gp_regression import SingleTaskGP
 from botorch.utils.sampling import manual_seed
+from botorch.exceptions.errors import CandidateGenerationError
 
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import Float, UnsignedInteger
@@ -44,7 +44,6 @@ from CADETProcess.optimization.parallelizationBackend import (
 __all__ = [
     "GPEI",
 ]
-
 
 # class CADETProcessMetric(IMetric):
 #     def __init__(
@@ -447,7 +446,8 @@ class AxInterface(OptimizerBase):
         # Restore previous results from checkpoint
         if len(self.results.populations) > 0:
             for pop in self.results.populations:
-                X, F, CV = pop.x, pop.f, pop.cv_nonlincon
+                # TODO: @Jo: Is it correct to use transformed x here?
+                X, F, CV = pop.x_transformed, pop.f, pop.cv_nonlincon
                 trials = self._create_manual_trials(X)
                 trial_data = self._create_manual_data(trials, F, CV)
                 self._complete_trials(trials, trial_data)
@@ -496,7 +496,9 @@ class AxInterface(OptimizerBase):
         n_gen = self.results.n_gen  # first generation is the 0-th generation
         n_evals = self.results.n_evals
 
-        global_stopping_message = None
+        msg = None
+        exit_flag = 0
+        success = True
 
         if n_evals >= self.n_max_evals:
             raise CADETProcessError(
@@ -514,7 +516,30 @@ class AxInterface(OptimizerBase):
                 # ask
                 # make sure the max_trials are not overfulfilled due to parallelism
                 max_trials = min(self.n_parallel_evals, self.n_max_evals - n_evals)
-                trials = self.client.get_next_trials(max_trials=max_trials)
+
+                try:
+                    trials = self.client.get_next_trials(max_trials=max_trials)
+                except CandidateGenerationError as err:
+                    # This is currently not 100% stable. The reason is that
+                    # Ax might run into a situation where the acquisition fct. suggests
+                    # values only close to the bounds, which are also the optimum.
+                    # Then botorch accepts values near the linear constraints (bounds) with
+                    # a precision of 1e-6. This limit is hardcoded and cannot be changed
+                    # Repeating the process seems to help, but it is a hotfix.
+                    # A more stable and guaranteed failsafe method would be desirable.
+                    # Perhaps an update to a future version of Ax fixes this. I don't
+                    # think it is good form to provide an optimizert which fails.
+                    # Another option is to catch it and then exit the optimization early
+                    # with success_code = 0
+                    # TODO: @Jo: What do you prefer
+                    msg = (
+                        "Trials could not be generated due to too tight constraints. " +
+                        "This could also indicate that optimization is close to the " +
+                        "optimum and candidates are hard to find. " +
+                        f"Retrying once, failing afterwards. {err}"
+                    )
+                    warnings.warn(msg)
+                    trials = self.client.get_next_trials(max_trials=max_trials)
 
                 # compute
                 # Ax allows trials to be of type str, int, float, bool. This is not supported
@@ -524,7 +549,6 @@ class AxInterface(OptimizerBase):
 
                 # tell
                 self._complete_trials(trials=trials, data=results)
-
 
                 # # The strategy itself will check if enough trials have already been
                 # # completed.
@@ -542,15 +566,14 @@ class AxInterface(OptimizerBase):
                 n_gen += 1
                 n_evals += len(trials)
 
-
         # pareto = self.client.get_pareto_frontier()
         # best_parameters, prediction, index, name = self.client.get_best_parameterization()
         # print("Best Parameters:", best_parameters)
         # print("Prediction (mean, variance):", prediction)
 
-        self.results.success = True
-        self.results.exit_flag = 0
-        self.results.exit_message = global_stopping_message
+        self.results.success = success
+        self.results.exit_flag = exit_flag
+        self.results.exit_message = msg
 
 
 # class SingleObjectiveAxInterface(AxInterface):
