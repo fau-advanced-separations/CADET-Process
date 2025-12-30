@@ -1,5 +1,5 @@
 import warnings
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Mapping
 
 import numpy as np
 import numpy.typing as npt
@@ -94,7 +94,10 @@ class CADETProcessRunner:
         self.optimization_problem = optimization_problem
         self.parallelization_backend = parallelization_backend
 
-    def run_trials(self, trials: Dict[int, Dict[str, float]]) -> Dict[str, Any]:
+    def run_trials(
+        self,
+        trials: Dict[str | int, Mapping[str, float]]
+    ) -> Dict[str | int, Dict[str, float]]:
         # Get X from arms.
         X = []
         for trial_index, trial in trials.items():
@@ -147,11 +150,11 @@ class CADETProcessRunner:
 
     @staticmethod
     def get_metadata(
-        trials: BaseTrial,
+        trials: Dict[str | int, Mapping[str, float]],
         F: np.ndarray,
         objective_labels: list[str],
-        CV: np.ndarray,
-        nonlincon_labels: list[str],
+        CV: Optional[np.ndarray] = None,
+        nonlincon_labels: Optional[list[str]] = None,
     ) -> dict:
         trial_metadata = {}
 
@@ -162,6 +165,9 @@ class CADETProcessRunner:
             }
             cv_dict = {}
             if CV is not None:
+                assert nonlincon_labels is not None, (
+                    "If CV are given, nonlinear-constraint labels must also be given."
+                )
                 cv_dict = {
                     metric: cv_metric[results_index]
                     for metric, cv_metric in zip(nonlincon_labels, CV.T)
@@ -182,6 +188,7 @@ class AxInterface(OptimizerBase):
 
     early_stopping_improvement_window = UnsignedInteger(default=1000)
     early_stopping_improvement_bar = Float(default=1e-10)
+    n_parallel_evals = UnsignedInteger(default=3)
     n_init_evals = UnsignedInteger(default=10)
     n_max_evals = UnsignedInteger(default=100)
     seed = UnsignedInteger(default=12345)
@@ -240,7 +247,7 @@ class AxInterface(OptimizerBase):
         parameter_constraints = cls._setup_linear_constraints(optimizationProblem)
         return parameters, parameter_constraints
 
-    def _setup_objectives(self) -> list:
+    def _setup_objectives(self) -> str:
         """Parse objective functions from optimization problem."""
         objective_names = self.optimization_problem.objective_labels
 
@@ -280,34 +287,46 @@ class AxInterface(OptimizerBase):
         return outcome_constraints
 
     def _create_manual_data(
-        self, trial: BaseTrial, F: npt.ArrayLike, G: Optional[npt.ArrayLike] = None
+        self, trial: Dict, F: np.ndarray, CV: Optional[np.ndarray] = None
     ) -> dict:
         objective_labels = self.optimization_problem.objective_labels
         nonlincon_labels = self.optimization_problem.nonlinear_constraint_labels
         return CADETProcessRunner.get_metadata(
-            trial, F, objective_labels, G, nonlincon_labels
+            trial, F, objective_labels, CV, nonlincon_labels
         )
 
-    def _create_manual_trials(self, X: npt.ArrayLike) -> None:
+    def _create_manual_trials(self, X: np.ndarray) -> Dict[str | int, Mapping[str, float]]:
         """Create trial from pre-evaluated data."""
         variables = self.optimization_problem.independent_variable_names
 
         trials = {}
-        for i, x in enumerate(X):
+        for x in X:
             par = {var: x_i for var, x_i in zip(variables, x)}
+            _id = self.client._experiment.num_trials
 
             trial_index = self.client.attach_trial(
-                arm_name=i,
+                arm_name=_id,
                 parameters=par
             )
             trials.update({trial_index: par})
 
         return trials
 
+    def _complete_trials(
+        self, trials: Dict[str | int, Mapping[str, float]],
+        data: Dict[str | int, Dict[str, float]]
+    ) -> None:
+        for trial_index, _ in trials.items():
+            print(f"Completed {trial_index=} with {data[trial_index]=}")
+            self.client.complete_trial(
+                trial_index=trial_index,
+                raw_data=data[trial_index]
+            )
+
     def _post_processing(
             self,
-            trials: Dict[int, Dict[str, float]],
-            results: Dict[int, Dict[str, float]],
+            trials: Dict[str | int, Mapping[str, float]],
+            results: Dict[str | int, Dict[str, float]],
             generation: int,
         ) -> None:
         """
@@ -417,6 +436,7 @@ class AxInterface(OptimizerBase):
 
 
         if False:
+            # TODO: Earlier implementation. Needs to be migrated to Ax Client API
             self.global_stopping_strategy = ImprovementGlobalStoppingStrategy(
                 min_trials=self.n_init_evals + self.early_stopping_improvement_window,
                 window_size=self.early_stopping_improvement_window,
@@ -424,19 +444,15 @@ class AxInterface(OptimizerBase):
                 inactive_when_pending_trials=True,
             )
 
-            # TODO: remove. Old.
-            # Internal storage for tracking data
-            # self._data = self.ax_experiment.fetch_data()
-
-            # Restore previous results from checkpoint
+        # Restore previous results from checkpoint
         if len(self.results.populations) > 0:
             for pop in self.results.populations:
-                X, F, G = pop.x, pop.f, pop.g
+                X, F, CV = pop.x, pop.f, pop.cv_nonlincon
                 trials = self._create_manual_trials(X)
-
-                # trial_data = self._create_manual_data(trial, F, G)
-                # trial.run_metadata.update(trial_data)
-                # trial.mark_completed()
+                trial_data = self._create_manual_data(trials, F, CV)
+                self._complete_trials(trials, trial_data)
+                # this starts with N generations, depending how many generation
+                # strategies completed in the previous run
 
         else:
             if x0 is not None:
@@ -468,19 +484,16 @@ class AxInterface(OptimizerBase):
 
             x0_init_transformed = np.array(optimization_problem.transform(x0_init))
             trials = self._create_manual_trials(x0_init_transformed)
-            # print(exp_to_df(self.ax_experiment))
 
-        # complete initial trials
-        results = self.runner.run_trials(trials=trials)
-        self._post_processing(trials=trials, results=results, generation=0)
-        for trial_index, trial in trials.items():
-            print(f"Completed {trial_index=} with {results[trial_index]=}")
-            self.client.complete_trial(
-                trial_index=trial_index,
-                raw_data=results[trial_index]
-            )
+            # complete initial trials
+            results = self.runner.run_trials(trials=trials)
+            self._post_processing(trials=trials, results=results, generation=0)
+            
+            self._complete_trials(trials=trials, data=results)
+            # this starts with 1 generation (the init trials)
 
-        n_iter = self.results.n_gen
+
+        n_gen = self.results.n_gen  # first generation is the 0-th generation
         n_evals = self.results.n_evals
 
         global_stopping_message = None
@@ -492,23 +505,25 @@ class AxInterface(OptimizerBase):
             )
 
         with manual_seed(seed=self.seed):
-            while not (n_evals >= self.n_max_evals or n_iter >= self.n_max_iter):
+            # comparison against self.n_max_iter needs to be < (and not <=) because
+            # the comparison is against the current generation that starts at 0. and the
+            # states are updated at the end of the loop
+            while n_evals < self.n_max_evals and n_gen < self.n_max_iter:
                 print(f"Running optimization trial {n_evals + 1}/{self.n_max_evals}...")
 
                 # ask
-                trials = self.client.get_next_trials(max_trials=3)
+                # make sure the max_trials are not overfulfilled due to parallelism
+                max_trials = min(self.n_parallel_evals, self.n_max_evals - n_evals)
+                trials = self.client.get_next_trials(max_trials=max_trials)
 
                 # compute
+                # Ax allows trials to be of type str, int, float, bool. This is not supported
+                # by ax. Therefore typing suggests an error. We choose to ignore it.
                 results = self.runner.run_trials(trials=trials)
-                self._post_processing(results=results, trials=trials, generation=n_iter)
+                self._post_processing(results=results, trials=trials, generation=n_gen)
 
                 # tell
-                for trial_index, trial in trials.items():
-                    print(f"Completed {trial_index=} with {results[trial_index]=}")
-                    self.client.complete_trial(
-                        trial_index=trial_index,
-                        raw_data=results[trial_index]
-                    )
+                self._complete_trials(trials=trials, data=results)
 
 
                 # # The strategy itself will check if enough trials have already been
@@ -524,7 +539,7 @@ class AxInterface(OptimizerBase):
                 #     print(global_stopping_message)
                 #     break
 
-                n_iter += 1
+                n_gen += 1
                 n_evals += len(trials)
 
 

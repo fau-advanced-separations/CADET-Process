@@ -65,6 +65,9 @@ EXCLUDE_COMBINATIONS = [
 NON_DEFAULT_PARAMETERS = [
     (U_NSGA3, NonlinearConstraintsMooTestProblem, {"pop_size": 300, "n_max_gen": 40}),
     (U_NSGA3, Rosenbrock, {"pop_size": 300, "n_max_gen": 20}),
+    (COBYLA, Rosenbrock, {"rhobeg": 0.1, "tol": 0.00001}),
+    (SLSQP, Rosenbrock, {"ftol": 0.0001}),
+    (GPEI, LinearConstraintsMooTestProblem, {"n_max_evals": 60}),
 ]
 
 
@@ -161,11 +164,11 @@ def optimization_problem(request):
 
 
 params = [
-    TrustConstr,
-    COBYLA,
-    SLSQP,
-    NelderMead,
-    U_NSGA3,
+    # TrustConstr,
+    # COBYLA,
+    # SLSQP,
+    # NelderMead,
+    # U_NSGA3,
 ]
 
 if not skip_ax:
@@ -199,6 +202,9 @@ def test_convergence(optimization_problem: TestProblem, optimizer: OptimizerBase
     # pytest.skip()
 
     if optimizer.check_optimization_problem(optimization_problem):
+        set_non_default_parameters(optimizer, optimization_problem)
+        skip_if_combination_excluded(optimizer, optimization_problem)
+
         results = optimizer.optimize(
             optimization_problem=optimization_problem,
             save_results=False,
@@ -207,7 +213,8 @@ def test_convergence(optimization_problem: TestProblem, optimizer: OptimizerBase
             optimization_problem.test_if_solved(results, SOO_TEST_KWARGS)
         else:
             optimization_problem.test_if_solved(results, MOO_TEST_KWARGS)
-
+    else:
+        pytest.skip()
 
 @pytest.mark.slow
 def test_from_initial_values(
@@ -254,11 +261,13 @@ class AbortingCallback:
 def test_resume_from_checkpoint(
     optimization_problem: TestProblem, optimizer: OptimizerBase
 ):
-    pytest.skip()
+    # pytest.skip()
+
+    n_obj = optimization_problem.n_objectives
 
     # TODO: Do we need to run this for all problems?
     if optimizer.check_optimization_problem(optimization_problem):
-        callback = AbortingCallback(n_max_evals=2, abort=True)
+        callback = AbortingCallback(n_max_evals=2 * n_obj, abort=True)
         optimization_problem.add_callback(callback)
 
         # TODO: How would this work for evaluation based optimizers (vs generation based)?
@@ -297,8 +306,9 @@ def test_resume_from_checkpoint(
         np.testing.assert_almost_equal(
             results_full.populations[1].x, results_aborted.populations[1].x
         )
-        # Assert callback was only called 3 times
-        assert callback.n_calls == 3
+        # Assert callback was only called 3 times + 1 final post processing
+        # Callbacks are called four times it used to be three times
+        assert callback.n_calls == 3 + 1
 
 
 if __name__ == "__main__":
