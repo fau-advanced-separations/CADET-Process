@@ -255,17 +255,30 @@ class TransformerBase(ABC):
         """
         pass
 
-    @plotting.create_and_save_figure
-    def plot(self, ax: plt.Axes, use_log_scale: bool = False) -> None:
+    @plotting.figure_utils
+    def plot(
+        self,
+        use_log_scale: bool = False,
+        ax: Optional[plt.Axes] = None,
+        setup_figure_kwargs: Optional[dict] = None,
+    ) -> tuple[plt.Figure, plt.Axes]:
         """
         Plot the transformed space against the input space.
 
         Parameters
         ----------
-        ax : plt.Axes
-            The axes object to plot on.
         use_log_scale : bool, optional
             If True, use a logarithmic scale for the x-axis.
+        ax : Optional[plt.Axes], default=None
+            Optional Matplotlib Axes.
+            If not provided, a new figure is created.
+        setup_figure_kwargs : Optional[dict], default=None
+            Additional options to setup the figure.
+
+        Returns
+        -------
+        tuple[plt.Figure, plt.Axes]
+            The Matplotlib Figure and Axes.
         """
         allow_extended_input = self.allow_extended_input
         self.allow_extended_input = True
@@ -273,14 +286,21 @@ class TransformerBase(ABC):
         y = np.linspace(self.lb, self.ub)
         x = self.untransform(y)
 
-        ax.plot(x, y)
-        ax.set_xlabel("Input Space")
-        ax.set_ylabel("Transformed Space")
+        if ax is None:
+            fig, ax = plotting.setup_figure(**setup_figure_kwargs)
+            ax.set_xlabel("Input Space")
+            ax.set_ylabel("Transformed Space")
 
-        if use_log_scale:
-            ax.set_xscale("log")
+            if use_log_scale:
+                ax.set_xscale("log")
+        else:
+            fig = ax.get_figure()
+
+        ax.plot(x, y)
 
         self.allow_extended_input = allow_extended_input
+
+        return fig, ax
 
     def __str__(self) -> str:
         """Return the class name as a string."""

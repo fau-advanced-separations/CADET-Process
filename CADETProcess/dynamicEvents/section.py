@@ -4,10 +4,10 @@ import itertools
 import warnings
 from typing import Optional
 
+import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
 import scipy
-from matplotlib.axes import Axes
 from numpy.exceptions import VisibleDeprecationWarning
 
 from CADETProcess import CADETProcessError, plotting
@@ -424,22 +424,30 @@ class TimeLine:
         """float: The end time of the timeline."""
         return self.section_times[-1]
 
-    @plotting.create_and_save_figure
-    def plot(self, ax: Axes, x_axis_in_minutes: bool = True) -> Axes:
+    @plotting.figure_utils
+    def plot(
+        self,
+        x_axis_in_minutes: bool = True,
+        ax: Optional[plt.Axes] = None,
+        setup_figure_kwargs: Optional[dict] = None,
+    ) -> tuple[plt.Figure, plt.Axes]:
         """
         Plot the state of the timeline over time.
 
         Parameters
         ----------
-        ax : Axes
-            The axes to plot on.
         x_axis_in_minutes: bool, optional
             If True, the x-axis will be plotted using minutes. The default is True.
+        ax : Optional[plt.Axes], default=None
+            Optional Matplotlib Axes.
+            If not provided, a new figure is created.
+        setup_figure_kwargs : Optional[dict], default=None
+            Additional options to setup the figure.
 
         Returns
         -------
-        ax : Axes
-            The axes with the plot of the timeline state.
+        tuple[plt.Figure, plt.Axes]
+            The Matplotlib Figure and Axes.
         """
         start = self.sections[0].start
         end = self.sections[-1].end
@@ -448,22 +456,27 @@ class TimeLine:
 
         if x_axis_in_minutes:
             time = time / 60
-            start = start / 60
-            end = end / 60
+
+        if ax is None:
+            fig, ax = plotting.setup_figure(**setup_figure_kwargs)
+
+            xlabel = r"$time~/~\text{s}$"
+
+            if x_axis_in_minutes:
+                start = start / 60
+                end = end / 60
+                xlabel = r"$time~/~\text{min}$"
+
+            ax.set_xlabel(xlabel)
+            ax.set_xlim(start, end)
+
+            ax.set_ylabel(r"$state$")
+        else:
+            fig = ax.get_figure()
 
         ax.plot(time, y)
 
-        layout = plotting.Layout()
-        layout.x_label = r"$time~/~\text{s}$"
-        if x_axis_in_minutes:
-            layout.x_label = r"$time~/~\text{min}$"
-        layout.y_label = r"$state$"
-        layout.x_lim = (start, end)
-        layout.y_lim = (np.min(y), 1.1 * np.max(y))
-
-        plotting.set_layout(ax, layout)
-
-        return ax
+        return fig, ax
 
     @classmethod
     def from_constant(cls, start: float, end: float, value: float) -> TimeLine:

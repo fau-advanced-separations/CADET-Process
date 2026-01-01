@@ -37,8 +37,6 @@ from typing import Any, Optional
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
-from matplotlib.axes import Axes
-from matplotlib.collections import QuadMesh
 from scipy import integrate
 from scipy.interpolate import PchipInterpolator
 
@@ -589,58 +587,44 @@ class SolutionIO(SolutionBase):
 
         return float(self.flow_rate.integral(start, end).squeeze())
 
-    @plotting.create_and_save_figure
     def plot(
         self,
-        start: Optional[float] = None,
-        end: Optional[float] = None,
-        components: Optional[list[str]] = None,
-        layout: Optional[plotting.Layout] = None,
-        y_max: Optional[float] = None,
-        x_axis_in_minutes: Optional[bool] = True,
-        ax: Optional[Axes] = None,
+        start: float | None = None,
+        end: float | None = None,
+        components: list[str] | None = None,
+        x_axis_in_minutes: bool = True,
         *args: Any,
         **kwargs: Any,
-    ) -> Axes:
+    ) -> tuple[plt.Figure, plt.Axes | tuple[plt.Axes]]:
         """
         Plot the entire time_signal for each component.
 
         Parameters
         ----------
-        start : Optional[float]
-            Start time for plotting in seconds. If None is provided, the first data
-            point will be used as the start time. The default is None.
-        end : Optional[float]
-            End time for plotting in seconds. If None is provided, the last data point
-            will be used as the end time. The default is None.
-        components : Optional[list[str]]
+        start : float | None, optional, default=None
+            Start time for plotting in seconds. If None, the first data point is used.
+        end : float | None, optional, default=None
+            End time for plotting in seconds. If None, the last data point is used.
+        components : list[str] | None, optional, default=None
             List of components to be plotted. If None, all components are plotted.
-            The default is None.
-        layout : Optional[plotting.Layout]
-            Plot layout options. The default is None.
-        y_max : Optional[float]
-            Maximum value of the y-axis. If None, the value is automatically
-            determined from the data. The default is None.
-        x_axis_in_minutes : Optional[bool], default=True
-            If True, the x-axis will be plotted using minutes.
-        ax : Optional[Axes]
-            Axes to plot on. If None, a new figure is created.
+        x_axis_in_minutes : bool, optional, default=True
+            If True, the x-axis is displayed in minutes instead of seconds.
         *args : Any
-            Optional arguments passed down to _plot_solution_1D.
+            Optional arguments passed to `_plot_solution_1D`.
         **kwargs : Any
-            Optional arguments passed down to _plot_solution_1D.
+            Optional keyword arguments passed to `_plot_solution_1D`.
 
         Returns
         -------
-        Axes
-            Axes object with concentration profile.
+        tuple[plt.Figure, plt.Axes | tuple[plt.Axes]]
+            The Matplotlib Figure and Axes objects.
 
         See Also
         --------
-        _plot_solution_1D
-        slice_solution
-        plotlib
-        plot_purity
+        _plot_solution_1D : Low-level function for 1D plotting.
+        slice_solution : Slice the solution for plotting.
+        plot_purity : Plot purity-related data.
+        CADETProcess.plotting: Plotting library utilities.
         """
         solution = slice_solution(
             self,
@@ -650,94 +634,96 @@ class SolutionIO(SolutionBase):
             coordinates={"time": [start, end]},
         )
 
-        x = solution.time
+        time = solution.time
+        time_unit = r"\text{s}"
         if x_axis_in_minutes:
-            x = x / 60
+            time = time / 60
+            time_unit = r"\text{min}"
             if start is not None:
                 start = start / 60
             if end is not None:
                 end = end / 60
+        xlabel = rf"$Time~/~{time_unit}$"
+        xlim = (start, end)
 
-        if layout is None:
-            layout = plotting.Layout()
-            layout.x_label = r"$time~/~\text{s}$"
-            if x_axis_in_minutes:
-                layout.x_label = r"$time~/~\text{min}$"
-            layout.y_label = r"$c~/~\text{mM}$"
-            layout.x_lim = (start, end)
-        if y_max is not None:
-            layout.y_lim = (None, y_max)
+        ylabel = r"$c~/~\text{mM}$"
 
-        ax = _plot_solution_1D(ax, x, solution, layout, *args, **kwargs)
+        return _plot_solution_1D(
+            time,
+            solution,
+            *args,
+            xlabel=xlabel,
+            xlim=xlim,
+            ylabel=ylabel,
+            **kwargs,
+        )
 
-        return ax
-
-    @plotting.create_and_save_figure
+    @plotting.figure_utils
     def plot_purity(
         self,
-        start: Optional[float] = None,
-        end: Optional[float] = None,
-        components: Optional[list[str]] = None,
-        layout: Optional[plotting.Layout] = None,
-        y_max: Optional[float] = None,
-        x_axis_in_minutes: Optional[bool] = True,
-        plot_components_purity: Optional[bool] = True,
-        plot_species_purity: Optional[bool] = False,
-        alpha: Optional[float] = 1,
-        hide_labels: Optional[bool] = False,
-        show_legend: Optional[bool] = True,
-        ax: Optional[Axes] = None,
-    ) -> Axes:
+        start: float | None = None,
+        end: float | None = None,
+        components: list[str] | None = None,
+        x_axis_in_minutes: bool = True,
+        plot_components_purity: bool = True,
+        plot_species_purity: bool = False,
+        alpha: float = 1.0,
+        xlabel: str | None = None,
+        ylim: tuple[float, float] | None = None,
+        ylabel: str | None = None,
+        hide_labels: bool = False,
+        hide_species_labels: bool = False,
+        show_legend: bool = True,
+        update_layout: bool = True,
+        ax: plt.Axes | tuple[plt.Axes] | None = None,
+        setup_figure_kwargs: dict | None = None,
+    ) -> tuple[plt.Figure, plt.Axes]:
         """
         Plot local purity for each component of the concentration profile.
 
         Parameters
         ----------
-        start : Optional[float]
-            Start time for plotting in seconds. If None is provided, the first data
-            point will be used as the start time. The default is None.
-        end : Optional[float]
-            End time for plotting in seconds. If None is provided, the last data point
-            will be used as the end time. The default is None.
-        components : Optional[list[str]]
+        start : float | None, optional, default=None
+            Start time for plotting in seconds. If None, the first data point is used.
+        end : float | None, optional, default=None
+            End time for plotting in seconds. If None, the last data point is used.
+        components : list[str] | None, optional, default=None
             List of components to be plotted. If None, all components are plotted.
-            Note that if components are excluded, they will also not be considered in
-            the calculation of the purity.
-        layout : Optional[plotting.Layout]
-            Plot layout options.
-        y_max : Optional[float]
-            Maximum value of y axis.
-            If None, value is automatically deferred from solution.
-        x_axis_in_minutes : Optional[bool], default=True
-            If True, the x-axis will be plotted using minutes.
-        plot_components_purity : Optional[bool], default=True
-            If True, plot purity of total component concentration.
-        plot_species_purity : Optional[bool], default=False
-            If True, plot purity of individual species.
-        alpha : Optional[float], default=1
-            Opacity of line.
-        hide_labels : Optional[bool], default=False
-            If True, hide labels.
-        show_legend : Optional[bool], default=True
-            If True, show legend.
-        ax : Optional[Axes]
-            Axes to plot on.
+        x_axis_in_minutes : bool, optional, default=True
+            If True, the x-axis is displayed in minutes instead of seconds.
+        plot_components_purity : bool, optional
+            If True, plot purity of total component concentration. Default is True.
+        plot_species_purity : bool, optional
+            If True, plot purity of individual species. Default is False.
+        alpha : float, default=1.0
+            Opacity of plotted lines.
+        ylim : tuple[float, float] | None, default=None
+            Y-axis limits.
+        hide_labels : bool, default=False
+            If True, hide labels in the legend.
+        hide_species_labels : bool, default=False
+            If True, hide species labels in the legend.
+        secondary_axes : list[SecondaryAxis] | None, default=None
+            List of `SecondaryAxis` objects for secondary axes.
+        show_legend : bool, default=True
+            If True, display the legend.
+        update_layout : bool, optional, default=True
+            If True, update layout.
+        ax : plt.Axes | tuple[plt.Axes] | None, default=None
+            Optional Matplotlib Axes.
+            If not provided, a new figure is created.
+        setup_figure_kwargs : dict | None, default=None
+            Additional options to setup the figure.
 
         Returns
         -------
-        Axes
-            Axes with plot of purity over time.
+        tuple[plt.Figure, plt.Axes]
+            The Matplotlib Figure and Axes objects.
 
         Raises
         ------
         CADETProcessError
-            If solution has less than 2 components.
-
-        See Also
-        --------
-        slice_solution
-        plotlib
-        plot
+            If the solution has fewer than 2 components.
         """
         solution = slice_solution(
             self,
@@ -749,30 +735,26 @@ class SolutionIO(SolutionBase):
 
         if solution.n_comp < 2:
             raise CADETProcessError(
-                "Purity undefined for systems with less than 2 components."
+                "Purity is undefined for systems with fewer than 2 components."
             )
 
         x = solution.time
+        time_unit = r"\text{s}"
         if x_axis_in_minutes:
             x = x / 60
+            time_unit = r"\text{min}"
             if start is not None:
                 start = start / 60
             if end is not None:
                 end = end / 60
+        xlabel = rf"$Time~/~{time_unit}$"
 
-        if layout is None:
-            layout = plotting.Layout()
-            layout.x_label = r"$time~/~\text{s}$"
-            if x_axis_in_minutes:
-                layout.x_label = r"$time~/~\text{min}$"
-            layout.y_label = r"$Purity ~/~\%$"
-            if start is not None:
-                start /= 60
-            if end is not None:
-                end /= 60
-            layout.x_lim = (start, end)
-        if y_max is not None:
-            layout.y_lim = (None, y_max)
+        ylabel = r"$Purity~/~\text{\%}$"
+
+        if ax is None:
+            fig, ax = plotting.setup_figure(**setup_figure_kwargs)
+        else:
+            fig = ax.get_figure()
 
         local_purity_components = solution.local_purity_components * 100
         local_purity_species = solution.local_purity_species * 100
@@ -781,21 +763,13 @@ class SolutionIO(SolutionBase):
         species_index = 0
         for i, comp in enumerate(solution.component_system.components):
             color = next(colors)
-            if hide_labels:
-                label = None
-            else:
+            label = None
+            if not update_layout or hide_labels:
                 label = comp.name
 
             if plot_components_purity:
                 y = local_purity_components[..., i]
-
-                ax.plot(
-                    x,
-                    y,
-                    label=label,
-                    color=color,
-                    alpha=alpha,
-                )
+                ax.plot(x, y, label=label, color=color, alpha=alpha)
 
             if plot_species_purity:
                 if comp.n_species == 1:
@@ -803,27 +777,24 @@ class SolutionIO(SolutionBase):
                     continue
 
                 for s, species in enumerate(comp.species):
-                    label = s
-
+                    label = None if hide_labels else f"{comp.name} ({species.name})"
                     y = local_purity_species[..., species_index]
-
-                    ax.plot(
-                        x,
-                        y,
-                        "--",
-                        label=label,
-                        color=color,
-                        alpha=alpha,
-                    )
+                    ax.plot(x, y, "--", label=label, color=color, alpha=alpha)
                     species_index += 1
 
-        plotting.set_layout(
-            ax,
-            layout,
-            show_legend,
-        )
+        # Finalize layout
+        if update_layout:
+            ax.set_xlabel(xlabel)
+            ax.set_xlim((start, end))
 
-        return ax
+            ax.set_ylabel(ylabel)
+            if ylim is not None:
+                ax.set_ylim(ylim)
+
+            if show_legend:
+                ax.legend()
+
+        return fig, ax
 
 
 class SolutionBulk(SolutionBase):
@@ -887,50 +858,37 @@ class SolutionBulk(SolutionBase):
             return
         return len(self.radial_coordinates)
 
-    @plotting.create_and_save_figure
     def plot(
         self,
-        start: Optional[float] = None,
-        end: Optional[float] = None,
-        components: Optional[list[str]] = None,
-        layout: Optional[plotting.Layout] = None,
-        y_max: Optional[float] = None,
-        x_axis_in_minutes: Optional[bool] = True,
-        ax: Optional[Axes] = None,
+        start: float | None = None,
+        end: float | None = None,
+        components: list[str] | None = None,
+        x_axis_in_minutes: bool = True,
         *args: Any,
         **kwargs: Any,
-    ) -> Axes:
+    ) -> tuple[plt.Figure, plt.Axes | tuple[plt.Axes]]:
         """
-        Plot the entire time_signal for each component.
+        Plot bulk solution for each component.
 
         Parameters
         ----------
-        start : Optional[float]
-            Start time for plotting in seconds. If None is provided, the first data
-            point will be used as the start time. The default is None.
-        end : Optional[float]
-            End time for plotting in seconds. If None is provided, the last data point
-            will be used as the end time. The default is None.
-        components : Optional[list[str]]
+        start : float | None, optional, default=None
+            Start time for plotting in seconds. If None, the first data point is used.
+        end : float | None, optional, default=None
+            End time for plotting in seconds. If None, the last data point is used.
+        components : list[str] | None, optional, default=None
             List of components to be plotted. If None, all components are plotted.
-        layout : Optional[plotting.Layout]
-            Plot layout options.
-        y_max : Optional[float]
-            Maximum value of y axis.
-            If None, value is automatically deferred from solution.
-        x_axis_in_minutes : Optional[bool], default=True
-            If True, the x-axis will be plotted using minutes.
-        ax : Optional[Axes]
-            Axes to plot on.
+        x_axis_in_minutes : bool, optional, default=True
+            If True, the x-axis is displayed in minutes instead of seconds.
         *args : Any
-            Optional arguments passed down to _plot_solution_1D.
+            Optional arguments passed to `_plot_solution_1D`.
         **kwargs : Any
-            Optional arguments passed down to _plot_solution_1D.
+            Optional keyword arguments passed to `_plot_solution_1D`.
 
         Returns
         -------
-        Axes
-            Axes object with concentration profile.
+        tuple[plt.Figure, plt.Axes | tuple[plt.Axes]]
+            The Matplotlib Figure and Axes objects.
 
         Raises
         ------
@@ -939,10 +897,9 @@ class SolutionBulk(SolutionBase):
 
         See Also
         --------
-        _plot_solution_1D
-        slice_solution
-        plotlib
-        plot_purity
+        _plot_solution_1D : Low-level function for 1D plotting.
+        slice_solution : Slice the solution for plotting.
+        CADETProcess.plotting: Plotting library utilities.
         """
         if not (self.ncol is None and self.nrad is None):
             raise CADETProcessError(
@@ -958,68 +915,64 @@ class SolutionBulk(SolutionBase):
             coordinates={"time": [start, end]},
         )
 
-        x = solution.time
+        time = solution.time
+        time_unit = r"\text{s}"
+
         if x_axis_in_minutes:
-            x = x / 60
+            time = time / 60
+            time_unit = r"\text{min}"
             if start is not None:
                 start = start / 60
             if end is not None:
                 end = end / 60
+        xlabel = rf"$Time~/~{time_unit}$"
+        xlim = (start, end)
 
-        if layout is None:
-            layout = plotting.Layout()
-            layout.x_label = r"$time~/~\text{s}$"
-            if x_axis_in_minutes:
-                layout.x_label = r"$time~/~\text{min}$"
-            layout.y_label = r"$c~/~\text{mM}$"
-            layout.x_lim = (start, end)
-            if y_max is not None:
-                layout.y_lim = (None, y_max)
+        ylabel = r"$c~/~\text{mM}$"
 
-        ax = _plot_solution_1D(ax, x, solution, layout, *args, **kwargs)
+        return _plot_solution_1D(
+            time,
+            solution,
+            *args,
+            xlabel=xlabel,
+            xlim=xlim,
+            ylabel=ylabel,
+            **kwargs,
+        )
 
-        return ax
-
-    @plotting.create_and_save_figure
     def plot_at_time(
         self,
         t: float,
         components: Optional[list[str]] = None,
-        layout: Optional[plotting.Layout] = None,
-        ax: Optional[Axes] = None,
         *args: Any,
         **kwargs: Any,
-    ) -> Axes:
+    ) -> tuple[plt.Figure, plt.Axes | tuple[plt.Axes]]:
         """
         Plot bulk solution over space at given time.
 
         Parameters
         ----------
         t : float
-            Time for plotting in seconds.
+            Time for plotting.
             If t == -1, the final solution is plotted.
         components : Optional[list[str]]
             List of components to be plotted. If None, all components are plotted.
-        layout : Optional[plotting.Layout]
-            Plot layout options.
-        ax : Optional[Axes]
-            Axes to plot on.
         *args : Any
-            Optional arguments passed down to _plot_solution_1D.
+            Optional arguments passed to `_plot_solution_1D`.
         **kwargs : Any
-            Optional arguments passed down to _plot_solution_1D.
+            Optional keyword arguments passed to `_plot_solution_1D`.
 
         Returns
         -------
-        Axes
-            Axes object with concentration profile.
+        tuple[plt.Figure, plt.Axes | tuple[plt.Axes]]
+            The Matplotlib Figure and Axes objects.
 
         See Also
         --------
         _plot_solution_1D
+        _plot_2D
         slice_solution
-        plot_at_position
-        plotlib
+        CADETProcess.plotting
         """
         solution = slice_solution(
             self,
@@ -1031,68 +984,64 @@ class SolutionBulk(SolutionBase):
 
         x = self.axial_coordinates
 
-        if layout is None:
-            layout = plotting.Layout()
-            layout.x_label = "$z~/~m$"
-            layout.y_label = "$c~/~\text{mM}$"
+        xlabel = r"$z~/~m$"
+        ylabel = r"$c~/~\text{mM}$"
 
-        ax = _plot_solution_1D(ax, x, solution, layout, *args, **kwargs)
+        fig, axs = _plot_solution_1D(
+            x,
+            solution,
+            *args,
+            xlabel=xlabel,
+            ylabel=ylabel,
+            **kwargs,
+        )
 
+        ax = axs if not isinstance(axs, tuple) else axs[0]
         plotting.add_text(ax, f"time = {t:.2f} s")
 
-        return ax
+        return fig, axs
 
-    @plotting.create_and_save_figure
     def plot_at_position(
         self,
         z: float,
         start: Optional[float] = None,
         end: Optional[float] = None,
         components: Optional[list[str]] = None,
-        layout: Optional[plotting.Layout] = None,
         x_axis_in_minutes: bool = True,
-        ax: Optional[Axes] = None,
         *args: Any,
         **kwargs: Any,
-    ) -> Axes:
+    ) -> tuple[plt.Figure, plt.Axes | tuple[plt.Axes]]:
         """
-        Plot bulk solution over time at given position.
+        Plot bulk solution over space at given time.
 
         Parameters
         ----------
         z : float
             Position for plotting.
-        start : Optional[float]
-            Start time for plotting in seconds. If None is provided, the first data
-            point will be used as the start time. The default is None.
-        end : Optional[float]
-            End time for plotting in seconds. If None is provided, the last data point
-            will be used as the end time. The default is None.
-        components : Optional[list[str]]
+        start : float | None, optional, default=None
+            Start time for plotting in seconds. If None, the first data point is used.
+        end : float | None, optional, default=None
+            End time for plotting in seconds. If None, the last data point is used.
+        components : list[str] | None, optional, default=None
             List of components to be plotted. If None, all components are plotted.
-        layout : Optional[plotting.Layout]
-            Plot layout options.
-            If None, value is automatically deferred from solution.
-        x_axis_in_minutes : bool
-            If True, the x-axis will be plotted using minutes. The default is True.
-        ax : Optional[Axes]
-            Axes to plot on.
+        x_axis_in_minutes : bool, optional, default=True
+            If True, the x-axis will be plotted using minutes.
         *args : Any
-            Optional arguments passed down to _plot_solution_1D.
+            Optional arguments passed to `_plot_solution_1D`.
         **kwargs : Any
-            Optional arguments passed down to _plot_solution_1D.
+            Optional keyword arguments passed to `_plot_solution_1D`.
 
         Returns
         -------
-        Axes
-            Axes object with concentration profile.
+        tuple[plt.Figure, plt.Axes | tuple[plt.Axes]]
+            The Matplotlib Figure and Axes objects.
 
         See Also
         --------
         _plot_solution_1D
+        _plot_2D
         slice_solution
-        plot_at_position
-        plotlib
+        CADETProcess.plotting
         """
         solution = slice_solution(
             self,
@@ -1102,28 +1051,35 @@ class SolutionBulk(SolutionBase):
             coordinates={"axial_coordinates": [z, z]},
         )
 
-        x = self.time
+        time = solution.time
+        time_unit = r"\text{s}"
+
         if x_axis_in_minutes:
-            x = x / 60
+            time = time / 60
+            time_unit = r"\text{min}"
             if start is not None:
                 start = start / 60
             if end is not None:
                 end = end / 60
+        xlabel = rf"$Time~/~{time_unit}$"
+        xlim = (start, end)
 
-        x = self.time / 60
+        ylabel = r"$c~/~\text{mM}$"
 
-        if layout is None:
-            layout = plotting.Layout()
-            layout.x_label = "$time~/~\text{s}$"
-            if x_axis_in_minutes:
-                layout.x_label = "$time~/~\text{min}$"
-            layout.y_label = "$c~/~\text{mM}$"
+        fig, axs = _plot_solution_1D(
+            time,
+            solution,
+            *args,
+            xlabel=xlabel,
+            xlim=xlim,
+            ylabel=ylabel,
+            **kwargs,
+        )
 
-        ax = _plot_solution_1D(ax, x, solution, layout, *args, **kwargs)
-
+        ax = axs if not isinstance(axs, tuple) else axs[0]
         plotting.add_text(ax, f"z = {z:.2f} m")
 
-        return ax
+        return fig, axs
 
 
 class SolutionParticle(SolutionBase):
@@ -1200,64 +1156,53 @@ class SolutionParticle(SolutionBase):
             return
         return len(self.particle_coordinates)
 
-    @plotting.create_and_save_figure
     def plot(
         self,
-        start: Optional[float] = None,
-        end: Optional[float] = None,
-        components: Optional[list[str]] = None,
-        layout: Optional[plotting.Layout] = None,
-        y_max: Optional[float] = None,
-        x_axis_in_minutes: Optional[bool] = True,
-        ax: Optional[Axes] = None,
+        start: float | None = None,
+        end: float | None = None,
+        components: list[str] | None = None,
+        x_axis_in_minutes: bool = True,
         *args: Any,
         **kwargs: Any,
-    ) -> Axes:
+    ) -> tuple[plt.Figure, plt.Axes | tuple[plt.Axes]]:
         """
         Plot the entire particle liquid phase solution for each component.
 
         Parameters
         ----------
-        start : Optional[float]
-            Start time for plotting in seconds. If None is provided, the first data
-            point will be used as the start time. The default is None.
-        end : Optional[float]
-            End time for plotting in seconds. If None is provided, the last data point
-            will be used as the end time. The default is None.
-        components : Optional[list[str]]
+        start : float | None, optional, default=None
+            Start time for plotting in seconds. If None, the first data point is used.
+        end : float | None, optional, default=None
+            End time for plotting in seconds. If None, the last data point is used.
+        components : list[str] | None, optional, default=None
             List of components to be plotted. If None, all components are plotted.
-        layout : Optional[plotting.Layout]
-            Plot layout options.
-        y_max : Optional[float]
-            Maximum value of y axis.
-            If None, value is automatically deferred from solution.
-        x_axis_in_minutes : Optional[bool], default=True
-            If True, the x-axis will be plotted using minutes. The default is True.
-        ax : Optional[Axes]
-            Axes to plot on.
+        x_axis_in_minutes : bool, optional, default=True
+            If True, the x-axis is displayed in minutes instead of seconds.
         *args : Any
-            Optional arguments passed down to _plot_solution_1D.
+            Optional arguments passed to `_plot_solution_1D`.
         **kwargs : Any
-            Optional arguments passed down to _plot_solution_1D.
+            Optional keyword arguments passed to `_plot_solution_1D`.
 
         Returns
         -------
-        ax : Axes
-            Axes object with concentration profile.
+        tuple[plt.Figure, plt.Axes | tuple[plt.Axes]]
+            The Matplotlib Figure and Axes objects.
 
-        Raises CADETProcessError
+        Raises
+        ------
+        CADETProcessError
             If solution is not 1D.
 
         See Also
         --------
-        _plot_solution_1D
-        slice_solution
-        plotlib
-        plot_purity
+        _plot_solution_1D : Low-level function for 1D plotting.
+        slice_solution : Slice the solution for plotting.
+        CADETProcess.plotting : Plotting library utilities.
         """
         if not (self.ncol is None and self.nrad is None and self.npar is None):
             raise CADETProcessError(
-                "Solution has more than single dimension. Please use `plot_at_time`."
+                "Solution has more than single dimension. "
+                "Please use `plot_at_time`."
             )
 
         solution = slice_solution(
@@ -1268,37 +1213,37 @@ class SolutionParticle(SolutionBase):
             coordinates={"time": [start, end]},
         )
 
-        x = solution.time
+        time = solution.time
+        time_unit = r"\text{s}"
         if x_axis_in_minutes:
-            x = x / 60
+            time = time / 60
+            time_unit = r"\text{min}"
             if start is not None:
                 start = start / 60
             if end is not None:
                 end = end / 60
+        xlabel = rf"$Time~/~{time_unit}$"
+        xlim = (start, end)
 
-        if layout is None:
-            layout = plotting.Layout()
-            layout.x_label = r"$time~/~\text{s}$"
-            if x_axis_in_minutes:
-                layout.x_label = r"$time~/~\text{min}$"
-            layout.y_label = r"$c~/~\text{mM}$"
-            layout.x_lim = (start, end)
-        if y_max is not None:
-            layout.y_lim = (None, y_max)
+        ylabel = r"$c~/~\text{mM}$"
 
-        ax = _plot_solution_1D(ax, x, solution, layout, *args, **kwargs)
-
-        return ax
+        return _plot_solution_1D(
+            time,
+            solution,
+            *args,
+            xlabel=xlabel,
+            xlim=xlim,
+            ylabel=ylabel,
+            **kwargs,
+        )
 
     def _plot_1D(
         self,
         t: float,
         components: Optional[list[str]] = None,
-        layout: Optional[plotting.Layout] = None,
-        ax: Optional[Axes] = None,
         *args: Any,
         **kwargs: Any,
-    ) -> Axes:
+    ) -> tuple[plt.Figure, plt.Axes | tuple[plt.Axes]]:
         """
         Plot particle solution over space at given time.
 
@@ -1307,28 +1252,26 @@ class SolutionParticle(SolutionBase):
         t : float
             Time for plotting.
             If t == -1, the final solution is plotted.
-        components : Optional[list[str]]
+        components : list[str] | None, optional, default=None
             List of components to be plotted. If None, all components are plotted.
-        layout : Optional[plotting.Layout]
-            Plot layout options.
-        ax : Optional[Axes]
-            Axes to plot on.
+        ax : Optional[plt.Axes]
+            plt.Axes to plot on.
         *args : Any
-            Optional arguments passed down to _plot_solution_1D.
+            Optional arguments passed to `_plot_solution_1D`.
         **kwargs : Any
-            Optional arguments passed down to _plot_solution_1D.
+            Optional keyword arguments passed to `_plot_solution_1D`.
 
         Returns
         -------
-        Axes
-            Axes object with concentration profile.
+        tuple[plt.Figure, plt.Axes | tuple[plt.Axes]]
+            The Matplotlib Figure and Axes objects.
 
         See Also
         --------
         _plot_solution_1D
         _plot_2D
         slice_solution
-        plotlib
+        CADETProcess.plotting
         """
         solution = slice_solution(
             self,
@@ -1340,24 +1283,32 @@ class SolutionParticle(SolutionBase):
 
         x = self.axial_coordinates
 
-        if layout is None:
-            layout = plotting.Layout()
-            layout.x_label = "$z~/~m$"
-            layout.y_label = "$c~/~\text{mM}$"
+        xlabel = r"$z~/~m$"
+        ylabel = r"$c~/~\text{mM}$"
 
-        ax = _plot_solution_1D(ax, x, solution, layout, *args, **kwargs)
+        fig, axs = _plot_solution_1D(
+            x,
+            solution,
+            *args,
+            xlabel=xlabel,
+            ylabel=ylabel,
+            **kwargs,
+        )
 
+        ax = axs if not isinstance(axs, tuple) else axs[0]
         plotting.add_text(ax, f"time = {t:.2f} s")
 
-        return ax
+        return fig, axs
 
     def _plot_2D(
         self,
-        ax: Axes,
         t: float,
         comp: int = 0,
         vmax: Optional[float] = None,
-    ) -> Axes:
+        fig: plt.Figure | None = None,
+        ax: plt.Axes | None = None,
+        setup_figure_kwargs: dict | None = None,
+    ) -> tuple[plt.Figure, plt.Axes]:
         x = self.axial_coordinates
         y = self.particle_coordinates
 
@@ -1368,32 +1319,32 @@ class SolutionParticle(SolutionBase):
 
         if vmax is None:
             vmax = v.max()
-        try:
+
+        if ax is None:
+            fig, ax = plotting.setup_figure(**setup_figure_kwargs)
+            mesh = ax.pcolormesh(x, y, v, shading="gouraud", vmin=0, vmax=vmax)
+        else:
             mesh = ax.get_children()[0]
             mesh.set_array(v.flatten())
-        except AttributeError:
-            mesh = ax.pcolormesh(x, y, v, shading="gouraud", vmin=0, vmax=vmax)
+
+        ax.set_title(f"Solid phase concentration, comp={comp}")
+        ax.set_xlabel("$z~/~\text{m}$")
+        ax.set_ylabel("$r~/~\text{m}$")
+        plt.colorbar(mesh)
 
         plotting.add_text(ax, f"time = {t:.2f} s")
 
-        layout = plotting.Layout()
-        layout.x_label = "$z~/~\text{m}$"
-        layout.y_label = "$r~/~\text{m}$"
-        layout.title = f"Solid phase concentration, comp={comp}"
+        return fig, ax
 
-        plotting.set_layout(ax, layout)
-        plt.colorbar(mesh)
-
-        return ax
-
-    @plotting.create_and_save_figure
+    @plotting.figure_utils
     def plot_at_time(
         self,
         t: float,
         comp: Optional[int] = None,
         vmax: Optional[float] = None,
-        ax: Optional[Axes] = None,
-    ) -> Axes:
+        *args: Any,
+        **kwargs: Any,
+    ) -> tuple[plt.Figure, plt.Axes | tuple[plt.Axes]]:
         """
         Plot particle liquid solution for a given component over space at given time.
 
@@ -1405,27 +1356,31 @@ class SolutionParticle(SolutionBase):
             Component index.
         vmax: Optional[float]
             Maximum data value to scale color map.
-        ax : Optional[Axes]
-            Axes to plot on.
+        *args : Any
+            Optional arguments passed to the local plot methods.
+        **kwargs : Any
+            Optional keyword arguments passed to the local plot methods.
 
         Returns
         -------
-        Axes
-            Axes object with concentration profile.
+        tuple[plt.Figure, plt.Axes | tuple[plt.Axes]]
+            The Matplotlib Figure and Axes objects.
 
         See Also
         --------
         CADETProcess.plotting
         """
         if self.npar is None:
-            ax = self._plot_1D(ax, t, vmax)
+            if vmax is not None:
+                kwargs["ylim"] = (None, vmax)
+            fig, ax = self._plot_1D(t, comp, *args, **kwargs)
         else:
             if comp is None and self.n_comp > 1:
                 raise ValueError("Must specify component index.")
 
-            ax = self._plot_2D(ax, t, comp, vmax)
+            fig, ax = self._plot_2D(t, comp, vmax, *args, **kwargs)
 
-        return ax
+        return fig, ax
 
 
 class SolutionSolid(SolutionBase):
@@ -1518,7 +1473,7 @@ class SolutionSolid(SolutionBase):
             return
         return len(self.particle_coordinates)
 
-    @plotting.create_and_save_figure
+    @plotting.figure_utils
     def plot(
         self,
         start: Optional[float] = None,
@@ -1527,32 +1482,30 @@ class SolutionSolid(SolutionBase):
         layout: Optional[plotting.Layout] = None,
         y_max: Optional[float] = None,
         x_axis_in_minutes: Optional[bool] = True,
-        ax: Optional[Axes] = None,
+        ax: Optional[plt.Axes] = None,
         *args: Any,
         **kwargs: Any,
-    ) -> Axes:
+    ) -> plt.Axes:
         """
         Plot the entire solid phase solution for each component.
 
         Parameters
         ----------
-        start : Optional[float]
-            Start time for plotting in seconds. If None is provided, the first data
-            point will be used as the start time. The default is None.
-        end : Optional[float]
-            End time for plotting in seconds. If None is provided, the last data point
-            will be used as the end time. The default is None.
-        components : Optional[list[str]]
+        start : float | None, optional, default=None
+            Start time for plotting in seconds. If None, the first data point is used.
+        end : float | None, optional, default=None
+            End time for plotting in seconds. If None, the last data point is used.
+        components : list[str] | None, optional, default=None
             List of components to be plotted. If None, all components are plotted.
         layout : Optional[plotting.Layout]
             Plot layout options.
         y_max : Optional[float]
             Maximum value of y axis.
             If None, value is automatically deferred from solution.
-        x_axis_in_minutes : Optional[bool], default=True
-            If True, the x-axis will be plotted using minutes. The default is True.
-        ax : Optional[Axes]
-            Axes to plot on.
+        x_axis_in_minutes : bool, optional, default=True
+            If True, the x-axis will be plotted using minutes.
+        ax : Optional[plt.Axes]
+            plt.Axes to plot on.
         *args : Any
             Optional arguments passed down to _plot_solution_1D.
         **kwargs : Any
@@ -1560,8 +1513,8 @@ class SolutionSolid(SolutionBase):
 
         Returns
         -------
-        ax : Axes
-            Axes object with concentration profile.
+        ax : plt.Axes
+            plt.Axes object with concentration profile.
 
         Raises CADETProcessError
             If solution is not 1D.
@@ -1570,8 +1523,8 @@ class SolutionSolid(SolutionBase):
         --------
         _plot_solution_1D
         slice_solution
-        plotlib
         plot_purity
+        CADETProcess.plotting
         """
         if not (self.ncol is None and self.nrad is None and self.npar is None):
             raise CADETProcessError(
@@ -1586,69 +1539,67 @@ class SolutionSolid(SolutionBase):
             coordinates={"time": [start, end]},
         )
 
-        x = solution.time
+        time = solution.time
+        time_unit = r"\text{s}"
         if x_axis_in_minutes:
-            x = x / 60
+            time = time / 60
+            time_unit = r"\text{min}"
             if start is not None:
                 start = start / 60
             if end is not None:
                 end = end / 60
+        xlabel = rf"$Time~/~{time_unit}$"
+        xlim = (start, end)
 
-        if layout is None:
-            layout = plotting.Layout()
-            layout.x_label = r"$time~/~\text{s}$"
-            if x_axis_in_minutes:
-                layout.x_label = r"$time~/~\text{min}$"
-            layout.y_label = r"$c~/~\text{mM}$"
-            layout.x_lim = (start, end)
-        if y_max is not None:
-            layout.y_lim = (None, y_max)
+        ylabel = r"$c~/~\text{mM}$"
 
-        ax = _plot_solution_1D(ax, x, solution, layout, *args, **kwargs)
+        fig, axs = _plot_solution_1D(
+            time,
+            solution,
+            *args,
+            xlabel=xlabel,
+            xlim=xlim,
+            ylabel=ylabel,
+            **kwargs,
+        )
 
         return ax
 
     def _plot_1D(
         self,
         t: float,
-        components: list[str] | None = None,
-        layout: plotting.Layout | None = None,
-        ax: Axes | None = None,
+        components: Optional[list[str]] = None,
         *args: Any,
         **kwargs: Any,
-    ) -> Axes:
+    ) -> tuple[plt.Figure, plt.Axes | tuple[plt.Axes]]:
         """
         Plot solid solution over space at given time.
 
         Parameters
         ----------
         t : float
-            Time for plotting, in seconds.
+            Time for plotting.
             If t == -1, the final solution is plotted.
-        components : list, optional
+        components : Optional[list[str]]
             List of components to be plotted. If None, all components are plotted.
-            The default is None.
-        layout : plotting.Layout, optional
-            Plot layout options. If None, a new instance is created.
-            The default is None.
-        ax : Axes
-            Axes to plot on.
+        ax : Optional[plt.Axes]
+            plt.Axes to plot on.
         *args : Any
-            Optional arguments passed down to _plot_solution_1D.
+            Optional arguments passed to `_plot_solution_1D`.
         **kwargs : Any
-            Optional arguments passed down to _plot_solution_1D.
+            Optional keyword arguments passed to `_plot_solution_1D`.
 
         Returns
         -------
-        ax : Axes
-            Axes object with concentration profile.
+        tuple[plt.Figure, plt.Axes | tuple[plt.Axes]]
+            The Matplotlib Figure and Axes objects.
 
         See Also
         --------
         _plot_solution_1D
+        _plot_2D
         slice_solution
-        plot_at_position
-        plotlib
+        CADETProcess.plotting
         """
         solution = slice_solution(
             self,
@@ -1660,61 +1611,73 @@ class SolutionSolid(SolutionBase):
 
         x = self.axial_coordinates
 
-        if layout is None:
-            layout = plotting.Layout()
-            layout.x_label = "$z~/~m$"
-            layout.y_label = "$c~/~\text{mM}$"
+        xlabel = r"$z~/~m$"
+        ylabel = r"$c~/~\text{mM}$"
 
-        ax = _plot_solution_1D(ax, x, solution, layout, *args, **kwargs)
+        fig, axs = _plot_solution_1D(
+            x,
+            solution,
+            *args,
+            xlabel=xlabel,
+            ylabel=ylabel,
+            **kwargs,
+        )
 
+        ax = axs if not isinstance(axs, tuple) else axs[0]
         plotting.add_text(ax, f"time = {t:.2f} s")
 
-        return ax
+        return fig, axs
 
     def _plot_2D(
         self,
-        ax: Axes,
         t: float,
-        comp: int,
+        comp: int = 0,
         bound_state: int = 0,
         vmax: Optional[float] = None,
-    ) -> tuple[Axes, QuadMesh]:
+        fig: plt.Figure | None = None,
+        ax: plt.Axes | None = None,
+        setup_figure_kwargs: dict | None = None,
+    ) -> tuple[plt.Figure, plt.Axes]:
         x = self.axial_coordinates
         y = self.particle_coordinates
 
         if not self.time[0] <= t <= self.time[-1]:
             raise ValueError("Time exceeds bounds.")
         t_i = np.where(t <= self.time)[0][0]
-        c_i = np.sum(self.bound_states[0:comp]) + bound_state
+        c_i = int(np.sum(self.bound_states[0:comp]) + bound_state)
         v = self.solution[t_i, :, :, c_i].transpose()
 
         if vmax is None:
             vmax = v.max()
 
-        mesh = ax.pcolormesh(x, y, v, shading="gouraud", vmin=0, vmax=vmax)
+        if ax is None:
+            fig, ax = plotting.setup_figure(**setup_figure_kwargs)
+            mesh = ax.pcolormesh(x, y, v, shading="gouraud", vmin=0, vmax=vmax)
+        else:
+            mesh = ax.get_children()[0]
+            mesh.set_array(v.flatten())
+
+        ax.set_title(
+            f"Solid phase concentration, comp={comp}, bound_state={bound_state}"
+        )
+        ax.set_xlabel("$z~/~\text{m}$")
+        ax.set_ylabel("$r~/~\text{m}$")
+        plt.colorbar(mesh)
 
         plotting.add_text(ax, f"time = {t:.2f} s")
 
-        layout = plotting.Layout()
-        layout.title = (
-            f"Solid phase concentration, comp={comp}, bound_state={bound_state}"
-        )
-        layout.x_label = "$z~/~\text{m}$"
-        layout.y_label = "$r~/~\text{m}$"
-        layout.labels = self.component_system.species[c_i]
-        plotting.set_layout(ax, layout)
+        return fig, ax
 
-        return ax, mesh
-
-    @plotting.create_and_save_figure
+    @plotting.figure_utils
     def plot_at_time(
         self,
         t: float,
         comp: Optional[int] = None,
         bound_state: Optional[int] = 0,
         vmax: Optional[float] = None,
-        ax: Optional[Axes] = None,
-    ) -> Axes:
+        *args: Any,
+        **kwargs: Any,
+    ) -> tuple[plt.Figure, plt.Axes | tuple[plt.Axes]]:
         """
         Plot particle solid solution for a given bound state over space at given time.
 
@@ -1722,26 +1685,30 @@ class SolutionSolid(SolutionBase):
         ----------
         t : float
             Solution time at with to plot.
-        comp : Optional[int], default=None
-            Number of components.
-        bound_state : int, default=0
+        comp : Optional[int]
+            Component index.
+        bound_state : Optional[int], default=0
             Bound state index.
         vmax: Optional[float]
             Maximum data value to scale color map.
-        ax : Optional[Axes]
-            Axes to plot on.
+        *args : Any
+            Optional arguments passed to the local plot methods.
+        **kwargs : Any
+            Optional keyword arguments passed to the local plot methods.
 
         Returns
         -------
-        Axes
-            Axes object with concentration profile.
+        tuple[plt.Figure, plt.Axes | tuple[plt.Axes]]
+            The Matplotlib Figure and Axes objects.
 
         See Also
         --------
         CADETProcess.plotting
         """
         if self.npar is None:
-            ax = self._plot_1D(ax, t, vmax)
+            if vmax is not None:
+                kwargs["ylim"] = (None, vmax)
+            fig, ax = self._plot_1D(t, comp, *args, **kwargs)
         else:
             if comp is None and self.n_comp > 1:
                 raise ValueError("Must specify component index.")
@@ -1750,9 +1717,9 @@ class SolutionSolid(SolutionBase):
             if bound_state is None and self.bound_states[comp] > 1:
                 raise ValueError("Must specify bound state index.")
 
-            ax, mesh = self._plot_2D(ax, t, comp, bound_state, vmax=vmax)
-            plt.colorbar(mesh, ax)
-        return ax
+            fig, ax = self._plot_2D(t, comp, bound_state, vmax, *args, **kwargs)
+
+        return fig, ax
 
 
 class SolutionVolume(SolutionBase):
@@ -1763,223 +1730,280 @@ class SolutionVolume(SolutionBase):
         """tuple: (Expected) shape of the solution."""
         return (self.nt,)
 
-    @plotting.create_and_save_figure
+    @plotting.figure_utils
     def plot(
         self,
         start: Optional[float] = None,
         end: Optional[float] = None,
         x_axis_in_minutes: Optional[bool] = True,
-        ax: Optional[Axes] = None,
-        update_layout: Optional[bool] = True,
-        **kwargs: Any,
-    ) -> Axes:
+        y_axis_in_liters: Optional[bool] = True,
+        ylim: tuple[float, float] | None = None,
+        update_layout: bool = True,
+        ax: plt.Axes | tuple[plt.Axes] | None = None,
+        setup_figure_kwargs: dict | None = None,
+    ) -> tuple[plt.Figure, plt.Axes]:
         """
-        Plot the unit operation"s volume over time.
+        Plot the volume over time.
 
         Parameters
         ----------
-        start : Optional[float]
-            Start time for plotting in seconds. If None is provided, the first data
-            point will be used as the start time. The default is None.
-        end : Optional[float]
-            End time for plotting in seconds. If None is provided, the last data point
-            will be used as the end time. The default is None.
-        x_axis_in_minutes : Optional[bool], default=True
+        start : float | None, optional, default=None
+            Start time for plotting in seconds. If None, the first data point is used.
+        end : float | None, optional, default=None
+            End time for plotting in seconds. If None, the last data point is used.
+        x_axis_in_minutes : bool, optional, default=True
             If True, the x-axis will be plotted using minutes.
-        ax : Optional[Axes]
-            Axes to plot on.
-        update_layout : Optional[bool], default=True
-            If True, update the figure"s layout.
-        **kwargs : Any
-            Additional arguments passed down to ax.plot()
+        y_axis_in_liters : bool, optional, default=True
+            If True, the y-axis is displayed in Liters instead of m³.
+        ylim : tuple[float, float] | None, default=None
+            Y-axis limits.
+        update_layout : bool, optional, default=True
+            If True, update layout.
+        ax : plt.Axes | tuple[plt.Axes] | None, default=None
+            Optional Matplotlib Axes.
+            If not provided, a new figure is created.
+        setup_figure_kwargs : dict | None, default=None
+            Additional options to setup the figure.
 
         Returns
         -------
-        Axes
-            Axes object with the plot.
+        tuple[plt.Figure, plt.Axes | tuple[plt.Axes]]
+            The Matplotlib Figure and Axes objects.
 
         See Also
         --------
-        CADETProcess.plot
+        CADETProcess.plotting
         """
-        x = self.time
+        time = self.time
+        time_unit = r"\text{s}"
         if x_axis_in_minutes:
-            x = x / 60
+            time = time / 60
+            time_unit = r"\text{min}"
             if start is not None:
                 start = start / 60
             if end is not None:
                 end = end / 60
+        xlabel = rf"$Time~/~{time_unit}$"
+        xlim = (start, end)
 
-        y = self.solution * 1000
+        y = self.solution
+        volume_unit = r"\text{m}^3"
+        if y_axis_in_liters:
+            y = y * 1000
+            volume_unit = r"\text{L}"
+        ylabel = rf"$Volume$~/~{volume_unit}$"
 
-        y_min = np.min(y)
-        y_max = 1.1 * np.max(y)
-
-        layout = plotting.Layout()
-        layout.x_label = r"$time~/~\text{s}$"
-        if x_axis_in_minutes:
-            layout.x_label = r"$time~/~\text{min}$"
-        layout.y_label = r"$V~/~\text{L}$"
-        layout.x_lim = (start, end)
-        layout.y_lim = (y_min, y_max)
-        ax.plot(x, y, **kwargs)
+        if ax is None:
+            fig, ax = plotting.setup_figure(**setup_figure_kwargs)
+        else:
+            fig = ax.get_figure()
 
         if update_layout:
-            plotting.set_layout(ax, layout)
+            ax.set_xlabel(xlabel)
+            ax.set_xlim(xlim)
 
-        return ax
+            ax.set_ylabel(ylabel)
+            if ylim is not None:
+                ax.set_ylim(ylim)
+
+        return fig, ax
 
 
+@plotting.figure_utils
 def _plot_solution_1D(
-    ax: Axes,
     x: np.ndarray,
     solution: SolutionBase,
-    layout: Optional[Any] = None,
     plot_species: bool = False,
     plot_components: bool = True,
     plot_total_concentration: bool = False,
-    alpha: int = 1,
+    alpha: float = 1.0,
+    xlim: tuple[float, float] | None = None,
+    xlabel: str | None = None,
+    ylim: tuple[float, float] | None = None,
+    ylabel: str | None = None,
     hide_labels: bool = False,
     hide_species_labels: bool = False,
-    secondary_axis: Optional[Axes] = None,
-    secondary_layout: Optional[Any] = None,
+    secondary_axes: list[plotting.SecondaryAxis] | None = None,
     show_legend: bool = True,
     update_layout: bool = True,
-) -> Axes:
+    ax: plt.Axes | tuple[plt.Axes] | None = None,
+    setup_figure_kwargs: dict | None = None,
+) -> tuple[plt.Figure, plt.Axes | tuple[plt.Axes]]:
+    """Plot 1D solution data with optional secondary axis.
+
+    Parameters
+    ----------
+    x : np.ndarray
+        x-values for plotting.
+    solution : SolutionBase
+        Solution data to plot.
+    plot_species : bool, default=False
+        If True, plot individual species.
+    plot_components : bool, default=True
+        If True, plot total concentration of components.
+    plot_total_concentration : bool, default=False
+        If True, plot total concentration.
+    alpha : float, default=1.0
+        Opacity of plotted lines.
+    xlim : tuple[float, float] | None, default=None
+        X-axis limits.
+    xlabel : str | None, default=None
+        X-axis label.
+    ylim : tuple[float, float] | None, default=None
+        Y-axis limits.
+    ylabel : str | None, default=None
+        Y-axis label.
+    hide_labels : bool, default=False
+        If True, hide labels in the legend.
+    hide_species_labels : bool, default=False
+        If True, hide species labels in the legend.
+    secondary_axes : list[SecondaryAxis] | None, default=None
+        List of `SecondaryAxis` objects for secondary axes.
+    show_legend : bool, default=True
+        If True, display the legend.
+    update_layout : bool, optional, default=True
+        If True, update layout.
+    ax : plt.Axes | tuple[plt.Axes] | None, default=None
+        Optional Matplotlib Axes.
+        If not provided, a new figure is created.
+    setup_figure_kwargs : dict | None, default=None
+        Additional options to setup the figure.
+
+    Returns
+    -------
+    tuple[plt.Figure, plt.Axes | tuple[plt.Axes]]
+        The Matplotlib Figure and Axes objects.
+    """
+    if ax is None:
+        # Create a new figure and primary axis
+        fig, primary_ax = plotting.setup_figure(**setup_figure_kwargs)
+
+        # Initialize list for secondary axes
+        sec_axes = []
+        # Ensure secondary_axes is iterable
+        if secondary_axes is not None:
+            if not isinstance(secondary_axes, list):
+                secondary_axes = [secondary_axes]
+
+            # Create twin axes for each secondary axis
+            for i, sec_axis in enumerate(secondary_axes):
+                a = primary_ax.twinx()
+                sec_axes.append(a)
+    else:
+        # Use provided axes
+        if isinstance(ax, tuple):
+            primary_ax = ax[0]
+            sec_axes = list(ax[1:])
+        else:
+            primary_ax = ax
+            sec_axes = []
+
+        fig = primary_ax.get_figure()
+
+    # Plot data
     sol = solution.solution
     c_total_comp = solution.total_concentration_components
-
-    if secondary_axis is not None:
-        ax_secondary = ax.twinx()
-    else:
-        ax_secondary = None
-
-    species_index = 0
-    y_min = 0
-    y_max = 0
-    y_min_sec = 0
-    y_max_sec = 0
     colors = iter(plt.rcParams["axes.prop_cycle"].by_key()["color"])
+    species_index = 0  # Initialize species index
 
     for i, comp in enumerate(solution.component_system.components):
         color = next(colors)
-        if hide_labels or not update_layout:
-            label = None
-        else:
+        label = None
+        if update_layout and not hide_labels:
             label = comp.name
 
-        if secondary_axis is not None and comp.name in secondary_axis.components:
-            a = ax_secondary
-        else:
-            a = ax
+        # Determine which axis to plot on
+        current_axis = primary_ax
+        for sec_axis in secondary_axes or []:
+            if comp.name in sec_axis.components:
+                current_axis = sec_axes[secondary_axes.index(sec_axis)]
 
+        # Plot components
         if plot_components:
             y_comp = c_total_comp[..., i]
-            if secondary_axis is not None and comp.name in secondary_axis.components:
-                if secondary_axis.transform is not None:
-                    y_comp = secondary_axis.transform(y_comp)
-                y_min_sec = min(min(y_comp), y_min_sec)
-                y_max_sec = max(max(y_comp), y_max_sec)
-            else:
-                y_min = np.min((np.min(y_comp), y_min))
-                y_max = np.max((np.max(y_comp), y_max))
-
-            y_comp = np.squeeze(y_comp)
-
-            a.plot(
+            for sec_axis in secondary_axes or []:
+                if comp.name in sec_axis.components and sec_axis.transform is not None:
+                    y_comp = sec_axis.transform(y_comp)
+            current_axis.plot(
                 x,
-                y_comp,
+                np.squeeze(y_comp),
                 linestyle="-",
                 color=color,
                 alpha=alpha,
                 label=label,
             )
 
+        # Plot species
         if plot_species:
-            if comp.n_species == 1:
-                if plot_components:
-                    species_index += 1
-                    continue
+            if comp.n_species == 1 and plot_components:
+                species_index += 1
+                continue
 
             linestyle_iter = iter(plotting.linestyle_cycler)
-
             for s, species in enumerate(comp.label):
-                if hide_species_labels or not update_layout:
-                    label = None
-                else:
+                label = None
+                if update_layout and not hide_labels:
                     label = species
-
-                if (
-                    comp.n_species == 1
-                    and not plot_total_concentration
-                    and not plot_components
-                ):
-                    linestyle = "-"
-                else:
-                    linestyle = next(linestyle_iter)["linestyle"]
-
-                if (
-                    secondary_axis is not None
-                    and secondary_axis.transform is not None
-                    and comp.name in secondary_axis.components
-                ):
-                    y_spec = secondary_axis.transform(sol[..., species_index])
-                    y_min_sec = min(min(y_spec), y_min_sec)
-                    y_max_sec = max(max(y_spec), y_max_sec)
-                else:
-                    y_spec = sol[..., species_index]
-                    y_min = min(min(y_spec), y_min)
-                    y_max = max(max(y_spec), y_max)
-
-                y_spec = np.squeeze(y_spec)
-
-                a.plot(
+                y_spec = sol[..., species_index]
+                for sec_axis in secondary_axes or []:
+                    if comp.name in sec_axis.components and sec_axis.transform is not None:
+                        y_spec = sec_axis.transform(y_spec)
+                current_axis.plot(
                     x,
-                    y_spec,
-                    linestyle=linestyle,
-                    label=label,
+                    np.squeeze(y_spec),
+                    linestyle=next(linestyle_iter)["linestyle"],
                     color=color,
                     alpha=alpha,
+                    label=label,
                 )
                 species_index += 1
 
+    # Plot total concentration (if requested)
     if plot_total_concentration:
-        if hide_labels or not update_layout:
-            label = None
-        else:
+        y_total = solution.total_concentration
+
+        label = None
+        if update_layout and not hide_labels:
             label = "Total concentration"
 
-        y_total = solution.total_concentration
-        y_total = np.squeeze(y_total)
-        y_min = min(min(y_total), y_min)
-        y_max = max(max(y_total), y_max)
-        a.plot(
+        primary_ax.plot(
             x,
-            y_total,
+            np.squeeze(y_total),
             "-",
-            label=label,
             color="k",
             alpha=alpha,
+            label=label,
         )
 
-    if layout.y_lim is None:
-        layout.y_lim = (y_min, 1.1 * y_max)
-
-    if secondary_axis is not None and secondary_layout is None:
-        secondary_layout = plotting.Layout()
-        secondary_layout.y_label = secondary_axis.y_label
-        secondary_layout.y_lim = (y_min_sec, 1.1 * y_max_sec)
-
+    # Finalize layout
     if update_layout:
-        plotting.set_layout(
-            ax,
-            layout,
-            show_legend,
-            ax_secondary,
-            secondary_layout,
-        )
+        if xlabel is not None:
+            primary_ax.set_xlabel(xlabel)
+        if xlim is not None:
+            primary_ax.set_xlim(xlim)
 
-    return ax
+        if ylabel is not None:
+            primary_ax.set_ylabel(ylabel)
+        if ylim is not None:
+            primary_ax.set_ylim(ylim)
+
+        # Update secondary axis Layout
+        for sec_axis in secondary_axes or []:
+            if sec_axis.ylabel is not None:
+                a.set_ylabel(sec_axis.ylabel)
+            if sec_axis.ylim is not None:
+                a.set_ylim(sec_axis.ylim)
+
+        plotting.offset_secondary_yaxes(primary_ax)
+
+        if show_legend:
+            handles, labels = plotting.get_all_twin_handles_labels(primary_ax)
+            primary_ax.legend(handles, labels)
+
+    if not sec_axes:
+        return fig, primary_ax
+
+    return fig, (primary_ax, *sec_axes)
 
 
 class InterpolatedSignal:

@@ -7,54 +7,25 @@ Plotting (:mod:`CADETProcess.plotting`)
 
 This module provides functionality for plotting in CADET-Process.
 
-General Style
+General Utils
 =============
 
 .. autosummary::
     :toctree: generated/
 
-    set_figure_style
-    SecondaryAxis
-    Layout
-    set_layout
-
-Setup Figure
-============
-
-.. autosummary::
-    :toctree: generated/
-
+    get_fig_size
     setup_figure
-    create_and_save_figure
+    get_all_twin_handles_labels
+    show_or_reopen
+    style_and_save_figure
 
-
-Annotations
-===========
-
-.. autosummary::
-    :toctree: generated/
-
-    Annotation
-    add_annotations
-
-Ticks
-=====
+Secondary Axis
+==============
 
 .. autosummary::
     :toctree: generated/
 
-    Tick
-    set_yticks
-    set_xticks
-
-Fill Regions
-============
-
-.. autosummary::
-    :toctree: generated/
-
-    FillRegion
-    add_fill_regions
+    SecondaryAxis
 
 Text
 ====
@@ -64,46 +35,37 @@ Text
 
     add_text
 
-Hlines
-======
+Annotations
+===========
 
 .. autosummary::
     :toctree: generated/
 
-    HLines
-    add_hlines
+    annotate
+
+
+Fill Regions
+============
+
+.. autosummary::
+    :toctree: generated/
+
+    fill_between
 
 """  # noqa
+
 import os
-import sys
 from contextlib import contextmanager
+from dataclasses import dataclass
 from functools import wraps
-from typing import Any, Literal, Optional
+from typing import Any, Callable, Literal, Optional
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import numpy as np
 import numpy.typing as npt
 from matplotlib import cycler
-from matplotlib.axes import Axes
-from matplotlib.figure import Figure
 
-from CADETProcess.dataStructure import (
-    Callable,
-    Integer,
-    List,
-    String,
-    Structure,
-    Tuple,
-    UnsignedFloat,
-)
-
-this = sys.modules[__name__]
-
-
-# %% Style
-
-style = "single_column"
+# %% Colors
 
 color_dict = {
     "blue": mpl.colors.to_rgb("#000099"),
@@ -118,7 +80,7 @@ chromapy_cycler = cycler(color=color_list)
 
 linestyle_cycler = cycler("linestyle", ["--", ":", "-."])
 
-textbox_props = dict(facecolor="white", alpha=1)
+# %% Fig size
 
 
 def mm_to_inches(mm: float) -> float:
@@ -138,415 +100,313 @@ def mm_to_inches(mm: float) -> float:
     return mm / 25.4
 
 
-figure_styles = {
-    "single_column": {
+# %% Layout
+
+# Figure sizes from Elsevier style guide:
+# https://www.elsevier.com/about/policies-and-standards/author/artwork-and-media-instructions/artwork-sizing
+figure_layouts = {
+    "minimal": {
+        "width": mm_to_inches(30),
+        "height": mm_to_inches(20),
+        "linewidth": 1.0,          # Axes, spines, grid
+        "marker_size": 3,          # For line plots
+        "font_small": 8,           # Ticks, legend
+        "font_medium": 10,         # Axis labels
+        "font_large": 12,          # Title
+        "tick_length": 3,          # Tick mark length
+        "color_cycler": chromapy_cycler,
+    },
+    "1_col": {
         "width": mm_to_inches(90),
         "height": mm_to_inches(60),
         "linewidth": 1.0,
-        "font_small": 8,    # Ticks, legend
-        "font_medium": 10,  # Axis labels
-        "font_large": 12,   # Title
+        "marker_size": 5,
+        "font_small": 8,
+        "font_medium": 10,
+        "font_large": 12,
+        "tick_length": 4,
         "color_cycler": chromapy_cycler,
     },
-    "1.5_column": {
+    "1.5_col": {
         "width": mm_to_inches(140),
         "height": mm_to_inches(93.33),
         "linewidth": 1.2,
-        "font_small": 9,    # Ticks, legend
-        "font_medium": 11,  # Axis labels
-        "font_large": 14,   # Title
+        "marker_size": 7,
+        "font_small": 9,
+        "font_medium": 11,
+        "font_large": 14,
+        "tick_length": 5,
         "color_cycler": chromapy_cycler,
     },
-    "double_column": {
+    "2_col": {
         "width": mm_to_inches(190),
         "height": mm_to_inches(126.67),
         "linewidth": 1.5,
-        "font_small": 10,   # Ticks, legend
-        "font_medium": 12,  # Axis labels
-        "font_large": 16,   # Title
+        "marker_size": 9,
+        "font_small": 10,
+        "font_medium": 12,
+        "font_large": 16,
+        "tick_length": 6,
         "color_cycler": chromapy_cycler,
     },
 }
 
 
+# %% Figure size
+
 def get_fig_size(
-    n_rows: int = 1,
-    n_cols: int = 1,
-    style: Optional[Literal["single_column", "1.5_column", "double_column"]] = "single_column",
-    scale_with_subplots: Optional[bool] = False,
+    layout: Literal["1_col", "1_5_col", "2_col"] = "1_col",
+    nrows: int = 1,
+    ncols: int = 1,
+    aspect: float | None = None,
+    scale_with_subplots: bool = False,
+    padding: float = 0.0,
+    figsize: tuple[float, float] | None = None,
 ) -> tuple[float, float]:
     """
-    Get figure size for figures with multiple Axes.
+    Compute a publication-ready figure size in inches.
 
     Parameters
     ----------
-    n_rows : int, optional
-        Number of rows in the figure. The default is 1.
-    n_cols : int, optional
-        Number of columns in the figure. The default is 1.
-    style : Optional[Literal["single_column", "1.5_column", "double_column"]]
-        Figure style ("single_column", "1.5_column", or "double_column").
-        The default is "single_column".
-    scale_with_subplots: Optional[bool] = False
-        If True, scale figure size with number of column / rows.
+    layout: Literal["1_col", "1_5_col", "2_col"] = "1_col",
+        Figure layout.
+    nrows : int
+        Number of subplot rows.
+    ncols : int
+        Number of subplot columns.
+    aspect : float | None
+        Width / height ratio. If provided, overrides preset height.
+    scale_with_subplots : bool
+        If True, multiply width/height by ncols/nrows.
+    padding : float
+        Extra inches to add.
+    figsize : tuple[float, float] | None
+        Override width/height directly.
 
     Returns
     -------
-    fig_size : tuple
-        Size of the figure (width, height)
+    width, height : tuple[float, float]
     """
-    width = figure_styles[style]["width"]
-    height = figure_styles[style]["height"]
-    if scale_with_subplots:
-        return (n_cols * width + 2, n_rows * height + 2)
+    if figsize is not None:
+        width, height = figsize
     else:
-        return (width, height)
+        if layout not in figure_layouts:
+            raise ValueError(
+                f"Invalid layout {layout}. Options: {list(figure_layouts)}"
+            )
+        width = figure_layouts[layout]["width"]
+        height = figure_layouts[layout]["height"]
+
+    if aspect is not None:
+        height = width / aspect
+
+    if scale_with_subplots:
+        width = ncols * width + padding
+        height = nrows * height + padding
+
+    return width, height
 
 
-def setup_figure(
-    n_rows: Optional[int] = 1,
-    n_cols: Optional[int] = 1,
-    style: Optional[Literal["single_column", "1.5_column", "double_column"]] = "single_column",
-    scale_with_subplots: Optional[bool] = False,
-    squeeze: Optional[bool] = True,
-    **kwargs: Any
-) -> tuple[Figure, Axes]:
-    """
-    Set up a matplotlib figure with local styling and flexible options.
-
-    Parameters
-    ----------
-    n_rows : int, optional
-        Number of rows in the subplot grid.
-    n_cols : int, optional
-        Number of columns in the subplot grid.
-    style : Literal["single_column", "1.5_column", "double_column"] = "single_column"
-        Figure style ("single_column", "1.5_column", or "double_column").
-    scale_with_subplots: Optional[bool] = False
-        If True, scale figure size with number of column / rows.
-    squeeze : bool, optional
-        If True, extra dimensions are removed from the Axes array.
-
-    Returns
-    -------
-    tuple[Figure, Axes]
-        Figure and Axes object(s).
-    """
-    # Resolve figure dimensions
-    fig_size = get_fig_size(n_rows, n_cols, style, scale_with_subplots)
-
-    # Create figure
-    fig, axs = plt.subplots(
-        nrows=n_rows,
-        ncols=n_cols,
-        squeeze=squeeze,
-        figsize=fig_size,
-        **kwargs,
-    )
-
-    fig.tight_layout()
-
-    return fig, axs
-
+# %% Style
 
 @contextmanager
 def mpl_style_context(
-    style: Literal["single_column", "1.5_column", "double_column"] = "single_column",
+    layout: Literal["1_col", "1_5_col", "2_col"] = "1_col",
 ) -> None:
-    """Context manager to temporarily set matplotlib rc parameters for a given style."""
-    style_settings = figure_styles[style]
+    """Context manager for temporary matplotlib rc parameters."""
+    layout_settings = figure_layouts[layout]
     rc_params = {
-        "figure.titlesize": style_settings["font_large"],
-        "font.size": style_settings["font_small"],
-        "axes.titlesize": style_settings["font_large"],
-        "axes.labelsize": style_settings["font_medium"],
-        "xtick.labelsize": style_settings["font_small"],
-        "ytick.labelsize": style_settings["font_small"],
-        "legend.fontsize": style_settings["font_small"],
-        "axes.prop_cycle": style_settings["color_cycler"],
-        "lines.linewidth": style_settings["linewidth"],
+        "axes.titlesize": layout_settings["font_large"],
+        "axes.labelsize": layout_settings["font_medium"],
+        "axes.prop_cycle": layout_settings["color_cycler"],
+        "figure.titlesize": layout_settings["font_large"],
+        "font.size": layout_settings["font_small"],
+        "legend.fontsize": layout_settings["font_small"],
+        "lines.linewidth": layout_settings["linewidth"],
+        "lines.markersize": layout_settings["marker_size"],
+        "xtick.labelsize": layout_settings["font_small"],
+        "ytick.labelsize": layout_settings["font_small"],
     }
     with mpl.rc_context(rc_params):
         yield
 
 
-class Layout(Structure):
-    """General figure layout."""
-
-    style = String()
-    title = String()
-    x_label = String()
-    x_ticks = List()
-    y_label = String()
-    y_ticks = List()
-    x_lim = Tuple()
-    y_lim = Tuple()
-
-
-class SecondaryAxis(Structure):
-    """Parameters for secondary axis."""
-
-    components = List()
-    y_label = String()
-    y_lim = Tuple()
-    transform = Callable()
-
-
-def set_layout(
-    ax: Axes,
-    layout: Layout,
-    show_legend: bool = True,
-    ax_secondary: Optional[SecondaryAxis] = None,
-    secondary_layout: Optional[Layout] = None,
-) -> None:
+def setup_figure(
+    layout: Literal["1_col", "1_5_col", "2_col"] = "1_col",
+    nrows: int = 1,
+    ncols: int = 1,
+    aspect: float | None = None,
+    scale_with_subplots: bool = False,
+    padding: float = 0.0,
+    figsize: tuple[float, float] | None = None,
+    *args: Any,
+    **kwargs: Any,
+) -> tuple[plt.Figure, plt.Axes | npt.NDArray[plt.Axes]]:
     """
-    Configure the layout of a matplotlib Axes object.
+    Set up a matplotlib figure with local styling and flexible options.
 
     Parameters
     ----------
-    ax : Axes
-        The primary matplotlib Axes object to configure.
-    layout : Layout
-        Layout object containing axis labels, limits, title, and ticks.
-    show_legend : bool, optional
-        Whether to display the legend. Default is True.
-    ax_secondary : Optional[SecondaryAxis], optional
-        The secondary Axes object, if applicable.
-    secondary_layout : Optional[Layout], optional
-        Layout object for the secondary axis, if applicable.
+    layout : Literal["1_col", "1_5_col", "2_col"] = "1_col",
+        Figure layout.
+    nrows : int
+        Number of subplot rows.
+    ncols : int
+        Number of subplot columns.
+    aspect : float | None
+        Width / height ratio. If provided, overrides preset height.
+    scale_with_subplots: bool = False
+        If True, scale figure size by ncols/nrows.
+    padding : float
+        Extra inches to add.
+    figsize : tuple[float, float] | None
+        Override width/height directly.
+    *args
+        Additional arguments for `plt.subplots`.
+    **kwargs
+        Additional keyword arguments for `plt.subplots`.
+
+    Returns
+    -------
+    tuple[plt.Figure, plt.Axes | npt.NDArray[plt.Axes]]
+        Figure and Axes object(s).
     """
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-
-    ax.set_xlabel(layout.x_label)
-    ax.set_ylabel(layout.y_label)
-    ax.set_xlim(layout.x_lim)
-    ax.set_ylim(layout.y_lim)
-    ax.set_title(layout.title)
-
-    if layout.x_ticks is not None:
-        set_xticks(layout.x_ticks)
-    if layout.y_ticks is not None:
-        set_yticks(layout.y_ticks)
-
-    lines, labels = ax.get_legend_handles_labels()
-
-    if ax_secondary is not None:
-        ax_secondary.set_ylabel(secondary_layout.y_label)
-        ax_secondary.set_ylim(secondary_layout.y_lim)
-
-        if show_legend:
-            lines_secondary, labels_secondary = ax_secondary.get_legend_handles_labels()
-            ax_secondary.legend(
-                lines_secondary + lines, labels_secondary + labels, loc=0
-            )
-    else:
-        if show_legend and len(labels) != 0:
-            ax.legend()
-
-
-# %% Ticks
-
-class Tick(Structure):
-    """Parameters for Axes ticks."""
-
-    location: Tuple()
-    label: String()
-
-
-def set_yticks(ax: Axes, y_ticks: list[Tick]) -> None:
-    """
-    Set the y-ticks on a matplotlib Axes object.
-
-    Parameters
-    ----------
-    ax : Axes
-        The matplotlib Axes object to set the y-ticks on.
-    y_ticks : list[Tick]
-        List of Tick objects containing location and label for each y-tick.
-    """
-    locs = np.array([y_tick.location for y_tick in y_ticks])
-    labels = [y_tick.label for y_tick in y_ticks]
-    ax.set_yticks(locs, labels)
-
-
-def set_xticks(ax: Axes, x_ticks: list[Tick]) -> None:
-    """
-    Set the x-ticks on a matplotlib Axes object with rotation.
-
-    Parameters
-    ----------
-    ax : Axes
-        The matplotlib Axes object to set the x-ticks on.
-    x_ticks : list[Tick]
-        List of Tick objects containing location and label for each x-tick.
-    """
-    locs = np.array([x_tick.location for x_tick in x_ticks])
-    labels = [x_tick.label for x_tick in x_ticks]
-    plt.xticks(locs, labels, rotation=72, horizontalalignment="center")
-
-
-# %% Text
-
-def add_text(
-    ax: Axes,
-    text: str,
-    position: tuple[float, float] = (0.05, 0.9),
-    tb_props: Optional[Any] = None,
-    **kwargs: Optional[dict],
-) -> None:
-    """
-    Add text to a matplotlib Axes object.
-
-    Parameters
-    ----------
-    ax : Axes
-        The matplotlib Axes object to add text to.
-    text : str
-        The text to be added.
-    position : tuple[float], optional
-        The position of the text, default is (0.05, 0.9).
-    tb_props : Optional[Any], optional
-        Properties to update the textbox with.
-    **kwargs : Optional[dict]
-        Additional keyword arguments for text customization.
-    """
-    if tb_props is not None:
-        textbox_props.update(tb_props)
-
-    ax.text(
-        *position,
-        text,
-        transform=ax.transAxes,
-        verticalalignment="top",
-        bbox=textbox_props,
+    figsize = get_fig_size(
+        layout,
+        nrows,
+        ncols,
+        aspect,
+        scale_with_subplots,
+        padding,
+        figsize,
+    )
+    fig, ax = plt.subplots(
+        nrows,
+        ncols,
+        figsize=figsize,
+        *args,
         **kwargs,
     )
+    return fig, ax
 
 
-# %% Overlay
+# %% Twin Axis
 
-def add_overlay(
-    ax: Axes,
-    y_overlay: npt.ArrayLike | list[npt.ArrayLike],
-    x_overlay: Optional[npt.ArrayLike] = None,
-    **plot_args: Optional[dict],
-) -> None:
+def get_twins(
+    ax: plt.Axes,
+    axis: Literal["x", "y", "both"] = "x",
+) -> list[plt.Axes]:
     """
-    Add overlay plot(s) to a matplotlib Axes object.
+    Get twin axes of a specified axis.
 
     Parameters
     ----------
-    ax : Axes
-        The matplotlib Axes object to which the overlay is added.
-    y_overlay : npt.ArrayLike | list[npt.ArrayLike]
-        The y-data for the overlay plot(s).
-    x_overlay : Optional[list], optional
-        The x-data for the overlay plot(s). If None, uses x-data from the first line in ax.
-    **plot_args : Optional[dict]
-        Additional keyword arguments for customizing the plot.
+    ax : plt.Axes
+        Axes to get twins for.
+    axis : Literal["x", "y"], default="x"
+        Which twins to get .
+
+    Returns
+    -------
+    `list`[plt.Axes]
     """
-    if not isinstance(y_overlay, list):
-        y_overlay = [y_overlay]
-
-    if x_overlay is None:
-        x_overlay = ax.lines[0].get_xdata()
-
-    for y_over in y_overlay:
-        ax.plot(x_overlay, y_over, **plot_args)
-        ax.set_prop_cycle(None)
-
-
-# %% Annotation
-
-class Annotation(Structure):
-    """Parameters for text annotations."""
-
-    text = String()
-    xy = Tuple()
-    xytext = Tuple()
-    arrowstyle = "-|>"
+    axs = []
+    match axis:
+        case "x":
+            axs = ax.get_shared_x_axes().get_siblings(ax)
+        case "y":
+            axs = ax.get_shared_y_axes().get_siblings(ax)
+    return list(reversed(
+        [a for a in axs if (a is not ax) & (a.bbox.bounds == ax.bbox.bounds)]
+    ))
 
 
-def add_annotations(
-    ax: Axes,
-    annotations: list[Annotation],
+def get_all_twin_handles_labels(ax: plt.Axes) -> tuple[list, list]:
+    """
+    Return handles and labels from an axes and all of its twins.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        The reference axes.
+
+    Returns
+    -------
+    handles : list
+        All line/patch artists from `ax` and its twin axes.
+    labels : list of str
+        Corresponding legend labels.
+
+    """
+    # Matplotlib groups axes that share x or y; twins belong to these groups.
+    sec_axs = get_twins(ax)
+
+    axs = [ax, *sec_axs]
+    handles = []
+    labels = []
+
+    for a in axs:
+        h, l = a.get_legend_handles_labels()  # noqa: E741
+        handles.extend(h)
+        labels.extend(l)
+
+    return handles, labels
+
+
+def offset_secondary_yaxes(
+    ax: plt.Axes,
+    spacing_factor: float = 0.05,
+    min_spacing: float = 0.2,
+    max_spacing: float = 0.5,
+    side: Literal["left", "right"] = "right",
 ) -> None:
-    """Add list of annotations to axis ax."""
-    for annotation in annotations:
-        ax.annotate(
-            annotation.text,
-            xy=annotation.xy,
-            xycoords="data",
-            xytext=annotation.xytext,
-            textcoords="offset points",
-            arrowprops={
-                "arrowstyle": annotation.arrowstyle,
-            },
-        )
+    """
+    Offset secondary y-axis spines to avoid overlap, scaling with axes size.
+
+    Parameters
+    ----------
+    ax : plt.Axes
+        The primary axes.
+    side : {"right", "left"}, optional
+        Side on which to place the secondary spines. Default is "right".
+    spacing_factor : float, optional
+        Factor to scale the spacing with the axis width. Default is 0.05.
+    max_spacing : float, optional
+        Maximum spacing. Default is 0.2.
+    side : {"right", "left"}, optional
+        Side on which to place the secondary spines. Default is "right".
+
+    Raises
+    ------
+    ValueError
+        If `side` is not "right" or "left".
+    """
+    fig = ax.get_figure()
+    twin_axes = get_twins(ax)
+
+    # Get axis dimensions in figure coordinates
+    bbox = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+    ax_width = bbox.width
+
+    # Calculate dynamic spacing
+    sign = 1 if side == "right" else -1
+    base = 1.0 if side == "right" else 0.0
+
+    spacing = min(max(spacing_factor * ax_width, min_spacing), max_spacing)
+
+    for i, sec_ax in enumerate(twin_axes[1:], start=1):
+        spine = sec_ax.spines[side]
+        position = base + sign * i * spacing
+
+        if sec_ax.yaxis.get_label_text():
+            position += 0.02
+
+        spine.set_position(("axes", position))
 
 
-# %% FillRegion
+# %% Figure Utils
 
-class FillRegion(Structure):
-    """Parameters for fill region."""
-
-    color_index = Integer()
-    start = UnsignedFloat()
-    end = UnsignedFloat()
-
-    y_max = UnsignedFloat()
-
-    text = String()
-
-
-def add_fill_regions(
-    ax: Axes,
-    fill_regions: list[FillRegion],
-    x_lim: Optional[npt.ArrayLike] = None,
-) -> None:
-    """Add FillRegion to axes."""
-    for fill in fill_regions:
-        color = color_list[fill.color_index]
-        ax.fill_between(
-            [fill.start, fill.end],
-            fill.y_max,
-            alpha=0.3,
-            color=color,
-        )
-
-        if fill.text is not None:
-            if x_lim is None or fill.start < x_lim[0]:
-                x_position = (x_lim[0] + fill.end) / 2
-            else:
-                x_position = (fill.start + fill.end) / 2
-            y_position = 0.5 * fill.y_max
-
-            ax.text(
-                x_position,
-                y_position,
-                fill.text,
-                horizontalalignment="center",
-                verticalalignment="center",
-            )
-
-
-# %% HLines
-class HLines(Structure):
-    """Parameters for plotting horizontal lines."""
-
-    y = UnsignedFloat()
-    x_min = UnsignedFloat()
-    x_max = UnsignedFloat()
-
-
-def add_hlines(ax: Axes, hlines: list[HLines]) -> None:
-    """Add hlines to matplotlib Axes."""
-    for line in hlines:
-        ax.hlines(line.y, line.x_min, line.x_max)
-
-
-def show_or_reopen(fig: Figure) -> None:
+def show_or_reopen(fig: plt.Figure) -> None:
     """Show figure, reopening it in a GUI window if necessary."""
     if fig.number not in plt.get_fignums():
         dummy = plt.figure(figsize=fig.get_size_inches())
@@ -559,64 +419,235 @@ def show_or_reopen(fig: Figure) -> None:
         fig.show()
 
 
-# %% Create and save figure decorator
+def figure_utils(func: Callable) -> Callable:
+    """
+    Unified decorator for styling, and saving figures.
 
-def create_and_save_figure(func: Callable) -> Callable:
-    """Wrap plot functions to provide some general utility."""
-
+    Returns
+    -------
+    Callable
+        Decorator function.
+    """
     @wraps(func)
-    def wrapper(
+    def figure_utils_wrapper(
         *args: Any,
-        fig: Optional[Figure] = None,
-        ax: Optional[Axes | npt.NDArray[Axes]] = None,
+        ax: Optional[plt.Axes | npt.NDArray[plt.Axes]] = None,
         setup_figure_kwargs: Optional[dict] = None,
-        show: bool = True,
         file_name: Optional[os.PathLike] = None,
+        dpi: int = 300,
+        show: bool = True,
+        tight_layout: bool = True,
         **kwargs: Any,
-    ) -> tuple[Figure, Axes | npt.NDArray[Axes]]:
+    ) -> tuple[plt.Figure, plt.Axes | npt.NDArray[plt.Axes]]:
         """
-        Wrap plot functions to provide some general utility.
+        Apply styles, save, and optionally create a figure.
 
         Parameters
         ----------
         *args : Any
-            Additional parameters to be passed to plot method.
-        fig : Optional[Figure] = None
-            Figure object.
-        ax : Optional[Axes | npt.NDArray[Axes]] = None
-            Axes to plot on. If None, a new axes will be created.
-        setup_figure_kwargs : Optional[dict]
-            Additional keyword arguments to pass to `setup_figure`.
-        show : bool
-            If True, show plot. The default is True.
-        file_name : Optional[os.PathLike]
-            Path for saving figure. If None, figure is not saved.
+            Additional positional arguments passed to the wrapped function.
+        ax : Optional[plt.Axes], default=None
+            Optional Matplotlib Axes.
+            If not provided, a new figure is created.
+        setup_figure_kwargs : Optional[dict], default=None
+            Additional options to setup the figure.
+        file_name : Optional[os.PathLike], default=None
+            File name to store the figure. If None is provided, the figure is
+            not saved.
+        dpi : int, default=300
+            DPI for saving the figure.
+        show : bool, default=True
+            If False, close the figure.
+        tight_layout : bool, default=True
+            If True, set tight layout.
         **kwargs : Any
-            Additional keyword parameters to be passed to plot method.
+            Additional keyword arguments passed to the wrapped function.
 
         Returns
         -------
-        tuple[Figure, Axes | npt.NDArray[Axes]]
-            The figure and axes objects used for plotting.
+        tuple[plt.Figure, plt.Axes | npt.NDArray[plt.Axes]]
+            The Matplotlib Figure and Axes objects.
         """
-        # Use context manager to set default styles locally
-        with mpl_style_context(style):
-            if ax is None:
-                fig, ax = setup_figure(**setup_figure_kwargs)
+        setup_figure_kwargs = {
+            "layout": "1_col",
+            "scale_with_subplots": True,
+            **(setup_figure_kwargs or {}),
+        }
 
-            func(*args, ax=ax, **kwargs)
-
-        if fig is not None:
-            fig.tight_layout()
+        with mpl_style_context(setup_figure_kwargs["layout"]):
+            fig, ax = func(
+                *args,
+                ax=ax,
+                setup_figure_kwargs=setup_figure_kwargs,
+                **kwargs
+            )
+            if tight_layout:
+                fig.tight_layout()
 
         if file_name is not None:
-            plt.savefig(file_name, dpi=300)
+            fig.savefig(file_name, dpi=dpi)
 
         if show:
-            show_or_reopen(fig)
+            fig.show()
         else:
             plt.close(fig)
 
         return fig, ax
+    return figure_utils_wrapper
 
-    return wrapper
+
+# %% Secondary Axis
+
+@dataclass
+class SecondaryAxis:
+    """Convenience class for secondary axis configuration."""
+
+    components: list[str]
+    ylabel: str | None = None
+    ylim: tuple[float, float] | None = None
+    transform: Callable | None = None
+
+
+# %% Text
+
+textbox_props = dict(facecolor="white", alpha=1)
+
+
+def add_text(
+    ax: plt.Axes,
+    text: str,
+    position: tuple[float, float] = (0.05, 0.9),
+    *,
+    tb_props: dict | None = None,
+    **kwargs: Any,
+) -> None:
+    """
+    Add text to a matplotlib Axes object.
+
+    Parameters
+    ----------
+    ax : plt.Axes
+        The matplotlib Axes object to add text to.
+    text : str
+        The text to be added.
+    position : tuple[float, float], default=(0.05, 0.9)
+        The position of the text in axes coordinates.
+    tb_props : dict | None, default=None
+        Dictionary of properties to update the textbox (e.g., `boxstyle`, `facecolor`).
+    **kwargs
+        Additional keyword arguments for `ax.text`.
+    """
+    tb_props = {**textbox_props, **(tb_props or {})}
+
+    ax.text(
+        *position,
+        text,
+        transform=ax.transAxes,
+        verticalalignment="top",
+        bbox=tb_props,
+        **kwargs,
+    )
+
+
+# %% Annotations
+
+def annotate(
+    ax: plt.Axes,
+    text: str,
+    xy: tuple[float, float],
+    xytext: tuple[float, float],
+    *,
+    arrowstyle: str = "-|>",
+    **kwargs: Any,
+) -> None:
+    """
+    Add an annotation to a matplotlib Axes object.
+
+    Parameters
+    ----------
+    ax : plt.Axes
+        The matplotlib Axes object to annotate.
+    text : str
+        The annotation text.
+    xy : tuple[float, float]
+        The point (x, y) to annotate.
+    xytext : tuple[float, float]
+        The position (x, y) of the annotation text.
+    arrowstyle : str, default="-|>"
+        Style of the arrow connecting `xy` and `xytext`.
+    **kwargs
+        Additional keyword arguments for `ax.annotate`.
+    """
+    ax.annotate(
+        text,
+        xy=xy,
+        xycoords="data",
+        xytext=xytext,
+        textcoords="offset points",
+        arrowprops={"arrowstyle": arrowstyle},
+        **kwargs,
+    )
+
+
+# %% Fill regions
+
+def fill_between(
+    ax: plt.Axes,
+    start: float,
+    end: float,
+    y_max: float,
+    alpha: float = 0.3,
+    *,
+    color_index: int | None = None,
+    text: str | None = None,
+    **kwargs: Any,
+) -> None:
+    """
+    Add fill region with optional text labeling.
+
+    Parameters
+    ----------
+    ax : plt.Axes
+        Matplotlib axes to plot on.
+    start : float
+        Start x-position of the fill region.
+    end : float
+        End x-position of the fill region.
+    y_max : float
+        Maximum y-value for the fill.
+    alpha : float, default=0.3
+        Transparency of the fill.
+    color_index : int | None, default=None
+        Index into a predefined color list. If None, uses `color` from `kwargs`.
+    text : str | None, default=None
+        Optional label for the region.
+    **kwargs
+        Additional arguments passed to `ax.fill_between`.
+    """
+    color = color_list[color_index] if color_index is not None else kwargs.pop("color", None)
+
+    ax.fill_between(
+        [start, end],
+        y_max,
+        alpha=alpha,  # Use the `alpha` parameter, not hardcoded 0.3
+        color=color,
+        **kwargs,
+    )
+
+    if text is not None:
+        x_position = (start + end) / 2
+        x_lim = ax.get_xlim()
+        if start < x_lim[0]:
+            x_position = (x_lim[0] + end) / 2
+        elif end > x_lim[1]:
+            x_position = (start + x_lim[1]) / 2
+
+        y_position = 0.5 * y_max
+
+        ax.text(
+            x_position,
+            y_position,
+            text,
+            ha="center",
+            va="center",
+        )

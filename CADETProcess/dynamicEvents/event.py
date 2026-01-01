@@ -5,9 +5,10 @@ import warnings
 from collections import defaultdict
 from typing import Any, Callable, Optional, Type
 
+import matplotlib.pyplot as plt
 import numpy as np
+import numpy.typing as npt
 from addict import Dict
-from matplotlib.axes import Axes
 
 from CADETProcess import CADETProcessError, plotting
 from CADETProcess.dataStructure import (
@@ -816,7 +817,13 @@ class EventHandler(CachedPropertiesMixin, Structure):
 
         return flag
 
-    def plot_events(self, x_axis_in_minutes: bool = True) -> list[Axes]:
+    @plotting.figure_utils
+    def plot_events(
+        self,
+        x_axis_in_minutes: bool = True,
+        ax: np.ndarray[plt.Axes] | None = None,
+        setup_figure_kwargs: dict | None = None,
+    ) -> tuple[plt.Figure, npt.NDArray[plt.Axes]]:
         """
         Plot parameter state as a function of time.
 
@@ -826,13 +833,18 @@ class EventHandler(CachedPropertiesMixin, Structure):
 
         Parameters
         ----------
-        x_axis_in_minutes: bool, optional
-            If True, the x-axis will be plotted using minutes. The default is True.
+        x_axis_in_minutes: bool, default=True
+            If True, the x-axis will be plotted using minutes.
+        ax : np.ndarray[plt.Axes] | None, default=None
+            Optional array of Matplotlib Axes.
+            If not provided, a new figure is created.
+        setup_figure_kwargs : dict | None, default=None
+            Additional options to setup the figure.
 
         Returns
         -------
-        list[Axes]
-            List of Axes objects, each containing a plot of the parameter state.
+        tuple[plt.Figure, npt.NDArray[plt.Axes]]
+            Figure and axes objects.
 
         Notes
         -----
@@ -840,25 +852,30 @@ class EventHandler(CachedPropertiesMixin, Structure):
         time for the evaluation of the parameter state.
         """
         time_s = np.linspace(0, self.cycle_time, 1001)
-
-        time_ax = time_s
+        time_unit = r"\text{s}"
+        time = time_s
         if x_axis_in_minutes:
-            time_ax = time_ax / 60
+            time = time / 60
+            time_unit = r"\text{min}"
+        xlabel = rf"$Time~/{time_unit}$"
 
         # Create a single figure with subplots, one row per parameter
-        fig, axs = plotting.setup_figure(
-            n_rows=len(self.parameter_timelines),
-            n_cols=1,
-            scale_with_subplots=True,
-            squeeze=False,
-            sharex=True,
-        )
-        axs = axs.reshape((-1,))
+        if ax is None:
+            fig, axs = plotting.setup_figure(
+                nrows=len(self.parameter_timelines),
+                sharex=True,
+                squeeze=False,
+                **setup_figure_kwargs,
+            )
+            axs = axs.reshape((-1,))
+        else:
+            axs = ax
+            axs[0].get_figure()
 
         # Plot each parameter in its own subplot
         for (parameter, tl), ax in zip(self.parameter_timelines.items(), axs):
             y = tl.value(time_s)
-            ax.plot(time_ax, y)
+            ax.plot(time, y)
 
             # Add text box
             ax.text(
@@ -873,8 +890,7 @@ class EventHandler(CachedPropertiesMixin, Structure):
 
             # Only set x-label for the bottom subplot to avoid redundancy
             if ax is axs[-1]:
-                x_label = r"$time~/~\text{min}$" if x_axis_in_minutes else r"$time~/~\text{s}$"
-                ax.set_xlabel(x_label)
+                ax.set_xlabel(xlabel)
 
         fig.subplots_adjust(hspace=0.1)
 

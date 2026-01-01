@@ -1,18 +1,12 @@
 from __future__ import annotations
 
 import uuid
-import warnings
-from pathlib import Path
 from typing import Any, Iterator, Optional
 
-import corner
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
 from addict import Dict
-from matplotlib.axes import Axes
-from matplotlib.figure import Figure
-from pymoo.visualization.scatter import Scatter
 
 from CADETProcess import CADETProcessError, plotting
 from CADETProcess.optimization.individual import Individual, hash_array
@@ -418,112 +412,61 @@ class Population:
         """np.ndarray: False if any constraint is not met. True otherwise."""
         return np.array([ind.is_feasible for ind in self.individuals])
 
-    def setup_objectives_figure(
-        self,
-        include_meta: Optional[bool] = True,
-        plot_individual: Optional[bool] = False,
-    ) -> tuple:
-        """
-        Set up figure and axes for plotting objectives.
-
-        Parameters
-        ----------
-        include_meta : bool, optional
-            If True, include meta scores in the plot. The default is True.
-        plot_individual : bool, optional
-            If True, create separate figures for each objective.
-            Otherwise, plot all objectives in one figure. The default is True.
-
-        Returns
-        -------
-        tuple
-            A tuple of the figure(s) and axes object(s).
-        """
-        n = len(self.variable_names)
-        if include_meta and self.m is not None:
-            m = len(self.objective_labels) + len(self.meta_score_labels)
-        else:
-            m = len(self.objective_labels)
-
-        if n == 0:
-            return (None, None)
-
-        space_fig_all, space_axs_all = plt.subplots(
-            nrows=m,
-            ncols=n,
-            figsize=(n * 8 + 2, m * 8 + 2),
-            squeeze=False,
-        )
-        plt.close(space_fig_all)
-
-        space_figs_ind = []
-        space_axs_ind = []
-        for i in range(m * n):
-            fig, ax = plt.subplots()
-            space_figs_ind.append(fig)
-            space_axs_ind.append(ax)
-            plt.close(fig)
-
-        space_axs_ind = np.array(space_axs_ind).reshape(space_axs_all.shape)
-
-        if plot_individual:
-            return space_figs_ind, space_axs_ind
-        else:
-            return space_fig_all, space_axs_all
-
+    @plotting.figure_utils
     def plot_objectives(
         self,
-        figs: Optional[Figure | list[Figure]] = None,
-        axs: Optional[Axes | list[list[Axes]]] = None,
         include_meta: bool = True,
         plot_infeasible: bool = True,
-        plot_individual: bool = False,
         autoscale: bool = True,
         color_feas: str = "blue",
         color_infeas: str = "red",
-        show: bool = True,
-        plot_directory: Optional[str | Path] = None,
-    ) -> tuple[list[Figure], list[list[Axes]]]:
+        ax: npt.NDArray[plt.Axes] | None = None,
+        setup_figure_kwargs: Optional[dict] = None,
+    ) -> tuple[plt.Figure, npt.NDArray[plt.Axes]]:
         """
         Plot the objective function values for each design variable.
 
         Parameters
         ----------
-        figs : plt.Figure or list, optional
-            Figure(s) to plot the objectives on. The default is None.
-        axs : plt.Axes or list, optional
-            Axes to plot the objectives on. The default is None.
-        include_meta : bool, optional
-            If True, include meta scores in the plot. The default is True.
-        plot_infeasible : bool, optional
-            If True, plot infeasible points. The default is True.
-        plot_individual : bool, optional
-            If True, create separate figures for each objective.
-            Otherwise, plot all objectives in one figure. The default is False.
-        autoscale : bool, optional
-            If True, automatically adjust the scaling of the axes. The default is True.
-        color_feas : str, optional
-            The color for the feasible points. The default is 'blue'.
-        color_infeas : str, optional
-            The color for the infeasible points. The default is 'red'.
-        show : bool, optional
-            If True, display the plot. The default is True.
-        plot_directory : str, optional
-            The directory where the plot should be saved. The default is None.
+        include_meta : bool, default=True
+            If True, include meta scores in the plot.
+        plot_infeasible : bool, default=True
+            If True, plot infeasible points.
+        autoscale : bool, default=True
+            If True, automatically adjust the scaling of the axes.
+        color_feas : str, default='blue'
+            Color for feasible points.
+        color_infeas : str, default='red'
+            Color for infeasible points.
+        ax : np.ndarray[plt.Axes] | None, default=None
+            Optional array of Matplotlib Axes.
+            If not provided, a new figure is created.
+        setup_figure_kwargs : dict | None, default=None
+            Additional options to setup the figure.
 
         Returns
         -------
-        tuple
-            A tuple of the figure(s) and axes object(s).
+        tuple[plt.Figure, npt.NDArray[plt.Axes]]
+            Figure and axes objects.
         """
-        if axs is None:
-            figs, axs = self.setup_objectives_figure(include_meta, plot_individual)
+        if self.n_x == 0:
+            raise CADETProcessError("Cannot plot without individuals.")
 
-        if not isinstance(figs, list):
-            figs = [figs]
+        m = self.n_f
+        if include_meta and self.m is not None:
+            m += self.n_m
 
-        layout = plotting.Layout()
-        layout.y_label = "$f~/~-$"
+        if ax is None:
+            fig, axs = plotting.setup_figure(
+                **setup_figure_kwargs,
+                nrows=m,
+                ncols=self.n_x,
+                aspect=1,
+                squeeze=False,
+            )
+        else:
+            axs = ax
+            fig = axs[0, 0].get_figure()
 
         variables = self.variable_names
         feasible = self.feasible
@@ -535,12 +478,11 @@ class Population:
             if len(feasible) > 0:
                 values_feas = np.hstack((feasible.f, feasible.m))
             else:
-                values_infeas = np.empty((0, self.n_f + self.n_m))
+                values_feas = np.empty((0, self.n_f + self.n_m))
             if len(infeasible) > 0:
                 values_infeas = np.hstack((infeasible.f, infeasible.m))
             else:
                 values_infeas = np.empty((0, self.n_f + self.n_m))
-
             labels = self.objective_labels + self.meta_score_labels
         else:
             values_feas = feasible.f
@@ -554,139 +496,90 @@ class Population:
                 x_var_infeas = x_infeas[:, i_var]
 
             for i_metric, label in enumerate(labels):
-                ax = axs[i_metric][i_var]
+                ax_ij = axs[i_metric, i_var]
 
+                # Plot feasible/infeasible points
                 if len(feasible) > 0:
                     v_metric_feas = values_feas[:, i_metric]
-                    ax.scatter(x_var_feas, v_metric_feas, alpha=0.5, color=color_feas)
-
+                    ax_ij.scatter(x_var_feas, v_metric_feas, alpha=0.5, color=color_feas)
                 if len(infeasible) > 0 and plot_infeasible:
                     v_metric_infeas = values_infeas[:, i_metric]
-                    ax.scatter(
-                        x_var_infeas, v_metric_infeas, alpha=0.5, color=color_infeas
-                    )
+                    ax_ij.scatter(x_var_infeas, v_metric_infeas, alpha=0.5, color=color_infeas)
 
-                points = np.vstack([col.get_offsets() for col in ax.collections])
-
+                # Set axis labels and limits
+                points = np.vstack([col.get_offsets() for col in ax_ij.collections])
                 x_all = points[:, 0]
                 v_all = points[:, 1]
 
-                layout.x_lim = (np.nanmin(x_all), np.nanmax(x_all))
-                layout.x_label = var
+                ax_ij.set_xlabel(var)
+                ax_ij.set_ylabel(label)
+                ax_ij.set_xlim(np.nanmin(x_all), np.nanmax(x_all))
+
                 if autoscale and np.min(x_all) > 0:
                     if np.max(x_all) / np.min(x_all[x_all > 0]) > 100.0:
-                        ax.set_xscale("log")
+                        ax_ij.set_xscale("log")
 
+                # Replace inf with nan
+                mask = np.isfinite(v_all)
+                v_all = v_all[mask]
+
+                # Scale axis
                 y_min = np.nanmin(v_all)
                 y_max = np.nanmax(v_all)
-                y_lim = (min(0.9 * y_min, y_min - 0.01 * (y_max - y_min)), 1.1 * y_max)
-                layout.y_label = label
-                if autoscale and np.min(v_all) > 0:
-                    if np.max(v_all) / np.min(v_all[v_all > 0]) > 100.0:
-                        ax.set_yscale("log")
-                        y_lim = (y_min / 2, y_max * 2)
                 if y_min != y_max:
-                    layout.y_lim = y_lim
+                    if autoscale and np.min(v_all) > 0:
+                        if np.max(v_all) / np.min(v_all[v_all > 0]) > 100.0:
+                            ax_ij.set_yscale("log")
 
-                try:
-                    plotting.set_layout(ax, layout)
-                except ValueError:
-                    pass
+                ax_ij.autoscale()
 
-        for fig in figs:
-            fig.tight_layout()
-            if not show:
-                plt.close(fig)
-            else:
-                dummy = plt.figure(figsize=fig.get_size_inches())
-                new_manager = dummy.canvas.manager
-                new_manager.canvas.figure = fig
-                fig.set_canvas(new_manager.canvas)
-                plt.show()
+        return fig, axs
 
-        if plot_directory is not None:
-            plot_directory = Path(plot_directory)
-            if plot_individual:
-                for i, fig in enumerate(figs):
-                    fig.savefig(f"{plot_directory / 'objectives'}_{i}.png")
-            else:
-                figs[0].savefig(f"{plot_directory / 'objectives'}.png")
-
-        if plot_individual:
-            return figs, axs
-        else:
-            return figs[0], axs
-
-    def setup_pareto(self, include_meta: bool = False) -> Scatter:
-        """
-        Set up base figure for plotting the Pareto front.
-
-        Parameters
-        ----------
-        include_meta : bool
-            If True, include meta scores in Pareto plot.
-
-        Returns
-        -------
-        pymoo.visualization.scatter.Scatter
-            The base figure object.
-        """
-        if include_meta:
-            n = self.dimensions[1] + self.dimensions[3]
-            labels = self.objective_labels + self.meta_score_labels
-        else:
-            n = self.dimensions[1]
-            labels = self.objective_labels
-        plot = Scatter(
-            figsize=(6 * n, 5 * n),
-            tight_layout=True,
-            plot_3d=False,
-            labels=labels,
-        )
-        return plot
-
+    @plotting.figure_utils
     def plot_pareto(
         self,
-        plot: Optional[Scatter] = None,
         include_meta: bool = True,
         plot_infeasible: bool = True,
         color_feas: str = "blue",
         color_infeas: str = "red",
-        show: bool = True,
-        plot_directory: Optional[str | Path] = None,
-    ) -> Scatter:
+        *args: Any,
+        ax: np.ndarray[plt.Axes] | None = None,
+        setup_figure_kwargs: dict | None = None,
+        **kwargs: Any,
+
+    ) -> tuple[plt.Figure, npt.NDArray[plt.Axes]]:
         """
         Plot pairwise Pareto fronts for each generation in the optimization.
 
-        The Pareto front represents the optimal solutions that cannot be improved in one
-        objective without sacrificing another. The method shows a pairwise Pareto plot,
-        where each objective is plotted against every other objective in a scatter plot,
-        allowing for a visualization of the trade-offs between the objectives.
-
         Parameters
         ----------
-        plot : pymoo.visualization.scatter.Scatter, optional
-            Base figure. If None is provided, a new one will be set up.
-        include_meta : bool, optional
-            If True, include meta scores in the plot. The default is True.
-        plot_infeasible : bool, optional
-            If True, plot infeasible points. The default is True.
-        color_feas : str, optional
-            The color for the feasible points. The default is 'blue'.
-        color_infeas : str, optional
-            The color for the infeasible points. The default is 'red'.
-        show : bool, optional
-            If True, display the plot. The default is True.
-        plot_directory : str, optional
-            The directory where the plot should be saved. The default is None.
+        include_meta : bool, default=True
+            If True, include meta scores in the plot.
+        plot_infeasible : bool, default=True
+            If True, plot infeasible points.
+        color_feas : str, default='blue'
+            Color for feasible points.
+        color_infeas : str, default='red'
+            Color for infeasible points.
+        *args : Any
+            Additional positional arguments passed to `plot_pairwise`.
+        ax : np.ndarray[plt.Axes] | None, default=None
+            Optional array of Matplotlib Axes.
+            If not provided, a new figure is created.
+        setup_figure_kwargs : dict | None, default=None
+            Additional options to setup the figure.
+        **kwargs : Any
+            Additional keyword arguments passed to `plot_pairwise`.
 
         Returns
         -------
-        pymoo.visualization.scatter.Scatter
-            The scatter plot object.
+        tuple[plt.Figure, npt.NDArray[plt.Axes]]
+            Figure and axes objects.
         """
-        if plot is None:
-            plot = self.setup_pareto(include_meta)
+        if include_meta:
+            labels = self.objective_labels + self.meta_score_labels
+        else:
+            labels = self.objective_labels
 
         feasible = self.feasible
         infeasible = self.infeasible
@@ -705,152 +598,111 @@ class Population:
             values_infeas = infeasible.f
 
         if len(feasible) > 0:
-            plot.add(values_feas, s=10, color=color_feas)
-
+            fig, ax = plot_pairwise(
+                values_feas,
+                labels,
+                color=color_feas,
+                *args,
+                ax=ax,
+                setup_figure_kwargs=setup_figure_kwargs,
+                show=False,
+                tight_layout=False,
+                **kwargs,
+            )
         if plot_infeasible and len(infeasible) > 0:
-            plot.add(values_infeas, s=10, color=color_infeas)
+            fig, ax = plot_pairwise(
+                values_infeas,
+                labels,
+                color=color_infeas,
+                *args,
+                ax=ax,
+                show=False,
+                tight_layout=False,
+                **({"update_layout": False, **kwargs})
+            )
 
-        if plot_directory is not None:
-            plot_directory = Path(plot_directory)
-            plot.save(f"{plot_directory / 'pareto.png'}")
+        return fig, ax
 
-        if not show:
-            plt.close(plot.fig)
-        else:
-            plot.show()
-
-        return plot
-
+    @plotting.figure_utils
     def plot_pairwise(
         self,
-        fig: Optional[plt.Figure] = None,
-        axs: Optional[npt.NDArray[plt.Axes]] = None,
-        n_bins: int = 20,
         use_transformed: bool = False,
-        autoscale: bool = True,
-        show: bool = True,
-        plot_directory: Optional[str] = None,
-    ) -> tuple[plt.Figure, np.ndarray]:
+        plot_infeasible: bool = True,
+        color_feas: str = "blue",
+        color_infeas: str = "red",
+        *args: Any,
+        ax: Optional[npt.NDArray[plt.Axes]] = None,
+        setup_figure_kwargs: dict | None = None,
+        **kwargs: Any,
+    ) -> tuple[plt.Figure, npt.NDArray[plt.Axes]]:
         """
         Create a pairplot using Matplotlib.
 
         Parameters
         ----------
-        fig : Optional[plt.Figure], default=None
-            An optional Matplotlib Figure object. If none is provided, a new figure will
-            be created.
-        axs : Optional[npt.NDArray[plt.Axes]], default=None
-            An optional array of Matplotlib Axes. If none is provided, new axes will
-            be created.
-        n_bins : int, default=20
-            Number of bins for histogram plots.
         use_transformed : bool, optional
-            If True, use the transformed independent variables. The default is False.
-        autoscale : bool, optional
-            If True, automatically adjust the scaling of the axes. The default is True.
-        use_transformed : bool, optional
-            If True, transformed values will be plotted. The default is False.
-        show : bool, optional
-            If True, display the plot. The default is True.
-        plot_directory : str, optional
-            The directory where the plot should be saved. The default is None.
+            If True, use the transformed independent variables.
+            The default is False.
+        plot_infeasible : bool, default=True
+            If True, plot infeasible points.
+        color_feas : str, default='blue'
+            Color for feasible points.
+        color_infeas : str, default='red'
+            Color for infeasible points.
+        *args : Any
+            Additional positional arguments passed to `plot_pairwise`.
+        ax : np.ndarray[plt.Axes] | None, default=None
+            Optional array of Matplotlib Axes.
+            If not provided, a new figure is created.
+        setup_figure_kwargs : dict | None, default=None
+            Additional options to setup the figure.
+        **kwargs : Any
+            Additional keyword arguments passed to `plot_pairwise`.
 
         Returns
         -------
-        tuple
-            A tuple containing:
-            - plt.Figure: The Matplotlib Figure object.
-            - np.ndarray: An array of Axes objects representing the subplot grid.
+        tuple[plt.Figure, npt.NDArray[plt.Axes]]
+            Figure and axes objects.
         """
+        feasible = self.feasible
+        infeasible = self.infeasible
+        x_feas = feasible.x
+        x_infeas = infeasible.x
+
         if use_transformed:
-            x = self.x_transformed
+            x_feas = feasible.x_transformed
+            x_infeas = infeasible.x_transformed
             labels = self.independent_variable_names
         else:
-            x = self.x
+            x_feas = feasible.x
+            x_infeas = infeasible.x
             labels = self.variable_names
 
-        fig, axs = plot_pairwise(
-            x,
+        fig, ax = plot_pairwise(
+            x_feas,
             labels,
-            n_bins=n_bins,
-            autoscale=autoscale,
-            fig=fig,
-            axs=axs,
+            color=color_feas,
+            *args,
+            ax=ax,
+            show=False,
+            tight_layout=False,
+            setup_figure_kwargs=setup_figure_kwargs,
+            **kwargs,
         )
 
-        if plot_directory is not None:
-            plot_directory = Path(plot_directory)
-            fig.savefig(f"{plot_directory / 'pairwise.png'}")
+        if plot_infeasible and len(infeasible) > 0:
+            fig, ax = plot_pairwise(
+                x_infeas,
+                labels,
+                color=x_infeas,
+                *args,
+                ax=ax,
+                show=False,
+                tight_layout=False,
+                **{"update_layout": False, **kwargs}
+            )
 
-        if not show:
-            plt.close(fig)
-
-        return fig, axs
-
-    def plot_corner(
-        self,
-        use_transformed: bool = False,
-        show: bool = True,
-        plot_directory: Optional[str] = None,
-    ) -> None:
-        """
-        Create a corner plot of the independent variables.
-
-        Parameters
-        ----------
-        use_transformed : bool, optional
-            If True, use the transformed independent variables. The default is False.
-        show : bool, optional
-            If True, display the plot. The default is True.
-        plot_directory : str, optional
-            The directory where the plot should be saved. The default is None.
-        """
-        warnings.warn(
-            "This method will be deprecated in the future. "
-            "Use `plot_pairwise` instead.",
-            FutureWarning,
-        )
-
-        if use_transformed:
-            x = self.x_transformed
-            labels = self.independent_variable_names
-        else:
-            x = self.x
-            labels = self.variable_names
-
-        # To avoid error, remove dimensions where all entries are the same value.
-        singular_indices = []
-        singular_labels = []
-
-        for i, col in enumerate(x.transpose()):
-            if len(np.unique(col)) == 1:
-                singular_indices.append(i)
-                singular_labels.append(labels[i])
-
-        x = np.delete(x.transpose(), singular_indices, 0).transpose()
-        labels = [label for label in labels if label not in singular_labels]
-
-        fig = corner.corner(
-            x,
-            labels=labels,
-            bins=20,
-            quantiles=[0.16, 0.5, 0.84],
-            show_titles=True,
-            title_kwargs={"fontsize": 20},
-            title_fmt=".2g",
-            use_math_text=True,
-            quiet=True,
-        )
-        fig_size = 6 * len(labels)
-        fig.set_size_inches((fig_size, fig_size))
-        fig.tight_layout()
-
-        if plot_directory is not None:
-            plot_directory = Path(plot_directory)
-            fig.savefig(f"{plot_directory / 'corner.png'}")
-
-        if not show:
-            plt.close(fig)
+        return fig, ax
 
     def __contains__(self, other: Individual | np.ndarray | list) -> bool:
         """
@@ -1143,35 +995,58 @@ class ParetoFront(Population):
         return front
 
 
-def plot_pairwise(
+def _determine_scaling(
     population: npt.ArrayLike,
-    variable_names: Optional[list[str]] = None,
-    n_bins: int = 20,
-    autoscale: bool = True,
-    fig: Optional[plt.Figure] = None,
-    axs: Optional[np.ndarray[plt.Axes]] = None,
-) -> tuple[plt.Figure, np.ndarray[plt.Axes]]:
+    threshold: float = 100.0
+) -> list[bool]:
     """
-    Create a pairwise scatter plot for all variables of a population.
+    Determine whether to use log scaling for each variable in a population.
 
     Parameters
     ----------
     population : npt.ArrayLike
-        3D array-like structure containing numerical variables with shape
-        (n_chains, n_samples, n_variables)
-    variable_names : list of str, optional
-        list of variable names corresponding to columns in the data.
-        If None, default names will be assigned.
-    n_bins : int, default=20
-        Number of bins for histogram plots.
+        2D array with shape (n_samples, n_variables).
+    threshold : float, default=100.0
+        Threshold for the data range to trigger log scaling.
+
+    Returns
+    -------
+    list[bool]
+        List of flags indicating whether to use log scaling for each variable.
+    """
+    n_variables = population.shape[1]
+    scaling = []
+    for i in range(n_variables):
+        min_i, max_i = population[:, i].min(), population[:, i].max()
+        scaling.append(min_i > 0 and (max_i - min_i) > threshold)
+    return scaling
+
+
+def _setup_pairwise_axes(
+    population: npt.ArrayLike,
+    variable_names: list[str] | None,
+    autoscale: bool = True,
+    update_layout: bool = True,
+    ax: npt.NDArray[plt.Axes] | None = None,
+    setup_figure_kwargs: dict | None = None,
+) -> tuple[plt.Figure, npt.NDArray[plt.Axes]]:
+    """
+    Set up a figure and axes for pairwise plots.
+
+    Parameters
+    ----------
+    population : npt.ArrayLike
+        2D array-like structure with shape (n_samples, n_variables).
+    variable_names : list[str], optional
+        List of variable names. If None, default names are assigned.
     autoscale : bool, default=True
-        If True, automatically adjust the scaling of the axes.
-    fig : Optional[plt.Figure], default=None
-        An optional Matplotlib Figure object. If none is provided, a new figure will be
-        created.
-    axs : Optional[npt.NDArray[plt.Axes]], default=None
-        An optional array of Matplotlib Axes. If none is provided, new axes will be
-        created.
+        If True, automatically determine log scaling for each variable.
+    update_layout : bool, default=True
+        If True, update layout (labels, ticks, etc.).
+    ax : npt.NDArray[plt.Axes] | None, default=None
+        Optional array of Matplotlib axes.
+    setup_figure_kwargs : dict | None, default=None
+        Additional figure setup options.
 
     Returns
     -------
@@ -1179,106 +1054,286 @@ def plot_pairwise(
         A tuple containing:
         - plt.Figure: The Matplotlib Figure object.
         - npt.NDArray[plt.Axes]: An array of Axes objects representing the subplot grid.
+        - list[bool] : A list of flags indicating whether to use log scaling for
+          each variable.
     """
-    population = np.array(population)
+    population = np.array(population, ndmin=2)
 
     if population.ndim != 2:
         raise ValueError(f"Expected 2D array, got array with ndim={population.ndim}")
 
-    n_samples, n_variables = population.shape
+    n_variables = population.shape[1]
 
-    if variable_names is None:
-        variable_names = [f"$x_{i}$" for i in range(n_variables)]
+    # Determine scaling
+    scaling = _determine_scaling(population) if autoscale else [False] * n_variables
 
-    if fig is None and axs is None:
-        fig, axs = plt.subplots(
-            n_variables,
-            n_variables,
-            figsize=(6 * n_variables, 5 * n_variables),
+    # Create or reuse axes
+    if ax is None:
+        fig, axs = plotting.setup_figure(
+            nrows=n_variables,
+            ncols=n_variables,
             sharex="col",
             sharey="row",
             squeeze=False,
+            **{"aspect": 1.0, **(setup_figure_kwargs or {})},
         )
+    else:
+        axs = ax
+        fig = axs[0, 0].get_figure()
 
     if axs.shape != (n_variables, n_variables):
         raise ValueError(
-            "Inconsistent shape for provided axes."
+            "Inconsistent shape for provided axs. "
             f"Expected {(n_variables, n_variables)}, got {axs.shape}."
         )
 
-    # Rows
+    if update_layout:
+        _update_layout(axs, population, variable_names, scaling)
+
+    return fig, axs, scaling
+
+
+def _update_layout(
+    axs: npt.NDArray[plt.Axes],
+    population: npt.ArrayLike,
+    variable_names: list[str] | None,
+    scaling: list[bool],
+) -> tuple[plt.Figure, npt.NDArray[plt.Axes]]:
+    """
+    Set up a figure and axes for pairwise plots.
+
+    Parameters
+    ----------
+    axs : npt.NDArray[plt.Axes] | None, default=None
+        Array of Matplotlib axes.
+    population : npt.ArrayLike
+        2D array-like structure with shape (n_samples, n_variables).
+    variable_names : list[str] | None
+        List of variable names. If None, default names are assigned.
+    scaling: list[bool]
+        List of flags indicating whether to use log scaling for each variable.
+    """
+    population = np.array(population, ndmin=2)
+
+    if population.ndim != 2:
+        raise ValueError(f"Expected 2D array, got array with ndim={population.ndim}")
+
+    n_variables = population.shape[1]
+    variable_names = variable_names or [f"$x_{{{i}}}$" for i in range(n_variables)]
+
+    # Rows i
     for i in range(n_variables):
-        scale_i = False
-        if autoscale and np.all(population[:, i] > 0):
-            value_range = population[:, i].max() / population[:, i].min()
-            if value_range > 100.0:
-                scale_i = True
-
-        # Columns
+        scale_i = scaling[i]
+        # Columns j
         for j in range(n_variables):
-            scale_j = False
-            if autoscale and np.all(population[:, j] > 0):
-                value_range = population[:, j].max() / population[:, j].min()
-                if value_range > 100.0:
-                    scale_j = True
+            scale_j = scaling[j]
+            ax_ij = axs[i, j]
 
-            ax = axs[i, j]
-            if i == j:
-                # Create a twin axis for histograms to avoid sharing y-axis
-                ax_hist = ax.twinx()
-
-                # Determine binning strategy
-                if scale_i:
-                    bins = np.geomspace(
-                        population[:, i].min(), population[:, i].max(), n_bins + 1
-                    )
-                else:
-                    bins = np.linspace(
-                        population[:, i].min(), population[:, i].max(), n_bins + 1
-                    )
-
-                ax_hist.hist(
-                    population[:, i],
-                    bins=bins,
-                    alpha=0.7,
-                    color="blue",
-                    edgecolor="black",
-                    align="mid",
-                )
-                ax_hist.set_yticks([])  # Hide y-ticks for the histogram
-            else:
-                # Scatter plot for non-diagonal elements
-                ax.scatter(population[:, j], population[:, i], alpha=0.5, s=10)
-
-            # Apply log scale based on autoscale logic
+            # Apply log scale if needed
             if scale_j:
-                ax.set_xscale("log")
+                if ax_ij.get_xscale() != "log":
+                    ax_ij.set_xscale("log")
+            else:
+                ax_ij.ticklabel_format(axis="x", useMathText=True, scilimits=(-3, 3))
+
             if scale_i:
-                ax.set_yscale("log")
+                if ax_ij.get_yscale() != "log":
+                    ax_ij.set_yscale("log")
+            else:
+                ax_ij.ticklabel_format(axis="y", useMathText=True, scilimits=(-3, 3))
 
-            # Ensure axis labels and ticks are visible only on the
-            # first column
+            # Ticks should only be visible on the first column ...
             if j == 0:
-                ax.yaxis.set_tick_params(labelleft=True)
-                if not scale_i:
-                    ax.ticklabel_format(axis="y", useMathText=True, scilimits=[-3, 3])
+                ax_ij.yaxis.set_tick_params(labelleft=True)
             else:
-                ax.yaxis.set_tick_params(labelleft=False)
-
-            # and last row
+                ax_ij.yaxis.set_tick_params(labelleft=False)
+            # ... and last row
             if i == n_variables - 1:
-                ax.xaxis.set_tick_params(labelbottom=True)
-                if not scale_j:
-                    ax.ticklabel_format(axis="x", useMathText=True, scilimits=[-3, 3])
+                ax_ij.xaxis.set_tick_params(labelbottom=True)
             else:
-                ax.xaxis.set_tick_params(labelbottom=False)
+                ax_ij.xaxis.set_tick_params(labelbottom=False)
 
             # Set axis labels on the edges
             if i == n_variables - 1:
-                ax.set_xlabel(variable_names[j])
+                ax_ij.set_xlabel(variable_names[j])
             if j == 0:
-                ax.set_ylabel(variable_names[i])
+                ax_ij.set_ylabel(variable_names[i])
 
-    fig.tight_layout()
 
-    return fig, axs
+def _plot_pairwise_histogram(
+    axs: npt.NDArray[plt.Axes],
+    data: npt.ArrayLike,
+    color: str,
+    n_bins: int = 20,
+) -> None:
+    """
+    Plot histograms on the diagonal of a pairwise plot.
+
+    Parameters
+    ----------
+    axs : npt.NDArray[plt.Axes]
+        2D array of Matplotlib axes.
+    data : npt.ArrayLike
+        2D array with shape (n_samples, n_variables).
+    color : str
+        Color for the histograms.
+    n_bins : int, default=20
+        Number of bins for the histograms.
+    """
+    n_variables = axs.shape[0]
+
+    for i in range(n_variables):
+        ax = axs[i, i]
+
+        x = data[:, i][np.isfinite(data[:, i])]
+
+        if not hasattr(ax, "_pairwise_bins"):
+            ax_hist = ax.twinx()
+            ax_hist.set_yticks([])
+
+            lo, hi = x.min(), x.max()
+
+            if ax.get_xscale() == "log":
+                if lo <= 0:
+                    raise ValueError("Log-scaled histogram requires positive data.")
+                bins = np.geomspace(lo, hi, n_bins + 1)
+            else:
+                bins = np.linspace(lo, hi, n_bins + 1)
+
+            ax._pairwise_bins = bins
+            ax._pairwise_hist_ax = ax_hist
+        else:
+            bins = ax._pairwise_bins
+            ax_hist = ax._pairwise_hist_ax
+
+        ax_hist.hist(
+            x,
+            bins=bins,
+            alpha=0.7,
+            color=color,
+            edgecolor="black",
+            align="mid",
+        )
+
+
+def _plot_pairwise_scatter(
+    axs: npt.NDArray[plt.Axes],
+    data: npt.ArrayLike,
+    color: str,
+) -> None:
+    """
+    Plot scatter plots for non-diagonal elements of a pairwise plot.
+
+    Parameters
+    ----------
+    axs : npt.NDArray[plt.Axes]
+        2D array of Matplotlib axes.
+    data : npt.ArrayLike
+        2D array with shape (n_samples, n_variables).
+    color : str
+        Color for the scatter points.
+    """
+    n_variables = axs.shape[0]
+    for i in range(n_variables):
+        for j in range(n_variables):
+            if i == j:
+                continue  # Skip diagonal
+
+            ax = axs[i, j]
+            ax.scatter(
+                data[:, j], data[:, i],
+                alpha=0.5, color=color
+            )
+
+
+@plotting.figure_utils
+def plot_pairwise(
+    population: npt.ArrayLike,
+    variable_names: list[str] | None = None,
+    color: str = "blue",
+    n_bins: int = 20,
+    autoscale: bool = True,
+    plot_scatter: bool = True,
+    plot_histogram: bool = True,
+    update_layout: bool = True,
+    ax: npt.NDArray[plt.Axes] | None = None,
+    setup_figure_kwargs: dict | None = None,
+) -> tuple[plt.Figure, np.ndarray[plt.Axes]]:
+    """
+    Create a pairwise scatter plot for all variables of a population.
+
+    Parameters
+    ----------
+    population : npt.ArrayLike
+        2D array-like structure containing numerical variables with shape
+        (n_samples, n_variables)
+    variable_names : list of str, optional
+        list of variable names corresponding to columns in the data.
+        If None, default names will be assigned.
+    color : str
+        Color for markers. Default is "tab10".
+    n_bins : int, default=20
+        Number of bins for histogram plots.
+    autoscale : bool, default=True
+        If True, automatically adjust the scaling of the axes.
+    plot_scatter : bool, optional, default=True
+        If True, add scatter plots.
+    plot_histogram : bool, optional, default=True
+        If True, add histogram plots.
+    update_layout : bool, optional, default=True
+        If True, update layout.
+    ax : np.ndarray[plt.Axes] | None, default=None
+        Optional array of Matplotlib axs.
+        If not provided, a new figure is created.
+    setup_figure_kwargs : dict | None, default=None
+        Additional options to setup the figure.
+
+    Returns
+    -------
+    tuple
+        A tuple containing:
+        - plt.Figure: The Matplotlib Figure object.
+        - npt.NDArray[plt.Axes]: An array of Axes objects representing the subplot grid.
+
+    Raises
+    ------
+    ValueError
+        If data does not contain 2D data.
+        If the provided axes array does not have the correct shape.
+    """
+    population = np.array(population, ndmin=2)
+
+    if population.ndim != 2:
+        raise ValueError(f"Expected 2D array, got array with ndim={population.ndim}")
+
+    fig, ax, scaling = _setup_pairwise_axes(
+        population,
+        variable_names,
+        autoscale,
+        update_layout,
+        ax,
+        setup_figure_kwargs
+    )
+
+    # Plot histograms and scatter plots
+    if plot_histogram:
+        _plot_pairwise_histogram(
+            ax,
+            population,
+            color=color,
+        )
+    if plot_scatter:
+        _plot_pairwise_scatter(
+            ax,
+            population,
+            color=color,
+        )
+    if update_layout:
+        _update_layout(
+            ax,
+            population,
+            variable_names,
+            scaling,
+        )
+
+    return fig, ax
