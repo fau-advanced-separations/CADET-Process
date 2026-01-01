@@ -2,9 +2,9 @@ import copy
 from collections import defaultdict
 from typing import Optional
 
+import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
-from matplotlib.axes import Axes
 
 from CADETProcess import CADETProcessError, plotting
 from CADETProcess.processModel import ComponentSystem, MassActionLaw, ReactionBaseClass
@@ -426,15 +426,15 @@ def ionic_strength(component_system: ComponentSystem, buffer: list) -> np.ndarra
     return 1 / 2 * np.sum(buffer * z**2)
 
 
-@plotting.create_and_save_figure
+@plotting.figure_utils
 def plot_buffer_capacity(
     reaction_system: MassActionLaw,
     buffer: list,
-    pH: Optional[np.ndarray] = None,
-    ax: Optional[Axes] = None,
-) -> Axes:
-    """
-    Plot buffer capacity of reaction system over pH at given concentration.
+    pH: np.ndarray | None = None,
+    ax: plt.Axes | None = None,
+    setup_figure_kwargs: Optional[dict] = None,
+) -> tuple[plt.Figure, plt.Axes]:
+    """Plot buffer capacity of reaction system over pH at given concentration.
 
     Parameters
     ----------
@@ -442,16 +442,26 @@ def plot_buffer_capacity(
         Reaction system with stoichiometric coefficients and reaction rates.
     buffer : list
         Buffer concentration in mM.
-    pH : Optional[np.ndarray]
-        Range of pH to be plotted.
-    ax : Optional[Axes]
-        Axes to plot on.
+    pH : np.ndarray | None, default=None
+        Range of pH to be plotted. If None, uses `np.linspace(0, 14, 101)`.
+    ax : Optional[plt.Axes], default=None
+        Optional Matplotlib Axes.
+        If not provided, a new figure is created.
+    setup_figure_kwargs : Optional[dict], default=None
+        Additional options to setup the figure.
 
     Returns
     -------
-    ax : Axes
-        Axes object with buffer capacity plot.
+    tuple[plt.Figure, plt.Axes]
+        The Matplotlib Figure and Axes.
     """
+    if ax is None:
+        fig, ax = plotting.setup_figure(**setup_figure_kwargs)
+        ax.set_xlabel("$pH$")
+        ax.set_ylabel("buffer capacity / mM")
+    else:
+        fig = ax.get_figure()
+
     if pH is None:
         pH = np.linspace(0, 14, 101)
 
@@ -467,23 +477,22 @@ def plot_buffer_capacity(
     ax.plot(pH, b[:, -1], label="Water")
     ax.plot(pH, b_total, "k--", label="Total buffer capacity")
 
-    layout = plotting.Layout()
-    layout.x_label = "$pH$"
-    layout.y_label = "buffer capacity / mM"
-    layout.y_lim = (0, 1.1 * np.max(b_total))
+    ax.set_ylim(0, 1.1 * np.max(b_total))
 
-    plotting.set_layout(ax, layout)
+    if labels:
+        ax.legend()
 
-    return ax
+    return fig, ax
 
 
-@plotting.create_and_save_figure
+@plotting.figure_utils
 def plot_charge_distribution(
     reaction_system: MassActionLaw,
-    pH: Optional[np.ndarray] = None,
-    plot_cumulative: Optional[bool] = False,
-    ax: Optional[Axes] = None,
-) -> Axes:
+    pH: np.ndarray | None = None,
+    plot_cumulative: bool = False,
+    ax: plt.Axes | None = None,
+    setup_figure_kwargs: Optional[dict] = None,
+) -> tuple[plt.Figure, plt.Axes]:
     """
     Plot charge distribution of components over pH.
 
@@ -491,33 +500,36 @@ def plot_charge_distribution(
     ----------
     reaction_system : MassActionLaw
         Reaction system with stoichiometric coefficients and reaction rates.
-    pH : Optional[np.ndarray]
-        Range of pH to be plotted.
-    plot_cumulative : Optional[bool]
-        If True, only plot cumulative charge of each acid.
-    ax : Optional[Axes]
-        Axes to plot on.
+    pH : np.ndarray | None, default=None
+        Range of pH to be plotted. If None, uses `np.linspace(0, 14, 101)`.
+    plot_cumulative : bool, default=False
+        If True, plots cumulative charge of each acid.
+    ax : Axes | None, default=None
+        Axes to plot on. If None, a new axes is created.
+    setup_figure_kwargs : dict | None, default=None
+        Additional options to setup the figure.
 
     Returns
     -------
-    ax : Axes
-        Axes object with charge distribution plot.
+    tuple[plt.Figure, npt.NDArray[plt.Axes]]
+        Figure and axes objects.
     """
+    if ax is None:
+        fig, ax = plotting.setup_figure(**setup_figure_kwargs)
+        ax.set_xlabel("$pH$")
+    else:
+        fig = ax.get_figure()
+
     if pH is None:
         pH = np.linspace(0, 14, 101)
 
-    layout = plotting.Layout()
-
     if plot_cumulative:
         c = cummulative_charge_distribution(reaction_system, pH)
-        layout.y_label = "degree of dissociation"
-    else:
-        c = charge_distribution(reaction_system, pH)
-        layout.y_label = "degree of protolysis"
-
-    if plot_cumulative:
+        y_label = "degree of dissociation"
         labels = reaction_system.component_system.names
     else:
+        c = charge_distribution(reaction_system, pH)
+        y_label = "degree of protolysis"
         labels = reaction_system.component_system.species
 
     labels.remove("H+")
@@ -525,9 +537,10 @@ def plot_charge_distribution(
     for i, label in zip(c.T, labels):
         ax.plot(pH, i, label=label)
 
-    layout.x_label = "$pH$"
-    layout.y_lim = (1.1 * np.min(c), 1.1 * np.max(c))
+    ax.set_ylabel(y_label)
+    ax.set_ylim(1.1 * np.min(c), 1.1 * np.max(c))
 
-    plotting.set_layout(ax, layout)
+    if labels:
+        ax.legend()
 
-    return ax
+    return fig, ax

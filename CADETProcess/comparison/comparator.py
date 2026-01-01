@@ -6,8 +6,6 @@ from typing import Any, Iterator, Optional
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
-from matplotlib.axes import Axes
-from matplotlib.figure import Figure
 
 from CADETProcess import CADETProcessError, plotting
 from CADETProcess.comparison import DifferenceBase
@@ -248,18 +246,28 @@ class Comparator(Structure):
 
     __call__ = evaluate
 
-    def setup_comparison_figure(
+    @plotting.figure_utils
+    def plot_comparison(
         self,
-        plot_individual: Optional[bool] = False,
-    ) -> tuple[list[Figure], npt.NDArray[Axes]]:
+        simulation_results: SimulationResults,
+        x_axis_in_minutes: Optional[bool] = True,
+        ax: np.ndarray[plt.Axes] | None = None,
+        setup_figure_kwargs: dict | None = None,
+    ) -> tuple[plt.Figure, npt.NDArray[plt.Axes]]:
         """
-        Set up a figure for comparing simulation results.
+        Plot the comparison of the simulation results with the reference data.
 
         Parameters
         ----------
-        plot_individual : Optional[bool], default=False
-            If True, return figures for individual metrics.
-            Otherwise, return a single figure for all metrics.
+        simulation_results : SimulationResults
+            Simulation results to compare to reference data.
+        x_axis_in_minutes: Optional[bool], default=True
+            If True, the x-axis will be plotted using minutes. The default is True.
+        ax : np.ndarray[plt.Axes] | None, default=None
+            Optional array of Matplotlib Axes.
+            If not provided, a new figure is created.
+        setup_figure_kwargs : dict | None, default=None
+            Additional options to setup the figure.
 
         Returns
         -------
@@ -270,95 +278,39 @@ class Comparator(Structure):
               difference metric.
         """
         if self.n_difference_metrics == 0:
-            return (None, None)
+            raise CADETProcessError("Cannot plot without difference metrics.")
 
-        comparison_fig_all, comparison_axs_all = plotting.setup_figure(
-            n_rows=self.n_difference_metrics, squeeze=False
-        )
-
-        plt.close(comparison_fig_all)
-        comparison_axs_all = comparison_axs_all.reshape(-1)
-
-        comparison_fig_ind: list[Figure] = []
-        comparison_axs_ind: list[Axes] = []
-        for i in range(self.n_difference_metrics):
-            fig, axs = plt.subplots()
-            comparison_fig_ind.append(fig)
-            comparison_axs_ind.append(axs)
-            plt.close(fig)
-
-        comparison_axs_ind = np.array(comparison_axs_ind).reshape(comparison_axs_all.shape)
-
-        if plot_individual:
-            return comparison_fig_ind, comparison_axs_ind
+        if ax is None:
+            fig, axs = plotting.setup_figure(
+                **setup_figure_kwargs,
+                ncols=self.n_difference_metrics,
+                squeeze=False,
+            )
+            axs = axs.reshape(-1)
         else:
-            return comparison_fig_all, comparison_axs_all
-
-    def plot_comparison(
-        self,
-        simulation_results: SimulationResults,
-        axs: Optional[Axes | list[Axes]] = None,
-        figs: Optional[Figure | list[Figure]] = None,
-        file_name: Optional[str] = None,
-        show: Optional[bool] = True,
-        plot_individual: Optional[bool] = False,
-        x_axis_in_minutes: Optional[bool] = True,
-    ) -> tuple[list[Figure], npt.NDArray[plt.Axes]]:
-        """
-        Plot the comparison of the simulation results with the reference data.
-
-        Parameters
-        ----------
-        simulation_results : SimulationResults
-            Simulation results to compare to reference data.
-        axs : Optional[Axes | list[Axes]], default=None
-            An array of Axes objects to use for plotting the metrics.
-        figs : Optional[Figure | list[Figure]]
-            List of figures to use for plotting the metrics.
-        file_name : Optional[str]
-            Name of the file to save the figure to.
-        show : Optional[bool], default=True
-            If True, displays the figure(s) on the screen.
-        plot_individual : Optional[bool], default=False
-            If True, generates a separate figure for each metric.
-        x_axis_in_minutes: Optional[bool], default=True
-            If True, the x-axis will be plotted using minutes. The default is True.
-
-        Returns
-        -------
-        tuple
-            A tuple containing:
-            - list[plt.Figure]: A list of Matplotlib Figure objects.
-            - npt.NDArray[plt.Axes]: An array of Axes objects with one Axes per
-              difference metric.
-        """
-        if axs is None:
-            figs, axs = self.setup_comparison_figure(plot_individual)
-        if not isinstance(figs, list):
-            figs = [figs]
+            axs = ax
+            fig = axs[0].get_figure()
 
         for ax, metric in zip(axs, self.metrics):
             solution = self.extract_solution(simulation_results, metric)
             solution_sliced = metric.slice_and_transform(solution)
 
-            y_max = 1.1 * max(np.max(solution_sliced.solution), np.max(metric.reference.solution))
-
-            fig, ax = solution_sliced.plot(
+            solution_sliced.plot(
                 ax=ax,
-                show=False,
-                y_max=y_max,
+                x_axis_in_minutes=x_axis_in_minutes,
             )
 
-            plot_args = {
-                "linestyle": "dotted",
-                "color": "k",
-                "label": "reference",
-            }
             ref_time = metric.reference.time
             if x_axis_in_minutes:
                 ref_time = ref_time / 60
 
-            plotting.add_overlay(ax, metric.reference.solution, ref_time, **plot_args)
+            ax.plot(
+                ref_time,
+                metric.reference.solution,
+                linestyle="--",
+                color="k",
+                label="reference",
+            )
             ax.legend(loc=1)
 
             m = metric.evaluate(solution_sliced, slice=False)
@@ -377,28 +329,9 @@ class Comparator(Structure):
             else:
                 text += str(m[0])
 
-            plotting.add_text(ax, text, fontsize=14)
+            plotting.add_text(ax, text)
 
-        for fig in figs:
-            fig.tight_layout()
-            if not show:
-                plt.close(fig)
-            else:
-                dummy = plt.figure(figsize=fig.get_size_inches())
-                new_manager = dummy.canvas.manager
-                new_manager.canvas.figure = fig
-                fig.set_canvas(new_manager.canvas)
-                plt.show()
-
-        if file_name is not None:
-            if plot_individual:
-                name, suffix = file_name.split(".")
-                for fig, metric in zip(figs, self.metrics):
-                    fig.savefig(f"{name}_{metric}.{suffix}")
-            else:
-                figs[0].savefig(file_name)
-
-        return figs, axs
+        return fig, axs
 
     def __iter__(self) -> Iterator[list[DifferenceBase]]:
         """Yield metrics from the instance."""

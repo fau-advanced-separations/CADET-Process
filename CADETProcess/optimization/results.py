@@ -3,18 +3,14 @@ from __future__ import annotations
 import csv
 import os
 import warnings
-from functools import wraps
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, Optional
+from typing import TYPE_CHECKING, Any, Literal
 
-import matplotlib.cm as cmx
-import matplotlib.colors as colors
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy.typing as npt
 from addict import Dict
 from cadet import H5
-from matplotlib.axes import Axes
-from matplotlib.figure import Figure
 
 from CADETProcess import CADETProcessError, plotting
 from CADETProcess.dataStructure import (
@@ -25,14 +21,18 @@ from CADETProcess.dataStructure import (
     UnsignedFloat,
     UnsignedInteger,
 )
-from CADETProcess.optimization import Individual, ParetoFront, Population
+from CADETProcess.optimization import (
+    Individual,
+    ParetoFront,
+    Population,
+)
 from CADETProcess.sysinfo import system_information
 
 if TYPE_CHECKING:
     from CADETProcess.optimization import OptimizationProblem, OptimizerBase
 
-cmap_feas = plt.get_cmap("winter_r")
-cmap_infeas = plt.get_cmap("autumn_r")
+cmap_feas = plt.colormaps["winter_r"]
+cmap_infeas = plt.colormaps["autumn_r"]
 
 __all__ = ["OptimizationResults"]
 
@@ -422,7 +422,6 @@ class OptimizationResults(Structure):
         --------
         plot_convergence
         plot_objectives
-        plot_corner
         plot_pairwise
         plot_pareto
         """
@@ -433,122 +432,102 @@ class OptimizationResults(Structure):
             warnings.simplefilter("ignore")
 
             self.plot_convergence(
-                "objectives", show=show, plot_directory=self.plot_directory
+                "objectives",
+                show=show,
+                file_name=f"{self.plot_directory / 'convergence_objectives.png'}",
             )
             if self.optimization_problem.n_nonlinear_constraints > 0:
                 self.plot_convergence(
                     "nonlinear_constraints",
                     show=show,
-                    plot_directory=self.plot_directory,
+                    file_name=f"{self.plot_directory / 'convergence_nonlinear_constraints.png'}",
                 )
             if self.optimization_problem.n_meta_scores > 0:
                 self.plot_convergence(
-                    "meta_scores", show=show, plot_directory=self.plot_directory
+                    "meta_scores",
+                    show=show,
+                    file_name=f"{self.plot_directory / 'convergence_meta_scores.png'}",
                 )
-            self.plot_objectives(show=show, plot_directory=self.plot_directory)
+            self.plot_objectives(
+                show=show,
+                file_name=f"{self.plot_directory / 'objectives.png'}",
+            )
             if self.optimization_problem.n_variables > 1 and len(self.x) > 1:
-                self.plot_corner(show=show, plot_directory=self.plot_directory)
-
-            self.plot_pairwise(show=show, plot_directory=self.plot_directory)
+                self.plot_pairwise(
+                    show=show,
+                    file_name=f"{self.plot_directory / 'pairwise.png'}",
+                )
 
             if self.optimization_problem.n_objectives > 1:
                 self.plot_pareto(
                     show=show,
-                    plot_directory=self.plot_directory,
+                    file_name=f"{self.plot_directory / 'pareto.png'}",
                     plot_evolution=True,
                     plot_pareto=False,
                 )
 
+    @plotting.figure_utils
     def plot_objectives(
         self,
-        include_meta: bool = True,
         plot_pareto: bool = False,
-        plot_infeasible: bool = True,
-        plot_individual: bool = False,
-        autoscale: bool = True,
-        show: bool = True,
-        plot_directory: Optional[str | Path] = None,
-    ) -> None:
-        """
-        Plot objective function values for all optimization generations.
+        *args: Any,
+        ax: np.ndarray[plt.Axes] | None = None,
+        setup_figure_kwargs: dict | None = None,
+        **kwargs: Any,
+    ) -> tuple[plt.Figure, np.ndarray[plt.Axes]]:
+        """Plot objective function values for all optimization generations.
 
         Parameters
         ----------
-        include_meta : bool, optional
-            If True, meta scores will be included in the plot. The default is True.
-        plot_pareto : bool, optional
-            If True, only plot Pareto front members of each generation are plotted.
-            Else, all evaluated individuals are plotted.
-            The default is False.
-        plot_infeasible : bool, optional
-            If True, plot infeasible points. The default is True.
-        plot_individual : bool, optional
-            If True, create separate figures for each objective. Otherwise, all
-            objectives are plotted in one figure.
-            The default is False.
-        plot_infeasible : bool, optional
-            If True, plot infeasible points. The default is False.
-        autoscale : bool, optional
-            If True, automatically adjust the scaling of the axes. The default is True.
-        show : bool, optional
-            If True, display the plot. The default is True.
-        plot_directory : str, optional
-            The directory where the plot should be saved.
-            The default is None.
+        plot_pareto : bool, default=False
+            If True, only Pareto front members of each generation are plotted.
+            Otherwise, all evaluated individuals are plotted.
+        *args : Any
+            Additional positional arguments passed to `gen.plot_objectives`.
+        ax : np.ndarray[plt.Axes] | None, default=None
+            Optional array of Matplotlib Axes.
+            If not provided, a new figure is created.
+        setup_figure_kwargs : dict | None, default=None
+            Additional options to setup the figure.
+        **kwargs : Any
+            Additional keyword arguments passed to `gen.plot_objectives`.
 
         Returns
         -------
-        tuple
+        tuple[plt.Figure, np.ndarray[plt.Axes]]
             A tuple containing:
-            - plt.Figure: The Matplotlib Figure object.
-            - npt.NDArray[plt.Axes]: An array of Axes objects representing the subplots.
+            - The Matplotlib Figure object.
+            - An array of Axes objects representing the subplots.
 
         See Also
         --------
         CADETProcess.optimization.Population.plot_objectives
         """
-        axs = None
-        figs = None
-        _show = False
-        _plot_directory = None
-
-        cNorm = colors.Normalize(vmin=0, vmax=self.n_gen)
-        scalarMap_feas = cmx.ScalarMappable(norm=cNorm, cmap=cmap_feas)
-        scalarMap_infeas = cmx.ScalarMappable(norm=cNorm, cmap=cmap_infeas)
-
-        if plot_pareto:
-            populations = self.pareto_fronts
-            population_last = self.pareto_front
-        else:
-            populations = self.populations
-            population_last = self.population_last
-
-        for i, gen in enumerate(populations):
-            if gen is population_last:
-                _plot_directory = plot_directory
-                _show = show
-            figs, axs = gen.plot_objectives(
-                figs,
-                axs,
-                include_meta=include_meta,
-                plot_infeasible=plot_infeasible,
-                plot_individual=plot_individual,
-                autoscale=autoscale,
-                color_feas=scalarMap_feas.to_rgba(i),
-                color_infeas=scalarMap_infeas.to_rgba(i),
-                show=_show,
-                plot_directory=_plot_directory,
+        populations = self.pareto_fronts if plot_pareto else self.populations
+        values = np.linspace(0, 1, self.n_gen)
+        for val, gen in zip(values, populations):
+            fig, ax = gen.plot_objectives(
+                *args,
+                color_feas=cmap_feas(val),
+                color_infeas=cmap_infeas(val),
+                ax=ax,
+                setup_figure_kwargs=setup_figure_kwargs,
+                show=False,
+                tight_layout=False,
+                **kwargs,
             )
+        return fig, ax
 
-        return figs, axs
-
+    @plotting.figure_utils
     def plot_pareto(
         self,
-        show: bool = True,
         plot_pareto: bool = True,
         plot_evolution: bool = False,
-        plot_directory: Optional[str | Path] = None,
-    ) -> None:
+        *args: Any,
+        ax: np.ndarray[plt.Axes] | None = None,
+        setup_figure_kwargs: dict | None = None,
+        **kwargs: Any,
+    ) -> tuple[plt.Figure, np.ndarray[plt.Axes]]:
         """
         Plot Pareto fronts for each generation in the optimization.
 
@@ -562,229 +541,227 @@ class OptimizationResults(Structure):
 
         Parameters
         ----------
-        show : bool, optional
-            If True, display the plot.
-            The default is True.
-        plot_pareto : bool, optional
+        plot_pareto : bool, default=False
             If True, only Pareto front members of each generation are plotted.
-            Else, all evaluated individuals are plotted.
-            The default is True.
+            Otherwise, all evaluated individuals are plotted.
         plot_evolution : bool, optional
             If True, the Pareto front is plotted for each generation.
             Else, only final Pareto front is plotted.
             The default is False.
-        plot_directory : str, optional
-            The directory where the plot should be saved.
-            The default is None.
+        *args : Any
+            Additional positional arguments passed to `gen.plot_pareto`.
+        ax : np.ndarray[plt.Axes] | None, default=None
+            Optional array of Matplotlib Axes.
+            If not provided, a new figure is created.
+        setup_figure_kwargs : dict | None, default=None
+            Additional options to setup the figure.
+        **kwargs : Any
+            Additional keyword arguments passed to `gen.plot_pareto`.
 
         Returns
         -------
-        tuple
+        tuple[plt.Figure, np.ndarray[plt.Axes]]
             A tuple containing:
-            - plt.Figure: The Matplotlib Figure object.
-            - npt.NDArray[plt.Axes]: An array of Axes objects representing the subplots.
+            - The Matplotlib Figure object.
+            - An array of Axes objects representing the subplots.
 
         See Also
         --------
         CADETProcess.optimization.Population.plot_pareto
         """
-        plot = None
-        _show = False
-        _plot_directory = None
-
-        cNorm = colors.Normalize(vmin=0, vmax=self.n_gen)
-        scalarMap_feas = cmx.ScalarMappable(norm=cNorm, cmap=cmap_feas)
-        scalarMap_infeas = cmx.ScalarMappable(norm=cNorm, cmap=cmap_infeas)
-
         if plot_pareto:
             populations = self.pareto_fronts
             population_last = self.pareto_front
+            population_all = Population()
+            for pareto in self.pareto_fronts:
+                population_all.update(pareto)
+
         else:
             populations = self.populations
             population_last = self.population_last
+            population_all = self.population_all
 
         if not plot_evolution:
             populations = [population_last]
+            color_values = (1.,)  # Explicitly use the last value of the colormap
+        else:
+            color_values = np.linspace(0, 1, self.n_gen)
 
-        for i, gen in enumerate(populations):
-            if gen is population_last:
-                _plot_directory = plot_directory
-                _show = show
-            plot = gen.plot_pareto(
-                plot,
-                color_feas=scalarMap_feas.to_rgba(i),
-                color_infeas=scalarMap_infeas.to_rgba(i),
-                show=_show,
-                plot_directory=_plot_directory,
+        fig, ax, = population_all.plot_pareto(
+            *args,
+            color_feas="grey",
+            plot_scatter=False,
+            ax=ax,
+            show=False,
+            tight_layout=False,
+            **{"plot_infeasible": False, **kwargs},
+        )
+
+        for color_val, gen in zip(color_values, populations):
+            fig, ax = gen.plot_pareto(
+                *args,
+                color_feas=cmap_feas(color_val),
+                color_infeas=cmap_infeas(color_val),
+                ax=ax,
+                show=False,
+                tight_layout=False,
+                **{"update_layout": False, **kwargs},
             )
+        return fig, ax
 
-        return plot.fig, plot.ax
-
-    @wraps(Population.plot_corner)
-    def plot_corner(self, *args: Any, **kwargs: Any) -> None:
-        """Create corner plot of population."""
-        return self.population_all.plot_corner(*args, **kwargs)
-
-    @wraps(Population.plot_pairwise)
+    @plotting.figure_utils
     def plot_pairwise(
         self,
+        plot_evolution: bool = True,
         *args: Any,
+        ax: np.ndarray[plt.Axes] | None = None,
+        setup_figure_kwargs: dict | None = None,
         **kwargs: Any,
     ) -> tuple[plt.Figure, np.ndarray[plt.Axes]]:
-        """Plot population pairwise."""
-        return self.population_all.plot_pairwise(*args, **kwargs)
-
-    def setup_convergence_figure(
-        self,
-        target: Literal["objectives", "nonlinear_constraints", "meta_scores"],
-        plot_individual: bool = False,
-    ) -> tuple[list, list]:
         """
-        Set up figures and axes for plotting convergence of specified targets.
+        Pairwise of all optimization variables.
 
         Parameters
         ----------
-        target : str
-            The target type for convergence plotting. Options are "objectives",
-            "nonlinear_constraints", or "meta_scores".
-        plot_individual : bool, optional
-            If True, individual figures are created for each target. Otherwise, a single
-            figure with subplots is created. Default is False.
+        plot_evolution : bool, optional
+            If True, the Pareto front is Gplotted for each generation.
+            Else, only final Pareto front is plotted.
+            The default is False.
+        *args : Any
+            Additional positional arguments passed to `gen.plot_pareto`.
+        ax : np.ndarray[plt.Axes] | None, default=None
+            Optional array of Matplotlib Axes.
+            If not provided, a new figure is created.
+        setup_figure_kwargs : dict | None, default=None
+            Additional options to setup the figure.
+        **kwargs : Any
+            Additional keyword arguments passed to `gen.plot_pareto`.
 
         Returns
         -------
-        tuple[list, list]
-            A tuple containing lists of matplotlib Figure and Axes objects.
-            Returns individual figures and axes if `plot_individual` is True.
+        tuple[plt.Figure, np.ndarray[plt.Axes]]
+            A tuple containing:
+            - The Matplotlib Figure object.
+            - An array of Axes objects representing the subplots.
 
-        Raises
-        ------
-        CADETProcessError
-            If the specified target is unknown or not supported.
+        See Also
+        --------
+        CADETProcess.optimization.Population.plot_pairwise
         """
-        if target == "objectives":
-            n = self.optimization_problem.n_objectives
-        elif target == "nonlinear_constraints":
-            n = self.optimization_problem.n_nonlinear_constraints
-        elif target == "meta_scores":
-            n = self.optimization_problem.n_meta_scores
+        populations = self.populations
+        population_last = self.population_last
+        population_all = self.population_all
+
+        if not plot_evolution:
+            populations = [population_last]
+            color_values = (1.,)  # Explicitly use the last value of the colormap
         else:
-            raise CADETProcessError("Unknown target.")
+            color_values = np.linspace(0, 1, self.n_gen)
 
-        if n == 0:
-            return (None, None)
-
-        fig_all, axs_all = plt.subplots(
-            ncols=n,
-            figsize=(n * 6 + 2, 6),
-            squeeze=False,
+        fig, ax, = population_all.plot_pairwise(
+            *args,
+            color_feas="grey",
+            plot_scatter=False,
+            ax=ax,
+            setup_figure_kwargs=setup_figure_kwargs,
+            show=False,
+            tight_layout=False,
+            **{"plot_infeasible": False, **kwargs},
         )
-        axs_all = axs_all.reshape((-1,))
 
-        plt.close(fig_all)
+        for color_val, gen in zip(color_values, populations):
+            fig, ax = gen.plot_pairwise(
+                *args,
+                color_feas=cmap_feas(color_val),
+                color_infeas=cmap_infeas(color_val),
+                ax=ax,
+                show=False,
+                tight_layout=False,
+                **{"update_layout": False, **kwargs},
+            )
 
-        figs_ind = []
-        axs_ind = []
-        for i in range(n):
-            fig, ax = plt.subplots()
-            figs_ind.append(fig)
-            axs_ind.append(ax)
-            plt.close(fig)
+        return fig, ax
 
-        axs_ind = np.array(axs_ind).reshape(axs_all.shape)
-
-        if plot_individual:
-            return figs_ind, axs_ind
-        else:
-            return fig_all, axs_all
-
+    @plotting.figure_utils
     def plot_convergence(
         self,
         target: Literal["objectives", "nonlinear_constraints", "meta_scores"] = "objectives",
-        figs: Optional[Figure] = None,
-        axs: Optional[Axes] = None,
-        plot_individual: bool = False,
         plot_avg: bool = True,
         autoscale: bool = True,
-        show: bool = True,
-        plot_directory: bool = None,
-    ) -> tuple[list[Figure] | Figure, list[Axes]]:
+        ax: npt.NDArray[plt.Axes] | None = None,
+        setup_figure_kwargs: dict | None = None,
+    ) -> tuple[plt.Figure, npt.NDArray[plt.Axes]]:
         """
         Plot the convergence of optimization metrics over evaluations.
 
         Parameters
         ----------
-        target : Literal["objectives", "nonlinear_constraints", "meta_scores"],
+        target : Literal["objectives", "nonlinear_constraints", "meta_scores"]
             The target metrics to plot. The default is "objectives".
-        figs : plt.Figure or list of plt.Figure, optional
-            Figure(s) to plot the objectives on.
-        axs : plt.Axes or list of plt.Axes, optional
-            Axes to plot the objectives on.
-            If None, new figures and axes will be created.
-        plot_individual : bool, optional
-            If True, create individual figure vor each metric.
-            The default is False.
-        plot_avg : bool, optional
-            If True, plot add trajectory of average value per generation.
-            The default is True.
-        autoscale : bool, optional
-            If True, autoscale the y-axis. The default is True.
-        show : bool, optional
-            If True, show the plot. The default is True.
-        plot_directory : str, optional
-            A directory to save the plot, by default None.
+        plot_avg : bool, default=True
+            If True, plot the average trajectory per generation.
+        autoscale : bool, default=True
+            If True, autoscale the y-axis.
+        ax : npt.NDArray[plt.Axes] | None, default=None
+            Axes to plot on. If not provided, a new figure is created.
+        setup_figure_kwargs : dict | None, default=None
+            Additional options to setup the figure.
 
         Returns
         -------
-        tuple
-            A tuple containing:
-            - plt.Figure: The Matplotlib Figure object.
-            - npt.NDArray[plt.Axes]: An array of Axes objects representing the subplots.
+        tuple[plt.Figure, npt.NDArray[plt.Axes]]
+            Figure and array of Axes objects.
         """
-        if axs is None:
-            figs, axs = self.setup_convergence_figure(target, plot_individual)
-
-        if not isinstance(figs, list):
-            figs = [figs]
-
-        layout = plotting.Layout()
-        layout.x_label = "$n_{Evaluations}$"
-
+        # Determine the number of metrics
         if target == "objectives":
+            n = self.optimization_problem.n_objectives
             funcs = self.optimization_problem.objectives
-            values_min = self.f_best_history
+            values_best = self.f_best_history
             values_avg = self.f_avg_history
         elif target == "nonlinear_constraints":
+            n = self.optimization_problem.n_nonlinear_constraints
             funcs = self.optimization_problem.nonlinear_constraints
-            values_min = self.g_best_history
+            values_best = self.g_best_history
             values_avg = self.g_avg_history
         elif target == "meta_scores":
+            n = self.optimization_problem.n_meta_scores
             funcs = self.optimization_problem.meta_scores
-            values_min = self.m_best_history
+            values_best = self.m_best_history
             values_avg = self.m_avg_history
         else:
             raise CADETProcessError("Unknown target.")
 
-        if len(funcs) == 0:
-            return
+        # Setup figure and axes
+        if ax is None:
+            fig, axs = plotting.setup_figure(
+                **setup_figure_kwargs,
+                nrows=1,
+                ncols=n,
+                squeeze=False,
+            )
+            axs = axs.reshape((-1,))
+        else:
+            axs = ax
+            fig = axs[0].get_figure()
 
         counter = 0
         for func in funcs:
             start = counter
             stop = counter + func.n_metrics
-            v_func_min = values_min[:, start:stop]
+            v_func_best = values_best[:, start:stop]
             v_func_avg = values_avg[:, start:stop]
 
             for i_metric in range(func.n_metrics):
-                v_line_min = v_func_min[:, i_metric]
+                v_line_best = v_func_best[:, i_metric]
                 v_line_avg = v_func_avg[:, i_metric]
 
-                ax = axs[counter + i_metric]
-                lines = ax.get_lines()
+                ax_i = axs[counter + i_metric]
+                lines = ax_i.get_lines()
 
+                # Update or create lines
                 if len(lines) > 0:
                     lines[0].set_xdata(self.n_evals_history)
-                    lines[0].set_ydata(v_line_min)
+                    lines[0].set_ydata(v_line_best)
                     if plot_avg and self.population_last.n_individuals > 1:
                         lines[1].set_ydata(v_line_avg)
                 else:
@@ -792,73 +769,52 @@ class OptimizationResults(Structure):
                         label = "best"
                     else:
                         label = None
-
-                    ax.plot(
-                        self.n_evals_history, v_line_min, "--", color="k", label=label
+                    ax_i.plot(
+                        self.n_evals_history,
+                        v_line_best,
+                        "-",
+                        color="k",
+                        label=label,
                     )
                     if plot_avg and self.population_last.n_individuals > 1:
-                        ax.plot(
+                        ax_i.plot(
                             self.n_evals_history,
                             v_line_avg,
-                            "-",
+                            "--",
                             color="k",
                             alpha=0.5,
                             label="avg",
                         )
 
-                layout.x_lim = (0, np.max(self.n_evals_history) + 1)
+                # Set x-axis label and limits
+                ax_i.set_xlabel("$n_{Evaluations}$")
 
+                # Set y-axis label and scaling
                 try:
-                    label = func.labels[i_metric]
+                    y_label = func.labels[i_metric]
                 except AttributeError:
-                    label = f"{func}_{i_metric}"
+                    y_label = f"{func}_{i_metric}"
+                ax_i.set_ylabel(y_label)
 
+                # Apply autoscale and log scaling if needed
+                y_min = np.nanmin(v_line_best)
+                y_max = np.nanmax(v_line_best)
                 if plot_avg and self.population_last.n_individuals > 1:
-                    y_min = np.nanmin(v_line_min)
-                    y_max = np.nanmax(v_line_avg)
-                else:
-                    y_min = np.nanmin(v_line_min)
-                    y_max = np.nanmax(v_line_min)
-
-                layout.y_label = label
+                    y_min = np.nanmin([v_line_best, v_line_avg])
+                    y_max = np.nanmax([v_line_best, v_line_avg])
                 if autoscale and y_min > 0:
                     if y_max / y_min > 100.0:
-                        ax.set_yscale("log")
+                        ax_i.set_yscale("log")
 
-                try:
-                    plotting.set_layout(ax, layout)
-                    ax.relim()
-                    ax.autoscale_view()
-                except ValueError:
-                    pass
+                ax_i.autoscale()
+
+                # Add legend if needed
+                if plot_avg and self.population_last.n_individuals > 1:
+                    ax_i.legend()
 
             counter += func.n_metrics
 
-        for fig in figs:
-            fig.tight_layout()
-            if not show:
-                plt.close(fig)
-            else:
-                dummy = plt.figure(figsize=fig.get_size_inches())
-                new_manager = dummy.canvas.manager
-                new_manager.canvas.figure = fig
-                fig.set_canvas(new_manager.canvas)
-                plt.show()
-
-        if plot_directory is not None:
-            plot_directory = Path(plot_directory)
-            if plot_individual:
-                for i, fig in enumerate(figs):
-                    figname = f"convergence_{target}_{i}"
-                    fig.savefig(f"{plot_directory / figname}.png")
-            else:
-                figname = f"convergence_{target}"
-                figs[0].savefig(f"{plot_directory / figname}.png")
-
-        if plot_individual:
-            return figs, axs
-        else:
-            return figs[0], axs
+        return fig, axs
 
     def save_results(self, file_name: str) -> None:
         """

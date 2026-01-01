@@ -228,7 +228,7 @@ class Fractionator(EventHandler):
         """np.ndarray: solution times of Chromatogram."""
         return self.chromatograms[0].time
 
-    @plotting.create_and_save_figure
+    @plotting.figure_utils
     def plot_fraction_signal(
         self,
         chromatogram: Optional[SolutionIO | str] = None,
@@ -285,13 +285,12 @@ class Fractionator(EventHandler):
         except KeyError:
             end = np.max(chromatogram.time)
 
-        _, ax = chromatogram.plot(
-            show=False, ax=ax, x_axis_in_minutes=x_axis_in_minutes, *args, **kwargs
+        fig, ax = chromatogram.plot(
+            ax=ax, x_axis_in_minutes=x_axis_in_minutes, *args, **kwargs
         )
 
         y_max = 1.1 * np.max(chromatogram.solution)
 
-        fill_regions = []
         for sec in time_line.sections:
             comp_index = int(np.where(sec.coeffs)[0].squeeze())
             if comp_index == self.n_comp:
@@ -309,26 +308,26 @@ class Fractionator(EventHandler):
                 sec_end = sec_end / 60
 
             if sec_start != sec_end:
-                fill_regions.append(
-                    plotting.FillRegion(
-                        start=sec_start,
-                        end=sec_end,
-                        y_max=y_max,
-                        color_index=color_index,
-                        text=text,
-                    )
+                plotting.fill_between(
+                    ax,
+                    sec_start,
+                    sec_end,
+                    y_max,
+                    color_index=color_index,
+                    text=text,
                 )
 
         if len(time_line.sections) == 0:
-            fill_regions.append(
-                plotting.FillRegion(
-                    start=sec_start, end=sec_end, y_max=y_max, color_index=-1, text="W"
-                )
+            plotting.fill_between(
+                ax,
+                sec_start,
+                sec_end,
+                y_max,
+                color_index=-1,
+                text="W",
             )
 
-        plotting.add_fill_regions(ax, fill_regions, (start, end))
-
-        return ax
+        return fig, ax
 
     @property
     def fractionation_states(self) -> Dict:

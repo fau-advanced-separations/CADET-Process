@@ -113,33 +113,30 @@ class GradientExperiment:
         vol_factor = column_volume - total_porosity * column_volume
         return slope * vol_factor
 
+    @plotting.figure_utils
     def plot(
         self,
-        fig: Optional[plt.Figure] = None,
+        x_axis_in_minutes: bool = True,
         ax: Optional[plt.Axes] = None,
-        sec_ax: Optional[plt.Axes] = None,
-        x_axis_in_minutes: Optional[bool] = True
-    ) -> tuple[plt.Figure, plt.Axes, plt.Axes]:
+        setup_figure_kwargs: Optional[dict] = None,
+    ) -> tuple[plt.Figure, tuple[plt.Axes, plt.Axes]]:
         """
         Plot the gradient experiment data.
 
         Parameters
         ----------
-        ax : plt.Axes
-            Matplotlib Axes.
-        sec_ax : Optional[plt.Axes], default=None
-            Existing secondary Axes for salt concentration.
-        x_axis_in_minutes : Optional[bool], default=True
+        x_axis_in_minutes : bool, default=True
             If True, the x-axis will be plotted using minutes.
+        ax : Optional[plt.Axes], default=None
+            Optional Matplotlib Axes.
+            If not provided, a new figure is created.
+        setup_figure_kwargs : Optional[dict], default=None
+            Additional options to setup the figure.
 
         Returns
         -------
-        fig : plt.Figure
-            The figure object containing the plot.
-        ax : plt.Axes
-            The axes object for the protein concentration.
-        sec_ax : plt.Axes
-            The secondary axes object for the salt concentration.
+        tuple[plt.Figure, tuple[plt.Axes, plt.Axes]]
+            Figure, primary Axes, and secondary Axes (if created or provided).
         """
         time = self.time
         t_at_max = self.t_at_max
@@ -149,30 +146,35 @@ class GradientExperiment:
             t_at_max = t_at_max / 60
             time_unit = "min"
 
-        # Example usage
-        with plotting.mpl_style_context("1.5_column"):
-            if ax is None:
-                fig, ax = plotting.setup_figure()
-
-            ax.set_xlabel(rf"$Time / {time_unit}$")
-            ax.set_ylabel(r"$c_{Protein} / \text{mM}$")
+        if ax is None:
+            fig, ax = plotting.setup_figure(**setup_figure_kwargs)
+            ax.set_xlabel(rf"$Time~/~{time_unit}$")
+            ax.set_ylabel(r"$c_{Protein}~/~\text{mM}$")
 
             sec_ax = ax.twinx()
-            sec_ax.set_ylabel(r"$c_{\text{Salt}} / \text{mM}$")
+            sec_ax.set_ylabel(r"$c_{\text{Salt}}~/~\text{mM}$")
+        else:
+            axs = ax
+            ax = axs[0]
+            sec_ax = axs[1]
+            fig = ax.figure
 
-            ax.plot(time, self.c_protein, label="Protein")
+        ax.plot(time, self.c_protein, label="Protein")
+        c_p_max = np.max(self.c_protein, axis=0)
+        ax.vlines(t_at_max, ymin=0, ymax=c_p_max, color="k", linestyle="--")
 
-            c_p_max = np.max(self.c_protein, axis=0)
-            ax.vlines(t_at_max, ymin=0, ymax=c_p_max, color="k", linestyle="--")
-            sec_ax.plot(time, self.c_salt, "k", label="Salt")
-            sec_ax.plot(t_at_max, self.c_salt_at_max, "ro")
+        sec_ax.plot(time, self.c_salt, "k", label="Salt")
+        sec_ax.plot(t_at_max, self.c_salt_at_max, "ro")
 
-            fig.tight_layout()
-
-        return fig, ax, sec_ax
+        return fig, (ax, sec_ax)
 
 
-def plot_experiments(experiments: list[GradientExperiment]) -> None:
+@plotting.figure_utils
+def plot_experiments(
+    experiments: list[GradientExperiment],
+    ax: Optional[plt.Axes] = None,
+    setup_figure_kwargs: Optional[dict] = None,
+) -> tuple[plt.Figure, tuple[plt.Axes, plt.Axes]]:
     """
     Plot multiple gradient experiments in a single figure.
 
@@ -180,13 +182,23 @@ def plot_experiments(experiments: list[GradientExperiment]) -> None:
     ----------
     experiments : list of GradientExperiment
         List of gradient experiment instances to plot.
+    ax : Optional[plt.Axes], default=None
+        Optional Matplotlib Axes.
+        If not provided, a new figure is created.
+    setup_figure_kwargs : Optional[dict], default=None
+        Additional options to setup the figure.
+
+    Returns
+    -------
+    tuple[plt.Figure, tuple[plt.Axes, plt.Axes]]
+        The Matplotlib Figure and Axes.
     """
-    fig = ax = sec_ax = None
-
     for exp in experiments:
-        fig, ax, sec_ax = exp.plot(fig, ax, sec_ax)
+        fig, ax = exp.plot(
+            ax=ax, setup_figure_kwargs=setup_figure_kwargs
+        )
 
-    return fig, ax, sec_ax
+    return fig, (ax[0], ax[1])
 
 
 def yamamoto_equation(
@@ -280,28 +292,28 @@ class YamamotoResults:
         """np.ndarray: Equilibrium constants of the binding model."""
         return np.array(self.column.binding_model.adsorption_rate[1:])
 
-    @plotting.create_and_save_figure
+    @plotting.figure_utils
     def plot(
         self,
-        ax: Optional[plt.Axes] = None
+        ax: Optional[plt.Axes] = None,
+        setup_figure_kwargs: Optional[dict] = None,
     ) -> tuple[plt.Figure, plt.Axes]:
         """
         Plot the normalized gradient slope against the peak salt concentration.
 
         Parameters
         ----------
-        fig : Optional[plt.Figure], default=None
-            Existing matplotlib Figure object.
-        ax : Optional[plt.Axes], default=None
-            Existing matplotlib Axes object.
-
-        Returns
-        -------
-        fig : plt.Figure
-            The figure object containing the plot.
-        ax : plt.Axes
-            The axes object for the plot.
+        ax : np.ndarray[plt.Axes] | None, default=None
+            Optional array of Matplotlib Axes.
+            If not provided, a new figure is created.
+        setup_figure_kwargs : dict | None, default=None
+            Additional options to setup the figure.
         """
+        if ax is None:
+            fig, ax = plotting.setup_figure(**setup_figure_kwargs)
+        else:
+            fig = ax.get_figure()
+
         n_proteins = self.experiments[0].n_proteins
 
         ax.set_ylabel(r"Normalized Gradient Slope $GH$ / $\text{M}$")
@@ -328,7 +340,7 @@ class YamamotoResults:
                 self.log_gradient_slope, "ro"
             )
 
-        return ax
+        return fig, ax
 
 
 def fit_parameters(
