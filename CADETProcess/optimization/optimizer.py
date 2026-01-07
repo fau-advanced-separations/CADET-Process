@@ -504,29 +504,29 @@ class OptimizerBase(Structure):
         self,
         X_transformed: npt.ArrayLike,
         F: npt.ArrayLike,
-        F_min: npt.ArrayLike,
+        F_minimized: npt.ArrayLike,
         G: npt.ArrayLike,
         CV_nonlincon: npt.ArrayLike,
     ) -> Population:
         """Create new population from current generation for post procesing."""
         X_transformed = np.array(X_transformed, ndmin=2)
         F = np.array(F, ndmin=2)
-        F_min = np.array(F_min, ndmin=2)
+        F_minimized = np.array(F_minimized, ndmin=2)
         G = np.array(G, ndmin=2)
         CV_nonlincon = np.array(CV_nonlincon, ndmin=2)
 
         if self.optimization_problem.n_meta_scores > 0:
-            M_min = self.optimization_problem.evaluate_meta_scores(
+            M_minimized = self.optimization_problem.evaluate_meta_scores(
                 X_transformed,
                 untransform=True,
                 ensure_minimization=True,
                 parallelization_backend=self.parallelization_backend,
             )
             M = self.optimization_problem.transform_maximization(
-                M_min, scores="meta_scores"
+                M_minimized, scores="meta_scores"
             )
         else:
-            M_min = None
+            M_minimized = None
             M = None
 
         if self.optimization_problem.n_nonlinear_constraints == 0:
@@ -539,11 +539,11 @@ class OptimizerBase(Structure):
         population = self.optimization_problem.create_population(
             X,
             F=F,
-            F_min=F_min,
+            F_minimized=F_minimized,
             G=G,
             CV_nonlincon=CV_nonlincon,
             M=M,
-            M_min=M_min,
+            M_minimized=M_minimized,
         )
 
         for ind in population:
