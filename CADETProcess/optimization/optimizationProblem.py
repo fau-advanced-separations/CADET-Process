@@ -3213,11 +3213,11 @@ class OptimizationProblem(Structure):
         self,
         x: np.ndarray,
         f: np.ndarray | None = None,
-        f_min: np.ndarray | None = None,
+        f_minimized: np.ndarray | None = None,
         g: np.ndarray | None = None,
         cv_nonlincon: np.ndarray | None = None,
         m: np.ndarray | None = None,
-        m_min: np.ndarray | None = None,
+        m_minimized: np.ndarray | None = None,
     ) -> Individual:
         """
         Create new individual from data.
@@ -3228,7 +3228,7 @@ class OptimizationProblem(Structure):
             Variable values in untransformed space.
         f : np.ndarray
             Objective values.
-        f_min : np.ndarray
+        f_minimized : np.ndarray
             Minimized objective values.
         g : np.ndarray
             Nonlinear constraint values.
@@ -3236,7 +3236,7 @@ class OptimizationProblem(Structure):
             Nonlinear constraints violation.
         m : np.ndarray
             Meta score values.
-        m_min : np.ndarray
+        m_minimized : np.ndarray
             Minimized meta score values.
 
         Returns
@@ -3258,11 +3258,11 @@ class OptimizationProblem(Structure):
             cv_lincon=cv_lincon,
             cv_lineqcon=cv_lineqcon,
             f=f,
-            f_min=f_min,
+            f_minimized=f_minimized,
             g=g,
             cv_nonlincon=cv_nonlincon,
             m=m,
-            m_min=m_min,
+            m_minimized=m_minimized,
             independent_variable_names=self.independent_variable_names,
             objective_labels=self.objective_labels,
             nonlinear_constraint_labels=self.nonlinear_constraint_labels,
@@ -3278,11 +3278,11 @@ class OptimizationProblem(Structure):
         self,
         X: npt.ArrayLike,
         F: npt.ArrayLike = None,
-        F_min: npt.ArrayLike | None = None,
+        F_minimized: npt.ArrayLike | None = None,
         G: npt.ArrayLike | None = None,
         CV_nonlincon: npt.ArrayLike | None = None,
         M: npt.ArrayLike | None = None,
-        M_min: npt.ArrayLike | None = None,
+        M_minimized: npt.ArrayLike | None = None,
     ) -> Population:
         """
         Create new population from data.
@@ -3293,7 +3293,7 @@ class OptimizationProblem(Structure):
             Variable values in untransformed space.
         F : npt.ArrayLike
             Objective values.
-        F_min : npt.ArrayLike
+        F_minimized : npt.ArrayLike
             Minimized objective values.
         G : npt.ArrayLike
             Nonlinear constraint values.
@@ -3301,7 +3301,7 @@ class OptimizationProblem(Structure):
             Nonlinear constraints violation.
         M : npt.ArrayLike
             Meta score values.
-        M_min : npt.ArrayLike
+        M_minimized : npt.ArrayLike
             Minimized meta score values.
 
         Returns
@@ -3316,10 +3316,10 @@ class OptimizationProblem(Structure):
         else:
             F = np.array(F, ndmin=2)
 
-        if F_min is None:
-            F_min = F
+        if F_minimized is None:
+            F_minimized = F
         else:
-            F_min = np.array(F_min, ndmin=2)
+            F_minimized = np.array(F_minimized, ndmin=2)
 
         if G is None:
             G = len(X) * [None]
@@ -3336,23 +3336,23 @@ class OptimizationProblem(Structure):
         else:
             M = np.array(M, ndmin=2)
 
-        if M_min is None:
-            M_min = M
+        if M_minimized is None:
+            M_minimized = M
         else:
-            M_min = np.array(M_min, ndmin=2)
+            M_minimized = np.array(M_minimized, ndmin=2)
 
         pop = Population()
-        for x, f, f_min, g, cv_nonlincon, m, m_min in zip(
-            X, F, F_min, G, CV_nonlincon, M, M_min
+        for x, f, f_minimized, g, cv_nonlincon, m, m_minimized in zip(
+            X, F, F_minimized, G, CV_nonlincon, M, M_minimized
         ):
             ind = self.create_individual(
                 x,
                 f=f,
-                f_min=f_min,
+                f_minimized=f_minimized,
                 g=g,
                 cv_nonlincon=cv_nonlincon,
                 m=m,
-                m_min=m_min,
+                m_minimized=m_minimized,
             )
             pop.add_individual(ind)
 

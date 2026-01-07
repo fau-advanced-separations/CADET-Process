@@ -1,4 +1,5 @@
 import hashlib
+import warnings
 from typing import Optional
 
 import numpy as np
@@ -55,7 +56,7 @@ class Individual(Structure):
         Linear equality constraint violations.
     f : np.ndarray
         Objective values.
-    f_min : np.ndarray
+    f_minimized : np.ndarray
         Minimized objective values.
     g : np.ndarray
         Nonlinear constraint values.
@@ -63,7 +64,7 @@ class Individual(Structure):
         Nonlinear constraints violation.
     m : np.ndarray
         Meta score values.
-    m_min : np.ndarray
+    m_minimized : np.ndarray
         Minimized meta score values.
     is_feasible : bool
         True, if individual fulfills all constraints.
@@ -79,12 +80,12 @@ class Individual(Structure):
     cv_lincon = Vector()
     cv_lineqcon = Vector()
     f = Vector()
-    f_min = Vector()
+    f_minimized = Vector()
     g = Vector()
     cv_nonlincon = Vector()
     cv_nonlincon_tol = Float()
     m = Vector()
-    m_min = Vector()
+    m_minimized = Vector()
     is_feasible = Bool()
 
     def __init__(
@@ -92,20 +93,22 @@ class Individual(Structure):
         x: npt.ArrayLike,
         f: Optional[npt.ArrayLike] = None,
         g: Optional[npt.ArrayLike] = None,
-        f_min: Optional[npt.ArrayLike] = None,
+        f_minimized: Optional[npt.ArrayLike] = None,
         x_transformed: Optional[npt.ArrayLike] = None,
         cv_bounds: Optional[npt.ArrayLike] = None,
         cv_lincon: Optional[npt.ArrayLike] = None,
         cv_lineqcon: Optional[npt.ArrayLike] = None,
         cv_nonlincon: Optional[npt.ArrayLike] = None,
         m: Optional[npt.ArrayLike] = None,
-        m_min: Optional[npt.ArrayLike] = None,
+        m_minimized: Optional[npt.ArrayLike] = None,
         independent_variable_names: list[str] = None,
         objective_labels: list[str] = None,
         nonlinear_constraint_labels: list[str] = None,
         meta_score_labels: list[str] = None,
         variable_names: list[str] = None,
         is_feasible: bool = True,
+        f_min: Optional[npt.ArrayLike] = None,
+        m_min: Optional[npt.ArrayLike] = None,
     ) -> None:
         """Initialize Individual Object."""
         self.x = x
@@ -119,9 +122,19 @@ class Individual(Structure):
         self.cv_lineqcon = cv_lineqcon
 
         self.f = f
-        if f_min is None:
-            f_min = f
-        self.f_min = f_min
+        if f_min is not None:
+            warnings.warn(
+                "The 'f_min' argument is deprecated and will be removed in a future version. "
+                "Use 'f_minimized' instead.",
+                DeprecationWarning,
+                stacklevel=2
+            )
+            if f_minimized is not None:
+                raise ValueError("Cannot specify both 'f_min' and 'f_minimized'.")
+            f_minimized = f_min
+        if f_minimized is None:
+            f_minimized = f
+        self.f_minimized = f_minimized
 
         self.g = g
         if g is not None and cv_nonlincon is None:
@@ -129,9 +142,19 @@ class Individual(Structure):
         self.cv_nonlincon = cv_nonlincon
 
         self.m = m
-        if m_min is None:
-            m_min = m
-        self.m_min = m_min
+        if m_min is not None:
+            warnings.warn(
+                "The 'm_min' argument is deprecated and will be removed in a future version. "
+                "Use 'm_minimized' instead.",
+                DeprecationWarning,
+                stacklevel=2
+            )
+            if m_minimized is not None:
+                raise ValueError("Cannot specify both 'm_min' and 'm_minimized'.")
+            m_minimized = m_min
+        if m_minimized is None:
+            m_minimized = m
+        self.m_minimized = m_minimized
 
         if isinstance(variable_names, np.ndarray):
             variable_names = [s.decode() for s in variable_names]
@@ -220,12 +243,12 @@ class Individual(Structure):
     @property
     def objectives_minimization_factors(self) -> np.ndarray:
         """np.ndarray: Array indicating objectives transformed to minimization."""
-        return self.f_min / self.f
+        return self.f_minimized / self.f
 
     @property
-    def meta_scores_minimization_factors(self) -> np.ndarray:
+    def meta_scores_minimization_factors(self) -> np.ndarray | None:
         """np.ndarray: Array indicating meta sorces transformed to minimization."""
-        return self.m_min / self.m
+        return self.m_minimized / self.m
 
     def dominates(self, other: "Individual") -> bool:
         """
@@ -260,11 +283,11 @@ class Individual(Structure):
                 return better_in_all and strictly_better_in_one
 
         if self.m is not None:
-            self_values = self.m_min
-            other_values = other.m_min
+            self_values = self.m_minimized
+            other_values = other.m_minimized
         else:
-            self_values = self.f_min
-            other_values = other.f_min
+            self_values = self.f_minimized
+            other_values = other.f_minimized
 
         if np.any(self_values > other_values):
             return False
@@ -430,7 +453,7 @@ class Individual(Structure):
         data.cv_lineqcon = self.cv_lineqcon
 
         data.f = self.f
-        data.f_min = self.f_min
+        data.f_minimized = self.f_minimized
 
         if self.g is not None:
             data.g = self.g
@@ -438,7 +461,7 @@ class Individual(Structure):
 
         if self.m is not None:
             data.m = self.m
-            data.m_min = self.m_min
+            data.m_minimized = self.m_minimized
 
         data.variable_names = self.variable_names
         data.independent_variable_names = self.independent_variable_names

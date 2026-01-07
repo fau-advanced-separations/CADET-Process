@@ -299,7 +299,7 @@ class Population:
     @property
     def f_minimized(self) -> np.ndarray:
         """np.ndarray: All evaluated objective function values as if minimized."""
-        return np.array([ind.f_min for ind in self.individuals])
+        return np.array([ind.f_minimized for ind in self.individuals])
 
     @property
     def f_best(self) -> np.ndarray:
@@ -313,95 +313,101 @@ class Population:
         return np.argmin(self.f_minimized, axis=0)
 
     @property
-    def g(self) -> np.ndarray:
+    def g(self) -> np.ndarray | None:
         """np.ndarray: All evaluated nonlinear constraint function values."""
         if self.dimensions[2] > 0:
             return np.array([ind.g for ind in self.individuals])
 
     @property
-    def g_min(self) -> np.ndarray:
+    def g_min(self) -> np.ndarray | None:
         """np.ndarray: Minimum nonlinear constraint values."""
         if self.dimensions[2] > 0:
             return np.min(self.g, axis=0)
 
     @property
-    def g_max(self) -> np.ndarray:
+    def g_max(self) -> np.ndarray | None:
         """np.ndarray: Maximum nonlinear constraint values."""
         if self.dimensions[2] > 0:
             return np.max(self.g, axis=0)
 
     @property
-    def g_avg(self) -> np.ndarray:
+    def g_avg(self) -> np.ndarray | None:
         """np.ndarray: Average nonlinear constraint values."""
         if self.dimensions[2] > 0:
             return np.mean(self.g, axis=0)
 
     @property
-    def g_best(self) -> np.ndarray:
+    def g_best(self) -> np.ndarray | None:
         """np.ndarray: Best nonlinear constraint values."""
         indices = np.argmin(self.cv_nonlincon, axis=0)
         return [self.g[ind, i] for i, ind in enumerate(indices)]
 
     @property
-    def cv_nonlincon(self) -> np.ndarray:
+    def cv_nonlincon(self) -> np.ndarray | None:
         """np.ndarray: All evaluated nonlinear constraint violation values."""
         if self.dimensions[2] > 0:
             return np.array([ind.cv_nonlincon for ind in self.individuals])
 
     @property
-    def cv_nonlincon_min(self) -> np.ndarray:
+    def cv_nonlincon_min(self) -> np.ndarray | None:
         """np.ndarray: Minimum nonlinear constraint violation values."""
         if self.dimensions[2] > 0:
             return np.min(self.cv_nonlincon, axis=0)
 
     @property
-    def cv_nonlincon_max(self) -> np.ndarray:
+    def cv_nonlincon_max(self) -> np.ndarray | None:
         """np.ndarray: Maximum nonlinearconstraint violation values."""
         if self.dimensions[2] > 0:
             return np.max(self.cv_nonlincon, axis=0)
 
     @property
-    def cv_nonlincon_avg(self) -> np.ndarray:
+    def cv_nonlincon_avg(self) -> np.ndarray | None:
         """np.ndarray: Average nonlinear constraint violation values."""
         if self.dimensions[2] > 0:
             return np.mean(self.cv_nonlincon, axis=0)
 
     @property
-    def m(self) -> np.ndarray:
+    def m(self) -> np.ndarray | None:
         """np.ndarray: All evaluated meta scores."""
         if self.dimensions[3] > 0:
             return np.array([ind.m for ind in self.individuals])
 
     @property
-    def m_minimized(self) -> np.ndarray:
-        """np.ndarray: All evaluated meta scores, transformed to be minimized."""
+    def m_min(self) -> np.ndarray | None:
+        """np.ndarray: Minimum meta scores."""
         if self.dimensions[3] > 0:
-            return np.array([ind.m_min for ind in self.individuals])
+            return np.min(self.m, axis=0)
 
     @property
-    def m_best(self) -> np.ndarray:
+    def m_max(self) -> np.ndarray | None:
+        """np.ndarray: Maximum meta scores."""
+        if self.dimensions[3] > 0:
+            return np.max(self.m, axis=0)
+
+    @property
+    def m_avg(self) -> np.ndarray | None:
+        """np.ndarray: Average meta scores."""
+        if self.dimensions[3] > 0:
+            return np.mean(self.m, axis=0)
+
+    @property
+    def m_minimized(self) -> np.ndarray | None:
+        """np.ndarray: All evaluated meta scores, transformed to be minimized."""
+        if self.dimensions[3] > 0:
+            return np.array([ind.m_minimized for ind in self.individuals])
+
+    @property
+    def m_best(self) -> np.ndarray | None:
         """np.ndarray: Best meta scores."""
         if self.dimensions[3] > 0:
             m_best = np.min(self.m_minimized, axis=0)
             return np.multiply(self.meta_scores_minimization_factors, m_best)
 
     @property
-    def m_min(self) -> np.ndarray:
-        """np.ndarray: Minimum meta scores."""
+    def m_best_indices(self) -> np.ndarray | None:
+        """np.ndarray: Indices of the best meta scores."""
         if self.dimensions[3] > 0:
-            return np.min(self.m, axis=0)
-
-    @property
-    def m_max(self) -> np.ndarray:
-        """np.ndarray: Maximum meta scores."""
-        if self.dimensions[3] > 0:
-            return np.max(self.m, axis=0)
-
-    @property
-    def m_avg(self) -> np.ndarray:
-        """np.ndarray: Average meta scores."""
-        if self.dimensions[3] > 0:
-            return np.mean(self.m, axis=0)
+            return np.argmin(self.m_minimized, axis=0)
 
     @property
     def is_feasilbe(self) -> bool:
