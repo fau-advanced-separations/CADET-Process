@@ -243,12 +243,13 @@ class Individual(Structure):
     @property
     def objectives_minimization_factors(self) -> np.ndarray:
         """np.ndarray: Array indicating objectives transformed to minimization."""
-        return self.f_minimized / self.f
+        return np.where(np.signbit(self.f_minimized) == np.signbit(self.f), 1, -1)
 
     @property
     def meta_scores_minimization_factors(self) -> np.ndarray | None:
         """np.ndarray: Array indicating meta sorces transformed to minimization."""
-        return self.m_minimized / self.m
+        if self.m is not None:
+            return np.where(np.signbit(self.m_minimized) == np.signbit(self.m), 1, -1)
 
     def dominates(self, other: "Individual") -> bool:
         """
