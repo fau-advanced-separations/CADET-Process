@@ -155,8 +155,8 @@ class FractionationOptimizer:
         self,
         frac: Fractionator,
         purity_required: list[float],
+        ranking: list[float],
         allow_empty_fractions: bool = True,
-        ranking: str | list[float] | int = "equal",
         obj_fun: Optional[Callable] = None,
         minimize: bool = True,
         bad_metrics: Optional[float | list[float]] = None,
@@ -171,12 +171,10 @@ class FractionationOptimizer:
             The Fractionator object.
         purity_required : list[float]
             Minimum purity required for the components in the fractionation.
+        ranking : list[float]
+            Weighting factors for individual components.
         allow_empty_fractions: bool, optional
             If True, allow empty fractions. The default is True.
-        ranking : str | list[float] | int, optional, default="equal",
-            Weighting factors for individual components.
-            If "equal", the same value is assumed for all components.
-            If integer, only component of that index is used.
         obj_fun : callable, optional
             Alternative objective function.
             If no function is provided, the fraction mass is maximized.
@@ -363,9 +361,22 @@ class FractionationOptimizer:
         if len(simulation_results.chromatograms) == 0:
             raise CADETProcessError("Simulation results do not contain chromatogram.")
 
+        # Convert inputs to lists of length n_comp
+        n_comp = simulation_results.component_system.n_comp
         if isinstance(purity_required, float):
-            n_comp = simulation_results.component_system.n_comp
             purity_required = n_comp * [purity_required]
+        if ranking == "equal":
+            ranking = n_comp * [1.0]
+        if isinstance(ranking, int):
+            index = ranking
+            ranking = n_comp * [0.0]
+            ranking[index] = 1.0
+
+        # Synchronize zeros between purity_required and ranking
+        for i in range(n_comp):
+            if purity_required[i] == 0 or ranking[i] == 0:
+                purity_required[i] = 0.0
+                ranking[i] = 0.0
 
         # Store previous lock state, unlock to ensure consistent values
         lock_state = simulation_results.process.lock
@@ -382,8 +393,8 @@ class FractionationOptimizer:
         opt, x0 = self._setup_optimization_problem(
             frac,
             purity_required,
-            allow_empty_fractions=allow_empty_fractions,
             ranking=ranking,
+            allow_empty_fractions=allow_empty_fractions,
             obj_fun=obj_fun,
             n_objectives=n_objectives,
             minimize=minimize,
