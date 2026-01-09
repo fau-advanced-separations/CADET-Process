@@ -955,6 +955,8 @@ class OptimizationResults(Structure):
             self._meta_fronts = [
                 ParetoFront.from_dict(d) for d in data["meta_fronts"].values()
             ]
+        self.time_elapsed = data.get("time_elapsed")
+        self.cpu_time = data.get("cpu_time")
 
     def setup_csv(self) -> None:
         """Create csv files for optimization results."""
