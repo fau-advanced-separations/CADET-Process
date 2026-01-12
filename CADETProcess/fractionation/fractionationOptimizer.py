@@ -403,6 +403,7 @@ class FractionationOptimizer:
 
         # Lock to enable caching
         simulation_results.process.lock = True
+
         try:
             results = self.optimizer.optimize(
                 opt,
@@ -413,12 +414,16 @@ class FractionationOptimizer:
             )
             opt.set_variables(results.x[0])
             frac.reset()
-        except CADETProcessError as e:
+        except (ValueError, CADETProcessError) as e:
+            message = (
+                f"Optimization failed due to {type(e).__name__}: {str(e)} "
+                "Returning initial values."
+            )
             if ignore_failed:
-                warnings.warn("Optimization failed. Returning initial values")
+                warnings.warn(message)
                 frac.initial_values(purity_required)
             else:
-                raise CADETProcessError(str(e))
+                raise CADETProcessError(message)
         finally:
             # Restore previous lock state
             simulation_results.process.lock = lock_state
