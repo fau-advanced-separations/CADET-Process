@@ -1849,6 +1849,7 @@ class OptimizationProblem(Structure):
         name: Optional[str] = None,
         n_meta_scores: int = 1,
         minimize: bool = True,
+        bad_metrics: Optional[float | list[float]] = None,
         evaluation_objects: Optional[object | int | list] = -1,
         requires: Optional[Evaluator | list] = None,
     ) -> None:
@@ -1866,6 +1867,8 @@ class OptimizationProblem(Structure):
             The default is 1.
         minimize : bool, optional
             If True, meta score is treated as minimization problem. The default is True.
+        bad_metrics : flot or list of floats, optional
+            Value which is returned when evaluation fails.
         evaluation_objects : {EvaluationObject, None, -1, list}
             EvaluationObjects which are evaluated by objective.
             If None, no EvaluationObject is used.
@@ -1898,6 +1901,9 @@ class OptimizationProblem(Structure):
         if name in self.meta_score_names:
             warnings.warn("Meta score with same name already exists.")
 
+        if bad_metrics is None and isinstance(meta_score, MetricBase):
+            bad_metrics = meta_score.bad_metrics
+
         if evaluation_objects is None:
             evaluation_objects = []
         elif evaluation_objects == -1:
@@ -1922,6 +1928,8 @@ class OptimizationProblem(Structure):
             meta_score,
             name,
             n_meta_scores=n_meta_scores,
+            minimize=minimize,
+            bad_metrics=bad_metrics,
             evaluation_objects=evaluation_objects,
             evaluators=evaluators,
         )
