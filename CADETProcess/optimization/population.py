@@ -294,7 +294,8 @@ class Population:
     @property
     def f_avg(self) -> np.ndarray:
         """np.ndarray: Average objective values."""
-        return np.mean(self.f, axis=0)
+        masked_f = np.ma.masked_invalid(self.f)
+        return np.mean(masked_f, axis=0)
 
     @property
     def f_minimized(self) -> np.ndarray:
@@ -334,7 +335,8 @@ class Population:
     def g_avg(self) -> np.ndarray | None:
         """np.ndarray: Average nonlinear constraint values."""
         if self.n_g > 0:
-            return np.mean(self.g, axis=0)
+            masked_g = np.ma.masked_invalid(self.g)
+            return np.mean(masked_g, axis=0)
 
     @property
     def g_best(self) -> np.ndarray | None:
@@ -364,7 +366,8 @@ class Population:
     def cv_nonlincon_avg(self) -> np.ndarray | None:
         """np.ndarray: Average nonlinear constraint violation values."""
         if self.n_g > 0:
-            return np.mean(self.cv_nonlincon, axis=0)
+            masked_cv_nonlincon = np.ma.masked_invalid(self.cv_nonlincon)
+            return np.mean(masked_cv_nonlincon, axis=0)
 
     @property
     def m(self) -> np.ndarray | None:
@@ -388,7 +391,8 @@ class Population:
     def m_avg(self) -> np.ndarray | None:
         """np.ndarray: Average meta scores."""
         if self.n_m > 0:
-            return np.mean(self.m, axis=0)
+            masked_m = np.ma.masked_invalid(self.m)
+            return np.mean(masked_m, axis=0)
 
     @property
     def m_minimized(self) -> np.ndarray | None:
