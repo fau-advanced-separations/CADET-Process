@@ -315,27 +315,27 @@ class OptimizationResults(Structure):
     @property
     def f_best_history(self) -> np.ndarray:
         """np.ndarray: Best objective values per generation."""
-        return np.array([pop.f_best for pop in self.meta_fronts])
+        return np.array([pop.f_best for pop in self.populations])
 
     @property
     def f_min_history(self) -> np.ndarray:
         """np.ndarray: Minimum objective values per generation."""
-        return np.array([pop.f_min for pop in self.meta_fronts])
+        return np.array([pop.f_min for pop in self.populations])
 
     @property
     def f_max_history(self) -> np.ndarray:
         """np.ndarray: Maximum objective values per generation."""
-        return np.array([pop.f_max for pop in self.meta_fronts])
+        return np.array([pop.f_max for pop in self.populations])
 
     @property
     def f_avg_history(self) -> np.ndarray:
         """np.ndarray: Average objective values per generation."""
-        return np.array([pop.f_avg for pop in self.meta_fronts])
+        return np.array([pop.f_avg for pop in self.populations])
 
     @property
     def g_best_history(self) -> np.ndarray:
         """np.ndarray: Best nonlinear constraint per generation."""
-        return np.array([pop.g_best for pop in self.meta_fronts])
+        return np.array([pop.g_best for pop in self.populations])
 
     @property
     def g_min_history(self) -> np.ndarray:
@@ -343,7 +343,7 @@ class OptimizationResults(Structure):
         if self.optimization_problem.n_nonlinear_constraints == 0:
             return None
         else:
-            return np.array([pop.g_min for pop in self.meta_fronts])
+            return np.array([pop.g_min for pop in self.populations])
 
     @property
     def g_max_history(self) -> np.ndarray:
@@ -351,7 +351,7 @@ class OptimizationResults(Structure):
         if self.optimization_problem.n_nonlinear_constraints == 0:
             return None
         else:
-            return np.array([pop.g_max for pop in self.meta_fronts])
+            return np.array([pop.g_max for pop in self.populations])
 
     @property
     def g_avg_history(self) -> np.ndarray:
@@ -359,7 +359,7 @@ class OptimizationResults(Structure):
         if self.optimization_problem.n_nonlinear_constraints == 0:
             return None
         else:
-            return np.array([pop.g_avg for pop in self.meta_fronts])
+            return np.array([pop.g_avg for pop in self.populations])
 
     @property
     def cv_nonlincon_min_history(self) -> np.ndarray:
@@ -367,7 +367,7 @@ class OptimizationResults(Structure):
         if self.optimization_problem.n_nonlinear_constraints == 0:
             return None
         else:
-            return np.array([pop.cv_nonlincon_min for pop in self.meta_fronts])
+            return np.array([pop.cv_nonlincon_min for pop in self.populations])
 
     @property
     def cv_nonlincon_max_history(self) -> np.ndarray:
@@ -375,7 +375,7 @@ class OptimizationResults(Structure):
         if self.optimization_problem.n_nonlinear_constraints == 0:
             return None
         else:
-            return np.array([pop.cv_nonlincon_max for pop in self.meta_fronts])
+            return np.array([pop.cv_nonlincon_max for pop in self.populations])
 
     @property
     def cv_nonlincon_avg_history(self) -> np.ndarray:
@@ -383,12 +383,12 @@ class OptimizationResults(Structure):
         if self.optimization_problem.n_nonlinear_constraints == 0:
             return None
         else:
-            return np.array([pop.cv_nonlincon_avg for pop in self.meta_fronts])
+            return np.array([pop.cv_nonlincon_avg for pop in self.populations])
 
     @property
     def m_best_history(self) -> np.ndarray:
         """np.ndarray: Best meta scores per generation."""
-        return np.array([pop.m_best for pop in self.meta_fronts])
+        return np.array([pop.m_best for pop in self.populations])
 
     @property
     def m_min_history(self) -> np.ndarray:
@@ -396,7 +396,7 @@ class OptimizationResults(Structure):
         if self.optimization_problem.n_meta_scores == 0:
             return None
         else:
-            return np.array([pop.m_min for pop in self.meta_fronts])
+            return np.array([pop.m_min for pop in self.populations])
 
     @property
     def m_max_history(self) -> np.ndarray:
@@ -404,7 +404,7 @@ class OptimizationResults(Structure):
         if self.optimization_problem.n_meta_scores == 0:
             return None
         else:
-            return np.array([pop.m_max for pop in self.meta_fronts])
+            return np.array([pop.m_max for pop in self.populations])
 
     @property
     def m_avg_history(self) -> np.ndarray:
@@ -412,7 +412,7 @@ class OptimizationResults(Structure):
         if self.optimization_problem.n_meta_scores == 0:
             return None
         else:
-            return np.array([pop.m_avg for pop in self.meta_fronts])
+            return np.array([pop.m_avg for pop in self.populations])
 
     def plot_figures(self, show: bool = True) -> None:
         """

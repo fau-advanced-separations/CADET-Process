@@ -127,7 +127,7 @@ class TestOptimizationResults(unittest.TestCase):
             [
                 [-0.79736546],
                 [-0.94888115],
-                [-0.94888115],
+                [-0.46519315],
             ]
         )
         f_min_history = self.optimization_results.f_min_history
