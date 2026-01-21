@@ -213,10 +213,10 @@ class OptimizationResults(Structure):
         pareto_front = ParetoFront(similarity_tol=self._similarity_tol)
 
         if pareto_new is not None:
-            pareto_front.update_population(pareto_new)
+            pareto_front.update(pareto_new)
         else:
             if len(self.pareto_fronts) > 0:
-                pareto_front.update_population(self.pareto_front)
+                pareto_front.update(self.pareto_front)
             pareto_front.update_population(self.population_last)
 
         if self._similarity_tol:
