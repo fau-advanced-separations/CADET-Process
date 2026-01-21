@@ -265,38 +265,91 @@ class Individual(Structure):
         dominates : bool
             True if objectives of "self" are not strictly worse than the
             corresponding objectives of "other" and at least one objective is
-            strictly better. False otherwise
+            strictly better. False otherwise.
         """
+        dominates_f = self.dominates_f(other)
+
+        if self.m is not None:
+            dominates_m = self.dominates_m(other)
+        else:
+            dominates_m = True
+
+        return dominates_f and dominates_m
+
+    def _dominates(self, other: "Individual", attr: str) -> bool:
+        """
+        Determine if individual dominates other in terms of some value.
+
+        Parameters
+        ----------
+        other : Individual
+            Other individual
+
+        Returns
+        -------
+        dominates : bool
+            True if values of "self" are not strictly worse than the
+            corresponding values of "other" and at least one value is
+            strictly better. False otherwise.
+        """
+        # Evaluation checks
         if not self.is_evaluated:
             raise CADETProcessError("Individual needs to be evaluated first.")
         if not other.is_evaluated:
             raise CADETProcessError("Other individual needs to be evaluated first.")
 
+        # Feasibility check
         if self.is_feasible and not other.is_feasible:
             return True
         if not self.is_feasible and other.is_feasible:
             return False
-
         if not self.is_feasible and not other.is_feasible:
-            if np.any(self.cv < other.cv):
-                better_in_all = np.all(self.cv <= other.cv)
-                strictly_better_in_one = np.any(self.cv < other.cv)
-                return better_in_all and strictly_better_in_one
+            better_in_all = np.all(self.cv <= other.cv)
+            strictly_better_in_one = np.any(self.cv < other.cv)
+            return better_in_all and strictly_better_in_one
 
-        if self.m is not None:
-            self_values = self.m_minimized
-            other_values = other.m_minimized
-        else:
-            self_values = self.f_minimized
-            other_values = other.f_minimized
+        # Objective comparison
+        self_value = getattr(self, attr)
+        other_value = getattr(other, attr)
+        better_in_all = np.all(self_value <= other_value)
+        strictly_better_in_one = np.any(self_value < other_value)
+        return better_in_all and strictly_better_in_one
 
-        if np.any(self_values > other_values):
-            return False
+    def dominates_f(self, other: "Individual") -> bool:
+        """
+        Determine if individual dominates other in terms of objectives.
 
-        if np.any(self_values < other_values):
-            return True
+        Parameters
+        ----------
+        other : Individual
+            Other individual
 
-        return False
+        Returns
+        -------
+        dominates : bool
+            True if objectives of "self" are not strictly worse than the
+            corresponding objectives of "other" and at least one objective is
+            strictly better. False otherwise.
+        """
+        return self._dominates(other, "f_minimized")
+
+    def dominates_m(self, other: "Individual") -> bool:
+        """
+        Determine if individual dominates other in terms of meta scores.
+
+        Parameters
+        ----------
+        other : Individual
+            Other individual
+
+        Returns
+        -------
+        dominates : bool
+            True if meta scores of "self" are not strictly worse than the
+            corresponding objectives of "other" and at least one score is
+            strictly better. False otherwise.
+        """
+        return self._dominates(other, "m_minimized")
 
     def is_similar(self, other: "Individual", tol: float = 1e-1) -> bool:
         """
