@@ -11,7 +11,7 @@ import uuid
 import warnings
 from functools import wraps
 from pathlib import Path
-from typing import Any, NoReturn, Optional
+from typing import Any, Literal, Optional
 
 import hopsy
 import numpy as np
@@ -216,9 +216,10 @@ class OptimizationProblem(Structure):
 
         return wrapper_ensures2d
 
-    def ensures_minimization(scores: npt.ArrayLike) -> tp.Callable:
+    def ensures_minimization(
+        scores: Literal["objectives", "meta_scores"]
+    ) -> tp.Callable:
         """Convert maximization problems to minimization problems."""
-
         def wrap(func: tp.Callable) -> tp.Callable:
             @wraps(func)
             def wrapper_ensures_minimization(
@@ -239,7 +240,9 @@ class OptimizationProblem(Structure):
         return wrap
 
     def transform_maximization(
-        self: Any, s: list[float], scores: str | list
+        self: Any,
+        s: list[float],
+        scores: Literal["objectives", "meta_scores"],
     ) -> list[float]:
         """Transform maximization problems to minimization problems."""
         factors = []
@@ -1730,7 +1733,7 @@ class OptimizationProblem(Structure):
         current_iteration: int = 0,
         parallelization_backend: ParallelizationBackendBase | None = None,
         force: bool = False,
-    ) -> NoReturn:
+    ) -> None:
         """
         Evaluate callback functions for each individual x in population X.
 
