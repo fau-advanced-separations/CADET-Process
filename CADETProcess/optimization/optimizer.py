@@ -519,6 +519,7 @@ class OptimizerBase(Structure):
             M_minimized = self.optimization_problem.evaluate_meta_scores(
                 X_transformed,
                 untransform=True,
+                get_dependent_values=True,
                 ensure_minimization=True,
                 parallelization_backend=self.parallelization_backend,
             )
