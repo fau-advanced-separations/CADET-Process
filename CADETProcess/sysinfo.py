@@ -1,4 +1,5 @@
 import platform
+
 import psutil
 
 uname = platform.uname()
