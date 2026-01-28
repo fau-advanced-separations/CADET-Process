@@ -1,8 +1,8 @@
 import unittest
 
+import numpy as np
 from CADETProcess import CADETProcessError
 from CADETProcess.fractionation import Fraction, FractionPool
-import numpy as np
 
 
 class Test_Fractions(unittest.TestCase):
