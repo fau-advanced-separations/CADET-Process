@@ -1,36 +1,37 @@
 import unittest
 
-import CADETProcess
+from CADETProcess import CADETProcessError
+from CADETProcess.fractionation import Fraction, FractionPool
 import numpy as np
 
 
 class Test_Fractions(unittest.TestCase):
     def create_fractions(self):
         m_0 = np.array([0, 0])
-        frac0 = CADETProcess.fractionation.Fraction(m_0, 1)
+        frac0 = Fraction(m_0, 1)
         m_1 = np.array([3, 0])
-        frac1 = CADETProcess.fractionation.Fraction(m_1, 2)
+        frac1 = Fraction(m_1, 2)
         m_2 = np.array([1, 2])
-        frac2 = CADETProcess.fractionation.Fraction(m_2, 3)
+        frac2 = Fraction(m_2, 3)
         m_3 = np.array([0, 2])
-        frac3 = CADETProcess.fractionation.Fraction(m_3, 3)
+        frac3 = Fraction(m_3, 3)
         m_4 = np.array([0, 0])
-        frac4 = CADETProcess.fractionation.Fraction(m_4, 0)
+        frac4 = Fraction(m_4, 0)
 
         return frac0, frac1, frac2, frac3, frac4
 
     def create_pools(self):
         fractions = self.create_fractions()
 
-        pool_waste = CADETProcess.fractionation.FractionPool(n_comp=2)
+        pool_waste = FractionPool(n_comp=2)
         pool_waste.add_fraction(fractions[0])
         pool_waste.add_fraction(fractions[1])
         pool_waste.add_fraction(fractions[2])
 
-        pool_1 = CADETProcess.fractionation.FractionPool(n_comp=2)
+        pool_1 = FractionPool(n_comp=2)
         pool_1.add_fraction(fractions[3])
 
-        pool_2 = CADETProcess.fractionation.FractionPool(n_comp=2)
+        pool_2 = FractionPool(n_comp=2)
         pool_2.add_fraction(fractions[4])
 
         return pool_waste, pool_1, pool_2
@@ -69,9 +70,9 @@ class Test_Fractions(unittest.TestCase):
         self.assertEqual(pools[0].fractions[0].n_comp, 2)
 
         m_wrong_n_comp = np.array([0, 0, 0])
-        frac_wrong_n_comp = CADETProcess.fractionation.Fraction(m_wrong_n_comp, 1)
+        frac_wrong_n_comp = Fraction(m_wrong_n_comp, 1)
 
-        with self.assertRaises(CADETProcess.CADETProcessError):
+        with self.assertRaises(CADETProcessError):
             pools[0].add_fraction(frac_wrong_n_comp)
 
     def test_pool_mass(self):
