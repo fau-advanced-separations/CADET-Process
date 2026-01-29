@@ -2,7 +2,6 @@ name: cadet-process
 channels:
   - conda-forge
 dependencies:
-  - libsqlite<3.49
   - python>=3.12.*
   - cadet>=5.1.0
   - pip
