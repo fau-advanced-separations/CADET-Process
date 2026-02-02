@@ -111,7 +111,6 @@ class SerialColumns(Process):
             {"column_2": 1},
             time=t_serial_on,
         )
-        self.add_event_dependency('serial_on', ['feed_on'], [1])
         self.add_event('eluent_2_off', 'flow_sheet.eluent_2.flow_rate', 0.0)
         self.add_event_dependency('eluent_2_off', ['serial_on'], [1])
 
