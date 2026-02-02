@@ -720,7 +720,7 @@ class Population:
         """
         if isinstance(other, Individual):
             key = other.id
-        elif isinstance(other, (np.array, list)):
+        elif isinstance(other, (np.ndarray, list)):
             key = hash_array(other)
         else:
             key = None
