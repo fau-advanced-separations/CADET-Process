@@ -2,8 +2,11 @@
 
 ## Special thanks to everyone who has helped with this project
 
+* [Johannes Schmölder](https://github.com/schmoelder) (Forschungszentrum Juelich GmbH, IBG-1: Biotechnology, Juelich, Germany)
 * [Ronald Jäpel](https://github.com/ronald-jaepel)
 * [Florian Schnunk](https://github.com/flo-schu)
+* [Hannah Lanzrath](https://github.com/hannahlanzrath) (Forschungszentrum Juelich GmbH, IBG-1: Biotechnology, Juelich, Germany)
+* [Daniel Klauss](https://github.com/daklauss) (Forschungszentrum Juelich GmbH, IBG-1: Biotechnology, Juelich, Germany)
 
 ## Funding Acknowledgement
 
