@@ -11,6 +11,7 @@ from CADETProcess.optimization import (
     OptimizationProblem,
     OptimizationResults,
     OptimizerBase,
+    compute_initial_radius,
 )
 from CADETProcess.performance import Mass, Performance, Purity
 from CADETProcess.simulationResults import SimulationResults
@@ -284,6 +285,7 @@ class FractionationOptimizer:
         bad_metrics: float | list[float] = 0,
         minimize: bool = True,
         allow_empty_fractions: bool = True,
+        scale_trust_radius: bool = False,
         ignore_failed: bool = False,
         return_optimization_results: bool = False,
         save_results: bool = False,
@@ -321,6 +323,9 @@ class FractionationOptimizer:
             The default it True.
         allow_empty_fractions: bool, optional
             If True, allow empty fractions. The default is True.
+        scale_trust_radius: bool, optional
+            If True, scale initial trust radius depending on linear constraints
+            and initial values. The default is False.
         ignore_failed : bool, optional
             Ignore failed optimization and use initial values.
             The default is False.
@@ -400,6 +405,19 @@ class FractionationOptimizer:
             minimize=minimize,
             bad_metrics=bad_metrics,
         )
+
+        if scale_trust_radius:
+            x0_transformed = opt.transform(x0)
+            tr_radius = compute_initial_radius(
+                x0_transformed,
+                opt.A_transformed,
+                opt.n_linear_constraints * [-np.inf],
+                opt.b_transformed,
+                min_radius=0.01,
+            )
+            if isinstance(self.optimizer, COBYLA):
+                self.optimizer.rhobeg = tr_radius
+                self.optimizer.tol = min(self.optimizer.rhobeg, self.optimizer.tol)
 
         # Lock to enable caching
         simulation_results.process.lock = True

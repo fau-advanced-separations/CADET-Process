@@ -26,7 +26,10 @@ from CADETProcess.optimization import (
     Population,
 )
 
-__all__ = ["OptimizerBase"]
+__all__ = [
+    "OptimizerBase",
+    "compute_initial_radius"
+]
 
 
 class OptimizerBase(Structure):
@@ -750,3 +753,65 @@ class OptimizerBase(Structure):
     def __str__(self) -> str:
         """str: String representation."""
         return self.__class__.__name__
+
+
+def compute_initial_radius(
+    x0: npt.ArrayLike,
+    A: npt.ArrayLike,
+    lb_lincon: npt.ArrayLike,
+    ub_lincon: npt.ArrayLike,
+    min_radius: float = 1.0,
+    safety: float = 0.5,
+    slack_cap: float = 1.0,
+) -> float:
+    """
+    Compute initial trust-region radius with linear constraints.
+
+    Parameters
+    ----------
+    x0 : array_like
+        Initial point (must be strictly feasible).
+    A : array_like
+        Linear constraint matrix with shape (m, n).
+    lb_lincon, ub_lincon : array_like
+        Lower and upper bounds for A @ x.
+    min_radius : float, optional
+        Minimum value for trust-region radius.
+    safety : float, optional
+        Interior safety factor (< 1).
+    slack_cap : float, optional
+        Upper cap on slack influence.
+
+    Returns
+    -------
+    float
+        Initial trust-region radius.
+    """
+    tr_radius = float(min_radius)
+
+    A = np.asarray(A)
+    if A.size == 0:
+        return tr_radius
+
+    A_abs_max = np.max(np.abs(A))
+    if A_abs_max == 0.0:
+        # Constraints are degenerate; ignore them
+        return tr_radius
+
+    x0 = np.asarray(x0)
+    lb_lincon = np.asarray(lb_lincon)
+    ub_lincon = np.asarray(ub_lincon)
+
+    Ax0 = A @ x0
+
+    # Enforce strict feasibility
+    if np.any(Ax0 <= lb_lincon) or np.any(Ax0 >= ub_lincon):
+        raise ValueError("x0 must be strictly feasible for linear constraints")
+
+    slack = np.minimum(Ax0 - lb_lincon, ub_lincon - Ax0)
+
+    # Convert constraint-space slack into x-space radius
+    scale = 1.0 / A_abs_max
+    tr_scaled = safety * min(np.min(slack), slack_cap) * scale
+
+    return min(tr_radius, tr_scaled)
