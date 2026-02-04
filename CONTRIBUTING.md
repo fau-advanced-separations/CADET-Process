@@ -136,12 +136,14 @@ Reference related issues in your PR description.
 
 ## Branch Policy
 
-We use a branch naming convention to keep contributions organized:
+We use the [conventional branch](https://conventional-branch.github.io/) name convention to keep contributions organized:
 
-* **Feature branches**: `feature/your-feature-name`
-* **Bug fixes**: `fix/short-description`
-* **Hotfixes**: `hotfix/issue-description`
-* **Documentation updates**: `docs/update-description`
+- `master`: The main development branch
+- `feature/`: For new features (e.g., `feature/add-new-binding-model`)
+- `fix/`: For bug fixes (e.g., `fix/fix-header-bug`, `fix/header-bug`)
+- `hotfix/`: For urgent fixes (e.g., `hotfix/security-patch)`
+- `release/`: For branches preparing a release (e.g., `release/v1.2.0)`
+- `chore/`: For non-code tasks like dependency, docs updates (e.g., `chore/update-dependencies)`
 
 ## Documentation
 
