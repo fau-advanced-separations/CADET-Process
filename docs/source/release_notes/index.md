@@ -1,6 +1,7 @@
 # Release Notes
 
-This is the list of changes to **CADET-Process**. For full details, see the [commit logs](https://github.com/fau-advanced-separations/CADET-Process/).
+This is the list of changes to **CADET-Process**.
+For full details, see the [commit logs](https://github.com/fau-advanced-separations/CADET-Process/).
 
 ```{toctree}
 :maxdepth: 1
@@ -16,4 +17,5 @@ v0.10.0
 v0.10.1
 v0.11.0
 v0.11.1
+v0.12.0
 ```
