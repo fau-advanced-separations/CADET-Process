@@ -1,5 +1,5 @@
 {
-    "title": "CADET-Process v0.11.1",
+    "title": "CADET-Process v0.12.0",
     "upload_type": "software",
     "creators": [
         {
@@ -8,8 +8,8 @@
             "affiliation": "Forschungszentrum Jülich"
         },
         {
-            "name": "Jäpel, Ronald",
-            "orcid": "0000-0002-4912-5176",
+            "name": "Lanzrath, Hannah",
+            "orcid": "0000-0002-2675-9002",
             "affiliation": "Forschungszentrum Jülich"
         },
         {
@@ -18,19 +18,9 @@
             "affiliation": "Forschungszentrum Jülich"
         },
         {
-            "name": "Lanzrath, Hannah",
-            "orcid": "0000-0002-2675-9002",
-            "affiliation": "Forschungszentrum Jülich"
-        },
-        {
-            "name": "Schunck, Florian",
-            "orcid": "0000-0001-7245-953X",
-            "affiliation": "Forschungszentrum Jülich"
-        },
-        {
-            "name": "Berger, Antonia",
-            "orcid": "0009-0002-0207-9042",
-            "affiliation": "Forschungszentrum Jülich"
+          "name": "von Lieres, Eric",
+          "orcid": "0000-0002-0309-8408",
+          "affiliation": "Forschungszentrum Jülich; RWTH Aachen University"
         }
     ],
     "license": "GPL-3.0",
@@ -44,7 +34,7 @@
         "general rate model",
         "Python"
     ],
-    "version": "0.11.1",
+    "version": "0.12.0",
     "access_right": "open",
     "communities": [{"identifier": "open-source"}],
     "doi": "10.5281/zenodo.14202878"
