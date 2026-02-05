@@ -1,3 +1,4 @@
+import math
 import warnings
 from typing import Any, Optional
 
@@ -43,6 +44,7 @@ class PymooInterface(OptimizerBase):
     cvtol = UnsignedFloat(default=1e-6)
 
     n_max_gen = UnsignedInteger()
+    n_ref_dirs = UnsignedInteger()
     n_skip = UnsignedInteger(default=0)
 
     x_tol = xtol                # Alias for uniform interface
@@ -57,6 +59,7 @@ class PymooInterface(OptimizerBase):
         "ftol",
         "cvtol",
         "n_max_gen",
+        "n_ref_dirs",
         "n_skip",
     ]
 
@@ -110,10 +113,11 @@ class PymooInterface(OptimizerBase):
 
         problem = PymooProblem(optimization_problem, self.parallelization_backend)
 
+        n_ref_dirs = self.get_number_of_reference_directions(optimization_problem)
         ref_dirs = get_reference_directions(
             "energy",
             optimization_problem.n_objectives,
-            pop_size,
+            n_ref_dirs,
             seed=1,
         )
 
@@ -205,11 +209,6 @@ class PymooInterface(OptimizerBase):
         """
         Determine the population size for an optimization problem.
 
-        This method calculates the population size based on the number of independent
-        variables in the optimization problem. If `pop_size` is not set, it defaults to
-        the minimum of 400 or the maximum of 50 times the number of independent variables
-        and 50.
-
         Parameters
         ----------
         optimization_problem : OptimizationProblem
@@ -220,10 +219,14 @@ class PymooInterface(OptimizerBase):
         int
             The population size.
         """
-        if self.pop_size is None:
-            return min(400, max(50 * optimization_problem.n_independent_variables, 50))
-        else:
+        if self.pop_size:
             return self.pop_size
+
+        pop_size, n_max_gen, n_ref_dirs = scale_problem_size(
+            optimization_problem.n_independent_variables,
+            optimization_problem.n_objectives
+        )
+        return pop_size
 
     def get_max_number_of_generations(
             self,
@@ -242,10 +245,40 @@ class PymooInterface(OptimizerBase):
         int
             The maximum number of generations.
         """
-        if self.n_max_gen is None:
-            return min(100, max(10 * optimization_problem.n_independent_variables, 40))
-        else:
+        if self.n_max_gen:
             return self.n_max_gen
+
+        pop_size, n_max_gen, n_ref_dirs = scale_problem_size(
+            optimization_problem.n_independent_variables,
+            optimization_problem.n_objectives
+        )
+        return n_max_gen
+
+    def get_number_of_reference_directions(
+            self,
+            optimization_problem: OptimizationProblem,
+    ) -> int:
+        """
+        Determine the number of reference directions for an optimization problem.
+
+        Parameters
+        ----------
+        optimization_problem : OptimizationProblem
+            The optimization problem for which to determine the reference directions.
+
+        Returns
+        -------
+        int
+            The number of reference_directions
+        """
+        if self.n_ref_dirs:
+            return self.n_ref_dirs
+
+        pop_size, n_max_gen, n_ref_dirs = scale_problem_size(
+            optimization_problem.n_independent_variables,
+            optimization_problem.n_objectives
+        )
+        return n_ref_dirs
 
 
 class NSGA2(PymooInterface):
@@ -356,3 +389,95 @@ class RepairIndividuals(Repair):
                 X[i, :] = self.optimization_problem.transform(x_new)
 
         return X
+
+
+def scale_problem_size(
+    n_variables: int,
+    n_objectives: int,
+    eval_budget: int | None = None,
+    pop_size_min: int = 64,
+    pop_size_max: int = 512,
+    pop_per_objective: int = 48,
+    pop_var_weight: int = 16,
+    gen_per_variable: int = 16,
+    gen_obj_weight: int = 8,
+    n_gen_min: int = 32,
+    n_gen_max: int = 128,
+    ref_divisions: int = 3,
+    n_ref_max: int = 512,
+) -> tuple[int, int, int]:
+    """
+    Scale population size, generations, and reference directions for NSGA-III/U-NSGA-III.
+
+    Determines problem-specific parameters by scaling population size and generations
+    with problem complexity (linear in objectives, sub-linear in variables).
+    The number of reference directions is calculated using combinatorial divisions,
+    ensuring uniform Pareto front coverage for multi-objective optimization.
+
+    Parameters
+    ----------
+    n_variables : int
+        Number of decision variables.
+    n_objectives : int
+        Number of objectives.
+    eval_budget : int | None, optional
+        Total allowed function evaluations. If provided, overrides heuristic
+        generations to fit the budget (`n_gen = eval_budget // pop_size`).
+        If `None`, uses heuristic scaling.
+    pop_size_min : int, optional
+        Minimum population size (default: 64).
+    pop_size_max : int, optional
+        Maximum population size (default: 512).
+    pop_per_objective : int, optional
+        Population size scaling factor per objective (default: 48).
+    pop_var_weight : int, optional
+        Weight for sub-linear scaling with variables (default: 16).
+    gen_per_variable : int, optional
+        Generations scaling factor per variable (default: 16).
+    gen_obj_weight : int, optional
+        Weight for logarithmic scaling with objectives (default: 8).
+    n_gen_min : int, optional
+        Minimum number of generations (default: 32).
+    n_gen_max : int, optional
+        Maximum number of generations (default: 128).
+    ref_divisions : int, optional
+        Divisions for reference direction calculation (default: 3).
+    n_ref_max : int, optional
+        Maximum number of reference directions (default: 512).
+
+    Returns
+    -------
+    pop_size : int
+        Recommended population size.
+    n_gen : int
+        Recommended number of generations.
+    n_ref : int
+        Number of reference directions.
+    """
+    n_ref = math.comb(n_objectives + ref_divisions - 1, ref_divisions)
+    n_ref = min(n_ref, n_ref_max)
+
+    pop_size = min(
+        pop_size_max,
+        max(
+            pop_size_min,
+            int(pop_per_objective * n_objectives + pop_var_weight * n_variables ** (2 / 3))
+        )
+    )
+
+    n_gen = min(
+        n_gen_max,
+        max(
+            n_gen_min,
+            int(gen_per_variable * n_variables ** 0.8 + gen_obj_weight * math.log1p(n_objectives))
+        )
+    )
+
+    if eval_budget is not None:
+        n_gen = eval_budget // pop_size
+        if n_gen < n_gen_min:
+            warnings.warn(
+                "Evaluation budget results in fewer generations than n_gen_min."
+            )
+
+    return pop_size, n_gen, n_ref
