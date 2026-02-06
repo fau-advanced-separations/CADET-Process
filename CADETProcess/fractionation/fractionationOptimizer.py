@@ -417,6 +417,7 @@ class FractionationOptimizer:
             )
             if isinstance(self.optimizer, COBYLA):
                 self.optimizer.rhobeg = tr_radius
+                self.optimizer.tol = min(self.optimizer.rhobeg, self.optimizer.tol)
 
         # Lock to enable caching
         simulation_results.process.lock = True
