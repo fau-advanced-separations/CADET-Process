@@ -67,6 +67,8 @@ jobs:
           conda run pip install -e ./[all] --group testing
 
       - name: Test
+        env:
+          MPLBACKEND: Agg
         run: |
           pytest tests -m "not slow" --durations=0
 
