@@ -114,12 +114,14 @@ class SimulatorBase(Structure):
             cycle * process.cycle_time,
             self.time_resolution,
         )
-        section_times = self.get_section_times(process)
+
+        # Insert section times
+        section_times = process.section_times
         solution_times = np.append(solution_times, section_times)
-        solution_times = np.round(solution_times, self.sig_fig)
         solution_times = np.sort(solution_times)
         solution_times = np.unique(solution_times)
 
+        # Find indices of non-section times that are too close
         diff = np.where(np.diff(solution_times) < self.resolution_cutoff)[0]
         indices = []
         for d in diff:
@@ -158,34 +160,8 @@ class SimulatorBase(Structure):
 
         for i in range(1, self.n_cycles):
             solution_times = np.append(solution_times, (i) * time[-1] + time[1:])
-        solution_times = np.round(solution_times, self.sig_fig)
 
         return solution_times.tolist()
-
-    def get_section_times(self, process: Process) -> list[float]:
-        """
-        Get the section times for a single cycle of a process.
-
-        Parameters
-        ----------
-        process : Process
-            The process to simulate.
-
-        Returns
-        -------
-        list[float]
-            Section times for a single cycle of a process.
-
-        See Also
-        --------
-        get_solution_time
-        get_solution_time_complete
-        CADETProcess.processModel.Process.section_times
-        """
-        section_times = np.array(process.section_times)
-        section_times = np.round(section_times, self.sig_fig)
-
-        return section_times.tolist()
 
     def get_section_times_complete(self, process: Process) -> list[float]:
         """
@@ -208,7 +184,7 @@ class SimulatorBase(Structure):
         get_solution_time_complete
         CADETProcess.processModel.Process.section_times
         """
-        sections = np.array(self.get_section_times(process))
+        sections = np.array(process.section_times)
         cycle_time = sections[-1]
 
         section_times_complete = []
@@ -216,11 +192,9 @@ class SimulatorBase(Structure):
             section_cycle = cycle * cycle_time + sections[0:-1]
             section_times_complete += section_cycle.tolist()
 
-        section_times_complete.append(self.n_cycles * sections[-1])
+        section_times_complete.append(float(self.n_cycles * sections[-1]))
 
-        section_times_complete = np.round(section_times_complete, self.sig_fig)
-
-        return section_times_complete.tolist()
+        return section_times_complete
 
     def simulate(
         self,
