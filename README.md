@@ -73,8 +73,8 @@ Pull requests on [GitHub](https://github.com/fau-advanced-separations/CADET-Proc
 
 ## Acknowledgments
 
-Please refer to the [list of contributors](CONTRIBUTORS.md) who helped building and funding this project.
+Please refer to the [list of contributors](https://github.com/fau-advanced-separations/CADET-Process/blob/master/AUTHORS.md) who helped building and funding this project.
 
 ## Contributing
 
-Please read [CONTRIBUTING](CONTRIBUTING.md) for more details.
+Please read [CONTRIBUTING](https://github.com/fau-advanced-separations/CADET-Process/blob/master/CONTRIBUTING.md) for more details.
