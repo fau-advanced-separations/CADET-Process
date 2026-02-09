@@ -314,11 +314,6 @@ class SciPyInterface(OptimizerBase):
         However, there is ambiguity in what that point actually is (see also:
         https://github.com/scipy/scipy/issues/21061).
 
-        Returns
-        -------
-        Callable
-            The callback function.
-
         """
         if isinstance(self, (COBYLA, SLSQP)):
             def callback(x: npt.ArrayLike, state: dict = None) -> bool:
