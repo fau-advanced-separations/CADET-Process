@@ -8,7 +8,11 @@ from CADETProcess.dataStructure import Bool, Structure, UnsignedFloat, UnsignedI
 from CADETProcess.log import get_logger, log_exceptions, log_results, log_time
 from CADETProcess.processModel import Process
 from CADETProcess.simulationResults import SimulationResults
-from CADETProcess.stationarity import NRMSE, RelativeArea, StationarityEvaluator
+from CADETProcess.stationarity import (
+    NRMSE,
+    RelativeArea,
+    StationarityEvaluator,
+)
 
 __all__ = ["SimulatorBase"]
 
