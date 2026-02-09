@@ -132,7 +132,7 @@ class SimulatorBase(Structure):
 
         return solution_times
 
-    def get_solution_time_complete(self, process: Process) -> np.ndarray:
+    def get_solution_time_complete(self, process: Process) -> list[float]:
         """
         Get the time vector for multiple cycles of a process.
 
@@ -143,7 +143,7 @@ class SimulatorBase(Structure):
 
         Returns
         -------
-        np.ndarray
+        list[float]
             Time vector for multiple cycles of a process.
 
         See Also
@@ -162,7 +162,7 @@ class SimulatorBase(Structure):
 
         return solution_times.tolist()
 
-    def get_section_times(self, process: Process) -> list:
+    def get_section_times(self, process: Process) -> list[float]:
         """
         Get the section times for a single cycle of a process.
 
@@ -173,12 +173,12 @@ class SimulatorBase(Structure):
 
         Returns
         -------
-        list
+        list[float]
             Section times for a single cycle of a process.
 
         See Also
         --------
-        get_section_times_complete
+        get_solution_time
         get_solution_time_complete
         CADETProcess.processModel.Process.section_times
         """
@@ -187,7 +187,7 @@ class SimulatorBase(Structure):
 
         return section_times.tolist()
 
-    def get_section_times_complete(self, process: Process) -> list:
+    def get_section_times_complete(self, process: Process) -> list[float]:
         """
         Get the section times for multiple cycles of a process.
 
