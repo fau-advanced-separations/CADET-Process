@@ -27,7 +27,7 @@ from CADETProcess.dataStructure import Structure, UnsignedFloat
 from CADETProcess.processModel import Inlet
 from CADETProcess.simulationResults import SimulationResults
 
-__all__ = ["RelativeArea", "NRMSE", "StationarityEvaluator"]
+__all__ = ["MassBalance", "NRMSE", "RelativeArea", "StationarityEvaluator"]
 
 
 class CriterionBase(Structure):
@@ -37,8 +37,8 @@ class CriterionBase(Structure):
         return self.__class__.__name__
 
 
-class RelativeArea(CriterionBase):
-    """Class to evaluate difference in relative area as stationarity critereon."""
+class MassBalance(CriterionBase):
+    """Class to evaluate mass balance as stationarity critereon."""
 
     pass
 
@@ -49,10 +49,16 @@ class NRMSE(CriterionBase):
     pass
 
 
+class RelativeArea(CriterionBase):
+    """Class to evaluate difference in relative area as stationarity critereon."""
+
+    pass
+
+
 class StationarityEvaluator(Comparator):
     """Class for checking two succeding chromatograms for stationarity."""
 
-    valid_criteria = ["RelativeArea", "NRMSE"]
+    valid_criteria = ["MassBalance", "NRMSE", "RelativeArea"]
 
     def __init__(
         self,
@@ -75,15 +81,12 @@ class StationarityEvaluator(Comparator):
         kwargs : dict
             Additional keyword arguments.
         """
-        # TODO: Check why cirteria are not stored.
         super().__init__(*args, **kwargs)
-
         self.logger = log.get_logger("StationarityEvaluator", level=log_level)
-
         self._criteria = []
 
     @property
-    def criteria(self) -> list:
+    def criteria(self) -> list[CriterionBase]:
         """list: List of criteria."""
         return self._criteria
 
@@ -125,20 +128,56 @@ class StationarityEvaluator(Comparator):
         if not isinstance(simulation_results, SimulationResults):
             raise TypeError("Expcected SimulationResults")
 
+        process = simulation_results.process
+        flow_sheet = process.flow_sheet
+
         stationarity = True
+
+        # System Mass Balance
+        for c in self.criteria:
+            if not isinstance(c, MassBalance):
+                continue
+
+            m_feed = process.m_feed
+            results_outlets = [
+                simulation_results.solution_cycles[unit.name].outlet[-1]
+                for unit in flow_sheet.outlets
+            ]
+            m_out = np.sum([
+                outlet_solution.create_fraction().mass
+                for outlet_solution in results_outlets
+            ], axis=0)
+            with np.errstate(divide="ignore", invalid="ignore"):
+                diff = abs(m_feed - m_out) / m_feed
+                diff = np.where(np.isfinite(diff), diff, 0.0)
+
+            if not np.all(diff <= c.threshold):
+                s = False
+                stationarity = s
+            else:
+                s = True
+
+            criteria[str(c)]["threshold"] = c.threshold
+            criteria[str(c)]["stationarity"] = s
+
+        # Per unit comparison
         for unit, solution in simulation_results.solution_cycles.items():
-            if isinstance(simulation_results.process.flow_sheet[unit], Inlet):
+            if isinstance(flow_sheet[unit], Inlet):
                 continue
             solution_previous = solution.outlet[-2]
             solution_this = solution.outlet[-1]
             self.add_reference(solution_previous, update=True, smooth=False)
 
             for c in self.criteria:
-                metric = self.add_difference_metric(
-                    str(c), unit, f"{unit}.outlet", smooth=False
-                )
-                criteria[unit][str(c)]["threshold"] = c.threshold
-                diff = metric.evaluate(solution_this)
+                if isinstance(c, MassBalance):
+                    continue
+                else:
+                    metric = self.add_difference_metric(
+                        str(c), unit, f"{unit}.outlet", smooth=False
+                    )
+                    criteria[unit][str(c)]["threshold"] = c.threshold
+                    diff = metric.evaluate(solution_this)
+
                 criteria[unit][str(c)]["metric"] = diff
                 if not np.all(diff <= c.threshold):
                     s = False
