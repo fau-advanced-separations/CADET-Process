@@ -26,6 +26,7 @@ from CADETProcess.comparison import Comparator
 from CADETProcess.dataStructure import Structure, UnsignedFloat
 from CADETProcess.processModel import Inlet
 from CADETProcess.simulationResults import SimulationResults
+from CADETProcess.solution import SolutionIO
 
 __all__ = ["MassBalance", "NRMSE", "RelativeArea", "StationarityEvaluator"]
 
@@ -161,30 +162,55 @@ class StationarityEvaluator(Comparator):
             criteria[str(c)]["stationarity"] = s
 
         # Per unit comparison
+        def _assert_unit_io(
+            solution_previous: SolutionIO,
+            solution_this: SolutionIO,
+            unit: str,
+            side: str,
+            criteria: dict,
+            c: object,
+        ) -> None:
+            """Assert stationarity for a given inlet/outlet of a unit."""
+            solution_previous.name = f"{unit}.{side}"
+            self.add_reference(
+                solution_previous,
+                update=True,
+                smooth=False,
+            )
+            metric = self.add_difference_metric(
+                str(c),
+                f"{unit}.{side}",
+                f"{unit}.{side}",
+                smooth=False,
+            )
+            diff = metric.evaluate(solution_this)
+            criteria[str(c)][unit][side]["metric"] = diff
+            stationarity = np.all(diff <= c.threshold)
+            criteria[str(c)][unit][side]["stationarity"] = stationarity
+
         for unit, solution in simulation_results.solution_cycles.items():
             if isinstance(flow_sheet[unit], Inlet):
                 continue
-            solution_previous = solution.outlet[-2]
-            solution_this = solution.outlet[-1]
-            self.add_reference(solution_previous, update=True, smooth=False)
 
             for c in self.criteria:
                 if isinstance(c, MassBalance):
                     continue
-                else:
-                    metric = self.add_difference_metric(
-                        str(c), unit, f"{unit}.outlet", smooth=False
-                    )
-                    criteria[unit][str(c)]["threshold"] = c.threshold
-                    diff = metric.evaluate(solution_this)
-
-                criteria[unit][str(c)]["metric"] = diff
-                if not np.all(diff <= c.threshold):
-                    s = False
-                    stationarity = s
-                else:
-                    s = True
-                criteria[unit][str(c)]["stationarity"] = s
+                _assert_unit_io(
+                    solution.inlet[-2],
+                    solution.inlet[-1],
+                    unit,
+                    "inlet",
+                    criteria,
+                    c,
+                )
+                _assert_unit_io(
+                    solution.outlet[-2],
+                    solution.outlet[-1],
+                    unit,
+                    "outlet",
+                    criteria,
+                    c,
+                )
 
         self.logger.debug(f"Stationrity criteria: {criteria}")
 
