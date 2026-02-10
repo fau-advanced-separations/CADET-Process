@@ -283,7 +283,7 @@ class Comparator(Structure):
         if ax is None:
             fig, axs = plotting.setup_figure(
                 **setup_figure_kwargs,
-                ncols=self.n_difference_metrics,
+                nrows=self.n_difference_metrics,
                 squeeze=False,
             )
             axs = axs.reshape(-1)
@@ -292,12 +292,16 @@ class Comparator(Structure):
             fig = axs[0].get_figure()
 
         for ax, metric in zip(axs, self.metrics):
+            ax.set_title(metric.reference.name)
+
             solution = self.extract_solution(simulation_results, metric)
             solution_sliced = metric.slice_and_transform(solution)
 
             solution_sliced.plot(
                 ax=ax,
                 x_axis_in_minutes=x_axis_in_minutes,
+                show=False,
+                tight_layout=False,
             )
 
             ref_time = metric.reference.time
@@ -308,8 +312,6 @@ class Comparator(Structure):
                 ref_time,
                 metric.reference.solution,
                 linestyle="--",
-                color="k",
-                label="reference",
             )
             ax.legend(loc=1)
 
