@@ -166,7 +166,7 @@ if __name__ == '__main__':
     fractionation_optimizer = FractionationOptimizer()
 
     fractionator = fractionation_optimizer.optimize_fractionation(
-        simulation_results, purity_required=[0.95, 0.95]
+        simulation_results, purity_required=[0.9, 0.9]
     )
 
     print(fractionator.performance)
