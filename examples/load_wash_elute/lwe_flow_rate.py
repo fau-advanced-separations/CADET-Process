@@ -137,8 +137,9 @@ if __name__ == '__main__':
     simulation_results = process_simulator.simulate(process)
 
     from CADETProcess.plotting import SecondaryAxis
-    sec = SecondaryAxis()
-    sec.components = ['Salt']
+    sec = SecondaryAxis(components = ['Salt'])
     sec.y_label = '$c_{salt}$'
 
-    simulation_results.solution.column.outlet.plot(secondary_axis=sec)
+    fig = simulation_results.solution.column.outlet.plot(secondary_axes=sec, setup_figure_kwargs={"layout": "2_col"})
+
+# %%

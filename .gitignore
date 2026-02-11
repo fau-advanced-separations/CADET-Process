@@ -3,6 +3,7 @@ __pycache__/
 .pytest_cache/
 .ipynb_checkpoints
 docs/source/reference/generated/*
+docs/_tmp
 docs/build/*
 docs/jupyter_execute/*
 docs/source/reference/generated/*

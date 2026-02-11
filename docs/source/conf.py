@@ -13,6 +13,9 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath('../..'))
+from pathlib import Path
+from glob import glob
+import subprocess
 from datetime import date
 
 # -- Project information -----------------------------------------------------
@@ -36,7 +39,8 @@ extensions = []
 
 ## MyST-NB
 extensions.append("myst_nb")
-nb_execution_mode = "cache"
+nb_execution_mode = "auto"
+nb_execution_excludepatterns = ["case_studies/**"]
 source_suffix = {
     '.rst': 'restructuredtext',
     '.ipynb': 'myst-nb',
@@ -131,7 +135,18 @@ html_sidebars = {
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
 
+# -- Case Studies -------------------------------------------------
+
 # Copy examples
 import shutil
 shutil.rmtree('./examples', ignore_errors=True)
 shutil.copytree('../../examples', './examples/')
+
+# Load in studies locally
+if not os.environ.get("READTHEDOCS"):
+    script = Path(__file__).resolve().parent / "load_studies.py"
+    res = subprocess.run([sys.executable, str(script)], capture_output=True, text=True)
+    if res.returncode != 0:
+        print(res.stdout)
+        print(res.stderr)
+        raise RuntimeError("load_studies.py failed")

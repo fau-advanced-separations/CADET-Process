@@ -13,6 +13,8 @@ build:
   jobs:
     install:
       - pip install .[all] --group docs
+    build:
+      - python docs/source/load_studies.py
 
 # Build documentation in the docs/ directory with Sphinx
 sphinx:

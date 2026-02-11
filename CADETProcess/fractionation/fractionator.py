@@ -286,7 +286,11 @@ class Fractionator(EventHandler):
             end = np.max(chromatogram.time)
 
         fig, ax = chromatogram.plot(
-            ax=ax, x_axis_in_minutes=x_axis_in_minutes, *args, **kwargs
+            ax=ax,
+            x_axis_in_minutes=x_axis_in_minutes,
+            show=False,
+            *args,
+            **kwargs,
         )
 
         y_max = 1.1 * np.max(chromatogram.solution)
