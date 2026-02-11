@@ -55,6 +55,7 @@ Fill Regions
 """  # noqa
 
 import os
+import warnings
 from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import wraps
@@ -406,19 +407,6 @@ def offset_secondary_yaxes(
 
 # %% Figure Utils
 
-def show_or_reopen(fig: plt.Figure) -> None:
-    """Show figure, reopening it in a GUI window if necessary."""
-    if fig.number not in plt.get_fignums():
-        dummy = plt.figure(figsize=fig.get_size_inches())
-        manager = dummy.canvas.manager
-        manager.canvas.figure = fig
-        fig.set_canvas(manager.canvas)
-        fig.show()
-        plt.close(dummy)
-    else:
-        fig.show()
-
-
 def figure_utils(func: Callable) -> Callable:
     """
     Unified decorator for styling, and saving figures.
@@ -435,7 +423,6 @@ def figure_utils(func: Callable) -> Callable:
         setup_figure_kwargs: Optional[dict] = None,
         file_name: Optional[os.PathLike] = None,
         dpi: int = 300,
-        show: bool = True,
         tight_layout: bool = True,
         **kwargs: Any,
     ) -> tuple[plt.Figure, plt.Axes | npt.NDArray[plt.Axes]]:
@@ -456,8 +443,6 @@ def figure_utils(func: Callable) -> Callable:
             not saved.
         dpi : int, default=300
             DPI for saving the figure.
-        show : bool, default=True
-            If False, close the figure.
         tight_layout : bool, default=True
             If True, set tight layout.
         **kwargs : Any
@@ -474,6 +459,10 @@ def figure_utils(func: Callable) -> Callable:
             **(setup_figure_kwargs or {}),
         }
 
+        show = kwargs.pop("show", None)
+        if show is not None:
+            warnings.warn("`show` argument is deprectated.")
+
         with mpl_style_context(setup_figure_kwargs["layout"]):
             fig, ax = func(
                 *args,
@@ -486,11 +475,6 @@ def figure_utils(func: Callable) -> Callable:
 
         if file_name is not None:
             fig.savefig(file_name, dpi=dpi)
-
-        if show:
-            fig.show()
-        else:
-            plt.close(fig)
 
         return fig, ax
     return figure_utils_wrapper

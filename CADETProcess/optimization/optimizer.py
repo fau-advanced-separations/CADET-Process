@@ -691,7 +691,7 @@ class OptimizerBase(Structure):
             self.progress_frequency is not None
             and current_generation % self.progress_frequency == 0
         ):
-            self.results.plot_figures(show=False)
+            self.results.plot_figures()
 
         self._evaluate_callbacks(current_generation)
 
@@ -716,7 +716,7 @@ class OptimizerBase(Structure):
 
     def run_final_processing(self) -> None:
         """Run post processing at the end of the optimization."""
-        self.results.plot_figures(show=False)
+        self.results.plot_figures()
         if self.optimization_problem.n_callbacks > 0:
             self._evaluate_callbacks(0, "final")
         self.results.save_results("final")
