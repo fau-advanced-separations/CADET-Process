@@ -330,7 +330,7 @@ def main() -> None:
         (
             "https://github.com/cadet/RDM-Example-Multi-State-Steric-Mass-Action.git",
             "main",
-            "2026-02-11_10-29-35_main_43e61e8",
+            "2026-02-11_14-11-23_main_406bbee",
         ),
     ]
 
