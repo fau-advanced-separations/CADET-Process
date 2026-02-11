@@ -66,7 +66,6 @@ optimization_problem.add_evaluator(
 def callback(fractionation, individual, evaluation_object, callbacks_dir):
     fractionation.plot_fraction_signal(
         file_name=f'{callbacks_dir}/{individual.id}_{evaluation_object}_fractionation.png',
-        show=False
     )
 
 

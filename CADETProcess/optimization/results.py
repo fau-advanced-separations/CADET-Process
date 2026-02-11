@@ -414,7 +414,7 @@ class OptimizationResults(Structure):
         else:
             return np.array([pop.m_avg for pop in self.populations])
 
-    def plot_figures(self, show: bool = True) -> None:
+    def plot_figures(self) -> None:
         """
         Plot result figures.
 
@@ -433,34 +433,28 @@ class OptimizationResults(Structure):
 
             self.plot_convergence(
                 "objectives",
-                show=show,
                 file_name=f"{self.plot_directory / 'convergence_objectives.png'}",
             )
             if self.optimization_problem.n_nonlinear_constraints > 0:
                 self.plot_convergence(
                     "nonlinear_constraints",
-                    show=show,
                     file_name=f"{self.plot_directory / 'convergence_nonlinear_constraints.png'}",
                 )
             if self.optimization_problem.n_meta_scores > 0:
                 self.plot_convergence(
                     "meta_scores",
-                    show=show,
                     file_name=f"{self.plot_directory / 'convergence_meta_scores.png'}",
                 )
             self.plot_objectives(
-                show=show,
                 file_name=f"{self.plot_directory / 'objectives.png'}",
             )
             if self.optimization_problem.n_variables > 1 and len(self.x) > 1:
                 self.plot_pairwise(
-                    show=show,
                     file_name=f"{self.plot_directory / 'pairwise.png'}",
                 )
 
             if self.optimization_problem.n_objectives > 1:
                 self.plot_pareto(
-                    show=show,
                     file_name=f"{self.plot_directory / 'pareto.png'}",
                     plot_evolution=True,
                     plot_pareto=False,
@@ -512,7 +506,6 @@ class OptimizationResults(Structure):
                 color_infeas=cmap_infeas(val),
                 ax=ax,
                 setup_figure_kwargs=setup_figure_kwargs,
-                show=False,
                 tight_layout=False,
                 **kwargs,
             )
@@ -592,7 +585,6 @@ class OptimizationResults(Structure):
             color_feas="grey",
             plot_scatter=False,
             ax=ax,
-            show=False,
             tight_layout=False,
             **{"plot_infeasible": False, **kwargs},
         )
@@ -603,7 +595,6 @@ class OptimizationResults(Structure):
                 color_feas=cmap_feas(color_val),
                 color_infeas=cmap_infeas(color_val),
                 ax=ax,
-                show=False,
                 tight_layout=False,
                 **{"update_layout": False, **kwargs},
             )
@@ -664,7 +655,6 @@ class OptimizationResults(Structure):
             plot_scatter=False,
             ax=ax,
             setup_figure_kwargs=setup_figure_kwargs,
-            show=False,
             tight_layout=False,
             **{"plot_infeasible": False, **kwargs},
         )
@@ -675,7 +665,6 @@ class OptimizationResults(Structure):
                 color_feas=cmap_feas(color_val),
                 color_infeas=cmap_infeas(color_val),
                 ax=ax,
-                show=False,
                 tight_layout=False,
                 **{"update_layout": False, **kwargs},
             )

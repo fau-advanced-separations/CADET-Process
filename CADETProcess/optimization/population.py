@@ -605,7 +605,6 @@ class Population:
                 *args,
                 ax=ax,
                 setup_figure_kwargs=setup_figure_kwargs,
-                show=False,
                 tight_layout=False,
                 **kwargs,
             )
@@ -616,7 +615,6 @@ class Population:
                 color=color_infeas,
                 *args,
                 ax=ax,
-                show=False,
                 tight_layout=False,
                 **({"update_layout": False, **kwargs})
             )
@@ -684,7 +682,6 @@ class Population:
             color=color_feas,
             *args,
             ax=ax,
-            show=False,
             tight_layout=False,
             setup_figure_kwargs=setup_figure_kwargs,
             **kwargs,
@@ -697,7 +694,6 @@ class Population:
                 color=x_infeas,
                 *args,
                 ax=ax,
-                show=False,
                 tight_layout=False,
                 **{"update_layout": False, **kwargs}
             )
