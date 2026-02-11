@@ -887,16 +887,23 @@ class OptimizationProblem(Structure):
             if not force:
                 remaining = []
                 for step in reversed(requires):
+                    key = (str(eval_obj), step.id, x_key)
                     try:
-                        key = (str(eval_obj), step.id, x_key)
                         result = self.cache.get(key)
+                        if isinstance(result, Exception):
+                            # Re-raise cached exception to stop further processing
+                            self.logger.debug(
+                                f"Retrieved exception for {str(step)} from cache."
+                            )
+                            # Reconstruct custom exception to avoid type issue when restoring
+                            if "CADETProcessError" in result.__class__.__name__:
+                                result = CADETProcessError(str(result))
+                            raise result
                         self.logger.debug(f"Got {str(step)} results from cache.")
                         current_request = result
                         break
                     except KeyError:
-                        pass
-
-                    remaining.insert(0, step)
+                        remaining.insert(0, step)
             else:
                 remaining = requires
 
@@ -905,16 +912,20 @@ class OptimizationProblem(Structure):
             )
 
             for step in remaining:
-                if isinstance(step, Callback):
-                    step.evaluate(current_request, eval_obj)
-                    result = np.empty((0))
-                else:
-                    result = step.evaluate(current_request)
-
                 key = (str(eval_obj), step.id, x_key)
-                if not isinstance(step, Callback):
-                    self.cache.set(key, result, tag=x_key)
-                current_request = result
+                try:
+                    if isinstance(step, Callback):
+                        step.evaluate(current_request, eval_obj)
+                        result = np.empty((0))
+                    else:
+                        result = step.evaluate(current_request)
+                    if not isinstance(step, Callback):
+                        self.cache.set(key, result, tag=x_key)
+                    current_request = result
+                except Exception as e:
+                    # Cache the exception and re-raise to stop further processing
+                    self.cache.set(key, e, tag=x_key)
+                    raise
 
             if len(result) != func.n_metrics:
                 raise CADETProcessError(
