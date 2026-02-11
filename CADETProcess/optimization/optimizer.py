@@ -269,32 +269,33 @@ class OptimizerBase(Structure):
             if not flag:
                 raise ValueError("x0 contains invalid entries.")
 
-        log.log_time("Optimization", self.logger.level)(self._run)
-        log.log_results("Optimization", self.logger.level)(self._run)
-        log.log_exceptions("Optimization", self.logger.level)(self._run)
+        try:
+            log.log_time("Optimization", self.logger.level)(self._run)
+            log.log_results("Optimization", self.logger.level)(self._run)
+            log.log_exceptions("Optimization", self.logger.level)(self._run)
 
-        backend = plt.get_backend()
-        plt.switch_backend("agg")
+            backend = plt.get_backend()
+            plt.switch_backend("agg")
 
-        start = time.time()
-        self._run(self.optimization_problem, x0, *args, **kwargs)
-        time_elapsed = time.time() - start
+            start = time.time()
+            self._run(self.optimization_problem, x0, *args, **kwargs)
+            time_elapsed = time.time() - start
 
-        self.results.time_elapsed = time_elapsed
-        self.results.cpu_time = self.n_cores * time_elapsed
+            self.results.time_elapsed = time_elapsed
+            self.results.cpu_time = self.n_cores * time_elapsed
 
-        self.run_final_processing()
+            self.run_final_processing()
 
-        if delete_cache:
-            optimization_problem.delete_cache(reinit=True)
-        self._current_cache_entries = []
+            if delete_cache:
+                optimization_problem.delete_cache(reinit=True)
+            self._current_cache_entries = []
 
-        plt.switch_backend(backend)
-
-        if not self.results.success:
-            raise CADETProcessError(
-                f"Optimizaton failed with message: {self.results.exit_message}"
-            )
+            if not self.results.success:
+                raise CADETProcessError(
+                    f"Optimizaton failed with message: {self.results.exit_message}"
+                )
+        finally:
+            plt.switch_backend(backend)
 
         return self.results
 
