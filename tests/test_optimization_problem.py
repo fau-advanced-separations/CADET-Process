@@ -832,7 +832,7 @@ class Test_OptimizationProblemLinCon(unittest.TestCase):
         x0_seed_1 = self.optimization_problem.create_initial_values(1, seed=1)
         np.testing.assert_almost_equal(x0_seed_1, x0_seed_1_expected)
 
-        x0_seed_1_random = self.optimization_problem.create_initial_values(1, seed)
+        x0_seed_1_random = self.optimization_problem.create_initial_values(1, seed=seed)
 
         with self.assertRaises(AssertionError):
             np.testing.assert_almost_equal(x0_seed_1_random, x0_seed_1_expected)
@@ -855,7 +855,7 @@ class Test_OptimizationProblemLinCon(unittest.TestCase):
         x0_seed_10 = self.optimization_problem.create_initial_values(10, seed=1)
         np.testing.assert_almost_equal(x0_seed_10, x0_seed_10_expected)
 
-        x0_seed_10_random = self.optimization_problem.create_initial_values(10, seed)
+        x0_seed_10_random = self.optimization_problem.create_initial_values(10, seed=seed, )
 
         with self.assertRaises(AssertionError):
             np.testing.assert_almost_equal(x0_seed_10_random, x0_seed_10_expected)
@@ -947,7 +947,7 @@ class Test_OptimizationProblemDepVar(unittest.TestCase):
         )
 
         x0_seed_1_random = self.optimization_problem.create_initial_values(
-            1, include_dependent_variables=False
+            1, seed=seed, include_dependent_variables=False
         )
 
         with self.assertRaises(AssertionError):
@@ -1005,7 +1005,7 @@ class Test_OptimizationProblemDepVar(unittest.TestCase):
         )
 
         x0_seed_1_random = self.optimization_problem.create_initial_values(
-            1, include_dependent_variables=True
+            1, seed=seed, include_dependent_variables=True
         )[0]
 
         with self.assertRaises(AssertionError):
