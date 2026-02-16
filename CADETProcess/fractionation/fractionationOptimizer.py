@@ -244,18 +244,24 @@ class FractionationOptimizer:
             requires=frac_evaluator,
         )
 
-        for evt in frac.events:
-            opt.add_variable(
-                evt.name,
-                parameter_path=evt.name + ".time",
-                lb=-frac.cycle_time,
-                ub=2 * frac.cycle_time,
-                transform="linear",
-            )
-
+        x0 = []
         for chrom_index, chrom in enumerate(frac.chromatograms):
             chrom_events = frac.chromatogram_events[chrom]
             evt_names = [evt.name for evt in chrom_events]
+
+            if len(evt_names) == 1:
+                continue
+
+            for evt in chrom_events:
+                opt.add_variable(
+                    evt.name,
+                    parameter_path=evt.name + ".time",
+                    lb=-frac.cycle_time,
+                    ub=2 * frac.cycle_time,
+                    transform="linear",
+                )
+                x0.append(evt.time)
+
             for evt_index, evt in enumerate(chrom_events):
                 if evt_index < len(chrom_events) - 1:
                     opt.add_linear_constraint(
@@ -265,8 +271,6 @@ class FractionationOptimizer:
                     opt.add_linear_constraint(
                         [evt_names[0], evt_names[-1]], [-1, 1], frac.cycle_time
                     )
-
-        x0 = [evt.time for evt in frac.events]
 
         if not opt.check_nonlinear_constraints(x0):
             raise CADETProcessError("No areas found with sufficient purity.")
