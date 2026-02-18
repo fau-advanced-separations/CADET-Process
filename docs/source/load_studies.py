@@ -332,6 +332,11 @@ def main() -> None:
             "main",
             "2026-02-11_14-11-23_main_406bbee",
         ),
+        (
+            "https://github.com/cadet/RDM-Example-Rectangular-Pulse",
+            "main",
+            "2026-02-03_15-30-39_main_0e5f840",
+        ),
     ]
 
     toc_docnames: list[str] = []
