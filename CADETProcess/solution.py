@@ -276,6 +276,7 @@ class SolutionIO(SolutionBase):
         self._solution_interpolated = None
         self._dm_dt_interpolated = None
         self.update_transform()
+        self.flow_rate = self.flow_rate.slice(self.time[0], self.time[-1])
 
     @property
     def derivative(self) -> "SolutionIO":
