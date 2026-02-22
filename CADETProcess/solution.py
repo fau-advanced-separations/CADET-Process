@@ -271,6 +271,15 @@ class SolutionIO(SolutionBase):
 
         super().__init__(name, component_system, time, solution)
 
+    def offset(self, offset: float) -> "SolutionIO":
+        """Shift solution by an offset."""
+        offset_solution = copy.deepcopy(self)
+        offset_solution.time += offset
+        offset_solution.flow_rate = self.flow_rate.offset(offset)
+        offset_solution.update_solution()
+
+        return offset_solution
+
     def update_solution(self) -> None:
         """Update solution method."""
         self._solution_interpolated = None
