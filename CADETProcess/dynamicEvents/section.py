@@ -543,6 +543,63 @@ class TimeLine:
 
         return tl
 
+    def slice(
+        self,
+        start: float | None = None,
+        end: float | None = None,
+    ) -> TimeLine:
+        """
+        Slice the timeline from a profile.
+
+        Parameters
+        ----------
+        start : Optional[float]
+            Start time of the slice. If None, the first time point is used. The
+            default is None.
+        end: Optional[float]
+            End time of the slice. If None, the last time point is used. The
+            default is None.
+
+        Returns
+        -------
+        TimeLine
+            A new TimeLine instance between start and end.
+        """
+        if start is None:
+            start = self.section_times[0]
+        if start < self.section_times[0]:
+            raise ValueError("Start time must be larger than first time point.")
+        if end is None:
+            end = self.section_times[-1]
+        if end > self.section_times[-1]:
+            raise ValueError("End time must be smaller than last time point.")
+
+        time_line = TimeLine()
+
+        for section in self.sections:
+            # Section ends before start of slice
+            if section.end < start:
+                continue
+            # Section starts after end of slice
+            if section.start > end:
+                break
+
+            # Section is fully within slice
+            if section.start >= start and section.end <= end:
+                new_section = section
+            # Section is sliced
+            else:
+                new_section = Section(
+                    max(section.start, start),
+                    min(section.end, end),
+                    section.coefficients(max(section.start, start)),
+                    section.is_polynomial,
+                )
+
+            time_line.add_section(new_section)
+
+        return time_line
+
 
 class MultiTimeLine:
     """
