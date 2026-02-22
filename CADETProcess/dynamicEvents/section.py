@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import itertools
 import warnings
 from typing import Optional
@@ -547,6 +548,7 @@ class TimeLine:
         self,
         start: float | None = None,
         end: float | None = None,
+        offset: float | None = None,
     ) -> TimeLine:
         """
         Slice the timeline from a profile.
@@ -559,6 +561,8 @@ class TimeLine:
         end: Optional[float]
             End time of the slice. If None, the last time point is used. The
             default is None.
+        offset: Optional[float]
+            Optional time offset. The default is None.
 
         Returns
         -------
@@ -599,6 +603,31 @@ class TimeLine:
             time_line.add_section(new_section)
 
         return time_line
+
+    def offset(
+        self,
+        offset: float,
+    ) -> TimeLine:
+        """
+        Shift the timeline by an offset.
+
+        Parameters
+        ----------
+        offset: flaot
+            The offset.
+
+        Returns
+        -------
+        TimeLine
+            A new TimeLine instance with offset sections.
+        """
+        offset_time_line = copy.deepcopy(self)
+
+        for section in offset_time_line.sections:
+            section.start += offset
+            section.end += offset
+
+        return offset_time_line
 
 
 class MultiTimeLine:
