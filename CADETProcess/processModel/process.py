@@ -111,17 +111,20 @@ class Process(EventHandler):
                 feed_section = Section(0, self.cycle_time, feed.c, is_polynomial=True)
                 feed_signal_time_line.add_section(feed_section)
 
-            m_i = [
-                integrate.quad(
-                    lambda t: feed_flow_rate_time_line.value(t) * feed_signal_time_line.value(t)[comp],  # noqa: E501
-                    0,
-                    self.cycle_time,
-                    points=self.event_times,
-                )[0]
-                for comp in range(self.n_comp)
-            ]
+            m_i = np.zeros((self.n_comp, ))
+            for t0, t1 in zip(self.section_times[:-1], self.section_times[1:]):
+                # Precompute values on a fine grid for this segment
+                # move the right boundary infinitesimally to the left
+                t1m = np.nextafter(t1, t0)
 
-            feed_all += np.array(m_i)
+                t_eval = np.linspace(t0, t1m, 1001)
+
+                flow_vals = feed_flow_rate_time_line.value(t_eval)
+                c_vals = feed_signal_time_line.value(t_eval)
+
+                m_i += integrate.simpson(flow_vals * c_vals, t_eval, axis=0)
+
+            feed_all += m_i
 
         return feed_all
 
