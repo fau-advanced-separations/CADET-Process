@@ -544,26 +544,24 @@ class SolutionIO(SolutionBase):
         if end is None:
             end = self.cycle_time
 
-        # Note, we do not use self.dm_dt_interpolated to better account for
-        # discontinuities in the flow rate profile, by passing the section times to
-        # `quad_vec`. Maybe this can be improved in the future.
-        def dm_dt(t: float, flow_rate: np.ndarray, solution: np.ndarray) -> np.ndarray:
-            dm_dt = flow_rate.value(t) * solution(t)
-            return dm_dt
-
-        points = None
-        if len(self.flow_rate.section_times) > 2:
-            points = self.flow_rate.section_times[1:-1]
-
-        mass = integrate.quad_vec(
-            dm_dt,
+        all_times = np.sort(np.unique([
             start,
+            *[t for t in self.flow_rate.section_times if start <= t <= end],
             end,
-            epsabs=1e-6,
-            epsrel=1e-8,
-            args=(self.flow_rate, self.solution_interpolated),
-            points=points,
-        )[0]
+        ]))
+
+        mass = np.zeros((self.n_comp, ))
+        for t0, t1 in zip(all_times[:-1], all_times[1:]):
+            # Precompute values on a fine grid for this segment
+            # move the right boundary infinitesimally to the left
+            t1m = np.nextafter(t1, t0)
+
+            t_eval = np.linspace(t0, t1m, 1001)
+
+            flow_vals = self.flow_rate.value(t_eval)
+            sol_vals = self.solution_interpolated(t_eval)
+
+            mass += integrate.simpson(flow_vals * sol_vals, t_eval, axis=0)
 
         return mass
 
