@@ -4041,8 +4041,7 @@ class OptimizationVariable:
                             new_slice = np.reshape(new_slice, expected_shape)
 
                     if isinstance(parameter_shape, tuple):
-                        new_value[ind] = new_slice
-
+                        new_value[ind] = new_slice.reshape(expected_shape)
                     else:
                         # Inhomogeneous arrays
                         new_value = current_value
