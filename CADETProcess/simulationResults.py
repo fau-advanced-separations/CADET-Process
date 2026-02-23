@@ -151,48 +151,68 @@ class SimulationResults(Structure):
         if self._solution is not None:
             return self._solution
 
-        time_complete = self.time_complete
+        def _merge_cycles(
+            cycles: list[SolutionBase],
+            time_complete: np.ndarray,
+        ) -> SolutionBase:
+            """
+            Merge cycle solutions into a complete solution.
+
+            Parameters
+            ----------
+            cycles : list
+                List of cycle objects.
+            time_complete : np.ndarray
+                Complete time array.
+
+            Returns
+            -------
+            object
+                A new object with merged solution and time.
+            """
+            merged = copy.deepcopy(cycles[0])
+            merged.time = time_complete
+
+            solution_complete = cycles[0].solution
+            if solution_complete.ndim > 1:
+                for cycle in cycles[1:]:
+                    solution_complete = np.vstack(
+                        (solution_complete, cycle.solution[1:])
+                    )
+            else:
+                for cycle in cycles[1:]:
+                    solution_complete = np.hstack(
+                        (solution_complete, cycle.solution[1:])
+                    )
+            merged.solution = solution_complete
+
+            if hasattr(cycles[0], "flow_rate"):
+                flow_rate_complete = copy.deepcopy(cycles[0].flow_rate)
+                for cycle in cycles[1:]:
+                    new_flow_rate = cycle.flow_rate.offset(flow_rate_complete.end)
+                    for section in new_flow_rate.sections:
+                        flow_rate_complete.add_section(section)
+                merged.flow_rate = flow_rate_complete
+
+            merged.update_solution()
+
+            return merged
 
         solution = Dict()
+        time_complete = self.time_complete
         for unit, solutions in self.solution_cycles.items():
             for sol, ports_cycles in solutions.items():
-                if isinstance(ports_cycles, Dict):
-                    ports = ports_cycles
-                    for port, cycles in ports.items():
-                        solution[unit][sol][port] = copy.deepcopy(cycles[0])
-                        solution_complete = cycles[0].solution
-                        if solution_complete.ndim > 1:
-                            for i in range(1, self.n_cycles):
-                                solution_complete = np.vstack((
-                                    solution_complete, cycles[i].solution[1:]
-                                ))
-                        else:
-                            for i in range(1, self.n_cycles):
-                                solution_complete = np.hstack((
-                                    solution_complete, cycles[i].solution[1:]
-                                ))
-
-                        solution[unit][sol][port].time = time_complete
-                        solution[unit][sol][port].solution = solution_complete
-                        solution[unit][sol][port].update_solution()
+                if isinstance(ports_cycles, dict):
+                    for port, cycles in ports_cycles.items():
+                        solution[unit][sol][port] = _merge_cycles(
+                            cycles,
+                            time_complete,
+                        )
                 else:
-                    cycles = ports_cycles
-                    solution[unit][sol] = copy.deepcopy(cycles[0])
-                    solution_complete = cycles[0].solution
-                    if solution_complete.ndim > 1:
-                        for i in range(1, self.n_cycles):
-                            solution_complete = np.vstack((
-                                solution_complete, cycles[i].solution[1:]
-                            ))
-                    else:
-                        for i in range(1, self.n_cycles):
-                            solution_complete = np.hstack((
-                                solution_complete, cycles[i].solution[1:]
-                            ))
-
-                    solution[unit][sol].time = time_complete
-                    solution[unit][sol].solution = solution_complete
-                    solution[unit][sol].update_solution()
+                    solution[unit][sol] = _merge_cycles(
+                        ports_cycles,
+                        time_complete,
+                    )
 
         self._solution = solution
 
