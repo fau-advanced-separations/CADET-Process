@@ -33,6 +33,7 @@ dependencies = [
     "numpy>=1.21",
     "matplotlib>=3.4",
     "numba>=0.55.1",
+    "packaging>=26.0",
     "pathos>=0.2.8",
     "psutil>=5.9.8",
     "pymoo>=0.6",
