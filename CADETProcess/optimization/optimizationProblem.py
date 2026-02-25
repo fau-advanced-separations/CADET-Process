@@ -17,6 +17,7 @@ import hopsy
 import numpy as np
 import numpy.typing as npt
 from addict import Dict
+from packaging.version import Version
 
 from CADETProcess import CADETProcessError, log, settings
 from CADETProcess.dataStructure import (
@@ -3122,7 +3123,9 @@ class OptimizationProblem(Structure):
             include_dependent_variables=False, simplify=False, use_custom_model=True
         )
 
-        chebyshev = hopsy.compute_chebyshev_center(problem, original_space=True)[:, 0]
+        chebyshev = hopsy.compute_chebyshev_center(problem, original_space=True)
+        if Version(hopsy.__version__.strip('"')) < Version("1.7.0b"):
+            chebyshev = chebyshev[:, 0]
 
         if include_dependent_variables:
             chebyshev = self.get_dependent_values(chebyshev)
