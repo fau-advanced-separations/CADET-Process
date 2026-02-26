@@ -1,5 +1,4 @@
 import copy
-import warnings
 from typing import Optional
 
 from CADETProcess.processModel import (
@@ -81,11 +80,6 @@ class SerialColumns(Process):
         if not isinstance(column, ChromatographicColumnBase):
             raise TypeError("Expected ChromatographicColumnBase.")
 
-        column = copy.deepcopy(column)
-        if not column.name == "column":
-            warnings.warn("Renaming column to `column` for consistency")
-            column.name = "column"
-
         flow_sheet = self._build_flow_sheet(
             column,
             split_ratio,
@@ -150,14 +144,12 @@ class SerialColumns(Process):
         eluent_2 = Inlet(component_system, name="eluent_2")
         eluent_2.c = c_eluent
 
-        column_1 = copy.deepcopy(column)
+        column_1 = copy.copy(column)
         column_1.name = "column_1"
-        column_1.component_system = component_system
         column_1.length = split_ratio * column.length
 
-        column_2 = copy.deepcopy(column)
+        column_2 = copy.copy(column)
         column_2.name = "column_2"
-        column_2.component_system = component_system
         column_2.length = (1 - split_ratio) * column.length
 
         outlet_1 = Outlet(component_system, name="outlet_1")

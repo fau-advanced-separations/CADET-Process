@@ -1,4 +1,3 @@
-import copy
 import warnings
 
 from CADETProcess.processModel import (
@@ -60,7 +59,6 @@ class FlipFlop(Process):
         if not isinstance(column, ChromatographicColumnBase):
             raise TypeError("Expected ChromatographicColumnBase.")
 
-        column = copy.deepcopy(column)
         if not column.name == "column":
             warnings.warn("Renaming column to `column` for consistency")
             column.name = "column"

@@ -1,4 +1,3 @@
-import copy
 import warnings
 from typing import Optional
 
@@ -59,7 +58,6 @@ class BatchElution(Process):
         if not isinstance(column, ChromatographicColumnBase):
             raise TypeError("Expected ChromatographicColumnBase.")
 
-        column = copy.deepcopy(column)
         if not column.name == "column":
             warnings.warn("Renaming column to `column` for consistency")
             column.name = "column"
