@@ -1,5 +1,5 @@
+import copy
 import warnings
-from copy import deepcopy
 from functools import wraps
 from typing import Any, NoReturn, Optional, Union
 
@@ -332,8 +332,7 @@ class CarouselBuilder(Structure):
                 flow_sheet.add_unit(unit.inlet_unit)
                 flow_sheet.add_unit(unit.outlet_unit)
                 for i_col in range(unit.n_columns):
-                    col = deepcopy(self.column)
-                    col.component_system = self.component_system
+                    col = copy.copy(self.column)
                     col.name = f"column_{col_index}"
                     if unit.initial_state is not None:
                         col.initial_state = unit.initial_state[i_col]
