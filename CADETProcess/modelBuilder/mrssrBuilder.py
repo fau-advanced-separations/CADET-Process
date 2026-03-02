@@ -23,7 +23,7 @@ class MRSSR(Process):
 
     The process is configured with the following events:
     - Feed injection (duration: `feed_duration`), coupled to elution flow rate.
-    - Recycling (starts at `recycle_on`, ends at `recycle_off`).
+    - Recycling (starts at `t_recycle_on`, ends at `t_recycle_off`).
     """
 
     def __init__(
@@ -32,8 +32,8 @@ class MRSSR(Process):
         c_feed: list[float],
         flow_rate: float,
         feed_duration: float,
-        recycle_on: float,
-        recycle_off: float,
+        t_recycle_on: float,
+        t_recycle_off: float,
         cycle_time: float,
         V_tank: float,
         c_eluent: list[float] | float = 0.0,
@@ -52,9 +52,9 @@ class MRSSR(Process):
             Flow rate.
         feed_duration : float
             Feed injection duration.
-        recycle_on : float
+        t_recycle_on : float
             Time at which to start recycling.
-        recycle_off : float
+        t_recycle_off : float
             Time at which to end recycling.
         cycle_time : float
             Total cycle time.
@@ -100,13 +100,13 @@ class MRSSR(Process):
             "recycle_on",
             f"flow_sheet.output_states.{column.name}",
             {"tank": 1},
-            recycle_on,
+            t_recycle_on,
         )
         self.add_event(
             "recycle_off",
             f"flow_sheet.output_states.{column.name}",
             {"outlet": 1},
-            recycle_off,
+            t_recycle_off,
         )
 
         # Dependencies
