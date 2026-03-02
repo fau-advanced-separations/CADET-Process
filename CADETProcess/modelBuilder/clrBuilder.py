@@ -23,7 +23,7 @@ class CLR(Process):
 
     The process is configured with the following events:
     - Feed injection (duration: `feed_duration`).
-    - Recycling (ends at `recycle_off`).
+    - Recycling (ends at `t_recycle_off`).
     - Elution after recycling.
     """
 
@@ -33,7 +33,7 @@ class CLR(Process):
         c_feed: list[float],
         flow_rate: float,
         feed_duration: float,
-        recycle_off: float,
+        t_recycle_off: float,
         cycle_time: float,
         c_eluent: list[float] | float = 0.0,
         pump_volume: float = 1e-9,
@@ -51,7 +51,7 @@ class CLR(Process):
             Flow rate.
         feed_duration : float
             Feed injection duration.
-        recycle_off : float
+        t_recycle_off : float
             Time at which recycling ends.
         cycle_time : float
             Total cycle time.
@@ -99,7 +99,7 @@ class CLR(Process):
             "recycle_off_output_state",
             f"flow_sheet.output_states.{column.name}",
             {"outlet": 1},
-            recycle_off,
+            t_recycle_off,
         )
         self.add_event("recycle_off_pump", "flow_sheet.pump.flow_rate", 0)
         self.add_event_dependency("recycle_off_pump", ["recycle_off_output_state"])
