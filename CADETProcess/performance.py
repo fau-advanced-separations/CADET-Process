@@ -293,7 +293,7 @@ class PerformanceIndicator(MetricBase):
         """int: Bad metrics to use when evaluation fails."""
         return 0
 
-    def evaluate(self, performance: Performance) -> list:
+    def evaluate(self, performance: Performance) -> np.ndarray:
         """
         Evaluate the performance indicator for the given performance data.
 
@@ -304,8 +304,8 @@ class PerformanceIndicator(MetricBase):
 
         Returns
         -------
-        list
-            List of performance indicator values.
+        np.ndarray
+            Array of performance indicator values.
         """
         try:
             performance = performance.performance
@@ -324,7 +324,7 @@ class PerformanceIndicator(MetricBase):
             for i, comp in enumerate(performance.component_system):
                 metric.append(value[i])
 
-        return metric
+        return np.array(metric)
 
     __call__ = evaluate
 
