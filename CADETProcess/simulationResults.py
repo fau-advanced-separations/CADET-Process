@@ -191,6 +191,11 @@ class SimulationResults(Structure):
                 for cycle in cycles[1:]:
                     new_flow_rate = cycle.flow_rate.offset(flow_rate_complete.end)
                     for section in new_flow_rate.sections:
+                        # Find the closest time to avoid numerical issues
+                        start_index = np.argmin(np.abs(time_complete - section.start))
+                        section.start = time_complete[start_index]
+                        end_index = np.argmin(np.abs(time_complete - section.end))
+                        section.end = time_complete[end_index]
                         flow_rate_complete.add_section(section)
                 merged.flow_rate = flow_rate_complete
 
