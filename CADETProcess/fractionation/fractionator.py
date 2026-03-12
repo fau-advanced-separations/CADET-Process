@@ -12,7 +12,7 @@ from CADETProcess.dataStructure import String
 from CADETProcess.dynamicEvents import Event, EventHandler
 from CADETProcess.fractionation.fractions import Fraction, FractionPool
 from CADETProcess.performance import Performance
-from CADETProcess.processModel import ComponentSystem, Process
+from CADETProcess.processModel import ComponentSystem, Process, ProcessMeta
 from CADETProcess.simulationResults import SimulationResults
 from CADETProcess.solution import SolutionIO, slice_solution
 
@@ -131,8 +131,6 @@ class Fractionator(EventHandler):
         self._fractionation_states = Dict({chrom: [] for chrom in self.chromatograms})
         self._chromatogram_events = Dict({chrom: [] for chrom in self.chromatograms})
 
-        self._cycle_time = self.process.cycle_time
-
         self.reset()
 
     @property
@@ -201,6 +199,11 @@ class Fractionator(EventHandler):
         return self.simulation_results.process
 
     @property
+    def process_meta(self) -> ProcessMeta:
+        """ProcessMeta: Process meta information."""
+        return self.simulation_results.process_meta
+
+    @property
     def n_comp(self) -> int:
         """int: Number of components to be fractionized."""
         return self.chromatograms[0].n_comp
@@ -210,18 +213,12 @@ class Fractionator(EventHandler):
         """
         The cycle time of the Fractionator.
 
-        Note that in some situations, it might be desired to set a custom cycle time
-        for calculating the performance indicators. For this purpose, overwrite the
-        cycle time in the Process object after adding it to the Fractionator.
-
-        Warning: This is not a robust feature! Side effects can ocurr in the Process!
-
         See Also
         --------
         productivity
 
         """
-        return self._cycle_time
+        return self.time[-1]
 
     @property
     def time(self) -> np.ndarray:
@@ -547,7 +544,7 @@ class Fractionator(EventHandler):
     @property
     def productivity(self) -> np.ndarray:
         """ndarray: Specific productivity in corresponding fraction pool."""
-        return self.mass / (self.process.cycle_time * self.process.V_solid)
+        return self.mass / (self.process_meta.cycle_time * self.process_meta.V_solid)
 
     @property
     def eluent_consumption(self) -> np.ndarray:
@@ -560,7 +557,7 @@ class Fractionator(EventHandler):
         consumption. It is preferred here in order to avoid numeric issues
         if the collected mass is 0.
         """
-        return self.mass / self.process.V_eluent
+        return self.mass / self.process_meta.V_eluent
 
     @property
     def performance(self) -> Performance:
