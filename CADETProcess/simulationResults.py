@@ -31,7 +31,12 @@ from CADETProcess.dataStructure import (
     UnsignedFloat,
     UnsignedInteger,
 )
-from CADETProcess.processModel import ComponentSystem, Process, UnitBaseClass
+from CADETProcess.processModel import (
+    ComponentSystem,
+    Process,
+    ProcessMeta,
+    UnitBaseClass,
+)
 from CADETProcess.solution import SolutionBase
 
 __all__ = ["SimulationResults"]
@@ -117,6 +122,13 @@ class SimulationResults(Structure):
         self._time_complete = None
         self._solution = None
         self._sensitivity = None
+
+        self._process_meta = process.process_meta
+
+    @property
+    def process_meta(self) -> ProcessMeta:
+        """ProcessMeta: Process meta information."""
+        return self._process_meta
 
     def update(self, new_results: SimulationResults) -> None:
         """Update the simulation results with results from a new cycle."""

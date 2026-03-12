@@ -15,7 +15,7 @@ from .componentSystem import ComponentSystem
 from .flowSheet import FlowSheet
 from .unitOperation import Inlet, Outlet
 
-__all__ = ["Process"]
+__all__ = ["Process", "ProcessMeta"]
 
 
 class Process(EventHandler):
@@ -146,6 +146,16 @@ class Process(EventHandler):
         """float: Volume of all solid phase material used in flow sheet."""
         return sum([unit.volume_solid for unit in self.flow_sheet.units_with_binding])
 
+    @property
+    def process_meta(self) -> "ProcessMeta":
+        """ProcessMeta: Process meta information."""
+        return ProcessMeta(
+            cycle_time=self.cycle_time,
+            V_eluent=self.V_eluent,
+            V_solid=self.V_solid,
+            m_feed=self.m_feed,
+        )
+
     @cached_property_if_locked
     def flow_rate_timelines(self) -> dict:
         """Return TimeLine of flow_rate for all unit_operations."""
@@ -179,7 +189,6 @@ class Process(EventHandler):
                 unit_flow_rates = flow_rate_timelines[unit]
 
                 # If inlet, also use outlet for total_in
-
                 if isinstance(self.flow_sheet[unit], Inlet):
                     for port in flow_rate_dict["total_out"]:
                         section = Section(
@@ -906,3 +915,13 @@ class ParameterSensitivity:
     section_indices: list = None
     abstols: list = None
     factors: list = None
+
+
+@dataclass
+class ProcessMeta:
+    """Class for storing process meta information."""
+
+    cycle_time: float
+    V_eluent: float
+    V_solid: float
+    m_feed: list[float]
