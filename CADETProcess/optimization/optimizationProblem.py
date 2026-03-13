@@ -827,10 +827,15 @@ class OptimizationProblem(Structure):
                 results = np.hstack((results, value))
             except CADETProcessError as e:
                 self.logger.warning(
-                    f'Evaluation of {eval_fun.name} failed at {x} with Error "{e}". '
+                    f"Evaluation of {eval_fun.name} failed at {x} with Error '{e}'. "
                     f"Returning bad metrics."
                 )
                 results = np.hstack((results, eval_fun.bad_metrics))
+            except Exception as e:
+                self.logger.error(
+                    f"Evaluation of {eval_fun.name} failed at {x} with Error '{e}'."
+                )
+                raise
 
         return results
 
