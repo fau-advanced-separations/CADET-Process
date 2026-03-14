@@ -129,6 +129,12 @@ class SciPyInterface(OptimizerBase):
                 callback=self.get_callback(optimization_problem),
             )
 
+        # Manually run callback for COBYLA
+        # see also: https://github.com/scipy/scipy/issues/24598
+        if str(self) == "COBYLA":
+            callback = self.get_callback(optimization_problem)
+            callback(scipy_results.x)
+
         self.results.success = bool(scipy_results.success)
         self.results.exit_flag = scipy_results.status
         self.results.exit_message = scipy_results.message
