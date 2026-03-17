@@ -269,8 +269,6 @@ class Fractionator(EventHandler):
         if isinstance(chromatogram, str):
             chromatogram = self.chromatograms_dict[chromatogram]
 
-        time_line = self.performer_timelines["fractionation_states"][chromatogram.name]
-
         try:
             start: float = kwargs["start"]
             if x_axis_in_minutes:
@@ -293,37 +291,49 @@ class Fractionator(EventHandler):
 
         y_max = 1.1 * np.max(chromatogram.solution)
 
-        for sec in time_line.sections:
-            comp_index = int(np.where(sec.coeffs)[0].squeeze())
-            if comp_index == self.n_comp:
-                color_index = -1
-                text = "W"
-            else:
-                color_index = comp_index
-                text = self.component_system.names[comp_index]
+        try:
+            time_line = self.performer_timelines["fractionation_states"][chromatogram.name]
 
-            sec_start = sec.start
-            sec_end = sec.end
+            for sec in time_line.sections:
+                comp_index = int(np.where(sec.coeffs)[0].squeeze())
+                if comp_index == self.n_comp:
+                    color_index = -1
+                    text = "W"
+                else:
+                    color_index = comp_index
+                    text = self.component_system.names[comp_index]
 
-            if x_axis_in_minutes:
-                sec_start = sec_start / 60
-                sec_end = sec_end / 60
+                sec_start = sec.start
+                sec_end = sec.end
 
-            if sec_start != sec_end:
+                if x_axis_in_minutes:
+                    sec_start = sec_start / 60
+                    sec_end = sec_end / 60
+
+                if sec_start != sec_end:
+                    plotting.fill_between(
+                        ax,
+                        sec_start,
+                        sec_end,
+                        y_max,
+                        color_index=color_index,
+                        text=text,
+                    )
+            if len(time_line.sections) == 0:
                 plotting.fill_between(
                     ax,
                     sec_start,
                     sec_end,
                     y_max,
-                    color_index=color_index,
-                    text=text,
+                    color_index=-1,
+                    text="W",
                 )
 
-        if len(time_line.sections) == 0:
+        except KeyError:
             plotting.fill_between(
                 ax,
-                sec_start,
-                sec_end,
+                start,
+                end,
                 y_max,
                 color_index=-1,
                 text="W",
@@ -363,6 +373,10 @@ class Fractionator(EventHandler):
             If state is integer and the state >= the n_comp.
             If the length of the states is unequal the state_length.
             If the sum of the states is not equal to 1.
+
+        Notes
+        -----
+        Waste is always the last fraction.
         """
         if chrom not in self.chromatograms:
             raise CADETProcessError("Chromatogram not in Fractionator")
@@ -578,7 +592,6 @@ class Fractionator(EventHandler):
 
     def reset(self) -> None:
         """Reset the results when fractionation times are changed."""
-        self._fractionation_state = None
         self._fraction_pools = None
         self._mass = None
 
