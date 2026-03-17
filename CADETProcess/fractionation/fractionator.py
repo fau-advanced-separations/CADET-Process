@@ -129,6 +129,8 @@ class Fractionator(EventHandler):
         self.m_feed: np.ndarray = m_feed
 
         self._fractionation_states = Dict({chrom: [] for chrom in self.chromatograms})
+        for chrom in self.chromatograms:
+            self.set_fractionation_state(chrom, -1)
         self._chromatogram_events = Dict({chrom: [] for chrom in self.chromatograms})
 
         self._cycle_time = self.process.cycle_time
