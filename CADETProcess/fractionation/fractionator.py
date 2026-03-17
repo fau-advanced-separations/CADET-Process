@@ -294,6 +294,27 @@ class Fractionator(EventHandler):
 
         y_max = 1.1 * np.max(chromatogram.solution)
 
+        self._fill_fraction_overlay(
+            ax,
+            chromatogram,
+            y_max,
+            x_axis_in_minutes,
+            start,
+            end,
+        )
+
+        return fig, ax
+
+    def _fill_fraction_overlay(
+        self,
+        ax: Axes,
+        chromatogram: SolutionIO,
+        y_max: float,
+        x_axis_in_minutes: bool,
+        start: float,
+        end: float,
+    ) -> None:
+        """Fill fraction overlay."""
         try:
             time_line = self.performer_timelines["fractionation_states"][chromatogram.name]
 
@@ -341,8 +362,6 @@ class Fractionator(EventHandler):
                 color_index=-1,
                 text="W",
             )
-
-        return fig, ax
 
     @property
     def fractionation_states(self) -> Dict:
