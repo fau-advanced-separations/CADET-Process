@@ -800,7 +800,9 @@ class SolutionIO(SolutionBase):
                 ax.set_ylim(ylim)
 
             if show_legend:
-                ax.legend()
+                handles, labels = plotting.get_all_twin_handles_labels(ax)
+                if labels:
+                    ax.legend(handles, labels)
 
         return fig, ax
 
@@ -2006,7 +2008,8 @@ def _plot_solution_1D(
 
         if show_legend:
             handles, labels = plotting.get_all_twin_handles_labels(primary_ax)
-            primary_ax.legend(handles, labels)
+            if labels:
+                primary_ax.legend(handles, labels)
 
     if not sec_axes:
         return fig, primary_ax
