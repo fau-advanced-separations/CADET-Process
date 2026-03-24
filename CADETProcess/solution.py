@@ -1483,21 +1483,17 @@ class SolutionSolid(SolutionBase):
             return
         return len(self.particle_coordinates)
 
-    @plotting.figure_utils
     def plot(
         self,
-        start: Optional[float] = None,
-        end: Optional[float] = None,
-        components: Optional[list[str]] = None,
-        layout: Optional[plotting.Layout] = None,
-        y_max: Optional[float] = None,
-        x_axis_in_minutes: Optional[bool] = True,
-        ax: Optional[plt.Axes] = None,
+        start: float | None = None,
+        end: float | None = None,
+        components: list[str] | None = None,
+        x_axis_in_minutes: bool = True,
         *args: Any,
         **kwargs: Any,
-    ) -> plt.Axes:
+    ) -> tuple[plt.Figure, plt.Axes | tuple[plt.Axes]]:
         """
-        Plot the entire solid phase solution for each component.
+        Plot the entire particle solid phase solution for each component.
 
         Parameters
         ----------
@@ -1507,38 +1503,33 @@ class SolutionSolid(SolutionBase):
             End time for plotting in seconds. If None, the last data point is used.
         components : list[str] | None, optional, default=None
             List of components to be plotted. If None, all components are plotted.
-        layout : Optional[plotting.Layout]
-            Plot layout options.
-        y_max : Optional[float]
-            Maximum value of y axis.
-            If None, value is automatically deferred from solution.
         x_axis_in_minutes : bool, optional, default=True
-            If True, the x-axis will be plotted using minutes.
-        ax : Optional[plt.Axes]
-            plt.Axes to plot on.
+            If True, the x-axis is displayed in minutes instead of seconds.
         *args : Any
-            Optional arguments passed down to _plot_solution_1D.
+            Optional arguments passed to `_plot_solution_1D`.
         **kwargs : Any
-            Optional arguments passed down to _plot_solution_1D.
+            Optional keyword arguments passed to `_plot_solution_1D`.
 
         Returns
         -------
-        ax : plt.Axes
-            plt.Axes object with concentration profile.
+        tuple[plt.Figure, plt.Axes | tuple[plt.Axes]]
+            The Matplotlib Figure and Axes objects.
 
-        Raises CADETProcessError
+        Raises
+        ------
+        CADETProcessError
             If solution is not 1D.
 
         See Also
         --------
-        _plot_solution_1D
-        slice_solution
-        plot_purity
-        CADETProcess.plotting
+        _plot_solution_1D : Low-level function for 1D plotting.
+        slice_solution : Slice the solution for plotting.
+        CADETProcess.plotting : Plotting library utilities.
         """
         if not (self.ncol is None and self.nrad is None and self.npar is None):
             raise CADETProcessError(
-                "Solution has more than single dimension. Please use `plot_at_time`."
+                "Solution has more than single dimension. "
+                "Please use `plot_at_time`."
             )
 
         solution = slice_solution(
@@ -1563,7 +1554,7 @@ class SolutionSolid(SolutionBase):
 
         ylabel = r"$c~/~\text{mM}$"
 
-        fig, axs = _plot_solution_1D(
+        return _plot_solution_1D(
             time,
             solution,
             *args,
@@ -1572,8 +1563,6 @@ class SolutionSolid(SolutionBase):
             ylabel=ylabel,
             **kwargs,
         )
-
-        return ax
 
     def _plot_1D(
         self,
