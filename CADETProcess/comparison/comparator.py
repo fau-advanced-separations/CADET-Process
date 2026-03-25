@@ -300,7 +300,6 @@ class Comparator(Structure):
             solution_sliced.plot(
                 ax=ax,
                 x_axis_in_minutes=x_axis_in_minutes,
-                show=False,
                 tight_layout=False,
             )
 
