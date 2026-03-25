@@ -371,7 +371,10 @@ class FractionationOptimizer:
             raise CADETProcessError("Simulation results do not contain chromatogram.")
 
         # Convert inputs to lists of length n_comp
-        n_comp = simulation_results.component_system.n_comp
+        n_comp = (
+            len(components) if components
+            else simulation_results.component_system.n_comp
+        )
         if isinstance(purity_required, float):
             purity_required = n_comp * [purity_required]
         if ranking == "equal":
