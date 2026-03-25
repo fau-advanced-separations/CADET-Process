@@ -289,7 +289,8 @@ class Fractionator(EventHandler):
             **kwargs,
         )
 
-        y_max = 1.1 * np.max(chromatogram.solution)
+        primary_ax = fig.get_axes()[0]
+        y_max = primary_ax.get_ylim()[1]
 
         self._fill_fraction_overlay(
             ax,
