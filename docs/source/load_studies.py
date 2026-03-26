@@ -313,9 +313,12 @@ def load_study_results(
         nb.resolve().relative_to(DOCS_SOURCE).with_suffix("").as_posix()
         for nb in notebooks
     ]
-    index_docs = [d for d in docnames if d.endswith("/index")]
-    return index_docs if index_docs else docnames
 
+    study_index = (target / "index.ipynb").resolve()
+    if study_index.exists():
+        return [study_index.relative_to(DOCS_SOURCE).with_suffix("").as_posix()]
+
+    return docnames
 
 def main() -> None:
     """
@@ -340,6 +343,7 @@ def main() -> None:
     ]
 
     toc_docnames: list[str] = []
+
     for url, project_ref, output_ref in studies:
         name = url.split("/")[-1].replace(".git", "").replace("RDM-Example-", "")
         toc_docnames.extend(
