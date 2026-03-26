@@ -331,14 +331,19 @@ def main() -> None:
 
     studies: list[tuple[str, str, str]] = [
         (
-            "https://github.com/cadet/RDM-Example-Multi-State-Steric-Mass-Action.git",
+            "https://github.com/cadet/RDM-Example-Multi-State-Steric-Mass-Action",
             "main",
             "2026-02-11_14-11-23_main_406bbee",
         ),
         (
             "https://github.com/cadet/RDM-Example-Rectangular-Pulse",
             "main",
-            "2026-02-03_15-30-39_main_0e5f840",
+            "2026-03-06_10-01-32_main_b2115b3",
+        ),
+        (
+            "https://github.com/cadet/RDM-Example-Simulated-Moving-Bed",
+            "main",
+            "2026-03-26_11-09-10_main_3a25a18_108b0d",
         ),
     ]
 
