@@ -23,6 +23,7 @@ def preprocessing(
     buffer: npt.ArrayLike,
     pH: Optional[float | np.ndarray] = None,
     components: Optional[list] = None,
+    proton_index: int | None = None,
 ) -> tuple[dict[str, list], dict[str, np.ndarray], np.ndarray, dict[str, int], bool]:
     """
     Preprocess reaction system data for further analysis or simulation.
@@ -41,6 +42,8 @@ def preprocessing(
         pH value(s) for the system. If None, pH is calculated from the buffer concentrations.
     components : Optional[list], optional
         List of components to consider. If None, all components are considered.
+    proton_index : Optional[int]
+        Proton index. If None, will try to infer from component names.
 
     Returns
     -------
@@ -68,10 +71,17 @@ def preprocessing(
             if comp not in components:
                 indices.pop(comp)
 
-    try:
-        proton_index = indices.pop("H+")
-    except ValueError:
-        raise CADETProcessError("Could not find proton in component system")
+    if proton_index is None:
+        proton_aliases = ("H^+", "H+", "$H^+$")
+        for key in proton_aliases:
+            if key in indices:
+                proton_index = indices.pop(key)
+                break
+    if proton_index is None:
+        raise KeyError(
+            "Proton species not found. "
+            "Provide `proton_index` or include one of: H^+, H+, $H^+$"
+        )
 
     if pH is None:
         pH = -np.log10(buffer_M[:, proton_index]).reshape((-1))
@@ -469,7 +479,7 @@ def plot_buffer_capacity(
     b_total = np.sum(b, axis=1)
 
     labels = reaction_system.component_system.names
-    labels.remove("H+")
+    labels = [l for l in labels if l not in ["H^+", "H+", "$H^+$"]]   # noqa: E741
 
     for i in range(reaction_system.component_system.n_components - 1):
         ax.plot(pH, b[:, i], label=labels[i])
@@ -532,7 +542,7 @@ def plot_charge_distribution(
         y_label = "degree of protolysis"
         labels = reaction_system.component_system.species
 
-    labels.remove("H+")
+    labels = [l for l in labels if l not in ["H^+", "H+", "$H^+$"]]  # noqa: E741
 
     for i, label in zip(c.T, labels):
         ax.plot(pH, i, label=label)
