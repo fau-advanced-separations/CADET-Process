@@ -467,8 +467,6 @@ def plot_buffer_capacity(
     """
     if ax is None:
         fig, ax = plotting.setup_figure(**setup_figure_kwargs)
-        ax.set_xlabel("$pH$")
-        ax.set_ylabel("buffer capacity / mM")
     else:
         fig = ax.get_figure()
 
@@ -487,6 +485,8 @@ def plot_buffer_capacity(
     ax.plot(pH, b[:, -1], label="Water")
     ax.plot(pH, b_total, "k--", label="Total buffer capacity")
 
+    ax.set_xlabel("$pH$")
+    ax.set_ylabel("buffer capacity / mM")
     ax.set_ylim(0, 1.1 * np.max(b_total))
 
     if labels:
@@ -526,7 +526,6 @@ def plot_charge_distribution(
     """
     if ax is None:
         fig, ax = plotting.setup_figure(**setup_figure_kwargs)
-        ax.set_xlabel("$pH$")
     else:
         fig = ax.get_figure()
 
@@ -535,11 +534,11 @@ def plot_charge_distribution(
 
     if plot_cumulative:
         c = cummulative_charge_distribution(reaction_system, pH)
-        y_label = "degree of dissociation"
+        y_label = "Net charge"
         labels = reaction_system.component_system.names
     else:
         c = charge_distribution(reaction_system, pH)
-        y_label = "degree of protolysis"
+        y_label = "Mole fraction"
         labels = reaction_system.component_system.species
 
     labels = [l for l in labels if l not in ["H^+", "H+", "$H^+$"]]  # noqa: E741
@@ -547,6 +546,7 @@ def plot_charge_distribution(
     for i, label in zip(c.T, labels):
         ax.plot(pH, i, label=label)
 
+    ax.set_xlabel("$pH$")
     ax.set_ylabel(y_label)
     ax.set_ylim(1.1 * np.min(c), 1.1 * np.max(c))
 
