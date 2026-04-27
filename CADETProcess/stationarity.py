@@ -169,7 +169,7 @@ class StationarityEvaluator(Comparator):
             side: str,
             criteria: dict,
             c: object,
-        ) -> None:
+        ) -> bool:
             """Assert stationarity for a given inlet/outlet of a unit."""
             solution_previous.name = f"{unit}.{side}"
             self.add_reference(
@@ -185,8 +185,9 @@ class StationarityEvaluator(Comparator):
             )
             diff = metric.evaluate(solution_this)
             criteria[str(c)][unit][side]["metric"] = diff
-            stationarity = np.all(diff <= c.threshold)
-            criteria[str(c)][unit][side]["stationarity"] = stationarity
+            s = np.all(diff <= c.threshold)
+            criteria[str(c)][unit][side]["stationarity"] = s
+            return s
 
         for unit, solution in simulation_results.solution_cycles.items():
             if isinstance(flow_sheet[unit], Inlet):
@@ -195,22 +196,24 @@ class StationarityEvaluator(Comparator):
             for c in self.criteria:
                 if isinstance(c, MassBalance):
                     continue
-                _assert_unit_io(
+                if not _assert_unit_io(
                     solution.inlet[-2],
                     solution.inlet[-1],
                     unit,
                     "inlet",
                     criteria,
                     c,
-                )
-                _assert_unit_io(
+                ):
+                    stationarity = False
+                if not _assert_unit_io(
                     solution.outlet[-2],
                     solution.outlet[-1],
                     unit,
                     "outlet",
                     criteria,
                     c,
-                )
+                ):
+                    stationarity = False
 
         self.logger.debug(f"Stationrity criteria: {criteria}")
 
