@@ -1014,7 +1014,7 @@ def _determine_scaling(
     scaling = []
     for i in range(n_variables):
         min_i, max_i = population[:, i].min(), population[:, i].max()
-        scaling.append(min_i > 0 and (max_i - min_i) > threshold)
+        scaling.append(min_i > 0 and (max_i / min_i) > threshold)
     return scaling
 
 
