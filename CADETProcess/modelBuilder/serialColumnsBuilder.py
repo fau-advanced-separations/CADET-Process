@@ -10,6 +10,16 @@ from CADETProcess.processModel import (
 )
 
 
+def _copy_column(
+    column: ChromatographicColumnBase, own_binding_model: bool
+) -> ChromatographicColumnBase:
+    col = copy.copy(column)
+    if own_binding_model:
+        col._binding_model = copy.deepcopy(column.binding_model)
+        col._binding_model.component_system = col.component_system
+    return col
+
+
 class SerialColumns(Process):
     """
     Serial columns process.
@@ -49,6 +59,7 @@ class SerialColumns(Process):
         t_serial_off: float,
         cycle_time: float,
         c_eluent: Optional[list[float] | float] = 0.0,
+        own_binding_model: bool = False,
     ) -> None:
         """
         Initialize batch elution process.
@@ -76,6 +87,9 @@ class SerialColumns(Process):
             Cycle time.
         c_eluent : list[float] | float, optional
             Eluent concentration. The default is 0.0.
+        own_binding_model : bool, optional
+            If True, each column gets its own deep-copied binding model.
+            If False (default), all columns share the same binding model instance.
         """
         if not isinstance(column, ChromatographicColumnBase):
             raise TypeError("Expected ChromatographicColumnBase.")
@@ -85,6 +99,7 @@ class SerialColumns(Process):
             split_ratio,
             c_feed,
             c_eluent,
+            own_binding_model,
         )
 
         super().__init__(flow_sheet, "Serial Columns")
@@ -130,6 +145,7 @@ class SerialColumns(Process):
         split_ratio: float,
         c_feed: list[float],
         c_eluent: list[float] | float | None = 0.0,
+        own_binding_model: bool = False,
     ) -> FlowSheet:
         """Build and return the flow sheet for batch elution process."""
         component_system = column.component_system
@@ -144,11 +160,11 @@ class SerialColumns(Process):
         eluent_2 = Inlet(component_system, name="eluent_2")
         eluent_2.c = c_eluent
 
-        column_1 = copy.copy(column)
+        column_1 = _copy_column(column, own_binding_model)
         column_1.name = "column_1"
         column_1.length = split_ratio * column.length
 
-        column_2 = copy.copy(column)
+        column_2 = _copy_column(column, own_binding_model)
         column_2.name = "column_2"
         column_2.length = (1 - split_ratio) * column.length
 
