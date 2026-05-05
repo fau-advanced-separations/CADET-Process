@@ -789,16 +789,16 @@ def generate_indices(
         A list where each sub-list contains indices for one dimension of the array.
         'None' indicates a full slice (':') for that dimension.
 
-    Raises
-    ------
-    ValueError
-        If 'parameter' is a scalar or if an index in 'indices' is out of bounds.
-
     Returns
     -------
     list
         A list of tuples, where each tuple represents indices into the 'parameter'
         array. If the 'parameter' array was 1D, this will be a list of integers instead.
+
+    Raises
+    ------
+    ValueError
+        If 'parameter' is a scalar or if an index in 'indices' is out of bounds.
 
     Examples
     --------

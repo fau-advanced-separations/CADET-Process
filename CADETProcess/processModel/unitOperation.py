@@ -503,11 +503,6 @@ class TubularReactorBase(UnitBaseClass):
     section area and volume, as well as methods for convective and dispersive
     properties like mean residence time or NTP.
 
-    Notes
-    -----
-        For subclassing, check that the total porosity and interstitial cross
-        section area are computed correctly depending on the model porosities!
-
     Attributes
     ----------
     length : UnsignedFloat
@@ -521,6 +516,11 @@ class TubularReactorBase(UnitBaseClass):
         If -1: Backwards flow.
     discretization : DiscretizationParametersBase
         Discretization scheme of the unit.
+
+    Notes
+    -----
+        For subclassing, check that the total porosity and interstitial cross
+        section area are computed correctly depending on the model porosities!
     """
 
     length = UnsignedFloat()
@@ -572,7 +572,6 @@ class TubularReactorBase(UnitBaseClass):
         This method, the diameter / cross section area can be inferred from
         the flow rate, velocity, and porosity.
 
-
         Parameters
         ----------
         Q : float
@@ -590,14 +589,13 @@ class TubularReactorBase(UnitBaseClass):
     def cross_section_area_interstitial(self) -> float:
         """float: Interstitial area between particles.
 
-        Notes
-        -----
-            Needs to be overwritten depending on the model porosities!
-
         See Also
         --------
         cross_section_area
 
+        Notes
+        -----
+            Needs to be overwritten depending on the model porosities!
         """
         return self.total_porosity * self.cross_section_area
 

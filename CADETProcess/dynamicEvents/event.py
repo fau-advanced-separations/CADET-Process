@@ -80,17 +80,17 @@ class EventHandler(CachedPropertiesMixin, Structure):
     parameter_events : dict
         A dictionary mapping each parameter to the list of events that affect it.
 
+    See Also
+    --------
+    Event : Represents a single point change in the system's parameters.
+    Duration : Represents a continuous time period with specific attributes or effects.
+
     Notes
     -----
     The class relies heavily on the concept of "events", which are instances
     of dynamic changes that can influence parameters in the system. These events
     can be independent or based on other events, creating intricate relationships
     to capture complex scenarios.
-
-    See Also
-    --------
-    Event : Represents a single point change in the system's parameters.
-    Duration : Represents a continuous time period with specific attributes or effects.
     """
 
     cycle_time = UnsignedFloat(default=np.inf)
@@ -214,15 +214,15 @@ class EventHandler(CachedPropertiesMixin, Structure):
         CADETProcessError
             If Event is not found.
 
-        Notes
-        -----
-        !!! Check remove_event_dependencies
-
         See Also
         --------
         add_event
         Event
         Event.remove_dependency
+
+        Notes
+        -----
+        !!! Check remove_event_dependencies
         """
         try:
             evt = self.events_dict[evt_name]

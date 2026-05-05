@@ -414,16 +414,16 @@ class Cadet(SimulatorBase):
         config : Dict
             /
 
-        Notes
-        -----
-            Sensitivities not implemented yet.
-
         See Also
         --------
         get_input_model
         get_input_solver
         get_input_return
         get_input_sensitivity
+
+        Notes
+        -----
+            Sensitivities not implemented yet.
         """
         config = Dict()
         config.input.model = self.get_input_model(process)
@@ -796,16 +796,16 @@ class Cadet(SimulatorBase):
         """
         Config branch `/input/model/`.
 
-        Notes
-        -----
-        !!! External functions not implemented yet
-
         See Also
         --------
         model_connections
         model_solver
         model_units
         input_model_parameters
+
+        Notes
+        -----
+        !!! External functions not implemented yet
         """
         input_model = Dict()
 
@@ -969,14 +969,14 @@ class Cadet(SimulatorBase):
 
         The unit operation parameters are converted to CADET format
 
+        See Also
+        --------
+        get_adsorption_config
+
         Notes
         -----
         In CADET, the parameter unit_config['discretization'].NBOUND should be
         moved to binding config or unit config
-
-        See Also
-        --------
-        get_adsorption_config
         """
         unit_parameters = UnitParameters(unit)
 

@@ -336,16 +336,16 @@ class StructMeta(type):
     _required_parameters : list
         List of parameters that have a default value of None.
 
+    Methods
+    -------
+    __prepare__(name, bases) -> OrderedDict
+        Prepares the namespace for the class body to be executed.
+
     See Also
     --------
     Structure : Base class that typically uses this metaclass.
     Descriptor : Class that represents the descriptors this metaclass operates on.
     Parameters : Base class for model parameters with e.g. type or bound constraints.
-
-    Methods
-    -------
-    __prepare__(name, bases) -> OrderedDict
-        Prepares the namespace for the class body to be executed.
     """
 
     @classmethod

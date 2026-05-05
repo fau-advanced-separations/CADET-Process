@@ -194,15 +194,15 @@ class FlowSheet(Structure):
         unit : UnitBaseClass
             UnitBaseClass object of which the index is to be returned.
 
-        Raises
-        ------
-        CADETProcessError
-            If unit does not exist in the current flow sheet.
-
         Returns
         -------
         unit_index : int
             Returns the unit index of the unit_operation.
+
+        Raises
+        ------
+        CADETProcessError
+            If unit does not exist in the current flow sheet.
         """
         if unit not in self.units:
             raise CADETProcessError("Unit not in flow sheet")
@@ -220,15 +220,15 @@ class FlowSheet(Structure):
         port : string
             Name of port which index is to be returned
 
-        Raises
-        ------
-        CADETProcessError
-            If unit or port is not in the current flow sheet.
-
         Returns
         -------
         port_index : int
             Returns the port index of the port of the unit_operation.
+
+        Raises
+        ------
+        CADETProcessError
+            If unit or port is not in the current flow sheet.
         """
         if unit not in self.units:
             raise CADETProcessError("Unit not in flow sheet")
@@ -857,6 +857,12 @@ class FlowSheet(Structure):
         Dict
             Volumetric flow rate for each unit operation.
 
+        Raises
+        ------
+        CADETProcessError
+            If flow sheet connectivity matrix is singular, indicating a potential issue
+            in flow sheet configuration.
+
         Notes
         -----
         To calculate the flow rates, a system of equations is set up:
@@ -870,12 +876,6 @@ class FlowSheet(Structure):
         :math:`i`. If the unit is an `Inlet` or a `Cstr` with a given flow rate,
         :math:`Q_i` is given and the system is simplified. This system is solved using
         `numpy.linalg.solve`. Then, the individual flows :math:`q_{ji}` are extracted.
-
-        Raises
-        ------
-        CADETProcessError
-            If flow sheet connectivity matrix is singular, indicating a potential issue
-            in flow sheet configuration.
 
         References
         ----------

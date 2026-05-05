@@ -41,15 +41,15 @@ def simulate_solid_equilibria(
     cadet_install_path : str, optional
         Path to CADET installation. If None, the default CADET path is used.
 
-    Raises
-    ------
-    CADETProcessError
-        DESCRIPTION.
-
     Returns
     -------
     list
         Initial conditions for solid phase.
+
+    Raises
+    ------
+    CADETProcessError
+        DESCRIPTION.
     """
     process_name = flow_sheet_name = "initial_conditions"
     component_system = binding_model.component_system

@@ -652,15 +652,15 @@ class OptimizationProblem(Structure):
         X_independent : array_like
             Value of the optimization variables in untransformed space.
 
-        Raises
-        ------
-        CADETProcessError
-            If length of parameters does not match.
-
         Returns
         -------
         np.ndarray
             Value of all optimization variables in untransformed space.
+
+        Raises
+        ------
+        CADETProcessError
+            If length of parameters does not match.
         """
         if X_independent.shape[1] != self.n_independent_variables:
             raise CADETProcessError(
@@ -690,15 +690,15 @@ class OptimizationProblem(Structure):
             Value of all optimization variables.
             Works for transformed and untransformed space.
 
-        Raises
-        ------
-        CADETProcessError
-            If length of parameters does not match.
-
         Returns
         -------
         x_independent : np.ndarray
             Values of all independent optimization variables.
+
+        Raises
+        ------
+        CADETProcessError
+            If length of parameters does not match.
         """
         if X.shape[1] != self.n_variables:
             raise CADETProcessError(f"Expected {self.n_variables} value(s).")
@@ -1076,10 +1076,6 @@ class OptimizationProblem(Structure):
         kwargs : dict, optional
             Additional keyword arguments for objective function.
 
-        Warnings
-        --------
-        If objective with same name already exists.
-
         Raises
         ------
         TypeError
@@ -1087,6 +1083,10 @@ class OptimizationProblem(Structure):
         CADETProcessError
             If EvaluationObject is not found.
             If Evaluator is not found.
+
+        Warnings
+        --------
+        If objective with same name already exists.
         """
         if not callable(objective):
             raise TypeError("Expected callable objective.")
@@ -1331,10 +1331,6 @@ class OptimizationProblem(Structure):
         kwargs : dict, optional
             Additional keyword arguments for nonlinear constraint function.
 
-        Warnings
-        --------
-        If nonlinear constraint with same name already exists.
-
         Raises
         ------
         TypeError
@@ -1342,6 +1338,10 @@ class OptimizationProblem(Structure):
         CADETProcessError
             If EvaluationObject is not found.
             If Evaluator is not found.
+
+        Warnings
+        --------
+        If nonlinear constraint with same name already exists.
         """
         if not callable(nonlincon):
             raise TypeError("Expected callable constraint function.")
@@ -1685,10 +1685,6 @@ class OptimizationProblem(Structure):
         kwargs : dict, optional
             Additional keyword arguments for callback function.
 
-        Warnings
-        --------
-        If callback with same name already exists.
-
         Raises
         ------
         TypeError
@@ -1696,6 +1692,10 @@ class OptimizationProblem(Structure):
         CADETProcessError
             If EvaluationObject is not found.
             If Evaluator is not found.
+
+        Warnings
+        --------
+        If callback with same name already exists.
         """
         if not callable(callback):
             raise TypeError("Expected callable callback.")
@@ -1897,10 +1897,6 @@ class OptimizationProblem(Structure):
             Evaluators used for preprocessing.
             If None, no preprocessing is required.
 
-        Warnings
-        --------
-        If meta score with same name already exists.
-
         Raises
         ------
         TypeError
@@ -1908,6 +1904,10 @@ class OptimizationProblem(Structure):
         CADETProcessError
             If EvaluationObject is not found.
             If Evaluator is not found.
+
+        Warnings
+        --------
+        If meta score with same name already exists.
         """
         if not callable(meta_score):
             raise TypeError("Expected callable meta score.")
@@ -2054,14 +2054,14 @@ class OptimizationProblem(Structure):
         name : str, optional
             Name of the multi criteria decision function.
 
-        Warnings
-        --------
-        If multi criteria decision with same name already exists.
-
         Raises
         ------
         TypeError
             If decision_function is not callable.
+
+        Warnings
+        --------
+        If multi criteria decision with same name already exists.
 
         See Also
         --------
@@ -3164,15 +3164,15 @@ class OptimizationProblem(Structure):
             If True, include dependent variables in population.
             The default is True.
 
-        Raises
-        ------
-        CADETProcessError
-            If not enough individuals fulfilling linear constraints are found.
-
         Returns
         -------
         values : np.ndarray
             Initial values for starting the optimization.
+
+        Raises
+        ------
+        CADETProcessError
+            If not enough individuals fulfilling linear constraints are found.
         """
         burn_in = int(burn_in)
 
