@@ -189,17 +189,17 @@ class FractionationOptimizer:
         n_objectives : int
             Number of objectives. The default is 1.
 
-        Raises
-        ------
-        CADETProcessError
-            If the optimization problem setup fails.
-
         Returns
         -------
         OptimizationProblem
             The configured OptimizationProblem object.
         list
             The initial values for the optimization variables.
+
+        Raises
+        ------
+        CADETProcessError
+            If the optimization problem setup fails.
         """
         # Handle empty fractions
         n_fractions = np.array([pool.n_fractions for pool in frac.fraction_pools])

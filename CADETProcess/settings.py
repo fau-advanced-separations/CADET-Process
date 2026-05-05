@@ -69,15 +69,15 @@ class Settings(Structure):
 
         If the working directory is not set, the current directory is used.
 
-        Raises
-        ------
-        TypeError
-            If the working directory is not a string or None.
-
         Returns
         -------
         pathlib.Path
             The absolute path of the working directory.
+
+        Raises
+        ------
+        TypeError
+            If the working directory is not a string or None.
         """
         if self._working_directory is None:
             _working_directory = Path("./")

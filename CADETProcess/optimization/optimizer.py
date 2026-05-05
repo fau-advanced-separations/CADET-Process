@@ -183,17 +183,17 @@ class OptimizerBase(Structure):
         **kwargs : TYPE
             Additional keyword arguments for Optimizer.
 
+        Returns
+        -------
+        results : OptimizationResults
+            Results of the Optimization.
+
         Raises
         ------
         TypeError
             If optimization_problem is not an instance of OptimizationProblem.
         CADETProcessError
             If Optimizer is not suited for OptimizationProblem (e.g. multi-objective).
-
-        Returns
-        -------
-        results : OptimizationResults
-            Results of the Optimization.
 
         See Also
         --------
@@ -650,11 +650,6 @@ class OptimizerBase(Structure):
         """
         Run post-processing of generation.
 
-        Notes
-        -----
-        This method also works for optimizers that only perform a single evaluation per
-        "generation".
-
         Parameters
         ----------
         X_transformed : list
@@ -671,6 +666,11 @@ class OptimizerBase(Structure):
         X_opt_transformed : list, optional
             (Currently) best variable values in independent transformed space.
             If None, internal pareto front is used to determine best values.
+
+        Notes
+        -----
+        This method also works for optimizers that only perform a single evaluation per
+        "generation".
         """
         F = self.optimization_problem.transform_maximization(
             F_minimized, scores="objectives"

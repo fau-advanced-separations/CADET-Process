@@ -26,14 +26,6 @@ class ParameterBase(Descriptor):
     description : str
         Description or context of the parameter.
 
-    Notes
-    -----
-    1. Supports deep copying of default values, allowing mutable defaults without side effects.
-    2. Subclasses can further specify type constraints (like `Typed`).
-    3. They can also define
-      - immutable parameters (like `Constant`) and
-      - options-based parameters (`Switch`).
-
     See Also
     --------
     Descriptor
@@ -47,6 +39,14 @@ class ParameterBase(Descriptor):
     Float
     String
     Dictionary
+
+    Notes
+    -----
+    1. Supports deep copying of default values, allowing mutable defaults without side effects.
+    2. Subclasses can further specify type constraints (like `Typed`).
+    3. They can also define
+      - immutable parameters (like `Constant`) and
+      - options-based parameters (`Switch`).
     """
 
     def __init__(
@@ -365,15 +365,6 @@ class Typed(ParameterBase):
         Validates if the value matches the desired type (`ty`). Raises a TypeError if
         validation fails.
 
-    Notes
-    -----
-    - If `ty` is specified during instantiation, any value assigned to this parameter
-      undergoes validation against this type.
-    - Override `cast_value` in subclasses for custom casting logic.
-    - Assigning `None` to the parameter removes its current value from the instance.
-    - An error is raised during instantiation if `ty` is neither provided nor predefined
-      by a subclass.
-
     See Also
     --------
     Parameter
@@ -383,6 +374,15 @@ class Typed(ParameterBase):
     Float
     String
     Dictionary
+
+    Notes
+    -----
+    - If `ty` is specified during instantiation, any value assigned to this parameter
+      undergoes validation against this type.
+    - Override `cast_value` in subclasses for custom casting logic.
+    - Assigning `None` to the parameter removes its current value from the instance.
+    - An error is raised during instantiation if `ty` is neither provided nor predefined
+      by a subclass.
     """
 
     def __init__(self, *args: Any, ty: Optional[type] = None, **kwargs: Any) -> None:
@@ -618,6 +618,11 @@ class Callable(ParameterBase):
     constraint since built-in functions (e.g., those implemented in C) won't be captured
     by `types.FunctionTypes`.
 
+    See Also
+    --------
+    Parameter
+    Typed
+
     Examples
     --------
     Here's how you might use the `Callable` class:
@@ -627,11 +632,6 @@ class Callable(ParameterBase):
     >>> model = MyModel()
     >>> model.func = print  # This is fine as print is callable
     >>> model.func = "not_callable"  # This will raise a TypeError
-
-    See Also
-    --------
-    Parameter
-    Typed
     """
 
     def _check(self, instance: Any, value: Any, recursive: bool = False) -> None:
@@ -793,15 +793,9 @@ class Ranged(ParameterBase):
         A callable that defines the comparison operation against the upper bound.
         Default is greater than (>).
 
-    Examples
+    See Also
     --------
-    Constraining a parameter between 0 and 10:
-
-    >>> class MyClass:
-    ...     value = Ranged(lb=0, ub=10)
-    >>> obj = MyClass()
-    >>> obj.value = 5  # This is valid
-    >>> obj.value = -5  # Raises an error
+    ParameterBase
 
     Notes
     -----
@@ -811,9 +805,15 @@ class Ranged(ParameterBase):
       especially if the data structure isn't a simple scalar value
       (e.g. for np.ndarrays).
 
-    See Also
+    Examples
     --------
-    ParameterBase
+    Constraining a parameter between 0 and 10:
+
+    >>> class MyClass:
+    ...     value = Ranged(lb=0, ub=10)
+    >>> obj = MyClass()
+    >>> obj.value = 5  # This is valid
+    >>> obj.value = -5  # Raises an error
     """
 
     def __init__(
@@ -914,6 +914,16 @@ class RangedArray(Ranged):
     (lists, numpy arrays, etc.). Each element in the array is individually checked
     against the specified bounds.
 
+    See Also
+    --------
+    Ranged
+
+    Notes
+    -----
+    - The class uses numpy for efficient element-wise comparison.
+    - In case of out-of-bound values, the raised exception specifies the index/indices
+      of such values.
+
     Examples
     --------
     Constraining elements of an array parameter between 0 and 10:
@@ -925,15 +935,6 @@ class RangedArray(Ranged):
     >>> obj.values = [5, -1, 2]  # Raises an error indicating the second element is
         below the lower bound.
 
-    Notes
-    -----
-    - The class uses numpy for efficient element-wise comparison.
-    - In case of out-of-bound values, the raised exception specifies the index/indices
-      of such values.
-
-    See Also
-    --------
-    Ranged
     """
 
     def check_range(self, value: npt.ArrayLike) -> None:
@@ -1399,6 +1400,10 @@ class DimensionalizedArray(NdArray):
     n_dim : int
         The number of dimensions the array must have.
 
+    Notes
+    -----
+    The n_dim attribute can be set during initialization.
+
     Examples
     --------
     To create a descriptor for 2-dimensional arrays:
@@ -1408,10 +1413,6 @@ class DimensionalizedArray(NdArray):
     >>> obj = MyClass()
     >>> obj.arr = np.array([[1, 2], [3, 4]])  # This is valid
     >>> obj.arr = np.array([1, 2, 3, 4])  # Raises a ValueError
-
-    Notes
-    -----
-    The n_dim attribute can be set during initialization.
     """
 
     n_dim = None
@@ -1480,17 +1481,17 @@ class Vector(DimensionalizedArray):
     n_dim : int
         Dimensionality of the numpy array, set to 1 for vectors.
 
+    See Also
+    --------
+    Dimensionalized
+    NdArray
+
     Examples
     --------
     >>> class MyModel:
     ...     coordinates = Vector()
     >>> model.coordinates = np.array([1, 2, 3])  # Valid
     >>> model.coordinates = np.array([[1, 2], [3, 4]])  # Raises ValueError
-
-    See Also
-    --------
-    Dimensionalized
-    NdArray
     """
 
     n_dim = 1
@@ -1507,6 +1508,11 @@ class Matrix(DimensionalizedArray):
     n_dim : int
         Dimensionality of the numpy array, set to 2 for matrices.
 
+    See Also
+    --------
+    DimensionalizedArray
+    NdArray
+
     Examples
     --------
     >>> class MyModel:
@@ -1514,11 +1520,6 @@ class Matrix(DimensionalizedArray):
     >>> model = MyModel()
     >>> model.data = np.array([[1, 2], [3, 4]])  # Valid
     >>> model.data = np.array([1, 2, 3, 4])  # Raises ValueError
-
-    See Also
-    --------
-    DimensionalizedArray
-    NdArray
     """
 
     n_dim = 2
@@ -1549,6 +1550,13 @@ class NdPolynomial(SizedNdArray):
     size : tuple
         The shape of the polynomial array, determined from n_entries and n_coeff.
 
+    Methods
+    -------
+    fill_values(dims, value) -> np.ndarray:
+        Fills values to generate the polynomial matrix of the desired size.
+    _prepare(instance, value, recursive=False) -> np.ndarray:
+        Prepare the given polynomial matrix s.t. it adheres to the expected size.
+
     Notes
     -----
     Currently, NdPolynomial is implemented as `SizedNdArray`.
@@ -1556,13 +1564,6 @@ class NdPolynomial(SizedNdArray):
     dependent variables.
     In theory, this could be split into `NdPolynomial` and `SizedNdPolynomial`,
     but there is currently no use for this distinction.
-
-    Methods
-    -------
-    fill_values(dims, value) -> np.ndarray:
-        Fills values to generate the polynomial matrix of the desired size.
-    _prepare(instance, value, recursive=False) -> np.ndarray:
-        Prepare the given polynomial matrix s.t. it adheres to the expected size.
     """
 
     def __init__(
