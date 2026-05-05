@@ -19,6 +19,7 @@ from CADETProcess.dataStructure import (
 )
 from CADETProcess.processModel import (
     BindingBaseClass,
+    ChromatographicColumnBase,
     ComponentSystem,
     Cstr,
     FlowSheet,
@@ -42,6 +43,16 @@ __all__ = [
     "LinearSMBBuilder",
     "LangmuirSMBBuilder",
 ]
+
+
+def _copy_column(
+    column: ChromatographicColumnBase, own_binding_model: bool
+) -> ChromatographicColumnBase:
+    col = copy.copy(column)
+    if own_binding_model:
+        col._binding_model = copy.deepcopy(column.binding_model)
+        col._binding_model.component_system = col.component_system
+    return col
 
 
 class ZoneBaseClass(UnitBaseClass):
@@ -293,9 +304,15 @@ class CarouselBuilder(Structure):
         """int: Number of columns in the Carousel System."""
         return sum([zone.n_columns for zone in self.zones])
 
-    def build_flow_sheet(self) -> FlowSheet:
+    def build_flow_sheet(self, own_binding_model: bool = False) -> FlowSheet:
         """
         Assemble the flow sheet.
+
+        Parameters
+        ----------
+        own_binding_model : bool, optional
+            If True, each column gets its own deep-copied binding model.
+            If False (default), all columns share the same binding model instance.
 
         Returns
         -------
@@ -307,14 +324,14 @@ class CarouselBuilder(Structure):
 
         flow_sheet = FlowSheet(self.component_system, self.name)
 
-        self._add_units(flow_sheet)
+        self._add_units(flow_sheet, own_binding_model)
         self._add_inter_zone_connections(flow_sheet)
         self._add_intra_zone_connections(flow_sheet)
         self._set_output_states(flow_sheet)
 
         return flow_sheet
 
-    def _add_units(self, flow_sheet: FlowSheet) -> None:
+    def _add_units(self, flow_sheet: FlowSheet, own_binding_model: bool = False) -> None:
         """Add units to flow_sheet."""
         col_index = 0
         for unit in self.flow_sheet.units:
@@ -332,7 +349,7 @@ class CarouselBuilder(Structure):
                 flow_sheet.add_unit(unit.inlet_unit)
                 flow_sheet.add_unit(unit.outlet_unit)
                 for i_col in range(unit.n_columns):
-                    col = copy.copy(self.column)
+                    col = _copy_column(self.column, own_binding_model)
                     col.name = f"column_{col_index}"
                     if unit.initial_state is not None:
                         col.initial_state = unit.initial_state[i_col]
@@ -382,16 +399,22 @@ class CarouselBuilder(Structure):
             else:
                 flow_sheet.set_output_state(unit, output_state)
 
-    def build_process(self) -> Process:
+    def build_process(self, own_binding_model: bool = False) -> Process:
         """
         Assemble the process object.
+
+        Parameters
+        ----------
+        own_binding_model : bool, optional
+            If True, each column gets its own deep-copied binding model.
+            If False (default), all columns share the same binding model instance.
 
         Returns
         -------
         Process
             The assembled process object.
         """
-        flow_sheet = self.build_flow_sheet()
+        flow_sheet = self.build_flow_sheet(own_binding_model)
         process = Process(flow_sheet, self.name)
 
         self._add_events(process)
