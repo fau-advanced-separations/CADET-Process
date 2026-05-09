@@ -16,8 +16,6 @@ skip_ax = False
 try:
     from CADETProcess.optimization import (
         GPEI,
-        NEHVI,
-        qNParEGO,
     )
 except ImportError:
     skip_ax = True
@@ -68,6 +66,9 @@ EXCLUDE_COMBINATIONS = [
 NON_DEFAULT_PARAMETERS = [
     (U_NSGA3, NonlinearConstraintsMooTestProblem, {"pop_size": 300, "n_max_gen": 40}),
     (U_NSGA3, Rosenbrock, {"pop_size": 300, "n_max_gen": 20}),
+    (COBYLA, Rosenbrock, {"rhobeg": 0.1, "tol": 0.00001}),
+    (SLSQP, Rosenbrock, {"ftol": 0.0001}),
+    (GPEI, LinearConstraintsMooTestProblem, {"n_max_evals": 60}),
 ]
 
 
@@ -127,19 +128,19 @@ if not skip_ax:
         early_stopping_improvement_window = 10
         n_max_evals = 50
 
-    class NEHVI(NEHVI):
-        cv_lincon_tol = CV_LINCON_TOL
-        n_init_evals = 50
-        early_stopping_improvement_bar = 1e-4
-        early_stopping_improvement_window = 10
-        n_max_evals = 60
+    # class NEHVI(NEHVI):
+    #     cv_lincon_tol = CV_LINCON_TOL
+    #     n_init_evals = 50
+    #     early_stopping_improvement_bar = 1e-4
+    #     early_stopping_improvement_window = 10
+    #     n_max_evals = 60
 
-    class qNParEGO(qNParEGO):
-        cv_lincon_tol = CV_LINCON_TOL
-        n_init_evals = 50
-        early_stopping_improvement_bar = 1e-4
-        early_stopping_improvement_window = 10
-        n_max_evals = 70
+    # class qNParEGO(qNParEGO):
+    #     cv_lincon_tol = CV_LINCON_TOL
+    #     n_init_evals = 50
+    #     early_stopping_improvement_bar = 1e-4
+    #     early_stopping_improvement_window = 10
+    #     n_max_evals = 70
 
 
 # %% Test problem factory
@@ -181,8 +182,6 @@ if not skip_ax:
     params.extend(
         [
             GPEI,
-            NEHVI,
-            qNParEGO,
         ]
     )
     EXCLUDE_COMBINATIONS.append(
@@ -190,9 +189,9 @@ if not skip_ax:
     )
 
     # this helps to test optimizers for hard problems
-    NON_DEFAULT_PARAMETERS.append(
-        (NEHVI, LinearConstraintsMooTestProblem, {"n_init_evals": 20, "n_max_evals": 40})
-    )
+    # NON_DEFAULT_PARAMETERS.append(
+    #     (NEHVI, LinearConstraintsMooTestProblem, {"n_init_evals": 20, "n_max_evals": 40})
+    # )
 
 
 @pytest.fixture(params=params)
@@ -207,9 +206,12 @@ def optimizer(request):
 def test_convergence(optimization_problem: TestProblem, optimizer: OptimizerBase):
     # only test problems that the optimizer can handle. The rest of the tests
     # will be marked as passed
-    pytest.skip()
+    # pytest.skip()
 
     if optimizer.check_optimization_problem(optimization_problem):
+        set_non_default_parameters(optimizer, optimization_problem)
+        skip_if_combination_excluded(optimizer, optimization_problem)
+
         results = optimizer.optimize(
             optimization_problem=optimization_problem,
             save_results=False,
@@ -218,7 +220,8 @@ def test_convergence(optimization_problem: TestProblem, optimizer: OptimizerBase
             optimization_problem.test_if_solved(results, SOO_TEST_KWARGS)
         else:
             optimization_problem.test_if_solved(results, MOO_TEST_KWARGS)
-
+    else:
+        pytest.skip()
 
 @pytest.mark.slow
 def test_from_initial_values(
@@ -237,6 +240,8 @@ def test_from_initial_values(
             optimization_problem.test_if_solved(results, SOO_TEST_KWARGS)
         else:
             optimization_problem.test_if_solved(results, MOO_TEST_KWARGS)
+    else:
+        pytest.skip()
 
 
 class AbortingCallback:
@@ -263,11 +268,13 @@ class AbortingCallback:
 def test_resume_from_checkpoint(
     optimization_problem: TestProblem, optimizer: OptimizerBase
 ):
-    pytest.skip()
+    # pytest.skip()
+
+    n_obj = optimization_problem.n_objectives
 
     # TODO: Do we need to run this for all problems?
     if optimizer.check_optimization_problem(optimization_problem):
-        callback = AbortingCallback(n_max_evals=2, abort=True)
+        callback = AbortingCallback(n_max_evals=2 * n_obj, abort=True)
         optimization_problem.add_callback(callback)
 
         # TODO: How would this work for evaluation based optimizers (vs generation based)?
@@ -306,8 +313,9 @@ def test_resume_from_checkpoint(
         np.testing.assert_almost_equal(
             results_full.populations[1].x, results_aborted.populations[1].x
         )
-        # Assert callback was only called 3 times
-        assert callback.n_calls == 3
+        # Assert callback was only called 3 times + 1 final post processing
+        # Callbacks are called four times it used to be three times
+        assert callback.n_calls == 3 + 1
 
 
 if __name__ == "__main__":

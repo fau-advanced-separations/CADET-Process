@@ -1,40 +1,39 @@
 import warnings
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Mapping
 
 import numpy as np
 import numpy.typing as npt
-import pandas as pd
-from ax import (
-    Arm,
+from ax.api.client import Client
+from ax.api.configs import RangeParameterConfig
+from ax.core import (
     ComparisonOp,
-    Data,
-    Experiment,
-    Metric,
-    Models,
-    MultiObjective,
-    MultiObjectiveOptimizationConfig,
     Objective,
-    OptimizationConfig,
     OutcomeConstraint,
-    ParameterConstraint,
-    ParameterType,
-    RangeParameter,
-    Runner,
+    # Arm,
+    # Data,
+    # Experiment,
+    # Models,
+    # MultiObjective,
+    # MultiObjectiveOptimizationConfig,
+    # OptimizationConfig,
+    # ParameterConstraint,
+    # ParameterType,
+    # RangeParameter,
     SearchSpace,
 )
 from ax.core.base_trial import BaseTrial
-from ax.core.metric import MetricFetchE, MetricFetchResult
 from ax.global_stopping.strategies.improvement import ImprovementGlobalStoppingStrategy
-from ax.models.torch.botorch_defaults import get_qLogNEI
-from ax.models.torch.botorch_modular.surrogate import Surrogate
-from ax.service.utils.report_utils import exp_to_df
-from ax.utils.common.result import Err, Ok
-from botorch.acquisition.analytic import LogExpectedImprovement
-from botorch.models.gp_regression import SingleTaskGP
+# from ax.models.torch.botorch_defaults import get_qLogNEI
+# from ax.models.torch.botorch_modular.surrogate import Surrogate
+# from ax.service.utils.report_utils import exp_to_df
+# from ax.utils.common.result import Err, Ok
+# from botorch.acquisition.analytic import LogExpectedImprovement
+# from botorch.models.gp_regression import SingleTaskGP
 from botorch.utils.sampling import manual_seed
+from botorch.exceptions.errors import CandidateGenerationError
 
 from CADETProcess import CADETProcessError
-from CADETProcess.dataStructure import Float, Typed, UnsignedInteger
+from CADETProcess.dataStructure import Float, UnsignedInteger
 from CADETProcess.optimization import OptimizerBase
 from CADETProcess.optimization.optimizationProblem import OptimizationProblem
 from CADETProcess.optimization.parallelizationBackend import (
@@ -44,52 +43,48 @@ from CADETProcess.optimization.parallelizationBackend import (
 
 __all__ = [
     "GPEI",
-    "BotorchModular",
-    "NEHVI",
-    "qNParEGO",
 ]
 
+# class CADETProcessMetric(IMetric):
+#     def __init__(
+#         self,
+#         name: str,
+#         lower_is_better: Union[bool, None] = None,
+#         properties: Union[Dict[str, Any], None] = None,
+#     ) -> None:
+#         super().__init__(name, lower_is_better, properties)
 
-class CADETProcessMetric(Metric):
-    def __init__(
-        self,
-        name: str,
-        lower_is_better: Union[bool, None] = None,
-        properties: Union[Dict[str, Any], None] = None,
-    ) -> None:
-        super().__init__(name, lower_is_better, properties)
+#     def fetch_trial_data(
+#         self,
+#         trial: BaseTrial,
+#         **kwargs: Any,
+#     ) -> MetricFetchResult:
+#         try:
+#             trial_results = trial.run_metadata
+#             records = []
+#             for arm_name, arm in trial.arms_by_name.items():
+#                 results_dict = {
+#                     "trial_index": trial.index,
+#                     "arm_name": arm_name,
+#                     "metric_name": self.name,
+#                 }
 
-    def fetch_trial_data(
-        self,
-        trial: BaseTrial,
-        **kwargs: Any,
-    ) -> MetricFetchResult:
-        try:
-            trial_results = trial.run_metadata
-            records = []
-            for arm_name, arm in trial.arms_by_name.items():
-                results_dict = {
-                    "trial_index": trial.index,
-                    "arm_name": arm_name,
-                    "metric_name": self.name,
-                }
+#                 # this looks up the value of the objective function
+#                 # generated in the runner
+#                 arm_results = trial_results["arms"][arm]
+#                 results_dict.update({"mean": arm_results[self.name]})
+#                 results_dict.update({"sem": 0.0})
 
-                # this looks up the value of the objective function
-                # generated in the runner
-                arm_results = trial_results["arms"][arm]
-                results_dict.update({"mean": arm_results[self.name]})
-                results_dict.update({"sem": 0.0})
+#                 records.append(results_dict)
 
-                records.append(results_dict)
-
-            return Ok(Data(df=pd.DataFrame.from_records(records)))
-        except Exception as e:
-            return Err(
-                MetricFetchE(message=f"Failed to fetch {self.name}", exception=e)
-            )
+#             return Ok(Data(df=pd.DataFrame.from_records(records)))
+#         except Exception as e:
+#             return Err(
+#                 MetricFetchE(message=f"Failed to fetch {self.name}", exception=e)
+#             )
 
 
-class CADETProcessRunner(Runner):
+class CADETProcessRunner:
     def __init__(
         self,
         optimization_problem: OptimizationProblem,
@@ -98,15 +93,14 @@ class CADETProcessRunner(Runner):
         self.optimization_problem = optimization_problem
         self.parallelization_backend = parallelization_backend
 
-    @property
-    def staging_required(self) -> bool:
-        return False
-
-    def run(self, trial: BaseTrial) -> Dict[str, Any]:
+    def run_trials(
+        self,
+        trials: Dict[str | int, Mapping[str, float]]
+    ) -> Dict[str | int, Dict[str, float]]:
         # Get X from arms.
         X = []
-        for arm in trial.arms:
-            x = np.array(list(arm.parameters.values()))
+        for trial_index, trial in trials.items():
+            x = np.array(list(trial.values()))
             X.append(x)
 
         X = np.row_stack(X)
@@ -148,36 +142,36 @@ class CADETProcessRunner(Runner):
 
         # Update trial information with results.
         trial_metadata = self.get_metadata(
-            trial, F, objective_labels, CV, nonlincon_labels
+            trials, F, objective_labels, CV, nonlincon_labels
         )
 
         return trial_metadata
 
     @staticmethod
     def get_metadata(
-        trial: BaseTrial,
+        trials: Dict[str | int, Mapping[str, float]],
         F: np.ndarray,
         objective_labels: list[str],
-        CV: np.ndarray,
-        nonlincon_labels: list[str],
+        CV: Optional[np.ndarray] = None,
+        nonlincon_labels: Optional[list[str]] = None,
     ) -> dict:
-        trial_metadata = {"name": str(trial.index)}
-        trial_metadata.update({"arms": {}})
+        trial_metadata = {}
 
-        for i, arm in enumerate(trial.arms):
+        for results_index, (trial_index, trial) in enumerate(trials.items()):
             f_dict = {
-                f"{metric}_axidx_{i_obj}": f_metric[i]
-                for i_obj, (metric, f_metric) in enumerate(zip(objective_labels, F.T))
+                metric: f_metric[results_index]
+                for metric, f_metric in zip(objective_labels, F.T)
             }
             cv_dict = {}
             if CV is not None:
+                assert nonlincon_labels is not None, (
+                    "If CV are given, nonlinear-constraint labels must also be given."
+                )
                 cv_dict = {
-                    f"{metric}_axidx_{i_constr}": cv_metric[i]
-                    for i_constr, (metric, cv_metric) in enumerate(
-                        zip(nonlincon_labels, CV.T)
-                    )
+                    metric: cv_metric[results_index]
+                    for metric, cv_metric in zip(nonlincon_labels, CV.T)
                 }
-            trial_metadata["arms"].update({arm: {**f_dict, **cv_dict}})
+            trial_metadata.update({trial_index: {**f_dict, **cv_dict}})
 
         return trial_metadata
 
@@ -186,13 +180,14 @@ class AxInterface(OptimizerBase):
     """Wrapper around Ax's bayesian optimization API."""
 
     supports_bounds = True
-    supports_multi_objective = False
+    supports_multi_objective = True
     supports_linear_constraints = True
     supports_linear_equality_constraints = False
     supports_nonlinear_constraints = True
 
     early_stopping_improvement_window = UnsignedInteger(default=1000)
     early_stopping_improvement_bar = Float(default=1e-10)
+    n_parallel_evals = UnsignedInteger(default=3)
     n_init_evals = UnsignedInteger(default=10)
     n_max_evals = UnsignedInteger(default=100)
     seed = UnsignedInteger(default=12345)
@@ -208,15 +203,22 @@ class AxInterface(OptimizerBase):
     @staticmethod
     def _setup_parameters(optimizationProblem: OptimizationProblem) -> list:
         parameters = []
+
         for var in optimizationProblem.independent_variables:
+
+            if "-" in var.name or "+" in var.name:
+                raise CADETProcessError(
+                    f"Bad parameter name: '{var.name}'. Ax does not " +
+                    "support dashes ('-','+') in parameter names."
+                )
+
             lb, ub = var.transformed_bounds
-            param = RangeParameter(
+            param = RangeParameterConfig(
                 name=var.name,
-                parameter_type=ParameterType.FLOAT,
-                lower=lb,
-                upper=ub,
-                log_scale=False,
-                is_fidelity=False,
+                parameter_type="float",
+                bounds=(lb, ub),
+                scaling="linear",
+                step_size=None,
             )
             parameters.append(param)
 
@@ -229,10 +231,9 @@ class AxInterface(OptimizerBase):
         indep_vars = optimizationProblem.independent_variables
         parameter_constraints = []
         for a_t, b_t in zip(A_transformed, b_transformed):
-            constr = ParameterConstraint(
-                constraint_dict={var.name: a for var, a in zip(indep_vars, a_t)},
-                bound=b_t,
-            )
+            lhs = " + ".join([f"{a} * {var.name}" for var, a in zip(indep_vars, a_t)])
+            rhs = b_t
+            constr = f"{lhs} <= {rhs}"
             parameter_constraints.append(constr)
 
         return parameter_constraints
@@ -241,116 +242,130 @@ class AxInterface(OptimizerBase):
     def _setup_searchspace(
         cls, optimizationProblem: OptimizationProblem
     ) -> SearchSpace:
-        return SearchSpace(
-            parameters=cls._setup_parameters(optimizationProblem),
-            parameter_constraints=cls._setup_linear_constraints(optimizationProblem),
-        )
+        parameters = cls._setup_parameters(optimizationProblem)
+        parameter_constraints = cls._setup_linear_constraints(optimizationProblem)
+        return parameters, parameter_constraints
 
-    def _setup_objectives(self) -> list:
+    def _setup_objectives(self) -> str:
         """Parse objective functions from optimization problem."""
         objective_names = self.optimization_problem.objective_labels
 
         objectives = []
         for i, obj_name in enumerate(objective_names):
-            ax_metric = CADETProcessMetric(
-                name=f"{obj_name}_axidx_{i}",
-                lower_is_better=True,
-            )
+            # TODO: add +
+            if "-" in obj_name:
+                raise CADETProcessError(
+                    f"Bad objective name: '{obj_name}'. Ax does not support " +
+                    "dashes ('-') in objective names "
+                )
 
-            obj = Objective(metric=ax_metric, minimize=True)
-            objectives.append(obj)
+            # minus is prepended to indicate minimization
+            objectives.append(f"-{obj_name}")
 
-        return objectives
+        return ", ".join(objectives)
 
     def _setup_outcome_constraints(self) -> list:
         """Parse nonliear constraint functions from optimization problem."""
-        nonlincon_names = self.optimization_problem.nonlinear_constraint_labels
-
         outcome_constraints = []
-        for i_constr, name in enumerate(nonlincon_names):
-            ax_metric = CADETProcessMetric(name=f"{name}_axidx_{i_constr}")
-
-            nonlincon = OutcomeConstraint(
-                metric=ax_metric,
-                op=ComparisonOp.LEQ,
-                bound=0.0,
-                relative=False,
+        for constr_label, constr_bound in zip(
+            self.optimization_problem.nonlinear_constraint_labels,
+            self.optimization_problem.nonlinear_constraints_bounds,
+        ):
+            if "<lambda>" in constr_label:
+                raise CADETProcessError(
+                    "lambda functions are not allowed as nonlinear constraints " +
+                    "under Ax usage."
+                )
+            # TODO: @Jo is it correct that the operator is always leq?
+            nonlincon = "{constraint} <= {bound}".format(
+                constraint=constr_label,
+                bound=constr_bound,
             )
             outcome_constraints.append(nonlincon)
 
         return outcome_constraints
 
     def _create_manual_data(
-        self, trial: BaseTrial, F: npt.ArrayLike, G: Optional[npt.ArrayLike] = None
+        self, trial: Dict, F: np.ndarray, CV: Optional[np.ndarray] = None
     ) -> dict:
         objective_labels = self.optimization_problem.objective_labels
         nonlincon_labels = self.optimization_problem.nonlinear_constraint_labels
         return CADETProcessRunner.get_metadata(
-            trial, F, objective_labels, G, nonlincon_labels
+            trial, F, objective_labels, CV, nonlincon_labels
         )
 
-    def _create_manual_trial(self, X: npt.ArrayLike) -> None:
+    def _create_manual_trials(self, X: np.ndarray) -> Dict[str | int, Mapping[str, float]]:
         """Create trial from pre-evaluated data."""
         variables = self.optimization_problem.independent_variable_names
 
-        for i, x in enumerate(X):
-            trial = self.ax_experiment.new_trial()
-            trial_data = {
-                "input": {var: x_i for var, x_i in zip(variables, x)},
-            }
+        trials = {}
+        for x in X:
+            par = {var: x_i for var, x_i in zip(variables, x)}
+            _id = self.client._experiment.num_trials
 
-            arm_name = f"{trial.index}_{0}"
-            trial.add_arm(Arm(parameters=trial_data["input"], name=arm_name))
-            trial.run()
-            trial.mark_completed()
-            self._post_processing(trial)
+            trial_index = self.client.attach_trial(
+                arm_name=_id,
+                parameters=par
+            )
+            trials.update({trial_index: par})
 
-            # When returning to batch trials, the Arms can be initialized here
-            # and then collectively returned. See commit history
+        return trials
 
-    def _post_processing(self, trial: BaseTrial) -> None:
+    def _complete_trials(
+        self, trials: Dict[str | int, Mapping[str, float]],
+        data: Dict[str | int, Dict[str, float]]
+    ) -> None:
+        for trial_index, _ in trials.items():
+            print(f"Completed {trial_index=} with {data[trial_index]=}")
+            self.client.complete_trial(
+                trial_index=trial_index,
+                raw_data=data[trial_index]
+            )
+
+    def _post_processing(
+            self,
+            trials: Dict[str | int, Mapping[str, float]],
+            results: Dict[str | int, Dict[str, float]],
+            generation: int,
+        ) -> None:
         """
         Run post processing.
 
-        Ax holds the data of the model in a dataframe an experiment consists of trials
-        which consist of arms in a sequential experiment, each trial only has one arm.
+        Expects a Dictionary of Dicts that hold the variable names : values pairs
+        the same for results (objective function, nonlinear constraints)
 
-        Arms are evaluated. These hold the parameters.
+        Parameters
+        ----------
+        trials: Dict[int, Dict[str, float]]
+            The values (variables) for which the problem was evaluated. Each index
+            corresponds to a complete trial and holds its variable:value pairs
+        results: Dict[int, Dict[str, float]]
+            The values (objective function results) of the problem evaluated at the
+            corresponding variable values. Each index corresponds to a complete trial
+            and holds its variable:value pairs
+        generation: int
+            Index of the batch trial
         """
-        op = self.optimization_problem
+        op: OptimizationProblem = self.optimization_problem
 
-        # get the trial level data as a dataframe
-        trial_data = self.ax_experiment.fetch_trials_data([trial.index])
-        data = trial_data.df
-
-        # DONE: Update for multi-processing. If n_cores > 1: len(arms) > 1 (oder @Flo?)
-        X = np.array([list(arm.parameters.values()) for arm in trial.arms])
-        objective_labels = [
-            f"{obj_name}_axidx_{i}" for i, obj_name in enumerate(op.objective_labels)
-        ]
-
-        n_ind = len(X)
+        # Get variable value in the order of the optimization problem
+        X = np.array([
+            [trial[var] for var in op.variable_names]
+            for _, trial in trials.items()
+        ])
 
         # Get objective values
-        F_data = data[data["metric_name"].isin(objective_labels)]
-        assert np.all(
-            F_data["metric_name"].values
-            == np.repeat(objective_labels, len(X)).astype(object)
-        )
-        F = F_data["mean"].values.reshape((op.n_objectives, n_ind)).T
+        F = np.array([
+            [result[obj_label] for obj_label in op.objective_labels]
+            for _, result in results.items()
+        ])
 
-        # Get nonlinear constraint values
+        # Get nonlinear constraints values
         if op.n_nonlinear_constraints > 0:
-            nonlincon_labels = [
-                f"{name}_axidx_{i}"
-                for i, name in enumerate(op.nonlinear_constraint_labels)
-            ]
-            G_data = data[data["metric_name"].isin(nonlincon_labels)]
-            assert np.all(
-                G_data["metric_name"].values.tolist()
-                == np.repeat(nonlincon_labels, len(X))
-            )
-            G = G_data["mean"].values.reshape((op.n_nonlinear_constraints, n_ind)).T
+            G = np.array([
+                [result[obj_label] for obj_label in op.nonlinear_constraint_labels]
+                for _, result in results.items()
+            ])
 
             nonlincon_cv_fun = op.evaluate_nonlinear_constraints_violation
             CV = nonlincon_cv_fun(X, untransform=True, get_dependent_values=True)
@@ -368,7 +383,7 @@ class AxInterface(OptimizerBase):
             F_minimized=F,
             G=G,
             CV_nonlincon=CV,
-            current_generation=self.ax_experiment.num_trials,
+            current_generation=generation,
             X_opt_transformed=None,
         )
 
@@ -393,45 +408,51 @@ class AxInterface(OptimizerBase):
     def _run(
         self, optimization_problem: OptimizationProblem, x0: npt.ArrayLike
     ) -> None:
-        search_space = self._setup_searchspace(self.optimization_problem)
-        objectives = self._setup_objectives()
-        outcome_constraints = self._setup_outcome_constraints()
-        optimization_config = self._setup_optimization_config(
-            objectives=objectives, outcome_constraints=outcome_constraints
+
+        self.client = Client()
+
+        parameters, constraints = self._setup_searchspace(self.optimization_problem)
+        self.client.configure_experiment(
+            parameters=parameters,
+            parameter_constraints=constraints,
+            name=str(optimization_problem),
+            description=None,
+            experiment_type=None,
+            owner=None
         )
 
-        runner = CADETProcessRunner(
+        objectives = self._setup_objectives()
+        outcome_constraints = self._setup_outcome_constraints()
+        self.client.configure_optimization(
+            objective=objectives,
+            outcome_constraints=outcome_constraints
+        )
+
+        self.runner = CADETProcessRunner(
             optimization_problem=self.optimization_problem,
             parallelization_backend=SequentialBackend(),
         )
 
-        self.global_stopping_strategy = ImprovementGlobalStoppingStrategy(
-            min_trials=self.n_init_evals + self.early_stopping_improvement_window,
-            window_size=self.early_stopping_improvement_window,
-            improvement_bar=self.early_stopping_improvement_bar,
-            inactive_when_pending_trials=True,
-        )
 
-        self.ax_experiment = Experiment(
-            search_space=search_space,
-            name=self.optimization_problem.name,
-            optimization_config=optimization_config,
-            runner=runner,
-        )
-
-        # Internal storage for tracking data
-        self._data = self.ax_experiment.fetch_data()
+        if False:
+            # TODO: Earlier implementation. Needs to be migrated to Ax Client API
+            self.global_stopping_strategy = ImprovementGlobalStoppingStrategy(
+                min_trials=self.n_init_evals + self.early_stopping_improvement_window,
+                window_size=self.early_stopping_improvement_window,
+                improvement_bar=self.early_stopping_improvement_bar,
+                inactive_when_pending_trials=True,
+            )
 
         # Restore previous results from checkpoint
         if len(self.results.populations) > 0:
             for pop in self.results.populations:
-                X, F, G = pop.x, pop.f, pop.g
-                trial = self._create_manual_trial(X)
-                trial.mark_running(no_runner_required=True)
-
-                trial_data = self._create_manual_data(trial, F, G)
-                trial.run_metadata.update(trial_data)
-                trial.mark_completed()
+                # TODO: @Jo: Is it correct to use transformed x here?
+                X, F, CV = pop.x_transformed, pop.f, pop.cv_nonlincon
+                trials = self._create_manual_trials(X)
+                trial_data = self._create_manual_data(trials, F, CV)
+                self._complete_trials(trials, trial_data)
+                # this starts with N generations, depending how many generation
+                # strategies completed in the previous run
 
         else:
             if x0 is not None:
@@ -439,7 +460,7 @@ class AxInterface(OptimizerBase):
 
                 if len(x0_init) < self.n_init_evals:
                     warnings.warn(
-                        "Initial population smaller than popsize. "
+                        "Initial population smaller than popsize. " +
                         "Creating missing entries."
                     )
                     n_remaining = self.n_init_evals - len(x0_init)
@@ -462,193 +483,224 @@ class AxInterface(OptimizerBase):
                 )
 
             x0_init_transformed = np.array(optimization_problem.transform(x0_init))
-            self._create_manual_trial(x0_init_transformed)
-            print(exp_to_df(self.ax_experiment))
+            trials = self._create_manual_trials(x0_init_transformed)
 
-        n_iter = self.results.n_gen
+            # complete initial trials
+            results = self.runner.run_trials(trials=trials)
+            self._post_processing(trials=trials, results=results, generation=0)
+            
+            self._complete_trials(trials=trials, data=results)
+            # this starts with 1 generation (the init trials)
+
+
+        n_gen = self.results.n_gen  # first generation is the 0-th generation
         n_evals = self.results.n_evals
 
-        global_stopping_message = None
+        msg = None
+        exit_flag = 0
+        success = True
 
         if n_evals >= self.n_max_evals:
             raise CADETProcessError(
-                f"Initial number of evaluations exceeds `n_max_evals` "
+                "Initial number of evaluations exceeds `n_max_evals` " +
                 f"({self.n_max_evals})."
             )
 
         with manual_seed(seed=self.seed):
-            while not (n_evals >= self.n_max_evals or n_iter >= self.n_max_iter):
-                # Reinitialize GP+EI model at each step with updated data.
-                modelbridge = self.train_model()
-
+            # comparison against self.n_max_iter needs to be < (and not <=) because
+            # the comparison is against the current generation that starts at 0. and the
+            # states are updated at the end of the loop
+            while n_evals < self.n_max_evals and n_gen < self.n_max_iter:
                 print(f"Running optimization trial {n_evals + 1}/{self.n_max_evals}...")
 
-                # samples can be accessed here by sample_generator.arms:
-                sample_generator = modelbridge.gen(n=1)
+                # ask
+                # make sure the max_trials are not overfulfilled due to parallelism
+                max_trials = min(self.n_parallel_evals, self.n_max_evals - n_evals)
 
-                # A staging phase can be implemented here if needed.
-                # See: https://github.com/fau-advanced-separations/CADET-Process/issues/53
+                try:
+                    trials = self.client.get_next_trials(max_trials=max_trials)
+                except CandidateGenerationError as err:
+                    # This is currently not 100% stable. The reason is that
+                    # Ax might run into a situation where the acquisition fct. suggests
+                    # values only close to the bounds, which are also the optimum.
+                    # Then botorch accepts values near the linear constraints (bounds) with
+                    # a precision of 1e-6. This limit is hardcoded and cannot be changed
+                    # Repeating the process seems to help, but it is a hotfix.
+                    # A more stable and guaranteed failsafe method would be desirable.
+                    # Perhaps an update to a future version of Ax fixes this. I don't
+                    # think it is good form to provide an optimizert which fails.
+                    # Another option is to catch it and then exit the optimization early
+                    # with success_code = 0
+                    # TODO: @Jo: What do you prefer
+                    msg = (
+                        "Trials could not be generated due to too tight constraints. " +
+                        "This could also indicate that optimization is close to the " +
+                        "optimum and candidates are hard to find. " +
+                        f"Retrying once, failing afterwards. {err}"
+                    )
+                    warnings.warn(msg)
+                    trials = self.client.get_next_trials(max_trials=max_trials)
 
-                # The strategy itself will check if enough trials have already been
-                # completed.
-                (
-                    stop_optimization,
-                    global_stopping_message,
-                ) = self.global_stopping_strategy.should_stop_optimization(
-                    experiment=self.ax_experiment
-                )
+                # compute
+                # Ax allows trials to be of type str, int, float, bool. This is not supported
+                # by ax. Therefore typing suggests an error. We choose to ignore it.
+                results = self.runner.run_trials(trials=trials)
+                self._post_processing(results=results, trials=trials, generation=n_gen)
 
-                if stop_optimization:
-                    print(global_stopping_message)
-                    break
+                # tell
+                self._complete_trials(trials=trials, data=results)
 
-                trial = self.ax_experiment.new_trial(generator_run=sample_generator)
-                trial.run()
+                # # The strategy itself will check if enough trials have already been
+                # # completed.
+                # (
+                #     stop_optimization,
+                #     global_stopping_message,
+                # ) = self.global_stopping_strategy.should_stop_optimization(
+                #     experiment=self.ax_experiment
+                # )
 
-                trial.mark_completed()
-                self._post_processing(trial)
+                # if stop_optimization:
+                #     print(global_stopping_message)
+                #     break
 
-                n_iter += 1
-                n_evals += len(trial.arms)
+                n_gen += 1
+                n_evals += len(trials)
 
-        print(exp_to_df(self.ax_experiment))
+        # pareto = self.client.get_pareto_frontier()
+        # best_parameters, prediction, index, name = self.client.get_best_parameterization()
+        # print("Best Parameters:", best_parameters)
+        # print("Prediction (mean, variance):", prediction)
 
-        self.results.success = True
-        self.results.exit_flag = 0
-        self.results.exit_message = global_stopping_message
-
-
-class SingleObjectiveAxInterface(AxInterface):
-    def _setup_optimization_config(
-        self,
-        objectives: list[Objective],
-        outcome_constraints: OutcomeConstraint,
-    ) -> OptimizationConfig:
-        return OptimizationConfig(
-            objective=objectives[0], outcome_constraints=outcome_constraints
-        )
+        self.results.success = success
+        self.results.exit_flag = exit_flag
+        self.results.exit_message = msg
 
 
-class MultiObjectiveAxInterface(AxInterface):
-    supports_multi_objective = True
-
-    def _setup_optimization_config(
-        self,
-        objectives: list[Objective],
-        outcome_constraints: OutcomeConstraint,
-    ) -> MultiObjectiveOptimizationConfig:
-        return MultiObjectiveOptimizationConfig(
-            objective=MultiObjective(objectives),
-            outcome_constraints=outcome_constraints,
-        )
+# class SingleObjectiveAxInterface(AxInterface):
+#     def _setup_optimization_config(
+#         self,
+#         objectives: list[Objective],
+#         outcome_constraints: OutcomeConstraint,
+#     ):
+#         return OptimizationConfig(
+#             objective=objectives[0], outcome_constraints=outcome_constraints
+#         )
 
 
-class GPEI(SingleObjectiveAxInterface):
+# class MultiObjectiveAxInterface(AxInterface):
+#     supports_multi_objective = True
+
+#     def _setup_optimization_config(
+#         self,
+#         objectives: list[Objective],
+#         outcome_constraints: OutcomeConstraint,
+#     ):
+#         return MultiObjectiveOptimizationConfig(
+#             objective=MultiObjective(objectives),
+#             outcome_constraints=outcome_constraints,
+#         )
+
+
+class GPEI(AxInterface):
     """Gaussian Process with Expected Improvement for single objectives."""
 
     def __repr__(self) -> str:
         """str: String representation of the optimization algorithm."""
-        return "GPEI"
-
-    def train_model(self) -> Models:
-        """Train model."""
-        return Models.GPEI(
-            experiment=self.ax_experiment, data=self.ax_experiment.fetch_data()
-        )
+        return "BO"
 
 
-class BotorchModular(SingleObjectiveAxInterface):
-    """
-    Modular bayesian optimization algorithm.
+# class BotorchModular(SingleObjectiveAxInterface):
+#     """
+#     Modular bayesian optimization algorithm.
 
-    BotorchModular takes 2 optional arguments and uses the BOTORCH_MODULAR API of Ax to construct
-    a Model which connects both components with the respective transforms necessary.
+#     BotorchModular takes 2 optional arguments and uses the BOTORCH_MODULAR API of Ax to construct
+#     a Model which connects both components with the respective transforms necessary.
 
-    Attributes
-    ----------
-    acquisition_fn: type, optional
-        AcquisitionFunction class. The default is LogExpectedImprovement.
-    surrogate_model: type, optional
-        Model class. The default is SingleTaskGP.
-    """
+#     Attributes
+#     ----------
+#     acquisition_fn: type, optional
+#         AcquisitionFunction class. The default is LogExpectedImprovement.
+#     surrogate_model: type, optional
+#         Model class. The default is SingleTaskGP.
+#     """
 
-    acquisition_fn = Typed(ty=type, default=LogExpectedImprovement)
-    surrogate_model = Typed(ty=type, default=SingleTaskGP)
+#     acquisition_fn = Typed(ty=type)  # , default=LogExpectedImprovement)
+#     surrogate_model = Typed(ty=type)  # , default=SingleTaskGP)
 
-    _specific_options = ["acquisition_fn", "surrogate_model"]
+#     _specific_options = ["acquisition_fn", "surrogate_model"]
 
-    def __repr__(self) -> str:
-        """str: String representation of the optimization algorithm."""
-        afn = self.acquisition_fn.__name__
-        smn = self.surrogate_model.__name__
+#     def __repr__(self) -> str:
+#         """str: String representation of the optimization algorithm."""
+#         afn = self.acquisition_fn.__name__
+#         smn = self.surrogate_model.__name__
 
-        return f"BotorchModular({smn}+{afn})"
+#         return f"BotorchModular({smn}+{afn})"
 
-    def train_model(self) -> NotImplementedError:
-        """Train model."""
-        raise NotImplementedError(
-            "This model is currently broken. Please use Only GPEI or NEHVI"
-        )
-        return Models.BOTORCH_MODULAR(
-            experiment=self.ax_experiment,
-            surrogate=Surrogate(self.surrogate_model),
-            botorch_acqf_class=self.acquisition_fn,
-            data=self.ax_experiment.fetch_data(),
-        )
-
-
-class NEHVI(MultiObjectiveAxInterface):
-    """Noisy expected hypervolume improvement multi-objective algorithm."""
-
-    supports_single_objective = False
-
-    def __repr__(self) -> str:
-        """str: String representation of the optimization algorithm."""
-        smn = "SingleTaskGP"
-        afn = "NEHVI"
-
-        return f"{smn}+{afn}"
-
-    def train_model(self) -> Models:
-        """Train model."""
-        return Models.MOO(
-            experiment=self.ax_experiment, data=self.ax_experiment.fetch_data()
-        )
+#     def train_model(self) -> NotImplementedError:
+#         """Train model."""
+#         raise NotImplementedError(
+#             "This model is currently broken. Please use Only GPEI or NEHVI"
+#         )
+#         return Models.BOTORCH_MODULAR(
+#             experiment=self.ax_experiment,
+#             surrogate=Surrogate(self.surrogate_model),
+#             botorch_acqf_class=self.acquisition_fn,
+#             data=self.ax_experiment.fetch_data(),
+#         )
 
 
-class qNParEGO(MultiObjectiveAxInterface):
-    """
-    qNParEGO multi-objective algorithm.
+# class NEHVI(MultiObjectiveAxInterface):
+#     """Noisy expected hypervolume improvement multi-objective algorithm."""
 
-    ParEGO transforms the MOO problem into a single objective problem by applying a
-    randomly weighted augmented Chebyshev scalarization to the objectives, and
-    maximizing the expected improvement of that scalarized quantity (Knowles, 2006).
-    Recently, Daulton et al. (2020) used a multi-output Gaussian process and
-    compositional Monte Carlo objective to extend ParEGO to the batch setting (qParEGO),
-    which proved to be a strong baseline for MOBO. Additionally, the authors proposed a
-    noisy variant (qNParEGO), but the empirical evaluation of qNParEGO was limited.
-    [Daulton et al. 2021 "Parallel Bayesian Optimization of Multiple Noisy Objectives
-    with Expected Hypervolume Improvement"]
-    """
+#     supports_single_objective = False
 
-    supports_single_objective = False
+#     def __repr__(self) -> str:
+#         """str: String representation of the optimization algorithm."""
+#         smn = "SingleTaskGP"
+#         afn = "NEHVI"
 
-    def __repr__(self) -> str:
-        """str: String representation of the algorithm."""
-        smn = "SingleTaskGP"
-        afn = "qNParEGO"
+#         return f"{smn}+{afn}"
 
-        return f"{smn}+{afn}"
+#     def train_model(self):
+#         """Train model."""
+#         return Models.MOO(
+#             experiment=self.ax_experiment, data=self.ax_experiment.fetch_data()
+#         )
 
-    def train_model(self) -> Models:
-        """Train model."""
-        return Models.MOO(
-            experiment=self.ax_experiment,
-            data=self.ax_experiment.fetch_data(),
-            acqf_constructor=get_qLogNEI,
-            default_model_gen_options={
-                "acquisition_function_kwargs": {
-                    "chebyshev_scalarization": True,
-                }
-            },
-        )
+
+# class qNParEGO(MultiObjectiveAxInterface):
+#     """
+#     qNParEGO multi-objective algorithm.
+
+#     ParEGO transforms the MOO problem into a single objective problem by applying a
+#     randomly weighted augmented Chebyshev scalarization to the objectives, and
+#     maximizing the expected improvement of that scalarized quantity (Knowles, 2006).
+#     Recently, Daulton et al. (2020) used a multi-output Gaussian process and
+#     compositional Monte Carlo objective to extend ParEGO to the batch setting (qParEGO),
+#     which proved to be a strong baseline for MOBO. Additionally, the authors proposed a
+#     noisy variant (qNParEGO), but the empirical evaluation of qNParEGO was limited.
+#     [Daulton et al. 2021 "Parallel Bayesian Optimization of Multiple Noisy Objectives
+#     with Expected Hypervolume Improvement"]
+#     """
+
+#     supports_single_objective = False
+
+#     def __repr__(self) -> str:
+#         """str: String representation of the algorithm."""
+#         smn = "SingleTaskGP"
+#         afn = "qNParEGO"
+
+#         return f"{smn}+{afn}"
+
+#     def train_model(self):
+#         """Train model."""
+#         return Models.MOO(
+#             experiment=self.ax_experiment,
+#             data=self.ax_experiment.fetch_data(),
+#             acqf_constructor=get_qLogNEI,
+#             default_model_gen_options={
+#                 "acquisition_function_kwargs": {
+#                     "chebyshev_scalarization": True,
+#                 }
+#             },
+#         )
