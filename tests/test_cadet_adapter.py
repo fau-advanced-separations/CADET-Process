@@ -82,6 +82,7 @@ class Test_Adapter(unittest.TestCase):
 unit_types = [
     "Cstr",
     "GeneralRateModel",
+    "GeneralRateModel2D",
     "TubularReactor",
     "LumpedRateModelWithoutPores",
     "LumpedRateModelWithPores",
@@ -184,7 +185,7 @@ def process(request: pytest.FixtureRequest):
     return process
 
 
-@pytest.fixture
+@pytest.fixture(scope="class")
 def simulation_results(request: pytest.FixtureRequest):
     """
     Fixture to set up the simulation for each unit type with different `use_dll` options.
@@ -283,6 +284,8 @@ class TestProcessWithLWE:
             self.check_cstr(unit, unit_config)
         elif unit.name == "GeneralRateModel":
             self.check_general_rate_model(unit, unit_config)
+        elif unit.name == "GeneralRateModel2D":
+            self.check_general_rate_model_2d(unit, unit_config)
         elif unit.name == "TubularReactor":
             self.check_tubular_reactor(unit, unit_config)
         elif unit.name == "LumpedRateModelWithoutPores":
@@ -337,6 +340,36 @@ class TestProcessWithLWE:
         assert unit_config.CROSS_SECTION_AREA == np.pi * 0.01**2
         assert unit_config.COL_LENGTH == 0.014
         assert unit_config.COL_POROSITY == 0.37
+        assert unit_config.FILM_DIFFUSION == [6.9e-6] * n_comp
+
+        self.check_particle_config(unit_config)
+        self.check_adsorption_config(unit, unit_config)
+        self.check_discretization(unit, unit_config)
+
+    def check_general_rate_model_2d(self, unit, unit_config):
+        """
+        Check the configuration for a 2D General Rate Model unit.
+
+        Parameters
+        ----------
+        unit : Unit
+            The unit object.
+        unit_config : dict
+            The configuration of the unit.
+        """
+        n_comp = unit.component_system.n_comp
+        n_rad = unit.discretization.nrad
+
+        assert unit_config.UNIT_TYPE == 'GENERAL_RATE_MODEL_2D'
+        assert unit_config.INIT_Q == n_rad * n_comp * [0]
+        assert unit_config.INIT_C == n_rad * n_comp * [0]
+        assert unit_config.INIT_CP == n_rad * n_comp * [0]
+        assert unit_config.VELOCITY == unit.flow_direction
+        assert unit_config.COL_DISPERSION == n_rad * n_comp * [5.75e-08]
+        assert unit_config.COL_DISPERSION_RADIAL == n_rad * n_comp * [5.75e-08]
+        assert unit_config.CROSS_SECTION_AREA == np.pi * 0.01 ** 2
+        assert unit_config.COL_LENGTH == 0.014
+        assert unit_config.COL_POROSITY == [0.37] * n_rad
         assert unit_config.FILM_DIFFUSION == [6.9e-6] * n_comp
 
         self.check_particle_config(unit_config)
@@ -626,6 +659,11 @@ class TestResultsWithLWE:
         process = simulation_results.process
         unit = process.flow_sheet.units[1]
 
+        if unit.name == "MCT":
+            port_name = "channel_0"
+        elif unit.name == "GeneralRateModel2D":
+            port_name = "radial_cell_0"
+            
         # for units without ports
         if not unit.has_ports:
             # assert solution inlet has shape (t, n_comp)
@@ -650,10 +688,10 @@ class TestResultsWithLWE:
         else:
             # assert solution inlet is given for each port
             assert len(simulation_results.solution[unit.name].inlet) == unit.n_ports
-            # assert solution for channel 0 has shape (t, n_comp)
+            # assert solution for port 0 has shape (t, n_comp)
             assert simulation_results.solution[
                 unit.name
-            ].inlet.channel_0.solution_shape == (
+            ].inlet[port_name].solution_shape == (
                 int(process.cycle_time + 1),
                 process.component_system.n_comp,
             )
@@ -665,10 +703,10 @@ class TestResultsWithLWE:
                 process.component_system.n_comp,
             )
 
-        # for units with particles
+        # for units with particles and without ports
         if unit.supports_binding and not isinstance(
             unit.discretization, NoDiscretization
-        ):
+        ) and not unit.has_ports:
             # for units with solid phase and particle discretization
             if "npar" in unit.discretization.parameters:
                 # assert solution solid has shape (t, n_col, n_par, n_comp)
@@ -687,10 +725,25 @@ class TestResultsWithLWE:
                     process.component_system.n_comp,
                 )
 
-        # for units with particle mobile phase and particle discretization
+                # for units with particles and with ports
+        if unit.supports_binding and not isinstance(
+            unit.discretization, NoDiscretization
+        ) and unit.has_ports:
+            # for units with solid phase and particle discretization
+            if "npar" in unit.discretization.parameters:
+                # assert solution solid has shape (t, n_col, n_ports, n_par, n_comp)
+                assert simulation_results.solution[unit.name].solid.solution_shape == (
+                    int(process.cycle_time + 1),
+                    unit.discretization.ncol,
+                    unit.n_ports,
+                    unit.discretization.npar,
+                    process.component_system.n_comp,
+                )
+
+        # for units with particle mobile phase and particle discretization and without ports
         if (
             unit.supports_particle_reaction
-            and unit.name != "LumpedRateModelWithoutPores"
+            and unit.name != "LumpedRateModelWithoutPores" and not unit.has_ports
         ):
             # assert soluction particle has shape (t, n_col, n_par, n_comp)
             if "npar" in unit.discretization.parameters:
@@ -713,6 +766,22 @@ class TestResultsWithLWE:
                     process.component_system.n_comp,
                 )
 
+        # for units with particle mobile phase and particle discretization and with ports
+        if (
+            unit.supports_particle_reaction
+            and unit.name != "LumpedRateModelWithoutPores" and unit.has_ports
+        ):
+            # assert soluction particle has shape (t, n_col, n_ports, n_par, n_comp)
+            if "npar" in unit.discretization.parameters:
+                assert simulation_results.solution[
+                    unit.name
+                ].particle.solution_shape == (
+                    int(process.cycle_time + 1),
+                    unit.discretization.ncol,
+                    unit.n_ports,
+                    unit.discretization.npar,
+                    process.component_system.n_comp,
+                )
 
 if __name__ == "__main__":
     pytest.main([__file__])

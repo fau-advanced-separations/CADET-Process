@@ -5,6 +5,7 @@ from CADETProcess.processModel import (
     ComponentSystem,
     Cstr,
     GeneralRateModel,
+    GeneralRateModel2D,
     Inlet,
     LumpedRateModelWithoutPores,
     LumpedRateModelWithPores,
@@ -104,6 +105,20 @@ def grm(components=2):
     grm.film_diffusion = [film_diffusion_0, film_diffusion_1]
     grm.pore_diffusion = [pore_diffusion_0, pore_diffusion_1]
     return grm
+
+@pytest.fixture
+def grm2d(components=2):
+    grm2d = GeneralRateModel2D(ComponentSystem(components), nrad=5, name="test_grm2d")
+    grm2d.length = length
+    grm2d.diameter = diameter
+    grm2d.axial_dispersion = axial_dispersion
+    grm2d.col_dispersion_radial = [1e-10]*5*2
+    grm2d.bed_porosity = bed_porosity
+    grm2d.particle_radius = particle_radius
+    grm2d.particle_porosity = particle_porosity
+    grm2d.film_diffusion = [film_diffusion_0, film_diffusion_1]
+    grm2d.pore_diffusion = [pore_diffusion_0, pore_diffusion_1]
+    return grm2d
 
 
 @pytest.fixture
@@ -356,6 +371,55 @@ def test_polynomial_flow_rate(
             },
         ),
         (
+            "grm2d", 
+            {
+            "length": length,
+            "diameter": diameter,
+            "bed_porosity": [bed_porosity]*5,
+            "axial_dispersion": [axial_dispersion, axial_dispersion]*5,
+            "col_dispersion_radial":[1e-10]*5*2,
+            "pore_accessibility": [1, 1],
+            "film_diffusion": [film_diffusion_0, film_diffusion_1],
+            "particle_radius": particle_radius,
+            "particle_porosity": particle_porosity,
+            "pore_diffusion": [pore_diffusion_0, pore_diffusion_1],
+            "surface_diffusion": None,
+            "flow_direction": flow_direction,
+            "c": [0, 0]*5,
+            "cp": [0, 0]*5,
+            "q": None,
+            "discretization": {
+                "ncol": 100,
+                "nrad": 5,
+                "radial_disc_type": "EQUIDISTANT",
+                "par_geom": "SPHERE",
+                "npar": 5,
+                "par_disc_type": "EQUIDISTANT_PAR",
+                "par_boundary_order": 2,
+                "fix_zero_surface_diffusion": False,
+                "use_analytic_jacobian": True,
+                "gs_type": True,
+                "max_krylov": 0,
+                "max_restarts": 10,
+                "schur_safety": 1e-08,
+                "reconstruction": "WENO",
+                "weno": {
+                    "boundary_model": 0,
+                    "weno_eps": 1e-10,
+                    "weno_order": 3
+                },
+                "consistency_solver": {
+                    "solver_name": "LEVMAR",
+                    "init_damping": 0.01,
+                    "min_damping": 0.0001,
+                    "max_iterations": 50,
+                    "subsolvers": "LEVMAR"
+                    },
+                },
+            },
+        ),
+        (
+          
             "mct",
             {
                 "nchannel": nchannel,
