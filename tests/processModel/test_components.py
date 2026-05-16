@@ -34,7 +34,7 @@ class TestComponents(unittest.TestCase):
 
         self.component_system_5 = ComponentSystem()
         self.component_system_5.add_component(
-            "A", species=["A+", "A-"], molecular_weight=[1, 0]
+            "A", species=["A+", "A-"], molar_mass=[1, 0]
         )
 
         self.component_system_6 = ComponentSystem()
@@ -117,10 +117,16 @@ class TestComponents(unittest.TestCase):
         charges = self.component_system_3.charges
         np.testing.assert_equal(charges_expected, charges)
 
-    def test_molecular_weights(self):
-        molecular_weights_expected = [1, 0]
-        molecular_weights = self.component_system_5.molecular_weights
-        np.testing.assert_equal(molecular_weights_expected, molecular_weights)
+    def test_molar_masses(self):
+        molar_masses_expected = [1, 0]
+        molar_masses = self.component_system_5.molar_masses
+        np.testing.assert_equal(molar_masses_expected, molar_masses)
+
+    def test_molecular_weights_deprecated(self):
+        with self.assertWarns(DeprecationWarning):
+            ComponentSystem(["A"], molecular_weights=[1.0])
+        with self.assertWarns(DeprecationWarning):
+            _ = self.component_system_5.molecular_weights
 
     def test_densities(self):
         densities_expected = [1, 0]
