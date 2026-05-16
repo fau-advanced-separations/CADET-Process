@@ -1,15 +1,5 @@
 import numpy as np
 import pytest
-from CADETProcess.processModel import (
-    MCT,
-    ComponentSystem,
-    Cstr,
-    GeneralRateModel,
-    Inlet,
-    LumpedRateModelWithoutPores,
-    LumpedRateModelWithPores,
-    TubularReactor,
-)
 
 length = 0.6
 diameter = 0.024
@@ -39,81 +29,6 @@ exchange_matrix = np.array([
     [[0.0], [0.0], [0.0]]
 ])
 flow_direction = 1
-
-
-@pytest.fixture
-def component_system():
-    return ComponentSystem(2)
-
-
-@pytest.fixture
-def inlet(component_system):
-    return Inlet(component_system, name="test_inlet")
-
-
-@pytest.fixture
-def cstr(component_system):
-    cstr = Cstr(component_system, name="test_cstr")
-    cstr.const_solid_volume = const_solid_volume
-    cstr.init_liquid_volume = init_liquid_volume
-    cstr.flow_rate = 1
-    return cstr
-
-
-@pytest.fixture
-def tubular_reactor(component_system):
-    tubular_reactor = TubularReactor(component_system, name="test_tubular_reactor")
-    tubular_reactor.length = length
-    tubular_reactor.diameter = diameter
-    tubular_reactor.axial_dispersion = axial_dispersion
-    return tubular_reactor
-
-
-@pytest.fixture
-def lrm(component_system):
-    lrm = LumpedRateModelWithoutPores(component_system, name="test_lrm")
-    lrm.length = length
-    lrm.diameter = diameter
-    lrm.axial_dispersion = axial_dispersion
-    lrm.total_porosity = total_porosity
-    return lrm
-
-
-@pytest.fixture
-def lrmp(component_system):
-    lrmp = LumpedRateModelWithPores(component_system, name="test_lrmp")
-    lrmp.length = length
-    lrmp.diameter = diameter
-    lrmp.axial_dispersion = axial_dispersion
-    lrmp.bed_porosity = bed_porosity
-    lrmp.particle_radius = particle_radius
-    lrmp.particle_porosity = particle_porosity
-    lrmp.film_diffusion = [film_diffusion_0, film_diffusion_1]
-    return lrmp
-
-
-@pytest.fixture
-def grm(components=2):
-    grm = GeneralRateModel(ComponentSystem(components), name="test_grm")
-    grm.length = length
-    grm.diameter = diameter
-    grm.axial_dispersion = axial_dispersion
-    grm.bed_porosity = bed_porosity
-    grm.particle_radius = particle_radius
-    grm.particle_porosity = particle_porosity
-    grm.film_diffusion = [film_diffusion_0, film_diffusion_1]
-    grm.pore_diffusion = [pore_diffusion_0, pore_diffusion_1]
-    return grm
-
-
-@pytest.fixture
-def mct(components=1):
-    mct = MCT(ComponentSystem(components), nchannel=3, name="test_mct")
-    mct.length = length
-    mct.channel_cross_section_areas = channel_cross_section_areas
-    mct.axial_dispersion = axial_dispersion
-    mct.exchange_matrix = exchange_matrix
-    return mct
 
 
 @pytest.mark.parametrize(
