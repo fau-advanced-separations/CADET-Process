@@ -50,6 +50,17 @@ numpydoc_class_members_toctree = False
 
 ## Autodoc
 extensions.append("sphinx.ext.autodoc")
+autodoc_mock_imports = [
+    "ax",
+    "botorch",
+    "torch",
+    "botorch.acquisition",
+    "botorch.acquisition.analytic",
+    "botorch.models",
+    "botorch.models.gp_regression",
+    "botorch.utils",
+    "botorch.utils.sampling",
+]
 
 ## Autosummary
 extensions.append("sphinx.ext.autosummary")
