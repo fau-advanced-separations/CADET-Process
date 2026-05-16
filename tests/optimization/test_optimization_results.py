@@ -6,8 +6,8 @@ import numpy as np
 from addict import Dict
 from CADETProcess.optimization import U_NSGA3, OptimizationResults
 
-from tests.test_optimization_problem import setup_optimization_problem
-from tests.test_population import setup_population
+from tests.optimization.test_optimization_problem import setup_optimization_problem
+from tests.optimization.test_population import setup_population
 
 
 class OptimizationResultsWithoutNans(OptimizationResults):

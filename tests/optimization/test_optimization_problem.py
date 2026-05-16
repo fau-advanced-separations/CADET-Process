@@ -18,7 +18,7 @@ from CADETProcess.dataStructure import (
 )
 from CADETProcess.optimization import OptimizationProblem
 
-from tests.optimization_problem_fixtures import (
+from tests.optimization.optimization_problem_fixtures import (
     LinearConstraintsSooTestProblem2,
     LinearEqualityConstraintsSooTestProblem,
 )
@@ -356,7 +356,7 @@ class Test_OptimizationVariable(unittest.TestCase):
             )
 
 
-from tests.test_events import HandlerFixture
+from tests.dynamicEvents.test_events import HandlerFixture
 
 
 class Test_OptimizationVariableEvents(unittest.TestCase):
