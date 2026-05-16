@@ -9,8 +9,8 @@ from CADETProcess import settings
 from CADETProcess.optimization import U_NSGA3, SequentialBackend
 from CADETProcess.simulator import Cadet
 
-from tests.test_cadet_adapter import detect_cadet
-from tests.test_optimization_problem import setup_optimization_problem
+from tests.optimization.test_optimization_problem import setup_optimization_problem
+from tests.simulator.test_cadet_adapter import detect_cadet
 
 parallel_backends_module = importlib.import_module("CADETProcess.optimization")
 

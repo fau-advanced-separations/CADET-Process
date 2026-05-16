@@ -22,7 +22,7 @@ try:
 except ImportError:
     skip_ax = True
 
-from tests.optimization_problem_fixtures import (
+from tests.optimization.optimization_problem_fixtures import (
     LinearConstraintsMooTestProblem,
     LinearConstraintsSooTestProblem,
     LinearConstraintsSooTestProblem2,

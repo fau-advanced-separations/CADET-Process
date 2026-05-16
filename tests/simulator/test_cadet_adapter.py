@@ -12,7 +12,7 @@ from CADETProcess.processModel.discretization import NoDiscretization
 from CADETProcess.simulationResults import SimulationResults
 from CADETProcess.simulator import Cadet
 
-from tests.create_LWE import create_lwe
+from tests.integration.create_LWE import create_lwe
 
 
 def detect_cadet(install_path: Optional[Path] = None):
