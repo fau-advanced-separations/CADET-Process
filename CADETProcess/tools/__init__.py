@@ -18,3 +18,5 @@ A module to fit isotherm parameters using Yamamoto's method.
    yamamoto
 
 """
+
+from . import yamamoto
