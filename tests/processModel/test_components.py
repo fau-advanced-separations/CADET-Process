@@ -1,138 +1,111 @@
-import unittest
-
 import numpy as np
+import pytest
 from CADETProcess import CADETProcessError
 from CADETProcess.processModel import ComponentSystem
 
 
-class TestComponents(unittest.TestCase):
-    def setUp(self):
-        self.component_system_0 = ComponentSystem(2)
-
-        self.component_system_1 = ComponentSystem(["A", "B"])
-
-        self.component_system_2 = ComponentSystem()
-        self.component_system_2.add_component("A")
-        self.component_system_2.add_component("B", species=["B+", "B-"])
-
-        self.component_system_3 = ComponentSystem()
-        self.component_system_3.add_component(
-            "Ammonia",
-            species=["NH4+", "NH3"],
-            charge=[1, 0],
-        )
-        self.component_system_3.add_component(
-            "Lysine", ["Lys2+", "Lys+", "Lys", "Lys"], [2, 1, 0, -1]
-        )
-        self.component_system_3.add_component(
-            "H+",
-            charge=1,
-        )
-
-        self.component_system_4 = ComponentSystem(2)
-        self.component_system_4.add_component("manual_label")
-
-        self.component_system_5 = ComponentSystem()
-        self.component_system_5.add_component(
-            "A", species=["A+", "A-"], molar_mass=[1, 0]
-        )
-
-        self.component_system_6 = ComponentSystem()
-        self.component_system_6.add_component("A", species=["A+", "A-"], density=[1, 0])
-
-    def test_names(self):
-        names_expected = ["0", "1"]
-        names = self.component_system_0.names
-        np.testing.assert_equal(names, names_expected)
-
-        names_expected = ["A", "B"]
-        names = self.component_system_1.names
-        np.testing.assert_equal(names, names_expected)
-
-        names_expected = ["A", "B"]
-        names = self.component_system_2.names
-        np.testing.assert_equal(names, names_expected)
-
-        names_expected = ["Ammonia", "Lysine", "H+"]
-        names = self.component_system_3.names
-        np.testing.assert_equal(names, names_expected)
-
-        names_expected = ["0", "1", "manual_label"]
-        names = self.component_system_4.names
-        np.testing.assert_equal(names, names_expected)
-
-    def test_duplicate_name(self):
-        with self.assertRaises(CADETProcessError):
-            self.component_system_1.add_component("A")
-
-    def test_species(self):
-        species_expected = ["0", "1"]
-        species = self.component_system_0.species
-        np.testing.assert_equal(species, species_expected)
-
-        species_expected = ["A", "B"]
-        species = self.component_system_1.species
-        np.testing.assert_equal(species, species_expected)
-
-        species_expected = ["A", "B+", "B-"]
-        species = self.component_system_2.species
-        np.testing.assert_equal(species, species_expected)
-
-        species_expected = ["NH4+", "NH3", "Lys2+", "Lys+", "Lys", "Lys", "H+"]
-        species = self.component_system_3.species
-        np.testing.assert_equal(species, species_expected)
-
-        species_expected = ["0", "1", "manual_label"]
-        species = self.component_system_4.species
-        np.testing.assert_equal(species, species_expected)
-
-    def test_indices(self):
-        indices_expected = {
-            "Ammonia": [0, 1],
-            "Lysine": [2, 3, 4, 5],
-            "H+": [6],
-        }
-        indices = self.component_system_3.indices
-        np.testing.assert_equal(indices, indices_expected)
-
-    def test_n_comp(self):
-        n_components_expected = 2
-        n_components = self.component_system_2.n_components
-        self.assertEqual(n_components_expected, n_components)
-
-        n_comp_expected = 3
-        n_comp = self.component_system_2.n_comp
-        self.assertEqual(n_comp_expected, n_comp)
-
-        n_components_expected = 3
-        n_components = self.component_system_3.n_components
-        self.assertEqual(n_components_expected, n_components)
-
-        n_comp_expected = 7
-        n_comp = self.component_system_3.n_comp
-        self.assertEqual(n_comp_expected, n_comp)
-
-    def test_charge(self):
-        charges_expected = [1, 0, 2, 1, 0, -1, 1]
-        charges = self.component_system_3.charges
-        np.testing.assert_equal(charges_expected, charges)
-
-    def test_molar_masses(self):
-        molar_masses_expected = [1, 0]
-        molar_masses = self.component_system_5.molar_masses
-        np.testing.assert_equal(molar_masses_expected, molar_masses)
-
-    def test_molecular_weights_deprecated(self):
-        with self.assertWarns(DeprecationWarning):
-            ComponentSystem(["A"], molecular_weights=[1.0])
-        with self.assertWarns(DeprecationWarning):
-            _ = self.component_system_5.molecular_weights
-
-    def test_densities(self):
-        densities_expected = [1, 0]
-        densities = self.component_system_6.densities
-        np.testing.assert_equal(densities_expected, densities)
+@pytest.fixture
+def anonymous_components():
+    return ComponentSystem(2)
 
 
-if __name__ == "__main__":
-    unittest.main()
+@pytest.fixture
+def named_components():
+    return ComponentSystem(["A", "B"])
+
+
+@pytest.fixture
+def multispecies_component():
+    cs = ComponentSystem()
+    cs.add_component("A")
+    cs.add_component("B", species=["B+", "B-"])
+    return cs
+
+
+@pytest.fixture
+def ionic_system():
+    cs = ComponentSystem()
+    cs.add_component("Ammonia", species=["NH4+", "NH3"], charge=[1, 0])
+    cs.add_component("Lysine", ["Lys2+", "Lys+", "Lys", "Lys"], [2, 1, 0, -1])
+    cs.add_component("H+", charge=1)
+    return cs
+
+
+@pytest.fixture
+def mixed_components():
+    cs = ComponentSystem(2)
+    cs.add_component("manual_label")
+    return cs
+
+
+@pytest.fixture
+def components_with_physical_properties():
+    cs = ComponentSystem()
+    cs.add_component("A", species=["A+", "A-"], molar_mass=[1, 0], density=[1, 0])
+    return cs
+
+
+def test_names(
+    anonymous_components,
+    named_components,
+    multispecies_component,
+    ionic_system,
+    mixed_components,
+):
+    np.testing.assert_equal(anonymous_components.names, ["0", "1"])
+    np.testing.assert_equal(named_components.names, ["A", "B"])
+    np.testing.assert_equal(multispecies_component.names, ["A", "B"])
+    np.testing.assert_equal(ionic_system.names, ["Ammonia", "Lysine", "H+"])
+    np.testing.assert_equal(mixed_components.names, ["0", "1", "manual_label"])
+
+
+def test_duplicate_name(named_components):
+    with pytest.raises(CADETProcessError):
+        named_components.add_component("A")
+
+
+def test_species(
+    anonymous_components,
+    named_components,
+    multispecies_component,
+    ionic_system,
+    mixed_components,
+):
+    np.testing.assert_equal(anonymous_components.species, ["0", "1"])
+    np.testing.assert_equal(named_components.species, ["A", "B"])
+    np.testing.assert_equal(multispecies_component.species, ["A", "B+", "B-"])
+    np.testing.assert_equal(
+        ionic_system.species, ["NH4+", "NH3", "Lys2+", "Lys+", "Lys", "Lys", "H+"]
+    )
+    np.testing.assert_equal(mixed_components.species, ["0", "1", "manual_label"])
+
+
+def test_indices(ionic_system):
+    expected = {"Ammonia": [0, 1], "Lysine": [2, 3, 4, 5], "H+": [6]}
+    np.testing.assert_equal(ionic_system.indices, expected)
+
+
+def test_n_comp(multispecies_component, ionic_system):
+    assert multispecies_component.n_components == 2
+    assert multispecies_component.n_comp == 3
+    assert ionic_system.n_components == 3
+    assert ionic_system.n_comp == 7
+
+
+def test_charge(ionic_system):
+    np.testing.assert_equal(ionic_system.charges, [1, 0, 2, 1, 0, -1, 1])
+
+
+def test_molar_masses(components_with_physical_properties):
+    np.testing.assert_equal(components_with_physical_properties.molar_masses, [1, 0])
+
+
+def test_molecular_weights_deprecated(components_with_physical_properties):
+    with pytest.warns(DeprecationWarning):
+        ComponentSystem(["A"], molecular_weights=[1.0])
+    with pytest.warns(DeprecationWarning):
+        _ = components_with_physical_properties.molecular_weights
+
+
+def test_densities(components_with_physical_properties):
+    np.testing.assert_equal(components_with_physical_properties.densities, [1, 0])
