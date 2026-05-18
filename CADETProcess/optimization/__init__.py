@@ -108,7 +108,7 @@ from .pymooAdapter import NSGA2, U_NSGA3
 import importlib
 
 try:
-    from .axAdapater import BotorchModular, GPEI, NEHVI, qNParEGO
+    from .axAdapter import BotorchModular, GPEI, NEHVI, qNParEGO
 
     ax_imported = True
 except ImportError:
