@@ -11,6 +11,7 @@ user_guide/process_model/index
 user_guide/simulator
 user_guide/process_evaluation/index
 user_guide/optimization/index
+user_guide/experimental/index
 user_guide/tools/index
 ```
 
