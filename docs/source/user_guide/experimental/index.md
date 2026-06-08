@@ -20,10 +20,15 @@ Model the LC system as a flow sheet, define the experiment protocol using a proc
 Convert raw detector signals (UV absorbance, conductivity) carried by {class}`~CADETProcess.reference.ReferenceIO` objects into physical concentration units.
 Steps include baseline correction, area normalization, Beer-Lambert conversion, and multi-wavelength deconvolution.
 
+**3. System characterization** ({doc}`characterization`)
+Fit model parameters (bed porosity, axial dispersion, film diffusion, adsorption constants) by minimizing the difference between simulated and measured chromatograms.
+Each {class}`~CADETProcess.characterization.CharacterizeBase` subclass encodes domain knowledge about which parameters to fit for a given experiment type and supplies physically sensible default bounds.
+
 ```{toctree}
 :maxdepth: 2
 :hidden:
 
 instruments
 calibration
+characterization
 ```
