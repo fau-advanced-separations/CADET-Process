@@ -122,11 +122,14 @@ mystnb:
 _ = simulation_results.solution.outlet.outlet.plot()
 ```
 
-After import, the {class}`~CADETProcess.fractionation.Fractionator` is instantiated with the simulation results.
+After import, the {class}`~CADETProcess.fractionation.Fractionator` is instantiated with the chromatograms and process metadata extracted from the simulation results.
 
 ```{code-cell} ipython3
 from CADETProcess.fractionation import Fractionator
-fractionator = Fractionator(simulation_results)
+fractionator = Fractionator(
+    simulation_results.chromatograms,
+    simulation_results.process.process_meta,
+)
 ```
 
 To add a fractionation event, the following arguments need to be provided:

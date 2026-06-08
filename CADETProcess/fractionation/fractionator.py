@@ -1,4 +1,5 @@
 import os
+import warnings
 from collections import defaultdict
 from functools import wraps
 from typing import Any, Callable, Optional
@@ -12,8 +13,7 @@ from CADETProcess.dataStructure import String
 from CADETProcess.dynamicEvents import Event, EventHandler
 from CADETProcess.fractionation.fractions import Fraction, FractionPool
 from CADETProcess.performance import Performance
-from CADETProcess.processModel import ComponentSystem, Process, ProcessMeta
-from CADETProcess.simulationResults import SimulationResults
+from CADETProcess.processModel import ComponentSystem, ProcessMeta
 from CADETProcess.solution import SolutionIO, slice_solution
 
 __all__ = ["Fractionator"]
@@ -47,7 +47,8 @@ class Fractionator(EventHandler):
 
     def __init__(
         self,
-        simulation_results: SimulationResults,
+        chromatograms: SolutionIO | list[SolutionIO],
+        process_meta: Optional[ProcessMeta] = None,
         components: Optional[list[str]] = None,
         use_total_concentration_components: bool = True,
         *args: Any,
@@ -58,68 +59,64 @@ class Fractionator(EventHandler):
 
         Parameters
         ----------
-        simulation_results : SimulationResults
-            Simulation results containing chromatograms.
+        chromatograms : SolutionIO or list of SolutionIO
+            Chromatograms to be fractionated.
+        process_meta : ProcessMeta
+            Process meta information (cycle time, volumes, feed masses).
         components : list, optional
-            List of components to be fractionated. Default is None.
+            List of components to consider. Default is None (all components).
         use_total_concentration_components : bool, optional
-            Use total concentration components. Default is True.
+            Sum species into component concentrations. Default is True.
         *args
             Variable length argument list.
         **kwargs
             Arbitrary keyword arguments.
         """
+        # Deprecation shim: accept SimulationResults for backward compatibility.
+        from CADETProcess.simulationResults import SimulationResults
+        if isinstance(chromatograms, SimulationResults):
+            warnings.warn(
+                "Passing SimulationResults to Fractionator is deprecated. "
+                "Pass chromatograms and process_meta directly.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            sim = chromatograms
+            process_meta = sim.process.process_meta
+            chromatograms = sim.chromatograms
+
+        if process_meta is None:
+            raise TypeError(
+                "process_meta is required when not passing SimulationResults."
+            )
+
+        if isinstance(chromatograms, SolutionIO):
+            chromatograms = [chromatograms]
+
+        if len(chromatograms) == 0:
+            raise CADETProcessError("No chromatograms provided.")
+
         self.components: Optional[list[str]] = components
         self.use_total_concentration_components: bool = use_total_concentration_components
-        self.simulation_results = simulation_results
+        self._process_meta: ProcessMeta = process_meta
 
-        super().__init__(*args, **kwargs)
-
-    @property
-    def simulation_results(self) -> SimulationResults:
-        """SimulationResults: The simulation results containing the chromatograms."""
-        return self._simulation_results
-
-    @simulation_results.setter
-    def simulation_results(self, simulation_results: SimulationResults) -> None:
-        """
-        Set the simulation results.
-
-        Parameters
-        ----------
-        simulation_results : SimulationResults
-            Simulation results containing chromatograms.
-
-        Raises
-        ------
-        TypeError
-            If simulation_results is not of type SimulationResults.
-        CADETProcessError
-            If the simulation results do not contain any chromatograms.
-        """
-        if not isinstance(simulation_results, SimulationResults):
-            raise TypeError("Expected SimulationResults")
-
-        if len(simulation_results.chromatograms) == 0:
-            raise CADETProcessError("Simulation results do not contain chromatogram")
-
-        self._simulation_results = simulation_results
+        full_component_system = chromatograms[0].component_system
 
         self._chromatograms = [
             slice_solution(
                 chrom,
-                components=self.components,
-                use_total_concentration_components=self.use_total_concentration_components,
+                components=components,
+                use_total_concentration_components=use_total_concentration_components,
             )
-            for chrom in simulation_results.chromatograms
+            for chrom in chromatograms
         ]
 
         m_feed = np.zeros((self.component_system.n_comp,))
         counter = 0
-        for comp, indices in simulation_results.component_system.indices.items():
+        for comp, indices in full_component_system.indices.items():
             if comp in self.component_system.names:
-                m_feed_comp = simulation_results.process.m_feed[indices]
-                if self.use_total_concentration_components:
+                m_feed_comp = np.asarray(process_meta.m_feed)[np.array(indices)]
+                if use_total_concentration_components:
                     m_feed[counter] = np.sum(m_feed_comp)
                     counter += 1
                 else:
@@ -134,6 +131,8 @@ class Fractionator(EventHandler):
         self._chromatogram_events = Dict({chrom: [] for chrom in self.chromatograms})
 
         self.reset()
+
+        super().__init__(*args, **kwargs)
 
     @property
     def component_system(self) -> ComponentSystem:
@@ -196,14 +195,9 @@ class Fractionator(EventHandler):
         return chrom_events
 
     @property
-    def process(self) -> Process:
-        """Process: The process from the simulation results."""
-        return self.simulation_results.process
-
-    @property
     def process_meta(self) -> ProcessMeta:
         """ProcessMeta: Process meta information."""
-        return self.simulation_results.process_meta
+        return self._process_meta
 
     @property
     def n_comp(self) -> int:
