@@ -47,6 +47,7 @@ source_suffix = {
 ## Numpydoc
 extensions.append("numpydoc")
 numpydoc_class_members_toctree = False
+numpydoc_show_class_members = False
 
 ## Autodoc
 extensions.append("sphinx.ext.autodoc")
