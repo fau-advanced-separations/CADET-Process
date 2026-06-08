@@ -16,9 +16,6 @@ General Utils
     get_fig_size
     setup_figure
     get_all_twin_handles_labels
-    show_or_reopen
-    style_and_save_figure
-
 Secondary Axis
 ==============
 
