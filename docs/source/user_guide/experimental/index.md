@@ -16,9 +16,14 @@ The three steps are independent and can be applied in any combination, but they 
 **1. Instrument setup** ({doc}`instruments`)
 Model the LC system as a flow sheet, define the experiment protocol using a process template, and generate synthetic data if needed before real experiments are available.
 
+**2. Signal calibration** ({doc}`calibration`)
+Convert raw detector signals (UV absorbance, conductivity) carried by {class}`~CADETProcess.reference.ReferenceIO` objects into physical concentration units.
+Steps include baseline correction, area normalization, Beer-Lambert conversion, and multi-wavelength deconvolution.
+
 ```{toctree}
 :maxdepth: 2
 :hidden:
 
 instruments
+calibration
 ```
