@@ -300,6 +300,7 @@ class FractionationOptimizer:
         ignore_failed: bool = False,
         return_optimization_results: bool = False,
         save_results: bool = False,
+        c_min: Optional[float] = None,
     ) -> Fractionator | tuple[Fractionator, OptimizationResults]:
         """
         Optimize the fractionation times with respect to purity constraints.
@@ -346,6 +347,11 @@ class FractionationOptimizer:
             The default is False.
         save_results : bool, optional
             If True, save optimization results. The default is False.
+        c_min : float, optional
+            Minimum total concentration below which purity is set to NaN.
+            Overrides the per-chromatogram ``c_min`` attribute for all chromatograms
+            passed to this call. If None, each chromatogram's existing value is used
+            (default 1e-6).
 
         Returns
         -------
@@ -395,6 +401,10 @@ class FractionationOptimizer:
 
         if len(chromatograms) == 0:
             raise CADETProcessError("No chromatograms provided.")
+
+        if c_min is not None:
+            for chrom in chromatograms:
+                chrom.c_min = c_min
 
         # Convert inputs to lists of length n_comp
         n_comp = (
