@@ -53,4 +53,14 @@ After simulation, the ``Simulator`` returns a ``SimulationResults`` object.
 """
 
 from .simulator import SimulatorBase
-from .cadetAdapter import Cadet
+from .cadetAdapter import (
+    Cadet,
+    ModelSolverParameters,
+    UnitParameters,
+    AdsorptionParameters,
+    ReactionParameters,
+    SolverParameters,
+    SolverTimeIntegratorParameters,
+    ReturnParameters,
+    SensitivityParameters,
+)
