@@ -65,12 +65,6 @@ Similarly to the {class}`~CADETProcess.solution.SolutionIO` class, the {class}`~
 _ = reference.plot()
 ```
 
-To add the reference to the {class}`~CADETProcess.comparison.Comparator`, use the {meth}`~CADETProcess.comparison.Comparator.add_reference` method.
-
-```{code-cell} ipython3
-comparator.add_reference(reference)
-```
-
 ## Difference Metrics
 There are many metrics which can be used to quantify the difference between the simulation and the reference.
 Most commonly, the sum squared error ({class}`~CADETProcess.comparison.SSE`) is used.
@@ -83,22 +77,22 @@ Hence, a metric which prioritizes the shape of the peaks being accurate over the
 For this purpose, **CADET-Process** offers a {class}`~CADETProcess.comparison.Shape` metric {cite}`Heymann2022`.
 For an overview of all available difference metrics, refer to {mod}`CADETProcess.comparison`.
 
-To add a difference metric, the following arguments need to be passed to the {meth}`~CADETProcess.comparison.Comparator.add_difference_metric` method:
-- `difference_metric`: The type of the metric.
-- `reference`: The reference which should be used for the metric.
-- `solution_path`: The path to the corresponding solution in the simulation results.
+Construct the metric with the reference and pass the instance along with the solution path to {meth}`~CADETProcess.comparison.Comparator.add_difference_metric`.
+The `solution_path` identifies the corresponding outlet in the simulation results.
 
-```Python3
-comparator.add_difference_metric('SSE', reference, 'column.outlet')
+```{code-cell} ipython3
+from CADETProcess.comparison import SSE
+metric = SSE(reference)
+comparator.add_difference_metric(metric, 'column.outlet')
 ```
 
 Optionally, a start and end time can be specified to only evaluate the difference metric at that slice.
 This is particularly useful if system noise (e.g. injection peaks) should be ignored or if certain peaks correspond to certain components.
 
 ```{code-cell} ipython3
-comparator.add_difference_metric(
-    'SSE', reference, 'column.outlet', start=3*60, end=6*60
-)
+from CADETProcess.comparison import SSE
+metric = SSE(reference, start=3*60, end=6*60)
+comparator.add_difference_metric(metric, 'column.outlet')
 ```
 
 ## Reference Model

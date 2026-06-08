@@ -1,6 +1,6 @@
 import copy
-import functools
 import importlib
+import warnings
 from typing import Any, Iterator, Optional
 
 import matplotlib.pyplot as plt
@@ -61,6 +61,11 @@ class Comparator(Structure):
         """
         Add reference to the Comparator.
 
+        .. deprecated::
+            Use the new API instead: construct the metric with the reference
+            directly and pass the instance to :meth:`add_difference_metric`.
+            This method will be removed in v1.0.
+
         Parameters
         ----------
         reference : SolutionBase
@@ -78,6 +83,13 @@ class Comparator(Structure):
             If Reference already exists.
 
         """
+        warnings.warn(
+            "add_reference() is deprecated and will be removed in v1.0. "
+            "Pass a pre-constructed metric instance to add_difference_metric() instead: "
+            "metric = SSE(reference); comparator.add_difference_metric(metric, solution_path)",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if not isinstance(reference, SolutionBase):
             raise TypeError("Expeced SolutionBase")
 
@@ -131,12 +143,9 @@ class Comparator(Structure):
 
         return labels
 
-    @functools.wraps(DifferenceBase.__init__)
     def add_difference_metric(
         self,
-        difference_metric: str,
-        reference: str | SolutionBase,
-        solution_path: str,
+        difference_metric: DifferenceBase | str,
         *args: Any,
         **kwargs: Any,
     ) -> DifferenceBase:
@@ -145,30 +154,64 @@ class Comparator(Structure):
 
         Parameters
         ----------
-        difference_metric : str
-            Name of the difference metric to be evaluated.
-        reference : str | SolutionBase
-            Name of the reference or reference itself.
+        difference_metric : DifferenceBase
+            Difference metric instance to register.
         solution_path : str
             Path to the solution in SimulationResults.
-        *args, **kwargs
-            Additional arguments and keyword arguments to be passed to the
-            difference metric constructor.
 
         Returns
         -------
         DifferenceBase
-            The new difference metric instance.
 
         Raises
         ------
-        CADETProcessError
-            If the difference metric or reference is unknown.
+        TypeError
+            If difference_metric is not a DifferenceBase instance.
+
+        Notes
+        -----
+        Passing a metric class name as a string is deprecated.
+        Construct the metric directly instead::
+
+            metric = SSE(reference)
+            comparator.add_difference_metric(metric, 'outlet.outlet')
+
+        The string form will be removed in v1.0.
         """
+        if isinstance(difference_metric, str):
+            warnings.warn(
+                "Passing a metric class name as a string to add_difference_metric() "
+                "is deprecated and will be removed in v1.0. "
+                "Construct the metric directly and pass the instance instead: "
+                "metric = SSE(reference); comparator.add_difference_metric(metric, solution_path)",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return self._add_difference_metric_legacy(difference_metric, *args, **kwargs)
+
+        if not isinstance(difference_metric, DifferenceBase):
+            raise TypeError(
+                f"Expected a DifferenceBase instance, got {type(difference_metric).__name__}."
+            )
+
+        (solution_path,) = args
+        self.solution_paths[difference_metric] = solution_path
+        self._metrics.append(difference_metric)
+        return difference_metric
+
+    def _add_difference_metric_legacy(
+        self,
+        difference_metric: str,
+        reference: str | SolutionBase,
+        solution_path: str,
+        *args: Any,
+        **kwargs: Any,
+    ) -> DifferenceBase:
+        """Add a difference metric using the deprecated string-based API."""
         try:
             module = importlib.import_module("CADETProcess.comparison.difference")
             cls_ = getattr(module, difference_metric)
-        except KeyError:
+        except (KeyError, AttributeError):
             raise CADETProcessError("Unknown Metric Type.")
 
         if isinstance(reference, SolutionBase):
@@ -182,9 +225,7 @@ class Comparator(Structure):
         metric = cls_(reference, *args, **kwargs)
 
         self.solution_paths[metric] = solution_path
-
         self._metrics.append(metric)
-
         return metric
 
     def extract_solution(
