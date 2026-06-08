@@ -23,7 +23,10 @@ from CADETProcess import CADETProcessError
     "three_components_gaussian_separated",
 ], indirect=["simulation_results"])
 def test_purity_requirement_met(simulation_results, purity_required, optimizer):
-    frac = optimizer.optimize_fractionation(simulation_results, purity_required)
+    chromatograms, process_meta = simulation_results
+    frac = optimizer.optimize_fractionation(
+        chromatograms, purity_required, process_meta=process_meta
+    )
     purity = frac.performance.purity
     np.testing.assert_array_less(
         np.array(purity_required) - 1e-3,
@@ -33,14 +36,14 @@ def test_purity_requirement_met(simulation_results, purity_required, optimizer):
 
 
 def test_infeasible_raises(optimizer, two_components_fully_overlapping):
+    chromatograms, process_meta = two_components_fully_overlapping
     with pytest.raises(CADETProcessError):
-        optimizer.optimize_fractionation(two_components_fully_overlapping, [0.95, 0.95])
+        optimizer.optimize_fractionation(chromatograms, [0.95, 0.95], process_meta=process_meta)
 
 
 def test_recovery_bounded(optimizer, two_components_separated_mass_matched):
-    frac = optimizer.optimize_fractionation(
-        two_components_separated_mass_matched, [0.95, 0.95]
-    )
+    chromatograms, process_meta = two_components_separated_mass_matched
+    frac = optimizer.optimize_fractionation(chromatograms, [0.95, 0.95], process_meta=process_meta)
     recovery = frac.performance.recovery
     assert np.all(recovery >= 0), f"Negative recovery: {recovery}"
     assert np.all(recovery <= 1 + 1e-4), f"Recovery exceeds 1: {recovery}"
@@ -51,12 +54,10 @@ def test_recovery_reduced_by_overlap(
     two_components_separated_mass_matched,
     two_components_overlapping_mass_matched,
 ):
-    frac_sep = optimizer.optimize_fractionation(
-        two_components_separated_mass_matched, [0.95, 0.95]
-    )
-    frac_ov = optimizer.optimize_fractionation(
-        two_components_overlapping_mass_matched, [0.95, 0.95]
-    )
+    chroms_sep, pm_sep = two_components_separated_mass_matched
+    chroms_ov, pm_ov = two_components_overlapping_mass_matched
+    frac_sep = optimizer.optimize_fractionation(chroms_sep, [0.95, 0.95], process_meta=pm_sep)
+    frac_ov = optimizer.optimize_fractionation(chroms_ov, [0.95, 0.95], process_meta=pm_ov)
     recovery_sep = frac_sep.performance.recovery
     recovery_ov = frac_ov.performance.recovery
     assert np.all(recovery_sep >= recovery_ov - 1e-3), (
@@ -69,7 +70,10 @@ def test_recovery_reduced_by_overlap(
     ("two_components_gaussian_separated", [0.95, 0.95]),
 ], ids=["separated", "gaussian_separated"], indirect=["simulation_results"])
 def test_productivity_and_eluent_nonnegative(simulation_results, purity_required, optimizer):
-    frac = optimizer.optimize_fractionation(simulation_results, purity_required)
+    chromatograms, process_meta = simulation_results
+    frac = optimizer.optimize_fractionation(
+        chromatograms, purity_required, process_meta=process_meta
+    )
     perf = frac.performance
     assert np.all(perf.productivity >= 0), f"Negative productivity: {perf.productivity}"
     assert np.all(perf.eluent_consumption >= 0), (
@@ -78,7 +82,8 @@ def test_productivity_and_eluent_nonnegative(simulation_results, purity_required
 
 
 def test_multi_outlet_fractionation(optimizer, two_outlets_two_components):
-    frac = optimizer.optimize_fractionation(two_outlets_two_components, [0.95, 0.95])
+    chromatograms, process_meta = two_outlets_two_components
+    frac = optimizer.optimize_fractionation(chromatograms, [0.95, 0.95], process_meta=process_meta)
     purity = frac.performance.purity
     np.testing.assert_array_less(
         np.array([0.95, 0.95]) - 1e-3,

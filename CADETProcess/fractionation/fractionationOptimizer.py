@@ -14,7 +14,9 @@ from CADETProcess.optimization import (
     compute_initial_radius,
 )
 from CADETProcess.performance import Mass, Performance, Purity
+from CADETProcess.processModel.process import ProcessMeta
 from CADETProcess.simulationResults import SimulationResults
+from CADETProcess.solution import SolutionIO
 
 __all__ = ["FractionationOptimizer"]
 
@@ -100,7 +102,8 @@ class FractionationOptimizer:
 
     def _setup_fractionator(
         self,
-        simulation_results: SimulationResults,
+        chromatograms: list[SolutionIO],
+        process_meta: ProcessMeta,
         purity_required: list[float],
         components: Optional[list] = None,
         use_total_concentration_components: bool = True,
@@ -111,8 +114,10 @@ class FractionationOptimizer:
 
         Parameters
         ----------
-        simulation_results: object
-            Simulation results to be used for setting up the Fractionator object.
+        chromatograms : list of SolutionIO
+            Chromatograms to be fractionated.
+        process_meta : ProcessMeta
+            Process meta information (cycle time, volumes, feed masses).
         purity_required : list of floats
             Minimum purity required for the components in the fractionation.
         components: list, optional
@@ -128,7 +133,8 @@ class FractionationOptimizer:
             The Fractionator object that has been set up using the provided arguments.
         """
         frac = Fractionator(
-            simulation_results,
+            chromatograms,
+            process_meta,
             components=components,
             use_total_concentration_components=use_total_concentration_components,
         )
@@ -279,8 +285,9 @@ class FractionationOptimizer:
 
     def optimize_fractionation(
         self,
-        simulation_results: SimulationResults,
+        simulation_results: SimulationResults | SolutionIO | list[SolutionIO],
         purity_required: float | list[float],
+        process_meta: Optional[ProcessMeta] = None,
         components: Optional[list[str]] = None,
         use_total_concentration_components: bool = True,
         ranking: str | list[float] | int = "equal",
@@ -364,16 +371,35 @@ class FractionationOptimizer:
         CADETProcess.optimization.OptimizationProblem
         CADETProcess.optimization.OptimizerBase
         """
-        if not isinstance(simulation_results, SimulationResults):
-            raise TypeError("Expected SimulationResults.")
+        # Resolve chromatograms and process_meta from whatever was passed.
+        _process = None
+        if isinstance(simulation_results, SimulationResults):
+            if len(simulation_results.chromatograms) == 0:
+                raise CADETProcessError("Simulation results do not contain chromatogram.")
+            chromatograms = simulation_results.chromatograms
+            process_meta = simulation_results.process.process_meta
+            _process = simulation_results.process  # for lock management
+        elif isinstance(simulation_results, SolutionIO):
+            chromatograms = [simulation_results]
+        elif isinstance(simulation_results, list):
+            chromatograms = simulation_results
+        else:
+            raise TypeError(
+                "Expected SimulationResults, SolutionIO, or list of SolutionIO."
+            )
 
-        if len(simulation_results.chromatograms) == 0:
-            raise CADETProcessError("Simulation results do not contain chromatogram.")
+        if process_meta is None:
+            raise TypeError(
+                "process_meta is required when not passing SimulationResults."
+            )
+
+        if len(chromatograms) == 0:
+            raise CADETProcessError("No chromatograms provided.")
 
         # Convert inputs to lists of length n_comp
         n_comp = (
             len(components) if components
-            else simulation_results.component_system.n_comp
+            else chromatograms[0].component_system.n_comp
         )
         if isinstance(purity_required, float):
             purity_required = n_comp * [purity_required]
@@ -391,11 +417,13 @@ class FractionationOptimizer:
                 ranking[i] = 0.0
 
         # Store previous lock state, unlock to ensure consistent values
-        lock_state = simulation_results.process.lock
-        simulation_results.process.lock = False
+        lock_state = _process.lock if _process is not None else None
+        if _process is not None:
+            _process.lock = False
 
         frac = self._setup_fractionator(
-            simulation_results,
+            chromatograms,
+            process_meta,
             purity_required,
             components=components,
             use_total_concentration_components=use_total_concentration_components,
@@ -427,7 +455,8 @@ class FractionationOptimizer:
                 self.optimizer.tol = min(0.5 * self.optimizer.rhobeg, self.optimizer.tol)
 
         # Lock to enable caching
-        simulation_results.process.lock = True
+        if _process is not None:
+            _process.lock = True
 
         try:
             results = self.optimizer.optimize(
@@ -451,7 +480,8 @@ class FractionationOptimizer:
                 raise CADETProcessError(message)
         finally:
             # Restore previous lock state
-            simulation_results.process.lock = lock_state
+            if _process is not None:
+                _process.lock = lock_state
 
         if return_optimization_results:
             return results
