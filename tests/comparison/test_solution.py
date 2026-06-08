@@ -39,6 +39,8 @@ from CADETProcess.processModel import ComponentSystem
 from CADETProcess.solution import SolutionIO, slice_solution
 from scipy import stats
 
+from tests.chromatogram_factory import gaussian_chromatogram, rectangle_chromatogram
+
 show_plots = False
 
 comp_2 = ComponentSystem(2)
@@ -53,17 +55,13 @@ time = np.linspace(0, 100, 1001)
 solution_2_constant = np.ones((len(time), 2))
 solution_2_constant[:, 1] *= 2
 
-solution_2_square = np.zeros((len(time), 2))
-solution_2_square[200:400, 0] = 2
-solution_2_square[300:500, 1] = 1
+_square = rectangle_chromatogram(
+    comp_2, [[(20, 40)], [(30, 50)]], heights=[2, 1], t_end=100
+)
+solution_2_square = _square.solution
 
-solution_2_gaussian = np.zeros((len(time), 2))
-mu_0 = 30
-sigma_0 = 5
-solution_2_gaussian[:, 0] = stats.norm.pdf(time, mu_0, sigma_0)
-mu_1 = 40
-sigma_1 = 5
-solution_2_gaussian[:, 1] = stats.norm.pdf(time, mu_1, sigma_1)
+_gaussian = gaussian_chromatogram(comp_2, [(30, 5), (40, 5)], t_end=100)
+solution_2_gaussian = _gaussian.solution
 
 solution_3_linear = np.zeros((len(time), 3))
 
