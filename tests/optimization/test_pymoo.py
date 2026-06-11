@@ -4,7 +4,9 @@ import unittest
 from CADETProcess import settings
 from CADETProcess.optimization import U_NSGA3
 
-from tests.optimization.test_optimization_problem import setup_optimization_problem
+from tests.optimization.conftest import (
+    make_optimization_problem as setup_optimization_problem,
+)
 
 
 class Test_OptimizationProblemSimple(unittest.TestCase):

@@ -128,6 +128,7 @@ def _make_node(
     func: Callable,
     output_name: str,
     requires: list[str] | None,
+    cache: bool = True,
 ) -> PipeFunc:
     """Build a `PipeFunc` node with failure propagation and optional arg injection."""
     safe = _wrap_with_failure_propagation(func, stage=output_name)
@@ -135,7 +136,7 @@ def _make_node(
         node_func = _make_injection_wrapper(safe, requires)
     else:
         node_func = _make_context_wrapper(safe)
-    return PipeFunc(node_func, output_name=output_name, cache=True)
+    return PipeFunc(node_func, output_name=output_name, cache=cache)
 
 
 class EvaluationPipeline:
@@ -188,6 +189,7 @@ class EvaluationPipeline:
         func: Callable,
         output_name: str,
         requires: list[str] | None = None,
+        cache: bool = True,
     ) -> None:
         """Register a callable as a named node in the evaluation DAG.
 
@@ -206,6 +208,10 @@ class EvaluationPipeline:
             Ordered list of upstream output names to inject as positional arguments
             to `func`.  When given, `func` must accept ``len(requires)`` positional
             arguments.  When None, pipefunc wires `func` by its own argument names.
+        cache : bool
+            Whether to cache the output of this node.  Defaults to True.
+            Pass False for nodes with side effects (e.g. callbacks) where
+            repeated execution is intentional and results need not be stored.
 
         Raises
         ------
@@ -221,7 +227,7 @@ class EvaluationPipeline:
         if output_name in self._output_names:
             raise ValueError(f"output_name {output_name!r} is already registered")
 
-        node = _make_node(func, output_name, requires)
+        node = _make_node(func, output_name, requires, cache=cache)
         self._nodes.append(node)
         self._output_names.append(output_name)
         self._pipeline = None  # invalidate cached pipeline

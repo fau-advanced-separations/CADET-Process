@@ -26,8 +26,8 @@ from CADETProcess.optimization import OptimizationProblem
 optimization_problem = OptimizationProblem('single_objective')
 ```
 
-By default, the {class}`~CADETProcess.optimization.OptimizationProblem` uses a [DiskCache](https://grantjenks.com/docs/diskcache/) to store intermediate evaluation results.
-In contrast to using a simple python dictionary, this also allows for multi-core parallelization.
+By default, the {class}`~CADETProcess.optimization.OptimizationProblem` uses an in-memory LRU cache to store intermediate evaluation results.
+Pass a ``cache_directory`` to persist results to disk across runs, which also enables multi-core parallelization via a shared cache.
 
 (optimization_variables_guide)=
 ## Optimization Variables
@@ -144,7 +144,7 @@ It is also possible to evaluate multiple sets of input variables at once by pass
 optimization_problem.evaluate_objectives([[0, 1], [1, 1], [2, -1]])
 ```
 
-For more complicated scenarios that require (multiple) preprocessing steps, refer to {ref}`evaluation_toolchains_guide`.
+For more complicated scenarios that require (multiple) preprocessing steps, refer to {ref}`evaluation_pipeline_guide`.
 
 ## Linear constraints
 
@@ -279,7 +279,7 @@ The {meth}`~CADETProcess.optimization.OptimizationProblem.check_nonlinear_constr
 optimization_problem.check_nonlinear_constraints([0.5, 0.5])
 ```
 
-For more complicated scenarios that require (multiple) preprocessing steps, refer to {ref}`evaluation_toolchains_guide`.
+For more complicated scenarios that require (multiple) preprocessing steps, refer to {ref}`evaluation_pipeline_guide`.
 
 (initial_values_creation_guide)=
 ## Initial Values
@@ -368,7 +368,7 @@ def callback(results, individual, evaluation_object, callbacks_dir):
     print(callbacks_dir)
 ```
 
-For more information about evaluation toolchains, refer to {ref}`evaluation_toolchains_guide`.
+For more information about the evaluation pipeline, refer to {ref}`evaluation_pipeline_guide`.
 
 To add the function to the {class}`~CADETProcess.optimization.OptimizationProblem`, use the {meth}`~CADETProcess.optimization.OptimizationProblem.add_callback` method.
 

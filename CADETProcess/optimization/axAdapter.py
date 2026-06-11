@@ -36,7 +36,7 @@ from botorch.utils.sampling import manual_seed
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import Float, Typed, UnsignedInteger
 from CADETProcess.optimization import OptimizerBase
-from CADETProcess.optimization.optimizationProblem import OptimizationProblem
+from CADETProcess.optimization.optimization_problem import OptimizationProblem
 from CADETProcess.optimization.parallelizationBackend import (
     ParallelizationBackendBase,
     SequentialBackend,
@@ -122,7 +122,6 @@ class CADETProcessRunner(Runner):
         F = obj_fun(
             X,
             untransform=True,
-            get_dependent_values=True,
             ensure_minimization=True,
             parallelization_backend=self.parallelization_backend,
         )
@@ -138,8 +137,7 @@ class CADETProcessRunner(Runner):
             CV = nonlincon_cv_fun(
                 X,
                 untransform=True,
-                get_dependent_values=True,
-                parallelization_backend=self.parallelization_backend,
+                    parallelization_backend=self.parallelization_backend,
             )
 
         else:
@@ -208,8 +206,10 @@ class AxInterface(OptimizerBase):
     @staticmethod
     def _setup_parameters(optimizationProblem: OptimizationProblem) -> list:
         parameters = []
-        for var in optimizationProblem.independent_variables:
-            lb, ub = var.transformed_bounds
+        ts = optimizationProblem.transformed_space
+        lbs = ts.lower_bounds
+        ubs = ts.upper_bounds
+        for var, lb, ub in zip(optimizationProblem.independent_variables, lbs, ubs):
             param = RangeParameter(
                 name=var.name,
                 parameter_type=ParameterType.FLOAT,
@@ -224,8 +224,9 @@ class AxInterface(OptimizerBase):
 
     @staticmethod
     def _setup_linear_constraints(optimizationProblem: OptimizationProblem) -> list:
-        A_transformed = optimizationProblem.A_independent_transformed
-        b_transformed = optimizationProblem.b_transformed
+        ts = optimizationProblem.transformed_space
+        A_transformed = ts.A
+        b_transformed = ts.b
         indep_vars = optimizationProblem.independent_variables
         parameter_constraints = []
         for a_t, b_t in zip(A_transformed, b_transformed):
@@ -353,7 +354,7 @@ class AxInterface(OptimizerBase):
             G = G_data["mean"].values.reshape((op.n_nonlinear_constraints, n_ind)).T
 
             nonlincon_cv_fun = op.evaluate_nonlinear_constraints_violation
-            CV = nonlincon_cv_fun(X, untransform=True, get_dependent_values=True)
+            CV = nonlincon_cv_fun(X, untransform=True)
         else:
             G = None
             CV = None

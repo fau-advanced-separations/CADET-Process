@@ -22,7 +22,7 @@ try:
 except ImportError:
     skip_ax = True
 
-from tests.optimization.optimization_problem_fixtures import (
+from tests.optimization.conftest import (
     LinearConstraintsMooTestProblem,
     LinearConstraintsSooTestProblem,
     LinearConstraintsSooTestProblem2,
@@ -33,7 +33,7 @@ from tests.optimization.optimization_problem_fixtures import (
     NonlinearLinearConstraintsSooTestProblem,
     Rosenbrock,
     TestProblem,
-)  # noqa: E402
+)
 
 # %% Optimizer Setup
 

@@ -11,6 +11,7 @@ __all__ = [
     "set_nested_value",
     "get_nested_attribute",
     "set_nested_attribute",
+    "attribute_path_exists",
     "get_nested_list_value",
     "set_nested_list_value",
 ]
@@ -230,6 +231,15 @@ def get_nested_attribute(obj: Any, path: str) -> Any:
     for attr in attributes:
         obj = getattr(obj, attr)
     return obj
+
+
+def attribute_path_exists(obj: Any, path: str) -> bool:
+    """Return True if the dot-separated attribute path resolves on *obj*."""
+    try:
+        get_nested_attribute(obj, path)
+        return True
+    except AttributeError:
+        return False
 
 
 def set_nested_attribute(obj: Any, attr_string: str, value: Any) -> None:
