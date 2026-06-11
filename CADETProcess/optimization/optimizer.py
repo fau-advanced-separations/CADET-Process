@@ -145,8 +145,6 @@ class OptimizerBase(Structure):
         overwrite_results_directory: Optional[bool] = False,
         exist_ok: Optional[bool] = True,
         log_level: Optional[str] = "INFO",
-        reinit_cache: Optional[bool] = True,
-        delete_cache: bool = True,
         *args: Any,
         **kwargs: Any,
     ) -> OptimizationResults:
@@ -174,10 +172,6 @@ class OptimizerBase(Structure):
             The default is True.
         log_level : str, optional
             log level. The default is "INFO".
-        reinit_cache : bool, optional
-            If True, reinitialize the Cache. The default is True.
-        delete_cache : bool, optional
-            If True, delete ResultsCache after finishing. The default is True.
         *args : TYPE
             Additional arguments for Optimizer.
         **kwargs : TYPE
@@ -199,10 +193,7 @@ class OptimizerBase(Structure):
         --------
         OptimizationProblem
         OptimizationResults
-        CADETProcess.optimization.ResultsCache
         """
-        self._current_cache_entries = []
-
         self.logger = log.get_logger(str(self), level=log_level)
 
         # Check OptimizationProblem
@@ -260,9 +251,6 @@ class OptimizerBase(Structure):
             callbacks_dir = None
         self.callbacks_dir = callbacks_dir
 
-        if reinit_cache:
-            self.optimization_problem.setup_cache(self.n_cores)
-
         if x0 is not None:
             flag, x0 = self.check_x0(optimization_problem, x0)
 
@@ -285,10 +273,6 @@ class OptimizerBase(Structure):
             self.results.cpu_time = self.n_cores * time_elapsed
 
             self.run_final_processing()
-
-            if delete_cache:
-                optimization_problem.delete_cache(reinit=True)
-            self._current_cache_entries = []
 
             if not self.results.success:
                 raise CADETProcessError(
@@ -396,13 +380,10 @@ class OptimizerBase(Structure):
             warnings.warn("Optimizer does not support multi-objective problems")
             flag = False
 
+        ts = optimization_problem.transformed_space
         if (
-            not np.all(
-                np.isinf(optimization_problem.lower_bounds_independent_transformed)
-            )
-            and not np.all(
-                np.isinf(optimization_problem.upper_bounds_independent_transformed)
-            )
+            not np.all(np.isinf(ts.lower_bounds))
+            and not np.all(np.isinf(ts.upper_bounds))
         ) and not self.supports_bounds:
             warnings.warn("Optimizer does not support bounds")
             flag = False
@@ -492,7 +473,6 @@ class OptimizerBase(Structure):
                 cv_lincon_tol=self.cv_lincon_tol,
                 cv_lineqcon_tol=self.cv_lineqcon_tol,
                 check_nonlinear_constraints=False,
-                silent=True,
             ):
                 flag = False
                 break
@@ -523,8 +503,6 @@ class OptimizerBase(Structure):
             M_minimized = self.optimization_problem.evaluate_meta_scores(
                 X_transformed,
                 untransform=True,
-                get_dependent_values=True,
-                ensure_minimization=True,
                 parallelization_backend=self.parallelization_backend,
             )
             M = self.optimization_problem.transform_maximization(
@@ -559,7 +537,6 @@ class OptimizerBase(Structure):
                 cv_lineqcon_tol=self.cv_lineqcon_tol,
                 check_nonlinear_constraints=True,
                 cv_nonlincon_tol=self.cv_nonlincon_tol,
-                silent=True,
             )
 
         return population
@@ -696,21 +673,6 @@ class OptimizerBase(Structure):
         self._evaluate_callbacks(current_generation)
 
         self.results.save_results("checkpoint")
-
-        # Remove new entries from cache that didn't make it to the meta front
-        for x in population.x:
-            x_key = x.tobytes()
-            if x not in self.results.meta_front.x:
-                self.optimization_problem.prune_cache(x_key, close=False)
-            else:
-                self._current_cache_entries.append(x_key)
-
-        # Remove old meta front entries from cache that were replaced by better ones
-        for x_key in self._current_cache_entries:
-            x = np.frombuffer(x_key)
-            if not np.all(np.isin(x, self.results.meta_front.x)):
-                self.optimization_problem.prune_cache(x_key, close=False)
-                self._current_cache_entries.remove(x_key)
 
         self._log_results(current_generation)
 

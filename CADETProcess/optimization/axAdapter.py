@@ -36,7 +36,7 @@ from botorch.utils.sampling import manual_seed
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import Float, Typed, UnsignedInteger
 from CADETProcess.optimization import OptimizerBase
-from CADETProcess.optimization.optimizationProblem import OptimizationProblem
+from CADETProcess.optimization.optimization_problem import OptimizationProblem
 from CADETProcess.optimization.parallelizationBackend import (
     ParallelizationBackendBase,
     SequentialBackend,
@@ -224,8 +224,9 @@ class AxInterface(OptimizerBase):
 
     @staticmethod
     def _setup_linear_constraints(optimizationProblem: OptimizationProblem) -> list:
-        A_transformed = optimizationProblem.A_independent_transformed
-        b_transformed = optimizationProblem.b_transformed
+        ts = optimizationProblem.transformed_space
+        A_transformed = ts.A
+        b_transformed = ts.b
         indep_vars = optimizationProblem.independent_variables
         parameter_constraints = []
         for a_t, b_t in zip(A_transformed, b_transformed):

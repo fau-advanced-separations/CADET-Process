@@ -317,8 +317,8 @@ class PymooProblem(Problem):
             n_var=optimization_problem.n_independent_variables,
             n_obj=optimization_problem.n_objectives,
             n_ieq_constr=optimization_problem.n_nonlinear_constraints,
-            xl=optimization_problem.lower_bounds_independent_transformed,
-            xu=optimization_problem.upper_bounds_independent_transformed,
+            xl=optimization_problem.transformed_space.lower_bounds,
+            xu=optimization_problem.transformed_space.upper_bounds,
             **kwargs,
         )
 
