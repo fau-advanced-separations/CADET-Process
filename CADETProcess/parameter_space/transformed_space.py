@@ -1,0 +1,320 @@
+"""TransformedSpace: optimizer-facing view of a ParameterSpace in normalized coordinates.
+
+``TransformedSpace`` wraps a ``ParameterSpace`` and presents bounds, constraint
+matrices, and write operations in normalized coordinates.  Three spaces are in play:
+
+* **Optimizer space** — the ``n_variables`` independent parameters in normalized
+  coordinates; the domain the optimizer directly controls.
+* **Physical space** — the full parameter set in original units, owned by
+  ``ParameterSpace``.
+* **Dependency manifold** — the surface defined by dependency transforms; not
+  representable as a linear constraint and resolved only at write time.
+
+Coordinate convention
+---------------------
+Normalization is per-parameter.  ``RangedParameter`` instances with an active
+normalizer (``normalization is not None``) and finite bounds are mapped to ``[0, 1]``.
+Parameters without normalization pass through the identity chart (``NullNormalizer``)
+and retain their physical-unit value.  The optimizer space is therefore a
+**mixed-coordinate product**: some axes are unit-scaled, others are in physical units.
+There is no canonical norm or distance in optimizer space; Euclidean geometry does not
+apply across axes.
+
+Linear constraint transformation
+---------------------------------
+Constraints are defined over the optimizer basis (independent parameters only).
+Dependent parameters are excluded: lifting constraints through the dependency embedding
+is not defined in the linear constraint formalism.  Feasibility of dependent parameters
+is enforced after embedding in ``set_values`` via parameter validation.
+
+The affine transform ``x_phys = lb + span * x_norm`` (where ``span = ub - lb``) holds
+only for parameters with an active affine normalizer.  Parameters without normalization
+pass through unchanged.  ``TransformedSpace`` raises at constraint assembly time when a
+constrained parameter uses a non-affine normalizer (e.g. ``LogNormalizer``); use
+``ParameterSpace`` directly with physical-unit coordinates in that case.
+
+As a result, constraint satisfaction in optimizer space is not equivalent to physical
+feasibility when nonlinear normalizers or dependency transforms are involved.  Sampling
+must be followed by post-hoc validation via ``set_values``.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+import numpy as np
+import numpy.typing as npt
+
+from CADETProcess.parameter_space.constraints import (
+    LinearConstraint,
+    LinearEqualityConstraint,
+)
+from CADETProcess.parameter_space.parameters import ParameterBase, RangedParameter
+from CADETProcess.parameter_space.space import ParameterSpace
+
+__all__ = ["TransformedSpace"]
+
+
+class TransformedSpace:
+    """Optimizer-facing view of a ``ParameterSpace`` in normalized coordinates.
+
+    All bounds, constraint matrices, and ``set_values`` calls operate in the
+    normalized coordinate system.  The underlying ``ParameterSpace`` is the
+    source of truth; ``TransformedSpace`` derives everything from it lazily.
+
+    Parameters
+    ----------
+    space : ParameterSpace
+        The physical-unit parameter space this view wraps.
+
+    Examples
+    --------
+    ::
+
+        space = ParameterSpace()
+        space.add_evaluation_object(process)
+        space.add_parameter(
+            RangedParameter("length", float, lb=0.1, ub=1.0, normalization="linear"),
+            path="column.length",
+        )
+        ts = TransformedSpace(space)
+        ts.set_values([0.5])   # 0.5 normalized → 0.55 physical
+    """
+
+    def __init__(self, space: ParameterSpace) -> None:
+        self._space = space
+
+    @property
+    def space(self) -> ParameterSpace:
+        """The underlying ``ParameterSpace``."""
+        return self._space
+
+    # ── Delegation ────────────────────────────────────────────────────────────
+
+    @property
+    def evaluation_objects(self) -> list[Any]:
+        """Registered evaluation objects (delegates to the underlying space)."""
+        return self._space.evaluation_objects
+
+    @property
+    def parameters(self) -> list[ParameterBase]:
+        """All registered parameters (delegates to the underlying space)."""
+        return self._space.parameters
+
+    @property
+    def independent_parameters(self) -> list[ParameterBase]:
+        """Independent (optimizer-facing) parameters."""
+        return self._space.independent_parameters
+
+    @property
+    def n_variables(self) -> int:
+        """Number of independent (optimizer-facing) variables."""
+        return self._space.n_variables
+
+    # ── Normalized bounds ─────────────────────────────────────────────────────
+
+    @property
+    def lower_bounds(self) -> np.ndarray:
+        """Lower bounds in the optimizer coordinate system.
+
+        Each value is the per-parameter normalization of the physical lower bound.
+        Parameters with an active normalizer and finite bounds return 0; parameters
+        without normalization pass through the identity chart and retain their
+        physical-unit value.  The result is a mixed-coordinate vector: axes are not
+        globally comparable.
+        """
+        return self._space.normalize(self._space.lower_bounds_independent)
+
+    @property
+    def upper_bounds(self) -> np.ndarray:
+        """Upper bounds in the optimizer coordinate system.
+
+        Each value is the per-parameter normalization of the physical upper bound.
+        Parameters with an active normalizer and finite bounds return 1; parameters
+        without normalization pass through the identity chart and retain their
+        physical-unit value.  The result is a mixed-coordinate vector: axes are not
+        globally comparable.
+        """
+        return self._space.normalize(self._space.upper_bounds_independent)
+
+    # ── Constraint matrices ───────────────────────────────────────────────────
+
+    def _assemble_matrices(
+        self,
+        constraints: list[LinearConstraint] | list[LinearEqualityConstraint],
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Return ``(A, b)`` in normalized coordinates.
+
+        Parameters
+        ----------
+        constraints : list
+            List of ``LinearConstraint`` or ``LinearEqualityConstraint`` objects.
+
+        Returns
+        -------
+        A : np.ndarray, shape (n_constraints, n_variables)
+        b : np.ndarray, shape (n_constraints,)
+
+        Raises
+        ------
+        ValueError
+            If any constrained parameter uses a non-linear normalizer.
+        """
+        n = self._space.n_variables
+        n_c = len(constraints)
+
+        if n_c == 0:
+            return np.zeros((0, n)), np.zeros(0)
+
+        param_index = {
+            p.name: i for i, p in enumerate(self._space.independent_parameters)
+        }
+        lb_phys = self._space.lower_bounds_independent
+        ub_phys = self._space.upper_bounds_independent
+
+        A = np.zeros((n_c, n))
+        b = np.empty(n_c)
+
+        for row_idx, constraint in enumerate(constraints):
+            b_adj = 0.0
+            for p, coeff in zip(constraint.parameters, constraint.lhs):
+                if p.name not in param_index:
+                    # Dependent parameters are not part of the optimizer basis;
+                    # feasibility is enforced after embedding in set_values.
+                    continue
+                i = param_index[p.name]
+                p_lb = lb_phys[i]
+                p_ub = ub_phys[i]
+                if (
+                    isinstance(p, RangedParameter)
+                    and np.isfinite(p_lb)
+                    and np.isfinite(p_ub)
+                    and p.normalization is not None
+                ):
+                    if not p.normalizer.is_linear:
+                        raise ValueError(
+                            f"Parameter {p.name!r} uses a non-affine normalizer. "
+                            "Linear constraints involving non-affinely-normalized "
+                            "parameters are not linearly representable in normalized "
+                            "coordinates and cannot be assembled by TransformedSpace. "
+                            "Use ParameterSpace directly with physical-unit coordinates."
+                        )
+                    span = p_ub - p_lb
+                    A[row_idx, i] += coeff * span
+                    b_adj += coeff * p_lb
+                else:
+                    A[row_idx, i] += coeff
+            b[row_idx] = constraint.b - b_adj
+
+        return A, b
+
+    @property
+    def A(self) -> np.ndarray:
+        """Inequality constraint matrix in normalized coordinates, shape ``(m, n)``."""
+        return self._assemble_matrices(self._space.linear_constraints)[0]
+
+    @property
+    def b(self) -> np.ndarray:
+        """Inequality constraint RHS in normalized coordinates, shape ``(m,)``."""
+        return self._assemble_matrices(self._space.linear_constraints)[1]
+
+    @property
+    def A_eq(self) -> np.ndarray:
+        """Equality constraint matrix in normalized coordinates, shape ``(m, n)``."""
+        return self._assemble_matrices(self._space.linear_equality_constraints)[0]
+
+    @property
+    def b_eq(self) -> np.ndarray:
+        """Equality constraint RHS in normalized coordinates, shape ``(m,)``."""
+        return self._assemble_matrices(self._space.linear_equality_constraints)[1]
+
+    # ── Write / validate ──────────────────────────────────────────────────────
+
+    def set_values(
+        self,
+        x: npt.ArrayLike,
+        *,
+        validate_bounds: bool = False,
+        tol: float | npt.ArrayLike = 0.0,
+    ) -> None:
+        """Resolve, denormalize, and write *x* into the evaluation objects.
+
+        Parameters
+        ----------
+        x : array-like
+            Values for the independent parameters in **normalized** coordinates.
+        validate_bounds : bool
+            When True, check that the denormalized values satisfy physical bounds.
+        tol : float or array-like
+            Tolerance passed to ``check_bounds`` when *validate_bounds* is True.
+        """
+        self._space.set_values(x, denormalize=True, validate_bounds=validate_bounds, tol=tol)
+
+    def get_dependent_values(self, x: npt.ArrayLike) -> np.ndarray:
+        """Expand normalized independent values to the full physical parameter vector.
+
+        Parameters
+        ----------
+        x : array-like
+            Values for the ``n_variables`` independent parameters in **normalized**
+            coordinates.
+
+        Returns
+        -------
+        np.ndarray
+            Full physical parameter vector of length ``n_parameters``.
+        """
+        return self._space.get_dependent_values(x, denormalize=True)
+
+    def check_bounds(self, x: npt.ArrayLike, tol: float | npt.ArrayLike = 0.0) -> bool:
+        """Return True when *x* (in normalized coordinates) satisfies physical bounds.
+
+        Parameters
+        ----------
+        x : array-like
+            Values for the independent parameters in **normalized** coordinates.
+        tol : float or array-like
+            Per-variable tolerance added to each bound before checking.
+        """
+        x_phys = self._space.denormalize(x)
+        return self._space.check_bounds(x_phys, tol=tol, resolve_dependencies=True)
+
+    def validate_x(
+        self,
+        x: npt.ArrayLike,
+        tol: float = 0.0,
+        tol_eq: float = 1e-6,
+    ) -> bool | np.ndarray:
+        """Return True if *x* (normalized) satisfies bounds and all linear constraints.
+
+        Parameters
+        ----------
+        x : array-like
+            Normalized independent parameter vector, shape ``(n_variables,)`` for a
+            single point or ``(m, n_variables)`` for a population.
+        tol : float
+            Tolerance applied to bounds and inequality constraints (inclusive).
+        tol_eq : float
+            Tolerance applied to equality constraints.
+
+        Returns
+        -------
+        bool or np.ndarray of bool
+            Scalar for a single point; 1-D boolean array for a population.
+        """
+        x_arr = np.asarray(x, dtype=float)
+        population = x_arr.ndim == 2
+        rows = x_arr if population else x_arr[np.newaxis, :]
+        results = [
+            self._space.validate_x(self.get_dependent_values(row), tol=tol, tol_eq=tol_eq)
+            for row in rows
+        ]
+        if population:
+            return np.array(results)
+        return results[0]
+
+    # ── Misc ──────────────────────────────────────────────────────────────────
+
+    def __repr__(self) -> str:
+        """Return a readable representation."""
+        return f"TransformedSpace({self._space!r})"
