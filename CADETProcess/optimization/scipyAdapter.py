@@ -153,9 +153,10 @@ class SciPyInterface(OptimizerBase):
         bounds : Bounds
             Bound constraints of the optimization problem.
         """
+        ts = optimization_problem.transformed_space
         return optimize.Bounds(
-            optimization_problem.lower_bounds_independent_transformed,
-            optimization_problem.upper_bounds_independent_transformed,
+            ts.lower_bounds,
+            ts.upper_bounds,
             keep_feasible=True,
         )
 
@@ -209,11 +210,12 @@ class SciPyInterface(OptimizerBase):
         if optimization_problem.n_linear_constraints == 0:
             return None
 
-        lb = [-np.inf] * len(optimization_problem.b)
-        ub = optimization_problem.b_transformed
+        ts = optimization_problem.transformed_space
+        lb = [-np.inf] * optimization_problem.n_linear_constraints
+        ub = ts.b
 
         return optimize.LinearConstraint(
-            optimization_problem.A_independent_transformed, lb, ub, keep_feasible=True
+            ts.A, lb, ub, keep_feasible=True
         )
 
     def get_lineqcon_obj(
@@ -237,11 +239,13 @@ class SciPyInterface(OptimizerBase):
         if optimization_problem.n_linear_equality_constraints == 0:
             return None
 
-        lb = optimization_problem.beq_transformed - optimization_problem.eps_lineq
-        ub = optimization_problem.beq_transformed + optimization_problem.eps_lineq
+        ts = optimization_problem.transformed_space
+        eps = optimization_problem.eps_lineq
+        lb = ts.b_eq - eps
+        ub = ts.b_eq + eps
 
         return optimize.LinearConstraint(
-            optimization_problem.Aeq_independent_transformed, lb, ub, keep_feasible=True
+            ts.A_eq, lb, ub, keep_feasible=True
         )
 
     def get_nonlincon_obj(self, optimization_problem: OptimizationProblem) -> list:

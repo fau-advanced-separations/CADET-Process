@@ -76,13 +76,6 @@ Results
    OptimizationResults
 
 
-Cache
-=====
-.. autosummary::
-   :toctree: generated/
-
-   ResultsCache
-
 ParallelizationBackend
 ======================
 .. autosummary::
@@ -97,9 +90,8 @@ ParallelizationBackend
 
 from .individual import *
 from .population import *
-from .cache import *
 from .results import *
-from .optimizationProblem import OptimizationProblem, OptimizationVariable
+from .optimization_problem import OptimizationProblem
 from .parallelizationBackend import *
 from .optimizer import *
 from .scipyAdapter import COBYLA, COBYQA, TrustConstr, NelderMead, SLSQP

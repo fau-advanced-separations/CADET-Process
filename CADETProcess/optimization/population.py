@@ -523,6 +523,10 @@ class Population:
                 mask = np.isfinite(v_all)
                 v_all = v_all[mask]
 
+                if len(v_all) == 0:
+                    ax_ij.autoscale()
+                    continue
+
                 # Scale axis
                 y_min = np.nanmin(v_all)
                 y_max = np.nanmax(v_all)
