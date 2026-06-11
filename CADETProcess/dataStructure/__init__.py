@@ -29,7 +29,6 @@ References
     parameter
     parameter_group
     cache
-    diskcache
     nested_dict
 
 """
@@ -39,6 +38,5 @@ from .aggregator import *
 from .parameter import *
 from .parameter_group import *
 from .cache import *
-from .diskcache import *
 from .nested_dict import *
 from .deprecation import *
