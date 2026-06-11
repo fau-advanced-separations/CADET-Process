@@ -38,6 +38,7 @@ __all__ = [
     "DotPathMapper",
     "IndexedMapper",
     "CallableMapper",
+    "make_preprocessing_mapper",
 ]
 
 # Matches the bracket expression at the very end of a dot-segment: "name[expr]"
@@ -368,3 +369,33 @@ class CallableMapper(ParameterMapperBase):
 
     def _set_value(self, obj: Any, value: Any) -> None:
         self.fn(obj, value)
+
+
+def make_preprocessing_mapper(
+    evaluation_objects: Sequence[Any],
+    path: str,
+    pre_processing: Callable[[Any], Any],
+) -> CallableMapper:
+    """Return a CallableMapper that applies *pre_processing* before writing via *path*.
+
+    Useful when the value must be transformed (e.g. unit conversion, clipping)
+    before it is written to the attribute at *path*.
+
+    Parameters
+    ----------
+    evaluation_objects : sequence
+        Objects to write into.
+    path : str
+        Dot-separated attribute path on each evaluation object.
+    pre_processing : callable
+        Applied to the raw value before the write: ``obj.attr = pre_processing(v)``.
+    """
+    *parts, attr = path.split(".")
+
+    def _write(obj: Any, v: Any) -> None:
+        target = obj
+        for part in parts:
+            target = getattr(target, part)
+        setattr(target, attr, pre_processing(v))
+
+    return CallableMapper(evaluation_objects, _write)

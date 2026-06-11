@@ -80,7 +80,7 @@ optimization_problem.add_variable(
     name='adsorption_rate',
     parameter_path='flow_sheet.column.binding_model.adsorption_rate',
     lb=1e-3, ub=1e3,
-    transform='auto',
+    normalization='auto',
     indices=[1]  # modify only the protein (component index 1) parameter
 )
 
@@ -88,7 +88,7 @@ optimization_problem.add_variable(
     name='desorption_rate',
     parameter_path='flow_sheet.column.binding_model.desorption_rate',
     lb=1e-3, ub=1e3,
-    transform='auto',
+    normalization='auto',
     indices=[1]
 )
 ```
@@ -101,7 +101,7 @@ optimization_problem.add_variable(
     name='equilibrium_constant',
     evaluation_objects=None,
     lb=1e-4, ub=1e3,
-    transform='auto',
+    normalization='auto',
     indices=[1]
 )
 
@@ -109,7 +109,7 @@ optimization_problem.add_variable(
     name='kinetic_constant',
     evaluation_objects=None,
     lb=1e-4, ub=1e3,
-    transform='auto',
+    normalization='auto',
     indices=[1]
 )
 ```
@@ -130,36 +130,3 @@ optimization_problem.add_variable_dependency(
 )
 ```
 
-```python
-from CADETProcess.optimization import OptimizationProblem
-optimization_problem = OptimizationProblem('transform_demo')
-
-optimization_problem.add_variable('var_0')
-optimization_problem.add_variable('var_1')
-optimization_problem.add_variable('var_2')
-```
-
-```python
-def transform_fun(var_0, var_1):
-    return var_0/var_1
-
-optimization_problem.add_variable_dependency('var_2', ['var_0', 'var_1'], transform=transform_fun)
-```
-
-```python
-optimization_problem.add_variable(
-    name='adsorption_rate',
-    parameter_path='flow_sheet.column.binding_model.adsorption_rate',
-    lb=1e-3, ub=1e3,
-    transform='auto',
-    indices=[1]  # modify only the protein (component index 1) parameter
-)
-
-optimization_problem.add_variable(
-    name='desorption_rate',
-    parameter_path='flow_sheet.column.binding_model.desorption_rate',
-    lb=1e-3, ub=1e3,
-    transform='auto',
-    indices=[1]
-)
-```

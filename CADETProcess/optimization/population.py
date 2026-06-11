@@ -523,6 +523,10 @@ class Population:
                 mask = np.isfinite(v_all)
                 v_all = v_all[mask]
 
+                if len(v_all) == 0:
+                    ax_ij.autoscale()
+                    continue
+
                 # Scale axis
                 y_min = np.nanmin(v_all)
                 y_max = np.nanmax(v_all)
@@ -1182,6 +1186,9 @@ def _plot_pairwise_histogram(
         ax = axs[i, i]
 
         x = data[:, i][np.isfinite(data[:, i])]
+
+        if len(x) == 0:
+            continue
 
         if not hasattr(ax, "_pairwise_bins"):
             ax_hist = ax.twinx()

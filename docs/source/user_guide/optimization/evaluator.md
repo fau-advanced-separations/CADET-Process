@@ -14,34 +14,30 @@ import sys
 sys.path.append('../../../../')
 ```
 
-(evaluation_toolchains_guide)=
-# Evaluation Toolchains
-In the context of **CADET-Process**, "Evaluation Toolchains" refer to a sequence of preprocessing steps that are necessary to calculate performance indicators for a process, followed by the calculation of the objective function in an optimization problem.
-The toolchains involve two types of objects: evaluation objects and evaluators.
+(evaluation_pipeline_guide)=
+# Evaluation Pipeline
+
+Optimization often requires preprocessing steps before an objective or constraint can be computed.
+For example, calculating process performance may involve simulating the process, determining fractionation times under purity constraints, and then computing yield and productivity from the fractionation result.
+
+**CADET-Process** represents these steps as a directed acyclic graph (DAG) of evaluators.
+Each evaluator is a named callable that receives the output of upstream evaluators and produces a named result.
+Objectives and constraints declare which evaluator outputs they require; the pipeline ensures each evaluator runs exactly once per evaluation, regardless of how many objectives or constraints depend on it.
+
+```{figure} ./figures/single_objective_evaluators.svg
+:name: single_objective_evaluators
+```
 
 (evaluation_objects_guide)=
 ## Evaluation Objects
-In the context of **CADET-Process**, optimization variables usually represent attributes of a {class}`~CADETProcess.processModel.Process` such as model parameters values or event times, but also fractionation times of the {class}`~CADETProcess.fractionation.Fractionator` can be optimized.
-or attributes of custom evaluation objects can be used as optimization variables.
 
-An evaluation object is an object that manages the value of an optimization variable in an optimization problem.
-It acts as an interface between the optimization problem and the object whose attribute(s) need to be optimized.
-The evaluation object provides the optimization problem with the current value of the optimization variable, and when the optimization problem changes the value of the optimization variable, the evaluation object updates the attribute(s) of the associated object accordingly.
+Optimization variables usually represent attributes of a {class}`~CADETProcess.processModel.Process`, such as model parameter values or event times, but any Python object with gettable and settable attributes can serve as an evaluation object.
 
 ```{figure} ./figures/single_evaluation_object.svg
 :name: single_evaluation_object
 ```
 
-For this purpose, the evaluation object must implement a `parameter` property that returns a (potentially nested) dictionary with the current values of all model parameters, as well as a setter for that property.
-
-```{note}
-Currently, custom evaluation objects also need to provide a property for `polynomial_parameters`.
-This will be improved in a future release.
-For reference, see [here](https://github.com/fau-advanced-separations/CADET-Process/issues/20).
-```
-
-To associate an optimization variable with an evaluation object, the evaluation object must first be added to the optimization problem using {meth}`~CADETProcess.optimization.OptimizationProblem.add_evaluation_object`.
-For demonstration purposes, consider a simple {ref}`batch-elution example<batch_elution_example>`.
+To associate variables with an evaluation object, add it to the optimization problem first.
 
 ```{code-cell} ipython3
 :tags: [hide-cell]
@@ -56,18 +52,20 @@ from examples.batch_elution.process import process
 optimization_problem.add_evaluation_object(process)
 ```
 
-Note that multiple evaluation objects can be added, which for example allows for simultaneous optimization of multiple operating conditions.
-
-When adding variables, it is now possible to specify with which evaluation object the variable is associated.
-Moreover, the path to the variable in the evaluation object needs to be specified.
+Multiple evaluation objects can be added, which allows simultaneous optimization of multiple operating conditions.
+When adding variables, specify which evaluation objects the variable targets and the path to the attribute.
 
 ```{code-cell} ipython3
-optimization_problem.add_variable('var_0', evaluation_objects=[process], parameter_path='flow_sheet.column.total_porosity', lb=0, ub=1)
+optimization_problem.add_variable(
+    'var_0',
+    evaluation_objects=[process],
+    parameter_path='flow_sheet.column.total_porosity',
+    lb=0, ub=1,
+)
 ```
 
-By default, the variable is associated with all evaluation objects.
-If no path is provided, the name is also used as path.
-Hence, the variable definition can be simplified to:
+By default, a variable targets all evaluation objects.
+If no path is provided, the variable name is used as the path.
 
 ```{code-cell} ipython3
 :tags: [hide-cell]
@@ -80,7 +78,7 @@ optimization_problem.add_evaluation_object(process)
 optimization_problem.add_variable('flow_sheet.column.total_porosity', lb=0, ub=1)
 ```
 
-To demonstrate the flexibility of this approach, consider two evaluation objects and two optimization variables where one variable is associated with a single evaluation object, and the other with both.
+Multiple evaluation objects with different variable associations:
 
 ```{figure} ./figures/multiple_evaluation_objects.svg
 :name: multiple_evaluation_objects
@@ -108,19 +106,9 @@ optimization_problem.add_variable('flow_sheet.column.length', evaluation_objects
 
 (evaluators_guide)=
 ## Evaluators
-In many cases, it is necessary to perform preprocessing steps before evaluating the objective function in an optimization problem.
-For example, to calculate performance indicators of a process, several steps may be required, such as simulating the process until stationarity is reached, determining fractionation times under purity constraints, and calculating objective function values based on productivity and yield recovery.
 
-To implement these evaluation toolchains, **CADET-Process** provides a mechanism to add `Evaluators` to an {class}`~CADETProcess.optimization.OptimizationProblem` which can be referenced by objective and constraint functions.
-Any callable function can be added as `Evaluator`, assuming the first argument is the result of the previous step and it returns a single result object which is then processed by the next step.
-Additional arguments and keyword arguments can be passed using `args` and `kwargs` when adding the `Evaluator`.
-The intermediate results are also automatically cached when different objective and constraint functions require the same preprocessing steps.
-
-```{figure} ./figures/single_objective_evaluators.svg
-:name: single_objective_evaluators
-```
-
-Consider the following example:
+To register a preprocessing step, use {meth}`~CADETProcess.optimization.OptimizationProblem.add_evaluator`.
+Any callable can be an evaluator; its first argument receives the input (the evaluation object, or the output of an upstream evaluator) and it returns a result that downstream nodes consume.
 
 ```{code-cell} ipython3
 :tags: [hide-cell]
@@ -128,32 +116,105 @@ Consider the following example:
 optimization_problem = OptimizationProblem('evaluator_demo')
 optimization_problem.add_variable('x')
 ```
-To add the evaluator, use {meth}`~CADETProcess.optimization.OptimizationProblem.add_evaluator`.
 
 ```{code-cell} ipython3
 def evaluator(x):
-    print(f'Running evaluator with {x}')
-    intermed_result = x**2
-    return intermed_result
+    return x**2
 
 optimization_problem.add_evaluator(evaluator)
 ```
 
-This evaluator can now be referenced when adding objectives, nonlinear constraints, or callbacks.
-For this purpose, add the required evaluators (in order) to the corresponding method (here, {meth}`~CADETProcess.optimization.OptimizationProblem.add_objective`).
+To wire an objective to this evaluator, pass it via the `requires` argument on {meth}`~CADETProcess.optimization.OptimizationProblem.add_objective`.
 
 ```{code-cell} ipython3
-def objective(intermed_result):
-    print(f'Running objective with {intermed_result}')
-    return intermed_result**2
+def objective(result):
+    return result + 1
 
-optimization_problem.add_objective(objective, requires=evaluator)
+optimization_problem.add_objective(objective, requires=[evaluator])
 ```
 
-When evaluating objectives, the evaluator is also called.
+When evaluating objectives, the evaluator runs first and its output is passed to the objective.
 
 ```{code-cell} ipython3
-optimization_problem.evaluate_objectives(1)
+optimization_problem.evaluate_objectives(2)
 ```
 
-Intermediate results are automatically cached s.t. other objectives or constraints that require the same evaluation steps do not need to recompute the pre-processing steps.
+### Shared evaluator outputs
+
+When multiple objectives or constraints depend on the same evaluator, the evaluator runs once and its result is shared.
+This is structural, not a cache accident: the pipeline knows the graph and executes each node exactly once.
+
+```{code-cell} ipython3
+:tags: [hide-cell]
+
+optimization_problem = OptimizationProblem('shared_evaluator_demo')
+optimization_problem.add_variable('x')
+```
+
+```{code-cell} ipython3
+def simulate(x):
+    print(f"simulate called with {x}")
+    return {"yield": x * 0.8, "pressure": x * 1.2}
+
+optimization_problem.add_evaluator(simulate)
+
+def yield_objective(sim_result):
+    return sim_result["yield"]
+
+def pressure_constraint(sim_result):
+    return sim_result["pressure"]
+
+optimization_problem.add_objective(yield_objective, requires=[simulate])
+optimization_problem.add_nonlinear_constraint(pressure_constraint, requires=[simulate])
+```
+
+```{code-cell} ipython3
+print("objectives:", optimization_problem.evaluate_objectives(5))
+print("constraints:", optimization_problem.evaluate_nonlinear_constraints(5))
+```
+
+Note that `simulate` is called once: both the objective and the constraint receive the same result.
+
+### Chaining evaluators
+
+Evaluators can be chained: the output of one feeds into the next.
+Only declare the immediate upstream dependency; transitive dependencies are resolved automatically.
+
+```{code-cell} ipython3
+:tags: [hide-cell]
+
+optimization_problem = OptimizationProblem('chain_demo')
+optimization_problem.add_variable('x')
+```
+
+```{code-cell} ipython3
+def simulate(x):
+    return {"chromatogram": x * 2}
+
+def fractionate(sim_result):
+    return {"yield": sim_result["chromatogram"] * 0.9}
+
+optimization_problem.add_evaluator(simulate)
+optimization_problem.add_evaluator(fractionate)
+
+def compute_yield(frac_result):
+    return frac_result["yield"]
+
+optimization_problem.add_objective(compute_yield, requires=[simulate, fractionate])
+optimization_problem.evaluate_objectives(3)
+```
+
+## Caching
+
+The evaluation pipeline caches intermediate results so that repeated evaluations at the same parameter vector are free.
+This is particularly useful during gradient approximation, where the same point may be evaluated multiple times.
+
+By default, an in-memory LRU cache is used.
+To persist results across runs or share them between parallel workers, pass a `cache_directory` when creating the optimization problem.
+
+```python
+optimization_problem = OptimizationProblem('cached', cache_directory='/tmp/my_cache')
+```
+
+The disk cache stores results as pickled files and survives process restarts.
+For most interactive workflows, the default in-memory cache is sufficient.

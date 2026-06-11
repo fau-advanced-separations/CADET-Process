@@ -474,7 +474,6 @@ class FractionationOptimizer:
                 x0,
                 save_results=save_results,
                 log_level=self.log_level,
-                delete_cache=True,
             )
             opt.set_variables(results.x[0])
             frac.reset()

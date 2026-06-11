@@ -44,7 +44,7 @@ optimization_problem = OptimizationProblem('normalization_demo')
 ```
 
 ```{code-cell} ipython3
-optimization_problem.add_variable('var_norm_lin', lb=-100, ub=100, transform='linear')
+optimization_problem.add_variable('var_norm_lin', lb=-100, ub=100, normalization='linear')
 ```
 
 ## Log Normalization
@@ -55,7 +55,7 @@ x^\prime = \frac{log \left( \frac{x}{x_{lb}} \right) }{log \left( \frac{x_{ub} }
 $$
 
 ```{code-cell} ipython3
-optimization_problem.add_variable('var_norm_log', lb=-100, ub=100, transform='log')
+optimization_problem.add_variable('var_norm_log', lb=-100, ub=100, normalization='log')
 ```
 
 ## Auto Transform
@@ -63,5 +63,5 @@ This transform will automatically switch between a linear and a log transform if
 
 
 ```{code-cell} ipython3
-optimization_problem.add_variable('var_norm_auto', lb=-100, ub=100, transform='auto')
+optimization_problem.add_variable('var_norm_auto', lb=-100, ub=100, normalization='auto')
 ```

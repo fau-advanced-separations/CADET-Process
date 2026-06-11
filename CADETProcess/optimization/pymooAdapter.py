@@ -317,8 +317,8 @@ class PymooProblem(Problem):
             n_var=optimization_problem.n_independent_variables,
             n_obj=optimization_problem.n_objectives,
             n_ieq_constr=optimization_problem.n_nonlinear_constraints,
-            xl=optimization_problem.lower_bounds_independent_transformed,
-            xu=optimization_problem.upper_bounds_independent_transformed,
+            xl=optimization_problem.transformed_space.lower_bounds,
+            xu=optimization_problem.transformed_space.upper_bounds,
             **kwargs,
         )
 
@@ -328,7 +328,6 @@ class PymooProblem(Problem):
             F = opt.evaluate_objectives(
                 X,
                 untransform=True,
-                get_dependent_values=True,
                 ensure_minimization=True,
                 parallelization_backend=self.parallelization_backend,
             )
@@ -338,13 +337,11 @@ class PymooProblem(Problem):
             G = opt.evaluate_nonlinear_constraints(
                 X,
                 untransform=True,
-                get_dependent_values=True,
                 parallelization_backend=self.parallelization_backend,
             )
             CV = opt.evaluate_nonlinear_constraints_violation(
                 X,
                 untransform=True,
-                get_dependent_values=True,
                 parallelization_backend=self.parallelization_backend,
             )
             out["G"] = np.array(CV)
@@ -375,7 +372,6 @@ class RepairIndividuals(Repair):
             if not self.optimization_problem.check_individual(
                 ind,
                 untransform=True,
-                get_dependent_values=True,
                 cv_bounds_tol=self.optimizer.cv_bounds_tol,
                 cv_lincon_tol=self.optimizer.cv_lincon_tol,
                 cv_lineqcon_tol=self.optimizer.cv_lineqcon_tol,
