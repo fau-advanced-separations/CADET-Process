@@ -96,6 +96,7 @@ fix = true
 preview = true
 select = [
   "ANN",  # type annotations
+  "ARG",  # unused arguments
   "D",    # docstrings
   "E",    # pycodestyle errors
   "F",    # pyflakes
@@ -117,11 +118,34 @@ max-line-length = 100
 convention = "numpy"
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*.py" = [
+# Pre-existing files — ARG violations to be addressed separately
+"CADETProcess/optimization/population.py" = ["ARG"]
+"CADETProcess/optimization/individual.py" = ["ARG"]
+"CADETProcess/optimization/results.py" = ["ARG"]
+"CADETProcess/optimization/pymooAdapter.py" = ["ARG"]
+"CADETProcess/optimization/axAdapter.py" = ["ARG"]
+"CADETProcess/optimization/scipyAdapter.py" = ["ARG"]
+"CADETProcess/modelBuilder/*.py" = ["ARG"]
+"CADETProcess/smoothing.py" = ["ARG"]
+"CADETProcess/dataStructure/dataStructure.py" = ["ARG"]
+"CADETProcess/dataStructure/parameter.py" = ["ARG"]
+"CADETProcess/equilibria/*.py" = ["ARG"]
+"CADETProcess/dynamicEvents/section.py" = ["ARG"]
+"CADETProcess/dynamicEvents/event.py" = ["ARG"]
+"CADETProcess/comparison/difference.py" = ["ARG"]
+"CADETProcess/processModel/reaction.py" = ["ARG"]
+"CADETProcess/reference.py" = ["ARG"]
+"CADETProcess/log.py" = ["ARG"]
+"CADETProcess/binding.py" = ["ARG"]
+"CADETProcess/processModel/binding.py" = ["ARG"]
+"CADETProcess/solution.py" = ["ARG"]
+"CADETProcess/stationarity.py" = ["ARG"]
+"tests/**/*.py" = [
   "ANN",   # type annotations
+  "ARG",   # pytest fixtures look like unused args
   "D",     # docstrings
-  "E402",  # imports on top of module 
-  "E731",  # lamba assignments
+  "E402",  # imports not at top of module
+  "E731",  # lambda assignments
   "F841",  # unused variables
 ]
 
