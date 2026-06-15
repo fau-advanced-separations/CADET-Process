@@ -643,12 +643,11 @@ class OptimizationProblem:
         opt_vars: str | list[str],
         lhs: float | list[float] = 1,
         b: float = 0,
-        eps: float = 0.0,
     ) -> None:
         """Add a linear equality constraint: ``lhs · x = b``."""
         params = self._resolve_constraint_params(opt_vars)
         try:
-            constraint = LinearEqualityConstraint(params, lhs, b, eps=eps)
+            constraint = LinearEqualityConstraint(params, lhs, b)
         except ValueError as exc:
             raise CADETProcessError(str(exc)) from exc
         self._space.add_linear_equality_constraint(constraint)
@@ -696,11 +695,6 @@ class OptimizationProblem:
     def beq(self) -> np.ndarray:
         """Equality constraint RHS, shape (m,)."""
         return self._space.b_eq
-
-    @property
-    def eps_lineq(self) -> np.ndarray:
-        """Per-constraint relaxation tolerances for linear equality constraints."""
-        return np.array([c.eps for c in self._space.linear_equality_constraints])
 
     def evaluate_linear_constraints(self, x: npt.ArrayLike) -> np.ndarray:
         """Return ``A @ x`` for inequality constraints."""
