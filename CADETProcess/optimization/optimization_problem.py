@@ -188,10 +188,14 @@ def _approximate_jac(
         d = epsilon * ei
         try:
             fk = np.atleast_1d(np.array(f(xk + d, **kwargs), dtype=float))
+            if not np.all(np.isfinite(fk)):
+                raise ValueError("non-finite forward evaluation")
             jac[:, k] = (fk - f0) / d[k]
         except ValueError:
             try:
                 fk = np.atleast_1d(np.array(f(xk - d, **kwargs), dtype=float))
+                if not np.all(np.isfinite(fk)):
+                    raise ValueError("non-finite backward evaluation")
                 jac[:, k] = (f0 - fk) / d[k]
             except ValueError:
                 jac[:, k] = 0.0
