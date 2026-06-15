@@ -430,7 +430,7 @@ def _check_equality_constraints(X, problem, transformed_space=False):
     Aeq = problem.Aeq_transformed if transformed_space else problem.Aeq
     beq = problem.beq_transformed if transformed_space else problem.beq
     lhs = np.array([Aeq.dot(x) - beq for x in X])
-    return np.all(np.abs(lhs) <= problem.eps_lineq, axis=1)
+    return np.all(np.abs(lhs) <= 1e-4, axis=1)
 
 
 def _check_constraint_transform(problem, check_constraint_func):

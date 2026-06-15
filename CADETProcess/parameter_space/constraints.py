@@ -90,10 +90,6 @@ class LinearEqualityConstraint:
         Coefficients.  A scalar is broadcast to all parameters.
     b : float
         Right-hand side.
-    eps : float
-        Relaxation tolerance passed to external solvers (e.g. hopsy).
-        Not enforced by ``ParameterSpace`` itself; ``A_eq x = b_eq`` is
-        treated as exact equality during matrix assembly.
     """
 
     def __init__(
@@ -101,7 +97,6 @@ class LinearEqualityConstraint:
         parameters: Union[ParameterBase, list[ParameterBase]],
         lhs: Union[float, list[float]] = 1.0,
         b: float = 0.0,
-        eps: float = 0.0,
     ) -> None:
         if isinstance(parameters, ParameterBase):
             parameters = [parameters]
@@ -117,12 +112,11 @@ class LinearEqualityConstraint:
         self.parameters = parameters
         self.lhs = _normalize_lhs(parameters, lhs, "LinearEqualityConstraint")
         self.b = float(b)
-        self.eps = float(eps)
 
     def __repr__(self) -> str:
         """Return a readable representation."""
         names = [p.name for p in self.parameters]
         return (
             f"LinearEqualityConstraint(parameters={names}, lhs={self.lhs}, "
-            f"b={self.b}, eps={self.eps})"
+            f"b={self.b})"
         )

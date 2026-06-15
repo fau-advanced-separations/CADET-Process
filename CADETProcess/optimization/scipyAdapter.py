@@ -239,12 +239,9 @@ class SciPyInterface(OptimizerBase):
             return None
 
         ts = optimization_problem.transformed_space
-        eps = optimization_problem.eps_lineq
-        lb = ts.b_eq - eps
-        ub = ts.b_eq + eps
 
         return optimize.LinearConstraint(
-            ts.A_eq, lb, ub, keep_feasible=True
+            ts.A_eq, ts.b_eq, ts.b_eq, keep_feasible=True
         )
 
     def get_nonlincon_obj(self, optimization_problem: OptimizationProblem) -> list:
