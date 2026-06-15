@@ -16,11 +16,11 @@ sys.path.append('../../../../')
 
 (moo_guide)=
 # Multi-Objective Optimization
-Often, multiple objectives are used:
 
-@todo: formatting
-
-The Pareto front represents the optimal solutions that cannot be improved in one objective without sacrificing another.
+In many practical optimization problems, several competing criteria must be balanced simultaneously.
+For example, maximizing product yield while minimizing buffer consumption, or maximizing purity while maximizing productivity.
+Because these objectives conflict, there is no single solution that optimizes all of them at once.
+Instead, the goal is to find the set of *Pareto-optimal* solutions: those where improving one objective necessarily worsens another.
 
 ```{code-cell} ipython3
 :tags: [remove-input]
@@ -86,46 +86,76 @@ for ind in dominated:
 fig.tight_layout()
 ```
 
+A *dominated* solution is one for which there exists another solution that is at least as good on every objective and strictly better on at least one.
+The Pareto front is the set of all nondominated solutions.
+
 ```{figure} ./figures/multi_objective.svg
 :name: multi_objective
 ```
 
+For details on how to set up a multi-objective problem, see {ref}`objectives_guide`.
+
 (mcdm_guide)=
-## Multi-criteria decision making (MCDM)
+## Multi-Criteria Decision Making (MCDM)
+
+After optimization, the Pareto front may contain many solutions.
+A decision maker must select one, and multi-criteria decision making (MCDM) methods provide systematic ways to do so.
+
 ```{figure} ./figures/multi_criteria_decision_function.svg
 :name: multi_criteria_decision_function
 ```
 
-Multi-criteria decision functions can be used in multi-objective optimization to help decision-makers choose the best solution from a set of feasible solutions that meet the multiple objectives.
-MCDM methods typically involve a set of criteria that are used to evaluate the performance of each feasible solution, and then rank the solutions based on how well they perform across the criteria.
+Common approaches include weighted sum (assign importance weights to each objective and select the solution with the best composite score) and weighted product (multiplicative analog).
+These are simple to implement but require the decision maker to specify weights, which implicitly defines a trade-off ratio between objectives.
 
-In multi-objective optimization, the goal is to find the set of solutions that are Pareto-optimal, meaning that there is no feasible solution that is better than any solution in the set across all objectives.
-Once a set of Pareto-optimal solutions has been identified, multi-criteria decision functions can be used to rank the solutions based on how well they perform across other criteria that are not explicitly included in the objective functions.
-
-There are several MCDM methods that can be used in multi-objective optimization, including weighted sum, weighted product, and analytical hierarchy process (AHP).
-Weighted sum and weighted product are simple linear methods that involve assigning weights to each objective function and then summing or multiplying the weighted objectives to create a composite score for each feasible solution.
-AHP is a more complex method that involves comparing pairs of criteria and determining the relative importance of each criterion, and then using those weights to evaluate the performance of each feasible solution.
-
-In general, the choice of MCDM method will depend on the specific problem and the preferences of the decision-makers involved.
-It is important to carefully consider the criteria that are important for the decision-making process and to choose a method that is appropriate for the problem at hand.
-Additionally, it is important to ensure that the resulting solution set is well-defined and that the chosen MCDM method produces results that are consistent with the goals of the optimization problem.
+The choice of MCDM method depends on the problem and the decision maker's preferences.
+The key requirement is that the method produces a consistent ranking that reflects the actual priorities of the application.
 
 (meta_scores_guide)=
 ## Meta Scores
-In some situations, it can be advantageous to configure an optimization problem as many objectives.
-However, this can lead to many individuals in the final Pareto front.
-To limit the
 
-@todo: formatting
+When many objectives are used, the Pareto front can grow large and become difficult to interpret.
+Meta scores provide a way to reduce the effective dimensionality of the Pareto front by aggregating related objectives into composite scores after the optimization has run.
 
 ```{figure} ./figures/meta_scores.svg
 :name: meta_scores
 ```
 
+A meta score function receives the Pareto-optimal individuals and computes a derived score, for example an overall process cost that combines yield, purity, and buffer consumption into a single economic metric.
+The optimizer then uses these meta scores to filter or re-rank the Pareto front, producing a smaller set of solutions for the decision maker.
+
+Meta scores run through the same evaluation pipeline as objectives: parameter values are written into evaluation objects and the evaluator chain executes before the meta score function is called.
+
 ```{figure} ./figures/meta_scores_evaluator.svg
 :name: meta_scores_evaluator
 ```
 
-```{figure} ./figures/callbacks.svg
-:name: callbacks
+To add a meta score, use {meth}`~CADETProcess.optimization.OptimizationProblem.add_meta_score`.
+The function signature is the same as for objectives: it receives the evaluation result and returns one or more scalar values.
+
+```{code-cell} ipython3
+:tags: [hide-cell]
+
+from CADETProcess.optimization import OptimizationProblem
+optimization_problem = OptimizationProblem('meta_score_demo')
+optimization_problem.add_variable('x', lb=0, ub=10)
+optimization_problem.add_variable('y', lb=0, ub=10)
+```
+
+```{code-cell} ipython3
+import numpy as np
+
+def objective_yield(x):
+    return x[0]
+
+def objective_purity(x):
+    return x[1]
+
+optimization_problem.add_objective(objective_yield)
+optimization_problem.add_objective(objective_purity)
+
+def overall_cost(x):
+    return 0.7 * x[0] + 0.3 * x[1]
+
+optimization_problem.add_meta_score(overall_cost)
 ```
