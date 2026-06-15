@@ -467,7 +467,7 @@ class LinearEqualityConstraintsSooTestProblem(TestProblem):
         )
 
     def setup_linear_constraints(self):
-        self.add_linear_equality_constraint(["var_0", "var_1"], [1.0, 2.0], 8, eps=1e-3)
+        self.add_linear_equality_constraint(["var_0", "var_1"], [1.0, 2.0], 8)
 
     @property
     def x0(self):
