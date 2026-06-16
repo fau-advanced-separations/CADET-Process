@@ -36,7 +36,11 @@ from CADETProcess.parameter_space.mappers import (
     IndexedMapper,
     make_preprocessing_mapper,
 )
-from CADETProcess.parameter_space.parameters import RangedParameter
+from CADETProcess.parameter_space.parameters import (
+    ChoiceParameter,
+    ParameterBase,
+    RangedParameter,
+)
 from CADETProcess.parameter_space.transformed_space import TransformedSpace
 
 __all__ = ["OptimizationProblem"]
@@ -245,7 +249,7 @@ class OptimizationProblem:
 
         self._space = ParameterSpace()
         self._pipeline = EvaluationPipeline(self._space, cache_dir=effective_cache_dir)
-        self._params: dict[str, RangedParameter] = {}
+        self._params: dict[str, ParameterBase] = {}
         self._path_registry: dict[tuple, str] = {}  # (path, obj_id, index_repr) → var_name
 
         # Evaluator registry: callable → name, name → wrapped callable, ordered list
@@ -285,6 +289,7 @@ class OptimizationProblem:
         parameter_path: Optional[str] = None,
         lb: float = -math.inf,
         ub: float = math.inf,
+        parameter_type: type[int] | type[float] = float,
         normalization: Optional[str] = None,
         indices: Optional[Any] = None,
         significant_digits: Optional[int] = None,
@@ -305,6 +310,8 @@ class OptimizationProblem:
             Defaults to *name* when evaluation objects are present.
         lb, ub : float
             Lower and upper bounds.
+        parameter_type : {int, float}
+            Scalar domain.  ``int`` restricts the variable to integral values.
         normalization : {'auto', 'log', 'linear', None}
             Normalization scheme applied to this variable.
         indices : int, tuple, or numpy index expression, optional
@@ -322,7 +329,7 @@ class OptimizationProblem:
 
         param = RangedParameter(
             name,
-            float,
+            parameter_type,
             lb=lb,
             ub=ub,
             normalization=normalization,
@@ -392,6 +399,84 @@ class OptimizationProblem:
         self._params[name] = param
         return param
 
+    def add_choice_variable(
+        self,
+        name: str,
+        valid_values: list[Any],
+        evaluation_objects: Any = -1,
+        parameter_path: Optional[str] = None,
+    ) -> ChoiceParameter:
+        """Add a categorical variable with a finite set of allowed values.
+
+        Parameters
+        ----------
+        name : str
+            Variable name.
+        valid_values : list
+            Allowed choices.
+        evaluation_objects : list, object, or -1
+            Evaluation objects this variable targets.  ``-1`` (default) targets
+            all registered objects; ``None`` creates a free variable with no
+            write target.
+        parameter_path : str, optional
+            Dot-separated path to the attribute on the evaluation object.
+            Defaults to *name* when evaluation objects are present.
+        """
+        if name in self._params:
+            raise CADETProcessError("Variable already exists")
+
+        param = ChoiceParameter(name, valid_values)
+
+        if evaluation_objects is None:
+            eval_objs: list[Any] = []
+        elif evaluation_objects == -1:
+            eval_objs = list(self._space.evaluation_objects)
+        elif not isinstance(evaluation_objects, list):
+            eval_objs = [evaluation_objects]
+        else:
+            eval_objs = list(evaluation_objects)
+
+        objs_dict = self.evaluation_objects_dict
+        eval_objs = [objs_dict[o] if isinstance(o, str) else o for o in eval_objs]
+
+        if parameter_path is None and eval_objs:
+            parameter_path = name
+        if parameter_path is not None and not eval_objs:
+            raise ValueError(
+                "Cannot set parameter_path for a variable without evaluation objects."
+            )
+
+        if eval_objs and parameter_path:
+            for obj in eval_objs:
+                if not attribute_path_exists(obj, parameter_path):
+                    raise CADETProcessError(
+                        f"'{parameter_path}' is not a valid parameter on {obj!r}"
+                    )
+
+        if eval_objs and parameter_path:
+            index_key = None
+            for obj in eval_objs:
+                key = (parameter_path, id(obj), index_key)
+                if key in self._path_registry:
+                    existing = self._path_registry[key]
+                    raise CADETProcessError(
+                        f"Path '{parameter_path}' is already "
+                        f"registered as variable '{existing}'"
+                    )
+            for obj in eval_objs:
+                key = (parameter_path, id(obj), index_key)
+                self._path_registry[key] = name
+
+        if not eval_objs:
+            self._space.add_parameter(param)
+        else:
+            self._space.add_parameter(
+                param, path=parameter_path, evaluation_objects=eval_objs
+            )
+
+        self._params[name] = param
+        return param
+
     def check_duplicate_variables(self) -> bool:
         """Return True. Duplicates are rejected eagerly at add_variable time."""
         return True
@@ -403,7 +488,7 @@ class OptimizationProblem:
         )
 
     @property
-    def variables(self) -> list[RangedParameter]:
+    def variables(self) -> list[ParameterBase]:
         """All registered parameters (independent + derived), in registration order."""
         return self._space.parameters
 
@@ -423,7 +508,7 @@ class OptimizationProblem:
         return len(self._space.parameters)
 
     @property
-    def independent_variables(self) -> list[RangedParameter]:
+    def independent_variables(self) -> list[ParameterBase]:
         """Parameters that are not derived from other parameters."""
         return self._space.independent_parameters
 
@@ -438,7 +523,7 @@ class OptimizationProblem:
         return self._space.n_variables
 
     @property
-    def dependent_variables(self) -> list[RangedParameter]:
+    def dependent_variables(self) -> list[ParameterBase]:
         """Parameters computed from other parameters."""
         return self._space.dependent_parameters
 
@@ -451,6 +536,36 @@ class OptimizationProblem:
     def n_dependent_variables(self) -> int:
         """Number of derived parameters."""
         return len(self._space.dependent_parameters)
+
+    @property
+    def continuous_variables(self) -> list[RangedParameter]:
+        """Independent continuous (float) variables."""
+        return self._space.continuous_parameters
+
+    @property
+    def n_continuous_variables(self) -> int:
+        """Number of independent continuous variables."""
+        return len(self._space.continuous_parameters)
+
+    @property
+    def integer_variables(self) -> list[RangedParameter]:
+        """Independent integer variables."""
+        return self._space.integer_parameters
+
+    @property
+    def n_integer_variables(self) -> int:
+        """Number of independent integer variables."""
+        return len(self._space.integer_parameters)
+
+    @property
+    def categorical_variables(self) -> list[ChoiceParameter]:
+        """Independent categorical variables."""
+        return self._space.categorical_parameters
+
+    @property
+    def n_categorical_variables(self) -> int:
+        """Number of independent categorical variables."""
+        return len(self._space.categorical_parameters)
 
     # ── Dependencies ──────────────────────────────────────────────────────────
 
