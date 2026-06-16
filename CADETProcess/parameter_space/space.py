@@ -78,6 +78,7 @@ from CADETProcess.parameter_space.mappers import (
     ParameterMapperBase,
 )
 from CADETProcess.parameter_space.parameters import (
+    ChoiceParameter,
     ParameterBase,
     RangedParameter,
 )
@@ -434,6 +435,30 @@ class ParameterSpace:
     def n_variables(self) -> int:
         """Number of independent (optimizer-facing) variables."""
         return len(self.independent_parameters)
+
+    @property
+    def continuous_parameters(self) -> list[RangedParameter]:
+        """Independent float-typed parameters."""
+        return [
+            p for p in self.independent_parameters
+            if isinstance(p, RangedParameter) and p.parameter_type is float
+        ]
+
+    @property
+    def integer_parameters(self) -> list[RangedParameter]:
+        """Independent integer-typed parameters."""
+        return [
+            p for p in self.independent_parameters
+            if isinstance(p, RangedParameter) and p.parameter_type is int
+        ]
+
+    @property
+    def categorical_parameters(self) -> list[ChoiceParameter]:
+        """Independent categorical (choice) parameters."""
+        return [
+            p for p in self.independent_parameters
+            if isinstance(p, ChoiceParameter)
+        ]
 
     def _resolve_all_values(self, x_independent: npt.ArrayLike) -> dict[str, Any]:
         """Compute values for all parameters given the independent values.

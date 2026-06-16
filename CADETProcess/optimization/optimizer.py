@@ -97,6 +97,8 @@ class OptimizerBase(Structure):
     supports_linear_equality_constraints = False
     supports_nonlinear_constraints = False
     supports_bounds = False
+    supports_integer_variables = False
+    supports_categorical_variables = False
 
     ignore_linear_constraints_config = False
 
@@ -412,6 +414,24 @@ class OptimizerBase(Structure):
         ):
             warnings.warn(
                 "Optimizer does not support problems with nonlinear constraints."
+            )
+            flag = False
+
+        if (
+            optimization_problem.n_integer_variables > 0
+            and not self.supports_integer_variables
+        ):
+            warnings.warn(
+                "Optimizer does not support integer variables."
+            )
+            flag = False
+
+        if (
+            optimization_problem.n_categorical_variables > 0
+            and not self.supports_categorical_variables
+        ):
+            warnings.warn(
+                "Optimizer does not support categorical variables."
             )
             flag = False
 
