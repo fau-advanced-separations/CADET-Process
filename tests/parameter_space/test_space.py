@@ -19,6 +19,7 @@ from CADETProcess.parameter_space import (
 class Column:
     length: float = 0.1
     diameter: float = 0.01
+    ncol: int = 10
 
 
 @dataclass
@@ -279,6 +280,17 @@ def test_normalize_choice_parameter_unchanged(column):
     np.testing.assert_array_equal(space.normalize(x), x)
 
 
+def test_normalize_integer_parameter_unchanged(column):
+    space = ParameterSpace()
+    space.add_evaluation_object(column)
+    space.add_parameter(
+        RangedParameter("n", int, lb=1, ub=100, normalization="linear")
+    )
+    x = np.array([50.0])
+    np.testing.assert_array_equal(space.normalize(x), x)
+    np.testing.assert_array_equal(space.denormalize(x), x)
+
+
 # ── set_values ────────────────────────────────────────────────────────────────
 
 
@@ -303,6 +315,23 @@ def test_set_values_validate_bounds_raises_on_violation(space_with_column):
     space_with_column.add_parameter(RangedParameter("a", float, lb=0.0, ub=1.0))
     with pytest.raises(ValueError, match="bound"):
         space_with_column.set_values([1.5], validate_bounds=True)
+
+
+def test_set_values_integer_whole_number_float(space_with_column, column):
+    space_with_column.add_parameter(
+        RangedParameter("ncol", int, lb=1, ub=100), path="ncol"
+    )
+    space_with_column.set_values([50.0])
+    assert column.ncol == 50
+    assert type(column.ncol) is int
+
+
+def test_set_values_integer_not_rounded(space_with_column):
+    space_with_column.add_parameter(
+        RangedParameter("ncol", int, lb=1, ub=100), path="ncol"
+    )
+    with pytest.raises(TypeError):
+        space_with_column.set_values([50.7])
 
 
 def test_set_values_validate_catches_derived_out_of_bounds(space_with_column, column):

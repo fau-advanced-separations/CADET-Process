@@ -36,6 +36,12 @@ def test_ranged_int_accepts_valid(value, int_param):
     int_param.validate(value)
 
 
+@pytest.mark.parametrize("value", [0.0, 5.0, 10.0])
+def test_ranged_int_accepts_whole_number_float(value, int_param):
+    assert int_param.validate(value) == int(value)
+    assert type(int_param.validate(value)) is int
+
+
 @pytest.mark.parametrize("value", [-1, 11])
 def test_ranged_int_rejects_out_of_bounds(value, int_param):
     with pytest.raises(ValueError, match="outside"):

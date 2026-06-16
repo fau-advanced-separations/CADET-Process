@@ -78,6 +78,7 @@ from CADETProcess.parameter_space.mappers import (
     ParameterMapperBase,
 )
 from CADETProcess.parameter_space.parameters import (
+    ChoiceParameter,
     ParameterBase,
     RangedParameter,
 )
@@ -307,7 +308,7 @@ class ParameterSpace:
         targets = self._resolve_targets(evaluation_objects)
         self.add_parameter(parameter, mapper=CallableMapper(targets, fn))
 
-    def _resolve_targets(self, evaluation_objects: Optional[list[Any]]) -> list[Any]:
+    def _resolve_targets(self, evaluation_objects: Optional[Any]) -> list[Any]:
         """Return the target list, defaulting to all registered objects."""
         if evaluation_objects is None:
             if not self._evaluation_objects:
@@ -317,6 +318,8 @@ class ParameterSpace:
                     "or pass evaluation_objects explicitly."
                 )
             return list(self._evaluation_objects)
+        if not isinstance(evaluation_objects, list):
+            evaluation_objects = [evaluation_objects]
         unknown = [o for o in evaluation_objects if o not in self._evaluation_objects]
         if unknown:
             raise ValueError(
@@ -434,6 +437,30 @@ class ParameterSpace:
     def n_variables(self) -> int:
         """Number of independent (optimizer-facing) variables."""
         return len(self.independent_parameters)
+
+    @property
+    def continuous_parameters(self) -> list[RangedParameter]:
+        """Independent float-typed parameters."""
+        return [
+            p for p in self.independent_parameters
+            if isinstance(p, RangedParameter) and p.parameter_type is float
+        ]
+
+    @property
+    def integer_parameters(self) -> list[RangedParameter]:
+        """Independent integer-typed parameters."""
+        return [
+            p for p in self.independent_parameters
+            if isinstance(p, RangedParameter) and p.parameter_type is int
+        ]
+
+    @property
+    def categorical_parameters(self) -> list[ChoiceParameter]:
+        """Independent categorical (choice) parameters."""
+        return [
+            p for p in self.independent_parameters
+            if isinstance(p, ChoiceParameter)
+        ]
 
     def _resolve_all_values(self, x_independent: npt.ArrayLike) -> dict[str, Any]:
         """Compute values for all parameters given the independent values.
@@ -750,8 +777,8 @@ class ParameterSpace:
     def normalize(self, x: npt.ArrayLike) -> np.ndarray:
         """Map independent values to [0, 1] using per-parameter normalizers.
 
-        ``ChoiceParameter`` and parameters with infinite bounds are returned
-        unchanged.  Bounds are not enforced here; this is a coordinate transform
+        ``ChoiceParameter``, integer parameters, and parameters with infinite
+        bounds are returned unchanged.  Bounds are not enforced here; this is a coordinate transform
         utility, not a validation gate.  Constraints are *not* automatically
         transformed; a linear constraint involving a parameter with a non-linear
         normalizer becomes non-linear in the normalized space.  Full constraint
@@ -766,6 +793,7 @@ class ParameterSpace:
         for i, p in enumerate(self.independent_parameters):
             if (
                 isinstance(p, RangedParameter)
+                and p.parameter_type is float
                 and np.isfinite(p.lb)
                 and np.isfinite(p.ub)
             ):
@@ -789,6 +817,7 @@ class ParameterSpace:
         for i, p in enumerate(self.independent_parameters):
             if (
                 isinstance(p, RangedParameter)
+                and p.parameter_type is float
                 and np.isfinite(p.lb)
                 and np.isfinite(p.ub)
             ):
@@ -949,6 +978,12 @@ class ParameterSpace:
         ]
         model = _LogSpaceModel(log_indices) if log_indices else None
 
+        if self.categorical_parameters:
+            raise NotImplementedError(
+                "Polytope sampling does not support ChoiceParameter. "
+                "Remove categorical parameters or sample them independently."
+            )
+
         if seed is None:
             seed = random.randint(0, 255)
 
@@ -971,6 +1006,12 @@ class ParameterSpace:
             _, states = hopsy.sample(mc, rng_hopsy, n_samples=pool_size, thinning=2)
 
         candidates = states[0]  # shape (pool_size, n_variables)
+        int_indices = [
+            i for i, p in enumerate(self.independent_parameters)
+            if isinstance(p, RangedParameter) and p.parameter_type is int
+        ]
+        if int_indices:
+            candidates[:, int_indices] = np.round(candidates[:, int_indices])
         rng = np.random.default_rng(seed)
         results = []
         counter = 0

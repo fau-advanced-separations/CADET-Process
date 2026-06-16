@@ -938,6 +938,89 @@ def test_remove_variable_raises():
         op.remove_variable("x")
 
 
+# ── Variable types ────────────────────────────────────────────────────────────
+
+
+def test_add_integer_variable():
+    op = OptimizationProblem("int", use_diskcache=False)
+    param = op.add_variable("n", lb=1, ub=10, parameter_type=int, evaluation_objects=None)
+    assert param.parameter_type is int
+    assert param.lb == 1
+    assert param.ub == 10
+
+
+def test_add_choice_variable():
+    op = OptimizationProblem("choice", use_diskcache=False)
+    param = op.add_choice_variable("mode", ["fast", "slow"], evaluation_objects=None)
+    assert param.valid_values == ["fast", "slow"]
+    assert param.name == "mode"
+
+
+def test_add_choice_variable_duplicate_raises():
+    op = OptimizationProblem("dup", use_diskcache=False)
+    op.add_choice_variable("mode", ["a", "b"], evaluation_objects=None)
+    with pytest.raises(CADETProcessError, match="already exists"):
+        op.add_choice_variable("mode", ["c", "d"], evaluation_objects=None)
+
+
+def test_typed_variable_subsets():
+    op = OptimizationProblem("types", use_diskcache=False)
+    op.add_variable("x", lb=0, ub=1, evaluation_objects=None)
+    op.add_variable("n", lb=1, ub=10, parameter_type=int, evaluation_objects=None)
+    op.add_choice_variable("mode", ["a", "b"], evaluation_objects=None)
+
+    assert len(op.continuous_variables) == 1
+    assert op.continuous_variables[0].name == "x"
+    assert op.n_continuous_variables == 1
+
+    assert len(op.integer_variables) == 1
+    assert op.integer_variables[0].name == "n"
+    assert op.n_integer_variables == 1
+
+    assert len(op.categorical_variables) == 1
+    assert op.categorical_variables[0].name == "mode"
+    assert op.n_categorical_variables == 1
+
+
+def test_add_choice_variable_with_eval_object(eval_obj):
+    op = OptimizationProblem("choice_eval", use_diskcache=False)
+    op.add_evaluation_object(eval_obj)
+    param = op.add_choice_variable(
+        "scalar_param", [1.0, 2.0, 3.0],
+    )
+    assert param.valid_values == [1.0, 2.0, 3.0]
+
+
+def test_optimizer_rejects_integer_variables():
+    from CADETProcess.optimization.scipyAdapter import NelderMead
+
+    op = OptimizationProblem("int_reject", use_diskcache=False)
+    op.add_variable("n", lb=1, ub=10, parameter_type=int, evaluation_objects=None)
+    op.add_objective(lambda x: x[0])
+
+    optimizer = NelderMead()
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        result = optimizer.check_optimization_problem(op)
+    assert not result
+    assert any("integer" in str(warning.message).lower() for warning in w)
+
+
+def test_optimizer_rejects_categorical_variables():
+    from CADETProcess.optimization.scipyAdapter import NelderMead
+
+    op = OptimizationProblem("cat_reject", use_diskcache=False)
+    op.add_choice_variable("mode", ["a", "b"], evaluation_objects=None)
+    op.add_objective(lambda x: 0.0)
+
+    optimizer = NelderMead()
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        result = optimizer.check_optimization_problem(op)
+    assert not result
+    assert any("categorical" in str(warning.message).lower() for warning in w)
+
+
 # ── Multi-criteria decision functions ─────────────────────────────────────────
 
 

@@ -140,7 +140,11 @@ class RangedParameter(ParameterBase):
             If *value* lies outside ``[lb, ub]``.
         """
         if self.parameter_type is int:
-            ok = isinstance(value, numbers.Integral) and not isinstance(value, bool)
+            ok = (
+                not isinstance(value, bool)
+                and isinstance(value, numbers.Real)
+                and float(value).is_integer()
+            )
         else:
             ok = isinstance(value, numbers.Real) and not isinstance(value, bool)
         if not ok:
