@@ -318,3 +318,45 @@ def test_set_values_validate_catches_derived_out_of_bounds(space_with_column, co
     space_with_column.add_dependency(b, [a], transform=lambda x: x * 2)
     with pytest.raises(ValueError, match="outside"):
         space_with_column.set_values([4.0])  # b = 8.0 > 5.0
+
+
+# ── typed parameter subsets ──────────────────────────────────────────────────
+
+
+def test_continuous_parameters():
+    space = ParameterSpace()
+    a = RangedParameter("a", float, lb=0, ub=1)
+    b = RangedParameter("b", int, lb=0, ub=10)
+    c = ChoiceParameter("c", ["x", "y"])
+    space.add_parameter(a)
+    space.add_parameter(b)
+    space.add_parameter(c)
+    assert space.continuous_parameters == [a]
+
+
+def test_integer_parameters():
+    space = ParameterSpace()
+    a = RangedParameter("a", float, lb=0, ub=1)
+    b = RangedParameter("b", int, lb=0, ub=10)
+    space.add_parameter(a)
+    space.add_parameter(b)
+    assert space.integer_parameters == [b]
+
+
+def test_categorical_parameters():
+    space = ParameterSpace()
+    a = RangedParameter("a", float, lb=0, ub=1)
+    c = ChoiceParameter("c", ["x", "y"])
+    space.add_parameter(a)
+    space.add_parameter(c)
+    assert space.categorical_parameters == [c]
+
+
+def test_typed_subsets_exclude_dependent():
+    space = ParameterSpace()
+    a = RangedParameter("a", float, lb=0, ub=10)
+    b = RangedParameter("b", float, lb=0, ub=10)
+    space.add_parameter(a)
+    space.add_parameter(b)
+    space.add_dependency(b, [a], transform=lambda x: x)
+    assert space.continuous_parameters == [a]
