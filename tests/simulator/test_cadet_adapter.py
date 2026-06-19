@@ -136,7 +136,10 @@ simulation_test_cases = [
 
 
 def run_simulation(
-    process: Process, install_path: Optional[str] = None, use_dll: bool = False
+    process: Process,
+    install_path: Optional[str] = None,
+    use_dll: bool = False,
+    n_cycles: int = 1,
 ) -> SimulationResults:
     """
     Run the CADET simulation for the given process and handle potential issues.
@@ -147,6 +150,10 @@ def run_simulation(
         The process to simulate.
     install_path : str, optional
         The path to the CADET installation.
+    use_dll : bool
+        Whether to use the DLL runner.
+    n_cycles : int
+        Number of cycles to simulate.
 
     Returns
     -------
@@ -161,6 +168,7 @@ def run_simulation(
     try:
         process_simulator = Cadet(install_path)
         process_simulator.use_dll = use_dll
+        process_simulator.n_cycles = n_cycles
         simulation_results = process_simulator.simulate(process)
 
         if not simulation_results.exit_flag == 0:
@@ -712,6 +720,42 @@ class TestResultsWithLWE:
                     unit.discretization.ncol,
                     process.component_system.n_comp,
                 )
+
+    def test_ported_unit_bulk_cycle_count(self, simulation_results):
+        """Bulk/particle/solid/volume are per-unit, not per-port.
+
+        Regression test: for units with ports, these fields must be appended once
+        per cycle, not once per port per cycle.
+        """
+        process = simulation_results.process
+        unit = process.flow_sheet.units[1]
+        if not unit.has_ports:
+            pytest.skip("Unit has no ports")
+
+        unit_cycles = simulation_results.solution_cycles[unit.name]
+        first_port = next(iter(unit_cycles["inlet"]))
+        n_cycles = len(unit_cycles["inlet"][first_port])
+
+        assert len(unit_cycles["bulk"]) == n_cycles
+
+
+@pytest.fixture
+def mct_multicycle(request):
+    """MCT process simulated for 2 cycles; used to test per-unit field cycle counts."""
+    process = create_lwe("MCT")
+    return run_simulation(process, install_path, n_cycles=2)
+
+
+@pytest.mark.slow
+class TestMultiCyclePortedUnit:
+    def test_bulk_cycle_count(self, mct_multicycle):
+        """Bulk entries must equal n_cycles, not n_cycles * n_ports."""
+        unit_cycles = mct_multicycle.solution_cycles["MCT"]
+        first_port = next(iter(unit_cycles["inlet"]))
+        n_cycles = len(unit_cycles["inlet"][first_port])
+
+        assert n_cycles == 2
+        assert len(unit_cycles["bulk"]) == n_cycles
 
 
 if __name__ == "__main__":
