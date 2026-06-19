@@ -192,7 +192,7 @@ def process(request: pytest.FixtureRequest):
     return process
 
 
-@pytest.fixture
+@pytest.fixture(scope="class")
 def simulation_results(request: pytest.FixtureRequest):
     """
     Fixture to set up the simulation for each unit type with different `use_dll` options.
@@ -619,18 +619,10 @@ class TestProcessWithLWE:
 @pytest.mark.parametrize("simulation_results", simulation_test_cases, indirect=True)
 @pytest.mark.slow
 class TestResultsWithLWE:
-    def test_trigger_simulation(self, simulation_results):
-        """
-        Test to trigger the simulation.
-        """
-        simulation_results = simulation_results
-        assert simulation_results is not None
-
     def test_compare_solution_shape(self, simulation_results):
         """
         Compare the dimensions of the solution object against the expected solution shape.
         """
-        simulation_results = simulation_results
         process = simulation_results.process
         unit = process.flow_sheet.units[1]
 
@@ -740,7 +732,7 @@ class TestResultsWithLWE:
 
 
 @pytest.fixture
-def mct_multicycle(request):
+def mct_multicycle():
     """MCT process simulated for 2 cycles; used to test per-unit field cycle counts."""
     process = create_lwe("MCT")
     return run_simulation(process, install_path, n_cycles=2)
