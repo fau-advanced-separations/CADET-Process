@@ -1,0 +1,71 @@
+name: scheduled-tests
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+jobs:
+  test-job:
+    runs-on: ${{ matrix.os }}
+
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ["3.12", "3.13", "3.14"]
+        include:
+          - os: windows-latest
+            python-version: "3.14"
+          - os: macos-latest
+            python-version: "3.14"
+
+    env:
+      CONDA_FILE: environment.yml
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get Date
+        id: get-date
+        run: echo "today=$(/bin/date -u '+%Y%m%d')" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Setup Conda Environment
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
+          activate-environment: cadet-process
+          channels: conda-forge
+
+      - name: Cache conda
+        uses: actions/cache@v4
+        env:
+          # Increase this value to reset cache if environment.yml has not changed
+          CACHE_NUMBER: 0
+        with:
+          path: ${{ env.CONDA }}/envs
+          key: ${{ matrix.os }}-python_${{ matrix.python-version }}-${{ steps.get-date.outputs.today }}-${{ hashFiles(env.CONDA_FILE) }}-${{ env.CACHE_NUMBER }}
+        id: cache
+
+      - name: Update environment
+        run: |
+          conda install "setuptools>=69" "pip>=24"
+          conda install python=${{ matrix.python-version }}
+          echo "python=${{ matrix.python-version }}.*" > $CONDA_PREFIX/conda-meta/pinned
+          conda env update -n cadet-process -f ${{ env.CONDA_FILE }}
+        if: steps.cache.outputs.cache-hit != 'true'
+
+      - name: Install
+        run: |
+          conda run pip install -e ./[all] --group testing
+
+      - name: Test (including slow)
+        env:
+          MPLBACKEND: Agg
+        run: |
+          pytest tests --durations=0
