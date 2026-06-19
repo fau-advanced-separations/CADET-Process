@@ -487,281 +487,32 @@ class Cadet(SimulatorBase):
         try:
             solution = Dict()
             for unit in process.flow_sheet.units:
-                solution[unit.name] = defaultdict(list)
-
-                port_flag = unit.has_ports
-
-                if port_flag:
-                    solution[unit.name]["inlet"] = defaultdict(list)
-                    solution[unit.name]["outlet"] = defaultdict(list)
-
                 unit_index = self.get_unit_index(process, unit)
-                unit_solution = cadet.root.output.solution[unit_index]
-
-                unit_coordinates = cadet.root.output.coordinates[unit_index].copy()
-                particle_coordinates = unit_coordinates.pop('particle_coordinates_000', None)
-
-                for port in unit.ports:
-                    port_index = self.get_port_index(process.flow_sheet, unit, port)
-
-                    flow_in = process.flow_rate_timelines[unit.name].total_in[port]
-                    flow_out = process.flow_rate_timelines[unit.name].total_out[port]
-
-                    start = 0
-                    for cycle in range(self.n_cycles):
-                        end = start + len(time)
-
-                        if (
-                            f"solution_inlet_port_{port_index:03d}"
-                            in unit_solution.keys()
-                        ):
-                            sol_inlet = unit_solution[
-                                f"solution_inlet_port_{port_index:03d}"
-                            ][start:end,]
-                            if port_flag:
-                                solution[unit.name]["inlet"][port].append(
-                                    SolutionIO(
-                                        unit.name,
-                                        unit.component_system,
-                                        time,
-                                        sol_inlet,
-                                        flow_in,
-                                    )
-                                )
-                            else:
-                                solution[unit.name]["inlet"].append(
-                                    SolutionIO(
-                                        unit.name,
-                                        unit.component_system,
-                                        time,
-                                        sol_inlet,
-                                        flow_in,
-                                    )
-                                )
-
-                        if (
-                            f"solution_outlet_port_{port_index:03d}"
-                            in unit_solution.keys()
-                        ):
-                            sol_outlet = unit_solution[
-                                f"solution_outlet_port_{port_index:03d}"
-                            ][start:end, :]
-                            if port_flag:
-                                solution[unit.name]["outlet"][port].append(
-                                    SolutionIO(
-                                        unit.name,
-                                        unit.component_system,
-                                        time,
-                                        sol_outlet,
-                                        flow_out,
-                                    )
-                                )
-                            else:
-                                solution[unit.name]["outlet"].append(
-                                    SolutionIO(
-                                        unit.name,
-                                        unit.component_system,
-                                        time,
-                                        sol_outlet,
-                                        flow_out,
-                                    )
-                                )
-
-                        if "solution_bulk" in unit_solution.keys():
-                            sol_bulk = unit_solution.solution_bulk[start:end, :]
-                            solution[unit.name]["bulk"].append(
-                                SolutionBulk(
-                                    unit.name,
-                                    unit.component_system,
-                                    time,
-                                    sol_bulk,
-                                    **unit_coordinates,
-                                )
-                            )
-
-                        if "solution_particle" in unit_solution.keys():
-                            sol_particle = unit_solution.solution_particle[start:end, :]
-                            solution[unit.name]["particle"].append(
-                                SolutionParticle(
-                                    unit.name,
-                                    unit.component_system,
-                                    time,
-                                    sol_particle,
-                                    **unit_coordinates,
-                                    particle_coordinates=particle_coordinates,
-                                )
-                            )
-
-                        if "solution_solid" in unit_solution.keys():
-                            sol_solid = unit_solution.solution_solid[start:end, :]
-                            solution[unit.name]["solid"].append(
-                                SolutionSolid(
-                                    unit.name,
-                                    unit.component_system,
-                                    unit.binding_model.bound_states,
-                                    time,
-                                    sol_solid,
-                                    **unit_coordinates,
-                                    particle_coordinates=particle_coordinates,
-                                )
-                            )
-
-                        if "solution_volume" in unit_solution.keys():
-                            sol_volume = unit_solution.solution_volume[start:end]
-                            solution[unit.name]["volume"].append(
-                                SolutionVolume(
-                                    unit.name, unit.component_system, time, sol_volume
-                                )
-                            )
-                        start = end - 1
-
+                solution[unit.name] = self._read_unit_outputs(
+                    unit,
+                    cadet.root.output.solution[unit_index],
+                    cadet.root.output.coordinates[unit_index],
+                    time,
+                    process.flow_rate_timelines[unit.name],
+                    process.flow_sheet,
+                    "solution",
+                )
             solution = Dict(solution)
 
             sensitivity = Dict()
             for i, sens in enumerate(process.parameter_sensitivities):
                 sens_index = f"param_{i:03d}"
-
                 for unit in process.flow_sheet.units:
-                    sensitivity[sens.name][unit.name] = defaultdict(list)
-
-                    port_flag = unit.has_ports
-
-                    if port_flag:
-                        sensitivity[sens.name][unit.name]["inlet"] = defaultdict(list)
-                        sensitivity[sens.name][unit.name]["outlet"] = defaultdict(list)
-
                     unit_index = self.get_unit_index(process, unit)
-                    unit_sensitivity = \
-                        cadet.root.output.sensitivity[sens_index][unit_index]
-                    unit_coordinates = \
-                        cadet.root.output.coordinates[unit_index].copy()
-                    particle_coordinates = \
-                        unit_coordinates.pop("particle_coordinates_000", None)
-
-                    for port in unit.ports:
-                        port_index = self.get_port_index(process.flow_sheet, unit, port)
-
-                        flow_in = process.flow_rate_timelines[unit.name].total_in[port]
-                        flow_out = \
-                            process.flow_rate_timelines[unit.name].total_out[port]
-
-                        start = 0
-                        for cycle in range(self.n_cycles):
-                            end = start + len(time)
-
-                            if (
-                                f"sens_inlet_port_{port_index:03d}"
-                                in unit_sensitivity.keys()
-                            ):
-                                sens_inlet = unit_sensitivity[
-                                    f"sens_inlet_port_{port_index:03d}"
-                                ][start:end, :]
-                                if port_flag:
-                                    sensitivity[sens.name][unit.name]["inlet"][
-                                        port
-                                    ].append(
-                                        SolutionIO(
-                                            unit.name,
-                                            unit.component_system,
-                                            time,
-                                            sens_inlet,
-                                            flow_in,
-                                        )
-                                    )
-
-                                else:
-                                    sensitivity[sens.name][unit.name]["inlet"].append(
-                                        SolutionIO(
-                                            unit.name,
-                                            unit.component_system,
-                                            time,
-                                            sens_inlet,
-                                            flow_in,
-                                        )
-                                    )
-
-                            if (
-                                f"sens_outlet_port_{port_index:03d}"
-                                in unit_sensitivity.keys()
-                            ):
-                                sens_outlet = \
-                                    unit_sensitivity[f"sens_outlet_port_{port_index:03d}"][start:end, :]  # noqa: E501
-                                if port_flag:
-                                    sensitivity[sens.name][unit.name]["outlet"][
-                                        port
-                                    ].append(
-                                        SolutionIO(
-                                            unit.name,
-                                            unit.component_system,
-                                            time,
-                                            sens_outlet,
-                                            flow_out,
-                                        )
-                                    )
-                                else:
-                                    sensitivity[sens.name][unit.name]["outlet"].append(
-                                        SolutionIO(
-                                            unit.name,
-                                            unit.component_system,
-                                            time,
-                                            sens_outlet,
-                                            flow_out,
-                                        )
-                                    )
-
-                            if "sens_bulk" in unit_sensitivity.keys():
-                                sens_bulk = unit_sensitivity.sens_bulk[start:end, :]
-                                sensitivity[sens.name][unit.name]["bulk"].append(
-                                    SolutionBulk(
-                                        unit.name,
-                                        unit.component_system,
-                                        time,
-                                        sens_bulk,
-                                        **unit_coordinates,
-                                    )
-                                )
-
-                            if "sens_particle" in unit_sensitivity.keys():
-                                sens_particle = \
-                                    unit_sensitivity.sens_particle[start:end, :]
-                                sensitivity[sens.name][unit.name]["particle"].append(
-                                    SolutionParticle(
-                                        unit.name,
-                                        unit.component_system,
-                                        time,
-                                        sens_particle,
-                                        **unit_coordinates,
-                                        particle_coordinates=particle_coordinates,
-                                    )
-                                )
-
-                            if "sens_solid" in unit_sensitivity.keys():
-                                sens_solid = unit_sensitivity.sens_solid[start:end, :]
-                                sensitivity[sens.name][unit.name]["solid"].append(
-                                    SolutionSolid(
-                                        unit.name,
-                                        unit.component_system,
-                                        unit.binding_model.bound_states,
-                                        time,
-                                        sens_solid,
-                                        **unit_coordinates,
-                                        particle_coordinates=particle_coordinates,
-                                    )
-                                )
-
-                            if "sens_volume" in unit_sensitivity.keys():
-                                sens_volume = unit_sensitivity.sens_volume[start:end, :]
-                                sensitivity[sens.name][unit.name]["volume"].append(
-                                    SolutionVolume(
-                                        unit.name,
-                                        unit.component_system,
-                                        time,
-                                        sens_volume,
-                                    )
-                                )
-
-                            start = end - 1
-
+                    sensitivity[sens.name][unit.name] = self._read_unit_outputs(
+                        unit,
+                        cadet.root.output.sensitivity[sens_index][unit_index],
+                        cadet.root.output.coordinates[unit_index],
+                        time,
+                        process.flow_rate_timelines[unit.name],
+                        process.flow_sheet,
+                        "sens",
+                    )
             sensitivity = Dict(sensitivity)
 
             system_state = {
@@ -791,6 +542,118 @@ class Cadet(SimulatorBase):
         )
 
         return results
+
+    def _read_unit_outputs(
+        self,
+        unit: UnitBaseClass,
+        raw_node: Dict,
+        coords_node: Dict,
+        time: np.ndarray,
+        unit_flow_timelines: Any,
+        flow_sheet: FlowSheet,
+        prefix: str,
+    ) -> defaultdict:
+        unit_dict = defaultdict(list)
+        port_flag = unit.has_ports
+        if port_flag:
+            unit_dict["inlet"] = defaultdict(list)
+            unit_dict["outlet"] = defaultdict(list)
+
+        coords = coords_node.copy()
+        particle_coords = coords.pop("particle_coordinates_000", None)
+
+        for port in unit.ports:
+            port_index = self.get_port_index(flow_sheet, unit, port)
+            flow_in = unit_flow_timelines.total_in[port]
+            flow_out = unit_flow_timelines.total_out[port]
+
+            start = 0
+            for cycle in range(self.n_cycles):
+                end = start + len(time)
+
+                inlet_key = f"{prefix}_inlet_port_{port_index:03d}"
+                if inlet_key in raw_node.keys():
+                    obj = SolutionIO(
+                        unit.name,
+                        unit.component_system,
+                        time,
+                        raw_node[inlet_key][start:end],
+                        flow_in,
+                    )
+                    if port_flag:
+                        unit_dict["inlet"][port].append(obj)
+                    else:
+                        unit_dict["inlet"].append(obj)
+
+                outlet_key = f"{prefix}_outlet_port_{port_index:03d}"
+                if outlet_key in raw_node.keys():
+                    obj = SolutionIO(
+                        unit.name,
+                        unit.component_system,
+                        time,
+                        raw_node[outlet_key][start:end],
+                        flow_out,
+                    )
+                    if port_flag:
+                        unit_dict["outlet"][port].append(obj)
+                    else:
+                        unit_dict["outlet"].append(obj)
+
+                start = end - 1
+
+        start = 0
+        for cycle in range(self.n_cycles):
+            end = start + len(time)
+
+            if f"{prefix}_bulk" in raw_node.keys():
+                unit_dict["bulk"].append(
+                    SolutionBulk(
+                        unit.name,
+                        unit.component_system,
+                        time,
+                        raw_node[f"{prefix}_bulk"][start:end],
+                        **coords,
+                    )
+                )
+
+            if f"{prefix}_particle" in raw_node.keys():
+                unit_dict["particle"].append(
+                    SolutionParticle(
+                        unit.name,
+                        unit.component_system,
+                        time,
+                        raw_node[f"{prefix}_particle"][start:end],
+                        **coords,
+                        particle_coordinates=particle_coords,
+                    )
+                )
+
+            if f"{prefix}_solid" in raw_node.keys():
+                unit_dict["solid"].append(
+                    SolutionSolid(
+                        unit.name,
+                        unit.component_system,
+                        unit.binding_model.bound_states,
+                        time,
+                        raw_node[f"{prefix}_solid"][start:end],
+                        **coords,
+                        particle_coordinates=particle_coords,
+                    )
+                )
+
+            if f"{prefix}_volume" in raw_node.keys():
+                unit_dict["volume"].append(
+                    SolutionVolume(
+                        unit.name,
+                        unit.component_system,
+                        time,
+                        raw_node[f"{prefix}_volume"][start:end],
+                    )
+                )
+
+            start = end - 1
+
+        return unit_dict
 
     def get_input_model(self, process: Process) -> Dict:
         """
