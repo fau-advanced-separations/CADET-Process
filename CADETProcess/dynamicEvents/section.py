@@ -326,6 +326,18 @@ class TimeLine:
         """list: scipy.interpolate.PPoly for each dimension."""
         return self._piecewise_poly
 
+    def __getstate__(self) -> dict:
+        """Return pickle state, excluding the derived piecewise polynomial cache."""
+        return {"_sections": self._sections}
+
+    def __setstate__(self, state: dict) -> None:
+        """Restore from pickle state and rebuild the piecewise polynomial cache."""
+        self._sections = state["_sections"]
+        if self._sections:
+            self.update_piecewise_poly()
+        else:
+            self._piecewise_poly = []
+
     def value(self, time: float) -> np.ndarray:
         """
         np.ndarray: Value of parameter at given time.

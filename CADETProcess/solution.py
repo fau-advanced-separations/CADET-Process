@@ -287,6 +287,17 @@ class SolutionIO(SolutionBase):
         self.update_transform()
         self.flow_rate = self.flow_rate.slice(self.time[0], self.time[-1])
 
+    def __getstate__(self) -> dict:
+        """Return pickle state, excluding interpolation caches."""
+        state = self.__dict__.copy()
+        state["_solution_interpolated"] = None
+        state["_dm_dt_interpolated"] = None
+        return state
+
+    def __setstate__(self, state: dict) -> None:
+        """Restore from pickle state; caches are recomputed lazily on next access."""
+        self.__dict__.update(state)
+
     @property
     def derivative(self) -> "SolutionIO":
         """SolutionIO: Derivative of this solution."""
