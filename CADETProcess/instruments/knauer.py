@@ -173,6 +173,13 @@ class KnauerExperimentalData:
     """
     Experimental data from a Knauer FPLC system.
 
+    .. warning::
+        The RFP binary format was reverse-engineered from a limited set of
+        sample files.  This loader should be considered experimental: field
+        offsets, event-log structure, and column naming may differ across
+        PurityChrom versions.  Verify parsed values against the original
+        software before using them in any analysis.
+
     Accepts either a CSV export (``*.csv``) or a binary PurityChrom file
     (``*.rfp``).  Each data channel is exposed as a :class:`ReferenceIO`
     object.
