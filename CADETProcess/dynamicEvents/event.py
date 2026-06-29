@@ -634,7 +634,7 @@ class EventHandler(CachedPropertiesMixin, Structure):
     @property
     def performer_events(self) -> Dict[str, list[Event]]:
         """
-        Return Dict: Event performer mapped to their corresponding list of events.
+        Dict mapping each event performer to its corresponding list of events.
 
         For every event, this dictionary associates the event's performer
         with the event. This allows for easy retrieval of all events carried out
@@ -990,7 +990,7 @@ class Event:
 
     @property
     def parameter_descriptor(self) -> Optional[ParameterBase]:
-        """Return parameter descriptor."""
+        """Parameter descriptor for the event's target attribute."""
         performer_class = type(self.performer_obj)
         try:
             descriptor = getattr(performer_class, self.parameter_sequence[-1])
@@ -1269,7 +1269,7 @@ class Event:
     @property
     def state(self) -> float | np.ndarray:
         """
-        Return the state of the parameter event.
+        Current state of the parameter event.
 
         When retrieving, it returns the current state of the event.
         When setting, the internal state is updated.

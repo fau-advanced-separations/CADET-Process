@@ -105,12 +105,12 @@ class TransformerBase(ABC):
     @property
     @abstractmethod
     def is_linear(self) -> bool:
-        """Return whether the transformation is linear."""
+        """Whether the transformation is linear."""
         pass
 
     @property
     def lb_input(self) -> float | np.ndarray:
-        """Return the lower bounds of the input parameter space."""
+        """Lower bounds of the input parameter space."""
         return self._lb_input
 
     @lb_input.setter
@@ -119,7 +119,7 @@ class TransformerBase(ABC):
 
     @property
     def ub_input(self) -> float | np.ndarray:
-        """Return the upper bounds of the input parameter space."""
+        """Upper bounds of the input parameter space."""
         return self._ub_input
 
     @ub_input.setter
@@ -129,13 +129,13 @@ class TransformerBase(ABC):
     @property
     @abstractmethod
     def lb(self) -> float | np.ndarray:
-        """Return the lower bounds of the output parameter space."""
+        """Lower bounds of the output parameter space."""
         pass
 
     @property
     @abstractmethod
     def ub(self) -> float | np.ndarray:
-        """Return the upper bounds of the output parameter space."""
+        """Upper bounds of the output parameter space."""
         pass
 
     def transform(self, x: float | np.ndarray) -> float | np.ndarray:
@@ -320,17 +320,17 @@ class NullTransformer(TransformerBase):
 
     @property
     def is_linear(self) -> bool:
-        """Return True, as this is a linear transformation."""
+        """True, as this is a linear transformation."""
         return True
 
     @property
     def lb(self) -> float | np.ndarray:
-        """Return the lower bound of the output space (same as input lower bound)."""
+        """Lower bound of the output space (same as input lower bound)."""
         return self.lb_input
 
     @property
     def ub(self) -> float | np.ndarray:
-        """Return the upper bound of the output space (same as input upper bound)."""
+        """Upper bound of the output space (same as input upper bound)."""
         return self.ub_input
 
     def _transform(self, x: float | np.ndarray) -> float | np.ndarray:
@@ -380,17 +380,17 @@ class NormLinearTransformer(TransformerBase):
 
     @property
     def is_linear(self) -> bool:
-        """Return True, as this is a linear transformation."""
+        """True, as this is a linear transformation."""
         return True
 
     @property
     def lb(self) -> float:
-        """Return the lower bound of the output space (0)."""
+        """Lower bound of the output space (0)."""
         return 0.0
 
     @property
     def ub(self) -> float:
-        """Return the upper bound of the output space (1)."""
+        """Upper bound of the output space (1)."""
         return 1.0
 
     def _transform(self, x: float | np.ndarray) -> float | np.ndarray:
@@ -440,17 +440,17 @@ class NormLogTransformer(TransformerBase):
 
     @property
     def is_linear(self) -> bool:
-        """Return False, as this is a non-linear transformation."""
+        """False, as this is a non-linear transformation."""
         return False
 
     @property
     def lb(self) -> float:
-        """Return the lower bound of the output space (0)."""
+        """Lower bound of the output space (0)."""
         return 0.0
 
     @property
     def ub(self) -> float:
-        """Return the upper bound of the output space (1)."""
+        """Upper bound of the output space (1)."""
         return 1.0
 
     def _transform(self, x: float | np.ndarray) -> float | np.ndarray:
@@ -554,7 +554,7 @@ class AutoTransformer(TransformerBase):
 
     @property
     def is_linear(self) -> bool:
-        """Return True if linear transformation is used, otherwise False."""
+        """True if linear transformation is used, False otherwise."""
         return self.use_linear
 
     @property
@@ -566,22 +566,22 @@ class AutoTransformer(TransformerBase):
 
     @property
     def use_log(self) -> bool:
-        """Return True if logarithmic transformation is used, otherwise False."""
+        """True if logarithmic transformation is used, False otherwise."""
         return not self.use_linear
 
     @property
     def lb(self) -> float:
-        """Return the lower bound of the output parameter space (0)."""
+        """Lower bound of the output parameter space (0)."""
         return 0.0
 
     @property
     def ub(self) -> float:
-        """Return the upper bound of the output parameter space (1)."""
+        """Upper bound of the output parameter space (1)."""
         return 1.0
 
     @property
     def lb_input(self) -> float | np.ndarray:
-        """Return the lower bounds of the input parameter space."""
+        """Lower bounds of the input parameter space."""
         return self._lb_input
 
     @lb_input.setter
@@ -593,7 +593,7 @@ class AutoTransformer(TransformerBase):
 
     @property
     def ub_input(self) -> float | np.ndarray:
-        """Return the upper bounds of the input parameter space."""
+        """Upper bounds of the input parameter space."""
         return self._ub_input
 
     @ub_input.setter

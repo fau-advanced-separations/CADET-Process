@@ -260,7 +260,7 @@ class UnitBaseClass(Structure):
 
     @property
     def section_dependent_parameters(self) -> dict:
-        """Return section dependent parameters."""
+        """Section-dependent parameters."""
         parameters = {
             key: value
             for key, value in self.parameters.items()
@@ -285,7 +285,7 @@ class UnitBaseClass(Structure):
 
     @property
     def missing_parameters(self) -> list:
-        """Return list of missing parameters."""
+        """List of missing parameters."""
         missing_parameters = super().missing_parameters
 
         missing_parameters += [
