@@ -132,7 +132,7 @@ class Cadet(SimulatorBase):
 
     @property
     def temp_dir(self) -> dict:
-        """Return temp dir."""
+        """Temporary directory for simulation files."""
         if not self._temp_dir.exists():
             self._temp_dir.mkdir(exist_ok=True, parents=True)
         return self._temp_dir
