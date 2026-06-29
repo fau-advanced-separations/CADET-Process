@@ -66,7 +66,7 @@ class NormalizerBase(ABC):
     @property
     @abstractmethod
     def is_linear(self) -> bool:
-        """Return whether the normalization is linear."""
+        """Whether the normalization is linear."""
         pass
 
     @property
@@ -204,7 +204,7 @@ class NullNormalizer(NormalizerBase):
 
     @property
     def is_linear(self) -> bool:
-        """Return True; identity is a linear map."""
+        """True; identity is a linear map."""
         return True
 
     @property
@@ -229,7 +229,7 @@ class LinearNormalizer(NormalizerBase):
 
     @property
     def is_linear(self) -> bool:
-        """Return True."""
+        """True; linear normalization is a linear map."""
         return True
 
     @property
@@ -254,7 +254,7 @@ class LogNormalizer(NormalizerBase):
 
     @property
     def is_linear(self) -> bool:
-        """Return False."""
+        """False; logarithmic normalization is non-linear."""
         return False
 
     @property
@@ -309,19 +309,19 @@ class AutoNormalizer(NormalizerBase):
 
     @property
     def is_linear(self) -> bool:
-        """Return True when linear normalization is active."""
+        """True when linear normalization is active."""
         return self.use_linear
 
     @property
     def use_linear(self) -> bool:
-        """Return True when the ratio/range falls below the threshold."""
+        """True when the ratio/range falls below the threshold."""
         if self.lb_input <= 0:
             return np.log10(self.ub_input - self.lb_input) < np.log10(self.threshold)
         return (self.ub_input / self.lb_input) < self.threshold
 
     @property
     def use_log(self) -> bool:
-        """Return True when logarithmic normalization is active."""
+        """True when logarithmic normalization is active."""
         return not self.use_linear
 
     @property

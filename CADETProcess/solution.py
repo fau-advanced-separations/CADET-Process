@@ -337,7 +337,7 @@ class SolutionIO(SolutionBase):
 
     @property
     def dm_dt_interpolated(self) -> InterpolatedSignal:
-        """Return the dm/dt interpolated signal."""
+        """Interpolated dm/dt signal."""
         if self._dm_dt_interpolated is None:
             dm_dt = self.solution * self.flow_rate.value(self.time)
             self._dm_dt_interpolated = InterpolatedSignal(self.time, dm_dt)
