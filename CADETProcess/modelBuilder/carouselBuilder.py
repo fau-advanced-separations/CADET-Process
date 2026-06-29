@@ -273,7 +273,7 @@ class CarouselBuilder(Structure):
     @property
     def zones(self) -> list[ZoneBaseClass]:
         """
-        Get all zones in the carousel system.
+        All zones in the carousel system.
 
         Returns
         -------
