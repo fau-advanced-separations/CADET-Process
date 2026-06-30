@@ -281,7 +281,7 @@ def test_jacobian_two_obj_two_var(x, expected_grad):
 @pytest.fixture
 def op_with_linear_transform():
     op = OptimizationProblem("linear_transform")
-    op.add_variable("x", lb=-2, ub=2, transform="linear")
+    op.add_variable("x", lb=-2, ub=2, normalization="linear")
     op.add_objective(lambda x: x[0] ** 2)
     op.add_nonlinear_constraint(lambda x: [x[0] ** 2 - 1], n_nonlinear_constraints=1)
     return op
@@ -944,7 +944,7 @@ def test_create_population_basic():
 
 def test_create_population_with_transform():
     op = OptimizationProblem("pop", use_diskcache=False)
-    op.add_variable("x", lb=-2, ub=2, transform="linear")
+    op.add_variable("x", lb=-2, ub=2, normalization="linear")
     # x_t = 0.75 → x_p = 4*0.75 - 2 = 1.0
     pop = op.create_population([[0.75]], untransform=True)
     np.testing.assert_allclose(pop.x[0], [1.0], atol=1e-10)
