@@ -16,13 +16,16 @@ Module to evaluate cyclic stationarity of succeeding cycles.
 
 """  # noqa
 
+import copy
 from typing import Any, Optional
 
 import numpy as np
 from addict import Dict
 
 from CADETProcess import log
+from CADETProcess.comparison import NRMSE as _NRMSE
 from CADETProcess.comparison import Comparator
+from CADETProcess.comparison import RelativeArea as _RelativeArea
 from CADETProcess.dataStructure import Structure, UnsignedFloat
 from CADETProcess.processModel import Inlet
 from CADETProcess.simulationResults import SimulationResults
@@ -162,6 +165,8 @@ class StationarityEvaluator(Comparator):
             criteria[str(c)]["stationarity"] = s
 
         # Per unit comparison
+        _criterion_to_metric = {NRMSE: _NRMSE, RelativeArea: _RelativeArea}
+
         def _assert_unit_io(
             solution_previous: SolutionIO,
             solution_this: SolutionIO,
@@ -171,18 +176,8 @@ class StationarityEvaluator(Comparator):
             c: object,
         ) -> bool:
             """Assert stationarity for a given inlet/outlet of a unit."""
-            solution_previous.name = f"{unit}.{side}"
-            self.add_reference(
-                solution_previous,
-                update=True,
-                smooth=False,
-            )
-            metric = self.add_difference_metric(
-                str(c),
-                f"{unit}.{side}",
-                f"{unit}.{side}",
-                smooth=False,
-            )
+            ref = copy.deepcopy(solution_previous)
+            metric = _criterion_to_metric[type(c)](ref)
             diff = metric.evaluate(solution_this)
             criteria[str(c)][unit][side]["metric"] = diff
             s = np.all(diff <= c.threshold)
