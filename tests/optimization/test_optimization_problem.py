@@ -869,27 +869,34 @@ def test_add_callback_duplicate_name_raises():
         op.add_callback(lambda pop: None, name="cb1")
 
 
+def _make_dummy_population():
+    pop = Population()
+    pop.add_individual(Individual(x=np.array([])))
+    return pop
+
+
 def test_evaluate_callbacks_frequency_skip():
     calls = []
     op = OptimizationProblem("cb", use_diskcache=False)
-    op.add_callback(lambda pop: calls.append(1), name="cb", frequency=3)
-    op.evaluate_callbacks(population="dummy", current_iteration=1)
+    op.add_callback(lambda result: calls.append(1), name="cb", frequency=3)
+    pop = _make_dummy_population()
+    op.evaluate_callbacks(population=pop, current_iteration=1)
     assert len(calls) == 0
-    op.evaluate_callbacks(population="dummy", current_iteration=3)
+    op.evaluate_callbacks(population=pop, current_iteration=3)
     assert len(calls) == 1
 
 
 def test_evaluate_callbacks_population_deprecation():
     op = OptimizationProblem("cb", use_diskcache=False)
-    op.add_callback(lambda pop: None, name="cb")
+    op.add_callback(lambda result: None, name="cb")
     with pytest.warns(DeprecationWarning, match="evaluate_callbacks_population"):
-        op.evaluate_callbacks_population(population="dummy", current_iteration=0)
+        op.evaluate_callbacks_population(population=_make_dummy_population(), current_iteration=0)
 
 
 def test_evaluate_callbacks_exception_logged(caplog):
     op = OptimizationProblem("cb", use_diskcache=False)
-    op.add_callback(lambda pop: 1 / 0, name="boom")
-    op.evaluate_callbacks(population="dummy", current_iteration=0)
+    op.add_callback(lambda result: 1 / 0, name="boom")
+    op.evaluate_callbacks(population=_make_dummy_population(), current_iteration=0)
     assert "boom" in caplog.text
 
 
