@@ -72,8 +72,12 @@ EXCLUDE_COMBINATIONS = [
 
 # this helps to test optimizers for hard problems
 NON_DEFAULT_PARAMETERS = [
-    (U_NSGA3, NonlinearConstraintsMooTestProblem, {"pop_size": 300, "n_max_gen": 40}),
+    (U_NSGA3, NonlinearConstraintsMooTestProblem, {"pop_size": 300, "n_max_gen": 100, "n_ref_dirs": 100}),  # noqa: E501
     (U_NSGA3, Rosenbrock, {"pop_size": 300, "n_max_gen": 20}),
+    # initial_tr_radius=1.0 fills the entire [0,1] normalized space; reduce to 0.01
+    # so COBYQA takes small enough steps to follow the constraint-active path to the bound.
+    (COBYQA, LinearConstraintsSooTestProblem, {"initial_tr_radius": 0.01}),
+    (COBYQA, NonlinearLinearConstraintsSooTestProblem, {"initial_tr_radius": 0.01}),
 ]
 
 
