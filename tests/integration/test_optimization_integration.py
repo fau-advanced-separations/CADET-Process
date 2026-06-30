@@ -41,10 +41,10 @@ class TestBatchElutionOptimizationSingleObjective(unittest.TestCase):
         self.optimizer = optimizer
 
     def tearDown(self):
+
         shutil.rmtree("./test_batch", ignore_errors=True)
         shutil.rmtree("./diskcache_batch_elution_single", ignore_errors=True)
         shutil.rmtree("./tmp", ignore_errors=True)
-
         settings.working_directory = None
 
     def test_single_core(self):
@@ -115,10 +115,10 @@ class TestBatchElutionOptimizationMultiObjective(unittest.TestCase):
         self.optimizer = optimizer
 
     def tearDown(self):
+
         shutil.rmtree("./test_batch", ignore_errors=True)
         shutil.rmtree("./diskcache_batch_elution_multi", ignore_errors=True)
         shutil.rmtree("./tmp", ignore_errors=True)
-
         settings.working_directory = None
 
     @unittest.skipIf(__name__ != "__main__", "Only run test if test is run as __main__")
@@ -175,12 +175,11 @@ class TestFitColumnParameters(unittest.TestCase):
         self.optimizer = optimizer
 
     def tearDown(self):
+
         shutil.rmtree("./test_fit_column_parameters", ignore_errors=True)
         shutil.rmtree("./diskcache_bed_porosity_axial_dispersion/", ignore_errors=True)
         shutil.rmtree("./tmp", ignore_errors=True)
-
         shutil.rmtree("./experimental_data/", ignore_errors=True)
-
         settings.working_directory = None
 
     def test_optimization(self):
