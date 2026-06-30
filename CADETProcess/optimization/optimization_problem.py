@@ -1983,18 +1983,50 @@ class OptimizationProblem:
         """
         if population is None or not self._callbacks:
             return
+        eval_objs = self._space.evaluation_objects
         for cb in self._callbacks:
             if not (
                 current_iteration == "final"
                 or current_iteration % cb.frequency == 0
             ):
                 continue
-            try:
-                cb.func(population, *cb.args, **cb.kwargs)
-            except Exception as exc:
-                logging.getLogger(__name__).warning(
-                    f"Callback {cb.name!r} failed at iteration {current_iteration}: {exc}"
-                )
+            metric_eval_objs = (
+                cb.evaluation_objects if cb.evaluation_objects else eval_objs or [None]
+            )
+            callbacks_dir = getattr(cb, "_callbacks_dir", None)
+            sig = inspect.signature(cb.func).parameters
+            for individual in population:
+                self._space.set_values(individual.x)
+                for eval_obj in metric_eval_objs:
+                    try:
+                        if cb.evaluator_chain:
+                            # Evaluate the chain manually to avoid pipefunc's
+                            # serialization path, which fails for evaluation
+                            # objects that contain non-picklable closures.
+                            chain_result = (
+                                eval_obj if eval_obj is not None else individual.x
+                            )
+                            for ev_name in cb.evaluator_chain:
+                                chain_result = self._evaluator_func_by_name[ev_name](
+                                    chain_result
+                                )
+                        else:
+                            chain_result = (
+                                eval_obj if eval_obj is not None else individual.x
+                            )
+                        kwargs = dict(cb.kwargs)
+                        if "individual" in sig:
+                            kwargs["individual"] = individual
+                        if "evaluation_object" in sig:
+                            kwargs["evaluation_object"] = eval_obj
+                        if "callbacks_dir" in sig:
+                            kwargs["callbacks_dir"] = callbacks_dir
+                        cb.func(chain_result, *cb.args, **kwargs)
+                    except Exception as exc:
+                        logging.getLogger(__name__).warning(
+                            f"Callback {cb.name!r} failed at iteration"
+                            f" {current_iteration}: {exc}"
+                        )
 
     def evaluate_callbacks_population(self, *args: Any, **kwargs: Any) -> None:
         """Call ``evaluate_callbacks``; deprecated, use that method directly."""

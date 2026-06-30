@@ -267,6 +267,20 @@ class TestPareto(unittest.TestCase):
         front.update(population)
 
 
+def test_plot_pairwise_all_nonfinite_does_not_raise():
+    """plot_pairwise must not crash when all values in a column are non-finite.
+
+    Before the fix, _plot_pairwise_histogram called x.min() on an empty array
+    after np.isfinite filtering, raising ValueError.
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    from CADETProcess.optimization.population import plot_pairwise
+
+    data = np.full((4, 2), np.inf)
+    plot_pairwise(data, variable_names=["f0", "f1"])
+
+
 if __name__ == "__main__":
     enable_plot = True
 

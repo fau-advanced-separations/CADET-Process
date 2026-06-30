@@ -3,7 +3,7 @@ import warnings
 import numpy as np
 import pytest
 from CADETProcess import CADETProcessError
-from CADETProcess.optimization import OptimizationProblem
+from CADETProcess.optimization import Individual, OptimizationProblem, Population
 
 from tests.optimization.conftest import (
     EvaluationObject,
@@ -982,3 +982,73 @@ def test_property_accessors(op_scalar):
     assert len(op_scalar.independent_variables) == 1
     assert len(op_scalar.dependent_variables) == 0
     assert len(op_scalar.variables) == 1
+
+
+# ── Callbacks ────────────────────────────────────────────────────────────────
+
+
+def test_evaluate_callbacks_called_per_individual(eval_obj):
+    """evaluate_callbacks must call the callback once per individual per eval object.
+
+    Before the fix, evaluate_callbacks passed the whole population as the first
+    positional argument and never iterated per individual, so the callback was
+    called with the wrong signature and always failed silently.
+    """
+    op = OptimizationProblem("cb_test", use_diskcache=False)
+    op.add_evaluation_object(eval_obj)
+    op.add_variable("scalar_param", lb=0, ub=1)
+
+    def evaluator(evaluation_object):
+        return evaluation_object.scalar_param * 2
+
+    op.add_evaluator(evaluator)
+
+    calls = []
+
+    def callback(result, individual, evaluation_object, callbacks_dir):
+        calls.append((result, individual, evaluation_object, callbacks_dir))
+
+    op.add_callback(callback, requires=[evaluator])
+    op.callbacks[0]._callbacks_dir = None
+
+    ind = Individual(x=np.array([0.5]))
+    pop = Population()
+    pop.add_individual(ind)
+
+    op.evaluate_callbacks(pop, current_iteration=0)
+
+    assert len(calls) == 1
+    result, called_ind, called_eval_obj, called_dir = calls[0]
+    assert called_ind is ind
+    assert called_eval_obj is eval_obj
+    assert called_dir is None
+    np.testing.assert_allclose(result, 1.0)
+
+
+def test_evaluate_callbacks_optional_args_injected_by_signature(eval_obj):
+    """Callbacks that omit optional context args must still be called correctly."""
+    op = OptimizationProblem("cb_minimal", use_diskcache=False)
+    op.add_evaluation_object(eval_obj)
+    op.add_variable("scalar_param", lb=0, ub=1)
+
+    def evaluator(evaluation_object):
+        return evaluation_object.scalar_param
+
+    op.add_evaluator(evaluator)
+
+    calls = []
+
+    def callback(result):
+        calls.append(result)
+
+    op.add_callback(callback, requires=[evaluator])
+    op.callbacks[0]._callbacks_dir = None
+
+    ind = Individual(x=np.array([0.3]))
+    pop = Population()
+    pop.add_individual(ind)
+
+    op.evaluate_callbacks(pop, current_iteration=0)
+
+    assert len(calls) == 1
+    np.testing.assert_allclose(calls[0], 0.3)

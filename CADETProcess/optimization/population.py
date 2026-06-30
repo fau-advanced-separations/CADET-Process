@@ -1187,6 +1187,9 @@ def _plot_pairwise_histogram(
 
         x = data[:, i][np.isfinite(data[:, i])]
 
+        if len(x) == 0:
+            continue
+
         if not hasattr(ax, "_pairwise_bins"):
             ax_hist = ax.twinx()
             ax_hist.set_yticks([])
