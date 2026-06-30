@@ -16,7 +16,6 @@ This module provides functionality for general settings.
 
 import os
 import shutil
-import tempfile
 from pathlib import Path
 from warnings import warn
 
@@ -133,9 +132,8 @@ class Settings(Structure):
             _temp_dir = Path(self._temp_dir).absolute()
 
         _temp_dir.mkdir(exist_ok=True, parents=True)
-        tempfile.tempdir = _temp_dir.as_posix()
 
-        return Path(tempfile.gettempdir())
+        return _temp_dir
 
     @temp_dir.setter
     def temp_dir(self, temp_dir: str) -> None:
