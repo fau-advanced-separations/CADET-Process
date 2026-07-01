@@ -607,19 +607,10 @@ class OptimizerBase(Structure):
         else:
             callbacks_dir = self.callbacks_dir
 
-        for callback in self.optimization_problem.callbacks:
-            if self.optimization_problem.n_callbacks > 1:
-                _callbacks_dir = callbacks_dir / str(callback)
-                _callbacks_dir.mkdir(exist_ok=True, parents=True)
-            else:
-                _callbacks_dir = callbacks_dir
-
-            callback.cleanup(_callbacks_dir, current_generation)
-            callback._callbacks_dir = _callbacks_dir
-
         self.optimization_problem.evaluate_callbacks(
             self.results.meta_front,
             current_generation,
+            callbacks_dir=callbacks_dir,
             parallelization_backend=self.parallelization_backend,
         )
 

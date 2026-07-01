@@ -1016,7 +1016,6 @@ def test_evaluate_callbacks_called_per_individual(eval_obj):
         calls.append((result, individual, evaluation_object, callbacks_dir))
 
     op.add_callback(callback, requires=[evaluator])
-    op.callbacks[0]._callbacks_dir = None
 
     ind = Individual(x=np.array([0.5]))
     pop = Population()
@@ -1049,7 +1048,6 @@ def test_evaluate_callbacks_optional_args_injected_by_signature(eval_obj):
         calls.append(result)
 
     op.add_callback(callback, requires=[evaluator])
-    op.callbacks[0]._callbacks_dir = None
 
     ind = Individual(x=np.array([0.3]))
     pop = Population()
@@ -1059,6 +1057,91 @@ def test_evaluate_callbacks_optional_args_injected_by_signature(eval_obj):
 
     assert len(calls) == 1
     np.testing.assert_allclose(calls[0], 0.3)
+
+
+def test_evaluate_callbacks_no_chain_sees_current_x(eval_obj):
+    """No-chain callback must receive eval_obj with parameters set for individual.x.
+
+    Regression: the pipeline refactor dropped set_values for the no-chain path,
+    so eval_obj attributes reflected the previous individual's x instead.
+    """
+    op = OptimizationProblem("cb_no_chain", use_diskcache=False)
+    op.add_evaluation_object(eval_obj)
+    op.add_variable("scalar_param", lb=0, ub=1)
+
+    seen_values = []
+
+    def callback(result):
+        seen_values.append(result.scalar_param)
+
+    op.add_callback(callback)
+
+    for x_val in [0.2, 0.7]:
+        ind = Individual(x=np.array([x_val]))
+        pop = Population()
+        pop.add_individual(ind)
+        op.evaluate_callbacks(pop, current_iteration=0)
+
+    np.testing.assert_allclose(seen_values, [0.2, 0.7])
+
+
+def test_evaluate_callbacks_callbacks_dir_passthrough(eval_obj, tmp_path):
+    """callbacks_dir passed to evaluate_callbacks reaches the callback function."""
+    op = OptimizationProblem("cb_dir", use_diskcache=False)
+    op.add_evaluation_object(eval_obj)
+    op.add_variable("scalar_param", lb=0, ub=1)
+
+    received_dirs = []
+
+    def callback(result, callbacks_dir):
+        received_dirs.append(callbacks_dir)
+
+    op.add_callback(callback)
+
+    ind = Individual(x=np.array([0.5]))
+    pop = Population()
+    pop.add_individual(ind)
+
+    op.evaluate_callbacks(pop, current_iteration=0, callbacks_dir=tmp_path)
+
+    assert len(received_dirs) == 1
+    assert received_dirs[0] == tmp_path
+
+
+def test_evaluate_callbacks_pipeline_cache_reuse(eval_obj):
+    """Evaluator runs once even when both an objective and a callback require it."""
+    op = OptimizationProblem("cb_cache", use_diskcache=False)
+    op.add_evaluation_object(eval_obj)
+    op.add_variable("scalar_param", lb=0, ub=1)
+
+    call_count = 0
+
+    def evaluator(evaluation_object):
+        nonlocal call_count
+        call_count += 1
+        return evaluation_object.scalar_param * 2
+
+    op.add_evaluator(evaluator)
+    op.add_objective(lambda result: result, requires=[evaluator])
+
+    cb_results = []
+
+    def callback(result):
+        cb_results.append(result)
+
+    op.add_callback(callback, requires=[evaluator])
+
+    ind = Individual(x=np.array([0.5]))
+    pop = Population()
+    pop.add_individual(ind)
+
+    op.evaluate_objectives(ind.x)
+    op.evaluate_callbacks(pop, current_iteration=0)
+
+    # Evaluator must have run exactly once; callback gets the cached result.
+    assert call_count == 1
+    assert len(cb_results) == 1
+    np.testing.assert_allclose(cb_results[0], 1.0)
 
 
 # ── create_individual cv fields (T7) ─────────────────────────────────────────

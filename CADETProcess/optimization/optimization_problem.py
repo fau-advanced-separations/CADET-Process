@@ -14,7 +14,8 @@ import random
 import shutil
 import warnings
 from collections.abc import Callable
-from typing import Any, Optional
+from pathlib import Path
+from typing import Any, Literal, Optional
 
 import hopsy
 import numpy as np
@@ -1459,6 +1460,8 @@ class OptimizationProblem:
         """
         if not callable(callback):
             raise TypeError("Expected callable callback.")
+        if frequency < 1:
+            raise ValueError(f"frequency must be a positive integer, got {frequency!r}")
 
         if name is None:
             if inspect.isfunction(callback) or inspect.ismethod(callback):
@@ -1974,7 +1977,8 @@ class OptimizationProblem:
     def evaluate_callbacks(
         self,
         population: Any = None,
-        current_iteration: int = 0,
+        current_iteration: int | Literal["final"] = 0,
+        callbacks_dir: Any = None,
         parallelization_backend: Any = None,  # noqa: ARG002
     ) -> None:
         """Evaluate registered callbacks against a population.
@@ -1987,38 +1991,95 @@ class OptimizationProblem:
         current_iteration : int
             Current generation index; used to respect each callback's
             ``frequency`` setting.
+        callbacks_dir : path-like, optional
+            Base directory for callback output files.  Per-callback
+            subdirectories are created automatically when more than one
+            callback is registered.  A ``callbacks_dir`` set at registration
+            time via ``add_callback`` overrides this value for that callback.
         parallelization_backend :
             Unused; retained for API compatibility with the optimizer.
         """
         if population is None or not self._callbacks:
             return
-        eval_objs = self._space.evaluation_objects
+        _logger = logging.getLogger(__name__)
+        eval_objs = self._space.evaluation_objects or []
+        obj_index = {id(obj): i for i, obj in enumerate(eval_objs)}
         for cb in self._callbacks:
             if not (
                 current_iteration == "final"
                 or current_iteration % cb.frequency == 0
             ):
                 continue
+
+            # Resolve per-callback directory.
+            if cb.callbacks_dir is not None:
+                _cb_dir = Path(cb.callbacks_dir)
+            elif callbacks_dir is not None:
+                base = Path(callbacks_dir)
+                _cb_dir = base / str(cb) if len(self._callbacks) > 1 else base
+                _cb_dir.mkdir(exist_ok=True, parents=True)
+            else:
+                _cb_dir = None
+
+            if _cb_dir is not None and current_iteration != "final":
+                cb.cleanup(_cb_dir, current_iteration)
+
             metric_eval_objs = (
                 cb.evaluation_objects if cb.evaluation_objects else eval_objs or [None]
             )
-            callbacks_dir = getattr(cb, "_callbacks_dir", None)
-            sig = inspect.signature(cb.func).parameters
+            try:
+                sig = inspect.signature(cb.func).parameters
+            except (ValueError, TypeError):
+                sig = {}
             for individual in population:
                 self._space.set_values(individual.x)
+                # Use the pipeline to get evaluator chain outputs, benefiting
+                # from results already cached during objective/constraint
+                # evaluation for this individual.
+                ev_outputs: dict[str, Any] = {}
+                if cb.evaluator_chain and eval_objs:
+                    try:
+                        ev_outputs = self._pipeline.evaluate(
+                            individual.x, targets=cb.evaluator_chain
+                        )
+                    except Exception:
+                        _logger.debug(
+                            f"Pipeline evaluation for callback {cb.name!r} failed;"
+                            f" falling back to direct chain execution.",
+                            exc_info=True,
+                        )
+
                 for eval_obj in metric_eval_objs:
                     try:
                         if cb.evaluator_chain:
-                            # Evaluate the chain manually to avoid pipefunc's
-                            # serialization path, which fails for evaluation
-                            # objects that contain non-picklable closures.
-                            chain_result = (
-                                eval_obj if eval_obj is not None else individual.x
-                            )
-                            for ev_name in cb.evaluator_chain:
-                                chain_result = self._evaluator_func_by_name[ev_name](
-                                    chain_result
+                            last = cb.evaluator_chain[-1]
+                            if ev_outputs and last in ev_outputs:
+                                raw = ev_outputs[last]
+                                if isinstance(raw, list):
+                                    idx = obj_index.get(id(eval_obj))
+                                    if idx is not None and idx < len(raw):
+                                        chain_result = raw[idx]
+                                    else:
+                                        chain_result = (
+                                            eval_obj
+                                            if eval_obj is not None
+                                            else individual.x
+                                        )
+                                        for ev_name in cb.evaluator_chain:
+                                            chain_result = self._evaluator_func_by_name[
+                                                ev_name
+                                            ](chain_result)
+                                else:
+                                    chain_result = raw
+                            else:
+                                # Pipeline unavailable; fall back to direct execution.
+                                chain_result = (
+                                    eval_obj if eval_obj is not None else individual.x
                                 )
+                                for ev_name in cb.evaluator_chain:
+                                    chain_result = self._evaluator_func_by_name[
+                                        ev_name
+                                    ](chain_result)
                         else:
                             chain_result = (
                                 eval_obj if eval_obj is not None else individual.x
@@ -2029,12 +2090,13 @@ class OptimizationProblem:
                         if "evaluation_object" in sig:
                             kwargs["evaluation_object"] = eval_obj
                         if "callbacks_dir" in sig:
-                            kwargs["callbacks_dir"] = callbacks_dir
+                            kwargs["callbacks_dir"] = _cb_dir
                         cb.func(chain_result, *cb.args, **kwargs)
                     except Exception as exc:
-                        logging.getLogger(__name__).warning(
+                        _logger.warning(
                             f"Callback {cb.name!r} failed at iteration"
-                            f" {current_iteration}: {exc}"
+                            f" {current_iteration}: {exc}",
+                            exc_info=True,
                         )
 
     def evaluate_callbacks_population(self, *args: Any, **kwargs: Any) -> None:
