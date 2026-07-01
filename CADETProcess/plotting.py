@@ -153,7 +153,7 @@ figure_layouts = {
 # %% Figure size
 
 def get_fig_size(
-    layout: Literal["1_col", "1_5_col", "2_col"] = "1_col",
+    layout: Literal["minimal", "1_col", "1.5_col", "2_col"] = "1_col",
     nrows: int = 1,
     ncols: int = 1,
     aspect: float | None = None,
@@ -166,7 +166,7 @@ def get_fig_size(
 
     Parameters
     ----------
-    layout: Literal["1_col", "1_5_col", "2_col"] = "1_col",
+    layout: Literal["minimal", "1_col", "1.5_col", "2_col"] = "1_col",
         Figure layout.
     nrows : int
         Number of subplot rows.
@@ -209,7 +209,7 @@ def get_fig_size(
 
 @contextmanager
 def mpl_style_context(
-    layout: Literal["1_col", "1_5_col", "2_col"] = "1_col",
+    layout: Literal["minimal", "1_col", "1.5_col", "2_col"] = "1_col",
 ) -> None:
     """Context manager for temporary matplotlib rc parameters."""
     layout_settings = figure_layouts[layout]
@@ -230,7 +230,7 @@ def mpl_style_context(
 
 
 def setup_figure(
-    layout: Literal["1_col", "1_5_col", "2_col"] = "1_col",
+    layout: Literal["minimal", "1_col", "1.5_col", "2_col"] = "1_col",
     nrows: int = 1,
     ncols: int = 1,
     aspect: float | None = None,
@@ -245,7 +245,7 @@ def setup_figure(
 
     Parameters
     ----------
-    layout : Literal["1_col", "1_5_col", "2_col"] = "1_col",
+    layout : Literal["minimal", "1_col", "1.5_col", "2_col"] = "1_col",
         Figure layout.
     nrows : int
         Number of subplot rows.
