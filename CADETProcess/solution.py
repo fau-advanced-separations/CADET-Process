@@ -32,6 +32,7 @@ Method to slice a Solution:
 from __future__ import annotations
 
 import copy
+from itertools import cycle
 from typing import Any, Optional
 
 import matplotlib.pyplot as plt
@@ -778,7 +779,7 @@ class SolutionIO(SolutionBase):
         local_purity_components = solution.local_purity_components * 100
         local_purity_species = solution.local_purity_species * 100
 
-        colors = iter(plt.rcParams["axes.prop_cycle"].by_key()["color"])
+        colors = cycle(plt.rcParams["axes.prop_cycle"].by_key()["color"])
         species_index = 0
         for i, comp in enumerate(solution.component_system.components):
             color = next(colors)
@@ -1913,7 +1914,7 @@ def _plot_solution_1D(
     # Plot data
     sol = solution.solution
     c_total_comp = solution.total_concentration_components
-    colors = iter(plt.rcParams["axes.prop_cycle"].by_key()["color"])
+    colors = cycle(plt.rcParams["axes.prop_cycle"].by_key()["color"])
     species_index = 0  # Initialize species index
 
     for i, comp in enumerate(solution.component_system.components):
