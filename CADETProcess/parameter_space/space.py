@@ -5,19 +5,20 @@ Mappers are wired at ``add_parameter`` time and stored internally; callers inter
 only with the high-level API.  ``set_values`` resolves dependent parameters, validates
 each value, and writes via the wired mappers.
 
-Scope of feasibility checking
-------------------------------
-``check_bounds`` and the linear constraint matrices operate on **independent**
-parameters only — the variables the optimizer directly controls.  Bounds and linear
-constraints declared on *dependent* parameters cannot be enforced before the dependency
-transform is resolved.  They are caught lazily:
+Coordinate convention
+---------------------
+All ``ParameterSpace`` methods operate in **physical units** on the **full parameter
+vector** (independent + dependent, length ``n_parameters``).  Methods decorated with
+``@resolves_dependencies`` accept either the full vector (default) or an independent-
+only vector (length ``n_variables``) when called with ``resolve_dependencies=True``.
+Use ``get_dependent_values(x_independent)`` to expand an independent vector explicitly.
 
-- ``set_values`` calls each parameter's ``validate`` after resolving dependencies,
-  so any out-of-bounds dependent value raises at write time.
-- For sampling, follow the pattern used in ``OptimizationProblem.create_initial_values``:
-  draw independent samples within the independent feasible polytope, resolve with
-  ``_resolve_all_values``, then validate the full resolved vector before accepting the
-  sample.
+Three callers, three spaces:
+
+* **User** — physical units, named parameters.
+* **Optimizer** — normalized independent variables in ``[0, 1]``;  use
+  ``TransformedSpace`` for this coordinate system.
+* **Internal (sampling, population)** — physical units, full vector.
 
 Normalization
 -------------
@@ -66,36 +67,6 @@ from CADETProcess.parameter_space.parameters import (
 __all__ = ["ParameterSpace"]
 
 
-def denormalizes(func: Callable) -> Callable:
-    """Add a ``normalized`` keyword argument to a method.
-
-    When called with ``normalized=True``, the first positional argument *x* is
-    passed through ``self.denormalize`` before the method body runs.  The method
-    itself always operates in physical units.
-
-    The ``normalized`` parameter is injected into the wrapped function's
-    ``__signature__`` so that ``help()`` and IDE introspection show it.
-
-    Mirrors the ``@untransforms`` pattern in ``OptimizationProblem``.
-    """
-
-    @wraps(func)
-    def wrapper(self: Any, x: Any, *args: Any, normalized: bool = False, **kwargs: Any) -> Any:
-        if normalized:
-            x = self.denormalize(x)
-        return func(self, x, *args, **kwargs)
-
-    # Patch the signature so introspection shows `normalized`.
-    original = inspect.signature(func)
-    normalized_param = inspect.Parameter(
-        "normalized", inspect.Parameter.KEYWORD_ONLY, default=False, annotation=bool
-    )
-    new_params = list(original.parameters.values()) + [normalized_param]
-    wrapper.__signature__ = original.replace(parameters=new_params)
-
-    return wrapper
-
-
 class ParameterSpace:
     """Container for parameters, evaluation objects, constraints, and dependencies.
 
@@ -113,6 +84,77 @@ class ParameterSpace:
         )
         space.set_values([0.5])
     """
+
+    # ── Method decorators ─────────────────────────────────────────────────────
+
+    def denormalizes(func: Callable) -> Callable:  # type: ignore[misc]
+        """Adapter for methods that operate on physical coordinates.
+
+        The decorated method always receives *x* in physical units.  The
+        decorator adds a ``denormalize=True`` entry point that converts
+        normalized coordinates to physical before invoking the method, without
+        changing what the implementation sees or its contract.
+
+        Apply to methods that are part of the optimizer-facing interface but
+        implemented by ``ParameterSpace`` — i.e., methods that
+        ``TransformedSpace`` naturally delegates to with ``denormalize=True``.
+
+        The ``denormalize`` parameter is injected into the wrapped function's
+        ``__signature__`` so that ``help()`` and IDE introspection show it.
+        """
+
+        @wraps(func)
+        def denormalizes_wrapper(
+            self: Any, x: Any, *args: Any, denormalize: bool = False, **kwargs: Any
+        ) -> Any:
+            if denormalize:
+                x = self.denormalize(x)
+            return func(self, x, *args, **kwargs)
+
+        original = inspect.signature(func)
+        denormalize_param = inspect.Parameter(
+            "denormalize", inspect.Parameter.KEYWORD_ONLY, default=False, annotation=bool
+        )
+        new_params = list(original.parameters.values()) + [denormalize_param]
+        denormalizes_wrapper.__signature__ = original.replace(parameters=new_params)
+        return denormalizes_wrapper
+
+    def resolves_dependencies(func: Callable) -> Callable:  # type: ignore[misc]
+        """Adapter for methods that operate on a fully resolved parameter vector.
+
+        The decorated method always receives a full parameter vector of length
+        ``n_parameters`` (independent + dependent).  The decorator adds a
+        ``resolve_dependencies=True`` entry point that expands an independent-
+        only vector via ``self.get_dependent_values`` before invoking the
+        method, without changing what the implementation sees or its contract.
+
+        Hot paths that have already resolved dependencies pass the full vector
+        directly (``resolve_dependencies=False``, the default) to avoid
+        redundant resolution.
+
+        The ``resolve_dependencies`` parameter is injected into the wrapped
+        function's ``__signature__`` so that ``help()`` and IDE introspection
+        show it.
+        """
+
+        @wraps(func)
+        def resolves_dependencies_wrapper(
+            self: Any, x: Any, *args: Any, resolve_dependencies: bool = False, **kwargs: Any
+        ) -> Any:
+            if resolve_dependencies:
+                x = self.get_dependent_values(x)
+            return func(self, x, *args, **kwargs)
+
+        original = inspect.signature(func)
+        resolve_param = inspect.Parameter(
+            "resolve_dependencies",
+            inspect.Parameter.KEYWORD_ONLY,
+            default=False,
+            annotation=bool,
+        )
+        new_params = list(original.parameters.values()) + [resolve_param]
+        resolves_dependencies_wrapper.__signature__ = original.replace(parameters=new_params)
+        return resolves_dependencies_wrapper
 
     def __init__(self) -> None:
         self._evaluation_objects: list[Any] = []
@@ -434,6 +476,25 @@ class ParameterSpace:
             )
         return values
 
+    @denormalizes
+    def get_dependent_values(self, x_independent: npt.ArrayLike) -> np.ndarray:
+        """Expand independent parameter values to the full parameter vector.
+
+        Parameters
+        ----------
+        x_independent : array-like
+            Values for the ``n_variables`` independent parameters in physical units.
+            Pass ``denormalize=True`` to denormalize from normalized coordinates first.
+
+        Returns
+        -------
+        np.ndarray
+            Full parameter vector of length ``n_parameters``, in registration order
+            (independent parameters first, then dependent parameters resolved from them).
+        """
+        all_values = self._resolve_all_values(x_independent)
+        return np.array([all_values[p.name] for p in self._parameters], dtype=float)
+
     # ── Constraints ───────────────────────────────────────────────────────────
 
     def _validate_constraint_parameters(
@@ -538,13 +599,29 @@ class ParameterSpace:
         """Equality constraint matrix sliced to independent columns, shape ``(m, n_variables)``."""
         return self.A_eq[:, self._independent_indices]
 
+    @resolves_dependencies
     def evaluate_linear_constraints(self, x: npt.ArrayLike) -> np.ndarray:
-        """Return ``A @ x - b``; positive entries mean a constraint violation."""
+        """Return ``A @ x - b``; positive entries mean a constraint violation.
+
+        Parameters
+        ----------
+        x : array-like
+            Full parameter vector (length ``n_parameters``) in physical units.
+            Pass ``resolve_dependencies=True`` to expand an independent-only vector first.
+        """
         x = np.asarray(x, dtype=float).ravel()
         return self.A @ x - self.b
 
+    @resolves_dependencies
     def evaluate_linear_equality_constraints(self, x: npt.ArrayLike) -> np.ndarray:
-        """Return ``A_eq @ x - b_eq``; non-zero entries mean a constraint violation."""
+        """Return ``A_eq @ x - b_eq``; non-zero entries mean a constraint violation.
+
+        Parameters
+        ----------
+        x : array-like
+            Full parameter vector (length ``n_parameters``) in physical units.
+            Pass ``resolve_dependencies=True`` to expand an independent-only vector first.
+        """
         x = np.asarray(x, dtype=float).ravel()
         return self.A_eq @ x - self.b_eq
 
@@ -582,44 +659,97 @@ class ParameterSpace:
             dtype=float,
         )
 
-    @denormalizes
+    @resolves_dependencies
     def check_bounds(
         self,
         x: npt.ArrayLike,
         tol: float | npt.ArrayLike = 0.0,
     ) -> bool:
-        """Return True when all independent variables satisfy their bounds.
-
-        Only independent parameter bounds are checked here.  Bounds on derived
-        parameters cannot be evaluated until the dependency transform is resolved;
-        they are enforced in ``set_values`` via each parameter's ``validate``.
+        """Return True when all parameters satisfy their bounds.
 
         Parameters
         ----------
         x : array-like
-            Values for the independent parameters, in physical units by default.
-            Pass ``normalized=True`` to denormalize first.
+            Full parameter vector (length ``n_parameters``) in physical units.
+            Pass ``resolve_dependencies=True`` to expand an independent-only vector
+            (length ``n_variables``) first.
         tol : float or array-like
             Per-variable (or uniform) tolerance added to each bound.
 
         Raises
         ------
         ValueError
-            If the length of *x* does not match ``n_variables``.
+            If the length of *x* does not match ``n_parameters``.
         """
         vals = np.asarray(x, dtype=float).ravel()
-        n = self.n_variables
+        n = self.n_parameters
         if vals.size != n:
             raise ValueError(f"Expected {n} values, got {vals.size}.")
         tol_arr = np.broadcast_to(np.asarray(tol, dtype=float), n)
-        lbs = self.lower_bounds_independent
-        ubs = self.upper_bounds_independent
+        lbs = self.lower_bounds
+        ubs = self.upper_bounds
         return bool(np.all(vals >= lbs - tol_arr) and np.all(vals <= ubs + tol_arr))
 
+    @resolves_dependencies
     def evaluate_bounds(self, x: npt.ArrayLike) -> np.ndarray:
-        """Return ``[lb - x, x - ub]`` over all parameters; positive = bound violation."""
+        """Return ``[lb - x, x - ub]`` over all parameters; positive = bound violation.
+
+        Parameters
+        ----------
+        x : array-like
+            Full parameter vector (length ``n_parameters``) in physical units.
+            Pass ``resolve_dependencies=True`` to expand an independent-only vector first.
+        """
         x = np.asarray(x, dtype=float).ravel()
         return np.concatenate([self.lower_bounds - x, x - self.upper_bounds])
+
+    @resolves_dependencies
+    def validate_x(
+        self,
+        x: npt.ArrayLike,
+        tol: float = 0.0,
+        tol_eq: float = 1e-6,
+    ) -> bool | np.ndarray:
+        """Return True if *x* satisfies bounds and all linear constraints.
+
+        Parameters
+        ----------
+        x : array-like
+            Full parameter vector, shape ``(n_parameters,)`` for a single point or
+            ``(m, n_parameters)`` for a population.  Pass
+            ``resolve_dependencies=True`` to expand an independent-only 1-D vector
+            first (population input always requires the full vector).
+        tol : float
+            Tolerance applied to bounds and inequality constraints (inclusive).
+        tol_eq : float
+            Tolerance applied to equality constraints.
+
+        Returns
+        -------
+        bool or np.ndarray of bool
+            Scalar for a single point; 1-D boolean array for a population.
+        """
+        x_arr = np.asarray(x, dtype=float)
+        population = x_arr.ndim == 2
+        rows = x_arr if population else x_arr[np.newaxis, :]
+        A, b = self.A, self.b
+        Aeq, beq = self.A_eq, self.b_eq
+        results = []
+        for row in rows:
+            valid = True
+            if not self.check_bounds(row, tol=tol):
+                warnings.warn("x violates parameter bounds.")
+                valid = False
+            if A.shape[0] > 0 and not bool(np.all(A @ row <= b + tol)):
+                warnings.warn("x violates linear inequality constraints.")
+                valid = False
+            if Aeq.shape[0] > 0 and not bool(np.all(np.abs(Aeq @ row - beq) <= tol_eq)):
+                warnings.warn("x violates linear equality constraints.")
+                valid = False
+            results.append(valid)
+        if population:
+            return np.array(results)
+        return results[0]
 
     # ── Normalization ─────────────────────────────────────────────────────────
 
@@ -653,7 +783,7 @@ class ParameterSpace:
 
         Bounds are not enforced here; out-of-range normalized values are mapped
         to their corresponding physical values without raising.  This allows
-        ``check_bounds(x, normalized=True)`` to correctly return False for
+        ``check_bounds(x, denormalize=True)`` to correctly return False for
         values that are outside the normalized unit hypercube.
         """
         vals = np.asarray(x_norm, dtype=float).ravel()
@@ -691,7 +821,7 @@ class ParameterSpace:
         ----------
         x : array-like
             Values for the independent parameters, in physical units by default.
-            Pass ``normalized=True`` to denormalize first.
+            Pass ``denormalize=True`` to denormalize first.
         validate_bounds : bool
             When True, check that *x* satisfies independent bounds before writing.
         tol : float or array-like
@@ -705,7 +835,7 @@ class ParameterSpace:
             If any parameter's ``validate`` rejects its resolved value.
         """
         vals = np.asarray(x, dtype=float).ravel()
-        if validate_bounds and not self.check_bounds(vals, tol=tol):
+        if validate_bounds and not self.check_bounds(vals, tol=tol, resolve_dependencies=True):
             raise ValueError("Independent values violate bound constraints.")
 
         all_values = self._resolve_all_values(vals)

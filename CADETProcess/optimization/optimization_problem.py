@@ -709,7 +709,7 @@ class OptimizationProblem:
         self, x: npt.ArrayLike, tol: float | npt.ArrayLike = 0.0
     ) -> bool:
         """Return True if all independent values satisfy their bounds."""
-        return self._space.check_bounds(x, tol=tol)
+        return self._space.check_bounds(x, tol=tol, resolve_dependencies=True)
 
     # ── Linear constraints ─────────────────────────────────────────────────────
 

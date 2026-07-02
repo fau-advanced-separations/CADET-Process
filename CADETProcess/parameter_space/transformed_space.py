@@ -248,7 +248,23 @@ class TransformedSpace:
         tol : float or array-like
             Tolerance passed to ``check_bounds`` when *validate_bounds* is True.
         """
-        self._space.set_values(x, normalized=True, validate_bounds=validate_bounds, tol=tol)
+        self._space.set_values(x, denormalize=True, validate_bounds=validate_bounds, tol=tol)
+
+    def get_dependent_values(self, x: npt.ArrayLike) -> np.ndarray:
+        """Expand normalized independent values to the full physical parameter vector.
+
+        Parameters
+        ----------
+        x : array-like
+            Values for the ``n_variables`` independent parameters in **normalized**
+            coordinates.
+
+        Returns
+        -------
+        np.ndarray
+            Full physical parameter vector of length ``n_parameters``.
+        """
+        return self._space.get_dependent_values(x, denormalize=True)
 
     def check_bounds(self, x: npt.ArrayLike, tol: float | npt.ArrayLike = 0.0) -> bool:
         """Return True when *x* (in normalized coordinates) satisfies physical bounds.
@@ -260,7 +276,42 @@ class TransformedSpace:
         tol : float or array-like
             Per-variable tolerance added to each bound before checking.
         """
-        return self._space.check_bounds(x, normalized=True, tol=tol)
+        x_phys = self._space.denormalize(x)
+        return self._space.check_bounds(x_phys, tol=tol, resolve_dependencies=True)
+
+    def validate_x(
+        self,
+        x: npt.ArrayLike,
+        tol: float = 0.0,
+        tol_eq: float = 1e-6,
+    ) -> bool | np.ndarray:
+        """Return True if *x* (normalized) satisfies bounds and all linear constraints.
+
+        Parameters
+        ----------
+        x : array-like
+            Normalized independent parameter vector, shape ``(n_variables,)`` for a
+            single point or ``(m, n_variables)`` for a population.
+        tol : float
+            Tolerance applied to bounds and inequality constraints (inclusive).
+        tol_eq : float
+            Tolerance applied to equality constraints.
+
+        Returns
+        -------
+        bool or np.ndarray of bool
+            Scalar for a single point; 1-D boolean array for a population.
+        """
+        x_arr = np.asarray(x, dtype=float)
+        population = x_arr.ndim == 2
+        rows = x_arr if population else x_arr[np.newaxis, :]
+        results = [
+            self._space.validate_x(self.get_dependent_values(row), tol=tol, tol_eq=tol_eq)
+            for row in rows
+        ]
+        if population:
+            return np.array(results)
+        return results[0]
 
     # ── Misc ──────────────────────────────────────────────────────────────────
 

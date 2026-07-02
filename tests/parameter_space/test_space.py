@@ -9,6 +9,7 @@ from CADETProcess.parameter_space import (
     LinearEqualityConstraint,
     ParameterSpace,
     RangedParameter,
+    TransformedSpace,
 )
 
 # ── fixtures ──────────────────────────────────────────────────────────────────
@@ -261,10 +262,11 @@ def test_check_bounds_normalized(space_with_column):
     space_with_column.add_parameter(
         RangedParameter("a", float, lb=0.0, ub=10.0, normalization="linear")
     )
+    ts = TransformedSpace(space_with_column)
     # 0.5 normalized → 5.0 physical, which is within [0, 10]
-    assert space_with_column.check_bounds([0.5], normalized=True) is True
+    assert ts.check_bounds([0.5]) is True
     # 1.5 normalized → 15.0 physical, which is outside [0, 10]
-    assert space_with_column.check_bounds([1.5], normalized=True) is False
+    assert ts.check_bounds([1.5]) is False
 
 
 # ── normalization ─────────────────────────────────────────────────────────────
@@ -302,7 +304,7 @@ def test_set_values_normalized(space_with_column, column):
         RangedParameter("length", float, lb=0.0, ub=1.0, normalization="linear"),
         path="length",
     )
-    space_with_column.set_values([1.0], normalized=True)  # 1.0 normalized → 1.0 physical
+    space_with_column.set_values([1.0], denormalize=True)  # 1.0 normalized → 1.0 physical
     assert column.length == pytest.approx(1.0)
 
 
@@ -463,3 +465,110 @@ def test_evaluate_linear_equality_constraints_violated(space_with_lineqcon):
     cv = space_with_lineqcon.evaluate_linear_equality_constraints([0.3, 0.5])
     # 0.3 + 0.5 - 1.0 = -0.2
     assert cv == pytest.approx([-0.2])
+
+
+# ── get_dependent_values ──────────────────────────────────────────────────────
+
+
+@pytest.fixture
+def space_with_dependent(column):
+    space = ParameterSpace()
+    space.add_evaluation_object(column)
+    a = RangedParameter("a", float, lb=0.0, ub=10.0)
+    b = RangedParameter("b", float, lb=0.0, ub=5.0)
+    space.add_parameter(a)
+    space.add_parameter(b)
+    space.add_dependency(b, [a], transform=lambda x: x * 0.5)
+    return space
+
+
+def test_get_dependent_values_shape(space_with_dependent):
+    x_full = space_with_dependent.get_dependent_values([4.0])
+    assert x_full.shape == (2,)
+
+
+def test_get_dependent_values_resolves_correctly(space_with_dependent):
+    x_full = space_with_dependent.get_dependent_values([4.0])
+    np.testing.assert_allclose(x_full, [4.0, 2.0])
+
+
+def test_get_dependent_values_wrong_length_raises(space_with_dependent):
+    with pytest.raises(ValueError):
+        space_with_dependent.get_dependent_values([1.0, 2.0])
+
+
+# ── check_bounds with resolve_dependencies ────────────────────────────────────
+
+
+def test_check_bounds_resolve_dependencies(space_with_dependent):
+    # Independent x=4.0 → b=2.0; both within bounds
+    assert space_with_dependent.check_bounds([4.0], resolve_dependencies=True) is True
+
+
+def test_check_bounds_resolve_dependencies_violation(space_with_dependent):
+    # Independent x=8.0 → b=4.0 (within b's [0,5]) but a=8.0 within [0,10]: still valid
+    assert space_with_dependent.check_bounds([8.0], resolve_dependencies=True) is True
+
+
+def test_check_bounds_full_vector_directly(space_with_dependent):
+    assert space_with_dependent.check_bounds([4.0, 2.0]) is True
+    assert space_with_dependent.check_bounds([4.0, 6.0]) is False  # b > 5.0
+
+
+# ── validate_x ───────────────────────────────────────────────────────────────
+
+
+@pytest.fixture
+def space_two_vars(column):
+    space = ParameterSpace()
+    space.add_evaluation_object(column)
+    a = RangedParameter("a", float, lb=0.0, ub=1.0)
+    b = RangedParameter("b", float, lb=0.0, ub=1.0)
+    space.add_parameter(a)
+    space.add_parameter(b)
+    return space, a, b
+
+
+def test_validate_x_valid(space_two_vars):
+    space, _, _ = space_two_vars
+    assert space.validate_x([0.5, 0.5]) is True
+
+
+def test_validate_x_bounds_violation_warns_and_returns_false(space_two_vars):
+    space, _, _ = space_two_vars
+    with pytest.warns(UserWarning, match="bounds"):
+        result = space.validate_x([1.5, 0.5])
+    assert result is False
+
+
+def test_validate_x_linear_inequality_violation(space_two_vars):
+    space, a, b = space_two_vars
+    space.add_linear_constraint(LinearConstraint([a, b], lhs=[1.0, 1.0], b=1.0))
+    with pytest.warns(UserWarning, match="inequality"):
+        result = space.validate_x([0.6, 0.6])
+    assert result is False
+
+
+def test_validate_x_linear_equality_violation(space_two_vars):
+    space, a, b = space_two_vars
+    space.add_linear_equality_constraint(
+        LinearEqualityConstraint([a, b], lhs=[1.0, 1.0], b=1.0)
+    )
+    with pytest.warns(UserWarning, match="equality"):
+        result = space.validate_x([0.3, 0.5])
+    assert result is False
+
+
+def test_validate_x_population_returns_bool_array(space_two_vars):
+    space, _, _ = space_two_vars
+    x = np.array([[0.5, 0.5], [1.5, 0.5]])
+    with pytest.warns(UserWarning):
+        result = space.validate_x(x)
+    assert result.dtype == bool
+    assert result[0] is np.bool_(True)
+    assert result[1] is np.bool_(False)
+
+
+def test_validate_x_resolve_dependencies(space_with_dependent):
+    # Independent x=4.0 → b=2.0; both within bounds: valid
+    assert space_with_dependent.validate_x([4.0], resolve_dependencies=True) is True
