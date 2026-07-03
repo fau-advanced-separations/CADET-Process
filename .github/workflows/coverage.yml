@@ -30,7 +30,7 @@ jobs:
       CONDA_FILE: environment.yml
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Get Date
         id: get-date
@@ -38,7 +38,7 @@ jobs:
         shell: bash
 
       - name: Setup Conda Environment
-        uses: conda-incubator/setup-miniconda@v3
+        uses: conda-incubator/setup-miniconda@v4
         with:
           miniforge-version: latest
           use-mamba: true

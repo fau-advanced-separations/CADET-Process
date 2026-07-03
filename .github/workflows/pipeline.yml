@@ -30,7 +30,7 @@ jobs:
       CONDA_FILE: environment.yml
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Get Date
         id: get-date
@@ -38,14 +38,14 @@ jobs:
         shell: bash
 
       - name: Setup Conda Environment
-        uses: conda-incubator/setup-miniconda@v3
+        uses: conda-incubator/setup-miniconda@v4
         with:
           miniforge-version: latest
           activate-environment: cadet-process
           channels: conda-forge
 
       - name: Cache conda
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         env:
           # Increase this value to reset cache if environment.yml has not changed
           CACHE_NUMBER: 0
