@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import numpy as np
 import pytest
 from CADETProcess.parameter_space import (
+    ChoiceParameter,
     LinearConstraint,
     LinearEqualityConstraint,
     ParameterSpace,
@@ -205,6 +206,117 @@ def test_set_values_roundtrip(column):
     ts.set_values([0.3, 0.7])
     assert column.length == pytest.approx(3.0)
     assert column.diameter == pytest.approx(0.7)
+
+
+# ── encode / decode ───────────────────────────────────────────────────────────
+
+
+def _mixed_type_space(column):
+    """Numeric, integer, and categorical parameters in registration order."""
+    space = _two_param_space(column)
+    space.add_parameter(ChoiceParameter("resin", valid_values=["A", "B"]))
+    space.add_parameter(RangedParameter("n_plates", int, lb=1, ub=100))
+    return space
+
+
+def _dependent_space(column):
+    space = _two_param_space(column)
+    length, diameter = space.independent_parameters
+    space.add_dependency(diameter, [length], lambda le: le / 10.0)
+    return space
+
+
+def test_encode_decode_roundtrip_numeric(column):
+    ts = TransformedSpace(_two_param_space(column))
+    assignment = {"length": 3.0, "diameter": 0.7}
+    np.testing.assert_array_equal(ts.encode(assignment), [3.0, 0.7])
+    assert ts.decode(ts.encode(assignment)) == assignment
+
+
+def test_encode_orders_by_registration(column):
+    ts = TransformedSpace(_two_param_space(column))
+    np.testing.assert_array_equal(
+        ts.encode({"diameter": 0.7, "length": 3.0}), [3.0, 0.7]
+    )
+
+
+def test_encode_drops_categorical_and_dependent_names(column):
+    ts = TransformedSpace(_mixed_type_space(column))
+    x = ts.encode({"length": 3.0, "diameter": 0.7, "n_plates": 30, "resin": "A"})
+    np.testing.assert_array_equal(x, [3.0, 0.7, 30.0])
+
+    ts_dep = TransformedSpace(_dependent_space(column))
+    x_dep = ts_dep.encode({"length": 3.0, "diameter": 0.3})
+    np.testing.assert_array_equal(x_dep, [3.0])
+
+
+def test_encode_unknown_name_raises(column):
+    ts = TransformedSpace(_two_param_space(column))
+    with pytest.raises(ValueError, match="Unknown parameter names"):
+        ts.encode({"length": 3.0, "diameter": 0.7, "porosity": 0.4})
+
+
+def test_encode_missing_numeric_name_raises(column):
+    ts = TransformedSpace(_two_param_space(column))
+    with pytest.raises(ValueError, match="diameter"):
+        ts.encode({"length": 3.0})
+
+
+def test_decode_names_positions_by_registration(column):
+    ts = TransformedSpace(_two_param_space(column))
+    assert ts.decode([3.0, 0.7]) == {"length": 3.0, "diameter": 0.7}
+
+
+def test_decode_rounds_integer_positions(column):
+    ts = TransformedSpace(_mixed_type_space(column))
+    assignment = ts.decode([3.0, 0.7, 29.6], categorical_values={"resin": "B"})
+    assert assignment["n_plates"] == 30
+    assert assignment["length"] == pytest.approx(3.0)
+
+
+def test_decode_returns_canonical_python_types(column):
+    # the named assignment is the canonical representation, so it carries
+    # canonical types: int for integer parameters, float for continuous ones,
+    # no numpy scalars
+    ts = TransformedSpace(_mixed_type_space(column))
+    assignment = ts.decode(
+        np.array([3.0, 0.7, 29.6]), categorical_values={"resin": "B"}
+    )
+    assert type(assignment["n_plates"]) is int
+    assert type(assignment["length"]) is float
+    assert type(assignment["diameter"]) is float
+
+
+def test_decode_length_mismatch_raises(column):
+    ts = TransformedSpace(_two_param_space(column))
+    with pytest.raises(ValueError, match="Expected 2 numeric values"):
+        ts.decode([3.0])
+
+
+def test_decode_without_categorical_values_raises(column):
+    ts = TransformedSpace(_mixed_type_space(column))
+    with pytest.raises(ValueError, match="resin"):
+        ts.decode([3.0, 0.7, 30.0])
+
+
+def test_decode_merges_categoricals_in_registration_order(column):
+    ts = TransformedSpace(_mixed_type_space(column))
+    assignment = ts.decode([3.0, 0.7, 30.0], categorical_values={"resin": "B"})
+    assert assignment == {
+        "length": 3.0, "diameter": 0.7, "resin": "B", "n_plates": 30.0
+    }
+    assert list(assignment) == ["length", "diameter", "resin", "n_plates"]
+
+
+def test_decode_unknown_categorical_name_raises(column):
+    ts = TransformedSpace(_two_param_space(column))
+    with pytest.raises(ValueError, match="Unknown categorical parameter names"):
+        ts.decode([3.0, 0.7], categorical_values={"resin": "A"})
+
+
+def test_decode_excludes_dependent_parameters(column):
+    ts = TransformedSpace(_dependent_space(column))
+    assert ts.decode([3.0]) == {"length": 3.0}
 
 
 # ── delegation ────────────────────────────────────────────────────────────────
