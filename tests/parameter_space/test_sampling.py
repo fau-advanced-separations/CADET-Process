@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import numpy as np
 import pytest
 from CADETProcess.parameter_space import (
+    ChoiceParameter,
     LinearConstraint,
     ParameterSpace,
     RangedParameter,
@@ -80,16 +81,17 @@ def test_A_includes_derived_parameter_column(column):
     np.testing.assert_allclose(space.A_independent, [[1.0]])
 
 
-# ── sample: shape ─────────────────────────────────────────────────────────────
+# ── sample: assignments ───────────────────────────────────────────────────────
 
 
-def test_sample_shape_independent_only(column):
+def test_sample_returns_independent_assignments(column):
     space = _space_1d(column)
     samples = space.sample(5, seed=0, pool_size=BURN_IN)
-    assert samples.shape == (5, 1)
+    assert len(samples) == 5
+    assert all(list(s) == ["length"] for s in samples)
 
 
-def test_sample_shape_include_derived(column):
+def test_sample_include_dependent_returns_full_assignments(column):
     space = ParameterSpace()
     space.add_evaluation_object(column)
     a = RangedParameter("a", float, lb=0.0, ub=5.0)
@@ -98,13 +100,13 @@ def test_sample_shape_include_derived(column):
     space.add_parameter(b, path="diameter")
     space.add_dependency(b, [a], transform=lambda x: x * 2)
     samples = space.sample(3, seed=0, pool_size=BURN_IN, include_dependent=True)
-    assert samples.shape == (3, 2)  # a + b
+    assert all(list(s) == ["a", "b"] for s in samples)
 
 
-def test_sample_two_params(column):
+def test_sample_assignments_ordered_by_registration(column):
     space = _space_2d(column)
     samples = space.sample(10, seed=1, pool_size=BURN_IN)
-    assert samples.shape == (10, 2)
+    assert all(list(s) == ["length", "diameter"] for s in samples)
 
 
 # ── sample: values within bounds ─────────────────────────────────────────────
@@ -113,14 +115,14 @@ def test_sample_two_params(column):
 def test_sample_values_within_bounds(column):
     space = _space_2d(column)
     samples = space.sample(20, seed=2, pool_size=BURN_IN)
-    assert np.all(samples[:, 0] >= 0.0) and np.all(samples[:, 0] <= 5.0)
-    assert np.all(samples[:, 1] >= 0.0) and np.all(samples[:, 1] <= 2.0)
+    assert all(0.0 <= s["length"] <= 5.0 for s in samples)
+    assert all(0.0 <= s["diameter"] <= 2.0 for s in samples)
 
 
 def test_sample_1d_within_bounds(column):
     space = _space_1d(column)
     samples = space.sample(10, seed=3, pool_size=BURN_IN)
-    assert np.all(samples >= 1.0) and np.all(samples <= 10.0)
+    assert all(1.0 <= s["length"] <= 10.0 for s in samples)
 
 
 # ── sample: derived parameters ────────────────────────────────────────────────
@@ -135,8 +137,9 @@ def test_sample_derived_value_correct(column):
     space.add_parameter(b, path="diameter")
     space.add_dependency(b, [a], transform=lambda x: x * 2)
     samples = space.sample(5, seed=4, pool_size=BURN_IN, include_dependent=True)
-    # column b = a * 2
-    np.testing.assert_allclose(samples[:, 1], samples[:, 0] * 2)
+    np.testing.assert_allclose(
+        [s["b"] for s in samples], [s["a"] * 2 for s in samples]
+    )
 
 
 def test_sample_derived_infeasible_filtered(column):
@@ -150,7 +153,43 @@ def test_sample_derived_infeasible_filtered(column):
     space.add_dependency(b, [a], transform=lambda x: x * 3)
     samples = space.sample(5, seed=5, pool_size=BURN_IN, include_dependent=False)
     # all independent values must satisfy a * 3 <= 6 → a <= 2
-    assert np.all(samples[:, 0] <= 2.0 + 1e-9)
+    assert all(s["a"] <= 2.0 + 1e-9 for s in samples)
+
+
+# ── sample: typed parameters ──────────────────────────────────────────────────
+
+
+def test_sample_integer_values_are_whole_numbers(column):
+    space = ParameterSpace()
+    space.add_evaluation_object(column)
+    space.add_parameter(RangedParameter("n", int, lb=1, ub=100), path="length")
+    samples = space.sample(10, seed=6, pool_size=BURN_IN)
+    assert all(s["n"] == round(s["n"]) for s in samples)
+    assert all(1 <= s["n"] <= 100 for s in samples)
+
+
+def test_sample_categorical_draws_from_valid_values(column):
+    space = ParameterSpace()
+    space.add_evaluation_object(column)
+    space.add_parameter(
+        RangedParameter("length", float, lb=0.0, ub=5.0), path="length"
+    )
+    space.add_parameter(ChoiceParameter("mode", ["gradient", "isocratic"]))
+    samples = space.sample(20, seed=7, pool_size=BURN_IN)
+    assert all(s["mode"] in ("gradient", "isocratic") for s in samples)
+    assert all(list(s) == ["length", "mode"] for s in samples)
+    # both categories appear over 20 draws (deterministic for the fixed seed)
+    assert {s["mode"] for s in samples} == {"gradient", "isocratic"}
+
+
+def test_sample_categorical_only_numeric_dimensions_in_polytope(column):
+    # A purely categorical space has an empty numeric polytope; the draw
+    # must still produce valid assignments.
+    space = ParameterSpace()
+    space.add_evaluation_object(column)
+    space.add_parameter(ChoiceParameter("mode", ["a", "b"]))
+    samples = space.sample(5, seed=8, pool_size=100)
+    assert all(s["mode"] in ("a", "b") for s in samples)
 
 
 # ── sample: reproducibility ───────────────────────────────────────────────────
@@ -160,7 +199,7 @@ def test_sample_same_seed_reproducible(column):
     space = _space_1d(column)
     s1 = space.sample(5, seed=42, pool_size=BURN_IN)
     s2 = space.sample(5, seed=42, pool_size=BURN_IN)
-    np.testing.assert_array_equal(s1, s2)
+    assert s1 == s2
 
 
 # ── sample: exhausted budget raises ───────────────────────────────────────────
