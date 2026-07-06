@@ -40,6 +40,7 @@ must be followed by post-hoc validation via ``set_values``.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 import numpy as np
@@ -136,6 +137,123 @@ class TransformedSpace:
         globally comparable.
         """
         return self._space.normalize(self._space.upper_bounds_independent)
+
+    # ── Vectorization ─────────────────────────────────────────────────────────
+
+    @property
+    def _numeric_independent_parameters(self) -> list[RangedParameter]:
+        """Independent numeric parameters, in registration order."""
+        return [
+            p for p in self._space.independent_parameters
+            if isinstance(p, RangedParameter)
+        ]
+
+    def encode(self, assignment: Mapping[str, Any]) -> np.ndarray:
+        """Project a named assignment onto the numeric parameter vector.
+
+        The vector spans the independent numeric parameters in registration
+        order.  Dependent and categorical parameters have no vector position;
+        their entries are dropped (``encode`` is a lossy projection).
+
+        Parameters
+        ----------
+        assignment : Mapping
+            Named values in physical units.  Must contain every independent
+            numeric parameter; registered dependent or categorical names are
+            ignored.
+
+        Returns
+        -------
+        np.ndarray
+            Values of the independent numeric parameters, in physical units.
+
+        Raises
+        ------
+        ValueError
+            If the assignment contains unknown names or misses an independent
+            numeric parameter.
+        """
+        known = {p.name for p in self._space.parameters}
+        unknown = [name for name in assignment if name not in known]
+        if unknown:
+            raise ValueError(f"Unknown parameter names: {unknown!r}.")
+        numeric = self._numeric_independent_parameters
+        missing = [p.name for p in numeric if p.name not in assignment]
+        if missing:
+            raise ValueError(
+                f"Assignment misses independent numeric parameters: {missing!r}."
+            )
+        return np.array([float(assignment[p.name]) for p in numeric])
+
+    def decode(
+        self,
+        x_num: npt.ArrayLike,
+        categorical_values: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Embed a numeric parameter vector into a named assignment.
+
+        The returned assignment carries canonical Python types: ``int`` for
+        integer parameters (rounded), ``float`` for continuous ones, plus the
+        caller-supplied categorical values.  When the space contains
+        categorical parameters, the assignment cannot be reconstructed from
+        the vector alone; *categorical_values* must supply every categorical
+        parameter.
+
+        Parameters
+        ----------
+        x_num : array-like
+            Values of the independent numeric parameters in **physical** units,
+            in registration order.
+        categorical_values : Mapping, optional
+            Values for the categorical parameters.  Required when the space
+            contains categorical parameters; must cover exactly those.
+
+        Returns
+        -------
+        dict
+            Named physical assignment of the independent parameters, ordered
+            by registration.
+
+        Raises
+        ------
+        ValueError
+            If the vector length does not match the number of independent
+            numeric parameters, if *categorical_values* contains unknown names,
+            or if it misses a categorical parameter (including the case where
+            the space has categorical parameters and *categorical_values* is
+            None).
+        """
+        numeric = self._numeric_independent_parameters
+        x = np.asarray(x_num, dtype=float).ravel()
+        if x.size != len(numeric):
+            raise ValueError(
+                f"Expected {len(numeric)} numeric values, got {x.size}."
+            )
+        categorical = self._space.categorical_parameters
+        categorical_names = {p.name for p in categorical}
+        if categorical_values is None:
+            categorical_values = {}
+        unknown = [n for n in categorical_values if n not in categorical_names]
+        if unknown:
+            raise ValueError(f"Unknown categorical parameter names: {unknown!r}.")
+        missing = [p.name for p in categorical if p.name not in categorical_values]
+        if missing:
+            raise ValueError(
+                f"Values for categorical parameters {missing!r} are required; "
+                "they have no position in the numeric vector."
+            )
+        numeric_values = {
+            p.name: int(np.round(v)) if p.parameter_type is int else float(v)
+            for p, v in zip(numeric, x)
+        }
+        return {
+            p.name: (
+                categorical_values[p.name]
+                if p.name in categorical_names
+                else numeric_values[p.name]
+            )
+            for p in self._space.independent_parameters
+        }
 
     # ── Constraint matrices ───────────────────────────────────────────────────
 
