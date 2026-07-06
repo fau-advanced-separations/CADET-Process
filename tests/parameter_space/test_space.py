@@ -20,6 +20,7 @@ class Column:
     length: float = 0.1
     diameter: float = 0.01
     ncol: int = 10
+    mode: str = "gradient"
 
 
 @dataclass
@@ -74,14 +75,14 @@ def test_evaluation_objects_preserves_insertion_order(column, feed):
 def test_add_parameter_with_path_writes(space_with_column, column):
     p = RangedParameter("length", float, lb=0.0, ub=1.0)
     space_with_column.add_parameter(p, path="length")
-    space_with_column.set_values([0.5])
+    space_with_column.set_values({"length": 0.5})
     assert column.length == pytest.approx(0.5)
 
 
 def test_add_parameter_no_mapper(space_with_column):
     p = RangedParameter("length", float, lb=0.0, ub=1.0)
     space_with_column.add_parameter(p)  # no path or mapper — valid, no write
-    space_with_column.set_values([0.5])  # should not raise
+    space_with_column.set_values({"length": 0.5})  # should not raise
 
 
 def test_add_parameter_duplicate_name_raises(space_with_column):
@@ -120,7 +121,7 @@ def test_add_parameter_subset_of_evaluation_objects(column, feed):
     space.add_evaluation_object(feed)
     p = RangedParameter("length", float, lb=0.0, ub=1.0)
     space.add_parameter(p, path="length", evaluation_objects=[column])
-    space.set_values([0.7])
+    space.set_values({"length": 0.7})
     assert column.length == pytest.approx(0.7)
     assert feed.duration == pytest.approx(60.0)  # untouched
 
@@ -138,7 +139,7 @@ def test_add_parameter_with_callable(space_with_column, column):
     space_with_column.add_parameter_with_callable(
         p, fn=lambda obj, v: calls.append((obj, v))
     )
-    space_with_column.set_values([0.3])
+    space_with_column.set_values({"length": 0.3})
     assert calls == [(column, 0.3)]
 
 
@@ -175,7 +176,7 @@ def test_dependency_resolves_correctly(space_with_column, column):
     space_with_column.add_parameter(b)
     space_with_column.add_parameter(c, path="length")
     space_with_column.add_dependency(c, [a, b], transform=lambda x, y: x + y)
-    space_with_column.set_values([3.0, 4.0])
+    space_with_column.set_values({"a": 3.0, "b": 4.0})
     assert column.length == pytest.approx(7.0)
 
 
@@ -191,7 +192,7 @@ def test_dependency_chain(space_with_column, column):
     d = space_with_column.parameters[-1]
     space_with_column.add_dependency(b, [a], transform=lambda x: x * 2)
     space_with_column.add_dependency(d, [b], transform=lambda x: x + 1)
-    space_with_column.set_values([3.0, 0.0])
+    space_with_column.set_values({"a": 3.0, "c": 0.0})
     assert column.length == pytest.approx(7.0)  # b=6, d=7
 
 
@@ -298,30 +299,101 @@ def test_set_values_writes_to_object(space_with_column, column):
     space_with_column.add_parameter(
         RangedParameter("length", float, lb=0.0, ub=1.0), path="length"
     )
-    space_with_column.set_values([0.42])
+    space_with_column.set_values({"length": 0.42})
     assert column.length == pytest.approx(0.42)
 
 
-def test_set_values_normalized(space_with_column, column):
+def test_set_values_normalized_path_composes_through_decode(space_with_column, column):
     space_with_column.add_parameter(
-        RangedParameter("length", float, lb=0.0, ub=1.0, normalization="linear"),
+        RangedParameter("length", float, lb=0.0, ub=4.0, normalization="linear"),
         path="length",
     )
-    space_with_column.set_values([1.0], denormalize=True)  # 1.0 normalized → 1.0 physical
-    assert column.length == pytest.approx(1.0)
+    ts = space_with_column.transformed_space
+    # 0.5 normalized → 2.0 physical
+    space_with_column.set_values(ts.decode(space_with_column.denormalize([0.5])))
+    assert column.length == pytest.approx(2.0)
+
+
+def test_set_values_rejects_vector_pointing_at_decode(space_with_column):
+    space_with_column.add_parameter(RangedParameter("a", float, lb=0.0, ub=1.0))
+    with pytest.raises(TypeError, match="decode"):
+        space_with_column.set_values([0.5])
+
+
+def test_set_values_is_order_insensitive(space_with_column, column):
+    space_with_column.add_parameter(
+        RangedParameter("length", float, lb=0.0, ub=1.0), path="length"
+    )
+    space_with_column.add_parameter(
+        RangedParameter("diameter", float, lb=0.0, ub=1.0), path="diameter"
+    )
+    space_with_column.set_values({"diameter": 0.02, "length": 0.5})
+    assert column.length == pytest.approx(0.5)
+    assert column.diameter == pytest.approx(0.02)
+
+
+def test_set_values_unknown_name_raises(space_with_column):
+    space_with_column.add_parameter(RangedParameter("a", float, lb=0.0, ub=1.0))
+    with pytest.raises(ValueError, match="Unknown parameter names"):
+        space_with_column.set_values({"a": 0.5, "porosity": 0.4})
+
+
+def test_set_values_missing_independent_raises(space_with_column):
+    space_with_column.add_parameter(RangedParameter("a", float, lb=0.0, ub=1.0))
+    space_with_column.add_parameter(RangedParameter("b", float, lb=0.0, ub=1.0))
+    with pytest.raises(ValueError, match="misses independent"):
+        space_with_column.set_values({"a": 0.5})
+
+
+def test_set_values_supplied_dependent_value_raises(space_with_column):
+    a = RangedParameter("a", float, lb=0.0, ub=10.0)
+    b = RangedParameter("b", float, lb=0.0, ub=10.0)
+    space_with_column.add_parameter(a)
+    space_with_column.add_parameter(b)
+    space_with_column.add_dependency(b, [a], transform=lambda x: x * 0.5)
+    with pytest.raises(ValueError, match="dependent"):
+        space_with_column.set_values({"a": 4.0, "b": 2.0})
+
+
+def test_set_values_writes_categorical_through_mapper(space_with_column, column):
+    space_with_column.add_parameter(
+        ChoiceParameter("mode", ["gradient", "isocratic"]), path="mode"
+    )
+    space_with_column.set_values({"mode": "isocratic"})
+    assert column.mode == "isocratic"
+
+
+def test_set_values_invalid_categorical_choice_raises(space_with_column):
+    space_with_column.add_parameter(
+        ChoiceParameter("mode", ["gradient", "isocratic"]), path="mode"
+    )
+    with pytest.raises(ValueError, match="must be one of"):
+        space_with_column.set_values({"mode": "step"})
+
+
+def test_set_values_mixed_types_write_together(space_with_column, column):
+    space_with_column.add_parameter(
+        RangedParameter("length", float, lb=0.0, ub=1.0), path="length"
+    )
+    space_with_column.add_parameter(
+        ChoiceParameter("mode", ["gradient", "isocratic"]), path="mode"
+    )
+    space_with_column.set_values({"length": 0.25, "mode": "gradient"})
+    assert column.length == pytest.approx(0.25)
+    assert column.mode == "gradient"
 
 
 def test_set_values_validate_bounds_raises_on_violation(space_with_column):
     space_with_column.add_parameter(RangedParameter("a", float, lb=0.0, ub=1.0))
     with pytest.raises(ValueError, match="bound"):
-        space_with_column.set_values([1.5], validate_bounds=True)
+        space_with_column.set_values({"a": 1.5}, validate_bounds=True)
 
 
 def test_set_values_integer_whole_number_float(space_with_column, column):
     space_with_column.add_parameter(
         RangedParameter("ncol", int, lb=1, ub=100), path="ncol"
     )
-    space_with_column.set_values([50.0])
+    space_with_column.set_values({"ncol": 50.0})
     assert column.ncol == 50
     assert type(column.ncol) is int
 
@@ -331,7 +403,7 @@ def test_set_values_integer_not_rounded(space_with_column):
         RangedParameter("ncol", int, lb=1, ub=100), path="ncol"
     )
     with pytest.raises(TypeError):
-        space_with_column.set_values([50.7])
+        space_with_column.set_values({"ncol": 50.7})
 
 
 def test_set_values_validate_catches_derived_out_of_bounds(space_with_column, column):
@@ -341,7 +413,54 @@ def test_set_values_validate_catches_derived_out_of_bounds(space_with_column, co
     space_with_column.add_parameter(b, path="length")
     space_with_column.add_dependency(b, [a], transform=lambda x: x * 2)
     with pytest.raises(ValueError, match="outside"):
-        space_with_column.set_values([4.0])  # b = 8.0 > 5.0
+        space_with_column.set_values({"a": 4.0})  # b = 8.0 > 5.0
+
+
+# ── resolve ───────────────────────────────────────────────────────────────────
+
+
+def test_resolve_returns_registration_ordered_full_assignment(space_with_dependent):
+    resolved = space_with_dependent.resolve({"a": 4.0})
+    assert resolved == {"a": 4.0, "b": 2.0}
+    assert list(resolved) == ["a", "b"]
+
+
+def test_resolve_is_order_insensitive(space_two_vars):
+    space, _, _ = space_two_vars
+    assert list(space.resolve({"b": 0.7, "a": 0.3})) == ["a", "b"]
+
+
+def test_resolve_unknown_name_raises(space_with_dependent):
+    with pytest.raises(ValueError, match="Unknown parameter names"):
+        space_with_dependent.resolve({"a": 4.0, "z": 1.0})
+
+
+def test_resolve_missing_independent_raises(space_two_vars):
+    space, _, _ = space_two_vars
+    with pytest.raises(ValueError, match="'b'"):
+        space.resolve({"a": 0.5})
+
+
+def test_resolve_supplied_dependent_value_raises(space_with_dependent):
+    with pytest.raises(ValueError, match="dependent"):
+        space_with_dependent.resolve({"a": 4.0, "b": 2.0})
+
+
+def test_resolve_rejects_vector_pointing_at_decode(space_two_vars):
+    space, _, _ = space_two_vars
+    with pytest.raises(TypeError, match="decode"):
+        space.resolve([0.5, 0.5])
+
+
+def test_resolve_dependency_chain(space_with_column):
+    a = RangedParameter("a", float, lb=0.0, ub=10.0)
+    b = RangedParameter("b", float, lb=0.0, ub=20.0)
+    c = RangedParameter("c", float, lb=0.0, ub=40.0)
+    for p in (a, b, c):
+        space_with_column.add_parameter(p)
+    space_with_column.add_dependency(b, [a], transform=lambda x: x * 2)
+    space_with_column.add_dependency(c, [b], transform=lambda x: x + 1)
+    assert space_with_column.resolve({"a": 3.0}) == {"a": 3.0, "b": 6.0, "c": 7.0}
 
 
 # ── typed parameter subsets ──────────────────────────────────────────────────

@@ -366,7 +366,11 @@ class TransformedSpace:
         tol : float or array-like
             Tolerance passed to ``check_bounds`` when *validate_bounds* is True.
         """
-        self._space.set_values(x, denormalize=True, validate_bounds=validate_bounds, tol=tol)
+        self._space.set_values(
+            self.decode(self._space.denormalize(x)),
+            validate_bounds=validate_bounds,
+            tol=tol,
+        )
 
     def get_dependent_values(self, x: npt.ArrayLike) -> np.ndarray:
         """Expand normalized independent values to the full physical parameter vector.
