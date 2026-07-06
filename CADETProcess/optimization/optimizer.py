@@ -99,6 +99,7 @@ class OptimizerBase(Structure):
     supports_bounds = False
     supports_integer_variables = False
     supports_categorical_variables = False
+    supports_unbounded_parameters = False
 
     ignore_linear_constraints_config = False
 
@@ -252,6 +253,15 @@ class OptimizerBase(Structure):
         else:
             callbacks_dir = None
         self.callbacks_dir = callbacks_dir
+
+        if x0 is None and self.supports_unbounded_parameters and (
+            np.any(np.isinf(optimization_problem.lower_bounds_independent))
+            or np.any(np.isinf(optimization_problem.upper_bounds_independent))
+        ):
+            raise ValueError(
+                "x0 must be provided explicitly when the optimization problem has "
+                "unbounded parameters; the sampler cannot draw initial values."
+            )
 
         if x0 is not None:
             flag, x0 = self.check_x0(optimization_problem, x0)
@@ -434,6 +444,16 @@ class OptimizerBase(Structure):
                 "Optimizer does not support categorical variables."
             )
             flag = False
+
+        if np.any(np.isinf(optimization_problem.lower_bounds_independent)) or np.any(
+            np.isinf(optimization_problem.upper_bounds_independent)
+        ):
+            if not self.supports_unbounded_parameters:
+                warnings.warn(
+                    "Optimizer does not support unbounded parameters. "
+                    "Set lb/ub on all variables."
+                )
+                flag = False
 
         return flag
 

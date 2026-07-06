@@ -1028,6 +1028,41 @@ def test_optimizer_rejects_categorical_variables():
     assert any("categorical" in str(warning.message).lower() for warning in w)
 
 
+def test_optimizer_rejects_unbounded_parameters():
+    from CADETProcess.optimization.scipyAdapter import NelderMead
+
+    op = OptimizationProblem("unbound_reject", use_diskcache=False)
+    op.add_variable("x", lb=0, ub=float("inf"), evaluation_objects=None)
+    op.add_objective(lambda x: x[0])
+
+    optimizer = NelderMead()
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        result = optimizer.check_optimization_problem(op)
+    assert not result
+    assert any("unbounded" in str(warning.message).lower() for warning in w)
+
+
+def test_optimizer_supporting_unbounded_requires_x0():
+    from CADETProcess.optimization.optimizer import OptimizerBase
+
+    class UnboundedOptimizer(OptimizerBase):
+        supports_single_objective = True
+        supports_bounds = True
+        supports_unbounded_parameters = True
+
+        def _run(self, op, x0, *args, **kwargs):
+            pass
+
+    op = OptimizationProblem("unbound_x0", use_diskcache=False)
+    op.add_variable("x", lb=0, ub=float("inf"), evaluation_objects=None)
+    op.add_objective(lambda x: x[0])
+
+    optimizer = UnboundedOptimizer()
+    with pytest.raises(ValueError, match="x0 must be provided"):
+        optimizer.optimize(op, x0=None)
+
+
 # ── Multi-criteria decision functions ─────────────────────────────────────────
 
 
