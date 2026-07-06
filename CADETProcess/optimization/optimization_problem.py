@@ -1685,7 +1685,9 @@ class OptimizationProblem:
         eval_objs = self._space.evaluation_objects
         if all_ev_names and eval_objs:
             try:
-                outputs = self._pipeline.evaluate(x, targets=all_ev_names)
+                outputs = self._pipeline.evaluate(
+                    self._space.transformed_space.decode(x), targets=all_ev_names
+                )
             except CADETProcessError as e:
                 self.logger.warning(
                     "Evaluation failed at x=%s: %s. Returning bad metrics.", x, e
@@ -2139,7 +2141,8 @@ class OptimizationProblem:
                 sig = {}
             for individual in population:
                 x_ind = self.untransform(individual.x_transformed)
-                self._space.set_values(self._space.transformed_space.decode(x_ind))
+                assignment = self._space.transformed_space.decode(x_ind)
+                self._space.set_values(assignment)
                 # Use the pipeline to get evaluator chain outputs, benefiting
                 # from results already cached during objective/constraint
                 # evaluation for this individual.
@@ -2147,7 +2150,7 @@ class OptimizationProblem:
                 if cb.evaluator_chain and eval_objs:
                     try:
                         ev_outputs = self._pipeline.evaluate(
-                            x_ind, targets=cb.evaluator_chain
+                            assignment, targets=cb.evaluator_chain
                         )
                     except Exception:
                         _logger.debug(

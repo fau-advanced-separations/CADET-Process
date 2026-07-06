@@ -78,7 +78,7 @@ def test_rejects_non_parameter_space():
 def test_evaluate_before_add_evaluator_raises(single_space):
     pipeline = EvaluationPipeline(single_space)
     with pytest.raises(RuntimeError, match="No evaluators"):
-        pipeline.evaluate([])
+        pipeline.evaluate({})
 
 
 def test_output_names_empty_initially(single_space):
@@ -120,7 +120,7 @@ def test_add_evaluator_invalid_output_name_raises(single_space):
 def test_evaluate_single_object_returns_dict(single_space):
     pipeline = EvaluationPipeline(single_space)
     pipeline.add_evaluator(lambda model: model.value * 2, output_name="doubled")
-    results = pipeline.evaluate([])
+    results = pipeline.evaluate({})
     assert isinstance(results, dict)
     assert "doubled" in results
 
@@ -137,7 +137,7 @@ def test_evaluate_passes_set_values_to_model(single_space, model):
     pipeline = EvaluationPipeline(single_space)
     pipeline.add_evaluator(lambda model: model.value, output_name="v")
 
-    results = pipeline.evaluate([0.42])
+    results = pipeline.evaluate({"v": 0.42})
     assert results["v"] == pytest.approx(0.42)
 
 
@@ -163,7 +163,7 @@ def test_evaluate_shared_intermediate_computed_once(single_space):
         requires=["intermediate"],
     )
 
-    pipeline.evaluate([], targets=["doubled", "shifted"])
+    pipeline.evaluate({}, targets=["doubled", "shifted"])
     assert call_count == 1
 
 
@@ -179,8 +179,8 @@ def test_repeated_x_hits_cache(single_space):
     pipeline = EvaluationPipeline(single_space)
     pipeline.add_evaluator(expensive, output_name="result")
 
-    pipeline.evaluate([])
-    pipeline.evaluate([])  # same x — should be a cache hit
+    pipeline.evaluate({})
+    pipeline.evaluate({})  # same x — should be a cache hit
     assert call_count == 1
 
 
@@ -201,10 +201,83 @@ def test_different_x_invalidates_cache(single_space):
     pipeline = EvaluationPipeline(single_space)
     pipeline.add_evaluator(expensive, output_name="result")
 
-    r1 = pipeline.evaluate([0.1])
-    r2 = pipeline.evaluate([0.9])
+    r1 = pipeline.evaluate({"v": 0.1})
+    r2 = pipeline.evaluate({"v": 0.9})
     assert call_count == 2
     assert r1["result"] != r2["result"]
+
+
+def test_evaluate_rejects_vector_pointing_at_decode(single_space):
+    pipeline = EvaluationPipeline(single_space)
+    pipeline.add_evaluator(lambda model: model.value, output_name="v")
+    with pytest.raises(TypeError, match="decode"):
+        pipeline.evaluate([0.5])
+
+
+def test_cache_key_is_order_insensitive(single_space):
+    """Assignments differing only in key order must hit the same cache entry."""
+    from CADETProcess.parameter_space.parameters import RangedParameter
+
+    single_space.add_parameter(RangedParameter("a", float, lb=0.0, ub=1.0))
+    single_space.add_parameter(RangedParameter("b", float, lb=0.0, ub=1.0))
+
+    call_count = 0
+
+    def counting(model):
+        nonlocal call_count
+        call_count += 1
+        return model.value
+
+    pipeline = EvaluationPipeline(single_space)
+    pipeline.add_evaluator(counting, output_name="result")
+
+    pipeline.evaluate({"a": 0.1, "b": 0.2})
+    pipeline.evaluate({"b": 0.2, "a": 0.1})
+    assert call_count == 1
+
+
+def test_distinct_cache_entries_per_categorical_value(single_space):
+    """Assignments differing only in a categorical value must not collide."""
+    from CADETProcess.parameter_space.parameters import ChoiceParameter
+
+    single_space.add_parameter(ChoiceParameter("mode", ["a", "b"]))
+
+    call_count = 0
+
+    def counting(model):
+        nonlocal call_count
+        call_count += 1
+        return model.value
+
+    pipeline = EvaluationPipeline(single_space)
+    pipeline.add_evaluator(counting, output_name="result")
+
+    pipeline.evaluate({"mode": "a"})
+    pipeline.evaluate({"mode": "b"})
+    pipeline.evaluate({"mode": "a"})  # cache hit on the first entry
+    assert call_count == 2
+
+
+def test_same_integer_normalizations_collapse_to_one_entry(single_space):
+    """Numeric inputs that decode to the same integer share one cache entry."""
+    from CADETProcess.parameter_space.parameters import RangedParameter
+
+    single_space.add_parameter(RangedParameter("n", int, lb=1, ub=100), path="value")
+
+    call_count = 0
+
+    def counting(model):
+        nonlocal call_count
+        call_count += 1
+        return model.value
+
+    pipeline = EvaluationPipeline(single_space)
+    pipeline.add_evaluator(counting, output_name="result")
+
+    ts = single_space.transformed_space
+    pipeline.evaluate(ts.decode([29.6]))
+    pipeline.evaluate(ts.decode([30.4]))  # both round to n=30
+    assert call_count == 1
 
 
 def test_evaluate_partial_targets_skips_unneeded_nodes(single_space):
@@ -220,7 +293,7 @@ def test_evaluate_partial_targets_skips_unneeded_nodes(single_space):
     pipeline.add_evaluator(lambda model: model.value, output_name="a")
     pipeline.add_evaluator(side_branch, output_name="b")
 
-    pipeline.evaluate([], targets=["a"])
+    pipeline.evaluate({}, targets=["a"])
     assert not side_branch_called
 
 
@@ -228,7 +301,7 @@ def test_evaluate_unknown_target_raises(single_space):
     pipeline = EvaluationPipeline(single_space)
     pipeline.add_evaluator(lambda model: model.value, output_name="a")
     with pytest.raises(ValueError, match="Unknown target"):
-        pipeline.evaluate([], targets=["nonexistent"])
+        pipeline.evaluate({}, targets=["nonexistent"])
 
 
 # ── evaluate: multiple evaluation objects ────────────────────────────────────
@@ -237,7 +310,7 @@ def test_evaluate_unknown_target_raises(single_space):
 def test_evaluate_multiple_objects_returns_lists(two_space, two_models):
     pipeline = EvaluationPipeline(two_space)
     pipeline.add_evaluator(lambda model: model.value, output_name="v")
-    results = pipeline.evaluate([])
+    results = pipeline.evaluate({})
     assert isinstance(results["v"], list)
     assert len(results["v"]) == 2
 
@@ -250,7 +323,7 @@ def test_evaluate_multiple_objects_independent_results(two_space, two_models):
     pipeline = EvaluationPipeline(two_space)
     pipeline.add_evaluator(lambda model: model.value, output_name="v")
 
-    results = pipeline.evaluate([])
+    results = pipeline.evaluate({})
     assert results["v"] == [1.0, 2.0]
 
 
@@ -264,7 +337,7 @@ def test_failing_node_returns_evaluation_failure(single_space):
     pipeline = EvaluationPipeline(single_space)
     pipeline.add_evaluator(bad_node, output_name="result")
 
-    results = pipeline.evaluate([])
+    results = pipeline.evaluate({})
     assert isinstance(results["result"], EvaluationFailure)
     assert results["result"].stage == "result"
     assert "boom" in results["result"].reason
@@ -285,7 +358,7 @@ def test_failure_propagates_to_downstream_node(single_space):
     pipeline.add_evaluator(bad_node, output_name="result")
     pipeline.add_evaluator(downstream, output_name="final", requires=["result"])
 
-    results = pipeline.evaluate([])
+    results = pipeline.evaluate({})
     assert isinstance(results["final"], EvaluationFailure)
     assert results["final"].stage == "result"
     assert not downstream_called
@@ -302,7 +375,7 @@ def test_failure_preserves_original_stage_through_chain(single_space):
     pipeline.add_evaluator(lambda step1: step1, output_name="step2", requires=["step1"])
     pipeline.add_evaluator(lambda step2: step2, output_name="step3", requires=["step2"])
 
-    results = pipeline.evaluate([])
+    results = pipeline.evaluate({})
     assert isinstance(results["step3"], EvaluationFailure)
     assert results["step3"].stage == "step1"
 
@@ -323,7 +396,7 @@ def test_requires_injects_upstream_output_by_position(single_space):
     pipeline.add_evaluator(producer, output_name="upstream_value")
     pipeline.add_evaluator(consumer, output_name="result", requires=["upstream_value"])
 
-    results = pipeline.evaluate([])
+    results = pipeline.evaluate({})
     assert results["result"] == pytest.approx((0.0 + 5) * 3)
 
 
@@ -339,7 +412,7 @@ def test_requires_multi_input_injects_in_order(single_space):
         requires=["a", "b"],
     )
 
-    results = pipeline.evaluate([])
+    results = pipeline.evaluate({})
     assert results["diff"] == pytest.approx(2.0 - 3.0)
 
 
@@ -380,7 +453,7 @@ def test_failure_stores_original_exception(single_space):
     pipeline = EvaluationPipeline(single_space)
     pipeline.add_evaluator(bad_node, output_name="result")
 
-    results = pipeline.evaluate([])
+    results = pipeline.evaluate({})
     assert results["result"].exc is exc
 
 
@@ -404,8 +477,8 @@ def test_disk_cache_hit_evaluates_only_once(tmp_path, single_space):
     pipeline = EvaluationPipeline(single_space, cache_dir=tmp_path / "cache")
     pipeline.add_evaluator(counting_evaluator, output_name="result")
 
-    pipeline.evaluate([])
-    pipeline.evaluate([])  # same x → cache hit
+    pipeline.evaluate({})
+    pipeline.evaluate({})  # same x → cache hit
 
     assert call_count == 1
 
@@ -428,8 +501,8 @@ def test_disk_cache_miss_on_different_x(tmp_path):
     pipeline = EvaluationPipeline(space, cache_dir=tmp_path / "cache")
     pipeline.add_evaluator(counting_evaluator, output_name="result")
 
-    pipeline.evaluate([1.0])
-    pipeline.evaluate([2.0])
+    pipeline.evaluate({"v": 1.0})
+    pipeline.evaluate({"v": 2.0})
 
     assert call_count == 2
 
@@ -446,7 +519,7 @@ def test_lru_cache_is_used_when_no_cache_dir(single_space):
     pipeline = EvaluationPipeline(single_space)  # no cache_dir
     pipeline.add_evaluator(counting_evaluator, output_name="result")
 
-    pipeline.evaluate([])
-    pipeline.evaluate([])
+    pipeline.evaluate({})
+    pipeline.evaluate({})
 
     assert call_count == 1
