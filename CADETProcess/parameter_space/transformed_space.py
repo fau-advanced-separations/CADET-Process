@@ -1,7 +1,9 @@
 """TransformedSpace: optimizer-facing view of a ParameterSpace in normalized coordinates.
 
-``TransformedSpace`` wraps a ``ParameterSpace`` and presents bounds, constraint
-matrices, and write operations in normalized coordinates.  Three spaces are in play:
+``TransformedSpace`` wraps a ``ParameterSpace`` and presents bounds and constraint
+matrices in normalized coordinates.  It has no write method: the single write path
+is ``ParameterSpace.set_values``, and vector-coordinate callers compose explicitly,
+``space.set_values(ts.decode(space.denormalize(x)))``.  Three spaces are in play:
 
 * **Optimizer space** — the ``n_variables`` independent parameters in normalized
   coordinates; the domain the optimizer directly controls.
@@ -25,7 +27,7 @@ Linear constraint transformation
 Constraints are defined over the optimizer basis (independent parameters only).
 Dependent parameters are excluded: lifting constraints through the dependency embedding
 is not defined in the linear constraint formalism.  Feasibility of dependent parameters
-is enforced after embedding in ``set_values`` via parameter validation.
+is enforced after embedding in ``ParameterSpace.set_values`` via parameter validation.
 
 The affine transform ``x_phys = lb + span * x_norm`` (where ``span = ub - lb``) holds
 only for parameters with an active affine normalizer.  Parameters without normalization
@@ -35,7 +37,7 @@ constrained parameter uses a non-affine normalizer (e.g. ``LogNormalizer``); use
 
 As a result, constraint satisfaction in optimizer space is not equivalent to physical
 feasibility when nonlinear normalizers or dependency transforms are involved.  Sampling
-must be followed by post-hoc validation via ``set_values``.
+must be followed by post-hoc validation via ``ParameterSpace.set_values``.
 """
 
 from __future__ import annotations
@@ -59,9 +61,11 @@ __all__ = ["TransformedSpace"]
 class TransformedSpace:
     """Optimizer-facing view of a ``ParameterSpace`` in normalized coordinates.
 
-    All bounds, constraint matrices, and ``set_values`` calls operate in the
-    normalized coordinate system.  The underlying ``ParameterSpace`` is the
-    source of truth; ``TransformedSpace`` derives everything from it lazily.
+    All bounds and constraint matrices are expressed in the normalized
+    coordinate system.  The underlying ``ParameterSpace`` is the source of
+    truth; ``TransformedSpace`` derives everything from it lazily.  Every
+    method is a pure function: writing goes through ``ParameterSpace``
+    exclusively.
 
     Parameters
     ----------
@@ -79,7 +83,8 @@ class TransformedSpace:
             path="column.length",
         )
         ts = TransformedSpace(space)
-        ts.set_values([0.5])   # 0.5 normalized → 0.55 physical
+        # 0.5 normalized → 0.55 physical
+        space.set_values(ts.decode(space.denormalize([0.5])))
     """
 
     def __init__(self, space: ParameterSpace) -> None:
@@ -346,31 +351,7 @@ class TransformedSpace:
         """Equality constraint RHS in normalized coordinates, shape ``(m,)``."""
         return self._assemble_matrices(self._space.linear_equality_constraints)[1]
 
-    # ── Write / validate ──────────────────────────────────────────────────────
-
-    def set_values(
-        self,
-        x: npt.ArrayLike,
-        *,
-        validate_bounds: bool = False,
-        tol: float | npt.ArrayLike = 0.0,
-    ) -> None:
-        """Resolve, denormalize, and write *x* into the evaluation objects.
-
-        Parameters
-        ----------
-        x : array-like
-            Values for the independent parameters in **normalized** coordinates.
-        validate_bounds : bool
-            When True, check that the denormalized values satisfy physical bounds.
-        tol : float or array-like
-            Tolerance passed to ``check_bounds`` when *validate_bounds* is True.
-        """
-        self._space.set_values(
-            self.decode(self._space.denormalize(x)),
-            validate_bounds=validate_bounds,
-            tol=tol,
-        )
+    # ── Validate ──────────────────────────────────────────────────────────────
 
     def get_dependent_values(self, x: npt.ArrayLike) -> np.ndarray:
         """Expand normalized independent values to the full physical parameter vector.

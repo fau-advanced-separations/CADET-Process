@@ -77,25 +77,36 @@ def test_bounds_two_params(column):
     np.testing.assert_array_equal(ts.upper_bounds, [1.0, 1.0])
 
 
-# ── set_values ────────────────────────────────────────────────────────────────
+# ── normalized write composition ──────────────────────────────────────────────
+# TransformedSpace has no write method; the normalized path composes explicitly.
 
 
-def test_set_values_denormalizes(column):
-    ts = TransformedSpace(_linear_space(column))
-    ts.set_values([0.5])
+def _write_normalized(space, x_norm):
+    ts = space.transformed_space
+    space.set_values(ts.decode(space.denormalize(x_norm)))
+
+
+def test_normalized_write_denormalizes(column):
+    space = _linear_space(column)
+    _write_normalized(space, [0.5])
     assert column.length == pytest.approx(5.0)
 
 
-def test_set_values_zero_maps_to_lb(column):
-    ts = TransformedSpace(_linear_space(column))
-    ts.set_values([0.0])
+def test_normalized_write_zero_maps_to_lb(column):
+    space = _linear_space(column)
+    _write_normalized(space, [0.0])
     assert column.length == pytest.approx(0.0)
 
 
-def test_set_values_one_maps_to_ub(column):
-    ts = TransformedSpace(_linear_space(column))
-    ts.set_values([1.0])
+def test_normalized_write_one_maps_to_ub(column):
+    space = _linear_space(column)
+    _write_normalized(space, [1.0])
     assert column.length == pytest.approx(10.0)
+
+
+def test_transformed_space_has_no_write_method(column):
+    ts = TransformedSpace(_linear_space(column))
+    assert not hasattr(ts, "set_values")
 
 
 # ── check_bounds ──────────────────────────────────────────────────────────────
@@ -200,10 +211,9 @@ def test_nonlinear_normalizer_raises(column):
 # ── roundtrip ─────────────────────────────────────────────────────────────────
 
 
-def test_set_values_roundtrip(column):
+def test_normalized_write_roundtrip(column):
     space = _two_param_space(column)
-    ts = TransformedSpace(space)
-    ts.set_values([0.3, 0.7])
+    _write_normalized(space, [0.3, 0.7])
     assert column.length == pytest.approx(3.0)
     assert column.diameter == pytest.approx(0.7)
 
