@@ -53,7 +53,6 @@ when transformed constraint matrices are assembled by ``TransformedSpace``; see
 from __future__ import annotations
 
 import inspect
-import random
 import warnings
 from collections.abc import Callable, Mapping
 from functools import wraps
@@ -62,7 +61,6 @@ from typing import TYPE_CHECKING, Any, Optional
 if TYPE_CHECKING:
     from CADETProcess.parameter_space.transformed_space import TransformedSpace
 
-import hopsy
 import numpy as np
 import numpy.typing as npt
 
@@ -998,34 +996,21 @@ class ParameterSpace:
     ) -> list[dict[str, Any]]:
         """Draw *n* feasible samples as named assignments.
 
-        Numeric independent parameters are drawn with hopsy (Highly Optimized
-        toolbox for Polytope Sampling) over the numeric polytope; categorical
-        parameters are drawn uniformly over their ``valid_values`` and merged
-        into the assignment.  For parameters with a non-linear normalizer
-        (e.g. ``LogNormalizer``) a custom log-likelihood model is injected so
-        that samples are distributed uniformly in the transformed space.
-        Integer positions are rounded by ``decode``.
-
-        Derived parameter feasibility is enforced by post-hoc filtering: each
-        candidate is resolved via ``resolve`` and validated; infeasible
-        candidates are discarded and new draws are attempted.
+        Delegates to :class:`HopsySampler` with the given *pool_size*.
+        See :class:`~CADETProcess.parameter_space.sampling.SamplerBase` for
+        the full postprocessing contract (significant-digits snap, integer
+        rounding, categorical merge, dependency resolution, validation).
 
         Parameters
         ----------
         n : int
             Number of feasible samples to return.
         seed : int, optional
-            Random seed for hopsy and the draw RNG.  A random seed in [0, 255] is
-            used when not specified, matching the behaviour of
-            ``OptimizationProblem.create_initial_values``.
+            Random seed.  A random seed in [0, 255] is used when not specified.
         pool_size : int
-            Number of MCMC steps used to build the candidate pool.  The default
-            (100 000) is sufficient for most problems; reduce for fast tests.
+            MCMC steps used to build the candidate pool.
         include_dependent : bool
-            When False (default) each assignment contains only the independent
-            parameters.  When True each assignment contains all parameters in
-            registration order, with dependent parameters resolved from the
-            independent ones.
+            When True each assignment includes resolved dependent parameters.
 
         Returns
         -------
@@ -1037,88 +1022,11 @@ class ParameterSpace:
         ValueError
             If *n* feasible samples cannot be found within the *pool_size* budget.
         """
+        from CADETProcess.parameter_space.sampling import HopsySampler
 
-        class _LogSpaceModel:
-            def __init__(self, log_indices: list[int]) -> None:
-                self.log_space_indices = log_indices
-
-            def compute_negative_log_likelihood(self, x: np.ndarray) -> float:
-                # Jacobian correction: uniform in log-transformed coordinates
-                return float(np.sum(np.log(x[self.log_space_indices])))
-
-        independent = self.independent_parameters
-        numeric = [p for p in independent if isinstance(p, RangedParameter)]
-        numeric_idx = [
-            i for i, p in enumerate(independent) if isinstance(p, RangedParameter)
-        ]
-        categorical = self.categorical_parameters
-
-        log_indices = [
-            i for i, p in enumerate(numeric) if not p.normalizer.is_linear
-        ]
-        model = _LogSpaceModel(log_indices) if log_indices else None
-
-        if seed is None:
-            seed = random.randint(0, 255)
-
-        if numeric:
-            # Constraints never reference categorical parameters (rejected at
-            # declaration time), so slicing to the numeric columns drops only
-            # zeros.
-            lb_num = np.array([p.lb for p in numeric], dtype=float)
-            ub_num = np.array([p.ub for p in numeric], dtype=float)
-            problem = hopsy.Problem(self.A_independent[:, numeric_idx], self.b, model)
-            problem = hopsy.add_box_constraints(problem, lb_num, ub_num, simplify=False)
-            if self._linear_equality_constraints:
-                problem = hopsy.add_equality_constraints(
-                    problem, self.A_eq_independent[:, numeric_idx], self.b_eq
-                )
-
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                problem = hopsy.round(problem, simplify=False)
-                mc = hopsy.MarkovChain(
-                    problem, proposal=hopsy.UniformCoordinateHitAndRunProposal
-                )
-                rng_hopsy = hopsy.RandomNumberGenerator(seed=seed)
-                _, states = hopsy.sample(
-                    mc, rng_hopsy, n_samples=pool_size, thinning=2
-                )
-            candidates = states[0]  # shape (pool_size, len(numeric))
-        else:
-            # Purely categorical space: the numeric polytope is empty.
-            candidates = np.zeros((pool_size, 0))
-        ts = self.transformed_space
-        rng = np.random.default_rng(seed)
-        results = []
-        counter = 0
-
-        while len(results) < n:
-            if counter >= pool_size:
-                raise ValueError(
-                    f"Could not find {n} feasible samples after exhausting the "
-                    f"{pool_size} candidates. "
-                    "Increase pool_size or relax dependent-parameter constraints."
-                )
-            idx = int(rng.integers(0, pool_size))
-            counter += 1
-
-            categorical_values = {
-                c.name: c.valid_values[int(rng.integers(len(c.valid_values)))]
-                for c in categorical
-            } or None
-            assignment = ts.decode(candidates[idx], categorical_values)
-
-            try:
-                all_values = self.resolve(assignment)
-                for p in self._parameters:
-                    p.validate(all_values[p.name])
-            except (TypeError, ValueError):
-                continue
-
-            results.append(all_values if include_dependent else assignment)
-
-        return results
+        return HopsySampler(pool_size=pool_size).sample(
+            self, n, seed=seed, include_dependent=include_dependent
+        )
 
     def __repr__(self) -> str:
         """Return a readable representation."""

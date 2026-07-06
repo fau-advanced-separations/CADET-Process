@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 from CADETProcess.parameter_space import (
     ChoiceParameter,
+    HopsySampler,
     LinearConstraint,
     ParameterSpace,
     RangedParameter,
@@ -216,3 +217,56 @@ def test_sample_exhausted_budget_raises(column):
     space.add_dependency(b, [a], transform=lambda x: x * 100)
     with pytest.raises(ValueError, match="pool_size"):
         space.sample(1, seed=0, pool_size=50)
+
+
+# ── HopsySampler: direct use ──────────────────────────────────────────────────
+
+
+def test_hopsy_sampler_direct_use(column):
+    space = _space_2d(column)
+    sampler = HopsySampler(pool_size=BURN_IN)
+    samples = sampler.sample(space, 5, seed=0)
+    assert len(samples) == 5
+    assert all(0.0 <= s["length"] <= 5.0 for s in samples)
+    assert all(0.0 <= s["diameter"] <= 2.0 for s in samples)
+
+
+def test_hopsy_sampler_same_result_as_space_sample(column):
+    space = _space_1d(column)
+    sampler = HopsySampler(pool_size=BURN_IN)
+    direct = sampler.sample(space, 5, seed=99)
+    via_space = space.sample(5, seed=99, pool_size=BURN_IN)
+    assert direct == via_space
+
+
+# ── unbounded guard ───────────────────────────────────────────────────────────
+
+
+def test_sample_raises_on_unbounded_parameter(column):
+    space = ParameterSpace()
+    space.add_evaluation_object(column)
+    space.add_parameter(
+        RangedParameter("length", float, lb=0.0, ub=float("inf")), path="length"
+    )
+    with pytest.raises(ValueError, match="unbounded"):
+        space.sample(1, seed=0, pool_size=50)
+
+
+# ── significant-digits snap ───────────────────────────────────────────────────
+
+
+def test_sample_significant_digits_snap(column):
+    space = ParameterSpace()
+    space.add_evaluation_object(column)
+    space.add_parameter(
+        RangedParameter("length", float, lb=0.001, ub=0.999, significant_digits=2),
+        path="length",
+    )
+    samples = space.sample(20, seed=0, pool_size=BURN_IN)
+    for s in samples:
+        v = s["length"]
+        # After snapping to 2 significant digits the value must equal itself re-rounded
+        import math
+        if v != 0.0:
+            magnitude = 10 ** (math.floor(math.log10(abs(v))) - 1)
+            assert abs(v - round(v / magnitude) * magnitude) < 1e-12 * abs(v) + 1e-15
