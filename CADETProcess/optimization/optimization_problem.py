@@ -664,7 +664,7 @@ class OptimizationProblem:
 
     def set_variables(self, x: npt.ArrayLike) -> None:
         """Write *x* (independent values) into evaluation objects."""
-        self._space.set_values(x)
+        self._space.set_values(self._space.transformed_space.decode(x))
 
     def get_variable_value(self, name: str) -> Any:
         """Read the current value of variable *name* from its evaluation object.
@@ -1708,7 +1708,7 @@ class OptimizationProblem:
         elif not all_ev_names:
             # No evaluator chain — set_values still needs to happen for inline metrics.
             try:
-                self._space.set_values(x)
+                self._space.set_values(self._space.transformed_space.decode(x))
             except CADETProcessError as e:
                 self.logger.warning(
                     "set_values failed at x=%s: %s. Returning bad metrics.", x, e
@@ -2139,7 +2139,7 @@ class OptimizationProblem:
                 sig = {}
             for individual in population:
                 x_ind = self.untransform(individual.x_transformed)
-                self._space.set_values(x_ind)
+                self._space.set_values(self._space.transformed_space.decode(x_ind))
                 # Use the pipeline to get evaluator chain outputs, benefiting
                 # from results already cached during objective/constraint
                 # evaluation for this individual.

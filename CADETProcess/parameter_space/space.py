@@ -55,7 +55,7 @@ from __future__ import annotations
 import inspect
 import random
 import warnings
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -101,7 +101,7 @@ class ParameterSpace:
             RangedParameter("length", float, lb=0.1, ub=1.0),
             path="column.length",
         )
-        space.set_values([0.5])
+        space.set_values({"length": 0.5})
     """
 
     # ── Method decorators ─────────────────────────────────────────────────────
@@ -462,20 +462,60 @@ class ParameterSpace:
             if isinstance(p, ChoiceParameter)
         ]
 
-    def _resolve_all_values(self, x_independent: npt.ArrayLike) -> dict[str, Any]:
-        """Compute values for all parameters given the independent values.
+    def resolve(self, assignment: Mapping[str, Any]) -> dict[str, Any]:
+        """Resolve a named independent assignment to the full parameter assignment.
 
-        Returns a dict mapping parameter name to value.  Independent values are
-        inserted first; dependent values are computed in topological order.
+        Dependent parameter values are computed from the independent values in
+        topological order.
+
+        Parameters
+        ----------
+        assignment : Mapping
+            Values for the independent parameters by name, in physical units.
+            Order-insensitive; the result is ordered by registration.
+
+        Returns
+        -------
+        dict
+            Values for all parameters (independent and dependent), ordered by
+            registration.
+
+        Raises
+        ------
+        TypeError
+            If *assignment* is not a Mapping.
+        ValueError
+            If *assignment* contains unknown names, misses an independent
+            parameter, or supplies a value for a dependent parameter.
+        RuntimeError
+            If dependency declarations leave a parameter unresolvable.
         """
-        x = np.asarray(x_independent, dtype=object).ravel()
-        if x.size != self.n_variables:
-            raise ValueError(
-                f"Expected {self.n_variables} independent values, got {x.size}."
+        if not isinstance(assignment, Mapping):
+            raise TypeError(
+                "resolve takes a named assignment (Mapping of parameter name to "
+                "value); numeric vectors are an encoding owned by "
+                "TransformedSpace — decode first: "
+                "space.resolve(space.transformed_space.decode(x))."
             )
-        values: dict[str, Any] = {
-            p.name: v for p, v in zip(self.independent_parameters, x)
-        }
+        independent = self.independent_parameters
+        independent_names = {p.name for p in independent}
+        registered_names = {p.name for p in self._parameters}
+        unknown = [n for n in assignment if n not in registered_names]
+        if unknown:
+            raise ValueError(f"Unknown parameter names: {unknown!r}.")
+        dependent_supplied = [n for n in assignment if n not in independent_names]
+        if dependent_supplied:
+            raise ValueError(
+                f"Assignment supplies values for dependent parameters "
+                f"{dependent_supplied!r}; dependent values are resolved, not set."
+            )
+        missing = [p.name for p in independent if p.name not in assignment]
+        if missing:
+            raise ValueError(
+                f"Assignment misses independent parameters: {missing!r}."
+            )
+
+        values: dict[str, Any] = dict(assignment)
         changed = True
         while changed:
             changed = False
@@ -489,13 +529,27 @@ class ParameterSpace:
                     continue
                 values[name] = dep.transform(*args)
                 changed = True
-        missing = [p.name for p in self._parameters if p.name not in values]
-        if missing:
+        unresolved = [p.name for p in self._parameters if p.name not in values]
+        if unresolved:
             raise RuntimeError(
-                f"Could not resolve parameter values for {missing!r}. "
+                f"Could not resolve parameter values for {unresolved!r}. "
                 "Check dependency declarations."
             )
-        return values
+        return {p.name: values[p.name] for p in self._parameters}
+
+    def _resolve_all_values(self, x_independent: npt.ArrayLike) -> dict[str, Any]:
+        """Resolve an independent-value vector; vector adapter over ``resolve``.
+
+        Positions follow the registration order of the independent parameters.
+        """
+        x = np.asarray(x_independent, dtype=object).ravel()
+        if x.size != self.n_variables:
+            raise ValueError(
+                f"Expected {self.n_variables} independent values, got {x.size}."
+            )
+        return self.resolve(
+            {p.name: v for p, v in zip(self.independent_parameters, x)}
+        )
 
     @denormalizes
     def get_dependent_values(self, x_independent: npt.ArrayLike) -> np.ndarray:
@@ -826,10 +880,9 @@ class ParameterSpace:
 
     # ── Writing ───────────────────────────────────────────────────────────────
 
-    @denormalizes
     def set_values(
         self,
-        x: npt.ArrayLike,
+        assignment: Mapping[str, Any],
         *,
         validate_bounds: bool = False,
         tol: float | npt.ArrayLike = 0.0,
@@ -842,26 +895,46 @@ class ParameterSpace:
 
         Parameters
         ----------
-        x : array-like
-            Values for the independent parameters, in physical units by default.
-            Pass ``denormalize=True`` to denormalize first.
+        assignment : Mapping
+            Values for the independent parameters by name, in physical units.
+            Order-insensitive.  Numeric vectors are an encoding owned by
+            ``TransformedSpace``; decode first:
+            ``space.set_values(space.transformed_space.decode(x))``.
         validate_bounds : bool
-            When True, check that *x* satisfies independent bounds before writing.
+            When True, check that the resolved values satisfy parameter bounds
+            before writing.
         tol : float or array-like
-            Tolerance passed to ``check_bounds`` when *validate_bounds* is True.
+            Per-parameter (or uniform) tolerance added to each bound when
+            *validate_bounds* is True.
 
         Raises
         ------
+        TypeError
+            If *assignment* is not a Mapping, or a parameter's ``validate``
+            rejects its resolved value.
         ValueError
-            If *validate_bounds* is True and *x* violates independent bounds.
-        TypeError, ValueError
-            If any parameter's ``validate`` rejects its resolved value.
+            If *assignment* violates the input contract (unknown names, missing
+            independent parameters, supplied dependent values), if
+            *validate_bounds* is True and a bound is violated, or if a
+            parameter's ``validate`` rejects its resolved value.
         """
-        vals = np.asarray(x, dtype=float).ravel()
-        if validate_bounds and not self.check_bounds(vals, tol=tol, resolve_dependencies=True):
-            raise ValueError("Independent values violate bound constraints.")
+        if not isinstance(assignment, Mapping):
+            raise TypeError(
+                "set_values takes a named assignment (Mapping of parameter name "
+                "to value); numeric vectors are an encoding owned by "
+                "TransformedSpace — decode first: "
+                "space.set_values(space.transformed_space.decode(x))."
+            )
+        all_values = self.resolve(assignment)
+        if validate_bounds:
+            tol_arr = np.broadcast_to(np.asarray(tol, dtype=float), self.n_parameters)
+            for i, p in enumerate(self._parameters):
+                if not isinstance(p, RangedParameter):
+                    continue
+                value = float(all_values[p.name])
+                if not (p.lb - tol_arr[i] <= value <= p.ub + tol_arr[i]):
+                    raise ValueError("Values violate bound constraints.")
 
-        all_values = self._resolve_all_values(vals)
         for p in self._parameters:
             value = all_values[p.name]
             if isinstance(p, RangedParameter) and p.significant_digits is not None:

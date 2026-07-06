@@ -152,8 +152,9 @@ class EvaluationPipeline:
     Parameters
     ----------
     space : ParameterSpace
-        Owns the evaluation objects and knows how to write a parameter vector
-        into them.  `evaluate` delegates to `space.set_values(x)`.
+        Owns the evaluation objects and knows how to write parameter values
+        into them.  `evaluate` decodes the vector and delegates to
+        `space.set_values`.
 
     Examples
     --------
@@ -292,7 +293,8 @@ class EvaluationPipeline:
         Parameters
         ----------
         x : array-like
-            Parameter vector passed to `space.set_values`.
+            Independent parameter vector in physical units; decoded to a named
+            assignment before `space.set_values` writes it.
         targets : list[str], optional
             Output names to compute.  `None` computes all registered outputs.
             Requesting a subset exploits pipefunc's lazy evaluation: only the
@@ -315,7 +317,7 @@ class EvaluationPipeline:
             # Append a nonce so every node sees a guaranteed cache miss.
             # Existing entries for other x values are unaffected.
             x_key = x_key + (_uuid_mod.uuid4().hex,)
-        self._space.set_values(x)
+        self._space.set_values(self._space.transformed_space.decode(x))
 
         if targets is None:
             targets = self._output_names
