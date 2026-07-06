@@ -5,10 +5,12 @@ import pytest
 from CADETProcess.parameter_space import (
     ChoiceParameter,
     HopsySampler,
+    LatinHypercubeSampler,
     LinearConstraint,
     LinearEqualityConstraint,
     ParameterSpace,
     RangedParameter,
+    SobolSampler,
     chebyshev_center,
 )
 
@@ -167,7 +169,7 @@ def test_sample_integer_values_are_whole_numbers(column):
     space.add_evaluation_object(column)
     space.add_parameter(RangedParameter("n", int, lb=1, ub=100), path="length")
     samples = space.sample(10, seed=6, pool_size=BURN_IN)
-    assert all(s["n"] == round(s["n"]) for s in samples)
+    assert all(type(s["n"]) is int for s in samples)
     assert all(1 <= s["n"] <= 100 for s in samples)
 
 
@@ -328,6 +330,114 @@ def test_sample_significant_digits_snap(column):
         if v != 0.0:
             magnitude = 10 ** (math.floor(math.log10(abs(v))) - 1)
             assert abs(v - round(v / magnitude) * magnitude) < 1e-12 * abs(v) + 1e-15
+
+
+# ── LHS and Sobol samplers ────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize("SamplerClass", [LatinHypercubeSampler, SobolSampler])
+def test_qmc_bounds_containment(column, SamplerClass):
+    space = _space_2d(column)
+    samples = SamplerClass().sample(space, 20, seed=0)
+    assert all(0.0 <= s["length"] <= 5.0 for s in samples)
+    assert all(0.0 <= s["diameter"] <= 2.0 for s in samples)
+
+
+@pytest.mark.parametrize("SamplerClass", [LatinHypercubeSampler, SobolSampler])
+def test_qmc_seed_determinism(column, SamplerClass):
+    space = _space_1d(column)
+    sampler = SamplerClass()
+    s1 = sampler.sample(space, 10, seed=7)
+    s2 = sampler.sample(space, 10, seed=7)
+    assert s1 == s2
+
+
+@pytest.mark.parametrize("SamplerClass", [LatinHypercubeSampler, SobolSampler])
+def test_qmc_raises_on_linear_constraints(column, SamplerClass):
+    space = _space_2d(column)
+    p1, p2 = space.independent_parameters
+    space.add_linear_constraint(LinearConstraint([p1, p2], lhs=[1.0, 1.0], b=4.0))
+    with pytest.raises(ValueError, match="linear constraints"):
+        SamplerClass().sample(space, 5, seed=0)
+
+
+@pytest.mark.parametrize("SamplerClass", [LatinHypercubeSampler, SobolSampler])
+def test_qmc_integer_and_categorical(column, SamplerClass):
+    space = ParameterSpace()
+    space.add_evaluation_object(column)
+    space.add_parameter(RangedParameter("n", int, lb=1, ub=10), path="length")
+    space.add_parameter(ChoiceParameter("mode", ["a", "b"]))
+    samples = SamplerClass().sample(space, 10, seed=0)
+    assert all(type(s["n"]) is int for s in samples)
+    assert all(s["mode"] in ("a", "b") for s in samples)
+
+
+def test_lhs_returned_set_is_stratified(column):
+    # the defining LHS property: n samples, exactly one per axis-aligned
+    # stratum; a random subset of a larger design would fail this
+    space = ParameterSpace()
+    space.add_evaluation_object(column)
+    space.add_parameter(RangedParameter("length", float, lb=0.0, ub=8.0), path="length")
+    samples = LatinHypercubeSampler().sample(space, 8, seed=3)
+    strata = sorted(int(np.floor(s["length"])) for s in samples)
+    assert strata == list(range(8))
+
+
+def test_sobol_samples_are_sequence_prefix(column):
+    # sequential consumption: a smaller request must be a prefix of a larger
+    # one for the same seed, which random pool draws would not satisfy
+    space = _space_1d(column)
+    s4 = SobolSampler().sample(space, 4, seed=5)
+    s8 = SobolSampler().sample(space, 8, seed=5)
+    assert s8[:4] == s4
+
+
+def test_sobol_emits_no_balance_warning(column):
+    import warnings
+
+    space = _space_1d(column)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        SobolSampler().sample(space, 10, seed=0)
+
+
+def _categorical_space(column, categories):
+    space = ParameterSpace()
+    space.add_evaluation_object(column)
+    space.add_parameter(
+        RangedParameter("length", float, lb=0.0, ub=5.0), path="length"
+    )
+    space.add_parameter(ChoiceParameter("mode", categories))
+    return space
+
+
+def test_lhs_categorical_counts_are_balanced(column):
+    # categoricals are extra design dimensions: 10 samples over 2 categories
+    # must split 5/5, whereas an independent random draw would not
+    space = _categorical_space(column, ["a", "b"])
+    samples = LatinHypercubeSampler().sample(space, 10, seed=0)
+    modes = [s["mode"] for s in samples]
+    assert modes.count("a") == 5
+    assert modes.count("b") == 5
+
+
+def test_sobol_categorical_counts_balanced_over_full_block(column):
+    # 8 = 2**3 samples over 2 categories: Sobol base-2 balance gives 4/4
+    space = _categorical_space(column, ["a", "b"])
+    samples = SobolSampler().sample(space, 8, seed=0)
+    modes = [s["mode"] for s in samples]
+    assert modes.count("a") == 4
+    assert modes.count("b") == 4
+
+
+def test_lhs_categorical_only_space_is_balanced(column):
+    space = ParameterSpace()
+    space.add_evaluation_object(column)
+    space.add_parameter(ChoiceParameter("mode", ["a", "b", "c"]))
+    samples = LatinHypercubeSampler().sample(space, 9, seed=1)
+    modes = [s["mode"] for s in samples]
+    assert sorted(set(modes)) == ["a", "b", "c"]
+    assert all(modes.count(m) == 3 for m in "abc")
 
 
 # ── chebyshev center ──────────────────────────────────────────────────────────

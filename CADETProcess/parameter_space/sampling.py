@@ -5,12 +5,14 @@ SamplerBase defines the postprocessing contract (significant-digits snap, intege
 rounding via decode, categorical merge, dependency resolution, validation, and
 rejection of candidates violating linear constraints that reference dependent
 parameters).
-Concrete backends implement _candidates to produce numeric candidate rows and
+Concrete backends implement _candidates to produce numeric candidate rows,
+optionally with unit-interval columns for stratified categorical coverage, and
 declare via _sequential_candidates whether the row order carries structure.
 """
 
 from __future__ import annotations
 
+import math
 import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable
@@ -93,8 +95,16 @@ class SamplerBase(ABC):
         if n <= 0:
             return []
 
-        candidates = self._candidates(space, n, seed)  # shape (pool_size, n_numeric)
+        candidates = self._candidates(space, n, seed)
         pool_size = candidates.shape[0]
+        n_numeric = len(numeric)
+        # Backends may append one unit-interval column per categorical
+        # parameter (QMC designs stratify categories); otherwise categories
+        # are drawn uniformly at random per candidate.
+        stratified_categoricals = (
+            bool(categorical)
+            and candidates.shape[1] == n_numeric + len(categorical)
+        )
 
         ts = space.transformed_space
         rng = np.random.default_rng(seed)
@@ -115,11 +125,20 @@ class SamplerBase(ABC):
         results = []
 
         for idx in order:
-            categorical_values = {
-                c.name: c.valid_values[int(rng.integers(len(c.valid_values)))]
-                for c in categorical
-            } or None
-            assignment = ts.decode(candidates[int(idx)], categorical_values)
+            row = candidates[int(idx)]
+            if stratified_categoricals:
+                categorical_values = {
+                    c.name: c.valid_values[
+                        min(int(u * len(c.valid_values)), len(c.valid_values) - 1)
+                    ]
+                    for c, u in zip(categorical, row[n_numeric:])
+                }
+            else:
+                categorical_values = {
+                    c.name: c.valid_values[int(rng.integers(len(c.valid_values)))]
+                    for c in categorical
+                } or None
+            assignment = ts.decode(row[:n_numeric], categorical_values)
 
             for p in numeric:
                 if p.significant_digits is not None:
@@ -164,6 +183,11 @@ class SamplerBase(ABC):
         *n* is the number of feasible samples requested; backends whose
         candidate count must match the request (QMC designs) size the pool
         from it, pool-based backends may ignore it.
+
+        Backends that stratify categorical parameters append one column per
+        categorical parameter (in ``space.categorical_parameters`` order)
+        holding unit-interval values; SamplerBase maps each value *u* to
+        category index ``floor(u * n_categories)``.
         """
 
 
@@ -239,6 +263,85 @@ class HopsySampler(SamplerBase):
                 mc, rng_hopsy, n_samples=self.pool_size, thinning=2
             )
         return states[0]  # shape (pool_size, n_numeric)
+
+
+class LatinHypercubeSampler(SamplerBase):
+    """Latin Hypercube sampler via scipy.stats.qmc.
+
+    Generates exactly *n* points, so the one-point-per-stratum property holds
+    for the returned set; a subset of a larger design would not be a Latin
+    Hypercube. Categorical parameters are stratified as extra design
+    dimensions, giving balanced category counts. Box-bounded spaces only:
+    raises if linear constraints are present, and any candidate rejected
+    during postprocessing exhausts the pool (a filtered design loses
+    stratification). Use HopsySampler for spaces that require rejection.
+    """
+
+    _sequential_candidates = True
+
+    def _candidates(self, space: ParameterSpace, n: int, seed: int) -> np.ndarray:
+        return _qmc_candidates(space, n, seed, "lhs")
+
+
+class SobolSampler(SamplerBase):
+    """Sobol sequence sampler via scipy.stats.qmc.
+
+    Generates the first ``2**ceil(log2(n))`` points of a scrambled Sobol
+    sequence and consumes them in order; prefixes of the sequence retain low
+    discrepancy, so a few postprocessing rejections are tolerated. Categorical
+    parameters are covered as extra sequence dimensions, giving balanced
+    category counts over full ``2**m`` blocks. Box-bounded spaces only: raises
+    if linear constraints are present. Use HopsySampler when linear
+    constraints are present.
+    """
+
+    _sequential_candidates = True
+
+    def _candidates(self, space: ParameterSpace, n: int, seed: int) -> np.ndarray:
+        return _qmc_candidates(space, n, seed, "sobol")
+
+
+def _qmc_candidates(
+    space: ParameterSpace,
+    n: int,
+    seed: int,
+    kind: str,
+) -> np.ndarray:
+    """Generate QMC candidates in physical units (box bounds only).
+
+    Categorical parameters are included as extra unit-interval design
+    dimensions (one column per categorical parameter, appended after the
+    numeric columns), so category coverage inherits the design's uniformity
+    instead of being drawn independently at random.
+    """
+    from scipy.stats.qmc import LatinHypercube, Sobol
+
+    independent = space.independent_parameters
+    numeric = [p for p in independent if isinstance(p, RangedParameter)]
+    categorical = space.categorical_parameters
+
+    if space._linear_constraints or space._linear_equality_constraints:
+        raise ValueError(
+            f"{kind.upper()} sampler requires a box-bounded space with no linear "
+            "constraints. Use HopsySampler when linear constraints are present."
+        )
+
+    d = len(numeric) + len(categorical)
+    if d == 0:
+        return np.zeros((n, 0))
+
+    if kind == "lhs":
+        engine = LatinHypercube(d=d, seed=seed)
+        unit = engine.random(n=n)
+    else:
+        engine = Sobol(d=d, seed=seed, scramble=True)
+        unit = engine.random_base2(m=max(0, math.ceil(math.log2(n))))
+
+    lb = np.array([p.lb for p in numeric], dtype=float)
+    ub = np.array([p.ub for p in numeric], dtype=float)
+    scaled = unit.copy()
+    scaled[:, : len(numeric)] = lb + unit[:, : len(numeric)] * (ub - lb)
+    return scaled
 
 
 def chebyshev_center(space: ParameterSpace) -> np.ndarray:

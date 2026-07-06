@@ -15,7 +15,13 @@ from CADETProcess.parameter_space.parameters import (
     ParameterBase,
     RangedParameter,
 )
-from CADETProcess.parameter_space.sampling import HopsySampler, SamplerBase, chebyshev_center
+from CADETProcess.parameter_space.sampling import (
+    HopsySampler,
+    LatinHypercubeSampler,
+    SamplerBase,
+    SobolSampler,
+    chebyshev_center,
+)
 from CADETProcess.parameter_space.space import ParameterSpace
 from CADETProcess.parameter_space.transformed_space import TransformedSpace
 
@@ -24,6 +30,8 @@ __all__ = [
     "TransformedSpace",
     "SamplerBase",
     "HopsySampler",
+    "LatinHypercubeSampler",
+    "SobolSampler",
     "chebyshev_center",
     "ParameterBase",
     "RangedParameter",
