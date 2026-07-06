@@ -6,8 +6,10 @@ from CADETProcess.parameter_space import (
     ChoiceParameter,
     HopsySampler,
     LinearConstraint,
+    LinearEqualityConstraint,
     ParameterSpace,
     RangedParameter,
+    chebyshev_center,
 )
 
 # ── fixtures ──────────────────────────────────────────────────────────────────
@@ -239,6 +241,62 @@ def test_hopsy_sampler_same_result_as_space_sample(column):
     assert direct == via_space
 
 
+def test_sample_candidates_drawn_without_replacement(column):
+    space = _space_1d(column)
+    samples = space.sample(30, seed=2, pool_size=50)
+    values = [s["length"] for s in samples]
+    assert len(set(values)) == len(values)
+
+
+# ── linear constraints referencing dependent parameters ──────────────────────
+
+
+def test_sample_enforces_dependent_linear_constraint_by_rejection(column):
+    # a + b <= 4 with b = a means a <= 2; the polytope only sees the
+    # independent column (a <= 4), so rejection must enforce the rest
+    space = ParameterSpace()
+    space.add_evaluation_object(column)
+    a = RangedParameter("a", float, lb=0.0, ub=5.0)
+    b = RangedParameter("b", float, lb=0.0, ub=10.0)
+    space.add_parameter(a, path="length")
+    space.add_parameter(b, path="diameter")
+    space.add_dependency(b, [a], transform=lambda x: x)
+    space.add_linear_constraint(LinearConstraint([a, b], lhs=[1.0, 1.0], b=4.0))
+    samples = space.sample(20, seed=0, pool_size=BURN_IN)
+    assert all(2 * s["a"] <= 4.0 + 1e-9 for s in samples)
+
+
+def test_sample_dependent_linear_constraint_not_overtightened(column):
+    # a + b <= 0 with b = -a holds everywhere; slicing the dependent column
+    # away would wrongly enforce a <= 0 and reject the entire box
+    space = ParameterSpace()
+    space.add_evaluation_object(column)
+    a = RangedParameter("a", float, lb=0.0, ub=5.0)
+    b = RangedParameter("b", float, lb=-5.0, ub=0.0)
+    space.add_parameter(a, path="length")
+    space.add_parameter(b, path="diameter")
+    space.add_dependency(b, [a], transform=lambda x: -x)
+    space.add_linear_constraint(LinearConstraint([a, b], lhs=[1.0, 1.0], b=0.0))
+    samples = space.sample(20, seed=1, pool_size=BURN_IN)
+    assert len(samples) == 20
+    assert any(s["a"] > 2.0 for s in samples)
+
+
+def test_sample_raises_on_dependent_equality_constraint(column):
+    space = ParameterSpace()
+    space.add_evaluation_object(column)
+    a = RangedParameter("a", float, lb=0.0, ub=5.0)
+    b = RangedParameter("b", float, lb=0.0, ub=10.0)
+    space.add_parameter(a, path="length")
+    space.add_parameter(b, path="diameter")
+    space.add_dependency(b, [a], transform=lambda x: x)
+    space.add_linear_equality_constraint(
+        LinearEqualityConstraint([a, b], lhs=[1.0, -1.0], b=0.0)
+    )
+    with pytest.raises(ValueError, match="dependent"):
+        space.sample(1, seed=0, pool_size=50)
+
+
 # ── unbounded guard ───────────────────────────────────────────────────────────
 
 
@@ -270,3 +328,29 @@ def test_sample_significant_digits_snap(column):
         if v != 0.0:
             magnitude = 10 ** (math.floor(math.log10(abs(v))) - 1)
             assert abs(v - round(v / magnitude) * magnitude) < 1e-12 * abs(v) + 1e-15
+
+
+# ── chebyshev center ──────────────────────────────────────────────────────────
+
+
+def test_chebyshev_center_raises_on_categorical_space(column):
+    space = ParameterSpace()
+    space.add_evaluation_object(column)
+    space.add_parameter(
+        RangedParameter("length", float, lb=0.0, ub=5.0), path="length"
+    )
+    space.add_parameter(ChoiceParameter("mode", ["a", "b"]))
+    with pytest.raises(ValueError, match="categorical"):
+        chebyshev_center(space)
+
+
+# ── unseeded sampling ─────────────────────────────────────────────────────────
+
+
+def test_sample_unseeded_calls_differ(column):
+    # pins that unseeded calls do not share a default seed; with the former
+    # 0..255 seed range this collided once every 256 calls
+    space = _space_1d(column)
+    s1 = space.sample(3, pool_size=200)
+    s2 = space.sample(3, pool_size=200)
+    assert s1 != s2
