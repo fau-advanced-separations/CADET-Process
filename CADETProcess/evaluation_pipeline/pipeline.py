@@ -3,12 +3,11 @@ from __future__ import annotations
 import inspect
 import re
 import uuid as _uuid_mod
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from functools import wraps
 from pathlib import Path
 from typing import Any
 
-import numpy as np
 from pipefunc import PipeFunc, Pipeline
 
 from CADETProcess.parameter_space.space import ParameterSpace
@@ -22,7 +21,7 @@ _CONTEXT_ARG = "__eval_context__"
 
 
 class _EvaluationContext:
-    """Stable, serializable cache key combining a parameter vector and an evaluation object.
+    """Stable, serializable cache key combining a parameter assignment and an evaluation object.
 
     Pipefunc caches by argument value.  Evaluation objects are mutable, so passing
     the raw object would produce stale cache hits whenever ``set_values`` mutates it.
@@ -164,7 +163,7 @@ class EvaluationPipeline:
     ...     fractionate, output_name="fractionation_results",
     ...     requires=["simulation_results"],
     ... )
-    >>> results = pipeline.evaluate(x)
+    >>> results = pipeline.evaluate({"length": 0.5})
     >>> results["fractionation_results"]
     """
 
@@ -278,7 +277,7 @@ class EvaluationPipeline:
 
     def evaluate(
         self,
-        x: Any,
+        assignment: Mapping[str, Any],
         targets: list[str] | None = None,
         bypass_cache: bool = False,
     ) -> dict[str, Any]:
@@ -286,15 +285,20 @@ class EvaluationPipeline:
 
         The `Pipeline` instance is reused across calls.  Cache invalidation is
         handled by ``_EvaluationContext``: each call constructs a context keyed on
-        ``(x_key, obj_uuid)``, so results for different x values are naturally
-        distinct cache entries without manual cache clearing.  Intermediate nodes
-        shared by multiple targets within a single call are computed only once.
+        ``(x_key, obj_uuid)``, where ``x_key`` is the registration-ordered
+        ``(name, value)`` tuple of the independent assignment.  Results for
+        different assignments are naturally distinct cache entries without manual
+        cache clearing; assignments that only differ in a categorical value are
+        distinct entries too.  Intermediate nodes shared by multiple targets
+        within a single call are computed only once.
 
         Parameters
         ----------
-        x : array-like
-            Independent parameter vector in physical units; decoded to a named
-            assignment before `space.set_values` writes it.
+        assignment : Mapping
+            Values for the independent parameters by name, in physical units.
+            Order-insensitive.  Numeric vectors are an encoding owned by
+            ``TransformedSpace``; decode first:
+            ``pipeline.evaluate(space.transformed_space.decode(x))``.
         targets : list[str], optional
             Output names to compute.  `None` computes all registered outputs.
             Requesting a subset exploits pipefunc's lazy evaluation: only the
@@ -312,12 +316,22 @@ class EvaluationPipeline:
             evaluation objects the values are lists indexed by evaluation object.
             Results may be `EvaluationFailure` instances when a node failed.
         """
-        x_key: tuple = tuple(np.asarray(x, dtype=float).ravel())
+        if not isinstance(assignment, Mapping):
+            raise TypeError(
+                "evaluate takes a named assignment (Mapping of parameter name "
+                "to value); numeric vectors are an encoding owned by "
+                "TransformedSpace — decode first: "
+                "pipeline.evaluate(space.transformed_space.decode(x))."
+            )
+        self._space.set_values(assignment)
+        x_key: tuple = tuple(
+            (p.name, assignment[p.name])
+            for p in self._space.independent_parameters
+        )
         if bypass_cache:
             # Append a nonce so every node sees a guaranteed cache miss.
-            # Existing entries for other x values are unaffected.
+            # Existing entries for other assignments are unaffected.
             x_key = x_key + (_uuid_mod.uuid4().hex,)
-        self._space.set_values(self._space.transformed_space.decode(x))
 
         if targets is None:
             targets = self._output_names
