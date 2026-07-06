@@ -51,6 +51,7 @@ A module for building common chromatographic processes.
 from . import carouselBuilder
 from .carouselBuilder import *
 from .compartmentBuilder import *
+from .ZRMFlowSheetBuilder import *
 
 from .batchElutionBuilder import BatchElution
 from .clrBuilder import CLR
