@@ -10,17 +10,14 @@ from __future__ import annotations
 import inspect
 import logging
 import math
-import random
 import shutil
 import warnings
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Literal, Optional
 
-import hopsy
 import numpy as np
 import numpy.typing as npt
-from packaging.version import Version
 
 from CADETProcess import CADETProcessError, log
 from CADETProcess.dataStructure.deprecation import deprecated_alias
@@ -964,23 +961,15 @@ class OptimizationProblem:
         self, include_dependent_variables: bool = True
     ) -> np.ndarray:
         """Compute the Chebyshev center of the independent-variable polytope."""
-        problem = hopsy.Problem(self._space.A_independent, self._space.b)
-        problem = hopsy.add_box_constraints(
-            problem,
-            self._space.lower_bounds_independent,
-            self._space.upper_bounds_independent,
-            simplify=False,
+        from CADETProcess.parameter_space.sampling import chebyshev_center
+
+        assignment = chebyshev_center(self._space)
+        center = np.array(
+            [assignment[p.name] for p in self._space.independent_parameters]
         )
-        if self._space._linear_equality_constraints:
-            problem = hopsy.add_equality_constraints(
-                problem, self._space.A_eq_independent, self._space.b_eq
-            )
-        chebyshev = hopsy.compute_chebyshev_center(problem, original_space=True)
-        if Version(hopsy.__version__.strip('"')) < Version("1.7.0b"):
-            chebyshev = chebyshev[:, 0]
         if include_dependent_variables:
-            chebyshev = self.get_dependent_values(chebyshev)
-        return chebyshev
+            return self.get_dependent_values(center)
+        return center
 
     def create_initial_values(
         self,
@@ -991,81 +980,30 @@ class OptimizationProblem:
     ) -> np.ndarray:
         """Draw feasible initial values from the independent-variable polytope.
 
-        Uses hopsy for uniform polytope sampling.  Derived-variable constraints
-        are enforced by post-hoc filtering.
+        Delegates to HopsySampler with pool_size=burn_in; encodes the resulting
+        named assignments back to numeric vectors via TransformedSpace.encode.
 
         Returns
         -------
         np.ndarray, shape (n_samples, n_variables or n_independent_variables)
         """
-        burn_in = int(burn_in)
-        if seed is None:
-            seed = random.randint(0, 255)
+        from CADETProcess.parameter_space.sampling import HopsySampler
 
-        log_indices = [
-            i
-            for i, p in enumerate(self._space.independent_parameters)
-            if isinstance(p, RangedParameter) and not p.normalizer.is_linear
-        ]
-
-        class _LogSpaceModel:
-            def __init__(self, li: list[int]) -> None:
-                self.log_space_indices = li
-
-            def compute_negative_log_likelihood(self, x: np.ndarray) -> float:
-                return float(np.sum(np.log(x[self.log_space_indices])))
-
-        model = _LogSpaceModel(log_indices) if log_indices else None
-        problem = hopsy.Problem(self._space.A_independent, self._space.b, model)
-        problem = hopsy.add_box_constraints(
-            problem,
-            self._space.lower_bounds_independent,
-            self._space.upper_bounds_independent,
-            simplify=False,
+        assignments = HopsySampler(pool_size=int(burn_in)).sample(
+            self._space,
+            n_samples,
+            seed=seed,
+            include_dependent=False,
+            validate=lambda x: self.check_individual(x, check_nonlinear_constraints=False),
         )
-        if self._space._linear_equality_constraints:
-            problem = hopsy.add_equality_constraints(
-                problem, self._space.A_eq_independent, self._space.b_eq
+        ts = self._space.transformed_space
+        rows = []
+        for a in assignments:
+            x_ind = ts.encode(a)
+            rows.append(
+                self.get_dependent_values(x_ind) if include_dependent_variables else x_ind
             )
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            problem = hopsy.round(problem, simplify=False)
-            mc = hopsy.MarkovChain(
-                problem, proposal=hopsy.UniformCoordinateHitAndRunProposal
-            )
-            rng_hopsy = hopsy.RandomNumberGenerator(seed=seed)
-            _, states = hopsy.sample(mc, rng_hopsy, n_samples=burn_in, thinning=2)
-
-        independent_values = states[0]  # shape (burn_in, n_ind_vars)
-        rng = np.random.default_rng(seed)
-
-        values = []
-        counter = 0
-        while len(values) < n_samples:
-            if counter > burn_in:
-                raise CADETProcessError(
-                    "Cannot find individuals that fulfill constraints."
-                )
-            counter += 1
-            idx = int(rng.integers(0, burn_in))
-
-            ind: list[float] = []
-            for i_var, p in enumerate(self._space.independent_parameters):
-                v = float(independent_values[idx, i_var])
-                if isinstance(p, RangedParameter) and p.significant_digits is not None:
-                    from CADETProcess.numerics import round_to_significant_digits
-                    v = float(round_to_significant_digits(v, p.significant_digits))
-                ind.append(v)
-
-            if not self.check_individual(ind, check_nonlinear_constraints=False):
-                continue
-
-            values.append(
-                self.get_dependent_values(ind) if include_dependent_variables else ind
-            )
-
-        return np.array(values, ndmin=2)
+        return np.array(rows, ndmin=2)
 
     # ── Individual / config validation ────────────────────────────────────────
 
