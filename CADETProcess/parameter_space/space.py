@@ -995,16 +995,19 @@ class ParameterSpace:
         seed: Optional[int] = None,
         pool_size: int = 100_000,
         include_dependent: bool = False,
-    ) -> np.ndarray:
-        """Draw *n* feasible samples from the independent parameter polytope.
+    ) -> list[dict[str, Any]]:
+        """Draw *n* feasible samples as named assignments.
 
-        Uses hopsy (Highly Optimized toolbox for Polytope Sampling) to produce
-        uniformly distributed samples.  For parameters with a non-linear normalizer
-        (e.g. ``LogNormalizer``) a custom log-likelihood model is injected so that
-        samples are distributed uniformly in the transformed space.
+        Numeric independent parameters are drawn with hopsy (Highly Optimized
+        toolbox for Polytope Sampling) over the numeric polytope; categorical
+        parameters are drawn uniformly over their ``valid_values`` and merged
+        into the assignment.  For parameters with a non-linear normalizer
+        (e.g. ``LogNormalizer``) a custom log-likelihood model is injected so
+        that samples are distributed uniformly in the transformed space.
+        Integer positions are rounded by ``decode``.
 
         Derived parameter feasibility is enforced by post-hoc filtering: each
-        candidate is resolved via ``_resolve_all_values`` and validated; infeasible
+        candidate is resolved via ``resolve`` and validated; infeasible
         candidates are discarded and new draws are attempted.
 
         Parameters
@@ -1019,16 +1022,15 @@ class ParameterSpace:
             Number of MCMC steps used to build the candidate pool.  The default
             (100 000) is sufficient for most problems; reduce for fast tests.
         include_dependent : bool
-            When False (default) each row contains only the ``n_variables``
-            independent parameter values.  When True each row contains all
-            ``n_parameters`` values in registration order, with dependent parameters
-            resolved from the independent ones.
+            When False (default) each assignment contains only the independent
+            parameters.  When True each assignment contains all parameters in
+            registration order, with dependent parameters resolved from the
+            independent ones.
 
         Returns
         -------
-        np.ndarray
-            Shape ``(n, n_variables)`` or ``(n, n_parameters)`` depending on
-            *include_dependent*.
+        list[dict]
+            *n* named assignments, each ordered by registration.
 
         Raises
         ------
@@ -1044,47 +1046,49 @@ class ParameterSpace:
                 # Jacobian correction: uniform in log-transformed coordinates
                 return float(np.sum(np.log(x[self.log_space_indices])))
 
+        independent = self.independent_parameters
+        numeric = [p for p in independent if isinstance(p, RangedParameter)]
+        numeric_idx = [
+            i for i, p in enumerate(independent) if isinstance(p, RangedParameter)
+        ]
+        categorical = self.categorical_parameters
+
         log_indices = [
-            i
-            for i, p in enumerate(self.independent_parameters)
-            if isinstance(p, RangedParameter) and not p.normalizer.is_linear
+            i for i, p in enumerate(numeric) if not p.normalizer.is_linear
         ]
         model = _LogSpaceModel(log_indices) if log_indices else None
-
-        if self.categorical_parameters:
-            raise NotImplementedError(
-                "Polytope sampling does not support ChoiceParameter. "
-                "Remove categorical parameters or sample them independently."
-            )
 
         if seed is None:
             seed = random.randint(0, 255)
 
-        problem = hopsy.Problem(self.A_independent, self.b, model)
-        problem = hopsy.add_box_constraints(
-            problem, self.lower_bounds_independent, self.upper_bounds_independent, simplify=False
-        )
-        if self._linear_equality_constraints:
-            problem = hopsy.add_equality_constraints(
-                problem, self.A_eq_independent, self.b_eq
-            )
+        if numeric:
+            # Constraints never reference categorical parameters (rejected at
+            # declaration time), so slicing to the numeric columns drops only
+            # zeros.
+            lb_num = np.array([p.lb for p in numeric], dtype=float)
+            ub_num = np.array([p.ub for p in numeric], dtype=float)
+            problem = hopsy.Problem(self.A_independent[:, numeric_idx], self.b, model)
+            problem = hopsy.add_box_constraints(problem, lb_num, ub_num, simplify=False)
+            if self._linear_equality_constraints:
+                problem = hopsy.add_equality_constraints(
+                    problem, self.A_eq_independent[:, numeric_idx], self.b_eq
+                )
 
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            problem = hopsy.round(problem, simplify=False)
-            mc = hopsy.MarkovChain(
-                problem, proposal=hopsy.UniformCoordinateHitAndRunProposal
-            )
-            rng_hopsy = hopsy.RandomNumberGenerator(seed=seed)
-            _, states = hopsy.sample(mc, rng_hopsy, n_samples=pool_size, thinning=2)
-
-        candidates = states[0]  # shape (pool_size, n_variables)
-        int_indices = [
-            i for i, p in enumerate(self.independent_parameters)
-            if isinstance(p, RangedParameter) and p.parameter_type is int
-        ]
-        if int_indices:
-            candidates[:, int_indices] = np.round(candidates[:, int_indices])
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                problem = hopsy.round(problem, simplify=False)
+                mc = hopsy.MarkovChain(
+                    problem, proposal=hopsy.UniformCoordinateHitAndRunProposal
+                )
+                rng_hopsy = hopsy.RandomNumberGenerator(seed=seed)
+                _, states = hopsy.sample(
+                    mc, rng_hopsy, n_samples=pool_size, thinning=2
+                )
+            candidates = states[0]  # shape (pool_size, len(numeric))
+        else:
+            # Purely categorical space: the numeric polytope is empty.
+            candidates = np.zeros((pool_size, 0))
+        ts = self.transformed_space
         rng = np.random.default_rng(seed)
         results = []
         counter = 0
@@ -1097,22 +1101,24 @@ class ParameterSpace:
                     "Increase pool_size or relax dependent-parameter constraints."
                 )
             idx = int(rng.integers(0, pool_size))
-            x_ind = candidates[idx]
             counter += 1
 
+            categorical_values = {
+                c.name: c.valid_values[int(rng.integers(len(c.valid_values)))]
+                for c in categorical
+            } or None
+            assignment = ts.decode(candidates[idx], categorical_values)
+
             try:
-                all_values = self._resolve_all_values(x_ind)
+                all_values = self.resolve(assignment)
                 for p in self._parameters:
                     p.validate(all_values[p.name])
             except (TypeError, ValueError):
                 continue
 
-            if include_dependent:
-                results.append([all_values[p.name] for p in self._parameters])
-            else:
-                results.append(list(x_ind))
+            results.append(all_values if include_dependent else assignment)
 
-        return np.array(results)
+        return results
 
     def __repr__(self) -> str:
         """Return a readable representation."""
