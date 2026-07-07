@@ -1006,7 +1006,7 @@ class ParameterSpace:
         n : int
             Number of feasible samples to return.
         seed : int, optional
-            Random seed.  A random seed in [0, 255] is used when not specified.
+            Random seed. A random 32-bit seed is drawn when not specified.
         pool_size : int
             MCMC steps used to build the candidate pool.
         include_dependent : bool
