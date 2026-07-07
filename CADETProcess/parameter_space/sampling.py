@@ -330,17 +330,26 @@ def _qmc_candidates(
     return scaled
 
 
-def chebyshev_center(space: ParameterSpace) -> np.ndarray:
+def chebyshev_center(space: ParameterSpace) -> dict[str, float | int]:
     """Compute the Chebyshev center of the independent-variable polytope.
 
-    Returns an independent-variable float vector in physical units.
+    Returns an independent-variable named assignment in physical units,
+    typed and snapped the same way as ``SamplerBase.sample()`` (``int`` for
+    integer parameters, significant-digits rounding where declared).
+
+    Linear inequality constraints referencing dependent parameters cannot be
+    part of the polytope (dependencies are arbitrary callables); they are
+    dropped with a warning and the center of the relaxed polytope is verified
+    against them a posteriori.
 
     Raises
     ------
     ValueError
-        If the space contains categorical parameters; a center is undefined
-        for them, and the polytope matrices would contain their all-zero
-        columns with infinite box bounds.
+        If the space contains categorical parameters (a center is undefined
+        for them), if any independent parameter is unbounded, if a linear
+        equality constraint references a dependent parameter (a dropped
+        equality can never survive a point check), or if the relaxed center
+        violates a dropped inequality constraint.
     """
     from packaging.version import Version
 
@@ -351,7 +360,41 @@ def chebyshev_center(space: ParameterSpace) -> np.ndarray:
             "parameters."
         )
 
-    problem = hopsy.Problem(space.A_independent, space.b)
+    if any(
+        np.isinf(p.lb) or np.isinf(p.ub) for p in space.independent_parameters
+    ):
+        raise ValueError(
+            "Cannot compute the Chebyshev center of an unbounded space. "
+            "Narrow lb/ub on all parameters first."
+        )
+
+    ind_names = {p.name for p in space.independent_parameters}
+    if any(
+        any(p.name not in ind_names for p in c.parameters)
+        for c in space._linear_equality_constraints
+    ):
+        raise ValueError(
+            "Linear equality constraints referencing dependent parameters "
+            "cannot be included in the Chebyshev polytope; express the "
+            "constraint in independent parameters instead."
+        )
+    keep = np.array(
+        [
+            all(p.name in ind_names for p in c.parameters)
+            for c in space._linear_constraints
+        ],
+        dtype=bool,
+    )
+    dropped = [c for c, k in zip(space._linear_constraints, keep) if not k]
+    if dropped:
+        warnings.warn(
+            f"{len(dropped)} linear constraint(s) reference dependent "
+            "parameters and cannot be included in the Chebyshev polytope; "
+            "computing the center of the relaxed polytope and verifying it "
+            "against the full constraints."
+        )
+
+    problem = hopsy.Problem(space.A_independent[keep], space.b[keep])
     problem = hopsy.add_box_constraints(
         problem,
         space.lower_bounds_independent,
@@ -365,4 +408,28 @@ def chebyshev_center(space: ParameterSpace) -> np.ndarray:
     center = hopsy.compute_chebyshev_center(problem, original_space=True)
     if Version(hopsy.__version__.strip('"')) < Version("1.7.0b"):
         center = center[:, 0]
-    return center
+
+    assignment = space.transformed_space.decode(center)
+    for p in space.independent_parameters:
+        if p.significant_digits is not None:
+            assignment[p.name] = float(
+                round_to_significant_digits(assignment[p.name], p.significant_digits)
+            )
+
+    if dropped:
+        all_values = space.resolve(assignment)
+        violated = [
+            c for c in dropped
+            if sum(coeff * all_values[p.name] for p, coeff in zip(c.parameters, c.lhs))
+            > c.b
+        ]
+        if violated:
+            raise ValueError(
+                "The center of the relaxed polytope violates "
+                f"{len(violated)} linear constraint(s) referencing dependent "
+                "parameters. Express the constraint in independent parameters, "
+                "or use create_initial_values / sampling for a feasible "
+                "starting point."
+            )
+
+    return assignment

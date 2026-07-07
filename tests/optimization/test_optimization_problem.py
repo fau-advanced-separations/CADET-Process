@@ -172,19 +172,23 @@ def test_dependent_variable_names(op_with_dependent_variable):
         op.add_variable_dependency("spam", ["bar", "spam"], transform=None)
 
 
-def test_chebyshev_center_with_dependent_variable(op_with_dependent_variable):
+def test_chebyshev_center_dependent_constraints_never_silently_violated(
+    op_with_dependent_variable,
+):
+    # Constraints referencing the dependent 'spam' are dropped from the
+    # polytope with a warning; the contract is that the returned center is
+    # verified against them, so the outcome is either a feasible point or a
+    # ValueError, never a silently infeasible point.  Which of the two occurs
+    # depends on where the LP places the degenerate 'bar' coordinate.
     op = op_with_dependent_variable
-
-    x_ind = op.get_chebyshev_center(include_dependent_variables=False)
-    assert x_ind.shape == (3,)
-
-    x_full = op.get_dependent_values(x_ind)
-    assert x_full.shape == (4,)
-    # spam is a copy of bar.
-    np.testing.assert_allclose(x_full[2], x_full[1])
-
-    x_full_direct = op.get_chebyshev_center(include_dependent_variables=True)
-    np.testing.assert_allclose(x_full, x_full_direct)
+    with pytest.warns(UserWarning, match="relaxed polytope"):
+        try:
+            x = op.get_chebyshev_center(include_dependent_variables=True)
+        except ValueError:
+            return
+    assert op.check_individual(
+        x, get_dependent_values=False, check_nonlinear_constraints=False
+    )
 
 
 def test_create_initial_values_with_dependent_variable(op_with_dependent_variable):

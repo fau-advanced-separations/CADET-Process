@@ -467,6 +467,71 @@ def test_chebyshev_center_raises_on_categorical_space(column):
         chebyshev_center(space)
 
 
+def _space_with_dependent_constraint(column, b_constraint):
+    # b = 2a; constraint a + b <= b_constraint means the true constraint
+    # is 3a <= b_constraint, invisible to the independent-only polytope
+    space = ParameterSpace()
+    space.add_evaluation_object(column)
+    a = RangedParameter("a", float, lb=0.0, ub=1.0)
+    b = RangedParameter("b", float, lb=0.0, ub=10.0)
+    space.add_parameter(a, path="length")
+    space.add_parameter(b, path="diameter")
+    space.add_dependency(b, [a], transform=lambda x: 2 * x)
+    space.add_linear_constraint(LinearConstraint([a, b], lhs=[1.0, 1.0], b=b_constraint))
+    return space
+
+
+def test_chebyshev_center_warns_and_verifies_slack_dependent_constraint(column):
+    # relaxed center a = 0.5 satisfies 3a <= 100: warn, verify, return
+    space = _space_with_dependent_constraint(column, b_constraint=100.0)
+    with pytest.warns(UserWarning, match="relaxed polytope"):
+        center = chebyshev_center(space)
+    assert center.keys() == {"a"}
+    np.testing.assert_allclose(center["a"], 0.5)
+
+
+def test_chebyshev_center_raises_when_relaxed_center_infeasible(column):
+    # relaxed center a = 0.5 violates 3a <= 1.0: must fail, not return it
+    space = _space_with_dependent_constraint(column, b_constraint=1.0)
+    with pytest.warns(UserWarning, match="relaxed polytope"):
+        with pytest.raises(ValueError, match="dependent"):
+            chebyshev_center(space)
+
+
+def test_chebyshev_center_raises_on_dependent_equality_constraint(column):
+    space = ParameterSpace()
+    space.add_evaluation_object(column)
+    a = RangedParameter("a", float, lb=0.0, ub=1.0)
+    b = RangedParameter("b", float, lb=0.0, ub=10.0)
+    space.add_parameter(a, path="length")
+    space.add_parameter(b, path="diameter")
+    space.add_dependency(b, [a], transform=lambda x: 2 * x)
+    space.add_linear_equality_constraint(
+        LinearEqualityConstraint([a, b], lhs=[1.0, -1.0], b=0.0)
+    )
+    with pytest.raises(ValueError, match="equality"):
+        chebyshev_center(space)
+
+
+def test_chebyshev_center_raises_on_unbounded_parameter(column):
+    space = ParameterSpace()
+    space.add_evaluation_object(column)
+    space.add_parameter(
+        RangedParameter("length", float, lb=0.0, ub=np.inf), path="length"
+    )
+    with pytest.raises(ValueError, match="unbounded"):
+        chebyshev_center(space)
+
+
+def test_chebyshev_center_rounds_integer_parameter(column):
+    space = ParameterSpace()
+    space.add_evaluation_object(column)
+    space.add_parameter(RangedParameter("n", int, lb=10, ub=13), path="length")
+    center = chebyshev_center(space)
+    assert center["n"] == 12
+    assert isinstance(center["n"], int)
+
+
 # ── unseeded sampling ─────────────────────────────────────────────────────────
 
 
