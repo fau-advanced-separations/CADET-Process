@@ -212,6 +212,11 @@ if not skip_ax:
     NON_DEFAULT_PARAMETERS.append(
         (NEHVI, LinearConstraintsMooTestProblem, {"n_init_evals": 20, "n_max_evals": 40})
     )
+    # 50 Sobol + 20 BO trials leaves the front too sparse at the extremes;
+    # shift budget towards model-guided trials for better front coverage.
+    NON_DEFAULT_PARAMETERS.append(
+        (qNParEGO, NonlinearConstraintsMooTestProblem, {"n_init_evals": 20, "n_max_evals": 100})
+    )
 
 
 @pytest.fixture(params=params)
