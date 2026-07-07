@@ -994,7 +994,6 @@ class OptimizationProblem:
             n_samples,
             seed=seed,
             include_dependent=False,
-            validate=lambda x: self.check_individual(x, check_nonlinear_constraints=False),
         )
         ts = self._space.transformed_space
         rows = []

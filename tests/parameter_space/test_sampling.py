@@ -284,6 +284,19 @@ def test_sample_dependent_linear_constraint_not_overtightened(column):
     assert any(s["a"] > 2.0 for s in samples)
 
 
+def test_sample_integer_rounding_cannot_violate_linear_constraint(column):
+    # candidates in (3.5, 3.6] satisfy the polytope but round to 4; the
+    # resolved-value re-check must reject them, since the polytope only
+    # constrains the pre-rounding value
+    space = ParameterSpace()
+    space.add_evaluation_object(column)
+    n = RangedParameter("n", int, lb=1, ub=10)
+    space.add_parameter(n, path="length")
+    space.add_linear_constraint(LinearConstraint([n], lhs=[1.0], b=3.6))
+    samples = space.sample(20, seed=0, pool_size=BURN_IN)
+    assert all(s["n"] <= 3.6 for s in samples)
+
+
 def test_sample_raises_on_dependent_equality_constraint(column):
     space = ParameterSpace()
     space.add_evaluation_object(column)

@@ -3,8 +3,8 @@ Sampler strategies for ParameterSpace.
 
 SamplerBase defines the postprocessing contract (significant-digits snap, integer
 rounding via decode, categorical merge, dependency resolution, validation, and
-rejection of candidates violating linear constraints that reference dependent
-parameters).
+rejection of candidates violating linear inequality constraints on the resolved
+values).
 Concrete backends implement _candidates to produce numeric candidate rows,
 optionally with unit-interval columns for stratified categorical coverage, and
 declare via _sequential_candidates whether the row order carries structure.
@@ -15,7 +15,6 @@ from __future__ import annotations
 import math
 import warnings
 from abc import ABC, abstractmethod
-from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Optional
 
 import hopsy
@@ -47,8 +46,10 @@ class SamplerBase(ABC):
     Concrete subclasses implement _candidates; this base class handles
     postprocessing: significant-digits snap, integer rounding (via decode),
     categorical merge, dependency resolution, validation, and rejection of
-    candidates that violate linear constraints referencing dependent
-    parameters (those constraints cannot be part of the candidate polytope).
+    candidates that violate linear inequality constraints on the resolved
+    values (constraints referencing dependent parameters cannot be part of
+    the candidate polytope, and the snap and integer rounding perturb
+    candidates after polytope enforcement).
     """
 
     #: When True, candidates are consumed in row order because the order
@@ -63,18 +64,8 @@ class SamplerBase(ABC):
         n: int,
         seed: Optional[int] = None,
         include_dependent: bool = False,
-        validate: Optional[Callable[[np.ndarray], bool]] = None,
     ) -> list[dict[str, Any]]:
-        """Draw n feasible samples as named assignments.
-
-        Parameters
-        ----------
-        validate : callable, optional
-            Extra feasibility check called with the independent numeric vector
-            (physical units) after parameter-level validation passes.  Intended
-            for callers that enforce constraints not captured by the polytope
-            (e.g. linear constraints referencing dependent parameters).
-        """
+        """Draw n feasible samples as named assignments."""
         import random as _random
 
         if seed is None:
@@ -109,13 +100,11 @@ class SamplerBase(ABC):
         ts = space.transformed_space
         rng = np.random.default_rng(seed)
 
-        # Constraints referencing dependent parameters cannot be expressed in
-        # the independent-variable polytope; they are enforced by rejection.
-        ind_names = {p.name for p in independent}
-        dependent_constraints = [
-            c for c in space._linear_constraints
-            if any(p.name not in ind_names for p in c.parameters)
-        ]
+        # All inequality constraints are re-checked on the resolved values:
+        # constraints referencing dependent parameters cannot be expressed in
+        # the independent-variable polytope, and the significant-digits snap
+        # and integer rounding perturb candidates after polytope enforcement.
+        inequality_constraints = space._linear_constraints
 
         order = (
             np.arange(pool_size)
@@ -156,11 +145,8 @@ class SamplerBase(ABC):
             if any(
                 sum(coeff * all_values[p.name] for p, coeff in zip(c.parameters, c.lhs))
                 > c.b
-                for c in dependent_constraints
+                for c in inequality_constraints
             ):
-                continue
-
-            if validate is not None and not validate(ts.encode(assignment)):
                 continue
 
             results.append(all_values if include_dependent else assignment)
