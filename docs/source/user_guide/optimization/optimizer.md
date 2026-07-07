@@ -149,12 +149,12 @@ The {meth}`~CADETProcess.optimization.OptimizationResults.plot_convergence` meth
 _ = optimization_results.plot_convergence()
 ```
 
-The {meth}`~CADETProcess.optimization.OptimizationResults.plot_corner` method plots each evaluated variable value against every other variable in a set of scatter plots.
+The {meth}`~CADETProcess.optimization.OptimizationResults.plot_pairwise` method plots each evaluated variable value against every other variable in a set of scatter plots.
 The corner plot is particularly useful when exploring high-dimensional data or parameter spaces, as it allows us to identify correlations and dependencies between variables, and to visualize the marginal distributions of each variable.
 It is also useful when we want to compare the distribution of variables across different subsets of the data or parameter space.
 
 ```{code-cell} ipython3
-optimization_results.plot_corner()
+optimization_results.plot_pairwise()
 ```
 
 ```{code-cell} ipython3
