@@ -294,8 +294,8 @@ To facilitate the definition of starting points, the {class}`~CADETProcess.optim
 ```{note}
 This method only works if all optimization variables have defined lower and upper bounds.
 
-Moreover, this method only guarantees that linear constraints are fulfilled.
-Any nonlinear constraints may not be satisfied by the generated samples, and nonlinear parameter dependencies can be challenging to incorporate.
+Generated samples satisfy bounds and linear constraints, including bounds on dependent variables and linear constraints referencing dependent variables, which are enforced by rejection.
+Nonlinear constraints are not checked; samples may violate them.
 ```
 
 ```{code-cell} ipython3
@@ -322,7 +322,7 @@ optimization_problem.get_chebyshev_center()
 ```
 
 It is also possible to generate multiple samples at once.
-For this purpose, [hopsy](https://modsim.github.io/hopsy/) is used to efficiently (uniformly) sample the parameter space.
+By default, [hopsy](https://modsim.github.io/hopsy/) is used to efficiently (uniformly) sample the parameter space; alternative strategies such as Latin Hypercube sampling can be passed via the `sampler` argument (see {ref}`parameter_space_guide`).
 
 ```{code-cell} ipython3
 x = optimization_problem.create_initial_values(n_samples=1000)
