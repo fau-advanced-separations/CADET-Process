@@ -615,9 +615,9 @@ class OptimizationResults(Structure):
         Parameters
         ----------
         plot_evolution : bool, optional
-            If True, the Pareto front is Gplotted for each generation.
+            If True, the Pareto front is plotted for each generation.
             Else, only final Pareto front is plotted.
-            The default is False.
+            The default is True.
         *args : Any
             Additional positional arguments passed to `gen.plot_pareto`.
         ax : np.ndarray[plt.Axes] | None, default=None
