@@ -139,6 +139,30 @@ def test_create_initial_values_invariants(op_with_linear_constraint):
     assert not np.allclose(x, x_other)
 
 
+def test_create_initial_values_with_custom_sampler():
+    from CADETProcess.parameter_space import LatinHypercubeSampler
+
+    op = OptimizationProblem("box", use_diskcache=False)
+    op.add_variable("x_0", lb=0, ub=8)
+    op.add_variable("x_1", lb=0, ub=1)
+
+    x = op.create_initial_values(8, seed=1, sampler=LatinHypercubeSampler())
+    assert x.shape == (8, 2)
+    assert np.all(x >= op.lower_bounds)
+    assert np.all(x <= op.upper_bounds)
+    # LHS stratification: one point per unit stratum along x_0
+    assert sorted(int(np.floor(v)) for v in x[:, 0]) == list(range(8))
+
+
+def test_create_initial_values_custom_sampler_rejects_linear_constraints(
+    op_with_linear_constraint,
+):
+    from CADETProcess.parameter_space import SobolSampler
+
+    with pytest.raises(ValueError, match="linear constraints"):
+        op_with_linear_constraint.create_initial_values(4, seed=0, sampler=SobolSampler())
+
+
 # ── Dependent variables ──────────────────────────────────────────────────────
 
 

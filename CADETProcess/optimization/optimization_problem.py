@@ -14,7 +14,7 @@ import shutil
 import warnings
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Literal, Optional
+from typing import TYPE_CHECKING, Any, Literal, Optional
 
 import numpy as np
 import numpy.typing as npt
@@ -40,6 +40,9 @@ from CADETProcess.parameter_space.parameters import (
     RangedParameter,
 )
 from CADETProcess.parameter_space.transformed_space import TransformedSpace
+
+if TYPE_CHECKING:
+    from CADETProcess.parameter_space.sampling import SamplerBase
 
 __all__ = ["OptimizationProblem"]
 
@@ -977,11 +980,20 @@ class OptimizationProblem:
         seed: Optional[int] = None,
         burn_in: int = 100_000,
         include_dependent_variables: bool = False,
+        sampler: Optional[SamplerBase] = None,
     ) -> np.ndarray:
         """Draw feasible initial values from the independent-variable polytope.
 
-        Delegates to HopsySampler with pool_size=burn_in; encodes the resulting
-        named assignments back to numeric vectors via TransformedSpace.encode.
+        Delegates to *sampler* (default: HopsySampler with pool_size=burn_in);
+        encodes the resulting named assignments back to numeric vectors via
+        TransformedSpace.encode.
+
+        Parameters
+        ----------
+        sampler : SamplerBase, optional
+            Sampling strategy, e.g. LatinHypercubeSampler or SobolSampler for
+            box-bounded problems.  *burn_in* applies only to the default
+            HopsySampler.
 
         Returns
         -------
@@ -989,7 +1001,9 @@ class OptimizationProblem:
         """
         from CADETProcess.parameter_space.sampling import HopsySampler
 
-        assignments = HopsySampler(pool_size=int(burn_in)).sample(
+        if sampler is None:
+            sampler = HopsySampler(pool_size=int(burn_in))
+        assignments = sampler.sample(
             self._space,
             n_samples,
             seed=seed,
