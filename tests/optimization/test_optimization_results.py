@@ -9,7 +9,21 @@ from CADETProcess.optimization import U_NSGA3, OptimizationResults
 from tests.optimization.conftest import (
     make_optimization_problem as setup_optimization_problem,
 )
-from tests.optimization.test_population import setup_population
+
+
+def setup_population(optimization_problem, n_ind, n_obj=1, rng=None):
+    """Random population created through the problem's create_population."""
+    if rng is None:
+        rng = np.random.default_rng(12345)
+
+    n_vars = optimization_problem.n_variables
+    X = []
+    F = []
+    for _ in range(n_ind):
+        X.append(rng.random(n_vars))
+        F.append(-rng.random(n_obj))
+
+    return optimization_problem.create_population(X, F=F)
 
 
 class OptimizationResultsWithoutNans(OptimizationResults):
@@ -31,7 +45,6 @@ class OptimizationResultsWithoutNans(OptimizationResults):
         data = Dict()
         data.system_information = self.system_information
         data.optimizer_state = self.optimizer_state
-        data.population_all_id = str(self.population_all.id)
         data.populations = {i: pop.to_dict() for i, pop in enumerate(self.populations)}
         data.pareto_fronts = {
             i: front.to_dict() for i, front in enumerate(self.pareto_fronts)
@@ -103,11 +116,9 @@ def setup_optimization_problem_and_results(
             rng = np.random.default_rng(12345)
 
         for gen in range(n_gen):
-            pop = setup_population(n_ind, n_vars, n_obj, n_nonlin, n_meta, rng)
+            pop = setup_population(optimization_problem, n_ind, n_obj, rng)
             optimization_results.update(pop)
             optimization_results.update_pareto()
-            if n_meta > 0:
-                optimization_results.update_meta()
 
     return optimization_problem, optimization_results
 
