@@ -113,10 +113,7 @@ class _IPOPTProblem(cyipopt.Problem):
             g = opt.evaluate_nonlinear_constraints(
                 x, untransform=True
             )
-            cv = opt.evaluate_nonlinear_constraints_violation(
-                x, untransform=True
-            )
-            self._optimizer.run_post_processing(x, f, g, cv, self._optimizer.n_evals)
+            self._optimizer.run_post_processing(x, f, g, self._optimizer.n_evals)
         except Exception:
             pass
         return True
@@ -241,10 +238,7 @@ class IPOPT(OptimizerBase):
             g_final = opt.evaluate_nonlinear_constraints(
                 x_final, untransform=True
             )
-            cv_final = opt.evaluate_nonlinear_constraints_violation(
-                x_final, untransform=True
-            )
-            self.run_post_processing(x_final, f_final, g_final, cv_final, self.n_evals)
+            self.run_post_processing(x_final, f_final, g_final, self.n_evals)
         except Exception:
             pass
 

@@ -351,8 +351,9 @@ The callback signature may include any of the following arguments:
 
 - results : obj
     x or final result of evaluation toolchain.
-- individual : {class}`~CADETProcess.optimization.Individual`, optional
-    Information about current step of optimzer.
+- individual : {class}`~CADETProcess.optimization.IndividualView`, optional
+    Row view of the current population member with named parameter values
+    (`individual.X`) and metric values (`individual.metrics`).
 - evaluation_object : obj, optional
     Current evaluation object.
 - callbacks_dir : Path, optional
@@ -363,7 +364,7 @@ Introspection is used to determine which of the signatures above to invoke.
 ```{code-cell} ipython3
 def callback(results, individual, evaluation_object, callbacks_dir):
     print(results)
-    print(individual.x, individual.f)
+    print(individual.X, individual.metrics)
     print(evaluation_object)
     print(callbacks_dir)
 ```

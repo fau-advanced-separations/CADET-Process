@@ -342,12 +342,7 @@ class SciPyInterface(OptimizerBase):
                     x,
                     untransform=True,
                     )
-                cv = optimization_problem.evaluate_nonlinear_constraints_violation(
-                    x,
-                    untransform=True,
-                    )
-
-                self.run_post_processing(x, f, g, cv, self.n_evals)
+                self.run_post_processing(x, f, g, self.n_evals)
 
                 return False
 
@@ -371,14 +366,7 @@ class SciPyInterface(OptimizerBase):
                 x_transformed,
                 untransform=True,
             )
-            cv_nonlincon = (
-                optimization_problem.evaluate_nonlinear_constraints_violation(
-                    x_transformed,
-                    untransform=True,
-                    )
-            )
-
-            self.run_post_processing(x_transformed, f, g, cv_nonlincon, self.n_evals)
+            self.run_post_processing(x_transformed, f, g, self.n_evals)
 
         return callback
 

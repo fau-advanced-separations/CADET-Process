@@ -3,7 +3,7 @@ import warnings
 import numpy as np
 import pytest
 from CADETProcess import CADETProcessError
-from CADETProcess.optimization import Individual, OptimizationProblem, Population
+from CADETProcess.optimization import OptimizationProblem, Population
 
 from tests.optimization.conftest import (
     EvaluationObject,
@@ -288,7 +288,7 @@ def test_evaluate_objectives_full_vector_matches_independent(op_dep_with_objecti
 def test_evaluate_meta_scores_with_dependent_variable(op_dep_with_objective):
     """Meta scores work correctly when the problem has dependent variables."""
     op = op_dep_with_objective
-    op.add_meta_score(lambda obj: obj.scalar_param, n_meta_scores=1)
+    op.add_meta_score(lambda obj: obj.scalar_param, name="meta", n_meta_scores=1)
     m = op.evaluate_meta_scores([3.0])
     np.testing.assert_allclose(m, [3.0])
 
@@ -296,7 +296,7 @@ def test_evaluate_meta_scores_with_dependent_variable(op_dep_with_objective):
 def test_evaluate_meta_scores_full_vector_matches_independent(op_dep_with_objective):
     """get_dependent_values=False on meta scores gives same result as independent input."""
     op = op_dep_with_objective
-    op.add_meta_score(lambda obj: obj.scalar_param, n_meta_scores=1)
+    op.add_meta_score(lambda obj: obj.scalar_param, name="meta", n_meta_scores=1)
     x_ind = np.array([3.0])
     x_full = op.get_dependent_values(x_ind)
     np.testing.assert_allclose(
@@ -900,9 +900,13 @@ def test_add_callback_duplicate_name_raises():
 
 
 def _make_dummy_population():
-    pop = Population()
-    pop.add_individual(Individual(x=np.array([])))
-    return pop
+    """One-row population; the callback tests only count invocations."""
+    from CADETProcess.metric_space import MetricSpace
+
+    return Population(
+        X={"dummy": [0.0]},
+        metric_space=MetricSpace(),
+    )
 
 
 def test_evaluate_callbacks_frequency_skip():
@@ -1187,15 +1191,13 @@ def test_evaluate_callbacks_called_per_individual(eval_obj):
 
     op.add_callback(callback, requires=[evaluator])
 
-    ind = Individual(x=np.array([0.5]))
-    pop = Population()
-    pop.add_individual(ind)
+    pop = op.create_population([[0.5]])
 
     op.evaluate_callbacks(pop, current_iteration=0)
 
     assert len(calls) == 1
     result, called_ind, called_eval_obj, called_dir = calls[0]
-    assert called_ind is ind
+    np.testing.assert_allclose(called_ind.X["scalar_param"], 0.5)
     assert called_eval_obj is eval_obj
     assert called_dir is None
     np.testing.assert_allclose(result, 1.0)
@@ -1219,9 +1221,7 @@ def test_evaluate_callbacks_optional_args_injected_by_signature(eval_obj):
 
     op.add_callback(callback, requires=[evaluator])
 
-    ind = Individual(x=np.array([0.3]))
-    pop = Population()
-    pop.add_individual(ind)
+    pop = op.create_population([[0.3]])
 
     op.evaluate_callbacks(pop, current_iteration=0)
 
@@ -1247,9 +1247,7 @@ def test_evaluate_callbacks_no_chain_sees_current_x(eval_obj):
     op.add_callback(callback)
 
     for x_val in [0.2, 0.7]:
-        ind = Individual(x=np.array([x_val]))
-        pop = Population()
-        pop.add_individual(ind)
+        pop = op.create_population([[x_val]])
         op.evaluate_callbacks(pop, current_iteration=0)
 
     np.testing.assert_allclose(seen_values, [0.2, 0.7])
@@ -1268,9 +1266,7 @@ def test_evaluate_callbacks_callbacks_dir_passthrough(eval_obj, tmp_path):
 
     op.add_callback(callback)
 
-    ind = Individual(x=np.array([0.5]))
-    pop = Population()
-    pop.add_individual(ind)
+    pop = op.create_population([[0.5]])
 
     op.evaluate_callbacks(pop, current_iteration=0, callbacks_dir=tmp_path)
 
@@ -1301,11 +1297,9 @@ def test_evaluate_callbacks_pipeline_cache_reuse(eval_obj):
 
     op.add_callback(callback, requires=[evaluator])
 
-    ind = Individual(x=np.array([0.5]))
-    pop = Population()
-    pop.add_individual(ind)
+    pop = op.create_population([[0.5]])
 
-    op.evaluate_objectives(ind.x)
+    op.evaluate_objectives([0.5])
     op.evaluate_callbacks(pop, current_iteration=0)
 
     # Evaluator must have run exactly once; callback gets the cached result.
@@ -1314,35 +1308,32 @@ def test_evaluate_callbacks_pipeline_cache_reuse(eval_obj):
     np.testing.assert_allclose(cb_results[0], 1.0)
 
 
-# ── create_individual cv fields (T7) ─────────────────────────────────────────
+# ── Population-derived cv fields (T7) ────────────────────────────────────────
 
 
-def test_create_individual_cv_bounds_feasible(op_basic):
+def test_create_population_cv_bounds_feasible(op_basic):
     op_basic.add_objective(lambda x: x[0])
-    ind = op_basic.create_individual([0.5, 5.0], f=[0.5], f_minimized=[0.5])
-    assert np.all(ind.cv_bounds <= 0)
+    pop = op_basic.create_population([[0.5, 5.0]], F=[[0.5]])
+    assert np.all(pop.cv_bounds[0] <= 0)
 
 
-def test_create_individual_cv_bounds_upper_violated(op_basic):
+def test_create_population_cv_bounds_upper_violated(op_basic):
     op_basic.add_objective(lambda x: x[0])
     n = op_basic.n_variables
-    ind = op_basic.create_individual([1.5, 5.0], f=[1.5], f_minimized=[1.5])
-    assert ind.cv_bounds[n + 0] > 0   # upper violation on var_0
-    assert ind.cv_bounds[n + 1] <= 0  # var_1 fine
+    pop = op_basic.create_population([[1.5, 5.0]], F=[[1.5]])
+    cv_bounds = pop.cv_bounds[0]
+    assert cv_bounds[n + 0] > 0   # upper violation on var_0
+    assert cv_bounds[n + 1] <= 0  # var_1 fine
 
 
-def test_create_individual_cv_lincon_violated(op_with_linear_constraint):
-    op_with_linear_constraint.add_objective(lambda x: x[0])
+def test_create_population_cv_lincon_violated(op_with_linear_constraint):
     # var_0=0.8 > var_1=0.3 violates var_0 - var_1 <= 0
-    ind = op_with_linear_constraint.create_individual(
-        [0.8, 0.3], f=[0.8], f_minimized=[0.8]
-    )
-    assert ind.cv_lincon[0] > 0
+    pop = op_with_linear_constraint.create_population([[0.8, 0.3]], F=[[0.8]])
+    assert pop.cv_lincon[0, 0] > 0
+    assert not pop.is_feasible()[0]
 
 
-def test_create_individual_cv_lincon_feasible(op_with_linear_constraint):
-    op_with_linear_constraint.add_objective(lambda x: x[0])
-    ind = op_with_linear_constraint.create_individual(
-        [0.3, 0.5], f=[0.3], f_minimized=[0.3]
-    )
-    assert ind.cv_lincon[0] <= 0
+def test_create_population_cv_lincon_feasible(op_with_linear_constraint):
+    pop = op_with_linear_constraint.create_population([[0.3, 0.5]], F=[[0.3]])
+    assert pop.cv_lincon[0, 0] <= 0
+    assert pop.is_feasible()[0]

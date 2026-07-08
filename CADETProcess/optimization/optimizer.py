@@ -529,94 +529,63 @@ class OptimizerBase(Structure):
         self,
         X_transformed: npt.ArrayLike,
         F: npt.ArrayLike,
-        F_minimized: npt.ArrayLike,
         G: npt.ArrayLike,
-        CV_nonlincon: npt.ArrayLike,
     ) -> Population:
         """Create new population from current generation for post procesing."""
         X_transformed = np.array(X_transformed, ndmin=2)
         F = np.array(F, ndmin=2)
-        F_minimized = np.array(F_minimized, ndmin=2)
-        G = np.array(G, ndmin=2)
-        CV_nonlincon = np.array(CV_nonlincon, ndmin=2)
 
         if self.optimization_problem.n_meta_scores > 0:
-            M_minimized = self.optimization_problem.evaluate_meta_scores(
+            M = self.optimization_problem.evaluate_meta_scores(
                 X_transformed,
                 untransform=True,
                 parallelization_backend=self.parallelization_backend,
             )
-            M = self.optimization_problem.transform_maximization(
-                M_minimized, scores="meta_scores"
-            )
         else:
-            M_minimized = None
             M = None
 
         if self.optimization_problem.n_nonlinear_constraints == 0:
             G = None
-            CV_nonlincon = None
+        else:
+            G = np.array(G, ndmin=2)
 
         X = self.optimization_problem.get_dependent_values(
             X_transformed, untransform=True
         )
-        population = self.optimization_problem.create_population(
-            X,
-            F=F,
-            F_minimized=F_minimized,
-            G=G,
-            CV_nonlincon=CV_nonlincon,
-            M=M,
-            M_minimized=M_minimized,
-        )
+        return self.optimization_problem.create_population(X, F=F, G=G, M=M)
 
-        for ind in population:
-            ind.is_feasible = self.optimization_problem.check_individual(
-                ind.x,
-                get_dependent_values=False,
-                cv_bounds_tol=self.cv_bounds_tol,
-                cv_lincon_tol=self.cv_lincon_tol,
-                cv_lineqcon_tol=self.cv_lineqcon_tol,
-                check_nonlinear_constraints=True,
-                cv_nonlincon_tol=self.cv_nonlincon_tol,
-            )
-
-        return population
-
-    def _create_pareto_front(self, X_opt_transformed: npt.ArrayLike) -> Population:
+    def _create_pareto_front(
+        self, X_opt_transformed: npt.ArrayLike
+    ) -> Population | None:
         """Create new pareto front from current generation for post procesing."""
         if X_opt_transformed is None:
-            pareto_front = None
-        else:
-            pareto_front = Population()
+            return None
 
-            for x_opt_transformed in X_opt_transformed:
-                x_opt = self.optimization_problem.get_dependent_values(
-                    x_opt_transformed, untransform=True
-                )
-                ind = self.results.population_all[x_opt]
-                pareto_front.add_individual(ind)
+        population_all = self.results.population_all
+        indices = []
+        for x_opt_transformed in X_opt_transformed:
+            x_opt = self.optimization_problem.get_dependent_values(
+                x_opt_transformed, untransform=True
+            )
+            indices.append(population_all.index_of(x_opt))
 
-        return pareto_front
+        return population_all[np.asarray(indices, dtype=int)]
 
-    def _create_meta_front(self) -> Population:
+    def _create_meta_front(self) -> Population | None:
         """Create new meta front from current generation for post procesing."""
         if self.optimization_problem.n_multi_criteria_decision_functions == 0:
-            meta_front = None
-        else:
-            pareto_front = self.results.pareto_front
+            return None
 
-            X_meta_front = (
-                self.optimization_problem.evaluate_multi_criteria_decision_functions(
-                    pareto_front
-                )
+        pareto_front = self.results.pareto_front
+
+        X_meta_front = (
+            self.optimization_problem.evaluate_multi_criteria_decision_functions(
+                pareto_front
             )
+        )
 
-            meta_front = Population()
-            for x in X_meta_front:
-                meta_front.add_individual(pareto_front[x])
-
-        return meta_front
+        indices = [pareto_front.index_of(x) for x in X_meta_front]
+        return pareto_front[np.asarray(indices, dtype=int)]
 
     def _evaluate_callbacks(
         self,
@@ -638,14 +607,19 @@ class OptimizerBase(Structure):
 
     def _log_results(self, current_generation: int) -> None:
         self.logger.info(f"Finished Generation {current_generation}.")
-        for ind in self.results.meta_front:
-            message = f"x: {ind.x}, f: {ind.f}"
+        meta_front = self.results.meta_front
+        x = meta_front.x
+        f = meta_front.f
+        cv_nonlincon = meta_front.cv_nonlincon
+        plain = meta_front.plain_metrics
+        for i in range(len(meta_front)):
+            message = f"x: {x[i]}, f: {f[i]}"
 
             if self.optimization_problem.n_nonlinear_constraints > 0:
-                message += f", cv: {ind.cv_nonlincon}"
+                message += f", cv: {cv_nonlincon[i]}"
 
             if self.optimization_problem.n_meta_scores > 0:
-                message += f", m: {ind.m}"
+                message += f", m: {plain[i]}"
             self.logger.info(message)
 
     def run_post_processing(
@@ -653,7 +627,6 @@ class OptimizerBase(Structure):
         X_transformed: Sequence[Sequence[float]],
         F_minimized: Sequence[float | Sequence[float]],
         G: Sequence[float | Sequence[float]],
-        CV_nonlincon: Sequence[float],
         current_generation: int,
         X_opt_transformed: Optional[Sequence[float]] = None,
     ) -> None:
@@ -669,8 +642,7 @@ class OptimizerBase(Structure):
             This assumes that all objective function values are minimized.
         G : list
             Nonlinear constraint function values of generation.
-        CV_nonlincon : list
-            Nonlinear constraints violation of of generation.
+            Violations are derived from the population's metric space.
         current_generation : int
             Current generation.
         X_opt_transformed : list, optional
@@ -685,9 +657,7 @@ class OptimizerBase(Structure):
         F = self.optimization_problem.transform_maximization(
             F_minimized, scores="objectives"
         )
-        population = self._create_population(
-            X_transformed, F, F_minimized, G, CV_nonlincon
-        )
+        population = self._create_population(X_transformed, F, G)
         self.results.update(population)
 
         pareto_front = self._create_pareto_front(X_opt_transformed)

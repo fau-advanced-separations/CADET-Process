@@ -22,7 +22,7 @@ from CADETProcess.dataStructure import (
     UnsignedInteger,
 )
 from CADETProcess.optimization import (
-    Individual,
+    IndividualView,
     ParetoFront,
     Population,
 )
@@ -93,7 +93,7 @@ class OptimizationResults(Structure):
 
         self._optimizer_state = Dict()
 
-        self._population_all = Population()
+        self._population_all = None
         self._populations = []
         self._similarity_tol = similarity_tol
         self._pareto_fronts = []
@@ -149,6 +149,10 @@ class OptimizationResults(Structure):
     @property
     def population_all(self) -> Population:
         """Population: Population with all evaluated individuals."""
+        if self._population_all is None:
+            self._population_all = Population.concat(
+                self._populations
+            ).drop_duplicates()
         return self._population_all
 
     @property
@@ -177,29 +181,42 @@ class OptimizationResults(Structure):
         else:
             return self._meta_fronts[-1]
 
-    def update(self, new: Individual | Population) -> None:
+    def update(self, new: IndividualView | Population) -> None:
         """
         Update Results.
 
         Parameters
         ----------
-        new : Individual, Population
+        new : IndividualView, Population
             New results
 
         Raises
         ------
         CADETProcessError
-            If new is not an instance of Individual or Population
+            If new is not an instance of IndividualView or Population
         """
-        if isinstance(new, Individual):
-            population = Population()
-            population.add_individual(new)
+        if isinstance(new, IndividualView):
+            population = new.as_population()
         elif isinstance(new, Population):
             population = new
         else:
-            raise CADETProcessError("Expected Population or Individual")
+            raise CADETProcessError("Expected Population or IndividualView")
         self._populations.append(population)
-        self.population_all.update(population)
+        self._population_all = None
+
+    def _create_pareto_front(self) -> ParetoFront:
+        """Build an empty ParetoFront with problem context and optimizer tolerances."""
+        problem = self.optimization_problem
+        optimizer = self.optimizer
+        return ParetoFront(
+            similarity_tol=self._similarity_tol or 0,
+            metric_space=problem.metric_space,
+            parameter_space=problem.parameter_space,
+            cv_bounds_tol=getattr(optimizer, "cv_bounds_tol", 0.0) or 0.0,
+            cv_lincon_tol=getattr(optimizer, "cv_lincon_tol", 0.0) or 0.0,
+            cv_lineqcon_tol=getattr(optimizer, "cv_lineqcon_tol", 0.0) or 0.0,
+            cv_nonlincon_tol=getattr(optimizer, "cv_nonlincon_tol", 0.0) or 0.0,
+        )
 
     def update_pareto(self, pareto_new: Population | None = None) -> None:
         """
@@ -210,13 +227,13 @@ class OptimizationResults(Structure):
         pareto_new : Population, optional
             New pareto front. If None, update existing front with latest population.
         """
-        pareto_front = ParetoFront(similarity_tol=self._similarity_tol)
+        pareto_front = self._create_pareto_front()
 
         if pareto_new is not None:
-            pareto_front.update(pareto_new)
+            pareto_front.merge(pareto_new)
         else:
             if len(self.pareto_fronts) > 0:
-                pareto_front.update(self.pareto_front)
+                pareto_front.merge(self.pareto_front)
             pareto_front.update_population(self.population_last)
 
         if self._similarity_tol:
@@ -233,7 +250,7 @@ class OptimizationResults(Structure):
             New meta front.
         """
         if self._similarity_tol:
-            meta_front.remove_similar()
+            meta_front = meta_front.drop_similar(self._similarity_tol)
         self._meta_fronts.append(meta_front)
 
     @property
@@ -304,7 +321,7 @@ class OptimizationResults(Structure):
     @property
     def m(self) -> np.ndarray:
         """np.ndarray: Meta scores of optimal points."""
-        return self.meta_front.m
+        return self.meta_front.plain_metrics
 
     @property
     def n_evals_history(self) -> np.ndarray:
@@ -387,32 +404,44 @@ class OptimizationResults(Structure):
 
     @property
     def m_best_history(self) -> np.ndarray:
-        """np.ndarray: Best meta scores per generation."""
-        return np.array([pop.m_best for pop in self.populations])
+        """np.ndarray: Best meta scores per generation.
+
+        Meta scores carry no direction annotation; they are evaluated as
+        minimized, so "best" is the per-column minimum.
+        """
+        return np.array(
+            [np.min(pop.plain_metrics, axis=0) for pop in self.populations]
+        )
 
     @property
     def m_min_history(self) -> np.ndarray:
         """np.ndarray: Minimum meta scores per generation."""
         if self.optimization_problem.n_meta_scores == 0:
             return None
-        else:
-            return np.array([pop.m_min for pop in self.populations])
+        return np.array(
+            [np.min(pop.plain_metrics, axis=0) for pop in self.populations]
+        )
 
     @property
     def m_max_history(self) -> np.ndarray:
         """np.ndarray: Maximum meta scores per generation."""
         if self.optimization_problem.n_meta_scores == 0:
             return None
-        else:
-            return np.array([pop.m_max for pop in self.populations])
+        return np.array(
+            [np.max(pop.plain_metrics, axis=0) for pop in self.populations]
+        )
 
     @property
     def m_avg_history(self) -> np.ndarray:
         """np.ndarray: Average meta scores per generation."""
         if self.optimization_problem.n_meta_scores == 0:
             return None
-        else:
-            return np.array([pop.m_avg for pop in self.populations])
+        return np.array(
+            [
+                np.mean(np.ma.masked_invalid(pop.plain_metrics), axis=0)
+                for pop in self.populations
+            ]
+        )
 
     def plot_figures(self) -> None:
         """
@@ -565,9 +594,9 @@ class OptimizationResults(Structure):
         if plot_pareto:
             populations = self.pareto_fronts
             population_last = self.pareto_front
-            population_all = Population()
-            for pareto in self.pareto_fronts:
-                population_all.update(pareto)
+            population_all = Population.concat(
+                self.pareto_fronts
+            ).drop_duplicates()
 
         else:
             populations = self.populations
@@ -861,7 +890,6 @@ class OptimizationResults(Structure):
         data.system_information = self.system_information
         data.optimizer_state = self.optimizer_state
         data.similarity_tol = self._similarity_tol
-        data.population_all_id = str(self.population_all.id)
         data.populations = {i: pop.to_dict() for i, pop in enumerate(self.populations)}
         data.pareto_fronts = {
             i: front.to_dict() for i, front in enumerate(self.pareto_fronts)
@@ -886,19 +914,33 @@ class OptimizationResults(Structure):
             Serialized data.
         """
         self._optimizer_state = data["optimizer_state"]
-        self._population_all = Population(id=data["population_all_id"])
+        self._population_all = None
         self._similarity_tol = data.get("similarity_tol")
 
+        problem = self.optimization_problem
+        metric_space = getattr(problem, "metric_space", None)
+        parameter_space = getattr(problem, "parameter_space", None)
+
         for pop_dict in data["populations"].values():
-            pop = Population.from_dict(pop_dict)
+            pop = Population.from_dict(
+                pop_dict,
+                metric_space=metric_space,
+                parameter_space=parameter_space,
+            )
             self.update(pop)
 
         self._pareto_fronts = [
-            ParetoFront.from_dict(d) for d in data["pareto_fronts"].values()
+            ParetoFront.from_dict(
+                d, metric_space=metric_space, parameter_space=parameter_space
+            )
+            for d in data["pareto_fronts"].values()
         ]
         if self._meta_fronts is not None:
             self._meta_fronts = [
-                ParetoFront.from_dict(d) for d in data["meta_fronts"].values()
+                Population.from_dict(
+                    d, metric_space=metric_space, parameter_space=parameter_space
+                )
+                for d in data["meta_fronts"].values()
             ]
         self.time_elapsed = data.get("time_elapsed")
         self.cpu_time = data.get("cpu_time")
@@ -921,7 +963,6 @@ class OptimizationResults(Structure):
             Results file name without file extension.
         """
         header = [
-            "id",
             *self.optimization_problem.variable_names,
             *self.optimization_problem.objective_labels,
         ]
@@ -965,10 +1006,14 @@ class OptimizationResults(Structure):
         with open(f"{self.results_directory / file_name}.csv", mode) as csvfile:
             writer = csv.writer(csvfile, delimiter=",")
 
-            for ind in population:
-                row = [ind.id, *ind.x.tolist(), *ind.f.tolist()]
-                if ind.g is not None:
-                    row += ind.g.tolist()
-                if ind.m is not None:
-                    row += ind.m.tolist()
+            x = population.x
+            f = population.f
+            g = population.g
+            m = population.plain_metrics
+            for i in range(len(population)):
+                row = [*np.asarray(x[i]).tolist(), *f[i].tolist()]
+                if g.shape[1] > 0:
+                    row += g[i].tolist()
+                if m.shape[1] > 0:
+                    row += m[i].tolist()
                 writer.writerow(row)

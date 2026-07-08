@@ -72,8 +72,9 @@ Population
 .. autosummary::
    :toctree: generated/
 
-   Individual
+   IndividualView
    Population
+   ParetoFront
 
 
 Results
@@ -96,7 +97,6 @@ ParallelizationBackend
 
 """
 
-from .individual import *
 from .population import *
 from .results import *
 from .optimization_problem import OptimizationProblem
