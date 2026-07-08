@@ -24,7 +24,6 @@ from CADETProcess.dataStructure.deprecation import deprecated_alias
 from CADETProcess.dataStructure.nested_dict import attribute_path_exists
 from CADETProcess.evaluation_pipeline import EvaluationFailure, EvaluationPipeline
 from CADETProcess.metric_space import Metric, MetricSpace
-from CADETProcess.optimization.individual import Individual
 from CADETProcess.optimization.population import Population
 from CADETProcess.parameter_space import ParameterSpace
 from CADETProcess.parameter_space.constraints import (
@@ -52,86 +51,35 @@ __all__ = ["OptimizationProblem"]
 # ── Metric annotation ─────────────────────────────────────────────────────
 
 
-class _LegacyMetricRecord:
-    """Self-contained record for a callback or meta score.
+class _CallbackRecord:
+    """Scheduling record for a callback.
 
-    Holds declaration and metadata in one object, predating ``MetricSpace``.
-    Objectives and nonlinear constraints use ``_MetricRecord`` instead, with
-    declarations on ``MetricSpace``; this class remains until callbacks and
-    meta scores migrate (meta scores fold into the Population refactor).
+    Callbacks are not metrics: they produce files, not values.  The record
+    holds the callable, its wiring (evaluation objects, evaluator chain),
+    and scheduling policy only.
     """
 
     def __init__(
         self,
         func: Callable,
         name: str,
-        n_metrics: int = 1,
-        bad_metrics: float | npt.ArrayLike | None = None,
         evaluation_objects: list | None = None,
         evaluator_chain: list[str] | None = None,
-        labels: list[str] | None = None,
         args: tuple = (),
         kwargs: dict | None = None,
-        minimize: bool = True,
-        bounds: list | None = None,
-        comparison_operator: str = "le",
         frequency: int = 1,
         callbacks_dir: Any = None,
         keep_progress: bool = False,
     ) -> None:
         self.func = func
         self.name = name
-        self.n_metrics = n_metrics
-        if bad_metrics is None:
-            self.bad_metrics = np.full(n_metrics, np.inf)
-        elif np.isscalar(bad_metrics):
-            self.bad_metrics = np.full(n_metrics, float(bad_metrics))
-        else:
-            self.bad_metrics = np.asarray(bad_metrics, dtype=float)
         self.evaluation_objects: list = list(evaluation_objects) if evaluation_objects else []
         self.evaluator_chain: list[str] = list(evaluator_chain) if evaluator_chain else []
-        self._labels: list[str] | None = list(labels) if labels is not None else None
         self.args = args if args else ()
         self.kwargs = kwargs if kwargs is not None else {}
-        self.minimize = minimize
-        self.bounds: list = list(bounds) if bounds is not None else []
-        self.comparison_operator = comparison_operator
         self.frequency = frequency
         self.callbacks_dir = callbacks_dir
         self.keep_progress = keep_progress
-
-    @property
-    def n_total_metrics(self) -> int:
-        """Total metric count across all evaluation objects."""
-        n_eval = len(self.evaluation_objects) if self.evaluation_objects else 1
-        return n_eval * self.n_metrics
-
-    @property
-    def labels(self) -> list[str]:
-        """Metric labels, expanded across evaluation objects when there are multiple."""
-        if self._labels is not None:
-            base = list(self._labels)
-        else:
-            try:
-                base = list(self.func.labels)
-            except AttributeError:
-                if self.n_metrics > 1:
-                    base = [f"{self.name}_{i}" for i in range(self.n_metrics)]
-                else:
-                    base = [self.name]
-        if len(self.evaluation_objects) > 1:
-            return [
-                f"{eval_obj}_{label}"
-                for label in base
-                for eval_obj in self.evaluation_objects
-            ]
-        return base
-
-    @labels.setter
-    def labels(self, value: list[str] | None) -> None:
-        if value is not None and len(value) != self.n_metrics:
-            raise CADETProcessError(f"Expected {self.n_metrics} labels.")
-        self._labels = list(value) if value is not None else None
 
     def cleanup(self, callbacks_dir: Any, current_iteration: int) -> None:
         """Remove stale callback files, optionally archiving progress snapshots."""
@@ -343,8 +291,8 @@ class OptimizationProblem(Problem):
 
         self._objectives: list[_MetricRecord] = []
         self._nonlinear_constraints: list[_MetricRecord] = []
-        self._callbacks: list[_LegacyMetricRecord] = []
-        self._meta_scores: list[_LegacyMetricRecord] = []
+        self._callbacks: list[_CallbackRecord] = []
+        self._meta_scores: list[_MetricRecord] = []
         self._multi_criteria_decision_functions: list = []
 
     # ── Evaluation objects ─────────────────────────────────────────────────────
@@ -1552,7 +1500,7 @@ class OptimizationProblem(Problem):
     # ── Callbacks ─────────────────────────────────────────────────────────────
 
     @property
-    def callbacks(self) -> list[_LegacyMetricRecord]:
+    def callbacks(self) -> list[_CallbackRecord]:
         """Registered callback records."""
         return self._callbacks
 
@@ -1637,10 +1585,9 @@ class OptimizationProblem(Problem):
             evaluator_chain.append(self._evaluator_names[req])
         self._register_evaluator_chain(req_list)
 
-        record = _LegacyMetricRecord(
+        record = _CallbackRecord(
             callback,
             name,
-            n_metrics=1,
             evaluation_objects=eval_objs,
             evaluator_chain=evaluator_chain,
             args=args,
@@ -1654,7 +1601,7 @@ class OptimizationProblem(Problem):
     # ── Meta scores ───────────────────────────────────────────────────────────
 
     @property
-    def meta_scores(self) -> list[_LegacyMetricRecord]:
+    def meta_scores(self) -> list[_MetricRecord]:
         """Registered meta-score records."""
         return self._meta_scores
 
@@ -1673,27 +1620,85 @@ class OptimizationProblem(Problem):
 
     @property
     def n_meta_scores(self) -> int:
-        """Number of meta scores."""
-        return len(self._meta_scores)
+        """Total number of meta-score metrics across all eval objects."""
+        return sum(ms.metric.n_metrics for ms in self._meta_scores)
 
     def add_meta_score(
         self,
         func: Callable,
+        name: Optional[str] = None,
         n_meta_scores: int = 1,
         labels: Any = None,
         bad_metrics: Any = None,
+        evaluation_objects: Any = -1,
+        requires: Any = None,
+        *args: Any,
+        **kwargs: Any,
     ) -> None:
-        """Register a meta-score function (post-objective ranking criterion)."""
+        """Register a meta-score function (post-objective ranking criterion).
+
+        A meta score is a metric without direction annotation: it is
+        declared on the ``MetricSpace`` like objectives and constraints,
+        but carries no minimize/maximize or bound semantics.
+        """
         if not callable(func):
             raise TypeError("Expected callable meta-score function.")
 
-        name = getattr(func, "__name__", str(func))
-        record = _LegacyMetricRecord(
+        if name is None:
+            if inspect.isfunction(func) or inspect.ismethod(func):
+                name = func.__name__
+            else:
+                name = str(func)
+
+        if name in self._metric_space.metrics_dict:
+            raise CADETProcessError(
+                f"Metric {name!r} is already registered. Objectives, "
+                f"nonlinear constraints, and meta scores share one metric "
+                f"namespace; pass name= to disambiguate."
+            )
+
+        # Resolve evaluation objects.
+        if evaluation_objects is None:
+            eval_objs: list[Any] = []
+        elif evaluation_objects == -1:
+            eval_objs = list(self.evaluation_objects)
+        elif not isinstance(evaluation_objects, list):
+            eval_objs = [evaluation_objects]
+        else:
+            eval_objs = list(evaluation_objects)
+        for el in eval_objs:
+            if el not in self.evaluation_objects:
+                raise CADETProcessError(f"Unknown EvaluationObject: {el!r}")
+
+        # Resolve evaluator chain and lazily register in pipeline.
+        if requires is None:
+            req_list: list = []
+        elif not isinstance(requires, list):
+            req_list = [requires]
+        else:
+            req_list = list(requires)
+        evaluator_chain: list[str] = []
+        for req in req_list:
+            if req not in self._evaluator_names:
+                raise CADETProcessError(f"Unknown Evaluator: {req!r}")
+            evaluator_chain.append(self._evaluator_names[req])
+        self._register_evaluator_chain(req_list)
+
+        # Declare the metric without direction or constraint annotation.
+        base_labels = labels if labels is not None else getattr(func, "labels", None)
+        metric = self._build_metric(name, n_meta_scores, base_labels, eval_objs)
+        self._metric_space.add_metric(metric)
+
+        record = _MetricRecord(
             func,
-            name,
-            n_metrics=n_meta_scores,
+            metric,
+            annotation=None,
+            n_per_object=n_meta_scores,
             bad_metrics=bad_metrics,
-            labels=labels,
+            evaluation_objects=eval_objs,
+            evaluator_chain=evaluator_chain,
+            args=args,
+            kwargs=kwargs if kwargs else None,
         )
         self._meta_scores.append(record)
 
@@ -1739,7 +1744,7 @@ class OptimizationProblem(Problem):
     def _evaluate_individual(
         self,
         x: npt.ArrayLike,
-        target_functions: list[_LegacyMetricRecord | _MetricRecord],
+        target_functions: list[_MetricRecord],
     ) -> np.ndarray:
         """Evaluate all *target_functions* for a single parameter vector.
 
@@ -1753,7 +1758,7 @@ class OptimizationProblem(Problem):
         """
         x = np.asarray(x, dtype=float).ravel()
 
-        def _bad_for(metric: _LegacyMetricRecord) -> np.ndarray:
+        def _bad_for(metric: _MetricRecord) -> np.ndarray:
             n = len(
                 metric.evaluation_objects
                 if metric.evaluation_objects
@@ -1862,7 +1867,7 @@ class OptimizationProblem(Problem):
     def _evaluate_population(
         self,
         X: npt.ArrayLike,
-        target_functions: list[_LegacyMetricRecord | _MetricRecord],
+        target_functions: list[_MetricRecord],
         parallelization_backend: Any = None,
     ) -> np.ndarray:
         """Evaluate *target_functions* for each row of *X*.
@@ -2220,9 +2225,19 @@ class OptimizationProblem(Problem):
                 sig = inspect.signature(cb.func).parameters
             except (ValueError, TypeError):
                 sig = {}
+            independent_names = {
+                p.name for p in self._parameter_space.independent_parameters
+            }
             for individual in population:
-                x_ind = self.untransform(individual.x_transformed)
-                assignment = self._parameter_space.transformed_space.decode(x_ind)
+                values = individual.X
+                x_full = np.array(
+                    [values[name] for name in values], dtype=float
+                )
+                assignment = {
+                    name: value
+                    for name, value in values.items()
+                    if name in independent_names
+                }
                 self._parameter_space.set_values(assignment)
                 # Use the pipeline to get evaluator chain outputs, benefiting
                 # from results already cached during objective/constraint
@@ -2254,7 +2269,7 @@ class OptimizationProblem(Problem):
                                         chain_result = (
                                             eval_obj
                                             if eval_obj is not None
-                                            else individual.x
+                                            else x_full
                                         )
                                         for ev_name in cb.evaluator_chain:
                                             chain_result = self._evaluator_func_by_name[
@@ -2265,7 +2280,7 @@ class OptimizationProblem(Problem):
                             else:
                                 # Pipeline unavailable; fall back to direct execution.
                                 chain_result = (
-                                    eval_obj if eval_obj is not None else individual.x
+                                    eval_obj if eval_obj is not None else x_full
                                 )
                                 for ev_name in cb.evaluator_chain:
                                     chain_result = self._evaluator_func_by_name[
@@ -2273,7 +2288,7 @@ class OptimizationProblem(Problem):
                                     ](chain_result)
                         else:
                             chain_result = (
-                                eval_obj if eval_obj is not None else individual.x
+                                eval_obj if eval_obj is not None else x_full
                             )
                         kwargs = dict(cb.kwargs)
                         if "individual" in sig:
@@ -2381,61 +2396,60 @@ class OptimizationProblem(Problem):
                 selected.extend(result)
         return selected
 
-    # ── Individual and population creation ────────────────────────────────────
+    # ── Population creation ───────────────────────────────────────────────────
 
-    def create_individual(
+    def _metric_columns(
         self,
-        x: npt.ArrayLike,
-        f: npt.ArrayLike | None = None,
-        f_minimized: npt.ArrayLike | None = None,
-        g: npt.ArrayLike | None = None,
-        cv_nonlincon: npt.ArrayLike | None = None,
-        m: npt.ArrayLike | None = None,
-        m_minimized: npt.ArrayLike | None = None,
-    ) -> Individual:
-        """Create an ``Individual`` from a full parameter vector and metric values."""
-        x = np.asarray(x, dtype=float)
-        x_indep = self.get_independent_values(x)
-        x_transformed = self.transform(x_indep)
+        records: list[_MetricRecord],
+        values: npt.ArrayLike,
+        n: int,
+        kind: str,
+    ) -> dict[str, np.ndarray]:
+        """Split a flat value matrix into named metric columns.
 
-        cv_bounds = self.evaluate_bounds(x, get_dependent_values=False)
-        cv_lincon = self.evaluate_linear_constraints(x, get_dependent_values=False)
-        cv_lineqcon = np.abs(
-            self.evaluate_linear_equality_constraints(x, get_dependent_values=False)
-        )
-
-        return Individual(
-            x=x,
-            x_transformed=x_transformed,
-            cv_bounds=cv_bounds,
-            cv_lincon=cv_lincon,
-            cv_lineqcon=cv_lineqcon,
-            f=f,
-            f_minimized=f_minimized,
-            g=g,
-            cv_nonlincon=cv_nonlincon,
-            m=m,
-            m_minimized=m_minimized,
-            independent_variable_names=self.independent_variable_names,
-            objective_labels=self.objective_labels,
-            nonlinear_constraint_labels=self.nonlinear_constraint_labels,
-            meta_score_labels=self.meta_score_labels,
-            variable_names=self.variable_names,
-        )
+        *values* has one row per individual; each record consumes
+        ``metric.n_metrics`` columns and is reshaped to the metric's
+        declared shape.
+        """
+        values = np.asarray(values, dtype=float).reshape(n, -1)
+        n_total = sum(record.metric.n_metrics for record in records)
+        if values.shape[1] != n_total:
+            raise CADETProcessError(
+                f"Expected {n_total} {kind} values per individual, "
+                f"got {values.shape[1]}."
+            )
+        columns: dict[str, np.ndarray] = {}
+        offset = 0
+        for record in records:
+            metric = record.metric
+            block = values[:, offset:offset + metric.n_metrics]
+            columns[metric.name] = block.reshape(n, *metric.shape)
+            offset += metric.n_metrics
+        return columns
 
     def create_population(
         self,
         X: npt.ArrayLike,
         F: npt.ArrayLike | None = None,
-        F_minimized: npt.ArrayLike | None = None,
         G: npt.ArrayLike | None = None,
-        CV_nonlincon: npt.ArrayLike | None = None,
         M: npt.ArrayLike | None = None,
-        M_minimized: npt.ArrayLike | None = None,
         untransform: bool = False,
         get_dependent_values: bool = False,
     ) -> Population:
-        """Create a ``Population`` from arrays of parameter vectors and metric values."""
+        """Create a columnar ``Population`` from parameter and metric arrays.
+
+        Parameters
+        ----------
+        X : array-like
+            Parameter vectors, one row per individual.  Full vectors by
+            default; pass ``get_dependent_values=True`` for
+            independent-only rows and ``untransform=True`` for normalized
+            coordinates.
+        F, G, M : array-like, optional
+            Objective, nonlinear-constraint, and meta-score values in
+            physical direction, one row per individual, flattened in
+            registration order.
+        """
         X = np.array(X, ndmin=2)
         if untransform:
             X = np.array([self.untransform(x) for x in X])
@@ -2443,35 +2457,36 @@ class OptimizationProblem(Problem):
             X = np.array([self._resolve_full_vector(x) for x in X])
 
         n = len(X)
-
-        def _to_rows(arr: npt.ArrayLike | None) -> list:
-            if arr is None:
-                return n * [None]
-            return list(np.array(arr, ndmin=2))
-
-        F_rows = _to_rows(F)
-        F_min_rows = F_rows if F_minimized is None else _to_rows(F_minimized)
-        G_rows = _to_rows(G)
-        CV_rows = G_rows if CV_nonlincon is None else _to_rows(CV_nonlincon)
-        M_rows = _to_rows(M)
-        M_min_rows = M_rows if M_minimized is None else _to_rows(M_minimized)
-
-        pop = Population()
-        for x, f, f_min, g, cv, m, m_min in zip(
-            X, F_rows, F_min_rows, G_rows, CV_rows, M_rows, M_min_rows
-        ):
-            ind = self.create_individual(
-                x,
-                f=f,
-                f_minimized=f_min,
-                g=g,
-                cv_nonlincon=cv,
-                m=m,
-                m_minimized=m_min,
+        if X.shape[1] != self.n_variables:
+            raise CADETProcessError(
+                f"Expected {self.n_variables} parameter values per individual, "
+                f"got {X.shape[1]}."
             )
-            pop.add_individual(ind)
 
-        return pop
+        X_columns = {
+            name: X[:, i] for i, name in enumerate(self.variable_names)
+        }
+
+        metrics: dict[str, np.ndarray] = {}
+        if F is not None:
+            metrics.update(self._metric_columns(self._objectives, F, n, "objective"))
+        if G is not None:
+            metrics.update(
+                self._metric_columns(
+                    self._nonlinear_constraints, G, n, "nonlinear constraint"
+                )
+            )
+        if M is not None:
+            metrics.update(
+                self._metric_columns(self._meta_scores, M, n, "meta score")
+            )
+
+        return Population(
+            X=X_columns,
+            metrics=metrics,
+            metric_space=self._metric_space,
+            parameter_space=self._parameter_space,
+        )
 
     # ── String representations ────────────────────────────────────────────────
 

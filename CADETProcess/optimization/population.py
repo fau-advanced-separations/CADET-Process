@@ -1,7 +1,22 @@
+"""Columnar named storage for evaluated parameter points.
+
+``Population`` is a universal, optimizer-agnostic record of evaluated
+points: a scipy trace, an Ax experiment history, a GA generation, and a
+surrogate training corpus are all the same type.  Parameters and metrics
+are stored as named columns (``dict[str, np.ndarray]``); everything else
+(objective matrices, constraint violations, feasibility, dominance) is
+derived from the columns plus the annotations in ``MetricSpace`` and
+``ParameterSpace``.
+
+A single evaluated point is a one-row ``Population``; indexing with a
+scalar returns an ``IndividualView``, a lightweight row lens that owns no
+data.
+"""
+
 from __future__ import annotations
 
-import uuid
-from typing import Any, Iterator, Optional
+from collections.abc import Iterable, Iterator, Mapping
+from typing import Any, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,408 +24,879 @@ import numpy.typing as npt
 from addict import Dict
 
 from CADETProcess import CADETProcessError, plotting
-from CADETProcess.optimization.individual import Individual, hash_array
+from CADETProcess.metric_space import Metric, MetricSpace
+from CADETProcess.parameter_space import ParameterSpace
 
-__all__ = ["Population", "ParetoFront"]
+__all__ = ["IndividualView", "Population", "ParetoFront"]
+
+_METADATA_KEYS = ("timestamp", "evaluation_time")
+
+
+def _as_column(values: npt.ArrayLike) -> np.ndarray:
+    """Coerce a parameter column to a 1-D array, numeric when possible."""
+    arr = np.asarray(values)
+    if arr.ndim != 1:
+        arr = arr.reshape(-1)
+    if arr.dtype == object:
+        try:
+            arr = arr.astype(float)
+        except (TypeError, ValueError):
+            pass
+    return arr
+
+
+def _decode(value: Any) -> Any:
+    """Decode bytes (from HDF5 round-trips) to str, recursively for arrays."""
+    if isinstance(value, bytes):
+        return value.decode()
+    if isinstance(value, np.ndarray) and value.dtype.kind == "S":
+        return value.astype(str)
+    return value
+
+
+class IndividualView:
+    """Row lens over canonical ``Population`` storage.
+
+    Deliberately minimal: convenience indexing only.  It owns no data and
+    implements no optimization semantics; anything that vectorizes
+    (dominance, feasibility, statistics) stays on ``Population``.
+    """
+
+    __slots__ = ("_population", "_idx")
+
+    def __init__(self, population: "Population", idx: int) -> None:
+        self._population = population
+        self._idx = int(idx)
+
+    @property
+    def X(self) -> dict[str, Any]:
+        """Named parameter values of this row."""
+        return {
+            name: column[self._idx]
+            for name, column in self._population.X.items()
+        }
+
+    @property
+    def metrics(self) -> dict[str, np.ndarray]:
+        """Named metric values of this row, in declared shape."""
+        return {
+            name: values[self._idx]
+            for name, values in self._population.metrics.items()
+        }
+
+    @property
+    def metadata(self) -> dict[str, Any]:
+        """Metadata values of this row; empty when the population has none."""
+        metadata = self._population.metadata
+        if metadata is None:
+            return {}
+        return {name: values[self._idx] for name, values in metadata.items()}
+
+    def as_record(self) -> dict[str, Any]:
+        """Return this row as a ``{"X": ..., "metrics": ..., "metadata": ...}`` record."""
+        record: dict[str, Any] = {"X": self.X, "metrics": self.metrics}
+        metadata = self.metadata
+        if metadata:
+            record["metadata"] = metadata
+        return record
+
+    def as_population(self) -> "Population":
+        """Return this row as a one-row ``Population``."""
+        return self._population[[self._idx]]
+
+    def __repr__(self) -> str:
+        """Return a readable representation."""
+        return f"IndividualView(X={self.X!r})"
 
 
 class Population:
-    """
-    Collection of Individuals evaluated during Optimization.
+    """Columnar record of evaluated parameter points.
 
-    Attributes
+    Parameters
     ----------
-    individuals : list
-        Individuals evaluated during optimization.
+    X : Mapping[str, array-like]
+        Named parameter columns, one ``(n,)`` array per parameter.
+        Categorical parameters are held as string/object columns.
+    metrics : Mapping[str, array-like], optional
+        Named metric columns; each value has shape ``(n, *metric_shape)``
+        with the shape declared on the ``Metric`` in *metric_space*.
+    metadata : Mapping[str, array-like], optional
+        Universal bookkeeping only: ``timestamp`` and ``evaluation_time``.
+        Optimizer context (generation, ranks) belongs in
+        ``OptimizationResults``.
+    metric_space : MetricSpace
+        Output declarations and annotations; required.  Dominance,
+        constraint violations, and shape validation read from it.
+    parameter_space : ParameterSpace, optional
+        Input domain.  Semantically required; ``None`` is an
+        interoperability escape hatch for raw arrays.  Operations that
+        need it (``X_num``, bound/linear-constraint violations) raise
+        when it is absent.
 
-    See Also
-    --------
-    CADETProcess.optimization.Individual
-    ParetoFront
+    Notes
+    -----
+    Population is immutable: combination is explicit via
+    ``Population.concat``.  Deduplication uses exact value matching on the
+    stored parameter columns; there is no row identity beyond the values.
     """
 
-    def __init__(self, id: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        X: Mapping[str, npt.ArrayLike],
+        metrics: Optional[Mapping[str, npt.ArrayLike]] = None,
+        metadata: Optional[Mapping[str, npt.ArrayLike]] = None,
+        *,
+        metric_space: MetricSpace,
+        parameter_space: Optional[ParameterSpace] = None,
+    ) -> None:
+        if not isinstance(metric_space, MetricSpace):
+            raise TypeError(
+                f"metric_space is required; got {type(metric_space).__name__}."
+            )
+        if parameter_space is not None and not isinstance(
+            parameter_space, ParameterSpace
+        ):
+            raise TypeError(
+                f"Expected ParameterSpace, got {type(parameter_space).__name__}."
+            )
+        self._metric_space = metric_space
+        self._parameter_space = parameter_space
+        self._init_storage(X, metrics, metadata)
+
+    def _init_storage(
+        self,
+        X: Mapping[str, npt.ArrayLike],
+        metrics: Optional[Mapping[str, npt.ArrayLike]],
+        metadata: Optional[Mapping[str, npt.ArrayLike]],
+    ) -> None:
+        """Validate and freeze the columnar storage."""
+        X_cols: dict[str, np.ndarray] = {}
+        n: Optional[int] = None
+        for name, values in dict(X).items():
+            col = _as_column(values)
+            if n is None:
+                n = len(col)
+            elif len(col) != n:
+                raise ValueError(
+                    f"Parameter column {name!r} has length {len(col)}, "
+                    f"expected {n}."
+                )
+            col.flags.writeable = False
+            X_cols[str(name)] = col
+
+        declared = self._metric_space.metrics_dict
+        metric_cols: dict[str, np.ndarray] = {}
+        for name, values in dict(metrics or {}).items():
+            if name not in declared:
+                raise ValueError(f"Metric {name!r} is not declared in metric_space.")
+            metric = declared[name]
+            arr = np.asarray(values, dtype=float)
+            if n is None:
+                n = arr.shape[0] if arr.ndim > 0 else 0
+            expected = (n, *metric.shape)
+            if arr.shape != expected:
+                # A scalar metric may arrive as (n, 1); canonicalize.
+                if metric.shape == () and arr.shape == (n, 1):
+                    arr = arr.reshape(n)
+                else:
+                    raise ValueError(
+                        f"Metric {name!r}: expected shape {expected}, "
+                        f"got {arr.shape}."
+                    )
+            arr.flags.writeable = False
+            metric_cols[name] = arr
+
+        meta_cols: Optional[dict[str, np.ndarray]] = None
+        if metadata:
+            meta_cols = {}
+            for name, values in dict(metadata).items():
+                if name not in _METADATA_KEYS:
+                    raise ValueError(
+                        f"Unknown metadata key {name!r}; allowed: {_METADATA_KEYS}. "
+                        "Optimizer context belongs in OptimizationResults."
+                    )
+                arr = np.asarray(values)
+                if n is None:
+                    n = len(arr)
+                if arr.shape != (n,):
+                    raise ValueError(
+                        f"Metadata {name!r}: expected shape ({n},), got {arr.shape}."
+                    )
+                arr.flags.writeable = False
+                meta_cols[name] = arr
+
+        self._X = X_cols
+        self._metrics = metric_cols
+        self._metadata = meta_cols
+        self._n = n if n is not None else 0
+
+    # ── Constructors ──────────────────────────────────────────────────────────
+
+    @classmethod
+    def empty(
+        cls,
+        *,
+        metric_space: MetricSpace,
+        parameter_space: Optional[ParameterSpace] = None,
+    ) -> "Population":
+        """Return an empty population (concat/accumulation seed)."""
+        return cls(
+            X={}, metric_space=metric_space, parameter_space=parameter_space
+        )
+
+    @classmethod
+    def from_records(
+        cls,
+        records: Iterable[Mapping[str, Any]],
+        *,
+        metric_space: MetricSpace,
+        parameter_space: Optional[ParameterSpace] = None,
+    ) -> "Population":
+        """Build a population from per-row records.
+
+        Each record is a mapping with keys ``"X"`` (required),
+        ``"metrics"``, and ``"metadata"``; all records must provide the
+        same keys and the same column names.
         """
-        Initialize the Population.
+        records = list(records)
+        if not records:
+            return cls.empty(
+                metric_space=metric_space, parameter_space=parameter_space
+            )
 
-        Parameters
-        ----------
-        id : str or None, optional
-            Identifier for the population. If None, a random UUID will be generated.
+        x_names = list(records[0].get("X", {}))
+        metric_names = list(records[0].get("metrics", {}) or {})
+        metadata_names = list(records[0].get("metadata", {}) or {})
+
+        X = {name: [] for name in x_names}
+        metrics: dict[str, list] = {name: [] for name in metric_names}
+        metadata: dict[str, list] = {name: [] for name in metadata_names}
+        declared = metric_space.metrics_dict
+        for record in records:
+            record_X = record.get("X", {})
+            if list(record_X) != x_names:
+                raise ValueError("All records must share the same parameter names.")
+            for name in x_names:
+                X[name].append(record_X[name])
+            record_metrics = record.get("metrics", {}) or {}
+            if list(record_metrics) != metric_names:
+                raise ValueError("All records must share the same metric names.")
+            for name in metric_names:
+                if name not in declared:
+                    raise ValueError(
+                        f"Metric {name!r} is not declared in metric_space."
+                    )
+                metrics[name].append(declared[name].validate(record_metrics[name]))
+            record_metadata = record.get("metadata", {}) or {}
+            for name in metadata_names:
+                metadata[name].append(record_metadata[name])
+
+        return cls(
+            X=X,
+            metrics={name: np.stack(vals) for name, vals in metrics.items()},
+            metadata={name: np.asarray(vals) for name, vals in metadata.items()}
+            if metadata
+            else None,
+            metric_space=metric_space,
+            parameter_space=parameter_space,
+        )
+
+    @classmethod
+    def from_sample(
+        cls,
+        X: Mapping[str, Any],
+        metrics: Optional[Mapping[str, Any]] = None,
+        metadata: Optional[Mapping[str, Any]] = None,
+        *,
+        metric_space: MetricSpace,
+        parameter_space: Optional[ParameterSpace] = None,
+    ) -> "Population":
+        """Build a one-row population from a single named sample."""
+        record: dict[str, Any] = {"X": dict(X)}
+        if metrics is not None:
+            record["metrics"] = dict(metrics)
+        if metadata is not None:
+            record["metadata"] = dict(metadata)
+        return cls.from_records(
+            [record], metric_space=metric_space, parameter_space=parameter_space
+        )
+
+    @classmethod
+    def concat(cls, populations: Iterable["Population"]) -> "Population":
+        """Concatenate populations into a new one.
+
+        All non-empty populations must share parameter columns, metric
+        columns, and a compatible metric space (same metric names and
+        shapes).  Empty populations are ignored.
         """
-        self._individuals = {}
+        populations = list(populations)
+        if not populations:
+            raise ValueError("Expected at least one population.")
+        non_empty = [pop for pop in populations if len(pop) > 0]
+        if not non_empty:
+            return populations[0]
 
-        if id is None:
-            self.id = uuid.uuid4()
-        else:
-            if isinstance(id, bytes):
-                id = id.decode(encoding="utf=8")
-            self.id = uuid.UUID(id)
+        first = non_empty[0]
+        names_first = first._metric_space.metric_names
+        for pop in non_empty[1:]:
+            if list(pop._X) != list(first._X):
+                raise CADETProcessError("Parameter columns do not match.")
+            if list(pop._metrics) != list(first._metrics):
+                raise CADETProcessError("Metric columns do not match.")
+            if pop._metric_space.metric_names != names_first:
+                raise CADETProcessError("Metric spaces are not compatible.")
 
-    @property
-    def feasible(self) -> "Population":
-        """Population: Population containing only feasible individuals."""
-        pop = Population()
-        pop._individuals = {ind.id: ind for ind in self.individuals if ind.is_feasible}
-
-        return pop
-
-    @property
-    def infeasible(self) -> "Population":
-        """Population: Population containing only infeasible individuals."""
-        pop = Population()
-        pop._individuals = {
-            ind.id: ind for ind in self.individuals if not ind.is_feasible
+        X = {
+            name: np.concatenate([pop._X[name] for pop in non_empty])
+            for name in first._X
         }
+        metrics = {
+            name: np.concatenate([pop._metrics[name] for pop in non_empty])
+            for name in first._metrics
+        }
+        has_metadata = [pop._metadata for pop in non_empty]
+        if all(md is not None for md in has_metadata):
+            keys = list(has_metadata[0])
+            metadata = {
+                key: np.concatenate([md[key] for md in has_metadata])
+                for key in keys
+                if all(key in md for md in has_metadata)
+            }
+        else:
+            metadata = None
 
-        return pop
+        return cls(
+            X=X,
+            metrics=metrics,
+            metadata=metadata,
+            metric_space=first._metric_space,
+            parameter_space=first._parameter_space,
+        )
 
-    @property
-    def n_x(self) -> int:
-        """int: Number of optimization variables."""
-        return self.individuals[0].n_x
-
-    @property
-    def n_f(self) -> int:
-        """int: Number of objective metrics."""
-        return self.individuals[0].n_f
-
-    @property
-    def n_g(self) -> int:
-        """int: Number of nonlinear constraint metrics."""
-        return self.individuals[0].n_g
-
-    @property
-    def n_m(self) -> int:
-        """int: Number of meta scores."""
-        return self.individuals[0].n_m
-
-    @property
-    def dimensions(self) -> tuple[int]:
-        """tuple: Individual dimensions (n_x, n_f, n_g, n_m)."""
-        if self.n_individuals == 0:
-            return None
-
-        return self.individuals[0].dimensions
+    # ── Storage access ────────────────────────────────────────────────────────
 
     @property
-    def objectives_minimization_factors(self) -> np.ndarray:
-        """np.ndarray: Array indicating objectives transformed to minimization."""
-        return self.individuals[0].objectives_minimization_factors
+    def X(self) -> dict[str, np.ndarray]:
+        """Named parameter columns (read-only arrays)."""
+        return dict(self._X)
 
     @property
-    def meta_scores_minimization_factors(self) -> np.ndarray:
-        """np.ndarray: Array indicating meta sorces transformed to minimization."""
-        return self.individuals[0].meta_scores_minimization_factors
+    def metrics(self) -> dict[str, np.ndarray]:
+        """Named metric columns (read-only arrays)."""
+        return dict(self._metrics)
+
+    @property
+    def metadata(self) -> Optional[dict[str, np.ndarray]]:
+        """Metadata columns, or None."""
+        return dict(self._metadata) if self._metadata is not None else None
+
+    @property
+    def metric_space(self) -> MetricSpace:
+        """Output declarations and annotations."""
+        return self._metric_space
+
+    @property
+    def parameter_space(self) -> Optional[ParameterSpace]:
+        """Input domain; None when constructed from raw arrays."""
+        return self._parameter_space
 
     @property
     def variable_names(self) -> list[str]:
-        """list: Names of the optimization variables."""
-        if self.individuals[0].variable_names is None:
-            return [f"x_{i}" for i in range(self.n_x)]
-        else:
-            return self.individuals[0].variable_names
-
-    @property
-    def independent_variable_names(self) -> list[str]:
-        """list: Names of the independent variables."""
-        return self.individuals[0].independent_variable_names
-
-    @property
-    def objective_labels(self) -> list[str]:
-        """list: Labels of the objective metrics."""
-        return self.individuals[0].objective_labels
-
-    @property
-    def nonlinear_constraint_labels(self) -> list[str]:
-        """list: Labels of the nonlinear constraint metrics."""
-        return self.individuals[0].nonlinear_constraint_labels
-
-    @property
-    def meta_score_labels(self) -> list[str]:
-        """list: Labels of the meta scores."""
-        return self.individuals[0].meta_score_labels
-
-    def add_individual(
-        self,
-        individual: Individual,
-        ignore_duplicate: bool | None = True,
-    ) -> None:
-        """
-        Add individual to population.
-
-        Parameters
-        ----------
-        individual : Individual
-            Individual to be added.
-        ignore_duplicate : bool, optional
-            If False, an Exception is thrown if the individual already exists.
-
-        Raises
-        ------
-        TypeError
-            If the individual is not an instance of Individual.
-        CADETProcessError
-            If the individual does not match the dimensions.
-            If the individual already exists.
-        """
-        if not isinstance(individual, Individual):
-            raise TypeError("Expected Individual")
-
-        if self.dimensions is not None and individual.dimensions != self.dimensions:
-            raise CADETProcessError("Individual does not match dimensions.")
-
-        if individual in self:
-            if ignore_duplicate:
-                return
-            else:
-                raise CADETProcessError("Individual already exists.")
-
-        self._individuals[individual.id] = individual
-
-    def remove_individual(self, individual: Individual) -> None:
-        """
-        Remove an individual from the population.
-
-        Parameters
-        ----------
-        individual : Individual
-            Individual to be removed.
-
-        Raises
-        ------
-        TypeError
-            If the individual is not an instance of Individual.
-        CADETProcessError
-            If the individual is not in the population.
-        """
-        if not isinstance(individual, Individual):
-            raise TypeError("Expected Individual")
-
-        if individual not in self:
-            raise CADETProcessError("Individual is not in population.")
-        self._individuals.pop(individual.id)
-
-    def update(self, other: Population) -> None:
-        """
-        Update the population with individuals from another population.
-
-        Parameters
-        ----------
-        other : Population
-            Another population.
-
-        Raises
-        ------
-        TypeError
-            If other is not an instance of Population.
-        CADETProcessError
-            If the dimensions do not match.
-        """
-        if not isinstance(other, Population):
-            raise TypeError("Expected Population")
-
-        if self.dimensions is not None and self.dimensions != other.dimensions:
-            raise CADETProcessError("Dimensions do not match")
-
-        self._individuals.update(other._individuals)
-
-    def remove_similar(self) -> None:
-        """Remove similar individuals from the population."""
-        for ind in self.individuals.copy():
-            to_remove = []
-
-            for ind_other in self.individuals.copy():
-                if ind is ind_other:
-                    continue
-
-                if ind_other.is_similar(ind, self.similarity_tol):
-                    if np.any(ind_other.f == self.f_best):
-                        continue
-                    to_remove.append(ind_other)
-
-            for i in reversed(to_remove):
-                try:
-                    self.remove_individual(i)
-                except CADETProcessError:
-                    pass
-
-    @property
-    def individuals(self) -> list[Individual]:
-        """list: All individuals."""
-        return list(self._individuals.values())
+        """Names of the stored parameter columns."""
+        return list(self._X)
 
     @property
     def n_individuals(self) -> int:
-        """int: Number of indivuals."""
-        return len(self.individuals)
+        """Number of rows."""
+        return self._n
+
+    def __len__(self) -> int:
+        """Return the number of rows."""
+        return self._n
+
+    def __iter__(self) -> Iterator[IndividualView]:
+        """Iterate over row views."""
+        return (IndividualView(self, i) for i in range(self._n))
+
+    def __getitem__(
+        self, key: int | slice | Iterable[int] | npt.ArrayLike
+    ) -> "IndividualView | Population":
+        """Scalar index → ``IndividualView``; slice/list/mask → ``Population``."""
+        if isinstance(key, (int, np.integer)):
+            idx = int(key)
+            if idx < 0:
+                idx += self._n
+            if not 0 <= idx < self._n:
+                raise IndexError(f"Index {key} out of range for {self._n} rows.")
+            return IndividualView(self, idx)
+
+        if isinstance(key, slice):
+            indices = np.arange(self._n)[key]
+        else:
+            indices = np.asarray(key)
+            if indices.dtype == bool:
+                if len(indices) != self._n:
+                    raise IndexError("Boolean mask length does not match.")
+                indices = np.flatnonzero(indices)
+            else:
+                indices = indices.astype(int)
+
+        return type(self)._sliced(self, indices)
+
+    @classmethod
+    def _sliced(cls, source: "Population", indices: np.ndarray) -> "Population":
+        """Return a new plain ``Population`` with the selected rows."""
+        return Population(
+            X={name: col[indices] for name, col in source._X.items()},
+            metrics={
+                name: values[indices] for name, values in source._metrics.items()
+            },
+            metadata=(
+                {name: vals[indices] for name, vals in source._metadata.items()}
+                if source._metadata is not None
+                else None
+            ),
+            metric_space=source._metric_space,
+            parameter_space=source._parameter_space,
+        )
+
+    # ── Row lookup ────────────────────────────────────────────────────────────
+
+    def _match_mask(self, x: Mapping[str, Any] | npt.ArrayLike) -> np.ndarray:
+        """Boolean mask of rows exactly matching *x* on all parameter columns."""
+        if isinstance(x, Mapping):
+            assignment = dict(x)
+        else:
+            values = list(np.asarray(x, dtype=object).reshape(-1))
+            if len(values) != len(self._X):
+                raise ValueError(
+                    f"Expected {len(self._X)} values, got {len(values)}."
+                )
+            assignment = dict(zip(self._X, values))
+
+        mask = np.ones(self._n, dtype=bool)
+        for name, value in assignment.items():
+            if name not in self._X:
+                raise KeyError(f"Unknown parameter {name!r}.")
+            mask &= self._X[name] == value
+        return mask
+
+    def index_of(self, x: Mapping[str, Any] | npt.ArrayLike) -> int:
+        """Return the first row index whose parameter values equal *x* exactly.
+
+        *x* is a named assignment or a vector in column order.  Matching is
+        exact: values that round-trip through normalize/denormalize are
+        intentionally not treated as duplicates.
+        """
+        matches = np.flatnonzero(self._match_mask(x))
+        if len(matches) == 0:
+            raise KeyError(f"No row matches {x!r}.")
+        return int(matches[0])
+
+    def __contains__(self, x: Mapping[str, Any] | npt.ArrayLike) -> bool:
+        """Return True when a row exactly matches *x*."""
+        try:
+            return bool(self._match_mask(x).any())
+        except (KeyError, ValueError):
+            return False
+
+    def _rows_equal(self, i: int, j: int) -> bool:
+        """Return True when rows *i* and *j* have exactly equal parameter values."""
+        return all(column[i] == column[j] for column in self._X.values())
+
+    def drop_duplicates(self) -> "Population":
+        """Return a population with exact-duplicate parameter rows removed.
+
+        The first occurrence of each unique parameter row is kept.
+        """
+        seen: set = set()
+        keep = []
+        columns = list(self._X.values())
+        for i in range(self._n):
+            key = tuple(column[i] for column in columns)
+            if key not in seen:
+                seen.add(key)
+                keep.append(i)
+        if len(keep) == self._n:
+            return self
+        return self[np.asarray(keep, dtype=int)]
+
+    # ── Projections: parameters ───────────────────────────────────────────────
+
+    def _aligned_names(self) -> list[str]:
+        """Parameter names aligned with ``parameter_space`` order when present."""
+        if self._parameter_space is None:
+            return list(self._X)
+        names = [p.name for p in self._parameter_space.parameters]
+        missing = [name for name in names if name not in self._X]
+        if missing:
+            raise CADETProcessError(
+                f"Population is missing parameter columns {missing!r}."
+            )
+        return names
 
     @property
     def x(self) -> np.ndarray:
-        """np.ndarray: All evaluated points."""
-        return np.array([ind.x for ind in self.individuals])
+        """2-D projection of the parameter columns, ``(n, n_parameters)``.
+
+        Column order follows ``parameter_space`` when present, otherwise
+        insertion order.  The dtype is float when all columns are numeric,
+        object otherwise.
+        """
+        names = self._aligned_names()
+        if not names:
+            return np.empty((self._n, 0))
+        columns = [self._X[name] for name in names]
+        if all(col.dtype.kind in "fiub" for col in columns):
+            return np.column_stack([col.astype(float) for col in columns])
+        return np.column_stack([col.astype(object) for col in columns])
+
+    def _require_parameter_space(self) -> ParameterSpace:
+        if self._parameter_space is None:
+            raise CADETProcessError(
+                "This operation requires a parameter_space."
+            )
+        return self._parameter_space
+
+    @property
+    def _independent_names(self) -> list[str]:
+        space = self._require_parameter_space()
+        return [p.name for p in space.independent_parameters]
+
+    @property
+    def X_num(self) -> np.ndarray:
+        """Numeric matrix of the independent numeric parameters, physical units.
+
+        The projection matches ``TransformedSpace.encode``: dependent and
+        categorical parameters have no column.
+        """
+        space = self._require_parameter_space()
+        transformed = space.transformed_space
+        rows = [
+            transformed.encode({name: self._X[name][i] for name in self._X})
+            for i in range(self._n)
+        ]
+        n_num = len(rows[0]) if rows else 0
+        return np.array(rows, dtype=float).reshape(self._n, n_num)
+
+    @property
+    def x_independent(self) -> np.ndarray:
+        """Values of the independent parameters, ``(n, n_independent)``."""
+        names = self._independent_names
+        if not names:
+            return np.empty((self._n, 0))
+        return np.column_stack([self._X[name] for name in names])
 
     @property
     def x_transformed(self) -> np.ndarray:
-        """np.ndarray: All evaluated points in independent transformed space."""
-        return np.array([ind.x_transformed for ind in self.individuals])
+        """Independent values in normalized coordinates, ``(n, n_independent)``."""
+        space = self._require_parameter_space()
+        x_ind = self.x_independent.astype(float)
+        return np.array([space.normalize(row) for row in x_ind]).reshape(
+            self._n, x_ind.shape[1]
+        )
 
     @property
-    def cv_bounds(self) -> np.ndarray:
-        """np.ndarray: All evaluated bound constraint violations."""
-        return np.array([ind.cv_bounds for ind in self.individuals])
+    def independent_variable_names(self) -> list[str]:
+        """Names of the independent parameters."""
+        return self._independent_names
+
+    # ── Projections: metrics ──────────────────────────────────────────────────
+
+    def _flat_values(self, metrics: list[Metric]) -> np.ndarray:
+        """Row-major flattening of the given metric columns, ``(n, k)``."""
+        if not metrics:
+            return np.empty((self._n, 0))
+        missing = [m.name for m in metrics if m.name not in self._metrics]
+        if missing:
+            raise CADETProcessError(
+                f"Population has no values for metrics {missing!r}."
+            )
+        return np.hstack(
+            [self._metrics[m.name].reshape(self._n, -1) for m in metrics]
+        )
 
     @property
-    def cv_lincon(self) -> np.ndarray:
-        """np.ndarray: All evaluated linear constraint violations."""
-        return np.array([ind.cv_lincon for ind in self.individuals])
+    def _plain_metrics_list(self) -> list[Metric]:
+        """Declared metrics without direction or constraint annotation."""
+        space = self._metric_space
+        annotated = set(space.objective_names) | set(space.constraint_names)
+        return [m for m in space.metrics if m.name not in annotated]
 
     @property
-    def cv_lineqcon(self) -> np.ndarray:
-        """np.ndarray: All evaluated linear equality constraint violations."""
-        return np.array([ind.cv_lineqcon for ind in self.individuals])
+    def plain_metric_labels(self) -> list[str]:
+        """Flattened labels of the unannotated metrics."""
+        return [
+            label for metric in self._plain_metrics_list for label in metric.labels
+        ]
+
+    @property
+    def plain_metrics(self) -> np.ndarray:
+        """Values of the unannotated metrics, ``(n, k)``; k may be 0."""
+        return self._flat_values(self._plain_metrics_list)
 
     @property
     def f(self) -> np.ndarray:
-        """np.ndarray: All evaluated objective function values."""
-        return np.array([ind.f for ind in self.individuals])
+        """Objective values in physical direction, ``(n, n_objectives)``."""
+        return self._flat_values(
+            [objective.metric for objective in self._metric_space.objectives]
+        )
+
+    @property
+    def _minimization_factors(self) -> np.ndarray:
+        return np.where(self._metric_space.minimize, 1.0, -1.0)
+
+    @property
+    def f_minimized(self) -> np.ndarray:
+        """Objective values with maximization objectives negated."""
+        return self.f * self._minimization_factors
 
     @property
     def f_min(self) -> np.ndarray:
-        """np.ndarray: Minimum objective values."""
+        """Per-objective minimum."""
         return np.min(self.f, axis=0)
 
     @property
     def f_max(self) -> np.ndarray:
-        """np.ndarray: Maximum objective values."""
+        """Per-objective maximum."""
         return np.max(self.f, axis=0)
 
     @property
     def f_avg(self) -> np.ndarray:
-        """np.ndarray: Average objective values."""
-        masked_f = np.ma.masked_invalid(self.f)
-        return np.mean(masked_f, axis=0)
-
-    @property
-    def f_minimized(self) -> np.ndarray:
-        """np.ndarray: All evaluated objective function values as if minimized."""
-        return np.array([ind.f_minimized for ind in self.individuals])
+        """Per-objective average, ignoring non-finite entries."""
+        return np.mean(np.ma.masked_invalid(self.f), axis=0)
 
     @property
     def f_best(self) -> np.ndarray:
-        """np.ndarray: Best objective values."""
+        """Per-objective best value, respecting direction."""
         f_best = np.min(self.f_minimized, axis=0)
-        return np.multiply(self.objectives_minimization_factors, f_best)
+        return self._minimization_factors * f_best
 
     @property
     def f_best_indices(self) -> np.ndarray:
-        """np.ndarray: Indices of the best objective values."""
+        """Row indices of the per-objective best values."""
         return np.argmin(self.f_minimized, axis=0)
 
     @property
-    def g(self) -> np.ndarray | None:
-        """np.ndarray: All evaluated nonlinear constraint function values."""
-        if self.n_g > 0:
-            return np.array([ind.g for ind in self.individuals])
+    def g(self) -> np.ndarray:
+        """Raw values of the constraint-annotated metrics, ``(n, k)``."""
+        return self._flat_values(
+            [constraint.metric for constraint in self._metric_space.constraints]
+        )
 
     @property
-    def g_min(self) -> np.ndarray | None:
-        """np.ndarray: Minimum nonlinear constraint values."""
-        if self.n_g > 0:
-            return np.min(self.g, axis=0)
+    def g_min(self) -> np.ndarray:
+        """Per-constraint minimum."""
+        return np.min(self.g, axis=0)
 
     @property
-    def g_max(self) -> np.ndarray | None:
-        """np.ndarray: Maximum nonlinear constraint values."""
-        if self.n_g > 0:
-            return np.max(self.g, axis=0)
+    def g_max(self) -> np.ndarray:
+        """Per-constraint maximum."""
+        return np.max(self.g, axis=0)
 
     @property
-    def g_avg(self) -> np.ndarray | None:
-        """np.ndarray: Average nonlinear constraint values."""
-        if self.n_g > 0:
-            masked_g = np.ma.masked_invalid(self.g)
-            return np.mean(masked_g, axis=0)
+    def g_avg(self) -> np.ndarray:
+        """Per-constraint average, ignoring non-finite entries."""
+        return np.mean(np.ma.masked_invalid(self.g), axis=0)
 
     @property
-    def g_best(self) -> np.ndarray | None:
-        """np.ndarray: Best nonlinear constraint values."""
+    def g_best(self) -> np.ndarray:
+        """Constraint value at the row minimizing each violation column."""
         indices = np.argmin(self.cv_nonlincon, axis=0)
-        return [self.g[ind, i] for i, ind in enumerate(indices)]
+        g = self.g
+        return np.array([g[row, i] for i, row in enumerate(indices)])
 
     @property
-    def cv_nonlincon(self) -> np.ndarray | None:
-        """np.ndarray: All evaluated nonlinear constraint violation values."""
-        if self.n_g > 0:
-            return np.array([ind.cv_nonlincon for ind in self.individuals])
+    def cv_nonlincon(self) -> np.ndarray:
+        """Signed nonlinear constraint violations (positive = violated)."""
+        constraints = self._metric_space.constraints
+        if not constraints:
+            return np.empty((self._n, 0))
+        columns = []
+        for constraint in constraints:
+            values = self._flat_values([constraint.metric])
+            if constraint.comparison_operator == "le":
+                columns.append(values - constraint.bounds)
+            else:
+                columns.append(constraint.bounds - values)
+        return np.hstack(columns)
 
     @property
-    def cv_nonlincon_min(self) -> np.ndarray | None:
-        """np.ndarray: Minimum nonlinear constraint violation values."""
-        if self.n_g > 0:
-            return np.min(self.cv_nonlincon, axis=0)
+    def cv_nonlincon_min(self) -> np.ndarray:
+        """Per-constraint minimum violation."""
+        return np.min(self.cv_nonlincon, axis=0)
 
     @property
-    def cv_nonlincon_max(self) -> np.ndarray | None:
-        """np.ndarray: Maximum nonlinearconstraint violation values."""
-        if self.n_g > 0:
-            return np.max(self.cv_nonlincon, axis=0)
+    def cv_nonlincon_max(self) -> np.ndarray:
+        """Per-constraint maximum violation."""
+        return np.max(self.cv_nonlincon, axis=0)
 
     @property
-    def cv_nonlincon_avg(self) -> np.ndarray | None:
-        """np.ndarray: Average nonlinear constraint violation values."""
-        if self.n_g > 0:
-            masked_cv_nonlincon = np.ma.masked_invalid(self.cv_nonlincon)
-            return np.mean(masked_cv_nonlincon, axis=0)
+    def cv_nonlincon_avg(self) -> np.ndarray:
+        """Per-constraint average violation, ignoring non-finite entries."""
+        return np.mean(np.ma.masked_invalid(self.cv_nonlincon), axis=0)
+
+    # ── Projections: parameter-side violations ────────────────────────────────
 
     @property
-    def m(self) -> np.ndarray | None:
-        """np.ndarray: All evaluated meta scores."""
-        if self.n_m > 0:
-            return np.array([ind.m for ind in self.individuals])
+    def cv_bounds(self) -> np.ndarray:
+        """Bound violations ``[lb - x, x - ub]`` per row (positive = violated)."""
+        space = self._require_parameter_space()
+        x = self.x.astype(float)
+        lb = space.lower_bounds
+        ub = space.upper_bounds
+        return np.hstack([lb - x, x - ub])
 
     @property
-    def m_min(self) -> np.ndarray | None:
-        """np.ndarray: Minimum meta scores."""
-        if self.n_m > 0:
-            return np.min(self.m, axis=0)
+    def cv_lincon(self) -> np.ndarray:
+        """Linear inequality constraint violations ``A @ x - b`` per row."""
+        space = self._require_parameter_space()
+        A, b = space.A, space.b
+        if A.shape[0] == 0:
+            return np.empty((self._n, 0))
+        return self.x.astype(float) @ A.T - b
 
     @property
-    def m_max(self) -> np.ndarray | None:
-        """np.ndarray: Maximum meta scores."""
-        if self.n_m > 0:
-            return np.max(self.m, axis=0)
+    def cv_lineqcon(self) -> np.ndarray:
+        """Absolute linear equality constraint residuals per row."""
+        space = self._require_parameter_space()
+        A_eq, b_eq = space.A_eq, space.b_eq
+        if A_eq.shape[0] == 0:
+            return np.empty((self._n, 0))
+        return np.abs(self.x.astype(float) @ A_eq.T - b_eq)
 
     @property
-    def m_avg(self) -> np.ndarray | None:
-        """np.ndarray: Average meta scores."""
-        if self.n_m > 0:
-            masked_m = np.ma.masked_invalid(self.m)
-            return np.mean(masked_m, axis=0)
+    def cv(self) -> np.ndarray:
+        """All constraint violations combined, ``(n, k)``."""
+        parts = []
+        if self._parameter_space is not None:
+            parts += [self.cv_bounds, self.cv_lincon, self.cv_lineqcon]
+        parts.append(self.cv_nonlincon)
+        return np.hstack(parts)
+
+    # ── Feasibility ───────────────────────────────────────────────────────────
+
+    def is_feasible(
+        self,
+        cv_bounds_tol: float = 0.0,
+        cv_lincon_tol: float = 0.0,
+        cv_lineqcon_tol: float = 0.0,
+        cv_nonlincon_tol: float = 0.0,
+    ) -> np.ndarray:
+        """Boolean mask of rows satisfying all constraints within tolerances.
+
+        Bound and linear-constraint checks require a ``parameter_space``
+        and are skipped without one.
+        """
+        mask = np.ones(self._n, dtype=bool)
+        if self._parameter_space is not None:
+            mask &= np.all(self.cv_bounds <= cv_bounds_tol, axis=1)
+            cv_lincon = self.cv_lincon
+            if cv_lincon.shape[1] > 0:
+                mask &= np.all(cv_lincon <= cv_lincon_tol, axis=1)
+            cv_lineqcon = self.cv_lineqcon
+            if cv_lineqcon.shape[1] > 0:
+                mask &= np.all(cv_lineqcon <= cv_lineqcon_tol, axis=1)
+        cv_nonlincon = self.cv_nonlincon
+        if cv_nonlincon.shape[1] > 0:
+            mask &= np.all(cv_nonlincon <= cv_nonlincon_tol, axis=1)
+        return mask
 
     @property
-    def m_minimized(self) -> np.ndarray | None:
-        """np.ndarray: All evaluated meta scores, transformed to be minimized."""
-        if self.n_m > 0:
-            return np.array([ind.m_minimized for ind in self.individuals])
+    def feasible(self) -> "Population":
+        """Rows satisfying all constraints (zero tolerance)."""
+        return self[self.is_feasible()]
 
     @property
-    def m_best(self) -> np.ndarray | None:
-        """np.ndarray: Best meta scores."""
-        if self.n_m > 0:
-            m_best = np.min(self.m_minimized, axis=0)
-            return np.multiply(self.meta_scores_minimization_factors, m_best)
+    def infeasible(self) -> "Population":
+        """Rows violating at least one constraint (zero tolerance)."""
+        return self[~self.is_feasible()]
 
-    @property
-    def m_best_indices(self) -> np.ndarray | None:
-        """np.ndarray: Indices of the best meta scores."""
-        if self.n_m > 0:
-            return np.argmin(self.m_minimized, axis=0)
+    # ── Dominance and similarity ──────────────────────────────────────────────
 
-    @property
-    def is_feasilbe(self) -> bool:
-        """np.ndarray: False if any constraint is not met. True otherwise."""
-        return np.array([ind.is_feasible for ind in self.individuals])
+    def dominates(
+        self,
+        i: int,
+        j: int,
+        feasible: Optional[np.ndarray] = None,
+    ) -> bool:
+        """Return True when row *i* dominates row *j*.
+
+        Directions are read from ``metric_space``.  A feasible row
+        dominates an infeasible one; two infeasible rows compare on their
+        combined constraint violations.
+
+        Parameters
+        ----------
+        i, j : int
+            Row indices.
+        feasible : np.ndarray, optional
+            Precomputed feasibility mask (e.g. with optimizer tolerances).
+            Computed with zero tolerance when omitted.
+        """
+        if feasible is None:
+            feasible = self.is_feasible()
+        if feasible[i] and not feasible[j]:
+            return True
+        if not feasible[i] and feasible[j]:
+            return False
+        if not feasible[i] and not feasible[j]:
+            cv = self.cv
+            return bool(
+                np.all(cv[i] <= cv[j]) and np.any(cv[i] < cv[j])
+            )
+        f_minimized = self.f_minimized
+        return bool(
+            np.all(f_minimized[i] <= f_minimized[j])
+            and np.any(f_minimized[i] < f_minimized[j])
+        )
+
+    def is_similar(self, i: int, j: int, tol: float = 1e-1) -> bool:
+        """Return True when rows *i* and *j* are similar within relative *tol*.
+
+        Numeric parameter columns and all metric values are compared with
+        ``np.allclose``; non-numeric (categorical) columns must be equal.
+        """
+        if not tol:
+            return False
+        for column in self._X.values():
+            if column.dtype.kind in "fiub":
+                if not np.allclose(
+                    float(column[i]), float(column[j]), rtol=tol
+                ):
+                    return False
+            elif column[i] != column[j]:
+                return False
+        for values in self._metrics.values():
+            if not np.allclose(values[i], values[j], rtol=tol):
+                return False
+        return True
+
+    def drop_similar(self, tol: float) -> "Population":
+        """Return a population with similar rows removed.
+
+        Rows carrying a per-objective best value are always kept.
+        """
+        if not tol or self._n == 0:
+            return self
+        f = self.f
+        f_best = self.f_best
+        keep = np.ones(self._n, dtype=bool)
+        for i in range(self._n):
+            if not keep[i]:
+                continue
+            for j in range(self._n):
+                if j == i or not keep[j]:
+                    continue
+                if self.is_similar(i, j, tol):
+                    if np.any(f[j] == f_best):
+                        continue
+                    keep[j] = False
+        if keep.all():
+            return self
+        return self[keep]
+
+    # ── Plotting ──────────────────────────────────────────────────────────────
 
     @plotting.figure_utils
     def plot_objectives(
@@ -423,13 +909,12 @@ class Population:
         ax: npt.NDArray[plt.Axes] | None = None,
         setup_figure_kwargs: Optional[dict] = None,
     ) -> tuple[plt.Figure, npt.NDArray[plt.Axes]]:
-        """
-        Plot the objective function values for each design variable.
+        """Plot each metric against each parameter.
 
         Parameters
         ----------
         include_meta : bool, default=True
-            If True, include meta scores in the plot.
+            If True, include unannotated metrics in the plot.
         plot_infeasible : bool, default=True
             If True, plot infeasible points.
         autoscale : bool, default=True
@@ -440,7 +925,6 @@ class Population:
             Color for infeasible points.
         ax : np.ndarray[plt.Axes] | None, default=None
             Optional array of Matplotlib Axes.
-            If not provided, a new figure is created.
         setup_figure_kwargs : dict | None, default=None
             Additional options to setup the figure.
 
@@ -449,18 +933,20 @@ class Population:
         tuple[plt.Figure, npt.NDArray[plt.Axes]]
             Figure and axes objects.
         """
-        if self.n_x == 0:
-            raise CADETProcessError("Cannot plot without individuals.")
+        n_x = len(self.variable_names)
+        if n_x == 0:
+            raise CADETProcessError("Cannot plot without parameter columns.")
 
-        m = self.n_f
-        if include_meta and self.m is not None:
-            m += self.n_m
+        labels = list(self._metric_space.objective_labels)
+        if include_meta:
+            labels += self.plain_metric_labels
+        m = len(labels)
 
         if ax is None:
             fig, axs = plotting.setup_figure(
-                **setup_figure_kwargs,
+                **(setup_figure_kwargs or {}),
                 nrows=m,
-                ncols=self.n_x,
+                ncols=n_x,
                 aspect=1,
                 squeeze=False,
             )
@@ -474,20 +960,15 @@ class Population:
         x_feas = feasible.x
         x_infeas = infeasible.x
 
-        if include_meta and self.m is not None:
-            if len(feasible) > 0:
-                values_feas = np.hstack((feasible.f, feasible.m))
-            else:
-                values_feas = np.empty((0, self.n_f + self.n_m))
-            if len(infeasible) > 0:
-                values_infeas = np.hstack((infeasible.f, infeasible.m))
-            else:
-                values_infeas = np.empty((0, self.n_f + self.n_m))
-            labels = self.objective_labels + self.meta_score_labels
-        else:
-            values_feas = feasible.f
-            values_infeas = infeasible.f
-            labels = self.objective_labels
+        def _values(pop: "Population") -> np.ndarray:
+            if len(pop) == 0:
+                return np.empty((0, m))
+            if include_meta:
+                return np.hstack((pop.f, pop.plain_metrics))
+            return pop.f
+
+        values_feas = _values(feasible)
+        values_infeas = _values(infeasible)
 
         for i_var, var in enumerate(variables):
             if len(feasible) > 0:
@@ -508,8 +989,8 @@ class Population:
 
                 # Set axis labels and limits
                 points = np.vstack([col.get_offsets() for col in ax_ij.collections])
-                x_all = points[:, 0]
-                v_all = points[:, 1]
+                x_all = points[:, 0].astype(float)
+                v_all = points[:, 1].astype(float)
 
                 ax_ij.set_xlabel(var)
                 ax_ij.set_ylabel(label)
@@ -550,15 +1031,13 @@ class Population:
         ax: np.ndarray[plt.Axes] | None = None,
         setup_figure_kwargs: dict | None = None,
         **kwargs: Any,
-
     ) -> tuple[plt.Figure, npt.NDArray[plt.Axes]]:
-        """
-        Plot pairwise Pareto fronts for each generation in the optimization.
+        """Plot pairwise metric values.
 
         Parameters
         ----------
         include_meta : bool, default=True
-            If True, include meta scores in the plot.
+            If True, include unannotated metrics in the plot.
         plot_infeasible : bool, default=True
             If True, plot infeasible points.
         color_feas : str, default='blue'
@@ -569,7 +1048,6 @@ class Population:
             Additional positional arguments passed to `plot_pairwise`.
         ax : np.ndarray[plt.Axes] | None, default=None
             Optional array of Matplotlib Axes.
-            If not provided, a new figure is created.
         setup_figure_kwargs : dict | None, default=None
             Additional options to setup the figure.
         **kwargs : Any
@@ -580,26 +1058,23 @@ class Population:
         tuple[plt.Figure, npt.NDArray[plt.Axes]]
             Figure and axes objects.
         """
+        labels = list(self._metric_space.objective_labels)
         if include_meta:
-            labels = self.objective_labels + self.meta_score_labels
-        else:
-            labels = self.objective_labels
+            labels += self.plain_metric_labels
+        m = len(labels)
 
         feasible = self.feasible
         infeasible = self.infeasible
 
-        if include_meta and self.m is not None:
-            if len(feasible) > 0:
-                values_feas = np.hstack((feasible.f, feasible.m))
-            else:
-                values_infeas = np.empty((0, self.n_f + self.n_m))
-            if len(infeasible) > 0:
-                values_infeas = np.hstack((infeasible.f, infeasible.m))
-            else:
-                values_infeas = np.empty((0, self.n_f + self.n_m))
-        else:
-            values_feas = feasible.f
-            values_infeas = infeasible.f
+        def _values(pop: "Population") -> np.ndarray:
+            if len(pop) == 0:
+                return np.empty((0, m))
+            if include_meta:
+                return np.hstack((pop.f, pop.plain_metrics))
+            return pop.f
+
+        values_feas = _values(feasible)
+        values_infeas = _values(infeasible)
 
         if len(feasible) > 0:
             fig, ax = plot_pairwise(
@@ -637,14 +1112,12 @@ class Population:
         setup_figure_kwargs: dict | None = None,
         **kwargs: Any,
     ) -> tuple[plt.Figure, npt.NDArray[plt.Axes]]:
-        """
-        Create a pairplot using Matplotlib.
+        """Create a pairwise parameter plot.
 
         Parameters
         ----------
         use_transformed : bool, optional
-            If True, use the transformed independent variables.
-            The default is False.
+            If True, use the independent variables in normalized coordinates.
         plot_infeasible : bool, default=True
             If True, plot infeasible points.
         color_feas : str, default='blue'
@@ -655,7 +1128,6 @@ class Population:
             Additional positional arguments passed to `plot_pairwise`.
         ax : np.ndarray[plt.Axes] | None, default=None
             Optional array of Matplotlib Axes.
-            If not provided, a new figure is created.
         setup_figure_kwargs : dict | None, default=None
             Additional options to setup the figure.
         **kwargs : Any
@@ -668,8 +1140,6 @@ class Population:
         """
         feasible = self.feasible
         infeasible = self.infeasible
-        x_feas = feasible.x
-        x_infeas = infeasible.x
 
         if use_transformed:
             x_feas = feasible.x_transformed
@@ -695,7 +1165,7 @@ class Population:
             fig, ax = plot_pairwise(
                 x_infeas,
                 labels,
-                color=x_infeas,
+                color=color_infeas,
                 *args,
                 ax=ax,
                 tight_layout=False,
@@ -704,294 +1174,362 @@ class Population:
 
         return fig, ax
 
-    def __contains__(self, other: Individual | np.ndarray | list) -> bool:
-        """
-        Check if the population contains a specific individual.
+    # ── Serialization ─────────────────────────────────────────────────────────
 
-        Parameters
-        ----------
-        other : Individual | np.ndarray | list
-            The individual or its hashable representation.
+    def _metric_space_spec(self) -> Dict:
+        """Serializable description of the metric space."""
+        spec = Dict()
+        for i, metric in enumerate(self._metric_space.metrics):
+            entry = Dict()
+            entry.name = metric.name
+            entry.n_metrics = metric.n_metrics
+            entry.labels = list(metric.labels)
+            if metric.dims is not None:
+                entry.dims = list(metric.dims)
+                entry.coords = {
+                    dim: [str(c) for c in coords]
+                    for dim, coords in metric.coords.items()
+                }
+            spec.metrics[str(i)] = entry
+        for i, objective in enumerate(self._metric_space.objectives):
+            spec.objectives[str(i)] = Dict(
+                name=objective.name, minimize=int(objective.minimize)
+            )
+        for i, constraint in enumerate(self._metric_space.constraints):
+            spec.constraints[str(i)] = Dict(
+                name=constraint.name,
+                bounds=np.asarray(constraint.bounds),
+                comparison_operator=constraint.comparison_operator,
+            )
+        return spec
 
-        Returns
-        -------
-        bool
-            True if the individual is in the population, False otherwise.
-        """
-        if isinstance(other, Individual):
-            key = other.id
-        elif isinstance(other, (np.ndarray, list)):
-            key = hash_array(other)
-        else:
-            key = None
-
-        if key in self._individuals:
-            return True
-        else:
-            return False
-
-    def __getitem__(self, x: np.ndarray | list) -> Individual:
-        """
-        Get an individual from the population using its hashable representation.
-
-        Parameters
-        ----------
-        x : np.ndarray | list
-            The hashable representation of the individual.
-
-        Returns
-        -------
-        Individual
-            The individual from the population.
-        """
-        key = hash_array(x)
-
-        return self._individuals[key]
-
-    def __len__(self) -> int:
-        """
-        Get the number of individuals in the population.
-
-        Returns
-        -------
-        int
-            The number of individuals in the population.
-        """
-        return self.n_individuals
-
-    def __iter__(self) -> Iterator[Individual]:
-        """
-        Iterate over the individuals in the population.
-
-        Returns
-        -------
-        iter
-            An iterator over the individuals in the population.
-        """
-        return iter(self.individuals)
+    @staticmethod
+    def _metric_space_from_spec(spec: Mapping[str, Any]) -> MetricSpace:
+        """Rebuild a ``MetricSpace`` from its serialized description."""
+        space = MetricSpace()
+        metrics = spec.get("metrics", {})
+        for i in sorted(metrics, key=int):
+            entry = metrics[i]
+            name = _decode(entry["name"])
+            labels = [_decode(label) for label in entry.get("labels", [])] or None
+            dims = entry.get("dims")
+            if dims is not None:
+                dims = tuple(_decode(d) for d in dims)
+                coords = {
+                    _decode(dim): [_decode(c) for c in coords]
+                    for dim, coords in entry["coords"].items()
+                }
+                space.add_metric(
+                    Metric(name, dims=dims, coords=coords, labels=labels)
+                )
+            else:
+                space.add_metric(
+                    Metric(name, n_metrics=int(entry["n_metrics"]), labels=labels)
+                )
+        objectives = spec.get("objectives", {})
+        for i in sorted(objectives, key=int):
+            entry = objectives[i]
+            space.add_objective(
+                _decode(entry["name"]), minimize=bool(entry["minimize"])
+            )
+        constraints = spec.get("constraints", {})
+        for i in sorted(constraints, key=int):
+            entry = constraints[i]
+            space.add_constraint(
+                _decode(entry["name"]),
+                bound=np.asarray(entry["bounds"], dtype=float),
+                comparison_operator=_decode(entry["comparison_operator"]),
+            )
+        return space
 
     def to_dict(self) -> Dict:
-        """
-        Convert Population to a dictionary.
-
-        Returns
-        -------
-        dict
-            Population as a dictionary with individuals stored as list of dictionaries.
-        """
+        """Convert the population to a serializable dictionary."""
         data = Dict()
-        data.id = str(self.id)
-
-        for i, ind in enumerate(self.individuals):
-            data.individuals[i] = ind.to_dict()
-
+        for name, column in self._X.items():
+            if column.dtype == object:
+                column = column.astype(str)
+            data.X[name] = np.asarray(column)
+        for name, values in self._metrics.items():
+            data.metrics[name] = np.asarray(values)
+        if self._metadata is not None:
+            for name, values in self._metadata.items():
+                data.metadata[name] = np.asarray(values)
+        data.metric_space = self._metric_space_spec()
         return data
 
     @classmethod
-    def from_dict(cls, data: dict) -> Population:
-        """
-        Create a Population from a dictionary.
+    def from_dict(
+        cls,
+        data: Mapping[str, Any],
+        metric_space: Optional[MetricSpace] = None,
+        parameter_space: Optional[ParameterSpace] = None,
+    ) -> "Population":
+        """Create a population from its dictionary representation.
 
         Parameters
         ----------
         data : dict
-            The dictionary containing population data.
-
-        Returns
-        -------
-        Population
-            The Population created from the data.
+            Serialized population.
+        metric_space : MetricSpace, optional
+            Existing metric space to attach; rebuilt from the serialized
+            spec when omitted.
+        parameter_space : ParameterSpace, optional
+            Parameter space to attach; serialized data carries none.
         """
-        id = data["id"]
-        if isinstance(id, bytes):
-            id = id.decode(encoding="utf=8")
-        population = cls(id)
-        for individual_data in data["individuals"].values():
-            individual = Individual.from_dict(individual_data)
-            population.add_individual(individual)
-        return population
+        if "individuals" in data:
+            raise CADETProcessError(
+                "Checkpoint predates columnar Population storage and cannot "
+                "be loaded."
+            )
+        if metric_space is None:
+            metric_space = cls._metric_space_from_spec(data.get("metric_space", {}))
+        X = {
+            _decode(name): _decode(np.asarray(column))
+            for name, column in data.get("X", {}).items()
+        }
+        metrics = {
+            _decode(name): np.asarray(values)
+            for name, values in data.get("metrics", {}).items()
+        }
+        metadata = {
+            _decode(name): np.asarray(values)
+            for name, values in data.get("metadata", {}).items()
+        } or None
+        return cls(
+            X=X,
+            metrics=metrics,
+            metadata=metadata,
+            metric_space=metric_space,
+            parameter_space=parameter_space,
+        )
+
+    def __repr__(self) -> str:
+        """Return a readable representation."""
+        return (
+            f"{type(self).__name__}(n_individuals={self._n}, "
+            f"parameters={list(self._X)!r}, metrics={list(self._metrics)!r})"
+        )
 
 
 class ParetoFront(Population):
-    """Class representing a Pareto front in a multi-objective optimization problem."""
+    """Mutable accumulator of non-dominated rows.
+
+    ``ParetoFront`` is the one deliberately mutable holder in the columnar
+    design: updates replace the internal storage wholesale, so any plain
+    ``Population`` obtained from it stays immutable.
+
+    Parameters
+    ----------
+    similarity_tol : float, optional
+        Tolerance for removing near-duplicate front members.
+    cv_bounds_tol, cv_lincon_tol, cv_lineqcon_tol, cv_nonlincon_tol : float
+        Feasibility tolerances used when classifying candidate rows.
+    metric_space : MetricSpace
+        Output declarations; required.
+    parameter_space : ParameterSpace, optional
+        Input domain.
+    """
 
     def __init__(
         self,
         similarity_tol: float = 1e-1,
-        *args: Any,
-        **kwargs: Any,
+        *,
+        metric_space: MetricSpace,
+        parameter_space: Optional[ParameterSpace] = None,
+        cv_bounds_tol: float = 0.0,
+        cv_lincon_tol: float = 0.0,
+        cv_lineqcon_tol: float = 0.0,
+        cv_nonlincon_tol: float = 0.0,
     ) -> None:
-        """
-        Initialize a ParetoFront with a specified similarity tolerance.
-
-        Parameters
-        ----------
-        similarity_tol : float, optional
-            Tolerance for similarity between individuals. Default is 1e-1.
-        *args : tuple
-            Additional positional arguments for the parent class.
-        **kwargs : dict
-            Additional keyword arguments for the parent class.
-        """
         self.similarity_tol = similarity_tol
-        super().__init__(*args, **kwargs)
+        self._feasibility_tols = {
+            "cv_bounds_tol": cv_bounds_tol,
+            "cv_lincon_tol": cv_lincon_tol,
+            "cv_lineqcon_tol": cv_lineqcon_tol,
+            "cv_nonlincon_tol": cv_nonlincon_tol,
+        }
+        super().__init__(
+            X={}, metric_space=metric_space, parameter_space=parameter_space
+        )
 
-    def update_population(self, population: Population) -> tuple[list, bool]:
-        """
-        Update the Pareto front with a new population.
+    def _set_data(self, population: Population) -> None:
+        """Replace the internal storage with the rows of *population*."""
+        self._init_storage(
+            population.X, population.metrics, population.metadata
+        )
+
+    def merge(self, other: Population) -> None:
+        """Merge rows of *other*, dropping exact duplicates."""
+        if not isinstance(other, Population):
+            raise TypeError("Expected Population")
+        if len(other) == 0:
+            return
+        if len(self) == 0:
+            combined = other.drop_duplicates()
+        else:
+            combined = Population.concat(
+                [Population._sliced(self, np.arange(len(self))), other]
+            ).drop_duplicates()
+        self._set_data(combined)
+
+    def update_population(
+        self, population: Population
+    ) -> tuple[Population, bool]:
+        """Update the front with a new population.
 
         Parameters
         ----------
         population : Population
-            The population used to update the Pareto front.
+            Candidate rows.
 
         Returns
         -------
-        tuple[list, bool]
-            A tuple containing new members added to the Pareto front and a boolean indicating
-            if there was a significant improvement.
+        tuple[Population, bool]
+            New members added to the front, and whether the update was a
+            significant improvement.
         """
-        new_members = []
-        significant = []
+        n_front = len(self)
+        if n_front == 0:
+            work = population
+            front_indices: list[int] = []
+            candidates = list(range(len(population)))
+        else:
+            current = Population._sliced(self, np.arange(n_front))
+            work = Population.concat([current, population])
+            front_indices = list(range(n_front))
+            candidates = list(range(n_front, n_front + len(population)))
 
-        for ind_new in population:
+        feasible = work.is_feasible(**self._feasibility_tols)
+
+        selected = list(front_indices)
+        new_members: list[int] = []
+        significant: list[bool] = []
+
+        for c in candidates:
             is_dominated = False
             dominates_one = False
             has_twin = False
-            to_remove = []
+            to_remove: list[int] = []
 
-            if not ind_new.is_feasible:
+            if not feasible[c]:
                 continue
 
-            for i, ind_pareto in enumerate(self):
+            # An exact re-evaluation of a front member is never a new point,
+            # independent of similarity_tol.
+            if any(work._rows_equal(c, i) for i in selected):
+                continue
+
+            for i in selected:
                 # Do not add if is dominated
-                if not dominates_one and ind_pareto.dominates(ind_new):
+                if not dominates_one and work.dominates(i, c, feasible=feasible):
                     is_dominated = True
                     break
 
                 # Remove existing if infeasible
-                elif not ind_pareto.is_feasible:
+                elif not feasible[i]:
                     dominates_one = True
-                    to_remove.append(ind_pareto)
+                    to_remove.append(i)
                     significant.append(True)
 
                 # Remove existing if new dominates
-                elif ind_new.dominates(ind_pareto):
+                elif work.dominates(c, i, feasible=feasible):
                     dominates_one = True
-                    to_remove.append(ind_pareto)
-                    if not ind_new.is_similar(ind_pareto, self.similarity_tol):
+                    to_remove.append(i)
+                    if not work.is_similar(c, i, self.similarity_tol):
                         significant.append(True)
 
                 # Ignore similar individuals
-                elif ind_new.is_similar(ind_pareto, self.similarity_tol):
+                elif work.is_similar(c, i, self.similarity_tol):
                     has_twin = True
                     break
 
-            for i in reversed(to_remove):
-                self.remove_individual(i)
+            selected = [i for i in selected if i not in to_remove]
 
             if not is_dominated:
-                if len(self) == 0:
+                if len(selected) == 0:
                     significant.append(True)
                 if not has_twin:
                     significant.append(True)
 
-                self.add_individual(ind_new)
-                new_members.append(ind_new)
+                selected.append(c)
+                new_members.append(c)
 
-        if len(self) == 0:
-            # Use least inveasible individuals.
-            indices = np.argmin(population.cv_bounds, axis=0)
-            for index in indices:
-                ind_new = population.individuals[index]
-                self.add_individual(ind_new)
+        if len(selected) == 0:
+            # Fall back to the least infeasible candidates.
+            offset = n_front
+            for cv in (
+                population.cv_bounds if population.parameter_space else None,
+                population.cv_lincon if population.parameter_space else None,
+                population.cv_lineqcon if population.parameter_space else None,
+                population.cv_nonlincon,
+            ):
+                if cv is None or cv.shape[1] == 0:
+                    continue
+                for index in np.argmin(cv, axis=0):
+                    candidate = offset + int(index)
+                    if candidate not in selected:
+                        selected.append(candidate)
+        elif len(selected) > 1:
+            selected = [i for i in selected if feasible[i]] or selected
 
-            indices = np.argmin(population.cv_lincon, axis=0)
-            for index in indices:
-                ind_new = population.individuals[index]
-                self.add_individual(ind_new)
-
-            indices = np.argmin(population.cv_lineqcon, axis=0)
-            for index in indices:
-                ind_new = population.individuals[index]
-                self.add_individual(ind_new)
-
-            if self.n_g > 0:
-                indices = np.argmin(population.cv_nonlincon, axis=0)
-                for index in indices:
-                    ind_new = population.individuals[index]
-                    self.add_individual(ind_new)
-
-        elif len(self) > 1:
-            self.remove_infeasible()
-
+        result = work[np.asarray(sorted(selected), dtype=int)]
         if self.similarity_tol:
-            self.remove_similar()
+            result = result.drop_similar(self.similarity_tol)
+        self._set_data(result)
 
-        return new_members, any(significant)
+        new = work[np.asarray(new_members, dtype=int)]
+        return new, any(significant)
 
     def remove_infeasible(self) -> None:
-        """Remove infeasible individuals from the Pareto front."""
-        for ind in self.individuals.copy():
-            if not ind.is_feasible:
-                self.remove_individual(ind)
+        """Remove infeasible rows from the front."""
+        mask = self.is_feasible(**self._feasibility_tols)
+        self._set_data(self[mask])
 
     def remove_dominated(self) -> None:
-        """Remove dominated individuals from the Pareto front."""
-        for ind in self.individuals.copy():
-            dominates_one = False
-            to_remove = []
+        """Remove dominated rows from the front."""
+        feasible = self.is_feasible(**self._feasibility_tols)
+        keep = np.ones(len(self), dtype=bool)
+        for i in range(len(self)):
+            if not keep[i]:
+                continue
+            for j in range(len(self)):
+                if i == j or not keep[j]:
+                    continue
+                if self.dominates(i, j, feasible=feasible):
+                    keep[j] = False
+        self._set_data(self[keep])
 
-            for ind_other in self.individuals.copy():
-                if not dominates_one and ind_other.dominates(ind):
-                    to_remove.append(ind)
-                    break
-                elif ind.dominates(ind_other):
-                    dominates_one = True
-                    to_remove.append(ind_other)
+    def remove_similar(self) -> None:
+        """Remove similar rows from the front."""
+        self._set_data(self.drop_similar(self.similarity_tol))
 
-            for i in reversed(to_remove):
-                try:
-                    self.remove_individual(i)
-                except CADETProcessError:
-                    pass
-
-    def to_dict(self) -> dict:
-        """
-        Convert the ParetoFront to a dictionary.
-
-        Returns
-        -------
-        dict
-            A dictionary representation of the ParetoFront, including individuals and
-            similarity tolerance if set.
-        """
-        front = super().to_dict()
+    def to_dict(self) -> Dict:
+        """Convert the front to a dictionary."""
+        data = super().to_dict()
         if self.similarity_tol:
-            front["similarity_tol"] = self.similarity_tol
-
-        return front
+            data.similarity_tol = self.similarity_tol
+        return data
 
     @classmethod
-    def from_dict(cls, data: dict) -> ParetoFront:
-        """
-        Create a ParetoFront instance from a dictionary.
-
-        Parameters
-        ----------
-        data : dict
-            Dictionary containing the ParetoFront data.
-
-        Returns
-        -------
-        ParetoFront
-            An instance of ParetoFront created from the dictionary.
-        """
-        front = cls(similarity_tol=data.get("similarity_tol"), id=data["id"])
-        for individual_data in data["individuals"].values():
-            individual = Individual.from_dict(individual_data)
-            front.add_individual(individual)
-
+    def from_dict(
+        cls,
+        data: Mapping[str, Any],
+        metric_space: Optional[MetricSpace] = None,
+        parameter_space: Optional[ParameterSpace] = None,
+    ) -> "ParetoFront":
+        """Create a ParetoFront from its dictionary representation."""
+        if metric_space is None:
+            metric_space = cls._metric_space_from_spec(data.get("metric_space", {}))
+        front = cls(
+            similarity_tol=data.get("similarity_tol") or 0,
+            metric_space=metric_space,
+            parameter_space=parameter_space,
+        )
+        front._set_data(
+            Population.from_dict(
+                data, metric_space=metric_space, parameter_space=parameter_space
+            )
+        )
         return front
 
 

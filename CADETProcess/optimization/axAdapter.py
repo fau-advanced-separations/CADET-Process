@@ -353,11 +353,8 @@ class AxInterface(OptimizerBase):
             )
             G = G_data["mean"].values.reshape((op.n_nonlinear_constraints, n_ind)).T
 
-            nonlincon_cv_fun = op.evaluate_nonlinear_constraints_violation
-            CV = nonlincon_cv_fun(X, untransform=True)
         else:
             G = None
-            CV = None
 
         # Ideally, the current optimum w.r.t. single and multi objective can be
         # obtained at this point and passed to run_post_processing.
@@ -368,7 +365,6 @@ class AxInterface(OptimizerBase):
             X_transformed=X,
             F_minimized=F,
             G=G,
-            CV_nonlincon=CV,
             current_generation=self.ax_experiment.num_trials,
             X_opt_transformed=None,
         )

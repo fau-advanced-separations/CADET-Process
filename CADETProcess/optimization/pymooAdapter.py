@@ -152,7 +152,9 @@ class PymooInterface(OptimizerBase):
         for pop in self.results.populations:
             _ = algorithm.ask()
             if optimization_problem.n_nonlinear_constraints > 0:
-                pop = Population.new("X", pop.x, "F", pop.f, "G", pop.cv)
+                pop = Population.new(
+                    "X", pop.x, "F", pop.f, "G", pop.cv_nonlincon
+                )
                 pop.apply(lambda ind: ind.evaluated.update({"F", "G"}))
                 algorithm.evaluator.eval(problem, pop, evaluate_values_of=["F", "G"])
             else:
@@ -173,10 +175,8 @@ class PymooInterface(OptimizerBase):
             F = pop.get("F").tolist()
             if optimization_problem.n_nonlinear_constraints > 0:
                 G = pop.get("CADET_G").tolist()
-                CV = pop.get("CADET_CV").tolist()
             else:
                 G = None
-                CV = None
 
             # Handle issue of pymoo not handling np.inf
             pop.set("F", np.nan_to_num(F, posinf=1e300))
@@ -185,7 +185,7 @@ class PymooInterface(OptimizerBase):
 
             # Post generation processing
             X_opt = algorithm.opt.get("X").tolist()
-            self.run_post_processing(X, F, G, CV, algorithm.n_gen - 1, X_opt)
+            self.run_post_processing(X, F, G, algorithm.n_gen - 1, X_opt)
 
         if algorithm.n_gen >= n_max_gen:
             success = True
