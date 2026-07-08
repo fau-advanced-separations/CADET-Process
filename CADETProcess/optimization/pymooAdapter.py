@@ -148,17 +148,21 @@ class PymooInterface(OptimizerBase):
             output=MultiObjectiveOutput(),
         )
 
-        # Restore previous results from checkpoint
+        # Restore previous results from checkpoint.  The algorithm state must
+        # receive what the live loop feeds it: independent coordinates in
+        # transformed space, minimized objectives, and constraint violations.
         for pop in self.results.populations:
             _ = algorithm.ask()
             if optimization_problem.n_nonlinear_constraints > 0:
                 pop = Population.new(
-                    "X", pop.x, "F", pop.f, "G", pop.cv_nonlincon
+                    "X", pop.x_transformed,
+                    "F", pop.f_minimized,
+                    "G", pop.cv_nonlincon,
                 )
                 pop.apply(lambda ind: ind.evaluated.update({"F", "G"}))
                 algorithm.evaluator.eval(problem, pop, evaluate_values_of=["F", "G"])
             else:
-                pop = Population.new("X", pop.x, "F", pop.f)
+                pop = Population.new("X", pop.x_transformed, "F", pop.f_minimized)
                 pop.apply(lambda ind: ind.evaluated.update({"F"}))
                 algorithm.evaluator.eval(problem, pop, evaluate_values_of=["F"])
             algorithm.evaluator.n_eval += len(pop)

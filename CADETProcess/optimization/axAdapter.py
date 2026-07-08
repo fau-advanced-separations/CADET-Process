@@ -419,14 +419,22 @@ class AxInterface(OptimizerBase):
         # Internal storage for tracking data
         self._data = self.ax_experiment.fetch_data()
 
-        # Restore previous results from checkpoint
+        # Restore previous results from checkpoint.  Trials must receive what
+        # the live runner records: independent coordinates in transformed
+        # space (the search-space coordinates), minimized objectives, and
+        # constraint violations.
         if len(self.results.populations) > 0:
             for pop in self.results.populations:
-                X, F, G = pop.x, pop.f, pop.g
+                X = pop.x_transformed
+                F = pop.f_minimized
+                if optimization_problem.n_nonlinear_constraints > 0:
+                    CV = pop.cv_nonlincon
+                else:
+                    CV = None
                 trial = self._create_manual_trial(X)
                 trial.mark_running(no_runner_required=True)
 
-                trial_data = self._create_manual_data(trial, F, G)
+                trial_data = self._create_manual_data(trial, F, CV)
                 trial.run_metadata.update(trial_data)
                 trial.mark_completed()
 
