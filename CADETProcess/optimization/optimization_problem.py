@@ -23,6 +23,7 @@ from CADETProcess import CADETProcessError, log
 from CADETProcess.dataStructure.deprecation import deprecated_alias
 from CADETProcess.dataStructure.nested_dict import attribute_path_exists
 from CADETProcess.evaluation_pipeline import EvaluationFailure, EvaluationPipeline
+from CADETProcess.metric_space import Metric, MetricSpace
 from CADETProcess.optimization.individual import Individual
 from CADETProcess.optimization.population import Population
 from CADETProcess.parameter_space import ParameterSpace
@@ -40,6 +41,7 @@ from CADETProcess.parameter_space.parameters import (
     RangedParameter,
 )
 from CADETProcess.parameter_space.transformed_space import TransformedSpace
+from CADETProcess.problem import Problem
 
 if TYPE_CHECKING:
     from CADETProcess.parameter_space.sampling import SamplerBase
@@ -50,12 +52,13 @@ __all__ = ["OptimizationProblem"]
 # ── Metric annotation ─────────────────────────────────────────────────────
 
 
-class _MetricRecord:
-    """Annotation for an objective, nonlinear constraint, or callback.
+class _LegacyMetricRecord:
+    """Self-contained record for a callback or meta score.
 
-    Holds metadata only; the callable and its upstream evaluators are managed
-    by ``OptimizationProblem``.  Evaluation is handled by
-    ``_evaluate_individual``.
+    Holds declaration and metadata in one object, predating ``MetricSpace``.
+    Objectives and nonlinear constraints use ``_MetricRecord`` instead, with
+    declarations on ``MetricSpace``; this class remains until callbacks and
+    meta scores migrate (meta scores fold into the Population refactor).
     """
 
     def __init__(
@@ -158,6 +161,81 @@ class _MetricRecord:
         return self.name
 
 
+class _MetricRecord:
+    """Execution record binding an objective/constraint callable to its declaration.
+
+    The declaration (name, shape, labels) is the ``Metric`` registered in the
+    problem's ``MetricSpace``; direction and bounds live on the ``Objective``
+    or ``Constraint`` annotation there.  This record holds only what
+    evaluation needs: the callable, its evaluator chain, evaluation objects,
+    and fallback values.
+
+    ``n_metrics`` is the per-evaluation-object entry count (what the callable
+    returns); the declaration's ``n_metrics`` is the total across evaluation
+    objects, exposed here as ``n_total_metrics``.
+    """
+
+    def __init__(
+        self,
+        func: Callable,
+        metric: Metric,
+        annotation: Any,
+        n_per_object: int,
+        bad_metrics: float | npt.ArrayLike | None = None,
+        evaluation_objects: list | None = None,
+        evaluator_chain: list[str] | None = None,
+        args: tuple = (),
+        kwargs: dict | None = None,
+    ) -> None:
+        self.func = func
+        self.metric = metric
+        self.annotation = annotation
+        self.n_metrics = n_per_object
+        if bad_metrics is None:
+            self.bad_metrics = np.full(n_per_object, np.inf)
+        elif np.isscalar(bad_metrics):
+            self.bad_metrics = np.full(n_per_object, float(bad_metrics))
+        else:
+            self.bad_metrics = np.asarray(bad_metrics, dtype=float)
+        self.evaluation_objects: list = list(evaluation_objects) if evaluation_objects else []
+        self.evaluator_chain: list[str] = list(evaluator_chain) if evaluator_chain else []
+        self.args = args if args else ()
+        self.kwargs = kwargs if kwargs is not None else {}
+
+    @property
+    def name(self) -> str:
+        """Name of the underlying metric declaration."""
+        return self.metric.name
+
+    @property
+    def labels(self) -> list[str]:
+        """Expanded labels from the declaration; order matches the data."""
+        return self.metric.labels
+
+    @property
+    def n_total_metrics(self) -> int:
+        """Total metric count across all evaluation objects."""
+        return self.metric.n_metrics
+
+    @property
+    def minimize(self) -> bool:
+        """Direction from the Objective annotation."""
+        return self.annotation.minimize
+
+    @property
+    def bounds(self) -> list[float]:
+        """Expanded bounds from the Constraint annotation."""
+        return list(self.annotation.bounds)
+
+    @property
+    def comparison_operator(self) -> str:
+        """Comparison operator from the Constraint annotation."""
+        return self.annotation.comparison_operator
+
+    def __str__(self) -> str:
+        return self.name
+
+
 # ── Helpers ────────────────────────────────────────────────────────────────
 
 
@@ -211,14 +289,15 @@ def _approximate_jac(
 # ── OptimizationProblem ────────────────────────────────────────────────────
 
 
-class OptimizationProblem:
-    """Optimization policy over ParameterSpace and EvaluationPipeline.
+class OptimizationProblem(Problem):
+    """Optimization policy over ParameterSpace, MetricSpace, and EvaluationPipeline.
 
     Decides what to optimize: which callables are objectives, which are
     constraints, which are callbacks, and how failures are handled.
     Delegates parameter semantics (bounds, linear constraints,
-    normalization, dependency resolution) to ``ParameterSpace`` and
-    execution to ``EvaluationPipeline``.
+    normalization, dependency resolution) to ``ParameterSpace``, output
+    declarations and annotations (direction, constraint bounds) to
+    ``MetricSpace``, and execution to ``EvaluationPipeline``.
 
     Parameters
     ----------
@@ -242,14 +321,18 @@ class OptimizationProblem:
         cache_directory: Optional[str] = None,
         log_level: str = "INFO",
     ) -> None:
-        self.name = name
         self.logger = log.get_logger(name, level=log_level)
 
         # Disk cache when requested: use_diskcache=True OR an explicit directory.
         effective_cache_dir = cache_directory if use_diskcache else None
 
-        self._space = ParameterSpace()
-        self._pipeline = EvaluationPipeline(self._space, cache_dir=effective_cache_dir)
+        parameter_space = ParameterSpace()
+        super().__init__(
+            parameter_space=parameter_space,
+            metric_space=MetricSpace(),
+            backend=EvaluationPipeline(parameter_space, cache_dir=effective_cache_dir),
+            name=name,
+        )
         self._params: dict[str, ParameterBase] = {}
         self._path_registry: dict[tuple, str] = {}  # (path, obj_id, index_repr) → var_name
 
@@ -260,25 +343,25 @@ class OptimizationProblem:
 
         self._objectives: list[_MetricRecord] = []
         self._nonlinear_constraints: list[_MetricRecord] = []
-        self._callbacks: list[_MetricRecord] = []
-        self._meta_scores: list[_MetricRecord] = []
+        self._callbacks: list[_LegacyMetricRecord] = []
+        self._meta_scores: list[_LegacyMetricRecord] = []
         self._multi_criteria_decision_functions: list = []
 
     # ── Evaluation objects ─────────────────────────────────────────────────────
 
     def add_evaluation_object(self, obj: Any, **kwargs: Any) -> None:  # noqa: ARG002
         """Register an evaluation object."""
-        self._space.add_evaluation_object(obj)
+        self._parameter_space.add_evaluation_object(obj)
 
     @property
     def evaluation_objects(self) -> list[Any]:
         """Registered evaluation objects, in insertion order."""
-        return self._space.evaluation_objects
+        return self._parameter_space.evaluation_objects
 
     @property
     def evaluation_objects_dict(self) -> dict[str, Any]:
         """Mapping of ``str(obj)`` → obj for all registered evaluation objects."""
-        return {str(obj): obj for obj in self._space.evaluation_objects}
+        return {str(obj): obj for obj in self._parameter_space.evaluation_objects}
 
     # ── Variables ─────────────────────────────────────────────────────────────
 
@@ -341,7 +424,7 @@ class OptimizationProblem:
         if evaluation_objects is None:
             eval_objs: list[Any] = []
         elif evaluation_objects == -1:
-            eval_objs = list(self._space.evaluation_objects)
+            eval_objs = list(self._parameter_space.evaluation_objects)
         elif not isinstance(evaluation_objects, list):
             eval_objs = [evaluation_objects]
         else:
@@ -384,16 +467,16 @@ class OptimizationProblem:
 
         # Wire mapper.
         if not eval_objs:
-            self._space.add_parameter(param)
+            self._parameter_space.add_parameter(param)
         elif pre_processing is not None:
             mapper = make_preprocessing_mapper(eval_objs, parameter_path, pre_processing)
-            self._space.add_parameter(param, mapper=mapper)
+            self._parameter_space.add_parameter(param, mapper=mapper)
         elif indices is not None:
-            self._space.add_parameter(
+            self._parameter_space.add_parameter(
                 param, mapper=IndexedMapper(eval_objs, parameter_path, indices)
             )
         else:
-            self._space.add_parameter(
+            self._parameter_space.add_parameter(
                 param, path=parameter_path, evaluation_objects=eval_objs
             )
 
@@ -431,7 +514,7 @@ class OptimizationProblem:
         if evaluation_objects is None:
             eval_objs: list[Any] = []
         elif evaluation_objects == -1:
-            eval_objs = list(self._space.evaluation_objects)
+            eval_objs = list(self._parameter_space.evaluation_objects)
         elif not isinstance(evaluation_objects, list):
             eval_objs = [evaluation_objects]
         else:
@@ -469,9 +552,9 @@ class OptimizationProblem:
                 self._path_registry[key] = name
 
         if not eval_objs:
-            self._space.add_parameter(param)
+            self._parameter_space.add_parameter(param)
         else:
-            self._space.add_parameter(
+            self._parameter_space.add_parameter(
                 param, path=parameter_path, evaluation_objects=eval_objs
             )
 
@@ -491,12 +574,12 @@ class OptimizationProblem:
     @property
     def variables(self) -> list[ParameterBase]:
         """All registered parameters (independent + derived), in registration order."""
-        return self._space.parameters
+        return self._parameter_space.parameters
 
     @property
     def variable_names(self) -> list[str]:
         """Names of all parameters in registration order."""
-        return [p.name for p in self._space.parameters]
+        return [p.name for p in self._parameter_space.parameters]
 
     @property
     def variables_dict(self) -> dict:
@@ -506,67 +589,67 @@ class OptimizationProblem:
     @property
     def n_variables(self) -> int:
         """Total number of parameters (independent + derived)."""
-        return len(self._space.parameters)
+        return len(self._parameter_space.parameters)
 
     @property
     def independent_variables(self) -> list[ParameterBase]:
         """Parameters that are not derived from other parameters."""
-        return self._space.independent_parameters
+        return self._parameter_space.independent_parameters
 
     @property
     def independent_variable_names(self) -> list[str]:
         """Names of independent parameters."""
-        return [p.name for p in self._space.independent_parameters]
+        return [p.name for p in self._parameter_space.independent_parameters]
 
     @property
     def n_independent_variables(self) -> int:
         """Number of independent (optimizer-facing) parameters."""
-        return self._space.n_variables
+        return self._parameter_space.n_variables
 
     @property
     def dependent_variables(self) -> list[ParameterBase]:
         """Parameters computed from other parameters."""
-        return self._space.dependent_parameters
+        return self._parameter_space.dependent_parameters
 
     @property
     def dependent_variable_names(self) -> list[str]:
         """Names of derived parameters."""
-        return [p.name for p in self._space.dependent_parameters]
+        return [p.name for p in self._parameter_space.dependent_parameters]
 
     @property
     def n_dependent_variables(self) -> int:
         """Number of derived parameters."""
-        return len(self._space.dependent_parameters)
+        return len(self._parameter_space.dependent_parameters)
 
     @property
     def continuous_variables(self) -> list[RangedParameter]:
         """Independent continuous (float) variables."""
-        return self._space.continuous_parameters
+        return self._parameter_space.continuous_parameters
 
     @property
     def n_continuous_variables(self) -> int:
         """Number of independent continuous variables."""
-        return len(self._space.continuous_parameters)
+        return len(self._parameter_space.continuous_parameters)
 
     @property
     def integer_variables(self) -> list[RangedParameter]:
         """Independent integer variables."""
-        return self._space.integer_parameters
+        return self._parameter_space.integer_parameters
 
     @property
     def n_integer_variables(self) -> int:
         """Number of independent integer variables."""
-        return len(self._space.integer_parameters)
+        return len(self._parameter_space.integer_parameters)
 
     @property
     def categorical_variables(self) -> list[ChoiceParameter]:
         """Independent categorical variables."""
-        return self._space.categorical_parameters
+        return self._parameter_space.categorical_parameters
 
     @property
     def n_categorical_variables(self) -> int:
         """Number of independent categorical variables."""
-        return len(self._space.categorical_parameters)
+        return len(self._parameter_space.categorical_parameters)
 
     # ── Dependencies ──────────────────────────────────────────────────────────
 
@@ -612,7 +695,7 @@ class OptimizationProblem:
             ind_params.append(p)
 
         try:
-            self._space.add_dependency(derived, ind_params, transform)
+            self._parameter_space.add_dependency(derived, ind_params, transform)
         except ValueError as exc:
             raise CADETProcessError(str(exc)) from exc
 
@@ -651,20 +734,20 @@ class OptimizationProblem:
     def _resolve_full_vector(self, x: npt.ArrayLike) -> np.ndarray:
         """Resolve a single independent vector to a full parameter vector."""
         x = np.asarray(x, dtype=float).ravel()
-        all_vals = self._space._resolve_all_values(x)
-        return np.array([all_vals[p.name] for p in self._space.parameters])
+        all_vals = self._parameter_space._resolve_all_values(x)
+        return np.array([all_vals[p.name] for p in self._parameter_space.parameters])
 
     def get_independent_values(self, x_all: npt.ArrayLike) -> np.ndarray:
         """Extract independent values from a full parameter vector."""
         x_all = np.asarray(x_all, dtype=float).ravel()
-        ind_names = {p.name for p in self._space.independent_parameters}
+        ind_names = {p.name for p in self._parameter_space.independent_parameters}
         return np.array(
-            [v for p, v in zip(self._space.parameters, x_all) if p.name in ind_names]
+            [v for p, v in zip(self._parameter_space.parameters, x_all) if p.name in ind_names]
         )
 
     def set_variables(self, x: npt.ArrayLike) -> None:
         """Write *x* (independent values) into evaluation objects."""
-        self._space.set_values(self._space.transformed_space.decode(x))
+        self._parameter_space.set_values(self._parameter_space.transformed_space.decode(x))
 
     def get_variable_value(self, name: str) -> Any:
         """Read the current value of variable *name* from its evaluation object.
@@ -677,29 +760,29 @@ class OptimizationProblem:
         KeyError
             If no variable named *name* is registered.
         """
-        return self._space.get_value(name)
+        return self._parameter_space.get_value(name)
 
     # ── Bounds ────────────────────────────────────────────────────────────────
 
     @property
     def lower_bounds(self) -> np.ndarray:
         """Lower bounds for all variables (independent + dependent); ``-inf`` when unbounded."""
-        return self._space.lower_bounds
+        return self._parameter_space.lower_bounds
 
     @property
     def upper_bounds(self) -> np.ndarray:
         """Upper bounds for all variables (independent + dependent); ``+inf`` when unbounded."""
-        return self._space.upper_bounds
+        return self._parameter_space.upper_bounds
 
     @property
     def lower_bounds_independent(self) -> np.ndarray:
         """Lower bounds for independent variables only; ``-inf`` when unbounded."""
-        return self._space.lower_bounds_independent
+        return self._parameter_space.lower_bounds_independent
 
     @property
     def upper_bounds_independent(self) -> np.ndarray:
         """Upper bounds for independent variables only; ``+inf`` when unbounded."""
-        return self._space.upper_bounds_independent
+        return self._parameter_space.upper_bounds_independent
 
     def evaluate_bounds(self, x: npt.ArrayLike, get_dependent_values: bool = True) -> np.ndarray:
         """Return ``[lb - x, x - ub]``; positive entries mean a bound violation.
@@ -714,13 +797,13 @@ class OptimizationProblem:
             When True (default), resolve the full vector from independent
             values first.  When False, the input is used as-is.
         """
-        return self._space.evaluate_bounds(x, resolve_dependencies=get_dependent_values)
+        return self._parameter_space.evaluate_bounds(x, resolve_dependencies=get_dependent_values)
 
     def check_bounds(
         self, x: npt.ArrayLike, tol: float | npt.ArrayLike = 0.0
     ) -> bool:
         """Return True if all independent values satisfy their bounds."""
-        return self._space.check_bounds(x, tol=tol, resolve_dependencies=True)
+        return self._parameter_space.check_bounds(x, tol=tol, resolve_dependencies=True)
 
     # ── Linear constraints ─────────────────────────────────────────────────────
 
@@ -759,11 +842,11 @@ class OptimizationProblem:
             constraint = LinearConstraint(params, lhs, b)
         except ValueError as exc:
             raise CADETProcessError(str(exc)) from exc
-        self._space.add_linear_constraint(constraint)
+        self._parameter_space.add_linear_constraint(constraint)
 
     def remove_linear_constraint(self, index: int) -> None:
         """Remove the linear inequality constraint at *index*."""
-        self._space._linear_constraints.pop(index)
+        self._parameter_space._linear_constraints.pop(index)
 
     def add_linear_equality_constraint(
         self,
@@ -777,51 +860,51 @@ class OptimizationProblem:
             constraint = LinearEqualityConstraint(params, lhs, b)
         except ValueError as exc:
             raise CADETProcessError(str(exc)) from exc
-        self._space.add_linear_equality_constraint(constraint)
+        self._parameter_space.add_linear_equality_constraint(constraint)
 
     def remove_linear_equality_constraint(self, index: int) -> None:
         """Remove the linear equality constraint at *index*."""
-        self._space._linear_equality_constraints.pop(index)
+        self._parameter_space._linear_equality_constraints.pop(index)
 
     @property
     def linear_constraints(self) -> list[LinearConstraint]:
         """Registered linear inequality constraints."""
-        return self._space.linear_constraints
+        return self._parameter_space.linear_constraints
 
     @property
     def n_linear_constraints(self) -> int:
         """Number of registered linear inequality constraints."""
-        return len(self._space.linear_constraints)
+        return len(self._parameter_space.linear_constraints)
 
     @property
     def linear_equality_constraints(self) -> list[LinearEqualityConstraint]:
         """Registered linear equality constraints."""
-        return self._space.linear_equality_constraints
+        return self._parameter_space.linear_equality_constraints
 
     @property
     def n_linear_equality_constraints(self) -> int:
         """Number of registered linear equality constraints."""
-        return len(self._space.linear_equality_constraints)
+        return len(self._parameter_space.linear_equality_constraints)
 
     @property
     def A(self) -> np.ndarray:
         """Inequality constraint matrix over all parameters, shape (m, n_parameters)."""
-        return self._space.A
+        return self._parameter_space.A
 
     @property
     def b(self) -> np.ndarray:
         """Inequality constraint RHS, shape (m,)."""
-        return self._space.b
+        return self._parameter_space.b
 
     @property
     def Aeq(self) -> np.ndarray:
         """Equality constraint matrix over all parameters, shape (m, n_parameters)."""
-        return self._space.A_eq
+        return self._parameter_space.A_eq
 
     @property
     def beq(self) -> np.ndarray:
         """Equality constraint RHS, shape (m,)."""
-        return self._space.b_eq
+        return self._parameter_space.b_eq
 
     def evaluate_linear_constraints(
         self, x: npt.ArrayLike, get_dependent_values: bool = True
@@ -838,7 +921,7 @@ class OptimizationProblem:
             When True (default), resolve the full vector from independent
             values first.  When False, the input is used as-is.
         """
-        return self._space.evaluate_linear_constraints(
+        return self._parameter_space.evaluate_linear_constraints(
             x, resolve_dependencies=get_dependent_values
         )
 
@@ -862,7 +945,7 @@ class OptimizationProblem:
             When True (default), resolve the full vector from independent
             values first.  When False, the input is used as-is.
         """
-        if self._space.A.shape[0] == 0:
+        if self._parameter_space.A.shape[0] == 0:
             return True
         return bool(
             np.all(
@@ -886,7 +969,7 @@ class OptimizationProblem:
             When True (default), resolve the full vector from independent
             values first.  When False, the input is used as-is.
         """
-        return self._space.evaluate_linear_equality_constraints(
+        return self._parameter_space.evaluate_linear_equality_constraints(
             x, resolve_dependencies=get_dependent_values
         )
 
@@ -897,7 +980,7 @@ class OptimizationProblem:
         get_dependent_values: bool = True,
     ) -> bool:
         """Return True if *x* satisfies all equality constraints."""
-        if self._space.A_eq.shape[0] == 0:
+        if self._parameter_space.A_eq.shape[0] == 0:
             return True
         return bool(
             np.all(
@@ -913,14 +996,9 @@ class OptimizationProblem:
     # ── Parameter and transformed space ───────────────────────────────────────
 
     @property
-    def parameter_space(self) -> ParameterSpace:
-        """The underlying `ParameterSpace` owning parameters and evaluation objects."""
-        return self._space
-
-    @property
     def transformed_space(self) -> TransformedSpace:
         """Normalized optimizer view of the parameter space."""
-        return self._space.transformed_space
+        return self._parameter_space.transformed_space
 
     # ── Transform / normalization ─────────────────────────────────────────────
 
@@ -928,15 +1006,15 @@ class OptimizationProblem:
         """Map independent values from physical to normalized coordinates."""
         x = np.asarray(x, dtype=float)
         if x.ndim == 2:
-            return np.array([self._space.normalize(row) for row in x])
-        return self._space.normalize(x.ravel())
+            return np.array([self._parameter_space.normalize(row) for row in x])
+        return self._parameter_space.normalize(x.ravel())
 
     def untransform(self, x: npt.ArrayLike) -> np.ndarray:
         """Map independent values from normalized to physical coordinates."""
         x = np.asarray(x, dtype=float)
         if x.ndim == 2:
-            return np.array([self._space.denormalize(row) for row in x])
-        return self._space.denormalize(x.ravel())
+            return np.array([self._parameter_space.denormalize(row) for row in x])
+        return self._parameter_space.denormalize(x.ravel())
 
     @property
     def A_transformed(self) -> np.ndarray:
@@ -966,9 +1044,9 @@ class OptimizationProblem:
         """Compute the Chebyshev center of the independent-variable polytope."""
         from CADETProcess.parameter_space.sampling import chebyshev_center
 
-        assignment = chebyshev_center(self._space)
+        assignment = chebyshev_center(self._parameter_space)
         center = np.array(
-            [assignment[p.name] for p in self._space.independent_parameters]
+            [assignment[p.name] for p in self._parameter_space.independent_parameters]
         )
         if include_dependent_variables:
             return self.get_dependent_values(center)
@@ -1004,12 +1082,12 @@ class OptimizationProblem:
         if sampler is None:
             sampler = HopsySampler(pool_size=int(burn_in))
         assignments = sampler.sample(
-            self._space,
+            self._parameter_space,
             n_samples,
             seed=seed,
             include_dependent=False,
         )
-        ts = self._space.transformed_space
+        ts = self._parameter_space.transformed_space
         rows = []
         for a in assignments:
             x_ind = ts.encode(a)
@@ -1161,20 +1239,53 @@ class OptimizationProblem:
     @property
     def objective_names(self) -> list[str]:
         """Names of all objectives, in registration order."""
-        return [obj.name for obj in self._objectives]
+        return self._metric_space.objective_names
 
     @property
     def objective_labels(self) -> list[str]:
-        """Flat list of metric labels across all objectives."""
-        labels = []
-        for obj in self._objectives:
-            labels += obj.labels
-        return labels
+        """Flat list of metric labels across all objectives.
+
+        Order matches the objective vector: expansion over evaluation objects
+        is object-major, ``[obj1_a, obj1_b, obj2_a, obj2_b]``.
+        """
+        return self._metric_space.objective_labels
 
     @property
     def n_objectives(self) -> int:
         """Total number of objective metrics across all objectives and eval objects."""
-        return sum(obj.n_total_metrics for obj in self._objectives)
+        return self._metric_space.n_objectives
+
+    def _build_metric(
+        self,
+        name: str,
+        n_per_object: int,
+        base_labels: list[str] | None,
+        eval_objs: list,
+    ) -> Metric:
+        """Build the Metric declaration, expanding over evaluation objects.
+
+        With multiple evaluation objects the metric carries an explicit
+        ``evaluation_object`` dimension; labels expand object-major, matching
+        the flattening order in ``_evaluate_individual``.
+        """
+        if base_labels is not None and len(base_labels) != n_per_object:
+            raise CADETProcessError(f"Expected {n_per_object} labels.")
+        if base_labels is None:
+            if n_per_object == 1:
+                base_labels = [name]
+            else:
+                base_labels = [f"{name}_{i}" for i in range(n_per_object)]
+        if len(eval_objs) > 1:
+            obj_names = [str(obj) for obj in eval_objs]
+            if n_per_object == 1:
+                dims = ("evaluation_object",)
+                coords = {"evaluation_object": obj_names}
+            else:
+                dims = ("evaluation_object", "entry")
+                coords = {"evaluation_object": obj_names, "entry": base_labels}
+            labels = [f"{obj}_{label}" for obj in obj_names for label in base_labels]
+            return Metric(name, dims=dims, coords=coords, labels=labels)
+        return Metric(name, n_metrics=n_per_object, labels=base_labels)
 
     def add_objective(
         self,
@@ -1229,8 +1340,12 @@ class OptimizationProblem:
             else:
                 name = str(objective)
 
-        if name in self.objective_names:
-            warnings.warn("Objective with same name already exists.")
+        if name in self._metric_space.metrics_dict:
+            raise CADETProcessError(
+                f"Metric {name!r} is already registered. Objectives and "
+                f"nonlinear constraints share one metric namespace; pass "
+                f"name= to disambiguate."
+            )
 
         # Resolve evaluation objects.
         if evaluation_objects is None:
@@ -1259,17 +1374,22 @@ class OptimizationProblem:
             evaluator_chain.append(self._evaluator_names[req])
         self._register_evaluator_chain(req_list)
 
+        # Declare the metric and annotate it with the direction; raises on
+        # duplicate names (named storage requires unique metrics).
+        base_labels = labels if labels is not None else getattr(objective, "labels", None)
+        metric = self._build_metric(name, n_objectives, base_labels, eval_objs)
+        annotation = self._metric_space.add_objective(metric, minimize=minimize)
+
         record = _MetricRecord(
             objective,
-            name,
-            n_metrics=n_objectives,
+            metric,
+            annotation,
+            n_per_object=n_objectives,
             bad_metrics=bad_metrics,
             evaluation_objects=eval_objs,
             evaluator_chain=evaluator_chain,
-            labels=labels,
             args=args,
             kwargs=kwargs if kwargs else None,
-            minimize=minimize,
         )
         self._objectives.append(record)
 
@@ -1283,28 +1403,30 @@ class OptimizationProblem:
     @property
     def nonlinear_constraint_names(self) -> list[str]:
         """Names of all nonlinear constraints."""
-        return [nc.name for nc in self._nonlinear_constraints]
+        return self._metric_space.constraint_names
 
     @property
     def nonlinear_constraint_labels(self) -> list[str]:
-        """Flat list of labels across all nonlinear constraints."""
-        labels = []
-        for nc in self._nonlinear_constraints:
-            labels += nc.labels
-        return labels
+        """Flat list of labels across all nonlinear constraints.
+
+        Order matches the constraint vector: expansion over evaluation
+        objects is object-major.
+        """
+        return self._metric_space.constraint_labels
 
     @property
     def nonlinear_constraints_bounds(self) -> list[float]:
-        """Flat list of per-metric bounds across all nonlinear constraints."""
-        bounds: list[float] = []
-        for nc in self._nonlinear_constraints:
-            bounds += nc.bounds
-        return bounds
+        """Flat list of per-metric bounds across all nonlinear constraints.
+
+        Expanded across evaluation objects; length equals
+        ``n_nonlinear_constraints``.
+        """
+        return list(self._metric_space.constraints_bounds)
 
     @property
     def n_nonlinear_constraints(self) -> int:
         """Total number of nonlinear constraint metrics."""
-        return sum(nc.n_total_metrics for nc in self._nonlinear_constraints)
+        return self._metric_space.n_constraints
 
     def add_nonlinear_constraint(
         self,
@@ -1360,8 +1482,12 @@ class OptimizationProblem:
             else:
                 name = str(nonlincon)
 
-        if name in self.nonlinear_constraint_names:
-            warnings.warn("Nonlinear constraint with same name already exists.")
+        if name in self._metric_space.metrics_dict:
+            raise CADETProcessError(
+                f"Metric {name!r} is already registered. Objectives and "
+                f"nonlinear constraints share one metric namespace; pass "
+                f"name= to disambiguate."
+            )
 
         # Resolve evaluation objects.
         if evaluation_objects is None:
@@ -1400,25 +1526,33 @@ class OptimizationProblem:
             evaluator_chain.append(self._evaluator_names[req])
         self._register_evaluator_chain(req_list)
 
+        # Declare the metric and annotate it with operator and bounds; raises
+        # on duplicate names (named storage requires unique metrics).  Bounds
+        # tile object-major across evaluation objects, matching the labels.
+        base_labels = labels if labels is not None else getattr(nonlincon, "labels", None)
+        metric = self._build_metric(name, n_nonlinear_constraints, base_labels, eval_objs)
+        bounds_total = bounds_list * max(len(eval_objs), 1)
+        annotation = self._metric_space.add_constraint(
+            metric, bound=bounds_total, comparison_operator=comparison_operator
+        )
+
         record = _MetricRecord(
             nonlincon,
-            name,
-            n_metrics=n_nonlinear_constraints,
+            metric,
+            annotation,
+            n_per_object=n_nonlinear_constraints,
             bad_metrics=bad_metrics,
             evaluation_objects=eval_objs,
             evaluator_chain=evaluator_chain,
-            labels=labels,
             args=args,
             kwargs=kwargs if kwargs else None,
-            bounds=bounds_list,
-            comparison_operator=comparison_operator,
         )
         self._nonlinear_constraints.append(record)
 
     # ── Callbacks ─────────────────────────────────────────────────────────────
 
     @property
-    def callbacks(self) -> list[_MetricRecord]:
+    def callbacks(self) -> list[_LegacyMetricRecord]:
         """Registered callback records."""
         return self._callbacks
 
@@ -1503,7 +1637,7 @@ class OptimizationProblem:
             evaluator_chain.append(self._evaluator_names[req])
         self._register_evaluator_chain(req_list)
 
-        record = _MetricRecord(
+        record = _LegacyMetricRecord(
             callback,
             name,
             n_metrics=1,
@@ -1520,7 +1654,7 @@ class OptimizationProblem:
     # ── Meta scores ───────────────────────────────────────────────────────────
 
     @property
-    def meta_scores(self) -> list[_MetricRecord]:
+    def meta_scores(self) -> list[_LegacyMetricRecord]:
         """Registered meta-score records."""
         return self._meta_scores
 
@@ -1554,7 +1688,7 @@ class OptimizationProblem:
             raise TypeError("Expected callable meta-score function.")
 
         name = getattr(func, "__name__", str(func))
-        record = _MetricRecord(
+        record = _LegacyMetricRecord(
             func,
             name,
             n_metrics=n_meta_scores,
@@ -1592,11 +1726,11 @@ class OptimizationProblem:
         """
         for i, ev_callable in enumerate(req_list):
             ev_name = self._evaluator_names[ev_callable]
-            if ev_name not in self._pipeline._output_names:
+            if ev_name not in self._backend._output_names:
                 prev = (
                     [self._evaluator_names[req_list[i - 1]]] if i > 0 else None
                 )
-                self._pipeline.add_evaluator(
+                self._backend.add_evaluator(
                     self._evaluator_func_by_name[ev_name],
                     output_name=ev_name,
                     requires=prev,
@@ -1605,7 +1739,7 @@ class OptimizationProblem:
     def _evaluate_individual(
         self,
         x: npt.ArrayLike,
-        target_functions: list[_MetricRecord],
+        target_functions: list[_LegacyMetricRecord | _MetricRecord],
     ) -> np.ndarray:
         """Evaluate all *target_functions* for a single parameter vector.
 
@@ -1619,11 +1753,11 @@ class OptimizationProblem:
         """
         x = np.asarray(x, dtype=float).ravel()
 
-        def _bad_for(metric: _MetricRecord) -> np.ndarray:
+        def _bad_for(metric: _LegacyMetricRecord) -> np.ndarray:
             n = len(
                 metric.evaluation_objects
                 if metric.evaluation_objects
-                else self._space.evaluation_objects or [None]
+                else self._parameter_space.evaluation_objects or [None]
             )
             return np.tile(metric.bad_metrics, n)
 
@@ -1633,11 +1767,11 @@ class OptimizationProblem:
         # Precompute evaluator outputs via pipeline when eval objects exist.
         # evaluate() handles set_values and caching via EvaluationContext.
         ev_cache: dict[tuple[int, str], Any] = {}
-        eval_objs = self._space.evaluation_objects
+        eval_objs = self._parameter_space.evaluation_objects
         if all_ev_names and eval_objs:
             try:
-                outputs = self._pipeline.evaluate(
-                    self._space.transformed_space.decode(x), targets=all_ev_names
+                outputs = self._backend.evaluate(
+                    self._parameter_space.transformed_space.decode(x), targets=all_ev_names
                 )
             except CADETProcessError as e:
                 self.logger.warning(
@@ -1661,7 +1795,7 @@ class OptimizationProblem:
         elif not all_ev_names:
             # No evaluator chain — set_values still needs to happen for inline metrics.
             try:
-                self._space.set_values(self._space.transformed_space.decode(x))
+                self._parameter_space.set_values(self._parameter_space.transformed_space.decode(x))
             except CADETProcessError as e:
                 self.logger.warning(
                     "set_values failed at x=%s: %s. Returning bad metrics.", x, e
@@ -1728,7 +1862,7 @@ class OptimizationProblem:
     def _evaluate_population(
         self,
         X: npt.ArrayLike,
-        target_functions: list[_MetricRecord],
+        target_functions: list[_LegacyMetricRecord | _MetricRecord],
         parallelization_backend: Any = None,
     ) -> np.ndarray:
         """Evaluate *target_functions* for each row of *X*.
@@ -1882,9 +2016,9 @@ class OptimizationProblem:
             Same shape convention as ``evaluate_nonlinear_constraints``.
         """
         factors = []
-        for nc in self._nonlinear_constraints:
-            factor = -1 if nc.comparison_operator == "ge" else 1
-            factors += nc.n_total_metrics * [factor]
+        for constraint in self._metric_space.constraints:
+            factor = -1 if constraint.comparison_operator == "ge" else 1
+            factors += constraint.n_metrics * [factor]
 
         G = self.evaluate_nonlinear_constraints(
             X,
@@ -2011,11 +2145,7 @@ class OptimizationProblem:
 
     def _apply_minimization_transform(self, F: np.ndarray) -> np.ndarray:
         """Negate columns that correspond to maximization objectives."""
-        factors: list[int] = []
-        for obj in self._objectives:
-            n = obj.n_total_metrics
-            factors += n * (-1 if not obj.minimize else 1,)
-        return F * np.array(factors)
+        return F * np.where(self._metric_space.minimize, 1.0, -1.0)
 
     def transform_maximization(self, F: Any, scores: Any = None) -> Any:
         """Negate maximization-objective columns in *F*.
@@ -2061,7 +2191,7 @@ class OptimizationProblem:
         if population is None or not self._callbacks:
             return
         _logger = logging.getLogger(__name__)
-        eval_objs = self._space.evaluation_objects or []
+        eval_objs = self._parameter_space.evaluation_objects or []
         obj_index = {id(obj): i for i, obj in enumerate(eval_objs)}
         for cb in self._callbacks:
             if not (
@@ -2092,15 +2222,15 @@ class OptimizationProblem:
                 sig = {}
             for individual in population:
                 x_ind = self.untransform(individual.x_transformed)
-                assignment = self._space.transformed_space.decode(x_ind)
-                self._space.set_values(assignment)
+                assignment = self._parameter_space.transformed_space.decode(x_ind)
+                self._parameter_space.set_values(assignment)
                 # Use the pipeline to get evaluator chain outputs, benefiting
                 # from results already cached during objective/constraint
                 # evaluation for this individual.
                 ev_outputs: dict[str, Any] = {}
                 if cb.evaluator_chain and eval_objs:
                     try:
-                        ev_outputs = self._pipeline.evaluate(
+                        ev_outputs = self._backend.evaluate(
                             assignment, targets=cb.evaluator_chain
                         )
                     except Exception:
