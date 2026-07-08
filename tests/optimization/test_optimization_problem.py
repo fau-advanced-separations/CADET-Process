@@ -416,7 +416,9 @@ def op_with_linear_transform():
     op = OptimizationProblem("linear_transform")
     op.add_variable("x", lb=-2, ub=2, normalization="linear")
     op.add_objective(lambda x: x[0] ** 2)
-    op.add_nonlinear_constraint(lambda x: [x[0] ** 2 - 1], n_nonlinear_constraints=1)
+    op.add_nonlinear_constraint(
+        lambda x: [x[0] ** 2 - 1], name="g", n_nonlinear_constraints=1,
+    )
     return op
 
 
@@ -590,14 +592,15 @@ def test_multi_eval_obj_names(op_with_multiple_eval_objects):
 
 
 def test_multi_eval_obj_labels(op_with_multiple_eval_objects):
-    # Label order is contractual: per-eval-obj expansion is part of the API.
+    # Label order is contractual: per-eval-obj expansion is object-major,
+    # matching the data order pinned by test_multi_eval_obj_evaluation.
     expected = [
         "foo_single_obj_1",
         "bar_single_obj_1",
         "single_obj_2",
         "foo_multi_obj_0",
-        "bar_multi_obj_0",
         "foo_multi_obj_1",
+        "bar_multi_obj_0",
         "bar_multi_obj_1",
     ]
     assert op_with_multiple_eval_objects.objective_labels == expected
@@ -697,7 +700,7 @@ def test_check_individual_with_nonlinear_constraint():
     op.add_variable("x", lb=0, ub=2)
     op.add_objective(lambda x: x[0] ** 2)
     op.add_nonlinear_constraint(
-        lambda x: [x[0] - 1.5], n_nonlinear_constraints=1, bounds=0,
+        lambda x: [x[0] - 1.5], name="g", n_nonlinear_constraints=1, bounds=0,
     )
     # feasible
     assert op.check_individual([1.0])
@@ -711,6 +714,7 @@ def test_check_individual_nonlinear_constraint_exception():
     op.add_objective(lambda x: x[0])
     op.add_nonlinear_constraint(
         lambda x: (_ for _ in ()).throw(RuntimeError("boom")),
+        name="g",
         n_nonlinear_constraints=1,
     )
     assert not op.check_individual([1.0])
@@ -779,14 +783,12 @@ def test_add_objective_non_callable_raises():
         op.add_objective("not_callable")
 
 
-def test_add_objective_duplicate_name_warns():
+def test_add_objective_duplicate_name_raises():
     op = OptimizationProblem("obj", use_diskcache=False)
     op.add_variable("x", lb=0, ub=1, evaluation_objects=None)
     op.add_objective(lambda x: x[0], name="f")
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
+    with pytest.raises(CADETProcessError, match="already registered"):
         op.add_objective(lambda x: x[0], name="f")
-    assert any("already exists" in str(wi.message) for wi in w)
 
 
 def test_add_objective_unknown_eval_obj_raises():
@@ -875,7 +877,7 @@ def test_evaluate_nonlinear_constraints_violation():
     op.add_variable("x", lb=0, ub=2, evaluation_objects=None)
     op.add_objective(lambda x: x[0])
     op.add_nonlinear_constraint(
-        lambda x: [x[0] - 1], n_nonlinear_constraints=1, bounds=0,
+        lambda x: [x[0] - 1], name="g", n_nonlinear_constraints=1, bounds=0,
     )
     cv = op.evaluate_nonlinear_constraints_violation([1.5])
     np.testing.assert_allclose(cv, [0.5])
