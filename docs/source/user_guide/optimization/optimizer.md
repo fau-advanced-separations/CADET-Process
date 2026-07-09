@@ -27,7 +27,7 @@ All implementations share the following options:
 
 - {attr}`~CADETProcess.optimization.OptimizerBase.progress_frequency`: Number of generations after which optimizer reports progress.
 - {attr}`~CADETProcess.optimization.OptimizerBase.n_cores`: The number of cores that the optimizer should use.
-- {attr}`~CADETProcess.optimization.OptimizerBase.cv_tol`: Tolerance for constraint violation.
+- {attr}`~CADETProcess.optimization.OptimizerBase.cv_bounds_tol`, `cv_lincon_tol`, `cv_lineqcon_tol`, `cv_nonlincon_tol`: Tolerances for constraint violation, one per constraint kind (bounds, linear inequality, linear equality, nonlinear).
 - {attr}`~CADETProcess.optimization.OptimizerBase.similarity_tol`: Tolerance for individuals to be considered similar.
 
 The individual optimizer implementations provide additional options, including options for termination criteria.
