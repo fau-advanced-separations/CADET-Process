@@ -128,30 +128,6 @@ Every `Characterize*` instance is an ordinary {class}`~CADETProcess.optimization
 Each evaluation automatically generates comparison plots in the optimizer callback directory.
 
 
-## Comparator helper
-
-{func}`~CADETProcess.characterization.setup_comparators` builds one {class}`~CADETProcess.comparison.Comparator` per process from a matching list of {class}`~CADETProcess.reference.ReferenceIO` objects.
-It covers the common case where all comparators use the same `solution_path` and difference metrics.
-Optional arguments (`components`, `start`, `end`) are forwarded per comparator.
-For multi-channel comparisons (e.g. UV and conductivity on the same process), build the comparator directly.
-
-```{code-cell} ipython3
-:tags: [skip-execution]
-
-comparators = setup_comparators(
-    processes=[process_4cv, process_8cv, process_12cv],
-    references=[ref_4cv, ref_8cv, ref_12cv],
-    solution_path="column.outlet.outlet[0]",
-    metrics=["Shape"],
-    components=["Protein"],
-    start=[t0_4cv, t0_8cv, t0_12cv],  # per-process peak windows
-    end=[t1_4cv, t1_8cv, t1_12cv],
-)
-```
-
-`start` and `end` accept either a scalar (applied to all processes) or a list (one value per process).
-
-
 ## Subclasses
 
 
@@ -291,7 +267,9 @@ print(char.variable_names)
 ## Multi-process example
 
 When the same characterization is run across several gradient lengths simultaneously, pass a list of processes and a matching list of comparators.
-{func}`~CADETProcess.characterization.setup_comparators` builds the comparator list; the `Characterize*` class receives it directly.
+Rather than build each comparator by hand as in step 2 of the workflow, {func}`~CADETProcess.characterization.setup_comparators` builds the whole list at once: one {class}`~CADETProcess.comparison.Comparator` per process, all sharing the same `solution_path` and difference metrics.
+`start` and `end` accept either a scalar, applied to every process, or a list with one value per process, so each gradient can have its own peak window.
+For heterogeneous comparisons, such as UV and conductivity channels on the same process, build the comparators directly instead.
 
 ```{code-cell} ipython3
 :tags: [skip-execution]

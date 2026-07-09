@@ -20,7 +20,7 @@ sys.path.append('../../../../../')
 
 The {mod}`~CADETProcess.calibration` module converts raw detector signals carried by {class}`~CADETProcess.reference.ReferenceIO` objects into physical concentration units.
 All functions return a new {class}`~CADETProcess.reference.ReferenceIO` and leave the input unchanged.
-A typical workflow applies two steps in sequence: baseline correction to remove drift, followed by a calibration step to convert signal units to concentration.
+A typical workflow applies three steps in sequence: crop the run to align machine time with simulation time, correct the baseline to remove drift, then convert signal units to concentration.
 
 **Choosing a calibration method:**
 
@@ -48,8 +48,9 @@ from CADETProcess.calibration import (
 
 ## Cropping to the simulation window
 
-An experimental run typically extends beyond the simulated process: the pump may need time to stabilize before injection starts, and a wash step at the end is not part of the simulation.
-{func}`~CADETProcess.calibration.crop` extracts the relevant portion and re-zeros the time axis so it aligns with simulation time starting at $t = 0$.
+The simulation starts from a clean, pre-equilibrated column at $t = 0$, but an experimental run extends beyond it on both ends: the pump needs time to stabilize before injection, and a final wash follows the last peak.
+Neither has a simulated counterpart.
+{func}`~CADETProcess.calibration.crop` extracts the portion between injection and the end of interest, then re-zeros the time axis so machine time aligns with simulation time.
 
 ```{code-cell} ipython3
 time_full = np.linspace(0, 500, 5001)

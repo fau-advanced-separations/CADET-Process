@@ -22,6 +22,8 @@ The {mod}`~CADETProcess.instruments` module provides ready-made LC system flow s
 Rather than manually assembling a {class}`~CADETProcess.processModel.FlowSheet` and adding events by hand, you pick a pre-built template or compose phases declaratively.
 
 The design follows the same two-step pattern as plain CADET-Process objects: construct the flow sheet first, then pass it to the process.
+This chapter builds up in that order: the flow sheet topology, then the valve positions and phase primitives, then {class}`~CADETProcess.instruments.PhasedProcess`, which composes them, and finally the protocol templates that specialize it.
+To run a standard protocol without the underlying details, skip ahead to [Process templates](#process-templates).
 
 ## LC system topology
 
@@ -75,7 +77,8 @@ fs = LCFlowSheet(
 print("units:", [u.name for u in fs.units])
 ```
 
-Units can be excluded from the flow path to characterize the system sequentially, starting from the simplest configuration and adding components one at a time:
+Units can be excluded from the flow path to characterize the system sequentially, starting from the simplest configuration and adding components one at a time.
+The bypass flow sheet below keeps the sample loop but removes the column and surrounding tubing; it is reused throughout the rest of this chapter.
 
 ```{code-cell} ipython3
 fs_no_col = LCFlowSheet(
@@ -87,9 +90,120 @@ fs_no_col = LCFlowSheet(
 print("units:", [u.name for u in fs_no_col.units])
 ```
 
+## Valve positions
+
+Two pumps feed the system.
+SyP (system pump) is the buffer line: buffers A to D flow through the mixer into `tubing_pre_injection`.
+SaP (sample pump) is the feed line: `feed_inlet` connects directly to the sample loop (or `first_unit` when no loop is present).
+
+A valve position sets where each pump's output goes and whether the sample loop sits in the active flow path.
+Four named positions are available, with two aliases:
+
+| Position          | Alias                 | SyP (`tubing_pre_injection`) | SaP / loop     | Requires loop             |
+| ----------------- | --------------------- | ---------------------------- | -------------- | ------------------------- |
+| `"run"`           |                       | → `first_unit`               | → waste        | no                        |
+| `"load"`          |                       | → `first_unit`               | → loop → waste | yes (degrades to `"run"`) |
+| `"inject"`        | `"sample_pump_waste"` | → loop → `first_unit`        | → waste        | yes (degrades to `"run"`) |
+| `"direct_inject"` | `"system_pump_waste"` | → waste                      | → `first_unit` | no                        |
+
+The default position before the first event is `"run"`.
+Positions that require a loop degrade to `"run"` when the flow sheet has none, so a protocol written for a full system still runs on a bypass configuration.
+
+## Phases and valve events
+
+A process is built from two primitives: **phases**, which set the flow over an interval, and **valve events**, which switch the flow path at an instant.
+
+### Phases
+
+A {class}`~CADETProcess.instruments.Phase` specifies a duration, a flow rate, and the buffer composition over that interval.
+Passing only a start composition gives a **step** (constant composition); passing a different end composition gives a linear **gradient**.
+The feed inlet appears as key `"F"` and cannot be mixed with buffers A to D in the same phase.
+
+```{code-cell} ipython3
+from CADETProcess.instruments import Phase
+
+gradient = Phase(400.0, Q, {"A": 1.0}, {"B": 1.0})  # A → 0, B → 1 over 400 s
+wash     = Phase(200.0, Q, {"A": 1.0})              # step: constant 100 % A
+feed     = Phase(60.0,  Q, {"F": 1.0})              # sample via feed inlet
+print("gradient end:", gradient.composition_end, "| wash end:", wash.composition_end)
+```
+
+### Valve events
+
+A {class}`~CADETProcess.instruments.ValveEvent` is an instantaneous change to one of the positions above.
+A single position change affects several units at once (the loop and the pre-injection tubing switch together); the coupled events stay linked, so moving the primary event, e.g. during optimization, propagates to the rest.
+
+There are two ways to schedule valve events.
+The **declarative** form places a `ValveEvent` in a `PhasedProcess` step sequence, where its time follows from the cumulative phase durations (shown in the next section).
+The **imperative** form calls {meth}`~CADETProcess.instruments.LCProcess.add_valve_event` on any {class}`~CADETProcess.instruments.LCProcess` at an explicit time.
+
+A single injection: push the loop contents onto the flow path at t=0, then return to run once the loop is cleared.
+
+```{code-cell} ipython3
+from CADETProcess.instruments import LCProcess
+
+single = LCProcess("single_inj", fs_no_col)
+single.cycle_time = 600.0
+single.add_valve_event("inject", t=0.0)
+single.add_valve_event("run",    t=30.0)
+single.plot_events();
+```
+
+Successive injections reload the loop during the run, something the fixed-protocol templates cannot express.
+
+```{code-cell} ipython3
+multi = LCProcess("multi_inj", fs_no_col)
+multi.cycle_time = 1400.0
+multi.add_valve_event("inject", t=0.0)    # first injection: loop → flow path
+multi.add_valve_event("load",   t=30.0)   # feed_inlet refills the loop during the run
+multi.add_valve_event("inject", t=700.0)  # second injection
+multi.add_valve_event("load",   t=730.0)  # reload again
+multi.plot_events();
+```
+
+For system equilibration before the column, `system_pump_waste` (alias of `direct_inject`) routes the system pump to waste while the path settles, then a `run` event switches back.
+
+## Composing a process with PhasedProcess
+
+{class}`~CADETProcess.instruments.PhasedProcess` composes a `steps` list of {class}`~CADETProcess.instruments.Phase` and {class}`~CADETProcess.instruments.ValveEvent` objects into a complete process; the cycle time is the sum of the phase durations.
+It is the base class for all the protocol templates in the next section.
+
+```{code-cell} ipython3
+from CADETProcess.instruments import PhasedProcess
+
+steps = [
+    Phase(200.0, Q, {"A": 1.0}),                 # wash: 100 % A
+    Phase(400.0, Q, {"A": 1.0}, {"B": 1.0}),     # gradient: A → 0, B → 1
+    Phase(100.0, Q, {"A": 1.0}),                 # final wash
+]
+custom = PhasedProcess("custom", fs_no_col, steps)
+print("cycle_time:", custom.cycle_time, "s")
+print("events:", [e.name for e in custom.events])
+custom.plot_events();
+```
+
+Interleaving valve events reproduces the single injection from above, now declaratively:
+
+```{code-cell} ipython3
+from CADETProcess.instruments import ValveEvent
+
+pulse_steps = [
+    ValveEvent("inject"),
+    Phase(30.0,  Q, {"A": 1.0}),
+    ValveEvent("run"),
+    Phase(570.0, Q, {"A": 1.0}),
+]
+pulse_proc = PhasedProcess("pulse", fs_no_col, pulse_steps)
+pulse_proc.plot_events();
+```
+
+The declarative form derives each valve event's time from the phase durations that precede it, so resizing or reordering phases shifts the events automatically.
+The imperative `add_valve_event` form is the escape hatch when events must sit at explicit, protocol-independent times.
+
 ## Process templates
 
-Each template takes a pre-constructed {class}`~CADETProcess.instruments.LCFlowSheet` as its second argument.
+The templates below are `PhasedProcess` subclasses that fill in the step sequence for a standard protocol.
+Each takes a pre-constructed {class}`~CADETProcess.instruments.LCFlowSheet` as its second argument.
 
 ### PulseInjection
 
@@ -113,8 +227,9 @@ pulse.plot_events();
 
 ### Step
 
-Switch from buffer A to buffer B at t=0.
-Useful for measuring system dead volumes and mixing dynamics.
+A single-phase switch of the running buffer from A to B at t=0, with no sample injected.
+The buffer B front passes through the system unretained, so its response measures dead volumes and mixing dynamics.
+For injecting and eluting a sample with a step gradient, use {class}`~CADETProcess.instruments.StepElution` instead.
 
 ```{code-cell} ipython3
 from CADETProcess.instruments import Step
@@ -153,8 +268,8 @@ lwe.plot_events();
 
 ### StepElution
 
-Like {class}`~CADETProcess.instruments.LWE` but with an instantaneous step to buffer B
-instead of a gradient.
+A full load-wash-elute protocol like {class}`~CADETProcess.instruments.LWE`, but the elution uses an instantaneous step to buffer B instead of a linear gradient.
+Unlike {class}`~CADETProcess.instruments.Step`, it injects the sample loop contents and runs wash and final-wash phases around the elution step.
 
 ```{code-cell} ipython3
 from CADETProcess.instruments import StepElution
@@ -175,9 +290,9 @@ se.plot_events();
 
 ### Breakthrough
 
-Sample flows continuously from t=0 through the column.
-By default the sample is delivered via the feed inlet (`feed_inlet`).
-Pass `sample_buffer="B"` (or any key A to D) to use a main buffer instead.
+Sample is loaded continuously from t=0 until the column saturates and breaks through at the outlet, which measures the dynamic binding capacity.
+Unlike {class}`~CADETProcess.instruments.Step`, the sample is delivered through the feed inlet (`feed_inlet`) by default rather than as a change of running buffer, and there is no elution phase.
+Pass `sample_buffer="B"` (or any key A to D) to deliver the sample through a main buffer line instead.
 
 ```{code-cell} ipython3
 from CADETProcess.instruments import Breakthrough
@@ -190,141 +305,4 @@ bt = Breakthrough(
 )
 print("feed flow rate:", bt.flow_sheet.feed_inlet.flow_rate[0], "m³/s")
 bt.plot_events();
-```
-
-## PhasedProcess
-
-{class}`~CADETProcess.instruments.PhasedProcess` lets you compose arbitrary phase sequences.
-Each {class}`~CADETProcess.instruments.Phase` specifies a duration, flow rate, and buffer fractions at the start (and optionally end) of the phase.
-
-```{code-cell} ipython3
-from CADETProcess.instruments import Phase, ValveEvent, PhasedProcess
-
-# Three-phase wash / gradient / final-wash
-steps = [
-    Phase(200.0, Q, {"A": 1.0}),                    # wash: 100 % A
-    Phase(400.0, Q, {"A": 1.0}, {"B": 1.0}),        # gradient: A to 0, B to 1
-    Phase(100.0, Q, {"A": 1.0}),                     # final wash
-]
-proc = PhasedProcess("custom", fs_no_col, steps)
-print("cycle_time:", proc.cycle_time, "s")
-print("events:", [e.name for e in proc.events])
-proc.plot_events();
-```
-
-A **step** is a phase whose composition does not change (`composition_end=None`):
-
-```{code-cell} ipython3
-step_phases = [
-    Phase(200.0, Q, {"A": 1.0}),   # 100 % A
-    Phase(400.0, Q, {"B": 1.0}),   # step to 100 % B
-    Phase(100.0, Q, {"A": 1.0}),   # step back to A
-]
-```
-
-The **feed inlet** can appear as key `"F"` in a phase composition, but cannot be mixed with buffers A to D in the same phase:
-
-```{code-cell} ipython3
-# Deliver sample via feed inlet for 60 s, then switch to running buffer
-feed_phases = [
-    Phase(60.0,  Q, {"F": 1.0}),    # sample via feed
-    Phase(540.0, Q, {"A": 1.0}),    # running buffer
-]
-```
-
-## Valve events
-
-{class}`~CADETProcess.instruments.ValveEvent` is an instantaneous valve position change.
-Its time is determined by the cumulative duration of all preceding phases in the step sequence.
-The default valve state before the first step is `"run"`.
-
-Valve events and phases are passed together as a single `steps` list to {class}`~CADETProcess.instruments.PhasedProcess`.
-This example injects at t=0 and returns to run after 30 s:
-
-```{code-cell} ipython3
-fs_pulse = LCFlowSheet(
-    cs,
-    sample_loop_volume=50e-9,
-    sample_loop_diameter=0.75e-3,
-    bypass_units=["tubing_pre_column", "column", "tubing_post_column", "tubing_detectors"],
-)
-pulse_steps = [
-    ValveEvent("inject"),
-    Phase(30.0,  Q, {"A": 1.0}),
-    ValveEvent("run"),
-    Phase(570.0, Q, {"A": 1.0}),
-]
-proc_pulse = PhasedProcess("pulse", fs_pulse, pulse_steps)
-proc_pulse.plot_events();
-```
-
-The four named positions, with two aliases:
-
-## Valve positions
-
-SyP (system pump) is the buffer line: buffers A to D flow through the mixer into `tubing_pre_injection`.
-SaP (sample pump) is the feed line: `feed_inlet` connects directly to the sample loop (or `first_unit` when no loop is present).
-
-Four named positions are available, with two aliases:
-
-| Position          | Alias                 | SyP (`tubing_pre_injection`) | SaP / loop     | Requires loop             |
-| ----------------- | --------------------- | ---------------------------- | -------------- | ------------------------- |
-| `"run"`           |                       | → `first_unit`               | → waste        | no                        |
-| `"load"`          |                       | → `first_unit`               | → loop → waste | yes (degrades to `"run"`) |
-| `"inject"`        | `"sample_pump_waste"` | → loop → `first_unit`        | → waste        | yes (degrades to `"run"`) |
-| `"direct_inject"` | `"system_pump_waste"` | → waste                      | → `first_unit` | no                        |
-
-**Single injection then run** (using {class}`~CADETProcess.instruments.LCProcess` directly with {meth}`~CADETProcess.instruments.LCProcess.add_valve_event`):
-
-```{code-cell} ipython3
-from CADETProcess.instruments import LCProcess
-
-fs_valve = LCFlowSheet(
-    cs,
-    sample_loop_volume=50e-9,
-    sample_loop_diameter=0.75e-3,
-    bypass_units=["tubing_pre_column", "column", "tubing_post_column", "tubing_detectors"],
-)
-proc = LCProcess("single_inj", fs_valve)
-proc.cycle_time = 600.0
-proc.add_valve_event("inject", t=0.0)   # push loop contents through column
-proc.add_valve_event("run",    t=30.0)  # return to normal run after loop is cleared
-proc.plot_events();
-```
-
-**Successive injections:** reload the loop during the run:
-
-```{code-cell} ipython3
-fs_multi = LCFlowSheet(
-    cs,
-    sample_loop_volume=50e-9,
-    sample_loop_diameter=0.75e-3,
-    bypass_units=["tubing_pre_column", "column", "tubing_post_column", "tubing_detectors"],
-)
-proc2 = LCProcess("multi_inj", fs_multi)
-proc2.cycle_time = 1400.0
-
-proc2.add_valve_event("inject", t=0.0)    # first injection: loop → column
-proc2.add_valve_event("load",   t=30.0)   # feed_inlet fills loop; column on direct path
-proc2.add_valve_event("inject", t=700.0)  # second injection
-proc2.add_valve_event("load",   t=730.0)  # reload again
-
-proc2.plot_events();
-```
-
-**System equilibration:** waste system pump output before the column:
-
-```{code-cell} ipython3
-fs_equil = LCFlowSheet(
-    cs,
-    sample_loop_volume=50e-9,
-    sample_loop_diameter=0.75e-3,
-    bypass_units=["tubing_pre_column", "column", "tubing_post_column", "tubing_detectors"],
-)
-proc3 = LCProcess("equil", fs_equil)
-proc3.cycle_time = 600.0
-
-proc3.add_valve_event("system_pump_waste", t=0.0)   # system pump to waste while equilibrating
-proc3.add_valve_event("run",               t=60.0)  # switch to column path
-proc3.plot_events();
 ```
