@@ -25,7 +25,7 @@ By selecting an appropriate backend, the workload can efficiently be distributed
 
 The parallelization backend module consists of four classes:
 - {class}`~CADETProcess.optimization.ParallelizationBackendBase`: This class serves as the base for all parallelization backend adapters.
-  It provides common attributes and methods that any parallelization backend must implement, such as {attr}`~CADETProcess.optimization.ParallelizationBase.n_cores`, the number of cores to be used for parallelization.
+  It provides common attributes and methods that any parallelization backend must implement, such as {attr}`~CADETProcess.optimization.ParallelizationBackendBase.n_cores`, the number of cores to be used for parallelization.
 - {class}`~CADETProcess.optimization.SequentialBackend`: This backend is designed for cases where parallel execution is not desired or not possible.
   It evaluates the target function sequentially, one individual at a time, making it useful for single-core processors or when parallelization is not beneficial.
 - {class}`~CADETProcess.optimization.Joblib`, and {class}`~CADETProcess.optimization.Pathos`: Parallel backends allowing users to leverage multiple cores efficiently for function evaluations.
@@ -65,5 +65,5 @@ For example, {class}`~CADETProcess.optimization.U_NSGA3` can be configured to us
 from CADETProcess.optimization import U_NSGA3
 
 optimizer = U_NSGA3()
-optimizer.backend = Joblib(n_cores=2)
+optimizer.parallelization_backend = Joblib(n_cores=2)
 ```
