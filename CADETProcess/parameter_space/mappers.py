@@ -259,6 +259,14 @@ class IndexedMapper(ParameterMapperBase):
     Genuinely inhomogeneous (ragged) arrays raise ``NotImplementedError``.
     Use a ``CallableMapper`` for those.
 
+    A bare (non-tuple) index into a polynomial parameter (one whose descriptor
+    exposes ``fill_values``, e.g. ``NdPolynomial``) selects a whole coefficient
+    row rather than a single cell.  In that case the row is filled via the
+    descriptor's own ``fill_values(shape, value)`` — the polynomial convention
+    of "set the constant coefficient, zero the rest" — instead of broadcasting
+    the scalar across every coefficient.  A tuple index (e.g. ``(0, 1)``) that
+    fully specifies a single cell is a plain scalar write either way.
+
     Parameters
     ----------
     evaluation_objects : sequence
@@ -308,10 +316,12 @@ class IndexedMapper(ParameterMapperBase):
         parent, leaf = _traverse(obj, self._attr_segments)
         if isinstance(parent, Mapping):
             current = parent[leaf]
+            descriptor = None
         else:
             current = getattr(parent, leaf)
+            descriptor = getattr(type(parent), leaf, None)
 
-        new_value = self._patch(current, value)
+        new_value = self._patch(current, value, descriptor)
 
         if isinstance(parent, Mapping):
             parent[leaf] = new_value
@@ -326,7 +336,7 @@ class IndexedMapper(ParameterMapperBase):
             arr = getattr(parent, leaf)
         return np.asarray(arr)[self._index]
 
-    def _patch(self, current: Any, value: Any) -> Any:
+    def _patch(self, current: Any, value: Any, descriptor: Any = None) -> Any:
         """Return a copy of *current* with ``self._index`` set to *value*."""
         was_list = isinstance(current, list)
         with warnings.catch_warnings():
@@ -342,7 +352,16 @@ class IndexedMapper(ParameterMapperBase):
             raise NotImplementedError(
                 "Object-type arrays are not supported by IndexedMapper."
             )
-        arr[self._index] = value
+
+        target = arr[self._index]
+        fill_values = getattr(descriptor, "fill_values", None)
+        if fill_values is not None and isinstance(target, np.ndarray):
+            # Bare index into a polynomial parameter: reuse the descriptor's own
+            # "constant coefficient, zero the rest" convention for the row
+            # instead of broadcasting the scalar across every coefficient.
+            arr[self._index] = fill_values(target.shape, value)
+        else:
+            arr[self._index] = value
         return arr.tolist() if was_list else arr
 
 
