@@ -15,7 +15,7 @@ substitution, and callbacks belong to ``OptimizationProblem``.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any, Optional, Protocol, runtime_checkable
 
 import numpy as np
@@ -228,6 +228,70 @@ class Problem:
             else:
                 results[metric.name] = metric.validate(value)
         return results
+
+    def evaluate_batch(
+        self,
+        assignments: Sequence[Mapping[str, Any]],
+        targets: list[str] | None = None,
+        parallelization_backend: Any = None,
+    ) -> list[dict[str, Any]]:
+        """Evaluate the declared metrics for a batch of named assignments.
+
+        Uniform batch entry point: optimizers, samplers, and surrogate
+        trainers all dispatch populations through this method.  Each
+        assignment is evaluated via ``evaluate``; a row whose evaluation
+        raises yields an ``EvaluationFailure`` for every requested target
+        instead of aborting the batch.  Substituting fallback values for
+        failures remains caller policy.
+
+        Parameters
+        ----------
+        assignments : Sequence[Mapping]
+            One named parameter assignment per row, in physical units.
+        targets : list[str], optional
+            Declared metric names to evaluate.  `None` evaluates all
+            declared metrics.
+        parallelization_backend : ParallelizationBackendBase, optional
+            When provided, rows are dispatched via ``backend.evaluate``.
+            When None, evaluation is sequential.
+
+        Returns
+        -------
+        list[dict[str, Any]]
+            One result mapping per assignment, in input order.
+
+        Raises
+        ------
+        RuntimeError
+            If no backend is set.
+        ValueError
+            If *targets* contains an undeclared name.
+        """
+        if self._backend is None:
+            raise RuntimeError(
+                "Problem has no evaluation backend.  Construct with backend=... "
+                "or use with_evaluator."
+            )
+        declared = [m.name for m in self._metric_space.metrics]
+        if targets is not None:
+            unknown = [t for t in targets if t not in declared]
+            if unknown:
+                raise ValueError(f"Unknown metric target(s): {unknown}")
+        names = targets if targets is not None else declared
+
+        def _evaluate_one(assignment: Mapping[str, Any]) -> dict[str, Any]:
+            try:
+                return self.evaluate(assignment, targets=targets)
+            except Exception as e:
+                return {
+                    name: EvaluationFailure(stage=name, reason=str(e), exc=e)
+                    for name in names
+                }
+
+        assignments = list(assignments)
+        if parallelization_backend is None:
+            return [_evaluate_one(assignment) for assignment in assignments]
+        return list(parallelization_backend.evaluate(_evaluate_one, assignments))
 
     def _reduce_per_object(self, metric: Any, values: list[Any]) -> Any:
         """Reduce a per-object result list to the metric's declared shape.

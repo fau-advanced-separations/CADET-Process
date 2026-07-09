@@ -330,3 +330,100 @@ def test_evaluate_objectless_problem():
     problem = Problem(parameter_space, metric_space, backend=pipeline)
     results = problem.evaluate({"v": 0.5})
     assert results["squared"] == pytest.approx(0.25)
+
+
+# ── evaluate_batch ────────────────────────────────────────────────────────────
+
+
+class RecordingParallelBackend:
+    """Parallelization backend fake recording the batches it dispatches."""
+
+    def __init__(self):
+        self.batches = []
+
+    def evaluate(self, function, population):
+        self.batches.append(list(population))
+        return [function(individual) for individual in population]
+
+
+@pytest.fixture
+def squared_metric_problem():
+    parameter_space = ParameterSpace()
+    parameter_space.add_parameter(RangedParameter("v", float, lb=0.0, ub=1.0))
+    pipeline = EvaluationPipeline(parameter_space)
+    pipeline.add_evaluator(
+        lambda assignment: assignment["v"] ** 2, output_name="squared"
+    )
+    metric_space = MetricSpace()
+    metric_space.add_objective(Metric("squared"))
+    return Problem(parameter_space, metric_space, backend=pipeline)
+
+
+def test_evaluate_batch_returns_one_result_per_assignment_in_order(
+    squared_metric_problem,
+):
+    results = squared_metric_problem.evaluate_batch([{"v": 0.2}, {"v": 0.5}])
+    assert len(results) == 2
+    assert results[0]["squared"] == pytest.approx(0.04)
+    assert results[1]["squared"] == pytest.approx(0.25)
+
+
+def test_evaluate_batch_failing_row_does_not_abort_batch(yield_and_purity_space):
+    class ExplodingBackend:
+        def evaluate(self, assignment, targets=None):
+            if assignment.get("explode"):
+                raise RuntimeError("boom")
+            return {"yield": [0.8, 0.9], "purity": 0.99}
+
+    problem = Problem(
+        metric_space=yield_and_purity_space, backend=ExplodingBackend()
+    )
+    results = problem.evaluate_batch([{}, {"explode": True}, {}])
+    np.testing.assert_array_equal(results[0]["yield"], [0.8, 0.9])
+    np.testing.assert_array_equal(results[2]["yield"], [0.8, 0.9])
+    assert list(results[1]) == ["yield", "purity"]
+    for failure in results[1].values():
+        assert isinstance(failure, EvaluationFailure)
+        assert "boom" in failure.reason
+
+
+def test_evaluate_batch_failing_row_reports_requested_targets_only(
+    yield_and_purity_space,
+):
+    class ExplodingBackend:
+        def evaluate(self, assignment, targets=None):
+            raise RuntimeError("boom")
+
+    problem = Problem(
+        metric_space=yield_and_purity_space, backend=ExplodingBackend()
+    )
+    results = problem.evaluate_batch([{}], targets=["purity"])
+    assert list(results[0]) == ["purity"]
+
+
+def test_evaluate_batch_dispatches_rows_via_parallelization_backend(
+    squared_metric_problem,
+):
+    backend = RecordingParallelBackend()
+    assignments = [{"v": 0.2}, {"v": 0.5}]
+    results = squared_metric_problem.evaluate_batch(
+        assignments, parallelization_backend=backend
+    )
+    assert backend.batches == [assignments]
+    assert results[1]["squared"] == pytest.approx(0.25)
+
+
+def test_evaluate_batch_unknown_target_raises_before_dispatch(
+    yield_and_purity_space,
+):
+    problem = Problem(
+        metric_space=yield_and_purity_space, backend=StubBackend({})
+    )
+    with pytest.raises(ValueError, match="Unknown metric target"):
+        problem.evaluate_batch([{}], targets=["nope"])
+
+
+def test_evaluate_batch_without_backend_raises(yield_and_purity_space):
+    problem = Problem(metric_space=yield_and_purity_space)
+    with pytest.raises(RuntimeError, match="backend"):
+        problem.evaluate_batch([{}])
