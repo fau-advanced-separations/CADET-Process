@@ -334,7 +334,7 @@ def test_check_linear_constraints_full_vector_matches_independent(op_with_depend
     )
 
 
-# ── _evaluate_individual exception handling ───────────────────────────────────
+# ── evaluation failure handling ───────────────────────────────────────────────
 
 
 def test_evaluate_objectives_metric_exception_returns_bad_metrics(caplog):
@@ -348,6 +348,20 @@ def test_evaluate_objectives_metric_exception_returns_bad_metrics(caplog):
         f = op.evaluate_objectives([0.5])
     assert not np.all(np.isfinite(f))
     assert any("Metric" in r.message or "failed" in r.message for r in caplog.records)
+
+
+def test_evaluate_objectives_decode_failure_returns_bad_metrics(caplog):
+    """A row that cannot be decoded to an assignment yields bad metrics instead
+    of aborting the population."""
+    import logging
+
+    op = OptimizationProblem("err", use_diskcache=False)
+    op.add_variable("x", lb=0, ub=1, evaluation_objects=None)
+    op.add_objective(lambda x: x[0], n_objectives=1)
+    with caplog.at_level(logging.WARNING):
+        f = op.evaluate_objectives([[0.5, 0.7]])  # two values, one variable
+    assert not np.all(np.isfinite(f))
+    assert any("Decoding failed" in r.message for r in caplog.records)
 
 
 # ── Jacobian ──────────────────────────────────────────────────────────────────
