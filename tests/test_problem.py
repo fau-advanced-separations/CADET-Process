@@ -18,12 +18,12 @@ class Model:
 
 
 class StubBackend:
-    """Backend returning a fixed result dict."""
+    """Backend returning a fixed result dict; ignores targets."""
 
     def __init__(self, results):
         self.results = results
 
-    def evaluate(self, assignment):
+    def evaluate(self, assignment, targets=None):
         return dict(self.results)
 
 
@@ -168,3 +168,165 @@ def test_with_evaluator_always_returns_plain_problem(yield_and_purity_space):
     subclassed = ProblemSubclass(metric_space=yield_and_purity_space)
     swapped = subclassed.with_evaluator(StubBackend({}))
     assert type(swapped) is Problem
+
+
+# ── targets ───────────────────────────────────────────────────────────────────
+
+
+def test_evaluate_targets_returns_requested_subset(yield_and_purity_space):
+    backend = StubBackend({"yield": [0.8, 0.9], "purity": 0.99})
+    problem = Problem(metric_space=yield_and_purity_space, backend=backend)
+    results = problem.evaluate({}, targets=["purity"])
+    assert list(results) == ["purity"]
+
+
+def test_evaluate_unknown_target_raises(yield_and_purity_space):
+    problem = Problem(
+        metric_space=yield_and_purity_space, backend=StubBackend({})
+    )
+    with pytest.raises(ValueError, match="Unknown metric target"):
+        problem.evaluate({}, targets=["nope"])
+
+
+def test_evaluate_passes_metric_names_as_backend_targets(yield_and_purity_space):
+    """Side-effect nodes not declared as metrics must never execute."""
+    seen_targets = []
+
+    class RecordingBackend(StubBackend):
+        def evaluate(self, assignment, targets=None):
+            seen_targets.append(targets)
+            return dict(self.results)
+
+    backend = RecordingBackend({"yield": [0.8, 0.9], "purity": 0.99})
+    problem = Problem(metric_space=yield_and_purity_space, backend=backend)
+    problem.evaluate({})
+    assert seen_targets == [["yield", "purity"]]
+
+
+# ── per-object reduction (EvaluationPipeline multi-object convention) ────────
+
+
+class NamedModel:
+    """Evaluation object with a stable name; dataclass repr would embed values."""
+
+    def __init__(self, name, value=0.0):
+        self.name = name
+        self.value = value
+
+    def __str__(self):
+        return self.name
+
+
+@pytest.fixture
+def two_object_setup():
+    m1, m2 = NamedModel("m1", 1.0), NamedModel("m2", 2.0)
+    parameter_space = ParameterSpace()
+    parameter_space.add_evaluation_object(m1)
+    parameter_space.add_evaluation_object(m2)
+    pipeline = EvaluationPipeline(parameter_space)
+    return m1, m2, parameter_space, pipeline
+
+
+def test_evaluate_reduces_per_object_results_object_major(two_object_setup):
+    m1, m2, parameter_space, pipeline = two_object_setup
+    pipeline.add_evaluator(lambda m: [m.value, m.value * 10], output_name="v")
+
+    metric_space = MetricSpace()
+    metric_space.add_objective(
+        Metric(
+            "v",
+            dims=("evaluation_object", "entry"),
+            coords={"evaluation_object": ["m1", "m2"], "entry": ["a", "b"]},
+        )
+    )
+    problem = Problem(parameter_space, metric_space, backend=pipeline)
+
+    results = problem.evaluate({})
+
+    assert results["v"].shape == (2, 2)
+    np.testing.assert_allclose(results["v"], [[1.0, 10.0], [2.0, 20.0]])
+
+
+def test_evaluate_selects_declared_object_subset(two_object_setup):
+    m1, m2, parameter_space, pipeline = two_object_setup
+    pipeline.add_evaluator(lambda m: m.value, output_name="v")
+
+    metric_space = MetricSpace()
+    metric_space.add_objective(
+        Metric(
+            "v",
+            dims=("evaluation_object",),
+            coords={"evaluation_object": ["m2"]},
+        )
+    )
+    problem = Problem(parameter_space, metric_space, backend=pipeline)
+
+    results = problem.evaluate({})
+
+    np.testing.assert_allclose(results["v"], [2.0])
+
+
+def test_evaluate_per_object_failure_passes_through_as_list(two_object_setup):
+    m1, m2, parameter_space, pipeline = two_object_setup
+
+    def failing_for_m1(m):
+        if m.name == "m1":
+            raise ValueError("m1 diverged")
+        return m.value
+
+    pipeline.add_evaluator(failing_for_m1, output_name="v")
+
+    metric_space = MetricSpace()
+    metric_space.add_objective(
+        Metric(
+            "v",
+            dims=("evaluation_object",),
+            coords={"evaluation_object": ["m1", "m2"]},
+        )
+    )
+    problem = Problem(parameter_space, metric_space, backend=pipeline)
+
+    results = problem.evaluate({})
+
+    assert isinstance(results["v"], list)
+    assert isinstance(results["v"][0], EvaluationFailure)
+    assert results["v"][1] == pytest.approx(2.0)
+
+
+def test_evaluate_per_object_failures_without_object_dim_raise(two_object_setup):
+    """A metric that does not declare the evaluation_object dimension cannot
+    absorb per-object failure lists; see the sentinel note in PROJECT.md."""
+    m1, m2, parameter_space, pipeline = two_object_setup
+
+    def always_failing(m):
+        raise ValueError("diverged")
+
+    pipeline.add_evaluator(always_failing, output_name="v")
+
+    metric_space = MetricSpace()
+    metric_space.add_objective(Metric("v", n_metrics=2))
+    problem = Problem(parameter_space, metric_space, backend=pipeline)
+
+    with pytest.raises(ValueError, match="evaluation_object"):
+        problem.evaluate({})
+
+
+# ── zero evaluation objects ──────────────────────────────────────────────────
+
+
+def test_evaluate_objectless_problem():
+    """Free-variable problems evaluate through the pipeline: the assignment
+    itself is the root."""
+    from CADETProcess.parameter_space import RangedParameter
+
+    parameter_space = ParameterSpace()
+    parameter_space.add_parameter(RangedParameter("v", float, lb=0.0, ub=1.0))
+    pipeline = EvaluationPipeline(parameter_space)
+    pipeline.add_evaluator(lambda assignment: assignment["v"] ** 2, output_name="squared")
+
+    metric_space = MetricSpace()
+    metric_space.add_objective(Metric("squared"))
+
+    problem = Problem(parameter_space, metric_space, backend=pipeline)
+    results = problem.evaluate({"v": 0.5})
+    assert results["squared"] == pytest.approx(0.25)

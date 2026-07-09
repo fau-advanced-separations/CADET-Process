@@ -10,9 +10,10 @@ from __future__ import annotations
 import inspect
 import logging
 import math
+import re
 import shutil
 import warnings
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, Optional
 
@@ -80,6 +81,10 @@ class _CallbackRecord:
         self.frequency = frequency
         self.callbacks_dir = callbacks_dir
         self.keep_progress = keep_progress
+        # Per-call state (individual, evaluation_object, callbacks_dir) set by
+        # evaluate_callbacks just before triggering the pipeline node; the
+        # node reads it because these values cannot travel through the DAG.
+        self.runtime: dict[str, Any] = {}
 
     def cleanup(self, callbacks_dir: Any, current_iteration: int) -> None:
         """Remove stale callback files, optionally archiving progress snapshots."""
@@ -185,6 +190,44 @@ class _MetricRecord:
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────
+
+
+def _adapt_root_input(parameter_space: ParameterSpace, value: Any) -> Any:
+    """Adapt a pipeline root input for user callables.
+
+    Root nodes receive the evaluation object, or, in the
+    zero-evaluation-object mode, the named assignment itself.  User callables
+    on free-variable problems are written against the numeric vector, so a
+    Mapping root input is converted to the physical x vector (independent
+    parameters in registration order).  The conversion is optimizer policy;
+    the pipeline itself stays purely named.
+
+    Module-level on purpose: node closures are pickled per node by pipefunc
+    (fresh cloudpickle pass, no shared memo), so they must not capture the
+    ``OptimizationProblem``, which references the pipeline and would recurse.
+    """
+    if isinstance(value, Mapping):
+        return np.array(
+            [value[p.name] for p in parameter_space.independent_parameters],
+            dtype=float,
+        )
+    return value
+
+
+def _derive_name(func: Callable) -> str:
+    """Derive a default node name for a callable.
+
+    Metric, callback, and evaluator names are pipeline output names and must
+    be valid Python identifiers.  Functions and methods use their ``__name__``
+    (sanitized, so bare lambdas become ``_lambda_``); callable instances use
+    their class name, since ``str(obj)`` typically embeds a memory address
+    and would not be stable across runs.
+    """
+    if inspect.isfunction(func) or inspect.ismethod(func):
+        name = func.__name__
+    else:
+        name = type(func).__name__
+    return re.sub(r"\W|^(?=\d)", "_", name)
 
 
 def _approximate_jac(
@@ -1151,10 +1194,7 @@ class OptimizationProblem(Problem):
             raise TypeError("Expected callable evaluator.")
 
         if name is None:
-            if inspect.isfunction(evaluator) or inspect.ismethod(evaluator):
-                name = evaluator.__name__
-            else:
-                name = str(evaluator)
+            name = _derive_name(evaluator)
 
         if name in self.evaluators_dict:
             raise CADETProcessError("Evaluator with same name already exists.")
@@ -1212,9 +1252,12 @@ class OptimizationProblem(Problem):
     ) -> Metric:
         """Build the Metric declaration, expanding over evaluation objects.
 
-        With multiple evaluation objects the metric carries an explicit
-        ``evaluation_object`` dimension; labels expand object-major, matching
-        the flattening order in ``_evaluate_individual``.
+        In a multi-object problem every object-bound metric carries an
+        explicit ``evaluation_object`` dimension, even when bound to a single
+        object: ``Problem.evaluate`` selects the metric's entries from the
+        backend's per-object results by these coordinates.  Labels expand
+        object-major, matching the flattening order in
+        ``_evaluate_individual``.
         """
         if base_labels is not None and len(base_labels) != n_per_object:
             raise CADETProcessError(f"Expected {n_per_object} labels.")
@@ -1223,7 +1266,7 @@ class OptimizationProblem(Problem):
                 base_labels = [name]
             else:
                 base_labels = [f"{name}_{i}" for i in range(n_per_object)]
-        if len(eval_objs) > 1:
+        if eval_objs and len(self.evaluation_objects) > 1:
             obj_names = [str(obj) for obj in eval_objs]
             if n_per_object == 1:
                 dims = ("evaluation_object",)
@@ -1283,10 +1326,7 @@ class OptimizationProblem(Problem):
             raise TypeError("Expected callable objective.")
 
         if name is None:
-            if inspect.isfunction(objective) or inspect.ismethod(objective):
-                name = objective.__name__
-            else:
-                name = str(objective)
+            name = _derive_name(objective)
 
         if name in self._metric_space.metrics_dict:
             raise CADETProcessError(
@@ -1294,6 +1334,7 @@ class OptimizationProblem(Problem):
                 f"nonlinear constraints share one metric namespace; pass "
                 f"name= to disambiguate."
             )
+        self._check_metric_name(name)
 
         # Resolve evaluation objects.
         if evaluation_objects is None:
@@ -1327,6 +1368,18 @@ class OptimizationProblem(Problem):
         base_labels = labels if labels is not None else getattr(objective, "labels", None)
         metric = self._build_metric(name, n_objectives, base_labels, eval_objs)
         annotation = self._metric_space.add_objective(metric, minimize=minimize)
+
+        # Register the objective itself as a pipeline node: the DAG owns the
+        # computation, the annotation is a view over the output.
+        requires_node = [evaluator_chain[-1]] if evaluator_chain else None
+        self._backend.add_evaluator(
+            self._make_metric_node(
+                objective, n_objectives, args, kwargs,
+                is_root=requires_node is None,
+            ),
+            output_name=name,
+            requires=requires_node,
+        )
 
         record = _MetricRecord(
             objective,
@@ -1425,10 +1478,7 @@ class OptimizationProblem(Problem):
             raise TypeError("Expected callable constraint function.")
 
         if name is None:
-            if inspect.isfunction(nonlincon) or inspect.ismethod(nonlincon):
-                name = nonlincon.__name__
-            else:
-                name = str(nonlincon)
+            name = _derive_name(nonlincon)
 
         if name in self._metric_space.metrics_dict:
             raise CADETProcessError(
@@ -1436,6 +1486,7 @@ class OptimizationProblem(Problem):
                 f"nonlinear constraints share one metric namespace; pass "
                 f"name= to disambiguate."
             )
+        self._check_metric_name(name)
 
         # Resolve evaluation objects.
         if evaluation_objects is None:
@@ -1482,6 +1533,17 @@ class OptimizationProblem(Problem):
         bounds_total = bounds_list * max(len(eval_objs), 1)
         annotation = self._metric_space.add_constraint(
             metric, bound=bounds_total, comparison_operator=comparison_operator
+        )
+
+        # Register the constraint itself as a pipeline node.
+        requires_node = [evaluator_chain[-1]] if evaluator_chain else None
+        self._backend.add_evaluator(
+            self._make_metric_node(
+                nonlincon, n_nonlinear_constraints, args, kwargs,
+                is_root=requires_node is None,
+            ),
+            output_name=name,
+            requires=requires_node,
         )
 
         record = _MetricRecord(
@@ -1551,14 +1613,12 @@ class OptimizationProblem(Problem):
             raise ValueError(f"frequency must be a positive integer, got {frequency!r}")
 
         if name is None:
-            if inspect.isfunction(callback) or inspect.ismethod(callback):
-                name = callback.__name__
-            else:
-                name = str(callback)
+            name = _derive_name(callback)
 
         if name in self.callback_names:
             warnings.warn("Callback with same name already exists.")
             raise CADETProcessError("Callback with same name already exists.")
+        self._check_metric_name(name)
 
         if evaluation_objects is None:
             eval_objs: list[Any] = []
@@ -1596,6 +1656,17 @@ class OptimizationProblem(Problem):
             callbacks_dir=callbacks_dir,
             keep_progress=keep_progress,
         )
+
+        # Register the callback itself as a pipeline node.  cache=False:
+        # callbacks produce files, not values; repeated execution is the point.
+        requires_node = [evaluator_chain[-1]] if evaluator_chain else None
+        self._backend.add_evaluator(
+            self._make_callback_node(record, is_root=requires_node is None),
+            output_name=name,
+            requires=requires_node,
+            cache=False,
+        )
+
         self._callbacks.append(record)
 
     # ── Meta scores ───────────────────────────────────────────────────────────
@@ -1645,10 +1716,7 @@ class OptimizationProblem(Problem):
             raise TypeError("Expected callable meta-score function.")
 
         if name is None:
-            if inspect.isfunction(func) or inspect.ismethod(func):
-                name = func.__name__
-            else:
-                name = str(func)
+            name = _derive_name(func)
 
         if name in self._metric_space.metrics_dict:
             raise CADETProcessError(
@@ -1656,6 +1724,7 @@ class OptimizationProblem(Problem):
                 f"nonlinear constraints, and meta scores share one metric "
                 f"namespace; pass name= to disambiguate."
             )
+        self._check_metric_name(name)
 
         # Resolve evaluation objects.
         if evaluation_objects is None:
@@ -1689,6 +1758,17 @@ class OptimizationProblem(Problem):
         metric = self._build_metric(name, n_meta_scores, base_labels, eval_objs)
         self._metric_space.add_metric(metric)
 
+        # Register the meta score itself as a pipeline node.
+        requires_node = [evaluator_chain[-1]] if evaluator_chain else None
+        self._backend.add_evaluator(
+            self._make_metric_node(
+                func, n_meta_scores, args, kwargs,
+                is_root=requires_node is None,
+            ),
+            output_name=name,
+            requires=requires_node,
+        )
+
         record = _MetricRecord(
             func,
             metric,
@@ -1720,6 +1800,87 @@ class OptimizationProblem(Problem):
 
     # ── Core evaluation ───────────────────────────────────────────────────────
 
+    def _make_metric_node(
+        self,
+        func: Callable,
+        n_per_object: int,
+        args: tuple,
+        kwargs: dict,
+        is_root: bool,
+    ) -> Callable:
+        """Build the pipeline node wrapping a metric callable.
+
+        The node adapts the root input, bakes in fixed args/kwargs, coerces
+        the result to a float array, and raises on length mismatch; the
+        pipeline's failure-propagation wrapper turns that into an
+        ``EvaluationFailure``.  Fallback substitution stays out of the node:
+        ``bad_metrics`` is optimizer policy applied in post-processing.
+
+        The closure captures the ``ParameterSpace``, never ``self``: node
+        functions are pickled per node for parallel evaluation, and a
+        reference to the problem would recurse through the pipeline.
+        """
+        space = self._parameter_space
+
+        def metric_node(value: Any) -> np.ndarray:
+            if is_root:
+                value = _adapt_root_input(space, value)
+            result = np.atleast_1d(
+                np.asarray(func(value, *args, **kwargs), dtype=float)
+            )
+            if len(result) != n_per_object:
+                raise CADETProcessError(
+                    f"Expected {n_per_object} values, got {len(result)}."
+                )
+            return result
+
+        return metric_node
+
+    def _make_callback_node(self, record: _CallbackRecord, is_root: bool) -> Callable:
+        """Build the pipeline node wrapping a callback callable.
+
+        Runtime-only arguments (``individual``, ``evaluation_object``,
+        ``callbacks_dir``) cannot travel through the DAG; the node reads them
+        from ``record.runtime``, set by ``evaluate_callbacks`` per call.
+
+        Captures the ``ParameterSpace`` and the record, never ``self`` (see
+        ``_make_metric_node``).
+        """
+        space = self._parameter_space
+        try:
+            sig_params = set(inspect.signature(record.func).parameters)
+        except (ValueError, TypeError):
+            sig_params = set()
+
+        def callback_node(value: Any) -> Any:
+            if is_root:
+                value = _adapt_root_input(space, value)
+            kwargs = dict(record.kwargs)
+            if "individual" in sig_params:
+                kwargs["individual"] = record.runtime.get("individual")
+            if "evaluation_object" in sig_params:
+                kwargs["evaluation_object"] = record.runtime.get("evaluation_object")
+            if "callbacks_dir" in sig_params:
+                kwargs["callbacks_dir"] = record.runtime.get("callbacks_dir")
+            return record.func(value, *record.args, **kwargs)
+
+        return callback_node
+
+    def _check_metric_name(self, name: str) -> None:
+        """Reject names that cannot become pipeline nodes.
+
+        Metric and evaluator names share the pipeline's output namespace.
+        """
+        if not name.isidentifier():
+            raise CADETProcessError(
+                f"Name {name!r} is not a valid Python identifier; pass name=."
+            )
+        if name in self._backend.output_names:
+            raise CADETProcessError(
+                f"Name {name!r} is already registered as a pipeline node; "
+                f"metrics and evaluators share one namespace."
+            )
+
     def _register_evaluator_chain(self, req_list: list[Callable]) -> None:
         """Lazily register evaluators in the pipeline with dependency edges.
 
@@ -1735,8 +1896,18 @@ class OptimizationProblem(Problem):
                 prev = (
                     [self._evaluator_names[req_list[i - 1]]] if i > 0 else None
                 )
+                func = self._evaluator_func_by_name[ev_name]
+                if prev is None:
+                    # Root evaluator: adapt a Mapping root input to x on
+                    # free-variable problems.  Captures the space, not self.
+                    def func(
+                        value: Any,
+                        _fn: Callable = func,
+                        _space: ParameterSpace = self._parameter_space,
+                    ) -> Any:
+                        return _fn(_adapt_root_input(_space, value))
                 self._backend.add_evaluator(
-                    self._evaluator_func_by_name[ev_name],
+                    func,
                     output_name=ev_name,
                     requires=prev,
                 )
@@ -1748,121 +1919,65 @@ class OptimizationProblem(Problem):
     ) -> np.ndarray:
         """Evaluate all *target_functions* for a single parameter vector.
 
-        Writes *x* into evaluation objects, precomputes all evaluator outputs
-        via the pipeline (sharing across metrics that need the same
-        intermediate), then calls each metric's callable with the appropriate
-        input.
+        Thin optimizer-policy adapter over the inherited ``Problem.evaluate``:
+        decodes the numeric vector, evaluates the requested metric nodes
+        through the pipeline, substitutes each metric's ``bad_metrics`` for
+        failed metric/object blocks, and flattens object-major.
 
-        When ``set_values`` raises (e.g. out-of-bounds x from the optimizer),
-        all metrics return their ``bad_metrics`` fallback.
+        When evaluation fails wholesale (e.g. out-of-bounds x rejected by
+        ``set_values``), all metrics return their ``bad_metrics`` fallback.
         """
         x = np.asarray(x, dtype=float).ravel()
 
+        if not target_functions:
+            return np.empty(0)
+
         def _bad_for(metric: _MetricRecord) -> np.ndarray:
-            n = len(
-                metric.evaluation_objects
-                if metric.evaluation_objects
-                else self._parameter_space.evaluation_objects or [None]
+            # Declaration-driven: total declared entries over per-object entries.
+            return np.tile(metric.bad_metrics, metric.n_total_metrics // metric.n_metrics)
+
+        names = [metric.name for metric in target_functions]
+        try:
+            results = self.evaluate(
+                self._parameter_space.transformed_space.decode(x), targets=names
             )
-            return np.tile(metric.bad_metrics, n)
+        except CADETProcessError as e:
+            self.logger.warning(
+                "Evaluation failed at x=%s: %s. Returning bad metrics.", x, e
+            )
+            return np.concatenate([_bad_for(m) for m in target_functions])
+        except Exception:
+            self.logger.warning(
+                "Unexpected error during evaluation at x=%s.", x, exc_info=True
+            )
+            return np.concatenate([_bad_for(m) for m in target_functions])
 
-        # Collect all unique evaluator output names needed across metrics.
-        all_ev_names = list({n for m in target_functions for n in m.evaluator_chain})
-
-        # Precompute evaluator outputs via pipeline when eval objects exist.
-        # evaluate() handles set_values and caching via EvaluationContext.
-        ev_cache: dict[tuple[int, str], Any] = {}
-        eval_objs = self._parameter_space.evaluation_objects
-        if all_ev_names and eval_objs:
-            try:
-                outputs = self._backend.evaluate(
-                    self._parameter_space.transformed_space.decode(x), targets=all_ev_names
-                )
-            except CADETProcessError as e:
-                self.logger.warning(
-                    "Evaluation failed at x=%s: %s. Returning bad metrics.", x, e
-                )
-                return np.concatenate([_bad_for(m) for m in target_functions])
-            except Exception:
-                self.logger.warning(
-                    "Unexpected error during pipeline evaluation at x=%s.",
-                    x,
-                    exc_info=True,
-                )
-                return np.concatenate([_bad_for(m) for m in target_functions])
-            # evaluate() returns {target: list} for multiple objects, scalar for one.
-            for ev_name, val in outputs.items():
-                if len(eval_objs) == 1:
-                    ev_cache[(0, ev_name)] = val
-                else:
-                    for i, v in enumerate(val):
-                        ev_cache[(i, ev_name)] = v
-        elif not all_ev_names:
-            # No evaluator chain — set_values still needs to happen for inline metrics.
-            try:
-                self._parameter_space.set_values(self._parameter_space.transformed_space.decode(x))
-            except CADETProcessError as e:
-                self.logger.warning(
-                    "set_values failed at x=%s: %s. Returning bad metrics.", x, e
-                )
-                return np.concatenate([_bad_for(m) for m in target_functions])
-            except Exception:
-                self.logger.warning(
-                    "Unexpected error in set_values at x=%s.", x, exc_info=True
-                )
-                return np.concatenate([_bad_for(m) for m in target_functions])
-
-        results = np.empty(0)
+        rows = []
         for metric in target_functions:
-            metric_eval_objs = (
-                metric.evaluation_objects if metric.evaluation_objects
-                else eval_objs or [None]
-            )
-            for i, eval_obj in enumerate(metric_eval_objs):
-                if metric.evaluator_chain:
-                    last_ev = metric.evaluator_chain[-1]
-                    if eval_obj is None:
-                        # No eval objects: run the chain inline on x.
-                        current: Any = x
-                        for ev_name in metric.evaluator_chain:
-                            ev_func = self._evaluator_func_by_name[ev_name]
-                            try:
-                                current = ev_func(current)
-                            except Exception as exc:
-                                current = EvaluationFailure(
-                                    stage=ev_name, reason=str(exc), exc=exc
-                                )
-                                break
-                    else:
-                        obj_idx = eval_objs.index(eval_obj)
-                        current = ev_cache.get(
-                            (obj_idx, last_ev),
-                            EvaluationFailure(stage=last_ev, reason="not computed"),
-                        )
-                else:
-                    current = x if eval_obj is None else eval_obj
-
-                if isinstance(current, EvaluationFailure):
-                    result = metric.bad_metrics
-                else:
-                    try:
-                        result = np.atleast_1d(
-                            np.asarray(
-                                metric.func(current, *metric.args, **metric.kwargs),
-                                dtype=float,
-                            )
-                        )
-                        if len(result) != metric.n_metrics:
-                            result = metric.bad_metrics
-                    except Exception:
+            raw = results[metric.name]
+            if isinstance(raw, EvaluationFailure):
+                self.logger.warning(
+                    "Metric '%s' failed at x=%s: %s.", metric.name, x, raw.reason
+                )
+                rows.append(_bad_for(metric))
+            elif isinstance(raw, list):
+                # Per-object passthrough: at least one object failed.
+                blocks = []
+                for value in raw:
+                    if isinstance(value, EvaluationFailure):
                         self.logger.warning(
-                            "Metric '%s' failed at x=%s.", metric.name, x, exc_info=True
+                            "Metric '%s' failed at x=%s: %s.",
+                            metric.name, x, value.reason,
                         )
-                        result = metric.bad_metrics
+                        blocks.append(metric.bad_metrics)
+                    else:
+                        blocks.append(np.atleast_1d(np.asarray(value, dtype=float)))
+                rows.append(np.concatenate(blocks))
+            else:
+                # Canonical (possibly multi-object) shape; ravel is object-major.
+                rows.append(np.atleast_1d(np.asarray(raw, dtype=float)).ravel())
 
-                results = np.hstack((results, result))
-
-        return results
+        return np.hstack(rows)
 
     def _evaluate_population(
         self,
@@ -2197,7 +2312,9 @@ class OptimizationProblem(Problem):
             return
         _logger = logging.getLogger(__name__)
         eval_objs = self._parameter_space.evaluation_objects or []
-        obj_index = {id(obj): i for i, obj in enumerate(eval_objs)}
+        independent_names = {
+            p.name for p in self._parameter_space.independent_parameters
+        }
         for cb in self._callbacks:
             if not (
                 current_iteration == "final"
@@ -2218,92 +2335,47 @@ class OptimizationProblem(Problem):
             if _cb_dir is not None and current_iteration != "final":
                 cb.cleanup(_cb_dir, current_iteration)
 
-            metric_eval_objs = (
+            cb_eval_objs = (
                 cb.evaluation_objects if cb.evaluation_objects else eval_objs or [None]
             )
-            try:
-                sig = inspect.signature(cb.func).parameters
-            except (ValueError, TypeError):
-                sig = {}
-            independent_names = {
-                p.name for p in self._parameter_space.independent_parameters
-            }
             for individual in population:
-                values = individual.X
-                x_full = np.array(
-                    [values[name] for name in values], dtype=float
-                )
                 assignment = {
                     name: value
-                    for name, value in values.items()
+                    for name, value in individual.X.items()
                     if name in independent_names
                 }
-                self._parameter_space.set_values(assignment)
-                # Use the pipeline to get evaluator chain outputs, benefiting
-                # from results already cached during objective/constraint
-                # evaluation for this individual.
-                ev_outputs: dict[str, Any] = {}
-                if cb.evaluator_chain and eval_objs:
+                # The callback is a pipeline node (cache=False): triggering it
+                # per evaluation object reuses chain results cached during
+                # objective/constraint evaluation and never runs the side
+                # effect for objects outside the callback's subset.
+                for eval_obj in cb_eval_objs:
+                    cb.runtime = {
+                        "individual": individual,
+                        "evaluation_object": eval_obj,
+                        "callbacks_dir": _cb_dir,
+                    }
                     try:
-                        ev_outputs = self._backend.evaluate(
-                            assignment, targets=cb.evaluator_chain
+                        result = self._backend.evaluate(
+                            assignment,
+                            targets=[cb.name],
+                            evaluation_objects=(
+                                None if eval_obj is None else [eval_obj]
+                            ),
                         )
-                    except Exception:
-                        _logger.debug(
-                            f"Pipeline evaluation for callback {cb.name!r} failed;"
-                            f" falling back to direct chain execution.",
-                            exc_info=True,
-                        )
-
-                for eval_obj in metric_eval_objs:
-                    try:
-                        if cb.evaluator_chain:
-                            last = cb.evaluator_chain[-1]
-                            if ev_outputs and last in ev_outputs:
-                                raw = ev_outputs[last]
-                                if isinstance(raw, list):
-                                    idx = obj_index.get(id(eval_obj))
-                                    if idx is not None and idx < len(raw):
-                                        chain_result = raw[idx]
-                                    else:
-                                        chain_result = (
-                                            eval_obj
-                                            if eval_obj is not None
-                                            else x_full
-                                        )
-                                        for ev_name in cb.evaluator_chain:
-                                            chain_result = self._evaluator_func_by_name[
-                                                ev_name
-                                            ](chain_result)
-                                else:
-                                    chain_result = raw
-                            else:
-                                # Pipeline unavailable; fall back to direct execution.
-                                chain_result = (
-                                    eval_obj if eval_obj is not None else x_full
-                                )
-                                for ev_name in cb.evaluator_chain:
-                                    chain_result = self._evaluator_func_by_name[
-                                        ev_name
-                                    ](chain_result)
-                        else:
-                            chain_result = (
-                                eval_obj if eval_obj is not None else x_full
+                        value = result[cb.name]
+                        if isinstance(value, EvaluationFailure):
+                            _logger.warning(
+                                f"Callback {cb.name!r} failed at iteration"
+                                f" {current_iteration}: {value.reason}"
                             )
-                        kwargs = dict(cb.kwargs)
-                        if "individual" in sig:
-                            kwargs["individual"] = individual
-                        if "evaluation_object" in sig:
-                            kwargs["evaluation_object"] = eval_obj
-                        if "callbacks_dir" in sig:
-                            kwargs["callbacks_dir"] = _cb_dir
-                        cb.func(chain_result, *cb.args, **kwargs)
                     except Exception as exc:
                         _logger.warning(
                             f"Callback {cb.name!r} failed at iteration"
                             f" {current_iteration}: {exc}",
                             exc_info=True,
                         )
+                    finally:
+                        cb.runtime = {}
 
     def evaluate_callbacks_population(self, *args: Any, **kwargs: Any) -> None:
         """Call ``evaluate_callbacks``; deprecated, use that method directly."""

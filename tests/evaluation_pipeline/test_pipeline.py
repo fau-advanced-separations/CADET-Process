@@ -607,3 +607,85 @@ def test_hybrid_cache_is_used_when_no_cache_dir(single_space):
     pipeline.evaluate({})
 
     assert call_count == 1
+
+
+# ── evaluate: zero evaluation objects ─────────────────────────────────────────
+
+
+@pytest.fixture
+def free_space():
+    """Space with one independent parameter and no evaluation objects."""
+    from CADETProcess.parameter_space.parameters import RangedParameter
+
+    space = ParameterSpace()
+    space.add_parameter(RangedParameter("v", float, lb=0.0, ub=10.0))
+    return space
+
+
+def test_objectless_root_receives_assignment(free_space):
+    pipeline = EvaluationPipeline(free_space)
+    pipeline.add_evaluator(lambda assignment: assignment["v"] * 2, output_name="doubled")
+    results = pipeline.evaluate({"v": 3.0})
+    assert results["doubled"] == pytest.approx(6.0)
+
+
+def test_objectless_follows_single_result_convention(free_space):
+    pipeline = EvaluationPipeline(free_space)
+    pipeline.add_evaluator(lambda assignment: assignment["v"], output_name="v_out")
+    results = pipeline.evaluate({"v": 1.0})
+    assert not isinstance(results["v_out"], list)
+
+
+def test_objectless_repeated_x_hits_cache(free_space):
+    call_count = 0
+
+    def counting(assignment):
+        nonlocal call_count
+        call_count += 1
+        return assignment["v"]
+
+    pipeline = EvaluationPipeline(free_space)
+    pipeline.add_evaluator(counting, output_name="result")
+
+    pipeline.evaluate({"v": 1.0})
+    pipeline.evaluate({"v": 1.0})
+    pipeline.evaluate({"v": 2.0})
+
+    assert call_count == 2
+
+
+# ── evaluate: evaluation_objects subset ──────────────────────────────────────
+
+
+def test_subset_runs_only_selected_object(two_space, two_models):
+    m1, m2 = two_models
+    m1.value, m2.value = 1.0, 2.0
+    seen = []
+
+    def record(model):
+        seen.append(model)
+        return model.value
+
+    pipeline = EvaluationPipeline(two_space)
+    pipeline.add_evaluator(record, output_name="v")
+
+    results = pipeline.evaluate({}, evaluation_objects=[m2])
+
+    assert seen == [m2]
+    assert results["v"] == pytest.approx(2.0)
+    assert not isinstance(results["v"], list)
+
+
+def test_subset_unknown_object_raises(two_space):
+    pipeline = EvaluationPipeline(two_space)
+    pipeline.add_evaluator(lambda model: model.value, output_name="v")
+    with pytest.raises(ValueError, match="Unknown evaluation object"):
+        # Distinct value: dataclass equality would match a registered model.
+        pipeline.evaluate({}, evaluation_objects=[Model(value=99.0)])
+
+
+def test_subset_empty_list_raises(two_space):
+    pipeline = EvaluationPipeline(two_space)
+    pipeline.add_evaluator(lambda model: model.value, output_name="v")
+    with pytest.raises(ValueError, match="must not be empty"):
+        pipeline.evaluate({}, evaluation_objects=[])
