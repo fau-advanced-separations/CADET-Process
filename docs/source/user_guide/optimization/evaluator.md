@@ -209,7 +209,7 @@ optimization_problem.evaluate_objectives(3)
 The evaluation pipeline caches intermediate results so that repeated evaluations at the same parameter vector are free.
 This is particularly useful during gradient approximation, where the same point may be evaluated multiple times.
 
-By default, an in-memory LRU cache is used.
+By default, an in-memory hybrid cache is used (frequency- and cost-weighted eviction, so expensive simulation nodes are kept over cheap postprocessing nodes).
 To persist results across runs or share them between parallel workers, pass a `cache_directory` when creating the optimization problem.
 
 ```python

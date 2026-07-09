@@ -59,7 +59,7 @@ optimization_problem.add_variable('var_norm_log', lb=-100, ub=100, normalization
 ```
 
 ## Auto Transform
-This transform will automatically switch between a linear and a log transform if the ratio of upper and lower bounds is larger than some value ($1000$ by default).
+This transform will automatically switch between a linear and a log transform if the ratio of upper and lower bounds is larger than some value ($100$ by default).
 
 
 ```{code-cell} ipython3
