@@ -65,6 +65,13 @@ def _wrap_with_failure_propagation(func: Callable, stage: str) -> Callable:
     If any positional or keyword argument is an `EvaluationFailure`, that failure
     is returned immediately without calling `func`.  Otherwise `func` is called
     normally; any exception is caught and returned as a new `EvaluationFailure`.
+
+    Unclassified exceptions default to `recoverable=True` (transient: do not
+    cache), since a misclassified transient failure permanently poisons a
+    legitimately good x, while the opposite mistake only costs an occasional
+    re-crash at a duplicate x.  A node author who knows a failure is
+    deterministic (CADET solver failure, validation rejection) classifies it
+    explicitly by setting `recoverable = False` on the raised exception.
     """
 
     @wraps(func)
@@ -75,7 +82,8 @@ def _wrap_with_failure_propagation(func: Callable, stage: str) -> Callable:
         try:
             return func(*args, **kwargs)
         except Exception as e:
-            return EvaluationFailure(stage=stage, reason=str(e), exc=e)
+            recoverable = getattr(e, "recoverable", True)
+            return EvaluationFailure(stage=stage, reason=str(e), exc=e, recoverable=recoverable)
 
     return wrapper
 
@@ -121,6 +129,26 @@ def _make_context_wrapper(func: Callable) -> Callable:
         [inspect.Parameter(_CONTEXT_ARG, inspect.Parameter.KEYWORD_ONLY)]
     )
     return wrapper
+
+
+def _guard_recoverable_writes(cache: Any) -> None:
+    """Patch *cache* so recoverable ``EvaluationFailure`` values are never written.
+
+    pipefunc's per-node cache has no native hook to skip a write conditionally
+    on the result value, so the cache's own ``put`` is wrapped in place.
+    Recoverable (transient) failures must not be cached: caching one would
+    permanently poison a legitimately good x across restarts.  Deterministic
+    failures (``recoverable=False``) still cache normally, since re-running a
+    deterministic crash just crashes again.
+    """
+    original_put = cache.put
+
+    def put(key: Any, value: Any, *args: Any, **kwargs: Any) -> None:
+        if isinstance(value, EvaluationFailure) and value.recoverable:
+            return
+        original_put(key, value, *args, **kwargs)
+
+    cache.put = put
 
 
 def _make_node(
@@ -266,6 +294,7 @@ class EvaluationPipeline:
                     cache_type="hybrid",
                     validate_type_annotations=False,
                 )
+            _guard_recoverable_writes(self._pipeline.cache)
         return self._pipeline
 
     def _obj_uuid(self, obj: Any) -> str:

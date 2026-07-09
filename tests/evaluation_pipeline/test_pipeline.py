@@ -462,6 +462,90 @@ def test_failure_exc_is_none_when_constructed_directly():
     assert f.exc is None
 
 
+# ── failure cache policy ──────────────────────────────────────────────────────
+
+
+def test_unclassified_failure_defaults_recoverable(single_space):
+    """A plain exception with no explicit classification is treated as transient."""
+
+    def bad_node(model):
+        raise ValueError("boom")
+
+    pipeline = EvaluationPipeline(single_space)
+    pipeline.add_evaluator(bad_node, output_name="result")
+
+    results = pipeline.evaluate({})
+    assert results["result"].recoverable is True
+
+
+def test_recoverable_failure_is_not_cached(single_space):
+    """A transient (recoverable) failure must recompute on every call, never a cache hit."""
+    call_count = 0
+
+    def flaky(model):
+        nonlocal call_count
+        call_count += 1
+        raise ValueError("transient boom")
+
+    pipeline = EvaluationPipeline(single_space)
+    pipeline.add_evaluator(flaky, output_name="result")
+
+    pipeline.evaluate({})
+    pipeline.evaluate({})
+    assert call_count == 2
+
+
+def test_deterministic_failure_classified_via_exception_attribute(single_space):
+    """Setting `recoverable = False` on the raised exception classifies it as deterministic."""
+
+    def bad_node(model):
+        exc = ValueError("solver diverged")
+        exc.recoverable = False
+        raise exc
+
+    pipeline = EvaluationPipeline(single_space)
+    pipeline.add_evaluator(bad_node, output_name="result")
+
+    results = pipeline.evaluate({})
+    assert results["result"].recoverable is False
+
+
+def test_deterministic_failure_is_cached(single_space):
+    """A deterministic (recoverable=False) failure is cached like any other result."""
+    call_count = 0
+
+    def deterministic(model):
+        nonlocal call_count
+        call_count += 1
+        exc = ValueError("deterministic boom")
+        exc.recoverable = False
+        raise exc
+
+    pipeline = EvaluationPipeline(single_space)
+    pipeline.add_evaluator(deterministic, output_name="result")
+
+    pipeline.evaluate({})
+    pipeline.evaluate({})
+    assert call_count == 1
+
+
+def test_recoverable_failure_is_not_cached_to_disk(tmp_path, single_space):
+    """The recoverable-skip also applies to the disk cache backend."""
+    call_count = 0
+
+    def flaky(model):
+        nonlocal call_count
+        call_count += 1
+        raise ValueError("transient boom")
+
+    pipeline = EvaluationPipeline(single_space, cache_dir=tmp_path / "cache")
+    pipeline.add_evaluator(flaky, output_name="result")
+
+    pipeline.evaluate({})
+    pipeline.evaluate({})
+    assert call_count == 2
+
+
 # ── disk cache ────────────────────────────────────────────────────────────────
 
 
@@ -507,8 +591,8 @@ def test_disk_cache_miss_on_different_x(tmp_path):
     assert call_count == 2
 
 
-def test_lru_cache_is_used_when_no_cache_dir(single_space):
-    """Without cache_dir the pipeline falls back to the LRU backend."""
+def test_hybrid_cache_is_used_when_no_cache_dir(single_space):
+    """Without cache_dir the pipeline falls back to the in-memory hybrid backend."""
     call_count = 0
 
     def counting_evaluator(model):
