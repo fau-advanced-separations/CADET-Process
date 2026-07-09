@@ -1257,7 +1257,7 @@ class OptimizationProblem(Problem):
         object: ``Problem.evaluate`` selects the metric's entries from the
         backend's per-object results by these coordinates.  Labels expand
         object-major, matching the flattening order in
-        ``_evaluate_individual``.
+        ``_postprocess_row``.
         """
         if base_labels is not None and len(base_labels) != n_per_object:
             raise CADETProcessError(f"Expected {n_per_object} labels.")
@@ -1912,45 +1912,22 @@ class OptimizationProblem(Problem):
                     requires=prev,
                 )
 
-    def _evaluate_individual(
+    def _postprocess_row(
         self,
-        x: npt.ArrayLike,
+        results: dict[str, Any],
         target_functions: list[_MetricRecord],
+        x: npt.ArrayLike,
     ) -> np.ndarray:
-        """Evaluate all *target_functions* for a single parameter vector.
+        """Apply optimizer policy to one ``evaluate_batch`` result row.
 
-        Thin optimizer-policy adapter over the inherited ``Problem.evaluate``:
-        decodes the numeric vector, evaluates the requested metric nodes
-        through the pipeline, substitutes each metric's ``bad_metrics`` for
-        failed metric/object blocks, and flattens object-major.
-
-        When evaluation fails wholesale (e.g. out-of-bounds x rejected by
-        ``set_values``), all metrics return their ``bad_metrics`` fallback.
+        Substitutes each metric's ``bad_metrics`` for failed metric/object
+        blocks and flattens object-major.  Runs in the parent process, after
+        batch dispatch; *x* is only used for log context.
         """
-        x = np.asarray(x, dtype=float).ravel()
-
-        if not target_functions:
-            return np.empty(0)
 
         def _bad_for(metric: _MetricRecord) -> np.ndarray:
             # Declaration-driven: total declared entries over per-object entries.
             return np.tile(metric.bad_metrics, metric.n_total_metrics // metric.n_metrics)
-
-        names = [metric.name for metric in target_functions]
-        try:
-            results = self.evaluate(
-                self._parameter_space.transformed_space.decode(x), targets=names
-            )
-        except CADETProcessError as e:
-            self.logger.warning(
-                "Evaluation failed at x=%s: %s. Returning bad metrics.", x, e
-            )
-            return np.concatenate([_bad_for(m) for m in target_functions])
-        except Exception:
-            self.logger.warning(
-                "Unexpected error during evaluation at x=%s.", x, exc_info=True
-            )
-            return np.concatenate([_bad_for(m) for m in target_functions])
 
         rows = []
         for metric in target_functions:
@@ -1979,13 +1956,18 @@ class OptimizationProblem(Problem):
 
         return np.hstack(rows)
 
-    def _evaluate_population(
+    def _evaluate_targets(
         self,
         X: npt.ArrayLike,
         target_functions: list[_MetricRecord],
         parallelization_backend: Any = None,
     ) -> np.ndarray:
         """Evaluate *target_functions* for each row of *X*.
+
+        Decodes each row to a named assignment, dispatches the batch through
+        the inherited ``Problem.evaluate_batch`` (the same entry point
+        samplers and surrogate trainers use), and applies ``bad_metrics``
+        substitution post-hoc via ``_postprocess_row``.
 
         Parameters
         ----------
@@ -2000,13 +1982,39 @@ class OptimizationProblem(Problem):
         np.ndarray, shape (n_individuals, n_metrics)
         """
         X = np.array(X, ndmin=2)
+        if not target_functions:
+            return np.empty((len(X), 0))
 
-        def evaluate(x: npt.ArrayLike) -> np.ndarray:
-            return self._evaluate_individual(x, target_functions)
-        if parallelization_backend is None:
-            rows = [evaluate(x) for x in X]
-        else:
-            rows = parallelization_backend.evaluate(evaluate, X)
+        names = [metric.name for metric in target_functions]
+        decode = self._parameter_space.transformed_space.decode
+
+        row_results: list[dict[str, Any] | None] = [None] * len(X)
+        assignments = []
+        valid = []
+        for i, x in enumerate(X):
+            try:
+                assignments.append(decode(np.asarray(x, dtype=float).ravel()))
+                valid.append(i)
+            except Exception:
+                self.logger.warning(
+                    "Decoding failed at x=%s.", x, exc_info=True
+                )
+                row_results[i] = {
+                    name: EvaluationFailure(stage=name, reason="decoding failed")
+                    for name in names
+                }
+        batch = self.evaluate_batch(
+            assignments,
+            targets=names,
+            parallelization_backend=parallelization_backend,
+        )
+        for i, results in zip(valid, batch):
+            row_results[i] = results
+
+        rows = [
+            self._postprocess_row(results, target_functions, x)
+            for results, x in zip(row_results, X)
+        ]
         return np.array(rows, ndmin=2)
 
     # ── Public evaluation API ─────────────────────────────────────────────────
@@ -2052,7 +2060,7 @@ class OptimizationProblem(Problem):
         if not get_dependent_values:
             X_2d = np.array([self.get_independent_values(x) for x in X_2d])
 
-        Y = self._evaluate_population(X_2d, self._objectives, parallelization_backend)
+        Y = self._evaluate_targets(X_2d, self._objectives, parallelization_backend)
         Y_2d = Y.reshape(len(X_2d), -1)
 
         if ensure_minimization:
@@ -2100,7 +2108,7 @@ class OptimizationProblem(Problem):
         if not get_dependent_values:
             X_2d = np.array([self.get_independent_values(x) for x in X_2d])
 
-        Y = self._evaluate_population(X_2d, self._nonlinear_constraints, parallelization_backend)
+        Y = self._evaluate_targets(X_2d, self._nonlinear_constraints, parallelization_backend)
         Y_2d = Y.reshape(len(X_2d), -1)
 
         if X.ndim == 1:
@@ -2432,7 +2440,7 @@ class OptimizationProblem(Problem):
         if not self._meta_scores:
             return np.zeros((len(X_2d), 0))
 
-        Y = self._evaluate_population(X_2d, self._meta_scores, parallelization_backend)
+        Y = self._evaluate_targets(X_2d, self._meta_scores, parallelization_backend)
         Y_2d = Y.reshape(len(X_2d), -1)
 
         if X.ndim == 1:
