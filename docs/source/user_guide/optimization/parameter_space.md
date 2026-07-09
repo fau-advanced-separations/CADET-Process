@@ -98,6 +98,26 @@ flow.add_parameter(q_elute, path="diameter")
 flow.add_linear_constraint(LinearConstraint([q_load, q_elute], lhs=[1, -1], b=0))
 ```
 
+## Normalization
+
+Samplers explore a parameter in whatever coordinates it is declared in.
+With the default `normalization=None`, that is physical units; when parameters span several orders of magnitude, sampling directly in physical units starves the narrow dimensions (the same effect noted for the Chebyshev center below).
+Passing `normalization="linear"`, `"log"`, or `"auto"` to {class}`~CADETProcess.parameter_space.RangedParameter` maps the parameter to $[0, 1]$ before sampling; `"auto"` switches between linear and log scaling based on the ratio of the bounds.
+
+```{code-cell} ipython3
+wide = ParameterSpace()
+wide.add_evaluation_object(Column())
+wide.add_parameter(RangedParameter("length", float, lb=0.1, ub=1.0), path="length")
+wide.add_parameter(
+    RangedParameter("diameter", float, lb=1e-8, ub=1e-4, normalization="log"),
+    path="diameter",
+)
+
+HopsySampler(pool_size=2000).sample(wide, 5, seed=0)
+```
+
+See {ref}`variable_normalization_guide` for the full set of transforms; `RangedParameter.normalization` is the same mechanism used by {meth}`~CADETProcess.optimization.OptimizationProblem.add_variable`.
+
 ## Sampling
 
 {meth}`~CADETProcess.parameter_space.ParameterSpace.sample` draws feasible points as named assignments.
