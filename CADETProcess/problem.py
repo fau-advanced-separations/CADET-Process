@@ -18,6 +18,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any, Optional, Protocol, runtime_checkable
 
+import numpy as np
+
 from CADETProcess.evaluation_pipeline import EvaluationFailure
 from CADETProcess.metric_space import MetricSpace
 from CADETProcess.parameter_space import ParameterSpace
@@ -34,8 +36,16 @@ class EvaluationBackend(Protocol):
     ``MetricSpace``; additional keys (pipeline intermediates) are allowed.
     """
 
-    def evaluate(self, assignment: Mapping[str, Any]) -> dict[str, Any]:
-        """Compute named outputs for a named parameter assignment."""
+    def evaluate(
+        self,
+        assignment: Mapping[str, Any],
+        targets: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Compute named outputs for a named parameter assignment.
+
+        Backends may ignore *targets* and compute everything;
+        ``Problem.evaluate`` filters the result either way.
+        """
         ...
 
 
@@ -123,47 +133,125 @@ class Problem:
             name=self.name,
         )
 
-    def evaluate(self, assignment: Mapping[str, Any]) -> dict[str, Any]:
+    def evaluate(
+        self,
+        assignment: Mapping[str, Any],
+        targets: list[str] | None = None,
+    ) -> dict[str, Any]:
         """Evaluate the declared metrics for a named parameter assignment.
 
         Delegates to the backend, then validates each declared metric
         against its declared shape.  Backend outputs that are not declared
-        in the metric space (pipeline intermediates) are dropped.
+        in the metric space (pipeline intermediates) are dropped; declared
+        metric names are always passed to the backend as its targets, so
+        undeclared side-effect nodes (callbacks) never execute.
         ``EvaluationFailure`` values pass through unvalidated; substituting
         fallback values is optimizer policy and stays out of ``Problem``.
+
+        A backend evaluating multiple evaluation objects returns per-object
+        lists (the ``EvaluationPipeline`` convention).  Such values are
+        reduced to the metric's declared shape here: the entries belonging
+        to the metric's declared ``evaluation_object`` coordinates are
+        selected and stacked object-major.  If any selected entry is an
+        ``EvaluationFailure``, the selected per-object list passes through
+        unvalidated instead.
+
+        Parameters
+        ----------
+        assignment : Mapping
+            Values for the independent parameters by name, in physical units.
+        targets : list[str], optional
+            Declared metric names to evaluate.  `None` evaluates all
+            declared metrics.  A pipeline backend only executes the
+            subgraph the requested metrics need.
 
         Returns
         -------
         dict[str, Any]
-            Declared metrics in registration order; values are arrays in
-            canonical shape or ``EvaluationFailure``.
+            Requested metrics in registration order; values are arrays in
+            canonical shape, ``EvaluationFailure``, or a per-object list
+            containing at least one ``EvaluationFailure``.
 
         Raises
         ------
         RuntimeError
             If no backend is set.
         ValueError
-            If the backend result misses a declared metric or a value does
-            not match its declared shape.
+            If *targets* contains an undeclared name, the backend result
+            misses a declared metric, or a value does not match its
+            declared shape.
         """
         if self._backend is None:
             raise RuntimeError(
                 "Problem has no evaluation backend.  Construct with backend=... "
                 "or use with_evaluator."
             )
-        raw = self._backend.evaluate(assignment)
+        metrics = self._metric_space.metrics
+        if targets is not None:
+            declared = {m.name for m in metrics}
+            unknown = [t for t in targets if t not in declared]
+            if unknown:
+                raise ValueError(f"Unknown metric target(s): {unknown}")
+            requested = set(targets)
+            metrics = [m for m in metrics if m.name in requested]
+        if not metrics:
+            return {}
+        raw = self._backend.evaluate(assignment, targets=[m.name for m in metrics])
         results: dict[str, Any] = {}
-        for metric in self._metric_space.metrics:
+        for metric in metrics:
             if metric.name not in raw:
                 raise ValueError(
                     f"Backend result is missing declared metric {metric.name!r}."
                 )
             value = raw[metric.name]
+            has_object_dim = (
+                metric.coords is not None and "evaluation_object" in metric.coords
+            )
             if isinstance(value, EvaluationFailure):
                 results[metric.name] = value
+            elif has_object_dim and isinstance(value, list):
+                results[metric.name] = self._reduce_per_object(metric, value)
+            elif (
+                isinstance(value, list)
+                and any(isinstance(v, EvaluationFailure) for v in value)
+            ):
+                # Per-object failures for a metric that declares no
+                # evaluation_object dimension: the backend fanned out over
+                # objects the metric does not know about.
+                raise ValueError(
+                    f"Metric {metric.name!r} declares no evaluation_object "
+                    f"dimension but the backend returned per-object results.  "
+                    f"This happens for metrics registered with "
+                    f"evaluation_objects=None while evaluation objects exist; "
+                    f"see the input-handling cleanup note in PROJECT.md."
+                )
             else:
                 results[metric.name] = metric.validate(value)
         return results
+
+    def _reduce_per_object(self, metric: Any, values: list[Any]) -> Any:
+        """Reduce a per-object result list to the metric's declared shape.
+
+        The list is indexed by the parameter space's registered evaluation
+        objects; the metric's ``evaluation_object`` coordinates select the
+        entries it covers.  Failures keep per-object granularity so the
+        optimizer layer can substitute fallbacks per object.
+        """
+        coords = metric.coords["evaluation_object"]
+        obj_names = [str(obj) for obj in self._parameter_space.evaluation_objects]
+        missing = [c for c in coords if c not in obj_names]
+        if missing:
+            raise ValueError(
+                f"Metric {metric.name!r}: declared evaluation object(s) "
+                f"{missing} are not registered."
+            )
+        selected = [values[obj_names.index(c)] for c in coords]
+        if any(isinstance(v, EvaluationFailure) for v in selected):
+            return selected
+        flat = np.concatenate([
+            np.atleast_1d(np.asarray(v, dtype=float)) for v in selected
+        ])
+        return metric.validate(flat.reshape(metric.shape))
 
     def __str__(self) -> str:
         """Return the problem name, falling back to the class name."""
