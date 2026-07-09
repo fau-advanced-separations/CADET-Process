@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 import pytest
+from CADETProcess.dataStructure import NdPolynomial, Structure
 from CADETProcess.parameter_space import (
     CallableMapper,
     DotPathMapper,
@@ -386,6 +387,40 @@ def test_indexed_2d_polynomial_tuple_index():
     mapper.set_value(3.0)
     assert obj.c[0][1] == pytest.approx(3.0)
     assert obj.c[0][0] == pytest.approx(0.0)
+    assert obj.c[1] == pytest.approx([0.0, 0.0, 0.0, 0.0])
+
+
+class NdPolynomialHolder(Structure):
+    """Object with a genuine ``NdPolynomial`` descriptor (n_comp x n_coeff).
+
+    Unlike ``PolyHolder``/``PolyConcHolder`` above (plain lists that only look
+    polynomial by name), this fixture exercises the real descriptor and its
+    ``fill_values`` method, which is what ``IndexedMapper`` must detect and
+    delegate to for a bare index.
+    """
+
+    c = NdPolynomial(size=(2, 4), default=0)
+
+    _parameters = ["c"]
+
+
+def test_indexed_bare_index_into_real_polynomial_descriptor_fills_row():
+    """A bare int index selecting a whole row delegates to the descriptor's
+    ``fill_values``: constant coefficient set, rest of the row zeroed."""
+    obj = NdPolynomialHolder()
+    mapper = IndexedMapper([obj], path="c", index=0)
+    mapper.set_value(2.0)
+    assert obj.c[0] == pytest.approx([2.0, 0.0, 0.0, 0.0])
+    assert obj.c[1] == pytest.approx([0.0, 0.0, 0.0, 0.0])
+
+
+def test_indexed_tuple_index_into_real_polynomial_descriptor_sets_single_cell():
+    """A tuple index fully specifies one cell, so it is a plain scalar write
+    regardless of the descriptor being polynomial."""
+    obj = NdPolynomialHolder()
+    mapper = IndexedMapper([obj], path="c", index=(0, 1))
+    mapper.set_value(3.0)
+    assert obj.c[0] == pytest.approx([0.0, 3.0, 0.0, 0.0])
     assert obj.c[1] == pytest.approx([0.0, 0.0, 0.0, 0.0])
 
 
