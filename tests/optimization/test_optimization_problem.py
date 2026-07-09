@@ -594,10 +594,12 @@ def test_multi_eval_obj_names(op_with_multiple_eval_objects):
 def test_multi_eval_obj_labels(op_with_multiple_eval_objects):
     # Label order is contractual: per-eval-obj expansion is object-major,
     # matching the data order pinned by test_multi_eval_obj_evaluation.
+    # In a multi-object problem every object-bound metric carries the object
+    # prefix, including metrics bound to a single object (single_obj_2).
     expected = [
         "foo_single_obj_1",
         "bar_single_obj_1",
-        "single_obj_2",
+        "foo_single_obj_2",
         "foo_multi_obj_0",
         "foo_multi_obj_1",
         "bar_multi_obj_0",
@@ -755,7 +757,9 @@ def test_add_evaluator_callable_class_name():
     op = OptimizationProblem("ev", use_diskcache=False)
     ev = MyEvaluator()
     op.add_evaluator(ev)
-    assert str(ev) in op.evaluators_dict
+    # Callable instances default to their class name: names are pipeline
+    # node names, and str(obj) embeds a memory address.
+    assert "MyEvaluator" in op.evaluators_dict
 
 
 def test_add_evaluator_with_args_kwargs():
@@ -1337,3 +1341,95 @@ def test_create_population_cv_lincon_feasible(op_with_linear_constraint):
     pop = op_with_linear_constraint.create_population([[0.3, 0.5]], F=[[0.3]])
     assert pop.cv_lincon[0, 0] <= 0
     assert pop.is_feasible()[0]
+
+
+# ── Metrics as pipeline nodes: Problem.evaluate on OptimizationProblem ────────
+
+
+def test_problem_evaluate_returns_declared_metrics(eval_obj):
+    """The inherited Problem.evaluate works: metrics are real backend outputs."""
+    op = OptimizationProblem("node_wiring", use_diskcache=False)
+    op.add_evaluation_object(eval_obj)
+    op.add_variable("scalar_param", lb=0, ub=1)
+
+    def evaluator(evaluation_object):
+        return evaluation_object.scalar_param * 2
+
+    op.add_evaluator(evaluator)
+    op.add_objective(lambda result: result, name="doubled", requires=[evaluator])
+    op.add_nonlinear_constraint(
+        lambda result: result - 1, name="bounded", requires=[evaluator]
+    )
+
+    results = op.evaluate({"scalar_param": 0.25})
+
+    assert results["doubled"] == pytest.approx(0.5)
+    assert results["bounded"] == pytest.approx(-0.5)
+
+
+def test_problem_evaluate_objectless(op_basic):
+    """Free-variable problems evaluate through the pipeline end-to-end."""
+    op_basic.add_objective(lambda x: x[0] ** 2, name="squared")
+
+    var_names = [p.name for p in op_basic.parameter_space.independent_parameters]
+    assignment = dict(zip(var_names, [0.5, 5.0]))
+
+    results = op_basic.evaluate(assignment)
+
+    assert results["squared"] == pytest.approx(0.25)
+
+
+def test_objectless_objective_chain_runs_through_pipeline(op_basic):
+    """Evaluator chains on free-variable problems receive x, not the assignment."""
+    received = []
+
+    def evaluator(x):
+        received.append(np.asarray(x))
+        return np.sum(x)
+
+    op_basic.add_evaluator(evaluator)
+    op_basic.add_objective(lambda total: total, name="total", requires=[evaluator])
+
+    f = op_basic.evaluate_objectives([0.5, 5.0])
+
+    np.testing.assert_allclose(f, [5.5])
+    np.testing.assert_allclose(received[0], [0.5, 5.0])
+
+
+def test_evaluate_objectives_does_not_trigger_callbacks(eval_obj):
+    """Callback nodes are undeclared side effects; objective evaluation must
+    never execute them."""
+    op = OptimizationProblem("cb_discipline", use_diskcache=False)
+    op.add_evaluation_object(eval_obj)
+    op.add_variable("scalar_param", lb=0, ub=1)
+
+    op.add_objective(lambda obj: obj.scalar_param, name="obj")
+
+    cb_calls = []
+    op.add_callback(lambda obj: cb_calls.append(obj), name="cb")
+
+    op.evaluate_objectives([0.5])
+    op.evaluate({"scalar_param": 0.5})
+
+    assert cb_calls == []
+
+
+def test_callback_subset_side_effect_only_for_bound_object():
+    """A callback bound to one evaluation object never fires for the others."""
+    obj_1 = EvaluationObject(name="foo")
+    obj_2 = EvaluationObject(name="bar")
+    op = OptimizationProblem("cb_subset", use_diskcache=False)
+    op.add_evaluation_object(obj_1)
+    op.add_evaluation_object(obj_2)
+    op.add_variable("scalar_param", lb=0, ub=1)
+    op.add_objective(lambda obj: obj.scalar_param, name="obj")
+
+    seen = []
+    op.add_callback(
+        lambda obj: seen.append(str(obj)), name="cb", evaluation_objects=[obj_1]
+    )
+
+    pop = op.create_population([[0.5]])
+    op.evaluate_callbacks(pop, current_iteration=0)
+
+    assert seen == ["foo"]

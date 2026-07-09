@@ -18,6 +18,10 @@ __all__ = ["EvaluationPipeline"]
 
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _CONTEXT_ARG = "__eval_context__"
+# Stable UUID slot for the zero-evaluation-object mode: cache entries are
+# keyed on (x_key, uuid), and without an object the x_key alone identifies
+# the evaluation.  A fixed constant keeps keys stable across processes.
+_NO_OBJECT_UUID = "__no_evaluation_object__"
 
 
 class _EvaluationContext:
@@ -309,6 +313,7 @@ class EvaluationPipeline:
         assignment: Mapping[str, Any],
         targets: list[str] | None = None,
         bypass_cache: bool = False,
+        evaluation_objects: list[Any] | None = None,
     ) -> dict[str, Any]:
         """Set parameter values and run the evaluation graph.
 
@@ -320,6 +325,11 @@ class EvaluationPipeline:
         cache clearing; assignments that only differ in a categorical value are
         distinct entries too.  Intermediate nodes shared by multiple targets
         within a single call are computed only once.
+
+        When the parameter space has no evaluation objects, the assignment
+        itself becomes the root: root nodes (those without ``requires``)
+        receive the assignment mapping instead of an evaluation object, and
+        the run follows the single-result return convention.
 
         Parameters
         ----------
@@ -336,14 +346,19 @@ class EvaluationPipeline:
             When True, clear the pipeline cache before evaluating so all nodes
             are recomputed from scratch.  Useful for debugging to confirm that
             results are not stale.
+        evaluation_objects : list, optional
+            Restrict the run to these registered evaluation objects.  `None`
+            runs all registered objects.  The return convention follows the
+            selected subset: one object gives plain values, several give lists.
 
         Returns
         -------
         dict[str, Any]
             Mapping from output name to result.  For a single evaluation object
-            the values are plain results (or `EvaluationFailure`).  For multiple
-            evaluation objects the values are lists indexed by evaluation object.
-            Results may be `EvaluationFailure` instances when a node failed.
+            (or none registered) the values are plain results (or
+            `EvaluationFailure`).  For multiple evaluation objects the values
+            are lists indexed by evaluation object.  Results may be
+            `EvaluationFailure` instances when a node failed.
         """
         if not isinstance(assignment, Mapping):
             raise TypeError(
@@ -370,14 +385,18 @@ class EvaluationPipeline:
                 raise ValueError(f"Unknown target(s): {unknown}")
 
         eval_objs = self._space.evaluation_objects
-        if not eval_objs:
-            raise RuntimeError("ParameterSpace has no evaluation objects.")
+        if evaluation_objects is not None:
+            if not evaluation_objects:
+                raise ValueError("evaluation_objects must not be empty; pass None for all.")
+            unknown_objs = [o for o in evaluation_objects if o not in eval_objs]
+            if unknown_objs:
+                raise ValueError(f"Unknown evaluation object(s): {unknown_objs}")
+            eval_objs = list(evaluation_objects)
 
         pipeline = self._get_pipeline()
 
-        def _run_for(obj: Any) -> dict[str, Any]:
-            """Run all targets for one evaluation object in a single pipeline call."""
-            ctx = _EvaluationContext(x_key, obj, self._obj_uuid(obj))
+        def _run_for_ctx(ctx: _EvaluationContext) -> dict[str, Any]:
+            """Run all targets for one root context in a single pipeline call."""
             if len(targets) == 1:
                 value = pipeline(targets[0], **{_CONTEXT_ARG: ctx})
                 return {targets[0]: value}
@@ -386,6 +405,14 @@ class EvaluationPipeline:
                 f"Expected {len(targets)} results from pipeline.run, got {len(values)}"
             )
             return dict(zip(targets, values))
+
+        if not eval_objs:
+            # Zero-evaluation-object mode: the assignment itself is the root.
+            ctx = _EvaluationContext(x_key, dict(assignment), _NO_OBJECT_UUID)
+            return _run_for_ctx(ctx)
+
+        def _run_for(obj: Any) -> dict[str, Any]:
+            return _run_for_ctx(_EvaluationContext(x_key, obj, self._obj_uuid(obj)))
 
         if len(eval_objs) == 1:
             return _run_for(eval_objs[0])
