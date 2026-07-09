@@ -122,6 +122,17 @@ This includes:
 - {attr}`~CADETProcess.optimization.OptimizationResults.f`: Optimal objective values.
 - {attr}`~CADETProcess.optimization.OptimizationResults.g`: Optimal nonlinear constraint values.
 
+### Constraint violations
+Besides the raw constraint values in `g`, {class}`~CADETProcess.optimization.OptimizationResults` and the underlying {class}`~CADETProcess.optimization.Population` expose signed violation arrays: `cv_bounds`, `cv_lincon`, `cv_lineqcon`, and `cv_nonlincon`.
+In each of these, a positive entry means the constraint is violated by that amount; zero or negative means it is satisfied, regardless of whether the original constraint was `<=` or `>=`.
+
+`cv_bounds` has `2 * n_variables` columns, `[lb - x, x - ub]`, so each variable contributes two columns rather than one.
+`cv_lincon` and `cv_lineqcon` have one column per linear (in)equality constraint, in registration order.
+`cv_nonlincon` has one column per nonlinear constraint, also in registration order, and matches `g` column-for-column.
+
+{attr}`Population.cv <CADETProcess.optimization.Population.cv>` concatenates all four blocks into a single `(n, k)` matrix in that fixed order (bounds, linear inequality, linear equality, nonlinear).
+The column index alone does not identify which constraint kind or which variable/constraint it belongs to, so prefer the block-specific arrays above, or {meth}`~CADETProcess.optimization.Population.is_feasible` and the {attr}`~CADETProcess.optimization.Population.feasible`/{attr}`~CADETProcess.optimization.Population.infeasible` properties, over indexing into `cv` directly.
+
 Moreover, multiple plot methods are provided to visualize the results.
 The {meth}`~CADETProcess.optimization.OptimizationResults.plot_objectives` method shows the values of all objectives as a function of the input variables using a colormap where later generations are plotted with darker blueish colors.
 Invalid points, i.e. points where nonlinear constraints are not fulfilled, are also plotted using reddish colors, where also darker shades represent later generations.
