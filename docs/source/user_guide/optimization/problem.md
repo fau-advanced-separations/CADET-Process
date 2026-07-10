@@ -90,14 +90,25 @@ results[:2]
 
 ## Building a Population
 
-{meth}`~CADETProcess.optimization.Population.from_records` turns paired samples and results into a {class}`~CADETProcess.optimization.Population`, giving access to the named columns and row views covered in {ref}`population_named_access_guide`, without ever running an optimizer.
+{meth}`~CADETProcess.optimization.Population.from_records` turns paired samples and results into a {class}`~CADETProcess.optimization.Population`, without ever running an optimizer.
+Parameter and metric values are stored as named columns, {attr}`~CADETProcess.optimization.Population.X` and {attr}`~CADETProcess.optimization.Population.metrics`, rather than only flat arrays.
 
 ```{code-cell} ipython3
 from CADETProcess.optimization import Population
 
 records = [{'X': sample, 'metrics': result} for sample, result in zip(samples, results)]
 population = Population.from_records(records, metric_space=metric_space, parameter_space=space)
-population.metrics['volume'][:5]
+population.X['length'][:5]
+```
+
+Indexing a `Population` with an integer returns an {class}`~CADETProcess.optimization.IndividualView`, a row lens exposing the same `X`/`metrics` accessors scoped to that one row.
+
+```{code-cell} ipython3
+population[0].X
+```
+
+```{code-cell} ipython3
+population[0].metrics
 ```
 
 A single sample goes through {meth}`~CADETProcess.optimization.Population.from_sample` instead, without wrapping it in a list.
