@@ -76,4 +76,3 @@ body:
       render: text
     validations:
       required: false
-

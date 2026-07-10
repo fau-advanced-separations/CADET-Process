@@ -1,5 +1,5 @@
 ```{eval-rst}
-.. only:: html 
+.. only:: html
 
   Bibliography
   ============
@@ -9,4 +9,3 @@
 ```{bibliography} ./references.bib
 :style: unsrt
 ```
-

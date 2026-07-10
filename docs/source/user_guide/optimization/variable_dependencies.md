@@ -129,4 +129,3 @@ optimization_problem.add_variable_dependency(
     transform=lambda k_kin, k_eq: k_eq / k_kin
 )
 ```
-

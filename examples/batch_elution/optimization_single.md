@@ -5,7 +5,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.1
+    jupytext_version: 1.19.4
   main_language: python
 kernelspec:
   display_name: Python 3
@@ -64,7 +64,6 @@ optimization_problem.add_evaluator(
 def callback(fractionation, individual, evaluation_object, callbacks_dir):
     fractionation.plot_fraction_signal(
         file_name=f'{callbacks_dir}/{individual.id}_{evaluation_object}_fractionation.png',
-        show=False
     )
 
 
