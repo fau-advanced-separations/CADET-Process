@@ -98,6 +98,18 @@ flow.add_parameter(q_elute, path="diameter")
 flow.add_linear_constraint(LinearConstraint([q_load, q_elute], lhs=[1, -1], b=0))
 ```
 
+The combined coefficient matrix is available as {attr}`~CADETProcess.parameter_space.ParameterSpace.A`, the right-hand side as {attr}`~CADETProcess.parameter_space.ParameterSpace.b`; column order follows the order parameters were passed to `LinearConstraint`, and each added constraint contributes one row.
+
+```{code-cell} ipython3
+flow.A, flow.b
+```
+
+{meth}`~CADETProcess.parameter_space.ParameterSpace.evaluate_linear_constraints` returns `A @ x - b`; a positive entry means the constraint is violated by that amount.
+
+```{code-cell} ipython3
+flow.evaluate_linear_constraints([5, 3])
+```
+
 ## Normalization
 
 Samplers explore a parameter in whatever coordinates it is declared in.
@@ -105,6 +117,8 @@ With the default `normalization=None`, that is physical units; when parameters s
 Passing `normalization="linear"`, `"log"`, or `"auto"` to {class}`~CADETProcess.parameter_space.RangedParameter` maps the parameter to $[0, 1]$ before sampling; `"auto"` switches between linear and log scaling based on the ratio of the bounds.
 
 ```{code-cell} ipython3
+from CADETProcess.parameter_space import HopsySampler
+
 wide = ParameterSpace()
 wide.add_evaluation_object(Column())
 wide.add_parameter(RangedParameter("length", float, lb=0.1, ub=1.0), path="length")

@@ -51,16 +51,29 @@ To install Ax as an optional dependency of CADET-Process, use the following comm
 pip install cadet-process[ax]
 ```
 
-## Advanced Configuration
+## Configuring OptimizationProblem
+
+Further optimizer-facing options: multi-objective handling and parallel batch evaluation.
+
 ```{toctree}
 :maxdepth: 2
 
-parallel_evaluation
-evaluator
 multi_objective_optimization
+parallel_evaluation
+```
+
+## Design-Space Tools
+
+{class}`~CADETProcess.parameter_space.ParameterSpace`, {class}`~CADETProcess.metric_space.MetricSpace`, {class}`~CADETProcess.evaluation_pipeline.EvaluationPipeline`, and {class}`~CADETProcess.problem.Problem` work independently of any optimizer.
+`OptimizationProblem` is built on top of them, but they are directly usable for sampling, sensitivity analysis, design-space exploration, and surrogate training on their own.
+
+```{toctree}
+:maxdepth: 2
+
+parameter_space
 variable_indices
 variable_normalization
 variable_dependencies
-parameter_space
+evaluator
 problem
 ```

@@ -151,27 +151,8 @@ For more complicated scenarios that require (multiple) preprocessing steps, refe
 
 ## Linear constraints
 
-Linear constraints are a common way to restrict the feasible region of an optimization problem.
-They are typically defined using linear functions of the optimization:
-
-$$
-A \cdot x \leq b,
-$$
-
-where $A$ is an $m \times n$ coefficient matrix and $b$ is an $m$-dimensional vector and $m$ denotes the number of constraints, and $n$ the number of variables, respectively.
-
-In **CADET-Process**, each row $a$ of the constraint matrix needs to be added individually.
-The {meth}`~CADETProcess.optimization.OptimizationProblem.add_linear_constraint` function takes the variables subject to the constraint as first argument.
-The left-hand side $a$ and the bound $b_a$ are passed as second and third argument.
-It is important to note that the column order in $a$ is inferred from the order in which the optimization variables are passed.
-
-For example, consider the following linear inequalities as constraints:
-
-$$
-x_1 + x_3 ≤ 4, \\
-2x_2 – x_3 ≥ –2, \\
-x_1 – x_2 + x_3 – x_4 ≥ 9.
-$$
+{meth}`~CADETProcess.optimization.OptimizationProblem.add_linear_constraint` restricts the feasible region beyond the box bounds, by name-resolving the given variables and forwarding to the underlying {class}`~CADETProcess.parameter_space.ParameterSpace`.
+The concept, the coefficient matrix (`A`/`b`), and `evaluate_linear_constraints` are covered directly on `ParameterSpace` in {ref}`parameter_space_guide`, since a linear constraint restricts the input domain and has no optimizer-specific behavior.
 
 ```{code-cell} ipython3
 :tags: [hide-cell]
@@ -180,29 +161,14 @@ optimization_problem = OptimizationProblem('linear_constraints')
 
 optimization_problem.add_variable('var_1')
 optimization_problem.add_variable('var_2')
-optimization_problem.add_variable('var_3')
-optimization_problem.add_variable('var_4')
 ```
 
 ```{code-cell} ipython3
-optimization_problem.add_linear_constraint(['var_1', 'var_3'], [1, 1], 4)
-optimization_problem.add_linear_constraint(['var_2', 'var_3'], [-2, 1], 2)
-optimization_problem.add_linear_constraint(['var_1', 'var_2', 'var_3', 'var_4'], [-1, 1, -1, 1], -9)
+optimization_problem.add_linear_constraint(['var_1', 'var_2'], [1, -1], 0)
+optimization_problem.check_linear_constraints([5, 3])
 ```
 
-The combined coefficient matrix $A$ is stored in the attribute {attr}`~CADETProcess.optimization.OptimizationProblem.A`, and the right-hand side vector $b$ in {attr}`~CADETProcess.optimization.OptimizationProblem.b`.
-To evaluate linear constraints, use {meth}`~CADETProcess.optimization.OptimizationProblem.evaluate_linear_constraints`.
-
-```{code-cell} ipython3
-optimization_problem.evaluate_linear_constraints([0, 0, 0, 0])
-```
-
-Any value larger than $0$ means the constraint is not met.
-Alternatively, use {meth}`~CADETProcess.optimization.OptimizationProblem.check_linear_constraints` which returns `True` if all constraints are met (`False` otherwise).
-
-```{code-cell} ipython3
-optimization_problem.check_linear_constraints([0, 0, 0, 0])
-```
+{meth}`~CADETProcess.optimization.OptimizationProblem.check_linear_constraints` is the one addition on top of `ParameterSpace`'s own methods: a boolean convenience wrapping `evaluate_linear_constraints`, with a `tol` argument.
 
 (nonlinear_constraints_guide)=
 ## Nonlinear constraints
