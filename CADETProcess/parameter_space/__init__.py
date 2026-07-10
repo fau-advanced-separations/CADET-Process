@@ -1,3 +1,66 @@
+"""
+===========================================================
+Parameter Space (:mod:`CADETProcess.parameter_space`)
+===========================================================
+
+.. currentmodule:: CADETProcess.parameter_space
+
+``ParameterSpace`` defines a feasible input domain and writes parameter
+values into evaluation objects.  It is the foundation
+``OptimizationProblem`` builds on, but is also directly usable on its own
+for design-of-experiments studies, surrogate training data, and
+sensitivity screenings.
+
+Space
+=====
+.. autosummary::
+    :toctree: generated/
+
+    ParameterSpace
+    TransformedSpace
+
+Parameters
+==========
+.. autosummary::
+    :toctree: generated/
+
+    ParameterBase
+    RangedParameter
+    ChoiceParameter
+
+Sampling
+========
+.. autosummary::
+    :toctree: generated/
+
+    SamplerBase
+    HopsySampler
+    LatinHypercubeSampler
+    SobolSampler
+    chebyshev_center
+
+Constraints and Dependencies
+=============================
+.. autosummary::
+    :toctree: generated/
+
+    LinearConstraint
+    LinearEqualityConstraint
+    ParameterDependency
+
+Mappers
+=======
+.. autosummary::
+    :toctree: generated/
+
+    ParameterMapperBase
+    DotPathMapper
+    IndexedMapper
+    CallableMapper
+    parse_path
+
+"""  # noqa
+
 from CADETProcess.parameter_space.constraints import (
     LinearConstraint,
     LinearEqualityConstraint,
