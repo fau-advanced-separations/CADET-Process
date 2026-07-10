@@ -133,29 +133,18 @@ In each of these, a positive entry means the constraint is violated by that amou
 {attr}`Population.cv <CADETProcess.optimization.Population.cv>` concatenates all four blocks into a single `(n, k)` matrix in that fixed order (bounds, linear inequality, linear equality, nonlinear).
 The column index alone does not identify which constraint kind or which variable/constraint it belongs to, so prefer the block-specific arrays above, or {meth}`~CADETProcess.optimization.Population.is_feasible` and the {attr}`~CADETProcess.optimization.Population.feasible`/{attr}`~CADETProcess.optimization.Population.infeasible` properties, over indexing into `cv` directly.
 
-(population_named_access_guide)=
 ### Named access
 
-Alongside the flat `x`/`f`/`g` projections, {class}`~CADETProcess.optimization.Population` stores every evaluated point as named columns: {attr}`~CADETProcess.optimization.Population.X` maps each parameter name to its `(n,)` column, and {attr}`~CADETProcess.optimization.Population.metrics` maps each declared metric name to its `(n, *shape)` column.
-This is the same storage `x`/`f`/`g` project from; named access is useful when a result needs to be traced back to a specific parameter or metric rather than a bare column index.
+Alongside the flat `x`/`f`/`g` projections above, {class}`~CADETProcess.optimization.Population` also stores every evaluated point as named columns (`X`, `metrics`), with row-level access via {class}`~CADETProcess.optimization.IndividualView`.
+The same accessors work directly on the result of an optimization run.
 
 ```{code-cell} ipython3
 population = optimization_results.population_all
 population.X['x_0'][:5]
 ```
 
-Indexing a `Population` with an integer returns an {class}`~CADETProcess.optimization.IndividualView`, a row lens exposing the same `X`/`metrics` accessors scoped to that one row.
-
-```{code-cell} ipython3
-population[0].X
-```
-
-```{code-cell} ipython3
-population[0].metrics
-```
-
-`Population` can also be built directly from named data, without running an optimization: {meth}`~CADETProcess.optimization.Population.from_records` takes an iterable of `{"X": ..., "metrics": ...}` records, and {meth}`~CADETProcess.optimization.Population.from_sample` builds a one-row population from a single sample.
-This is how {class}`~CADETProcess.problem.Problem` results are turned into a `Population` for design-space exploration and sampling, covered in {ref}`problem_guide`.
+`Population` is a general-purpose store, not an optimizer artifact: it is built the same way from sampled or surrogate-training data, with no optimizer involved.
+See {ref}`problem_guide` for the full walkthrough, including {class}`~CADETProcess.optimization.IndividualView` and building a `Population` from scratch with `from_records`/`from_sample`.
 
 Moreover, multiple plot methods are provided to visualize the results.
 The {meth}`~CADETProcess.optimization.OptimizationResults.plot_objectives` method shows the values of all objectives as a function of the input variables using a colormap where later generations are plotted with darker blueish colors.
