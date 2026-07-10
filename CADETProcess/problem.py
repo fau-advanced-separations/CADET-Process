@@ -1,4 +1,9 @@
-"""Problem: parameter space, metric space, and evaluation backend.
+"""
+=========================================
+Problem (:mod:`CADETProcess.problem`)
+=========================================
+
+.. currentmodule:: CADETProcess.problem
 
 ``Problem`` is the general problem description, independent of any
 optimizer: a ``ParameterSpace`` (input domain), a ``MetricSpace`` (output
@@ -11,7 +16,14 @@ policy.
 Discipline rule: if a sampler or surrogate would not call it, it does not
 go on ``Problem``.  Direction-aware evaluation, ``bad_metrics``
 substitution, and callbacks belong to ``OptimizationProblem``.
-"""
+
+.. autosummary::
+    :toctree: generated/
+
+    Problem
+    EvaluationBackend
+
+"""  # noqa
 
 from __future__ import annotations
 

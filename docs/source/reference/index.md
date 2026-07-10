@@ -15,6 +15,10 @@ While we try our best to keep everything stable, changes in the API can occur at
 - {mod}`CADETProcess.simulator`
 - {mod}`CADETProcess.comparison`
 - {mod}`CADETProcess.optimization`
+- {mod}`CADETProcess.parameter_space`
+- {mod}`CADETProcess.metric_space`
+- {mod}`CADETProcess.evaluation_pipeline`
+- {mod}`CADETProcess.problem`
 - {mod}`CADETProcess.fractionation`
 - {mod}`CADETProcess.stationarity`
 - {mod}`CADETProcess.performance`
@@ -42,6 +46,10 @@ simulationResults
 simulator
 comparison
 optimization
+parameter_space
+metric_space
+evaluation_pipeline
+problem
 fractionation
 stationarity
 performance

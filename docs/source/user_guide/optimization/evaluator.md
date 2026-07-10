@@ -218,3 +218,71 @@ optimization_problem = OptimizationProblem('cached', cache_directory='/tmp/my_ca
 
 The disk cache stores results as pickled files and survives process restarts.
 For most interactive workflows, the default in-memory cache is sufficient.
+
+### Bypassing the cache
+
+A cached result is occasionally suspect: a simulation may have failed for a transient reason (a solver hiccup, a full disk) that would not reproduce on retry, yet the failure is cached like any other result.
+`bypass_cache` on the underlying {class}`~CADETProcess.evaluation_pipeline.EvaluationPipeline` forces a fresh computation for one call, reachable from an {class}`~CADETProcess.optimization.OptimizationProblem` via its `backend` property.
+
+```{code-cell} ipython3
+:tags: [hide-cell]
+
+optimization_problem = OptimizationProblem('bypass_cache_demo')
+optimization_problem.add_variable('x')
+
+calls = []
+
+def flaky_simulate(x):
+    calls.append(x)
+    return x * 2
+
+optimization_problem.add_evaluator(flaky_simulate)
+
+def objective(result):
+    return result
+
+optimization_problem.add_objective(objective, requires=[flaky_simulate])
+```
+
+Repeated calls at the same point hit the cache; `flaky_simulate` runs only once.
+
+```{code-cell} ipython3
+optimization_problem.evaluate_objectives(3)
+optimization_problem.evaluate_objectives(3)
+len(calls)
+```
+
+Passing `bypass_cache=True` to the pipeline's `evaluate` forces this one call to recompute every node, without touching the existing cache entry: later calls at the same point still hit the cache as before.
+
+```{code-cell} ipython3
+optimization_problem.backend.evaluate({'x': 3}, bypass_cache=True)
+len(calls)
+```
+
+## Standalone use
+
+Everything above goes through {class}`~CADETProcess.optimization.OptimizationProblem`'s convenience wrappers: `add_evaluator`, `add_evaluation_object`, and `add_objective` all register nodes on an internal {class}`~CADETProcess.evaluation_pipeline.EvaluationPipeline` (reachable via `backend`, as seen above).
+The pipeline is also directly usable with a bare {class}`~CADETProcess.parameter_space.ParameterSpace` (see {ref}`parameter_space_guide`), with no objectives, constraints, or optimizer involved.
+This is useful for a one-off evaluation, or for evaluating samples drawn from the space (see {ref}`problem_guide` for the batch entry point built on top of it).
+
+```{code-cell} ipython3
+from dataclasses import dataclass
+
+from CADETProcess.parameter_space import ParameterSpace, RangedParameter
+from CADETProcess.evaluation_pipeline import EvaluationPipeline
+
+@dataclass
+class Column:
+    length: float = 0.5
+
+column = Column()
+space = ParameterSpace()
+space.add_evaluation_object(column)
+space.add_parameter(RangedParameter('length', float, lb=0.1, ub=10.0), path='length')
+
+pipeline = EvaluationPipeline(space)
+pipeline.add_evaluator(lambda col: col.length ** 2, output_name='length_squared')
+pipeline.evaluate({'length': 3})
+```
+
+Unlike `OptimizationProblem.add_evaluator`, which derives `output_name` from the function's own name, {meth}`~CADETProcess.evaluation_pipeline.EvaluationPipeline.add_evaluator` takes it explicitly: standalone use has no problem-level bookkeeping to derive a name from.

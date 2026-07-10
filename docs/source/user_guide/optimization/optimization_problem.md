@@ -132,6 +132,9 @@ optimization_problem.n_objectives
 
 For more information on multi-objective optimization, also refer to {ref}`moo_guide`.
 
+When no `name` is given, `add_objective` derives one from the callable (its `__name__`, sanitized into a valid Python identifier): a bare `lambda` becomes `_lambda_`.
+The same rule applies to {meth}`~CADETProcess.optimization.OptimizationProblem.add_evaluator` and to callbacks, since metric, evaluator, and callback names all share the pipeline's output namespace.
+
 The objective(s) can be evaluated with the {meth}`~CADETProcess.optimization.OptimizationProblem.evaluate_objectives` method.
 
 ```{code-cell} ipython3
