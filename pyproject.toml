@@ -70,6 +70,11 @@ ax = [
 ipopt = [
     "cyipopt",
 ]
+bofire = [
+    "bofire[optimization] >=0.4",
+]
+# bofire is kept out of `all`: its botorch floor (>=0.18) conflicts with the ax
+# version cap, so ax and bofire cannot be resolved into the same environment.
 all = [
    "CADET-Process[ax,ipopt]",
 ]
