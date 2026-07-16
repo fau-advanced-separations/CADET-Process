@@ -207,6 +207,27 @@ def test_different_x_invalidates_cache(single_space):
     assert r1["result"] != r2["result"]
 
 
+def test_evaluate_leaves_no_manager_process(single_space):
+    """Building and evaluating a pipeline must not leak a SyncManager process.
+
+    A process-shared cache backs its dict with a ``multiprocessing.Manager``,
+    whose SyncManager process is never torn down and deadlocks interpreter exit
+    on Python 3.12.  The cache must stay in-process.
+    """
+    import multiprocessing as mp
+
+    def _managers() -> list:
+        return [
+            p for p in mp.active_children() if type(p).__name__ == "SyncManager"
+        ]
+
+    before = len(_managers())
+    pipeline = EvaluationPipeline(single_space)
+    pipeline.add_evaluator(lambda model: model.value, output_name="result")
+    pipeline.evaluate({})
+    assert len(_managers()) == before
+
+
 def test_evaluate_rejects_vector_pointing_at_decode(single_space):
     pipeline = EvaluationPipeline(single_space)
     pipeline.add_evaluator(lambda model: model.value, output_name="v")

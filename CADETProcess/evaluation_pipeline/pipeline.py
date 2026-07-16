@@ -289,13 +289,25 @@ class EvaluationPipeline:
                 self._pipeline = Pipeline(
                     list(self._nodes),
                     cache_type="disk",
-                    cache_kwargs={"cache_dir": str(self._cache_dir)},
+                    # lru_shared=False keeps the in-memory LRU a plain dict; the
+                    # shared variant backs it with a multiprocessing.Manager
+                    # process that is never torn down and deadlocks interpreter
+                    # exit on Python 3.12.  A process-shared cache buys nothing
+                    # here: parallelism is per-individual, so each worker holds
+                    # its own pipeline copy.
+                    cache_kwargs={
+                        "cache_dir": str(self._cache_dir),
+                        "lru_shared": False,
+                    },
                     validate_type_annotations=False,
                 )
             else:
                 self._pipeline = Pipeline(
                     list(self._nodes),
                     cache_type="hybrid",
+                    # shared=False: plain in-process dict instead of a
+                    # Manager-backed one.  See the disk branch above.
+                    cache_kwargs={"shared": False},
                     validate_type_annotations=False,
                 )
             _guard_recoverable_writes(self._pipeline.cache)
