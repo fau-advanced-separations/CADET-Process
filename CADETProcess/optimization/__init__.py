@@ -67,6 +67,14 @@ Ax
    GPEI
    NEHVI
 
+BoFire
+------
+
+.. autosummary::
+   :toctree: generated/
+
+   BoFire
+
 Population
 ==========
 .. autosummary::
@@ -114,6 +122,13 @@ try:
 except ImportError:
     ax_imported = False
 
+try:
+    from .bofireAdapter import BoFire
+
+    bofire_imported = True
+except ImportError:
+    bofire_imported = False
+
 
 def __getattr__(name):
     if name in ("BotorchModular", "GPEI", "NEHVI", "qNParEGO"):
@@ -125,6 +140,16 @@ def __getattr__(name):
                 "The AxInterface class could not be imported. "
                 "This may be because the 'ax' package, which is an optional dependency, is not installed. "
                 "To install it, run 'pip install CADET-Process[ax]'"
+            )
+    if name == "BoFire":
+        if bofire_imported:
+            module = importlib.import_module("bofireAdapter", package=__name__)
+            return getattr(module, name)
+        else:
+            raise ImportError(
+                "The BoFire class could not be imported. "
+                "This may be because the 'bofire' package, which is an optional dependency, is not installed. "
+                "To install it, run 'pip install CADET-Process[bofire]'"
             )
     if name == "IPOPT":
         if ipopt_imported:
