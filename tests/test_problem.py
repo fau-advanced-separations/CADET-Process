@@ -413,6 +413,36 @@ def test_evaluate_batch_dispatches_rows_via_parallelization_backend(
     assert results[1]["squared"] == pytest.approx(0.25)
 
 
+def test_evaluate_batch_reuses_cache_across_sequential_calls():
+    """A later batch must reuse results computed by an earlier one.
+
+    Guards the in-process cache persistence that lets sequential batch
+    evaluations reuse previously computed results.  This is the property that
+    makes disabling the process-shared cache (``shared=False``) free of cost
+    for sequential use.
+    """
+    call_count = 0
+
+    def expensive(assignment):
+        nonlocal call_count
+        call_count += 1
+        return assignment["v"] ** 2
+
+    parameter_space = ParameterSpace()
+    parameter_space.add_parameter(RangedParameter("v", float, lb=0.0, ub=1.0))
+    pipeline = EvaluationPipeline(parameter_space)
+    pipeline.add_evaluator(expensive, output_name="squared")
+    metric_space = MetricSpace()
+    metric_space.add_objective(Metric("squared"))
+    problem = Problem(parameter_space, metric_space, backend=pipeline)
+
+    problem.evaluate_batch([{"v": 0.2}, {"v": 0.5}])
+    assert call_count == 2
+    # Second batch: 0.2 repeats the first batch (cache hit), 0.7 is new.
+    problem.evaluate_batch([{"v": 0.2}, {"v": 0.7}])
+    assert call_count == 3
+
+
 def test_evaluate_batch_unknown_target_raises_before_dispatch(
     yield_and_purity_space,
 ):
