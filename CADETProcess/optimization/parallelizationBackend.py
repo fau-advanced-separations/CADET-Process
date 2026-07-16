@@ -1,6 +1,8 @@
 import multiprocessing
+import warnings
 from abc import abstractmethod
 from collections.abc import Iterable
+from typing import Any
 
 from CADETProcess.dataStructure import (
     Constant,
@@ -181,7 +183,22 @@ except ModuleNotFoundError:
 
 
 class Pathos(ParallelizationBackendBase):
-    """Parallelization backend using the pathos library."""
+    """
+    Parallelization backend using the pathos library.
+
+    .. deprecated:: 0.13
+        Use the default :class:`Joblib` backend instead. ``Pathos`` will be
+        removed in v0.14, and the ``pathos`` dependency dropped with it.
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        warnings.warn(
+            "The Pathos backend is deprecated and will be removed in v0.14. "
+            "Use the default Joblib backend instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
 
     def evaluate(self, function: callable, population: Iterable) -> list:
         """

@@ -157,6 +157,18 @@ class TestBackendShutdown(unittest.TestCase):
             backend.shutdown()
 
 
+class TestPathosDeprecation(unittest.TestCase):
+    """Pathos is deprecated in favor of Joblib and slated for removal in v0.14."""
+
+    def test_instantiation_warns(self):
+        try:
+            from CADETProcess.optimization import Pathos
+        except ImportError:
+            self.skipTest("pathos not installed")
+        with self.assertWarns(DeprecationWarning):
+            Pathos()
+
+
 class TestOptimizerParallelizationBackend(unittest.TestCase):
     """Test parallel backends in optimizer.
 
