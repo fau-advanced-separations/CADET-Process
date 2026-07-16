@@ -292,6 +292,7 @@ class OptimizerBase(Structure):
                 )
         finally:
             plt.switch_backend(backend)
+            self.parallelization_backend.shutdown()
 
         return self.results
 

@@ -63,6 +63,17 @@ class ParallelizationBackendBase(Structure):
         """
         pass
 
+    def shutdown(self) -> None:
+        """
+        Release any persistent worker resources held by the backend.
+
+        Called once at the end of an optimization run. Backends that keep a
+        worker pool alive across generations override this to tear it down;
+        the default is a no-op. Must be safe to call repeatedly and without a
+        prior ``evaluate``.
+        """
+        pass
+
     def __str__(self) -> str:
         """Return the class name as a string."""
         return self.__class__.__name__
@@ -154,6 +165,12 @@ class Joblib(ParallelizationBackendBase):
 
         return results
 
+    def shutdown(self) -> None:
+        """Shut down joblib's reusable (loky) worker pool."""
+        from joblib.externals.loky import get_reusable_executor
+
+        get_reusable_executor().shutdown(wait=True)
+
 
 try:
     import pathos
@@ -182,6 +199,15 @@ class Pathos(ParallelizationBackendBase):
         list
             List of results of function evaluations.
         """
-        with pathos.pools.ProcessPool(ncpus=self.n_cores) as pool:
-            results = pool.map(function, population)
-        return results
+        pool = getattr(self, "_pool", None)
+        if pool is None:
+            pool = self._pool = pathos.pools.ProcessPool(ncpus=self.n_cores)
+        return pool.map(function, population)
+
+    def shutdown(self) -> None:
+        """Terminate and release the cached worker pool."""
+        pool = getattr(self, "_pool", None)
+        if pool is not None:
+            pool.terminate()
+            pool.clear()
+            self._pool = None

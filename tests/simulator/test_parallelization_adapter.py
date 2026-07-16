@@ -100,6 +100,7 @@ class TestParallelEvaluation(unittest.TestCase):
                 backend.n_cores = n_cores
             results = backend.evaluate(evaluation_function, [0.01] * 4)
             self.assertTrue(all(results))
+            backend.shutdown()
 
     @unittest.skipIf(found_cadet is False, "Skip if CADET is not installed.")
     def test_parallel_cadet_initialization(self):
@@ -124,6 +125,36 @@ class TestParallelEvaluation(unittest.TestCase):
             results = backend.evaluate(evaluation_function, [0.01] * 4)
 
             self.assertTrue(all(results))
+            backend.shutdown()
+
+
+class TestBackendShutdown(unittest.TestCase):
+    """Shutdown releases the worker pool without breaking reuse.
+
+    The pool is kept alive across an optimization's generations and torn down
+    once at the end; shutdown must therefore be safe to call before any
+    evaluation, be idempotent, and leave the backend usable again afterwards.
+    """
+
+    def test_sequential_shutdown_is_noop(self):
+        SequentialBackend().shutdown()
+
+    def test_shutdown_before_evaluate_does_not_raise(self):
+        for Backend in parallel_backends:
+            Backend(n_cores=n_cores).shutdown()
+
+    def test_shutdown_is_idempotent_and_pool_is_reusable(self):
+        for Backend in parallel_backends:
+            backend = Backend(n_cores=n_cores)
+
+            self.assertTrue(all(backend.evaluate(bool, [1, 1])))
+
+            backend.shutdown()
+            backend.shutdown()
+
+            # The pool is transparently recreated after teardown.
+            self.assertTrue(all(backend.evaluate(bool, [1, 1])))
+            backend.shutdown()
 
 
 class TestOptimizerParallelizationBackend(unittest.TestCase):
