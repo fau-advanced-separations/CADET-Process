@@ -23,12 +23,12 @@ In this tutorial, the parallelization backend module of **CADET-Process** is int
 This module allows choosing between different parallelization strategies, each tailored to suit different hardware configuration and optimization needs.
 By selecting an appropriate backend, the workload can efficiently be distributed across multiple cores, reducing the time required for function evaluations and improving overall optimization performance.
 
-The parallelization backend module consists of four classes:
+The parallelization backend module consists of three classes:
 - {class}`~CADETProcess.optimization.ParallelizationBackendBase`: This class serves as the base for all parallelization backend adapters.
   It provides common attributes and methods that any parallelization backend must implement, such as {attr}`~CADETProcess.optimization.ParallelizationBackendBase.n_cores`, the number of cores to be used for parallelization.
 - {class}`~CADETProcess.optimization.SequentialBackend`: This backend is designed for cases where parallel execution is not desired or not possible.
   It evaluates the target function sequentially, one individual at a time, making it useful for single-core processors or when parallelization is not beneficial.
-- {class}`~CADETProcess.optimization.Joblib`, and {class}`~CADETProcess.optimization.Pathos`: Parallel backends allowing users to leverage multiple cores efficiently for function evaluations.
+- {class}`~CADETProcess.optimization.Joblib`: Parallel backend allowing users to leverage multiple cores efficiently for function evaluations.
 
 All backends implement a {meth}`~CADETProcess.optimization.ParallelizationBackendBase.evaluate` method which takes a function (callable) and a population (Iterable) as input.
 This method maps the provided function over the elements of the population array and returns a list containing the results of the function evaluations for each element.
