@@ -8,6 +8,7 @@ from functools import wraps
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 from pipefunc import PipeFunc, Pipeline
 
 from CADETProcess.parameter_space.space import ParameterSpace
@@ -70,12 +71,34 @@ def _validate_identifier(name: str) -> None:
         raise ValueError(f"{name!r} is not a valid Python identifier")
 
 
-def _wrap_with_failure_propagation(func: Callable, stage: str) -> Callable:
+def _find_failure(value: Any, collects: bool) -> EvaluationFailure | None:
+    """Return a propagating failure found in *value*, else None.
+
+    A scalar argument is a failure when it is itself an `EvaluationFailure`.
+    A fan-in node (`collects`) also fails when any element of its mapped input
+    array is one: a failed object must fail the aggregate (the `bad_metrics`
+    default) rather than reach the user reducer as a sentinel among floats.
+    The array scan is gated on `collects` so per-object nodes never iterate a
+    large numeric data array looking for sentinels that cannot be there.
+    """
+    if isinstance(value, EvaluationFailure):
+        return value
+    if collects and isinstance(value, np.ndarray):
+        for element in value.ravel():
+            if isinstance(element, EvaluationFailure):
+                return element
+    return None
+
+
+def _wrap_with_failure_propagation(
+    func: Callable, stage: str, collects: bool = False
+) -> Callable:
     """Return a wrapper that propagates EvaluationFailure and catches exceptions.
 
-    If any positional or keyword argument is an `EvaluationFailure`, that failure
-    is returned immediately without calling `func`.  Otherwise `func` is called
-    normally; any exception is caught and returned as a new `EvaluationFailure`.
+    If any argument is an `EvaluationFailure` (or, for a `collects` fan-in node,
+    contains one in its mapped array), that failure is returned immediately
+    without calling `func`.  Otherwise `func` is called normally; any exception
+    is caught and returned as a new `EvaluationFailure`.
 
     Unclassified exceptions default to `recoverable=True` (transient: do not
     cache), since a misclassified transient failure permanently poisons a
@@ -88,8 +111,9 @@ def _wrap_with_failure_propagation(func: Callable, stage: str) -> Callable:
     @wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         for v in (*args, *kwargs.values()):
-            if isinstance(v, EvaluationFailure):
-                return v
+            failure = _find_failure(v, collects)
+            if failure is not None:
+                return failure
         try:
             return func(*args, **kwargs)
         except Exception as e:
@@ -269,6 +293,7 @@ def _make_node(
     requires: list[str] | None,
     cache: bool = True,
     mapspec: str | None = None,
+    collects: bool = False,
 ) -> PipeFunc:
     """Build a `PipeFunc` node with failure propagation and optional arg injection.
 
@@ -276,8 +301,13 @@ def _make_node(
     under a mapspec, whole values otherwise).  A root node (``requires is None``)
     consumes the object context: the ``evaluation_contexts`` axis when it is
     mapped, or the legacy per-object ``_CONTEXT_ARG`` root when it is not.
+
+    ``collects`` marks a mapped fan-in node (whole-value consumer of a mapped
+    axis): its wrapper scans its input array and propagates a failure if any
+    object failed, so a failed object fails the aggregate rather than reaching
+    the user reducer as a sentinel among floats.
     """
-    safe = _wrap_with_failure_propagation(func, stage=output_name)
+    safe = _wrap_with_failure_propagation(func, stage=output_name, collects=collects)
     if requires is not None:
         node_func = _make_injection_wrapper(safe, requires)
     elif mapspec is not None:
@@ -501,6 +531,7 @@ class EvaluationPipeline:
         graph.
         """
         self._effective_mapspecs = self._resolve_mapspecs()
+        mapped = self._is_mapped
         nodes = [
             _make_node(
                 s.func,
@@ -508,10 +539,17 @@ class EvaluationPipeline:
                 s.requires,
                 cache=s.cache,
                 mapspec=self._effective_mapspecs[s.output_name],
+                # A mapped whole-value consumer (mapspec None, has upstreams) is
+                # a fan-in: scan its input array for failed objects.
+                collects=(
+                    mapped
+                    and self._effective_mapspecs[s.output_name] is None
+                    and s.requires is not None
+                ),
             )
             for s in self._specs
         ]
-        if not self._is_mapped:
+        if not mapped:
             return nodes
         return [_make_set_values_node(self._space), *nodes]
 
