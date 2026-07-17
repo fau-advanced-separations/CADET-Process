@@ -155,6 +155,49 @@ def _guard_recoverable_writes(cache: Any) -> None:
     cache.put = put
 
 
+_EVALUATION_CONTEXTS = "evaluation_contexts"
+
+
+def _make_set_values_node(space: ParameterSpace) -> PipeFunc:
+    """Build the unmapped root node that writes ``x`` and emits the context sequence.
+
+    The node takes the assignment mapping ``x`` (the genuine graph root), writes
+    it into every evaluation object via ``space.set_values``, and returns an
+    ordered ``list[_EvaluationContext]`` carrying the live configured objects.
+    Downstream mapped nodes introduce the ``object`` axis by indexing this
+    sequence; the node itself is unmapped, so ``set_values`` runs once per call,
+    not once per object (the single-write-path invariant).
+
+    The closure captures only *space*, never the pipeline or ``OptimizationProblem``
+    (the anti-recursion invariant), which is what the space-owned per-object UUID
+    makes possible.
+
+    ``cache=False``: the node mutates shared objects, so a cache hit would return
+    stale-state references; re-running every call preserves current behavior and
+    costs nothing (the simulation caches downstream).
+    """
+
+    def set_values(x: Mapping[str, Any]) -> list[_EvaluationContext]:
+        space.set_values(x)
+        x_key: tuple = tuple(
+            (p.name, x[p.name]) for p in space.independent_parameters
+        )
+        objs = space.evaluation_objects
+        if not objs:
+            # Objectless mode is one sentinel context, not an empty axis: an
+            # empty fan would leave a downstream scalar reducer with nothing.
+            return [_EvaluationContext(x_key, dict(x), _NO_OBJECT_UUID)]
+        return [
+            _EvaluationContext(x_key, obj, space.evaluation_object_uuid(obj))
+            for obj in objs
+        ]
+
+    set_values.__signature__ = inspect.Signature(
+        [inspect.Parameter("x", inspect.Parameter.POSITIONAL_OR_KEYWORD)]
+    )
+    return PipeFunc(set_values, output_name=_EVALUATION_CONTEXTS, cache=False)
+
+
 def _make_node(
     func: Callable,
     output_name: str,

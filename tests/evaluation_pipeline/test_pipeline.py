@@ -710,3 +710,84 @@ def test_subset_empty_list_raises(two_space):
     pipeline.add_evaluator(lambda model: model.value, output_name="v")
     with pytest.raises(ValueError, match="must not be empty"):
         pipeline.evaluate({}, evaluation_objects=[])
+
+
+# ── set_values root node ──────────────────────────────────────────────────────
+# The node factory is standalone infrastructure for mapped execution: it is not
+# yet wired into the live graph, so these tests exercise it directly.
+
+
+def _with_value_param(space: ParameterSpace) -> ParameterSpace:
+    from CADETProcess.parameter_space.parameters import RangedParameter
+
+    space.add_parameter(RangedParameter("v", float, lb=0.0, ub=10.0), path="value")
+    return space
+
+
+def test_set_values_node_output_name_and_uncached(single_space):
+    from CADETProcess.evaluation_pipeline.pipeline import (
+        _EVALUATION_CONTEXTS,
+        _make_set_values_node,
+    )
+
+    node = _make_set_values_node(single_space)
+    assert node.output_name == _EVALUATION_CONTEXTS
+    assert node.cache is False
+
+
+def test_set_values_node_emits_context_per_object_in_order(two_space, two_models):
+    from CADETProcess.evaluation_pipeline.pipeline import (
+        _EvaluationContext,
+        _make_set_values_node,
+    )
+
+    _with_value_param(two_space)
+    node = _make_set_values_node(two_space)
+
+    contexts = node(x={"v": 3.0})
+
+    assert [type(c) for c in contexts] == [_EvaluationContext, _EvaluationContext]
+    # Object-major order follows registration order, and the contexts carry the
+    # live objects, not copies.
+    assert [c.obj for c in contexts] == list(two_models)
+    assert contexts[0].obj is two_models[0]
+
+
+def test_set_values_node_writes_x_into_objects(two_space, two_models):
+    from CADETProcess.evaluation_pipeline.pipeline import _make_set_values_node
+
+    _with_value_param(two_space)
+    node = _make_set_values_node(two_space)
+
+    node(x={"v": 3.0})
+
+    assert [m.value for m in two_models] == [3.0, 3.0]
+
+
+def test_set_values_node_uuids_match_space(two_space, two_models):
+    from CADETProcess.evaluation_pipeline.pipeline import _make_set_values_node
+
+    _with_value_param(two_space)
+    node = _make_set_values_node(two_space)
+
+    contexts = node(x={"v": 3.0})
+
+    expected = [two_space.evaluation_object_uuid(m) for m in two_models]
+    assert [c._uuid for c in contexts] == expected
+    assert contexts[0]._uuid != contexts[1]._uuid
+
+
+def test_set_values_node_objectless_is_single_sentinel_context():
+    from CADETProcess.evaluation_pipeline.pipeline import (
+        _NO_OBJECT_UUID,
+        _make_set_values_node,
+    )
+
+    space = ParameterSpace()  # no evaluation objects
+    node = _make_set_values_node(space)
+
+    contexts = node(x={})
+
+    assert len(contexts) == 1
+    assert contexts[0]._uuid == _NO_OBJECT_UUID
+    assert contexts[0].obj == {}
