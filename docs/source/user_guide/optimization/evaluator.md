@@ -104,6 +104,8 @@ optimization_problem.add_variable('flow_sheet.column.total_porosity')
 optimization_problem.add_variable('flow_sheet.column.length', evaluation_objects=[process_a])
 ```
 
+The order in which evaluation objects are listed in a declaration carries no meaning: results and labels always follow the order in which the objects were added to the problem, so `evaluation_objects=[process_b, process_a]` and `evaluation_objects=[process_a, process_b]` declare the same thing.
+
 (evaluators_guide)=
 ## Evaluators
 
@@ -202,6 +204,69 @@ def compute_yield(frac_result):
 
 optimization_problem.add_objective(compute_yield, requires=[simulate, fractionate])
 optimization_problem.evaluate_objectives(3)
+```
+
+(aggregation_guide)=
+## Aggregating over evaluation objects
+
+With multiple evaluation objects, every evaluator and objective runs once per object by default: an objective declared on two processes contributes two entries to the objective vector, and the problem is multi-objective.
+
+Sometimes the individual values are not the point and only a combination matters, such as the mean, a weighted sum, or the worst case across operating conditions.
+Declaring an objective with `per_object=False` turns it into a collector: it runs once, receives the complete array of its upstream evaluator's per-object results, and reduces it.
+The problem then stays single-objective, so cheaper single-objective optimizers apply where a multi-objective formulation would otherwise be needed.
+
+```{code-cell} ipython3
+:tags: [hide-cell]
+
+from dataclasses import dataclass
+
+@dataclass
+class OperatingPoint:
+    name: str
+    scale: float
+    concentration: float = 1.0
+
+    def __str__(self):
+        return self.name
+
+point_a = OperatingPoint('point_a', scale=1.0)
+point_b = OperatingPoint('point_b', scale=0.5)
+
+optimization_problem = OptimizationProblem('aggregation_demo')
+optimization_problem.add_evaluation_object(point_a)
+optimization_problem.add_evaluation_object(point_b)
+optimization_problem.add_variable('concentration', lb=0.1, ub=2.0)
+```
+
+```{code-cell} ipython3
+def simulate(operating_point):
+    return operating_point.concentration * operating_point.scale * 10
+
+optimization_problem.add_evaluator(simulate)
+
+def worst_yield(yields):
+    return min(yields)
+
+optimization_problem.add_objective(
+    worst_yield, requires=[simulate], minimize=False, per_object=False,
+)
+```
+
+`simulate` still runs once per evaluation object; only the objective collects.
+Despite two evaluation objects, the problem has a single objective:
+
+```{code-cell} ipython3
+optimization_problem.n_objectives
+```
+
+```{code-cell} ipython3
+optimization_problem.evaluate_objectives(1.0)
+```
+
+A collector needs an upstream evaluator to collect from, so `requires` is mandatory with `per_object=False`.
+
+```{note}
+When the evaluation of one object fails, the aggregated objective currently fails as a whole; the per-object fallback (`bad_metrics`) policy for aggregated objectives follows in a later release.
 ```
 
 ## Caching

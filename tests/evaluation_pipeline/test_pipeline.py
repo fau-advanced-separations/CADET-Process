@@ -878,14 +878,18 @@ def test_mapped_objectless_returns_single_result():
     assert not isinstance(results["doubled"], list)
 
 
-def test_mapped_graph_rejects_unmapped_root():
-    space = _make_space(Model(value=1.0))
+def test_mapped_graph_fans_undeclared_root_per_object():
+    # Per-object is the default semantic: a root without any declaration fans
+    # over the object axis when the graph is mapped, matching what the legacy
+    # loop would have computed for it.
+    space = _make_space(Model(value=1.0), Model(value=2.0))
     pipeline = EvaluationPipeline(space)
     _mapped_scaled(pipeline)
     pipeline.add_evaluator(lambda model: model.value, output_name="plain")
 
-    with pytest.raises(ValueError, match="unmapped root evaluator"):
-        pipeline.evaluate({})
+    results = pipeline.evaluate({})
+
+    assert results["plain"] == [1.0, 2.0]
 
 
 def test_mapped_subset_not_yet_supported():
@@ -908,8 +912,9 @@ def test_mapped_bypass_cache_not_yet_supported():
 
 
 # ── whole-value fan-in (reduction over the object axis) ───────────────────────
-# An unmapped node downstream of a mapped one receives the full per-object array
-# and reduces it to a single value.
+# A collector (per_object=False) runs once and receives the full per-object
+# array.  Collecting must be declared: an undeclared node runs per object (the
+# default), which is what forecloses the silent-fan-in trap.
 
 
 def test_fan_in_reduces_object_axis_to_scalar():
@@ -919,7 +924,8 @@ def test_fan_in_reduces_object_axis_to_scalar():
     pipeline.add_evaluator(
         lambda scaled: float(sum(scaled)) / len(scaled),
         output_name="mean_scaled",
-        requires=["scaled"],  # no mapspec: whole-value consumer
+        requires=["scaled"],
+        per_object=False,  # collector: receives the whole array
     )
 
     results = pipeline.evaluate({}, targets=["mean_scaled"])
@@ -936,6 +942,7 @@ def test_fan_in_worst_case_over_objects():
         lambda scaled: float(min(scaled)),
         output_name="worst",
         requires=["scaled"],
+        per_object=False,
     )
 
     results = pipeline.evaluate({}, targets=["worst"])
@@ -951,6 +958,7 @@ def test_mixed_mapped_and_fan_in_targets_in_one_call():
         lambda scaled: float(sum(scaled)),
         output_name="total",
         requires=["scaled"],
+        per_object=False,
     )
 
     results = pipeline.evaluate({}, targets=["scaled", "total"])
@@ -958,3 +966,113 @@ def test_mixed_mapped_and_fan_in_targets_in_one_call():
     # The mapped target keeps its per-object list; the fan-in collapses to a scalar.
     assert results["scaled"] == [10.0, 20.0]
     assert results["total"] == pytest.approx(30.0)
+
+
+# ── per_object facade semantics ───────────────────────────────────────────────
+# per_object=False declares a collector; effective mapspec strings are then
+# generated centrally at build time, so no node needs a hand-written string.
+
+
+def test_collector_engages_mapped_execution_without_any_mapspec():
+    space = _make_space(Model(value=1.0), Model(value=4.0))
+    pipeline = EvaluationPipeline(space)
+    pipeline.add_evaluator(lambda model: model.value * 10, output_name="sim")
+    pipeline.add_evaluator(lambda sim: sim + 1, output_name="metric", requires=["sim"])
+    pipeline.add_evaluator(
+        lambda metric: float(sum(metric)) / len(metric),
+        output_name="mean_metric",
+        requires=["metric"],
+        per_object=False,
+    )
+
+    results = pipeline.evaluate({}, targets=["mean_metric", "metric"])
+
+    assert results["mean_metric"] == pytest.approx(26.0)
+    assert results["metric"] == [11.0, 41.0]
+
+
+def test_per_object_and_mapspec_are_mutually_exclusive(single_space):
+    pipeline = EvaluationPipeline(single_space)
+
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        pipeline.add_evaluator(
+            lambda model: model.value,
+            output_name="v",
+            per_object=True,
+            mapspec="evaluation_contexts[object] -> v[object]",
+        )
+
+
+def test_collector_on_root_raises(single_space):
+    pipeline = EvaluationPipeline(single_space)
+
+    with pytest.raises(ValueError, match="root"):
+        pipeline.add_evaluator(
+            lambda model: model.value, output_name="v", per_object=False
+        )
+
+
+def test_explicit_per_object_true_alone_stays_legacy():
+    # Per-object is what the legacy loop already computes; without a collector
+    # or explicit mapspec there is no reason to switch engines, so legacy-only
+    # features (evaluation_objects subsets) keep working.
+    m1, m2 = Model(value=1.0), Model(value=2.0)
+    space = _make_space(m1, m2)
+    pipeline = EvaluationPipeline(space)
+    pipeline.add_evaluator(lambda model: model.value, output_name="v", per_object=True)
+
+    assert pipeline.evaluate({}, evaluation_objects=[m1]) == {"v": 1.0}
+
+
+def test_node_downstream_of_collector_consumes_whole_value():
+    # A default node fed only by a collector has no axis to fan over; it
+    # consumes the collected value whole instead of fanning per object.
+    space = _make_space(Model(value=3.0), Model(value=1.0))
+    pipeline = EvaluationPipeline(space)
+    pipeline.add_evaluator(lambda model: model.value * 10, output_name="scaled")
+    pipeline.add_evaluator(
+        lambda scaled: float(min(scaled)),
+        output_name="worst",
+        requires=["scaled"],
+        per_object=False,
+    )
+    pipeline.add_evaluator(
+        lambda worst: worst * 2, output_name="doubled_worst", requires=["worst"]
+    )
+
+    results = pipeline.evaluate({}, targets=["doubled_worst"])
+
+    assert results["doubled_worst"] == pytest.approx(20.0)
+
+
+def test_collector_registered_before_upstream_still_resolves():
+    # Effective mapspecs resolve producers-first regardless of registration
+    # order; a collector consuming a later-registered evaluator still works.
+    space = _make_space(Model(value=1.0), Model(value=2.0))
+    pipeline = EvaluationPipeline(space)
+    pipeline.add_evaluator(
+        lambda scaled: float(sum(scaled)),
+        output_name="total",
+        requires=["scaled"],
+        per_object=False,
+    )
+    pipeline.add_evaluator(lambda model: model.value * 10, output_name="scaled")
+
+    results = pipeline.evaluate({}, targets=["total"])
+
+    assert results["total"] == pytest.approx(30.0)
+
+
+def test_generated_mapspec_string_form():
+    from CADETProcess.evaluation_pipeline.pipeline import _generate_mapspec
+
+    assert (
+        _generate_mapspec("sim", None, set())
+        == "evaluation_contexts[object] -> sim[object]"
+    )
+    assert _generate_mapspec("m", ["sim"], {"sim"}) == "sim[object] -> m[object]"
+    # An input produced by a collector carries no axis and is consumed whole.
+    assert (
+        _generate_mapspec("m", ["agg", "sim"], {"sim"})
+        == "agg, sim[object] -> m[object]"
+    )

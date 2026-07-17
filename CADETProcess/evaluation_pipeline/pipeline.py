@@ -21,6 +21,10 @@ _CONTEXT_ARG = "__eval_context__"
 # Output name of the ``set_values`` root node and the axis input name a mapped
 # node consumes: ``evaluation_contexts[object] -> output[object]``.
 _EVALUATION_CONTEXTS = "evaluation_contexts"
+# The one mapped axis name.  All mapspec strings are generated through
+# ``_generate_mapspec`` so the string form cannot drift; user-supplied
+# ``mapspec=`` strings are the escape hatch and pass through verbatim.
+_OBJECT_AXIS = "object"
 # Stable UUID slot for the zero-evaluation-object mode: cache entries are
 # keyed on (x_key, uuid), and without an object the x_key alone identifies
 # the evaluation.  A fixed constant keeps keys stable across processes.
@@ -200,6 +204,65 @@ def _make_set_values_node(space: ParameterSpace) -> PipeFunc:
     return PipeFunc(set_values, output_name=_EVALUATION_CONTEXTS, cache=False)
 
 
+class _NodeSpec:
+    """Registration record for one evaluator; the PipeFunc is built later.
+
+    Node construction is deferred to ``_get_pipeline`` because per-object
+    semantics resolve against the whole graph: a collector
+    (``per_object=False``) registered last makes every earlier default node
+    mapped, so effective mapspecs cannot be finalized at registration time.
+    """
+
+    __slots__ = ("func", "output_name", "requires", "cache", "per_object", "mapspec")
+
+    def __init__(
+        self,
+        func: Callable,
+        output_name: str,
+        requires: list[str] | None,
+        cache: bool,
+        per_object: bool | None,
+        mapspec: str | None,
+    ) -> None:
+        self.func = func
+        self.output_name = output_name
+        self.requires = requires
+        self.cache = cache
+        self.per_object = per_object
+        self.mapspec = mapspec
+
+
+def _generate_mapspec(
+    output_name: str,
+    requires: list[str] | None,
+    axis_inputs: set[str],
+) -> str:
+    """Generate the mapspec string for a per-object node.
+
+    The single point where mapspec strings are written, so the string form
+    cannot drift as signatures evolve.  Inputs in *axis_inputs* carry the
+    object axis and are indexed; other inputs (outputs of collectors) are
+    consumed whole.  A root node (``requires is None``) fans over the
+    ``evaluation_contexts`` sequence.
+    """
+    if requires is None:
+        input_names = [_EVALUATION_CONTEXTS]
+        axis_inputs = {_EVALUATION_CONTEXTS}
+    else:
+        input_names = requires
+    inputs = ", ".join(
+        f"{name}[{_OBJECT_AXIS}]" if name in axis_inputs else name
+        for name in input_names
+    )
+    return f"{inputs} -> {output_name}[{_OBJECT_AXIS}]"
+
+
+def _mapspec_output_has_axis(mapspec: str) -> bool:
+    """Whether an explicit mapspec string produces an axis-bearing output."""
+    _, _, rhs = mapspec.partition("->")
+    return f"[{_OBJECT_AXIS}]" in rhs
+
+
 def _make_node(
     func: Callable,
     output_name: str,
@@ -262,14 +325,12 @@ class EvaluationPipeline:
             raise TypeError(f"Expected ParameterSpace, got {type(space).__name__}")
         self._space = space
         self._cache_dir: Path | None = Path(cache_dir) if cache_dir is not None else None
-        self._nodes: list[PipeFunc] = []
+        self._specs: list[_NodeSpec] = []
         self._output_names: list[str] = []
-        # Parallel per-node metadata, kept alongside ``_nodes`` so graph-shape
-        # decisions (mapped vs. legacy loop, mixed-root guard) read plain data
-        # instead of re-introspecting PipeFunc objects.
-        self._mapspecs: list[str | None] = []
-        self._requires: list[list[str] | None] = []
         self._pipeline: Pipeline | None = None
+        # Effective per-node mapspecs (explicit or generated), finalized at
+        # build time; None entries are whole-value consumers.
+        self._effective_mapspecs: dict[str, str | None] = {}
 
     # ------------------------------------------------------------------
     # Registration
@@ -280,6 +341,7 @@ class EvaluationPipeline:
         output_name: str,
         requires: list[str] | None = None,
         cache: bool = True,
+        per_object: bool | None = None,
         mapspec: str | None = None,
     ) -> None:
         """Register a callable as a named node in the evaluation DAG.
@@ -303,13 +365,21 @@ class EvaluationPipeline:
             Whether to cache the output of this node.  Defaults to True.
             Pass False for nodes with side effects (e.g. callbacks) where
             repeated execution is intentional and results need not be stored.
+        per_object : bool, optional
+            Whether this node runs once per evaluation object (the default
+            semantic) or once, collecting the complete per-object array of its
+            inputs (``False``, a whole-value consumer that may reduce it).
+            Declaring ``False`` on any node engages mapped execution for the
+            graph; the effective mapspec strings are then generated at build
+            time through one central helper.  Leaving it unset keeps the
+            per-object default, which the legacy loop and the mapped engine
+            implement identically.  Mutually exclusive with `mapspec`.
         mapspec : str, optional
-            pipefunc axis-mapping string declaring this node as mapped over the
-            object axis, e.g. ``"evaluation_contexts[object] -> out[object]"`` for
-            a root evaluator or ``"simulation_result[object] -> out[object]"`` for
-            a downstream one.  When any node is mapped the graph is executed once
-            via ``pipeline.map`` over the whole object axis instead of the legacy
-            per-object loop.  A node without a mapspec is a whole-value consumer.
+            Escape hatch: a raw pipefunc axis-mapping string, e.g.
+            ``"evaluation_contexts[object] -> out[object]"``, passed through
+            verbatim.  When any node is mapped the graph is executed once via
+            ``pipeline.map`` over the whole object axis instead of the legacy
+            per-object loop.
 
         Raises
         ------
@@ -317,19 +387,33 @@ class EvaluationPipeline:
             If `func` is not callable.
         ValueError
             If `output_name` is already registered or is not a valid identifier,
-            or if any entry in `requires` is not a valid identifier.
+            if any entry in `requires` is not a valid identifier, if both
+            `per_object` and `mapspec` are supplied, or if ``per_object=False``
+            is declared on a root node (nothing to collect).
         """
         if not callable(func):
             raise TypeError(f"Expected callable, got {type(func).__name__}")
         _validate_identifier(output_name)
+        for required in requires or []:
+            _validate_identifier(required)
         if output_name in self._output_names:
             raise ValueError(f"output_name {output_name!r} is already registered")
+        if per_object is not None and mapspec is not None:
+            raise ValueError(
+                "per_object and mapspec are mutually exclusive: per_object is "
+                "the normal API, mapspec the raw escape hatch; supply one."
+            )
+        if per_object is False and requires is None:
+            raise ValueError(
+                f"per_object=False on root node {output_name!r}: a root has no "
+                "mapped upstream to collect. Declare requires= or drop "
+                "per_object."
+            )
 
-        node = _make_node(func, output_name, requires, cache=cache, mapspec=mapspec)
-        self._nodes.append(node)
+        self._specs.append(
+            _NodeSpec(func, output_name, requires, cache, per_object, mapspec)
+        )
         self._output_names.append(output_name)
-        self._mapspecs.append(mapspec)
-        self._requires.append(requires)
         self._pipeline = None  # invalidate cached pipeline
 
     # ------------------------------------------------------------------
@@ -342,34 +426,94 @@ class EvaluationPipeline:
 
     @property
     def _is_mapped(self) -> bool:
-        """Whether any registered node declares a mapspec (mapped execution)."""
-        return any(m is not None for m in self._mapspecs)
+        """Whether the graph runs via mapped execution.
 
-    def _graph_nodes(self) -> list[PipeFunc]:
-        """Nodes for the pipefunc graph, prepending ``set_values`` when mapped.
+        The mapped engine engages only when required: an explicit mapspec, or
+        a collector (``per_object=False``), whose fan-in semantics the legacy
+        loop cannot express.  An explicit ``per_object=True`` alone does not
+        engage it: the legacy loop already implements per-object semantics,
+        and staying legacy keeps subset and ``bypass_cache`` support until
+        mapped-path parity lands.
+        """
+        return any(
+            s.mapspec is not None or s.per_object is False for s in self._specs
+        )
 
-        A mapped graph roots on ``x`` and fans the object axis off the
-        ``evaluation_contexts`` sequence, so the ``set_values`` node must exist.
-        An unmapped graph is byte-for-byte the legacy per-object graph.
+    def _resolve_mapspecs(self) -> dict[str, str | None]:
+        """Finalize the effective mapspec for every node.
+
+        In an unmapped graph every entry is None (byte-for-byte the legacy
+        graph).  In a mapped graph, default (``per_object`` unset or True)
+        nodes get generated mapspecs: roots fan over ``evaluation_contexts``;
+        downstream nodes fan over whichever of their inputs carry the axis.  A
+        node whose inputs all come from collectors has no axis to fan over and
+        stays a whole-value node.  Specs are processed producers-first so
+        axis-bearing propagates through chains regardless of registration
+        order.
         """
         if not self._is_mapped:
-            return list(self._nodes)
-        unmapped_roots = [
-            name
-            for name, mapspec, requires in zip(
-                self._output_names, self._mapspecs, self._requires
+            return {s.output_name: None for s in self._specs}
+
+        effective: dict[str, str | None] = {}
+        axis_bearing: dict[str, bool] = {}
+        pending = list(self._specs)
+        registered = {s.output_name for s in self._specs}
+        while pending:
+            progressed = False
+            for spec in list(pending):
+                deps = [
+                    r for r in (spec.requires or []) if r in registered
+                ]
+                if any(d not in axis_bearing for d in deps):
+                    continue  # a producer is not resolved yet
+                if spec.mapspec is not None:
+                    effective[spec.output_name] = spec.mapspec
+                    axis_bearing[spec.output_name] = _mapspec_output_has_axis(
+                        spec.mapspec
+                    )
+                elif spec.per_object is False:
+                    effective[spec.output_name] = None
+                    axis_bearing[spec.output_name] = False
+                else:  # per-object default (unset or explicit True)
+                    axis_inputs = {d for d in deps if axis_bearing[d]}
+                    if spec.requires is None or axis_inputs:
+                        effective[spec.output_name] = _generate_mapspec(
+                            spec.output_name, spec.requires, axis_inputs
+                        )
+                        axis_bearing[spec.output_name] = True
+                    else:
+                        # Downstream of collectors only: no axis to fan over.
+                        effective[spec.output_name] = None
+                        axis_bearing[spec.output_name] = False
+                pending.remove(spec)
+                progressed = True
+            if not progressed:
+                cycle = [s.output_name for s in pending]
+                raise ValueError(f"Cyclic requires among nodes: {cycle}")
+        return effective
+
+    def _graph_nodes(self) -> list[PipeFunc]:
+        """Build the pipefunc nodes, prepending ``set_values`` when mapped.
+
+        A mapped graph roots on ``x`` and fans the object axis off the
+        ``evaluation_contexts`` sequence, so the ``set_values`` node must
+        exist.  An unmapped graph is byte-for-byte the legacy per-object
+        graph.
+        """
+        self._effective_mapspecs = self._resolve_mapspecs()
+        nodes = [
+            _make_node(
+                s.func,
+                s.output_name,
+                s.requires,
+                cache=s.cache,
+                mapspec=self._effective_mapspecs[s.output_name],
             )
-            if mapspec is None and requires is None
+            for s in self._specs
         ]
-        if unmapped_roots:
-            raise ValueError(
-                "A mapped graph cannot contain an unmapped root evaluator "
-                f"(requires=None, mapspec=None): {unmapped_roots}. Give it a "
-                "mapspec ('evaluation_contexts[object] -> out[object]') so it fans "
-                "over the object axis. Whole-value fan-in over a mapped output is "
-                "not yet supported."
-            )
-        return [_make_set_values_node(self._space), *self._nodes]
+        if not self._is_mapped:
+            return nodes
+        return [_make_set_values_node(self._space), *nodes]
 
     def _get_pipeline(self) -> Pipeline:
         """Return the cached pipeline, building it if necessary.
@@ -379,7 +523,7 @@ class EvaluationPipeline:
         is reused across ``evaluate`` calls.
         """
         if self._pipeline is None:
-            if not self._nodes:
+            if not self._specs:
                 raise RuntimeError(
                     "No evaluators registered.  Call add_evaluator before evaluate."
                 )
@@ -554,8 +698,9 @@ class EvaluationPipeline:
           several give a list).
         - An unmapped target is a whole-value consumer (fan-in): it received the
           full per-object array and reduced it to a single value, which is
-          returned as-is.  Only downstream fan-in is possible here; an unmapped
-          root is rejected earlier at graph build.
+          returned as-is.  Roots without an explicit declaration fan per object
+          (the per-object default); ``per_object=False`` roots are rejected at
+          registration.
 
         Failure handling for fan-in is deliberately minimal: pipefunc hands the
         reducer a ``MaskedArray``, and the ``bad_metrics``-preserving policy for
@@ -583,7 +728,7 @@ class EvaluationPipeline:
             parallel=False,
         )
 
-        mapspec_by_name = dict(zip(self._output_names, self._mapspecs))
+        mapspec_by_name = self._effective_mapspecs
         # Objectless (0) and single-object (1) both unwrap to a plain value.
         single = len(self._space.evaluation_objects) <= 1
         out: dict[str, Any] = {}

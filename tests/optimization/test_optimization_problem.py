@@ -622,6 +622,191 @@ def test_multi_eval_obj_labels(op_with_multiple_eval_objects):
     assert op_with_multiple_eval_objects.objective_labels == expected
 
 
+# ── per_object facade: aggregation and domain normalization ───────────────────
+
+
+@pytest.fixture
+def op_two_objects_with_evaluator():
+    """Two evaluation objects and a per-object evaluator distinguishing them."""
+    obj_a = EvaluationObject(name="a")
+    obj_b = EvaluationObject(name="bb")
+    op = OptimizationProblem("aggregating", use_diskcache=False)
+    op.add_evaluation_object(obj_a)
+    op.add_evaluation_object(obj_b)
+    op.add_variable("scalar_param", lb=0, ub=1)
+
+    def simulate(eval_obj):
+        # Distinguish objects through the name length: a -> 1x, bb -> 2x.
+        return eval_obj.scalar_param * 10 * len(eval_obj.name)
+
+    op.add_evaluator(simulate, name="simulate")
+    return op, simulate, obj_a, obj_b
+
+
+def test_aggregating_objective_reduces_moo_to_soo(op_two_objects_with_evaluator):
+    # Success criterion: an aggregating objective registered as a collector
+    # yields a single-objective problem despite multiple evaluation objects.
+    op, simulate, _, _ = op_two_objects_with_evaluator
+    op.add_objective(
+        lambda sims: float(np.mean(sims)),
+        name="mean_sim",
+        requires=simulate,
+        per_object=False,
+    )
+
+    assert op.n_objectives == 1
+    assert op.objective_labels == ["mean_sim"]
+
+    f = op.evaluate_objectives([0.5])
+
+    # simulate -> [5.0, 10.0]; mean -> 7.5
+    np.testing.assert_allclose(f, [7.5])
+
+
+def test_per_object_objective_default_matches_legacy(op_two_objects_with_evaluator):
+    op, simulate, _, _ = op_two_objects_with_evaluator
+    op.add_objective(lambda sim: sim, name="sim_value", requires=simulate)
+
+    assert op.n_objectives == 2
+
+    f = op.evaluate_objectives([0.5])
+
+    np.testing.assert_allclose(f, [5.0, 10.0])
+
+
+def test_evaluation_objects_declaration_order_is_normalized():
+    # Canonical order is a pure function of domain membership: [b, a] and
+    # [a, b] declare the same domain and produce identical metric layouts.
+    obj_a = EvaluationObject(name="a")
+    obj_b = EvaluationObject(name="b")
+
+    def build(order):
+        op = OptimizationProblem("norm", use_diskcache=False)
+        op.add_evaluation_object(obj_a)
+        op.add_evaluation_object(obj_b)
+        op.add_variable("scalar_param", lb=0, ub=1)
+        op.add_objective(lambda eval_obj: 0.0, name="obj", evaluation_objects=order)
+        return op
+
+    reversed_decl = build([obj_b, obj_a])
+    canonical_decl = build([obj_a, obj_b])
+
+    assert reversed_decl.objective_labels == canonical_decl.objective_labels
+    assert reversed_decl.objective_labels == ["a_obj", "b_obj"]
+    assert reversed_decl.objectives[0].evaluation_objects == [obj_a, obj_b]
+
+
+def test_per_object_and_mapspec_exclusive_on_facade(op_two_objects_with_evaluator):
+    op, simulate, _, _ = op_two_objects_with_evaluator
+
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        op.add_objective(
+            lambda sims: 0.0,
+            name="bad",
+            requires=simulate,
+            per_object=False,
+            mapspec="simulate[object] -> bad[object]",
+        )
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        op.add_evaluator(
+            lambda eval_obj: 0.0,
+            name="bad_ev",
+            per_object=True,
+            mapspec="evaluation_contexts[object] -> bad_ev[object]",
+        )
+
+
+def test_aggregating_nonlinear_constraint_reduces_to_one(
+    op_two_objects_with_evaluator,
+):
+    # A collector constraint reduces the per-object array to one value: one
+    # aggregated constraint across objects instead of one per object.
+    op, simulate, _, _ = op_two_objects_with_evaluator
+    op.add_nonlinear_constraint(
+        lambda sims: float(np.mean(sims)),
+        name="agg_sim",
+        requires=simulate,
+        bounds=100,
+        per_object=False,
+    )
+
+    assert op.n_nonlinear_constraints == 1
+    assert op.nonlinear_constraint_labels == ["agg_sim"]
+
+    # simulate -> [5.0, 10.0]; mean -> 7.5
+    g = op.evaluate_nonlinear_constraints([0.5])
+    np.testing.assert_allclose(g, [7.5])
+
+
+def test_per_object_nonlinear_constraint_default_stays_per_object(
+    op_two_objects_with_evaluator,
+):
+    op, simulate, _, _ = op_two_objects_with_evaluator
+    op.add_nonlinear_constraint(
+        lambda sim: sim, name="sim_value", requires=simulate, bounds=100,
+    )
+
+    assert op.n_nonlinear_constraints == 2
+
+    g = op.evaluate_nonlinear_constraints([0.5])
+    np.testing.assert_allclose(g, [5.0, 10.0])
+
+
+def test_aggregating_meta_score_reduces_to_one(op_two_objects_with_evaluator):
+    op, simulate, _, _ = op_two_objects_with_evaluator
+    op.add_meta_score(
+        lambda sims: float(np.mean(sims)),
+        name="mean_meta",
+        requires=simulate,
+        per_object=False,
+    )
+
+    assert op.n_meta_scores == 1
+
+    m = op.evaluate_meta_scores([0.5])
+    np.testing.assert_allclose(m, [7.5])
+
+
+def test_collector_callback_registers(op_two_objects_with_evaluator):
+    # A collector callback (per_object=False) receives the whole per-object
+    # array; assert it registers through the same threading as the metrics.
+    op, simulate, _, _ = op_two_objects_with_evaluator
+    op.add_callback(
+        lambda sims: None, name="cb", requires=simulate, per_object=False,
+    )
+    assert op.n_callbacks == 1
+
+
+@pytest.mark.parametrize("kind", ["constraint", "meta_score", "callback"])
+def test_per_object_and_mapspec_exclusive_on_all_metric_kinds(
+    op_two_objects_with_evaluator, kind
+):
+    op, simulate, _, _ = op_two_objects_with_evaluator
+    register = {
+        "constraint": op.add_nonlinear_constraint,
+        "meta_score": op.add_meta_score,
+        "callback": op.add_callback,
+    }[kind]
+
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        register(
+            lambda sims: 0.0,
+            name="bad",
+            requires=simulate,
+            per_object=False,
+            mapspec="simulate[object] -> bad[object]",
+        )
+
+
+def test_add_evaluator_owns_no_evaluation_objects_declaration():
+    # Domain declarations belong on the domain-owning leaves (objectives,
+    # constraints, callbacks); evaluators derive their domain from demand.
+    import inspect
+
+    signature = inspect.signature(OptimizationProblem.add_evaluator)
+    assert "evaluation_objects" not in signature.parameters
+
+
 # ── Round-trip: set_variables → eval object → get_variable_value ─────────────
 
 

@@ -332,6 +332,9 @@ class OptimizationProblem(Problem):
         self._evaluator_names: dict[Callable, str] = {}        # func → output_name
         self._evaluator_func_by_name: dict[str, Callable] = {}  # output_name → wrapped callable
         self._evaluator_registry: list[tuple[str, Callable]] = []  # ordered (name, func)
+        # output_name → (per_object, mapspec), forwarded to the pipeline when
+        # the evaluator is lazily registered by _register_evaluator_chain.
+        self._evaluator_node_options: dict[str, tuple[bool | None, str | None]] = {}
 
         self._objectives: list[_MetricRecord] = []
         self._nonlinear_constraints: list[_MetricRecord] = []
@@ -1190,6 +1193,8 @@ class OptimizationProblem(Problem):
         name: Optional[str] = None,
         args: Optional[tuple] = None,
         kwargs: Optional[dict] = None,
+        per_object: Optional[bool] = None,
+        mapspec: Optional[str] = None,
     ) -> None:
         """Register a callable as a named evaluator for use in objective chains.
 
@@ -1203,16 +1208,31 @@ class OptimizationProblem(Problem):
             Fixed positional arguments appended after the request argument.
         kwargs : dict, optional
             Fixed keyword arguments passed to the evaluator.
+        per_object : bool, optional
+            Whether the evaluator runs once per evaluation object (the
+            default semantic) or once, collecting the complete per-object
+            array of its input (``False``).  Declaring ``False`` engages
+            mapped execution.  Mutually exclusive with `mapspec`.
+            ``evaluation_objects`` cannot be declared here: domain
+            declarations belong on the metric leaves (objectives,
+            constraints, callbacks), from which each evaluator's domain is
+            derived.
+        mapspec : str, optional
+            Escape hatch: a raw pipefunc axis-mapping string, passed to the
+            pipeline verbatim.
 
         Raises
         ------
         TypeError
             If *evaluator* is not callable.
+        ValueError
+            If both *per_object* and *mapspec* are supplied.
         CADETProcessError
             If an evaluator with the same name already exists.
         """
         if not callable(evaluator):
             raise TypeError("Expected callable evaluator.")
+        self._check_per_object_exclusive(per_object, mapspec)
 
         if name is None:
             name = _derive_name(evaluator)
@@ -1237,6 +1257,7 @@ class OptimizationProblem(Problem):
         self._evaluator_registry.append((name, evaluator))
         self._evaluator_names[evaluator] = name
         self._evaluator_func_by_name[name] = _wrapped
+        self._evaluator_node_options[name] = (per_object, mapspec)
 
     # ── Objectives ────────────────────────────────────────────────────────────
 
@@ -1263,6 +1284,40 @@ class OptimizationProblem(Problem):
     def n_objectives(self) -> int:
         """Total number of objective metrics across all objectives and eval objects."""
         return self._metric_space.n_objectives
+
+    def _resolve_evaluation_objects(self, evaluation_objects: Any) -> list[Any]:
+        """Resolve an ``evaluation_objects`` declaration to a canonical list.
+
+        ``-1`` means all registered objects; ``None`` means none (the metric
+        operates on *x*).  The result is normalized to ``ParameterSpace``
+        registration order regardless of declaration order: canonical order
+        is a pure function of domain membership, so ``[B, A]`` and ``[A, B]``
+        declare the same domain and produce identical metric layouts.
+        """
+        if evaluation_objects is None:
+            return []
+        registered = self.evaluation_objects
+        if evaluation_objects == -1:
+            return list(registered)
+        if not isinstance(evaluation_objects, list):
+            objs = [evaluation_objects]
+        else:
+            objs = list(evaluation_objects)
+        for el in objs:
+            if el not in registered:
+                raise CADETProcessError(f"Unknown EvaluationObject: {el!r}")
+        return sorted(objs, key=registered.index)
+
+    @staticmethod
+    def _check_per_object_exclusive(
+        per_object: Optional[bool], mapspec: Optional[str]
+    ) -> None:
+        """Reject supplying both the normal API and the escape hatch."""
+        if per_object is not None and mapspec is not None:
+            raise ValueError(
+                "per_object and mapspec are mutually exclusive: per_object is "
+                "the normal API, mapspec the raw escape hatch; supply one."
+            )
 
     def _build_metric(
         self,
@@ -1309,6 +1364,8 @@ class OptimizationProblem(Problem):
         evaluation_objects: Any = -1,
         labels: Optional[list[str]] = None,
         requires: Any = None,
+        per_object: Optional[bool] = None,
+        mapspec: Optional[str] = None,
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -1319,7 +1376,9 @@ class OptimizationProblem(Problem):
         objective : callable
             Objective function.  Receives an evaluation object (or *x* when
             no evaluation objects are registered) and must return a scalar or
-            1-D array of length *n_objectives*.
+            1-D array of length *n_objectives*.  A collector
+            (``per_object=False``) instead receives the complete per-object
+            array of its upstream evaluator's results.
         name : str, optional
             Name; defaults to ``objective.__name__``.
         n_objectives : int
@@ -1330,21 +1389,37 @@ class OptimizationProblem(Problem):
             Fallback values returned on evaluation failure.
         evaluation_objects : {-1, None, object, list}
             Which evaluation objects to use.  ``-1`` (default) uses all
-            registered objects; ``None`` passes *x* directly.
+            registered objects; ``None`` passes *x* directly.  Declaration
+            order carries no meaning: the domain is normalized to
+            registration order.
         labels : list[str], optional
             Metric labels; length must equal *n_objectives*.
         requires : callable or list of callables, optional
             Upstream evaluators whose output feeds this function.
+        per_object : bool, optional
+            Whether the objective runs once per evaluation object (the
+            default semantic) or once over all of them (``False``), reducing
+            the per-object array to *n_objectives* values, e.g. a weighted
+            sum or worst case replacing a multi-objective formulation.
+            Declaring ``False`` engages mapped execution and requires
+            *requires*.  Mutually exclusive with `mapspec`.
+        mapspec : str, optional
+            Escape hatch: a raw pipefunc axis-mapping string, passed to the
+            pipeline verbatim.
 
         Raises
         ------
         TypeError
             If *objective* is not callable.
+        ValueError
+            If both *per_object* and *mapspec* are supplied, or if
+            ``per_object=False`` is declared without *requires*.
         CADETProcessError
             If a referenced evaluation object or evaluator is not registered.
         """
         if not callable(objective):
             raise TypeError("Expected callable objective.")
+        self._check_per_object_exclusive(per_object, mapspec)
 
         if name is None:
             name = _derive_name(objective)
@@ -1357,18 +1432,7 @@ class OptimizationProblem(Problem):
             )
         self._check_metric_name(name)
 
-        # Resolve evaluation objects.
-        if evaluation_objects is None:
-            eval_objs: list[Any] = []
-        elif evaluation_objects == -1:
-            eval_objs = list(self.evaluation_objects)
-        elif not isinstance(evaluation_objects, list):
-            eval_objs = [evaluation_objects]
-        else:
-            eval_objs = list(evaluation_objects)
-        for el in eval_objs:
-            if el not in self.evaluation_objects:
-                raise CADETProcessError(f"Unknown EvaluationObject: {el!r}")
+        eval_objs = self._resolve_evaluation_objects(evaluation_objects)
 
         # Resolve evaluator chain and lazily register in pipeline.
         if requires is None:
@@ -1385,9 +1449,12 @@ class OptimizationProblem(Problem):
         self._register_evaluator_chain(req_list)
 
         # Declare the metric and annotate it with the direction; raises on
-        # duplicate names (named storage requires unique metrics).
+        # duplicate names (named storage requires unique metrics).  A
+        # collector reduces over objects, so its metric declares no
+        # evaluation_object dimension: it produces n_objectives values total.
         base_labels = labels if labels is not None else getattr(objective, "labels", None)
-        metric = self._build_metric(name, n_objectives, base_labels, eval_objs)
+        metric_objs = [] if per_object is False else eval_objs
+        metric = self._build_metric(name, n_objectives, base_labels, metric_objs)
         annotation = self._metric_space.add_objective(metric, minimize=minimize)
 
         # Register the objective itself as a pipeline node: the DAG owns the
@@ -1400,6 +1467,8 @@ class OptimizationProblem(Problem):
             ),
             output_name=name,
             requires=requires_node,
+            per_object=per_object,
+            mapspec=mapspec,
         )
 
         record = _MetricRecord(
@@ -1461,6 +1530,8 @@ class OptimizationProblem(Problem):
         comparison_operator: str = "le",
         labels: Optional[list[str]] = None,
         requires: Any = None,
+        per_object: Optional[bool] = None,
+        mapspec: Optional[str] = None,
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -1486,6 +1557,15 @@ class OptimizationProblem(Problem):
             Metric labels.
         requires : callable or list of callables, optional
             Upstream evaluators.
+        per_object : bool, optional
+            Whether the constraint runs once per evaluation object (the
+            default) or once over all of them (``False``), reducing the
+            per-object array to *n_nonlinear_constraints* values, e.g. a
+            worst-case constraint across objects.  Declaring ``False`` requires
+            *requires*.  Mutually exclusive with `mapspec`.
+        mapspec : str, optional
+            Escape hatch: a raw pipefunc axis-mapping string, passed to the
+            pipeline verbatim.
 
         Raises
         ------
@@ -1497,6 +1577,7 @@ class OptimizationProblem(Problem):
         """
         if not callable(nonlincon):
             raise TypeError("Expected callable constraint function.")
+        self._check_per_object_exclusive(per_object, mapspec)
 
         if name is None:
             name = _derive_name(nonlincon)
@@ -1509,18 +1590,7 @@ class OptimizationProblem(Problem):
             )
         self._check_metric_name(name)
 
-        # Resolve evaluation objects.
-        if evaluation_objects is None:
-            eval_objs: list[Any] = []
-        elif evaluation_objects == -1:
-            eval_objs = list(self.evaluation_objects)
-        elif not isinstance(evaluation_objects, list):
-            eval_objs = [evaluation_objects]
-        else:
-            eval_objs = list(evaluation_objects)
-        for el in eval_objs:
-            if el not in self.evaluation_objects:
-                raise CADETProcessError(f"Unknown EvaluationObject: {el!r}")
+        eval_objs = self._resolve_evaluation_objects(evaluation_objects)
 
         # Normalize bounds.
         if isinstance(bounds, (int, float)):
@@ -1550,8 +1620,9 @@ class OptimizationProblem(Problem):
         # on duplicate names (named storage requires unique metrics).  Bounds
         # tile object-major across evaluation objects, matching the labels.
         base_labels = labels if labels is not None else getattr(nonlincon, "labels", None)
-        metric = self._build_metric(name, n_nonlinear_constraints, base_labels, eval_objs)
-        bounds_total = bounds_list * max(len(eval_objs), 1)
+        metric_objs = [] if per_object is False else eval_objs
+        metric = self._build_metric(name, n_nonlinear_constraints, base_labels, metric_objs)
+        bounds_total = bounds_list * max(len(metric_objs), 1)
         annotation = self._metric_space.add_constraint(
             metric, bound=bounds_total, comparison_operator=comparison_operator
         )
@@ -1565,6 +1636,8 @@ class OptimizationProblem(Problem):
             ),
             output_name=name,
             requires=requires_node,
+            per_object=per_object,
+            mapspec=mapspec,
         )
 
         record = _MetricRecord(
@@ -1606,6 +1679,8 @@ class OptimizationProblem(Problem):
         frequency: int = 1,
         callbacks_dir: Optional[str] = None,
         keep_progress: bool = False,
+        per_object: Optional[bool] = None,
+        mapspec: Optional[str] = None,
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -1627,11 +1702,20 @@ class OptimizationProblem(Problem):
             Directory to store callback output.
         keep_progress : bool
             Retain progress files between calls.
+        per_object : bool, optional
+            Whether the callback runs once per evaluation object (the default)
+            or once over all of them (``False``), receiving the complete
+            per-object array, e.g. to plot all objects together.  Declaring
+            ``False`` requires *requires*.  Mutually exclusive with `mapspec`.
+        mapspec : str, optional
+            Escape hatch: a raw pipefunc axis-mapping string, passed to the
+            pipeline verbatim.
         """
         if not callable(callback):
             raise TypeError("Expected callable callback.")
         if frequency < 1:
             raise ValueError(f"frequency must be a positive integer, got {frequency!r}")
+        self._check_per_object_exclusive(per_object, mapspec)
 
         if name is None:
             name = _derive_name(callback)
@@ -1686,6 +1770,8 @@ class OptimizationProblem(Problem):
             output_name=name,
             requires=requires_node,
             cache=False,
+            per_object=per_object,
+            mapspec=mapspec,
         )
 
         self._callbacks.append(record)
@@ -1724,6 +1810,8 @@ class OptimizationProblem(Problem):
         bad_metrics: Any = None,
         evaluation_objects: Any = -1,
         requires: Any = None,
+        per_object: Optional[bool] = None,
+        mapspec: Optional[str] = None,
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -1732,9 +1820,15 @@ class OptimizationProblem(Problem):
         A meta score is a metric without direction annotation: it is
         declared on the ``MetricSpace`` like objectives and constraints,
         but carries no minimize/maximize or bound semantics.
+
+        ``per_object=False`` makes the meta score a collector: it receives the
+        complete per-object array and reduces it to *n_meta_scores* values
+        (e.g. aggregating a score across objects).  Mutually exclusive with
+        `mapspec`.
         """
         if not callable(func):
             raise TypeError("Expected callable meta-score function.")
+        self._check_per_object_exclusive(per_object, mapspec)
 
         if name is None:
             name = _derive_name(func)
@@ -1747,18 +1841,7 @@ class OptimizationProblem(Problem):
             )
         self._check_metric_name(name)
 
-        # Resolve evaluation objects.
-        if evaluation_objects is None:
-            eval_objs: list[Any] = []
-        elif evaluation_objects == -1:
-            eval_objs = list(self.evaluation_objects)
-        elif not isinstance(evaluation_objects, list):
-            eval_objs = [evaluation_objects]
-        else:
-            eval_objs = list(evaluation_objects)
-        for el in eval_objs:
-            if el not in self.evaluation_objects:
-                raise CADETProcessError(f"Unknown EvaluationObject: {el!r}")
+        eval_objs = self._resolve_evaluation_objects(evaluation_objects)
 
         # Resolve evaluator chain and lazily register in pipeline.
         if requires is None:
@@ -1776,7 +1859,8 @@ class OptimizationProblem(Problem):
 
         # Declare the metric without direction or constraint annotation.
         base_labels = labels if labels is not None else getattr(func, "labels", None)
-        metric = self._build_metric(name, n_meta_scores, base_labels, eval_objs)
+        metric_objs = [] if per_object is False else eval_objs
+        metric = self._build_metric(name, n_meta_scores, base_labels, metric_objs)
         self._metric_space.add_metric(metric)
 
         # Register the meta score itself as a pipeline node.
@@ -1788,6 +1872,8 @@ class OptimizationProblem(Problem):
             ),
             output_name=name,
             requires=requires_node,
+            per_object=per_object,
+            mapspec=mapspec,
         )
 
         record = _MetricRecord(
@@ -1927,10 +2013,15 @@ class OptimizationProblem(Problem):
                         _space: ParameterSpace = self._parameter_space,
                     ) -> Any:
                         return _fn(_adapt_root_input(_space, value))
+                per_object, mapspec = self._evaluator_node_options.get(
+                    ev_name, (None, None)
+                )
                 self._backend.add_evaluator(
                     func,
                     output_name=ev_name,
                     requires=prev,
+                    per_object=per_object,
+                    mapspec=mapspec,
                 )
 
     def _postprocess_row(
