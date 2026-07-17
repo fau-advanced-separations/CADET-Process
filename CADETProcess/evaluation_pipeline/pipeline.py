@@ -211,7 +211,6 @@ class EvaluationPipeline:
         self._nodes: list[PipeFunc] = []
         self._output_names: list[str] = []
         self._pipeline: Pipeline | None = None
-        self._obj_uuids: dict[int, str] = {}  # id(obj) → stable UUID
 
     # ------------------------------------------------------------------
     # Registration
@@ -312,13 +311,6 @@ class EvaluationPipeline:
                 )
             _guard_recoverable_writes(self._pipeline.cache)
         return self._pipeline
-
-    def _obj_uuid(self, obj: Any) -> str:
-        """Return the stable UUID for *obj*, assigning one on first encounter."""
-        key = id(obj)
-        if key not in self._obj_uuids:
-            self._obj_uuids[key] = str(_uuid_mod.uuid4())
-        return self._obj_uuids[key]
 
     def evaluate(
         self,
@@ -424,7 +416,9 @@ class EvaluationPipeline:
             return _run_for_ctx(ctx)
 
         def _run_for(obj: Any) -> dict[str, Any]:
-            return _run_for_ctx(_EvaluationContext(x_key, obj, self._obj_uuid(obj)))
+            return _run_for_ctx(
+                _EvaluationContext(x_key, obj, self._space.evaluation_object_uuid(obj))
+            )
 
         if len(eval_objs) == 1:
             return _run_for(eval_objs[0])
