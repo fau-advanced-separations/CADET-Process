@@ -30,6 +30,12 @@ _OBJECT_AXIS = "object"
 # (x_key, uuid), and without a case the x_key alone identifies the
 # evaluation.  A fixed constant keeps keys stable across processes.
 _NO_CASE_UUID = "__no_case__"
+# Whole-value root inputs to the ``set_values`` node on the mapped path: the
+# per-call resolved case subset and the cache-busting nonce.  Both are
+# consumed whole (never indexed by a mapspec), so ``pipeline.map`` treats them
+# as scalar roots, not mapped axes.
+_RUN_CASES_ARG = "cases"
+_CACHE_NONCE_ARG = "cache_nonce"
 
 
 class _EvaluationContext:
@@ -69,6 +75,27 @@ class _EvaluationContext:
 def _validate_identifier(name: str) -> None:
     if not _IDENTIFIER_RE.match(name):
         raise ValueError(f"{name!r} is not a valid Python identifier")
+
+
+def _resolve_cases(
+    all_cases: list[Any], requested: list[Any] | None
+) -> list[Any]:
+    """Resolve a per-call case restriction against the registered set.
+
+    `None` runs all registered cases in registration order.  A list restricts
+    the run to those cases in request order (matching the legacy loop, which
+    does ``list(cases)``); an unknown case or an empty list raises.  This is a
+    whole-run restriction, distinct from mid-graph per-node subset routing:
+    excluded cases never enter the graph.
+    """
+    if requested is None:
+        return list(all_cases)
+    if not requested:
+        raise ValueError("cases must not be empty; pass None for all.")
+    unknown = [o for o in requested if o not in all_cases]
+    if unknown:
+        raise ValueError(f"Unknown case(s): {unknown}")
+    return list(requested)
 
 
 def _find_failure(value: Any, collects: bool) -> EvaluationFailure | None:
@@ -223,25 +250,44 @@ def _make_set_values_node(space: ParameterSpace) -> PipeFunc:
     ``cache=False``: the node mutates shared objects, so a cache hit would return
     stale-state references; re-running every call preserves current behavior and
     costs nothing (the simulation caches downstream).
+
+    Two further whole-value root inputs carry per-call control that a baked
+    closure cannot see: *cases* is the already-resolved run subset (excluded
+    cases never enter the axis), and *cache_nonce* is appended to ``x_key``
+    when set (``bypass_cache``) so every downstream node misses this run while
+    other assignments' cache entries stay intact.
     """
 
-    def set_values(x: Mapping[str, Any]) -> list[_EvaluationContext]:
+    def set_values(
+        x: Mapping[str, Any],
+        cases: list[Any],
+        cache_nonce: str | None,
+    ) -> list[_EvaluationContext]:
         space.set_values(x)
         x_key: tuple = tuple(
             (p.name, x[p.name]) for p in space.independent_parameters
         )
-        objs = space.cases
-        if not objs:
+        if cache_nonce is not None:
+            x_key = x_key + (cache_nonce,)
+        if not cases:
             # Objectless mode is one sentinel context, not an empty axis: an
             # empty fan would leave a downstream scalar reducer with nothing.
             return [_EvaluationContext(x_key, dict(x), _NO_CASE_UUID)]
         return [
             _EvaluationContext(x_key, obj, space.case_uuid(obj))
-            for obj in objs
+            for obj in cases
         ]
 
     set_values.__signature__ = inspect.Signature(
-        [inspect.Parameter("x", inspect.Parameter.POSITIONAL_OR_KEYWORD)]
+        [
+            inspect.Parameter("x", inspect.Parameter.POSITIONAL_OR_KEYWORD),
+            inspect.Parameter(
+                _RUN_CASES_ARG, inspect.Parameter.POSITIONAL_OR_KEYWORD
+            ),
+            inspect.Parameter(
+                _CACHE_NONCE_ARG, inspect.Parameter.POSITIONAL_OR_KEYWORD
+            ),
+        ]
     )
     return PipeFunc(set_values, output_name=_EVALUATION_CONTEXTS, cache=False)
 
@@ -702,14 +748,7 @@ class EvaluationPipeline:
             if unknown:
                 raise ValueError(f"Unknown target(s): {unknown}")
 
-        eval_objs = self._space.cases
-        if cases is not None:
-            if not cases:
-                raise ValueError("cases must not be empty; pass None for all.")
-            unknown_objs = [o for o in cases if o not in eval_objs]
-            if unknown_objs:
-                raise ValueError(f"Unknown case(s): {unknown_objs}")
-            eval_objs = list(cases)
+        eval_objs = _resolve_cases(self._space.cases, cases)
 
         pipeline = self._get_pipeline()
 
@@ -765,35 +804,40 @@ class EvaluationPipeline:
           (the per-object default); ``per_object=False`` roots are rejected at
           registration.
 
-        Failure handling for fan-in is deliberately minimal: pipefunc hands the
-        reducer a ``MaskedArray``, and the ``bad_metrics``-preserving policy for
-        failed objects is a separate step; this path assumes the happy case.
+        A failed object propagates its ``EvaluationFailure`` sentinel in the
+        mapped array, and a fan-in node fails the aggregate rather than reducing
+        over it (see ``_find_failure``); no ``MaskedArray`` is involved.
+
+        Per-call control reaches the baked ``set_values`` root through two
+        whole-value ``pipeline.map`` inputs: the resolved run subset restricts
+        the object axis, and a cache nonce (set only when ``bypass_cache``)
+        forces every node to miss this run.
 
         Sequential (``parallel=False``) is deliberate for the first increment;
         parallel mapped execution is deferred alongside ``map_async``.
         """
-        if cases is not None:
-            raise NotImplementedError(
-                "Restricting cases is not yet supported on the mapped "
-                "path; per-node subset routing is a separate step. Omit it to run "
-                "all cases, or use a graph without mapspecs."
-            )
-        if bypass_cache:
-            raise NotImplementedError(
-                "bypass_cache is not yet supported on the mapped path."
-            )
-        # Build first so graph-validity errors (e.g. an unmapped root) surface
-        # before reshaping.
+        effective_cases = _resolve_cases(self._space.cases, cases)
+        cache_nonce = _uuid_mod.uuid4().hex if bypass_cache else None
+        # ``output_names`` trims the run to the requested targets (unrequested
+        # callbacks never fire).  pipefunc builds the trimmed subpipeline over
+        # the main pipeline's (failure-guarded) cache, so cache entries persist
+        # across calls and shared upstream work is reused across target sets
+        # (pipefunc/pipefunc#975, released in 0.93.1; the pinned floor).
         pipeline = self._get_pipeline()
         result = pipeline.map(
-            {"x": dict(assignment)},
-            output_names=targets,
+            {
+                "x": dict(assignment),
+                _RUN_CASES_ARG: effective_cases,
+                _CACHE_NONCE_ARG: cache_nonce,
+            },
+            output_names=set(targets),
             parallel=False,
         )
 
         mapspec_by_name = self._effective_mapspecs
-        # Objectless (0) and single-object (1) both unwrap to a plain value.
-        single = len(self._space.cases) <= 1
+        # Objectless (0) and single-object (1) both unwrap to a plain value;
+        # base this on the effective (restricted) cases, not the full space.
+        single = len(effective_cases) <= 1
         out: dict[str, Any] = {}
         for t in targets:
             if mapspec_by_name[t] is None:
