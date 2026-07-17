@@ -547,8 +547,19 @@ class EvaluationPipeline:
 
         The ``set_values`` node writes ``x`` and emits the ordered
         ``evaluation_contexts`` sequence; ``pipeline.map`` fans every mapped node
-        over that axis.  Results are reshaped to the same convention as the loop:
-        one object (or objectless) unwraps to a plain value, several give a list.
+        over that axis.  Two kinds of target are reshaped differently:
+
+        - A mapped target yields one value per object; it follows the loop's
+          convention (one object, or objectless, unwraps to a plain value;
+          several give a list).
+        - An unmapped target is a whole-value consumer (fan-in): it received the
+          full per-object array and reduced it to a single value, which is
+          returned as-is.  Only downstream fan-in is possible here; an unmapped
+          root is rejected earlier at graph build.
+
+        Failure handling for fan-in is deliberately minimal: pipefunc hands the
+        reducer a ``MaskedArray``, and the ``bad_metrics``-preserving policy for
+        failed objects is a separate step; this path assumes the happy case.
 
         Sequential (``parallel=False``) is deliberate for the first increment;
         parallel mapped execution is deferred alongside ``map_async``.
@@ -564,28 +575,23 @@ class EvaluationPipeline:
                 "bypass_cache is not yet supported on the mapped path."
             )
         # Build first so graph-validity errors (e.g. an unmapped root) surface
-        # before the target-level whole-value guard below.
+        # before reshaping.
         pipeline = self._get_pipeline()
-
-        mapspec_by_name = dict(zip(self._output_names, self._mapspecs))
-        unmapped_targets = [t for t in targets if mapspec_by_name[t] is None]
-        if unmapped_targets:
-            raise NotImplementedError(
-                f"Targets {unmapped_targets} are whole-value consumers of a mapped "
-                "output (scalar fan-in); this is not yet supported. Request mapped "
-                "targets only for now."
-            )
-
         result = pipeline.map(
             {"x": dict(assignment)},
             output_names=targets,
             parallel=False,
         )
 
+        mapspec_by_name = dict(zip(self._output_names, self._mapspecs))
         # Objectless (0) and single-object (1) both unwrap to a plain value.
         single = len(self._space.evaluation_objects) <= 1
         out: dict[str, Any] = {}
         for t in targets:
-            values = list(result[t].output)
-            out[t] = values[0] if single else values
+            if mapspec_by_name[t] is None:
+                # Whole-value fan-in: the node already reduced to one value.
+                out[t] = result[t].output
+            else:
+                values = list(result[t].output)
+                out[t] = values[0] if single else values
         return out
