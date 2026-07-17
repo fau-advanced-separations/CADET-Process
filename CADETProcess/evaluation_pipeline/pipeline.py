@@ -18,6 +18,9 @@ __all__ = ["EvaluationPipeline"]
 
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _CONTEXT_ARG = "__eval_context__"
+# Output name of the ``set_values`` root node and the axis input name a mapped
+# node consumes: ``evaluation_contexts[object] -> output[object]``.
+_EVALUATION_CONTEXTS = "evaluation_contexts"
 # Stable UUID slot for the zero-evaluation-object mode: cache entries are
 # keyed on (x_key, uuid), and without an object the x_key alone identifies
 # the evaluation.  A fixed constant keeps keys stable across processes.
@@ -117,20 +120,22 @@ def _make_injection_wrapper(func: Callable, requires: list[str]) -> Callable:
     return wrapper
 
 
-def _make_context_wrapper(func: Callable) -> Callable:
-    """Wrap a root node so it receives ``_EvaluationContext`` and extracts the obj.
+def _make_root_wrapper(func: Callable, arg_name: str) -> Callable:
+    """Wrap a root node so it receives a ``_EvaluationContext`` and extracts the obj.
 
-    The wrapped function's signature is ``(__eval_context__,)`` so pipefunc wires
-    it to the single pipeline root arg.  The user's function is called with the
-    raw evaluation object extracted from the context.
+    The wrapper's single argument is named *arg_name* so pipefunc wires it to the
+    graph root: ``_CONTEXT_ARG`` for the legacy per-object loop (one context
+    injected per call), or ``_EVALUATION_CONTEXTS`` for a mapped node (one context
+    element per object axis iteration).  Either way the user's function is called
+    with the raw evaluation object extracted from the context.
     """
 
     def wrapper(**kwargs: Any) -> Any:
-        ctx: _EvaluationContext = kwargs[_CONTEXT_ARG]
+        ctx: _EvaluationContext = kwargs[arg_name]
         return func(ctx.obj)
 
     wrapper.__signature__ = inspect.Signature(
-        [inspect.Parameter(_CONTEXT_ARG, inspect.Parameter.KEYWORD_ONLY)]
+        [inspect.Parameter(arg_name, inspect.Parameter.KEYWORD_ONLY)]
     )
     return wrapper
 
@@ -153,9 +158,6 @@ def _guard_recoverable_writes(cache: Any) -> None:
         original_put(key, value, *args, **kwargs)
 
     cache.put = put
-
-
-_EVALUATION_CONTEXTS = "evaluation_contexts"
 
 
 def _make_set_values_node(space: ParameterSpace) -> PipeFunc:
@@ -203,14 +205,23 @@ def _make_node(
     output_name: str,
     requires: list[str] | None,
     cache: bool = True,
+    mapspec: str | None = None,
 ) -> PipeFunc:
-    """Build a `PipeFunc` node with failure propagation and optional arg injection."""
+    """Build a `PipeFunc` node with failure propagation and optional arg injection.
+
+    A node with ``requires`` receives its named upstream outputs (single elements
+    under a mapspec, whole values otherwise).  A root node (``requires is None``)
+    consumes the object context: the ``evaluation_contexts`` axis when it is
+    mapped, or the legacy per-object ``_CONTEXT_ARG`` root when it is not.
+    """
     safe = _wrap_with_failure_propagation(func, stage=output_name)
     if requires is not None:
         node_func = _make_injection_wrapper(safe, requires)
+    elif mapspec is not None:
+        node_func = _make_root_wrapper(safe, _EVALUATION_CONTEXTS)
     else:
-        node_func = _make_context_wrapper(safe)
-    return PipeFunc(node_func, output_name=output_name, cache=cache)
+        node_func = _make_root_wrapper(safe, _CONTEXT_ARG)
+    return PipeFunc(node_func, output_name=output_name, cache=cache, mapspec=mapspec)
 
 
 class EvaluationPipeline:
@@ -253,6 +264,11 @@ class EvaluationPipeline:
         self._cache_dir: Path | None = Path(cache_dir) if cache_dir is not None else None
         self._nodes: list[PipeFunc] = []
         self._output_names: list[str] = []
+        # Parallel per-node metadata, kept alongside ``_nodes`` so graph-shape
+        # decisions (mapped vs. legacy loop, mixed-root guard) read plain data
+        # instead of re-introspecting PipeFunc objects.
+        self._mapspecs: list[str | None] = []
+        self._requires: list[list[str] | None] = []
         self._pipeline: Pipeline | None = None
 
     # ------------------------------------------------------------------
@@ -264,6 +280,7 @@ class EvaluationPipeline:
         output_name: str,
         requires: list[str] | None = None,
         cache: bool = True,
+        mapspec: str | None = None,
     ) -> None:
         """Register a callable as a named node in the evaluation DAG.
 
@@ -286,6 +303,13 @@ class EvaluationPipeline:
             Whether to cache the output of this node.  Defaults to True.
             Pass False for nodes with side effects (e.g. callbacks) where
             repeated execution is intentional and results need not be stored.
+        mapspec : str, optional
+            pipefunc axis-mapping string declaring this node as mapped over the
+            object axis, e.g. ``"evaluation_contexts[object] -> out[object]"`` for
+            a root evaluator or ``"simulation_result[object] -> out[object]"`` for
+            a downstream one.  When any node is mapped the graph is executed once
+            via ``pipeline.map`` over the whole object axis instead of the legacy
+            per-object loop.  A node without a mapspec is a whole-value consumer.
 
         Raises
         ------
@@ -301,9 +325,11 @@ class EvaluationPipeline:
         if output_name in self._output_names:
             raise ValueError(f"output_name {output_name!r} is already registered")
 
-        node = _make_node(func, output_name, requires, cache=cache)
+        node = _make_node(func, output_name, requires, cache=cache, mapspec=mapspec)
         self._nodes.append(node)
         self._output_names.append(output_name)
+        self._mapspecs.append(mapspec)
+        self._requires.append(requires)
         self._pipeline = None  # invalidate cached pipeline
 
     # ------------------------------------------------------------------
@@ -313,6 +339,37 @@ class EvaluationPipeline:
     def output_names(self) -> list[str]:
         """list[str]: All registered output names, in registration order."""
         return list(self._output_names)
+
+    @property
+    def _is_mapped(self) -> bool:
+        """Whether any registered node declares a mapspec (mapped execution)."""
+        return any(m is not None for m in self._mapspecs)
+
+    def _graph_nodes(self) -> list[PipeFunc]:
+        """Nodes for the pipefunc graph, prepending ``set_values`` when mapped.
+
+        A mapped graph roots on ``x`` and fans the object axis off the
+        ``evaluation_contexts`` sequence, so the ``set_values`` node must exist.
+        An unmapped graph is byte-for-byte the legacy per-object graph.
+        """
+        if not self._is_mapped:
+            return list(self._nodes)
+        unmapped_roots = [
+            name
+            for name, mapspec, requires in zip(
+                self._output_names, self._mapspecs, self._requires
+            )
+            if mapspec is None and requires is None
+        ]
+        if unmapped_roots:
+            raise ValueError(
+                "A mapped graph cannot contain an unmapped root evaluator "
+                f"(requires=None, mapspec=None): {unmapped_roots}. Give it a "
+                "mapspec ('evaluation_contexts[object] -> out[object]') so it fans "
+                "over the object axis. Whole-value fan-in over a mapped output is "
+                "not yet supported."
+            )
+        return [_make_set_values_node(self._space), *self._nodes]
 
     def _get_pipeline(self) -> Pipeline:
         """Return the cached pipeline, building it if necessary.
@@ -326,10 +383,11 @@ class EvaluationPipeline:
                 raise RuntimeError(
                     "No evaluators registered.  Call add_evaluator before evaluate."
                 )
+            nodes = self._graph_nodes()
             if self._cache_dir is not None:
                 self._cache_dir.mkdir(parents=True, exist_ok=True)
                 self._pipeline = Pipeline(
-                    list(self._nodes),
+                    nodes,
                     cache_type="disk",
                     # lru_shared=False keeps the in-memory LRU a plain dict; the
                     # shared variant backs it with a multiprocessing.Manager
@@ -345,7 +403,7 @@ class EvaluationPipeline:
                 )
             else:
                 self._pipeline = Pipeline(
-                    list(self._nodes),
+                    nodes,
                     cache_type="hybrid",
                     # shared=False: plain in-process dict instead of a
                     # Manager-backed one.  See the disk branch above.
@@ -414,6 +472,19 @@ class EvaluationPipeline:
                 "TransformedSpace — decode first: "
                 "pipeline.evaluate(space.transformed_space.decode(x))."
             )
+
+        if targets is None:
+            targets = self._output_names
+        else:
+            unknown = [t for t in targets if t not in self._output_names]
+            if unknown:
+                raise ValueError(f"Unknown target(s): {unknown}")
+
+        if self._is_mapped:
+            return self._evaluate_mapped(
+                assignment, targets, bypass_cache, evaluation_objects
+            )
+
         self._space.set_values(assignment)
         x_key: tuple = tuple(
             (p.name, assignment[p.name])
@@ -423,13 +494,6 @@ class EvaluationPipeline:
             # Append a nonce so every node sees a guaranteed cache miss.
             # Existing entries for other assignments are unaffected.
             x_key = x_key + (_uuid_mod.uuid4().hex,)
-
-        if targets is None:
-            targets = self._output_names
-        else:
-            unknown = [t for t in targets if t not in self._output_names]
-            if unknown:
-                raise ValueError(f"Unknown target(s): {unknown}")
 
         eval_objs = self._space.evaluation_objects
         if evaluation_objects is not None:
@@ -471,3 +535,57 @@ class EvaluationPipeline:
             for t, v in _run_for(obj).items():
                 results[t].append(v)
         return results
+
+    def _evaluate_mapped(
+        self,
+        assignment: Mapping[str, Any],
+        targets: list[str],
+        bypass_cache: bool,
+        evaluation_objects: list[Any] | None,
+    ) -> dict[str, Any]:
+        """Run a mapped graph once via ``pipeline.map`` over the object axis.
+
+        The ``set_values`` node writes ``x`` and emits the ordered
+        ``evaluation_contexts`` sequence; ``pipeline.map`` fans every mapped node
+        over that axis.  Results are reshaped to the same convention as the loop:
+        one object (or objectless) unwraps to a plain value, several give a list.
+
+        Sequential (``parallel=False``) is deliberate for the first increment;
+        parallel mapped execution is deferred alongside ``map_async``.
+        """
+        if evaluation_objects is not None:
+            raise NotImplementedError(
+                "Restricting evaluation_objects is not yet supported on the mapped "
+                "path; per-node subset routing is a separate step. Omit it to run "
+                "all objects, or use a graph without mapspecs."
+            )
+        if bypass_cache:
+            raise NotImplementedError(
+                "bypass_cache is not yet supported on the mapped path."
+            )
+        # Build first so graph-validity errors (e.g. an unmapped root) surface
+        # before the target-level whole-value guard below.
+        pipeline = self._get_pipeline()
+
+        mapspec_by_name = dict(zip(self._output_names, self._mapspecs))
+        unmapped_targets = [t for t in targets if mapspec_by_name[t] is None]
+        if unmapped_targets:
+            raise NotImplementedError(
+                f"Targets {unmapped_targets} are whole-value consumers of a mapped "
+                "output (scalar fan-in); this is not yet supported. Request mapped "
+                "targets only for now."
+            )
+
+        result = pipeline.map(
+            {"x": dict(assignment)},
+            output_names=targets,
+            parallel=False,
+        )
+
+        # Objectless (0) and single-object (1) both unwrap to a plain value.
+        single = len(self._space.evaluation_objects) <= 1
+        out: dict[str, Any] = {}
+        for t in targets:
+            values = list(result[t].output)
+            out[t] = values[0] if single else values
+        return out

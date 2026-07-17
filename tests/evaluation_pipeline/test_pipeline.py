@@ -713,8 +713,8 @@ def test_subset_empty_list_raises(two_space):
 
 
 # ── set_values root node ──────────────────────────────────────────────────────
-# The node factory is standalone infrastructure for mapped execution: it is not
-# yet wired into the live graph, so these tests exercise it directly.
+# Unit-level checks of the node factory in isolation; the mapped-execution
+# section below exercises it wired into a live graph.
 
 
 def _with_value_param(space: ParameterSpace) -> ParameterSpace:
@@ -791,3 +791,131 @@ def test_set_values_node_objectless_is_single_sentinel_context():
     assert len(contexts) == 1
     assert contexts[0]._uuid == _NO_OBJECT_UUID
     assert contexts[0].obj == {}
+
+
+# ── mapped execution (object axis) ────────────────────────────────────────────
+# A node with a mapspec fans over the object axis; the graph then runs once via
+# pipeline.map instead of the per-object loop.
+
+
+def _mapped_scaled(pipeline: EvaluationPipeline) -> None:
+    pipeline.add_evaluator(
+        lambda model: model.value * 10,
+        output_name="scaled",
+        mapspec="evaluation_contexts[object] -> scaled[object]",
+    )
+
+
+def test_mapped_multi_object_returns_list():
+    space = _make_space(Model(value=1.0), Model(value=2.0))
+    pipeline = EvaluationPipeline(space)
+    _mapped_scaled(pipeline)
+
+    results = pipeline.evaluate({})
+
+    assert results["scaled"] == [10.0, 20.0]
+
+
+def test_mapped_single_object_returns_plain_value():
+    space = _make_space(Model(value=3.0))
+    pipeline = EvaluationPipeline(space)
+    _mapped_scaled(pipeline)
+
+    results = pipeline.evaluate({})
+
+    assert results["scaled"] == 30.0
+    assert not isinstance(results["scaled"], list)
+
+
+def test_mapped_chain_fans_each_stage_over_objects():
+    space = _make_space(Model(value=1.0), Model(value=2.0))
+    pipeline = EvaluationPipeline(space)
+    _mapped_scaled(pipeline)
+    pipeline.add_evaluator(
+        lambda scaled: scaled + 1,
+        output_name="refined",
+        requires=["scaled"],
+        mapspec="scaled[object] -> refined[object]",
+    )
+
+    results = pipeline.evaluate({}, targets=["refined"])
+
+    assert results["refined"] == [11.0, 21.0]
+
+
+def test_mapped_applies_set_values_to_each_object():
+    m1, m2 = Model(), Model()
+    space = _make_space(m1, m2)
+    _with_value_param(space)
+    pipeline = EvaluationPipeline(space)
+    pipeline.add_evaluator(
+        lambda model: model.value,
+        output_name="v",
+        mapspec="evaluation_contexts[object] -> v[object]",
+    )
+
+    results = pipeline.evaluate({"v": 0.5})
+
+    assert results["v"] == [0.5, 0.5]
+    assert (m1.value, m2.value) == (0.5, 0.5)
+
+
+def test_mapped_objectless_returns_single_result():
+    from CADETProcess.parameter_space.parameters import RangedParameter
+
+    space = ParameterSpace()  # no evaluation objects
+    space.add_parameter(RangedParameter("a", float, lb=0.0, ub=1.0))
+    pipeline = EvaluationPipeline(space)
+    pipeline.add_evaluator(
+        lambda x: x["a"] * 2,
+        output_name="doubled",
+        mapspec="evaluation_contexts[object] -> doubled[object]",
+    )
+
+    results = pipeline.evaluate({"a": 0.3})
+
+    assert results["doubled"] == pytest.approx(0.6)
+    assert not isinstance(results["doubled"], list)
+
+
+def test_mapped_graph_rejects_unmapped_root():
+    space = _make_space(Model(value=1.0))
+    pipeline = EvaluationPipeline(space)
+    _mapped_scaled(pipeline)
+    pipeline.add_evaluator(lambda model: model.value, output_name="plain")
+
+    with pytest.raises(ValueError, match="unmapped root evaluator"):
+        pipeline.evaluate({})
+
+
+def test_mapped_subset_not_yet_supported():
+    m1, m2 = Model(value=1.0), Model(value=2.0)
+    space = _make_space(m1, m2)
+    pipeline = EvaluationPipeline(space)
+    _mapped_scaled(pipeline)
+
+    with pytest.raises(NotImplementedError, match="evaluation_objects"):
+        pipeline.evaluate({}, evaluation_objects=[m1])
+
+
+def test_mapped_bypass_cache_not_yet_supported():
+    space = _make_space(Model(value=1.0))
+    pipeline = EvaluationPipeline(space)
+    _mapped_scaled(pipeline)
+
+    with pytest.raises(NotImplementedError, match="bypass_cache"):
+        pipeline.evaluate({}, bypass_cache=True)
+
+
+def test_mapped_whole_value_target_not_yet_supported():
+    space = _make_space(Model(value=1.0), Model(value=2.0))
+    pipeline = EvaluationPipeline(space)
+    _mapped_scaled(pipeline)
+    pipeline.add_evaluator(
+        lambda scaled: sum(scaled),
+        output_name="total",
+        requires=["scaled"],  # no mapspec: whole-value fan-in
+    )
+
+    with pytest.raises(NotImplementedError, match="whole-value"):
+        pipeline.evaluate({}, targets=["total"])
