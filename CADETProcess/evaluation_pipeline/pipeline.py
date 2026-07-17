@@ -30,6 +30,12 @@ _OBJECT_AXIS = "object"
 # keyed on (x_key, uuid), and without an object the x_key alone identifies
 # the evaluation.  A fixed constant keeps keys stable across processes.
 _NO_OBJECT_UUID = "__no_evaluation_object__"
+# Whole-value root inputs to the ``set_values`` node on the mapped path: the
+# per-call resolved object subset and the cache-busting nonce.  Both are
+# consumed whole (never indexed by a mapspec), so ``pipeline.map`` treats them
+# as scalar roots, not mapped axes.
+_RUN_OBJECTS_ARG = "evaluation_objects"
+_CACHE_NONCE_ARG = "cache_nonce"
 
 
 class _EvaluationContext:
@@ -69,6 +75,27 @@ class _EvaluationContext:
 def _validate_identifier(name: str) -> None:
     if not _IDENTIFIER_RE.match(name):
         raise ValueError(f"{name!r} is not a valid Python identifier")
+
+
+def _resolve_evaluation_objects(
+    all_objects: list[Any], requested: list[Any] | None
+) -> list[Any]:
+    """Resolve a per-call evaluation-object restriction against the registered set.
+
+    `None` runs all registered objects in registration order.  A list restricts
+    the run to those objects in request order (matching the legacy loop, which
+    does ``list(evaluation_objects)``); an unknown object or an empty list
+    raises.  This is a whole-run restriction, distinct from mid-graph per-node
+    subset routing: excluded objects never enter the graph.
+    """
+    if requested is None:
+        return list(all_objects)
+    if not requested:
+        raise ValueError("evaluation_objects must not be empty; pass None for all.")
+    unknown = [o for o in requested if o not in all_objects]
+    if unknown:
+        raise ValueError(f"Unknown evaluation object(s): {unknown}")
+    return list(requested)
 
 
 def _find_failure(value: Any, collects: bool) -> EvaluationFailure | None:
@@ -223,25 +250,44 @@ def _make_set_values_node(space: ParameterSpace) -> PipeFunc:
     ``cache=False``: the node mutates shared objects, so a cache hit would return
     stale-state references; re-running every call preserves current behavior and
     costs nothing (the simulation caches downstream).
+
+    Two further whole-value root inputs carry per-call control that a baked
+    closure cannot see: *evaluation_objects* is the already-resolved run subset
+    (excluded objects never enter the axis), and *cache_nonce* is appended to
+    ``x_key`` when set (``bypass_cache``) so every downstream node misses this
+    run while other assignments' cache entries stay intact.
     """
 
-    def set_values(x: Mapping[str, Any]) -> list[_EvaluationContext]:
+    def set_values(
+        x: Mapping[str, Any],
+        evaluation_objects: list[Any],
+        cache_nonce: str | None,
+    ) -> list[_EvaluationContext]:
         space.set_values(x)
         x_key: tuple = tuple(
             (p.name, x[p.name]) for p in space.independent_parameters
         )
-        objs = space.evaluation_objects
-        if not objs:
+        if cache_nonce is not None:
+            x_key = x_key + (cache_nonce,)
+        if not evaluation_objects:
             # Objectless mode is one sentinel context, not an empty axis: an
             # empty fan would leave a downstream scalar reducer with nothing.
             return [_EvaluationContext(x_key, dict(x), _NO_OBJECT_UUID)]
         return [
             _EvaluationContext(x_key, obj, space.evaluation_object_uuid(obj))
-            for obj in objs
+            for obj in evaluation_objects
         ]
 
     set_values.__signature__ = inspect.Signature(
-        [inspect.Parameter("x", inspect.Parameter.POSITIONAL_OR_KEYWORD)]
+        [
+            inspect.Parameter("x", inspect.Parameter.POSITIONAL_OR_KEYWORD),
+            inspect.Parameter(
+                _RUN_OBJECTS_ARG, inspect.Parameter.POSITIONAL_OR_KEYWORD
+            ),
+            inspect.Parameter(
+                _CACHE_NONCE_ARG, inspect.Parameter.POSITIONAL_OR_KEYWORD
+            ),
+        ]
     )
     return PipeFunc(set_values, output_name=_EVALUATION_CONTEXTS, cache=False)
 
@@ -695,14 +741,9 @@ class EvaluationPipeline:
             # Existing entries for other assignments are unaffected.
             x_key = x_key + (_uuid_mod.uuid4().hex,)
 
-        eval_objs = self._space.evaluation_objects
-        if evaluation_objects is not None:
-            if not evaluation_objects:
-                raise ValueError("evaluation_objects must not be empty; pass None for all.")
-            unknown_objs = [o for o in evaluation_objects if o not in eval_objs]
-            if unknown_objs:
-                raise ValueError(f"Unknown evaluation object(s): {unknown_objs}")
-            eval_objs = list(evaluation_objects)
+        eval_objs = _resolve_evaluation_objects(
+            self._space.evaluation_objects, evaluation_objects
+        )
 
         pipeline = self._get_pipeline()
 
@@ -758,35 +799,42 @@ class EvaluationPipeline:
           (the per-object default); ``per_object=False`` roots are rejected at
           registration.
 
-        Failure handling for fan-in is deliberately minimal: pipefunc hands the
-        reducer a ``MaskedArray``, and the ``bad_metrics``-preserving policy for
-        failed objects is a separate step; this path assumes the happy case.
+        A failed object propagates its ``EvaluationFailure`` sentinel in the
+        mapped array, and a fan-in node fails the aggregate rather than reducing
+        over it (see ``_find_failure``); no ``MaskedArray`` is involved.
+
+        Per-call control reaches the baked ``set_values`` root through two
+        whole-value ``pipeline.map`` inputs: the resolved run subset restricts
+        the object axis, and a cache nonce (set only when ``bypass_cache``)
+        forces every node to miss this run.
 
         Sequential (``parallel=False``) is deliberate for the first increment;
         parallel mapped execution is deferred alongside ``map_async``.
         """
-        if evaluation_objects is not None:
-            raise NotImplementedError(
-                "Restricting evaluation_objects is not yet supported on the mapped "
-                "path; per-node subset routing is a separate step. Omit it to run "
-                "all objects, or use a graph without mapspecs."
-            )
-        if bypass_cache:
-            raise NotImplementedError(
-                "bypass_cache is not yet supported on the mapped path."
-            )
-        # Build first so graph-validity errors (e.g. an unmapped root) surface
-        # before reshaping.
+        effective_objects = _resolve_evaluation_objects(
+            self._space.evaluation_objects, evaluation_objects
+        )
+        cache_nonce = _uuid_mod.uuid4().hex if bypass_cache else None
+        # ``output_names`` trims the run to the requested targets (unrequested
+        # callbacks never fire).  pipefunc builds the trimmed subpipeline over
+        # the main pipeline's (failure-guarded) cache, so cache entries persist
+        # across calls and shared upstream work is reused across target sets
+        # (pipefunc/pipefunc#975, released in 0.93.1; the pinned floor).
         pipeline = self._get_pipeline()
         result = pipeline.map(
-            {"x": dict(assignment)},
-            output_names=targets,
+            {
+                "x": dict(assignment),
+                _RUN_OBJECTS_ARG: effective_objects,
+                _CACHE_NONCE_ARG: cache_nonce,
+            },
+            output_names=set(targets),
             parallel=False,
         )
 
         mapspec_by_name = self._effective_mapspecs
-        # Objectless (0) and single-object (1) both unwrap to a plain value.
-        single = len(self._space.evaluation_objects) <= 1
+        # Objectless (0) and single-object (1) both unwrap to a plain value;
+        # base this on the effective (restricted) objects, not the full space.
+        single = len(effective_objects) <= 1
         out: dict[str, Any] = {}
         for t in targets:
             if mapspec_by_name[t] is None:

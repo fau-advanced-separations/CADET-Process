@@ -745,7 +745,11 @@ def test_set_values_node_emits_context_per_object_in_order(two_space, two_models
     _with_value_param(two_space)
     node = _make_set_values_node(two_space)
 
-    contexts = node(x={"v": 3.0})
+    contexts = node(
+        x={"v": 3.0},
+        evaluation_objects=list(two_space.evaluation_objects),
+        cache_nonce=None,
+    )
 
     assert [type(c) for c in contexts] == [_EvaluationContext, _EvaluationContext]
     # Object-major order follows registration order, and the contexts carry the
@@ -760,7 +764,11 @@ def test_set_values_node_writes_x_into_objects(two_space, two_models):
     _with_value_param(two_space)
     node = _make_set_values_node(two_space)
 
-    node(x={"v": 3.0})
+    node(
+        x={"v": 3.0},
+        evaluation_objects=list(two_space.evaluation_objects),
+        cache_nonce=None,
+    )
 
     assert [m.value for m in two_models] == [3.0, 3.0]
 
@@ -771,7 +779,11 @@ def test_set_values_node_uuids_match_space(two_space, two_models):
     _with_value_param(two_space)
     node = _make_set_values_node(two_space)
 
-    contexts = node(x={"v": 3.0})
+    contexts = node(
+        x={"v": 3.0},
+        evaluation_objects=list(two_space.evaluation_objects),
+        cache_nonce=None,
+    )
 
     expected = [two_space.evaluation_object_uuid(m) for m in two_models]
     assert [c._uuid for c in contexts] == expected
@@ -787,7 +799,7 @@ def test_set_values_node_objectless_is_single_sentinel_context():
     space = ParameterSpace()  # no evaluation objects
     node = _make_set_values_node(space)
 
-    contexts = node(x={})
+    contexts = node(x={}, evaluation_objects=[], cache_nonce=None)
 
     assert len(contexts) == 1
     assert contexts[0]._uuid == _NO_OBJECT_UUID
@@ -893,23 +905,121 @@ def test_mapped_graph_fans_undeclared_root_per_object():
     assert results["plain"] == [1.0, 2.0]
 
 
-def test_mapped_subset_not_yet_supported():
+# ── mapped subset, bypass_cache, and caching ──────────────────────────────────
+# A per-call evaluation_objects= restriction narrows the object axis at the root
+# so excluded objects never run; bypass_cache appends a nonce so every node
+# misses; and repeated calls reuse a kept subpipeline whose cache persists.
+
+
+def test_mapped_subset_restricts_object_axis():
+    m1, m2, m3 = Model(value=1.0), Model(value=2.0), Model(value=3.0)
+    space = _make_space(m1, m2, m3)
+    seen = []
+    pipeline = EvaluationPipeline(space)
+    pipeline.add_evaluator(
+        lambda model: seen.append(model.value) or model.value * 10,
+        output_name="scaled",
+        mapspec="evaluation_contexts[object] -> scaled[object]",
+    )
+
+    results = pipeline.evaluate({}, evaluation_objects=[m1, m3])
+
+    assert results["scaled"] == [10.0, 30.0]
+    assert sorted(seen) == [1.0, 3.0]  # m2 never ran
+
+
+def test_mapped_subset_preserves_request_order():
     m1, m2 = Model(value=1.0), Model(value=2.0)
     space = _make_space(m1, m2)
     pipeline = EvaluationPipeline(space)
     _mapped_scaled(pipeline)
 
-    with pytest.raises(NotImplementedError, match="evaluation_objects"):
-        pipeline.evaluate({}, evaluation_objects=[m1])
+    # Request order [m2, m1] is preserved, matching the legacy loop.
+    assert pipeline.evaluate({}, evaluation_objects=[m2, m1])["scaled"] == [20.0, 10.0]
 
 
-def test_mapped_bypass_cache_not_yet_supported():
+def test_mapped_single_object_subset_unwraps():
+    m1, m2 = Model(value=1.0), Model(value=2.0)
+    space = _make_space(m1, m2)
+    pipeline = EvaluationPipeline(space)
+    _mapped_scaled(pipeline)
+
+    result = pipeline.evaluate({}, evaluation_objects=[m1])["scaled"]
+
+    assert result == 10.0 and not isinstance(result, list)
+
+
+def test_mapped_unknown_object_rejected():
     space = _make_space(Model(value=1.0))
     pipeline = EvaluationPipeline(space)
     _mapped_scaled(pipeline)
 
-    with pytest.raises(NotImplementedError, match="bypass_cache"):
-        pipeline.evaluate({}, bypass_cache=True)
+    with pytest.raises(ValueError, match="Unknown evaluation object"):
+        pipeline.evaluate({}, evaluation_objects=[Model(value=9.0)])
+
+
+def test_mapped_repeated_call_hits_cache():
+    space = _make_space(Model(value=1.0), Model(value=2.0))
+    calls = []
+    pipeline = EvaluationPipeline(space)
+    pipeline.add_evaluator(
+        lambda model: calls.append(model.value) or model.value * 10,
+        output_name="scaled",
+        mapspec="evaluation_contexts[object] -> scaled[object]",
+    )
+
+    pipeline.evaluate({}, targets=["scaled"])
+    pipeline.evaluate({}, targets=["scaled"])  # same x: cached, no recompute
+
+    assert len(calls) == 2  # once per object, not four times
+
+
+def test_mapped_bypass_cache_forces_recompute():
+    space = _make_space(Model(value=1.0), Model(value=2.0))
+    calls = []
+    pipeline = EvaluationPipeline(space)
+    pipeline.add_evaluator(
+        lambda model: calls.append(model.value) or model.value * 10,
+        output_name="scaled",
+        mapspec="evaluation_contexts[object] -> scaled[object]",
+    )
+
+    pipeline.evaluate({}, targets=["scaled"])
+    pipeline.evaluate({}, targets=["scaled"], bypass_cache=True)
+
+    assert len(calls) == 4  # bypass busts the cache for every object
+
+
+def test_mapped_shared_upstream_reused_across_requests():
+    # A simulation computed for one target set is reused when a different target
+    # set (a separate subpipeline) is requested for the same x.
+    space = _make_space(Model(value=1.0), Model(value=2.0))
+    sim_calls, cb_calls = [], []
+    pipeline = EvaluationPipeline(space)
+    pipeline.add_evaluator(
+        lambda model: sim_calls.append(model.value) or model.value * 10,
+        output_name="simulation",
+        mapspec="evaluation_contexts[object] -> simulation[object]",
+    )
+    pipeline.add_evaluator(
+        lambda simulation: simulation,
+        output_name="metric",
+        requires=["simulation"],
+        mapspec="simulation[object] -> metric[object]",
+    )
+    pipeline.add_evaluator(
+        lambda simulation: cb_calls.append(simulation) or simulation,
+        output_name="callback",
+        requires=["simulation"],
+        mapspec="simulation[object] -> callback[object]",
+        cache=False,
+    )
+
+    pipeline.evaluate({}, targets=["metric"])
+    assert len(sim_calls) == 2 and cb_calls == []  # callback did not fire
+    pipeline.evaluate({}, targets=["callback"])
+    # Simulation reused from the shared cache; callback fires only now.
+    assert len(sim_calls) == 2 and len(cb_calls) == 2
 
 
 # ── whole-value fan-in (reduction over the object axis) ───────────────────────
