@@ -968,6 +968,94 @@ def test_mixed_mapped_and_fan_in_targets_in_one_call():
     assert results["total"] == pytest.approx(30.0)
 
 
+# ── fan-in failure parity ─────────────────────────────────────────────────────
+# When an object fails, its EvaluationFailure sentinel travels in the mapped
+# array.  A cached fan-in node builds its cache key from that whole array, so
+# the sentinel must be hashable; and the aggregate must fail rather than hand
+# the reducer a sentinel among floats (the bad_metrics-preserving default).
+
+
+def _mapped_scaled_failing(pipeline: EvaluationPipeline) -> None:
+    """Like `_mapped_scaled`, but an object with negative value fails."""
+
+    def scale(model):
+        if model.value < 0:
+            raise ValueError("bad object")
+        return model.value * 10
+
+    pipeline.add_evaluator(
+        scale,
+        output_name="scaled",
+        mapspec="evaluation_contexts[object] -> scaled[object]",
+    )
+
+
+def test_evaluation_failure_is_hashable():
+    # A fan-in's cache key is built from its whole input array; an unhashable
+    # sentinel in that array would crash key construction before the reducer.
+    a = EvaluationFailure(stage="s", reason="r", recoverable=True)
+    b = EvaluationFailure(stage="s", reason="r", recoverable=True)
+    assert hash(a) == hash(b)
+    assert len({a, b}) == 1
+
+
+def test_fan_in_propagates_failure_of_one_object():
+    space = _make_space(Model(value=1.0), Model(value=-1.0), Model(value=2.0))
+    pipeline = EvaluationPipeline(space)
+    _mapped_scaled_failing(pipeline)
+    pipeline.add_evaluator(
+        lambda scaled: float(min(scaled)),
+        output_name="worst",
+        requires=["scaled"],
+        per_object=False,
+    )
+
+    results = pipeline.evaluate({}, targets=["worst"])
+
+    # A failed object fails the aggregate, carrying the original failure stage.
+    assert isinstance(results["worst"], EvaluationFailure)
+    assert results["worst"].stage == "scaled"
+
+
+def test_fan_in_reducer_not_called_when_an_object_failed():
+    # The reducer must never see a sentinel among floats.
+    space = _make_space(Model(value=1.0), Model(value=-1.0))
+    pipeline = EvaluationPipeline(space)
+    _mapped_scaled_failing(pipeline)
+
+    reducer_calls = []
+
+    def reduce(scaled):
+        reducer_calls.append(list(scaled))
+        return float(min(scaled))
+
+    pipeline.add_evaluator(
+        reduce, output_name="worst", requires=["scaled"], per_object=False
+    )
+
+    results = pipeline.evaluate({}, targets=["worst"])
+
+    assert isinstance(results["worst"], EvaluationFailure)
+    assert reducer_calls == []
+
+
+def test_fan_in_all_objects_succeed_still_reduces():
+    # The failure guard must not disturb the happy path.
+    space = _make_space(Model(value=3.0), Model(value=1.0), Model(value=2.0))
+    pipeline = EvaluationPipeline(space)
+    _mapped_scaled_failing(pipeline)
+    pipeline.add_evaluator(
+        lambda scaled: float(min(scaled)),
+        output_name="worst",
+        requires=["scaled"],
+        per_object=False,
+    )
+
+    results = pipeline.evaluate({}, targets=["worst"])
+
+    assert results["worst"] == pytest.approx(10.0)
+
+
 # ── per_object facade semantics ───────────────────────────────────────────────
 # per_object=False declares a collector; effective mapspec strings are then
 # generated centrally at build time, so no node needs a hand-written string.
