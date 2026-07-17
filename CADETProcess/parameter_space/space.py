@@ -53,6 +53,7 @@ when transformed constraint matrices are assembled by ``TransformedSpace``; see
 from __future__ import annotations
 
 import inspect
+import uuid
 import warnings
 from collections.abc import Callable, Mapping
 from functools import wraps
@@ -175,6 +176,7 @@ class ParameterSpace:
 
     def __init__(self) -> None:
         self._cases: list[Any] = []
+        self._case_uuids: list[str] = []  # parallel to _cases; index-aligned, not id()-keyed
         self._parameters: list[ParameterBase] = []
         self._mappers: dict[str, ParameterMapperBase] = {}
         self._linear_constraints: list[LinearConstraint] = []
@@ -217,11 +219,37 @@ class ParameterSpace:
         if any(obj is existing for existing in self._cases):
             raise ValueError(f"{obj!r} is already registered as a case.")
         self._cases.append(obj)
+        self._case_uuids.append(str(uuid.uuid4()))
 
     @property
     def cases(self) -> list[Any]:
         """Registered cases, in insertion order."""
         return list(self._cases)
+
+    def case_uuid(self, obj: Any) -> str:
+        """Return the stable UUID minted for a registered case.
+
+        The UUID is a per-object identity assigned at registration.  It keys the
+        ``_EvaluationContext`` cache identity and, once mapped execution lands,
+        serves as the object-axis label; minting it here keeps one owner.
+
+        Looked up by identity scan against ``_cases``, not by ``id(obj)``: an
+        ``id()``-keyed dict breaks across any pickle round trip (an unpickled
+        object gets a new ``id()`` that no longer matches the dict's stale
+        keys), which is fatal under process-based parallel backends (Joblib,
+        Pathos) that pickle the whole space to each worker. ``_cases`` and
+        ``_case_uuids`` are pickled and rebuilt together, so index alignment
+        survives even though ``id()`` does not.
+
+        Raises
+        ------
+        ValueError
+            If *obj* is not a registered case.
+        """
+        for i, existing in enumerate(self._cases):
+            if existing is obj:
+                return self._case_uuids[i]
+        raise ValueError(f"{obj!r} is not registered as a case with this space.")
 
     # ── Parameters ───────────────────────────────────────────────────────────
 
