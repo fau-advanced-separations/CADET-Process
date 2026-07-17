@@ -907,15 +907,54 @@ def test_mapped_bypass_cache_not_yet_supported():
         pipeline.evaluate({}, bypass_cache=True)
 
 
-def test_mapped_whole_value_target_not_yet_supported():
+# ── whole-value fan-in (reduction over the object axis) ───────────────────────
+# An unmapped node downstream of a mapped one receives the full per-object array
+# and reduces it to a single value.
+
+
+def test_fan_in_reduces_object_axis_to_scalar():
+    space = _make_space(Model(value=1.0), Model(value=2.0))
+    pipeline = EvaluationPipeline(space)
+    _mapped_scaled(pipeline)  # scaled = [10.0, 20.0]
+    pipeline.add_evaluator(
+        lambda scaled: float(sum(scaled)) / len(scaled),
+        output_name="mean_scaled",
+        requires=["scaled"],  # no mapspec: whole-value consumer
+    )
+
+    results = pipeline.evaluate({}, targets=["mean_scaled"])
+
+    assert results["mean_scaled"] == pytest.approx(15.0)
+    assert not isinstance(results["mean_scaled"], list)
+
+
+def test_fan_in_worst_case_over_objects():
+    space = _make_space(Model(value=3.0), Model(value=1.0), Model(value=2.0))
+    pipeline = EvaluationPipeline(space)
+    _mapped_scaled(pipeline)  # scaled = [30.0, 10.0, 20.0]
+    pipeline.add_evaluator(
+        lambda scaled: float(min(scaled)),
+        output_name="worst",
+        requires=["scaled"],
+    )
+
+    results = pipeline.evaluate({}, targets=["worst"])
+
+    assert results["worst"] == pytest.approx(10.0)
+
+
+def test_mixed_mapped_and_fan_in_targets_in_one_call():
     space = _make_space(Model(value=1.0), Model(value=2.0))
     pipeline = EvaluationPipeline(space)
     _mapped_scaled(pipeline)
     pipeline.add_evaluator(
-        lambda scaled: sum(scaled),
+        lambda scaled: float(sum(scaled)),
         output_name="total",
-        requires=["scaled"],  # no mapspec: whole-value fan-in
+        requires=["scaled"],
     )
 
-    with pytest.raises(NotImplementedError, match="whole-value"):
-        pipeline.evaluate({}, targets=["total"])
+    results = pipeline.evaluate({}, targets=["scaled", "total"])
+
+    # The mapped target keeps its per-object list; the fan-in collapses to a scalar.
+    assert results["scaled"] == [10.0, 20.0]
+    assert results["total"] == pytest.approx(30.0)
