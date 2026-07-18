@@ -286,7 +286,17 @@ def _make_set_values_node(space: ParameterSpace) -> PipeFunc:
             ),
         ]
     )
-    return PipeFunc(set_values, output_name=_EVALUATION_CONTEXTS, cache=False)
+    # Declare the axis-source mapspec explicitly (empty input axes, one
+    # ``object`` output axis: ``set_values`` produces the whole sequence in one
+    # call).  This is byte-for-byte what pipefunc would otherwise autogenerate,
+    # but autogeneration fires a bare ``print`` on every pipeline build; setting
+    # it here keeps the now-unconditional mapped path quiet.
+    return PipeFunc(
+        set_values,
+        output_name=_EVALUATION_CONTEXTS,
+        cache=False,
+        mapspec=f"... -> {_EVALUATION_CONTEXTS}[{_OBJECT_AXIS}]",
+    )
 
 
 class _NodeSpec:
