@@ -3,6 +3,7 @@ from __future__ import annotations
 import pickle
 from dataclasses import dataclass
 
+import numpy as np
 import pytest
 from CADETProcess.evaluation_pipeline import EvaluationFailure, EvaluationPipeline
 from CADETProcess.parameter_space.space import ParameterSpace
@@ -935,11 +936,14 @@ def test_fan_in_reduces_object_axis_to_scalar():
 
 
 def test_fan_in_worst_case_over_objects():
+    # np.min (not the Python builtin) exercises a numpy reduction on the
+    # collector input: the fan-in axis arrives as a MaskedArray, and numpy's
+    # masked reductions crash on it unless the wrapper hands over a plain array.
     space = _make_space(Model(value=3.0), Model(value=1.0), Model(value=2.0))
     pipeline = EvaluationPipeline(space)
     _mapped_scaled(pipeline)  # scaled = [30.0, 10.0, 20.0]
     pipeline.add_evaluator(
-        lambda scaled: float(min(scaled)),
+        lambda scaled: float(np.min(scaled)),
         output_name="worst",
         requires=["scaled"],
         per_object=False,

@@ -90,6 +90,21 @@ def _find_failure(value: Any, collects: bool) -> EvaluationFailure | None:
     return None
 
 
+def _demask(value: Any) -> Any:
+    """Strip the mask from a `MaskedArray` collector input, else pass through.
+
+    A `collects` fan-in receives its mapped axis as a ``MaskedArray``; by the
+    time the reducer runs, ``_find_failure`` has guaranteed no element is masked
+    (a failed object was propagated already).  Hand the reducer a plain
+    ``ndarray``: numpy's masked-array reductions (``np.max``/``np.min``) crash on
+    an all-unmasked array via a scalar ``.view``, silently turning a legitimate
+    worst-case reducer into a ``bad_metrics`` result.
+    """
+    if isinstance(value, np.ma.MaskedArray):
+        return np.asarray(value)
+    return value
+
+
 def _wrap_with_failure_propagation(
     func: Callable, stage: str, collects: bool = False
 ) -> Callable:
@@ -114,6 +129,9 @@ def _wrap_with_failure_propagation(
             failure = _find_failure(v, collects)
             if failure is not None:
                 return failure
+        if collects:
+            args = tuple(_demask(a) for a in args)
+            kwargs = {k: _demask(v) for k, v in kwargs.items()}
         try:
             return func(*args, **kwargs)
         except Exception as e:

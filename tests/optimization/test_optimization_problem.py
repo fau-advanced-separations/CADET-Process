@@ -663,6 +663,25 @@ def test_aggregating_objective_reduces_moo_to_soo(op_two_objects_with_evaluator)
     np.testing.assert_allclose(f, [7.5])
 
 
+def test_worst_case_objective_uses_numpy_reduction(op_two_objects_with_evaluator):
+    # The canonical worst-case aggregation uses np.max on the collector input.
+    # The input arrives as a MaskedArray; without demasking, np.max crashes and
+    # the failure is swallowed into bad_metrics (inf) instead of the real max.
+    op, simulate, _, _ = op_two_objects_with_evaluator
+    op.add_objective(
+        lambda sims: float(np.max(sims)),
+        name="worst_sim",
+        requires=simulate,
+        per_object=False,
+    )
+
+    assert op.n_objectives == 1
+
+    # simulate -> [5.0, 10.0]; max -> 10.0 (not inf)
+    f = op.evaluate_objectives([0.5])
+    np.testing.assert_allclose(f, [10.0])
+
+
 def test_per_object_objective_default_matches_legacy(op_two_objects_with_evaluator):
     op, simulate, _, _ = op_two_objects_with_evaluator
     op.add_objective(lambda sim: sim, name="sim_value", requires=simulate)
