@@ -893,8 +893,7 @@ def test_mapped_objectless_returns_single_result():
 
 def test_mapped_graph_fans_undeclared_root_per_object():
     # Per-object is the default semantic: a root without any declaration fans
-    # over the object axis when the graph is mapped, matching what the legacy
-    # loop would have computed for it.
+    # over the object axis, one result per object.
     space = _make_space(Model(value=1.0), Model(value=2.0))
     pipeline = EvaluationPipeline(space)
     _mapped_scaled(pipeline)
@@ -934,7 +933,7 @@ def test_mapped_subset_preserves_request_order():
     pipeline = EvaluationPipeline(space)
     _mapped_scaled(pipeline)
 
-    # Request order [m2, m1] is preserved, matching the legacy loop.
+    # Request order [m2, m1] is preserved in the returned list.
     assert pipeline.evaluate({}, evaluation_objects=[m2, m1])["scaled"] == [20.0, 10.0]
 
 
@@ -1214,10 +1213,10 @@ def test_collector_on_root_raises(single_space):
         )
 
 
-def test_explicit_per_object_true_alone_stays_legacy():
-    # Per-object is what the legacy loop already computes; without a collector
-    # or explicit mapspec there is no reason to switch engines, so legacy-only
-    # features (evaluation_objects subsets) keep working.
+def test_plain_per_object_graph_supports_subset_on_one_engine():
+    # A plain per-object graph (no collector, no explicit mapspec) runs through
+    # the same mapped engine as every other graph: there is no separate legacy
+    # loop.  Per-call subset, once a legacy-only feature, works here too.
     m1, m2 = Model(value=1.0), Model(value=2.0)
     space = _make_space(m1, m2)
     pipeline = EvaluationPipeline(space)
