@@ -33,6 +33,7 @@ from CADETProcess.parameter_space.constraints import (
 )
 from CADETProcess.parameter_space.mappers import (
     IndexedMapper,
+    NestedDictMapper,
     make_preprocessing_mapper,
 )
 from CADETProcess.parameter_space.parameters import (
@@ -456,15 +457,35 @@ class OptimizationProblem(Problem):
                 key = (parameter_path, id(obj), index_key)
                 self._path_registry[key] = name
 
-        # Wire mapper.
+        # Wire mapper.  Targets exposing a `parameters` interface are written
+        # through it (NestedDictMapper) so the value travels the same setter
+        # chain the event system uses; this is required for parameters that are
+        # not plain writable attributes (e.g. `flow_sheet.output_states`, a
+        # read-only property writable only via `set_output_state`).  A raw
+        # setattr mapper (DotPathMapper / make_preprocessing_mapper) is the
+        # fallback for objects without a `parameters` interface.
+        supports_parameters = eval_objs and all(
+            hasattr(obj, "parameters") for obj in eval_objs
+        )
         if not eval_objs:
             self._parameter_space.add_parameter(param)
         elif pre_processing is not None:
-            mapper = make_preprocessing_mapper(eval_objs, parameter_path, pre_processing)
+            if supports_parameters:
+                mapper = NestedDictMapper(
+                    eval_objs, parameter_path, pre_processing=pre_processing
+                )
+            else:
+                mapper = make_preprocessing_mapper(
+                    eval_objs, parameter_path, pre_processing
+                )
             self._parameter_space.add_parameter(param, mapper=mapper)
         elif indices is not None:
             self._parameter_space.add_parameter(
                 param, mapper=IndexedMapper(eval_objs, parameter_path, indices)
+            )
+        elif supports_parameters:
+            self._parameter_space.add_parameter(
+                param, mapper=NestedDictMapper(eval_objs, parameter_path)
             )
         else:
             self._parameter_space.add_parameter(

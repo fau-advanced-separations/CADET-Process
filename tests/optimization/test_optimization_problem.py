@@ -1447,3 +1447,82 @@ def test_callback_subset_side_effect_only_for_bound_object():
     op.evaluate_callbacks(pop, current_iteration=0)
 
     assert seen == ["foo"]
+
+
+# ── Special-container parameter paths (output_states) ─────────────────────────
+#
+# Regression: `flow_sheet.output_states` is a read-only computed property backed
+# by an object-keyed dict; it is writable only through `set_output_state`.  A
+# raw setattr/dict-key mapper writes a throwaway copy and the value is silently
+# discarded, so an optimization variable targeting it never moves the model.
+# The write must route through the `.parameters` setter chain instead.
+
+
+def _split_process():
+    """Minimal process: one Cstr splitting into two outlets (Anan's ZRM MRE)."""
+    from CADETProcess.processModel import (
+        ComponentSystem,
+        Cstr,
+        FlowSheet,
+        Inlet,
+        Outlet,
+        Process,
+    )
+
+    component_system = ComponentSystem(["A"])
+    flow_sheet = FlowSheet(component_system, "flow_sheet")
+
+    inlet = Inlet(component_system, "inlet")
+    inlet.flow_rate = 1
+    inlet.c = [1]
+    cstr = Cstr(component_system, "cstr")
+    cstr.init_liquid_volume = 1
+    outlet_1 = Outlet(component_system, "outlet_1")
+    outlet_2 = Outlet(component_system, "outlet_2")
+
+    for unit in (inlet, cstr, outlet_1, outlet_2):
+        flow_sheet.add_unit(unit)
+    flow_sheet.add_connection(inlet, cstr)
+    flow_sheet.add_connection(cstr, outlet_1)
+    flow_sheet.add_connection(cstr, outlet_2)
+
+    process = Process(flow_sheet, "process")
+    process.cycle_time = 20
+    return process, flow_sheet, cstr
+
+
+def test_output_states_variable_writes_split_through_flow_sheet():
+    process, flow_sheet, cstr = _split_process()
+
+    op = OptimizationProblem("output_split", use_diskcache=False)
+    op.add_evaluation_object(process)
+    op.add_variable(
+        "output_split",
+        parameter_path="flow_sheet.output_states.cstr",
+        lb=0,
+        ub=1,
+        transform=None,
+        pre_processing=lambda x: [1 - float(x), float(x)],
+    )
+
+    op.parameter_space.set_values({"output_split": 0.3})
+
+    np.testing.assert_allclose(flow_sheet.output_states[cstr], [0.7, 0.3])
+
+
+def test_output_states_variable_rejects_invalid_split():
+    process, flow_sheet, cstr = _split_process()
+
+    op = OptimizationProblem("bad_split", use_diskcache=False)
+    op.add_evaluation_object(process)
+    op.add_variable(
+        "output_split",
+        parameter_path="flow_sheet.output_states.cstr",
+        lb=0,
+        ub=1,
+        transform=None,
+        pre_processing=lambda x: [float(x), float(x)],  # sums to 2x != 1
+    )
+
+    with pytest.raises(CADETProcessError):
+        op.parameter_space.set_values({"output_split": 0.3})
