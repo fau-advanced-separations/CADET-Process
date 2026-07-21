@@ -32,12 +32,15 @@ from typing import Any
 import numpy as np
 from numpy.exceptions import VisibleDeprecationWarning
 
+from CADETProcess.dataStructure.nested_dict import generate_nested_dict
+
 __all__ = [
     "parse_path",
     "ParameterMapperBase",
     "DotPathMapper",
     "IndexedMapper",
     "CallableMapper",
+    "NestedDictMapper",
     "make_preprocessing_mapper",
 ]
 
@@ -388,6 +391,60 @@ class CallableMapper(ParameterMapperBase):
 
     def _set_value(self, obj: Any, value: Any) -> None:
         self.fn(obj, value)
+
+
+class NestedDictMapper(ParameterMapperBase):
+    """Write a value through each object's ``parameters`` setter.
+
+    Builds a single-branch nested dict from *path* and assigns it to
+    ``obj.parameters``, so the write travels the same setter chain the event
+    system uses.  Required for parameters that are not plain writable
+    attributes: ``flow_sheet.output_states`` is a read-only computed property
+    writable only via ``set_output_state``, and a raw ``setattr`` writes a
+    discarded copy (see ``DotPathMapper``).  Routing through the setter also
+    yields validation and ``_parameters_dict`` bookkeeping for free.
+
+    The target must expose a settable ``parameters`` interface; use
+    ``DotPathMapper`` for objects that do not.
+
+    Parameters
+    ----------
+    evaluation_objects : sequence
+        Objects to write into.
+    path : str
+        Dot-separated path to the target parameter.
+    pre_processing : callable, optional
+        Applied to the raw value before the write, mirroring the old
+        ``OptimizationProblem`` behaviour of transforming before dispatch.
+    """
+
+    def __init__(
+        self,
+        evaluation_objects: Sequence[Any],
+        path: str,
+        pre_processing: Callable[[Any], Any] | None = None,
+    ) -> None:
+        super().__init__(evaluation_objects)
+        self.path = path
+        self._segments = path.split(".")
+        self.pre_processing = pre_processing
+
+    def _set_value(self, obj: Any, value: Any) -> None:
+        if self.pre_processing is not None:
+            value = self.pre_processing(value)
+        obj.parameters = generate_nested_dict(self.path, value)
+
+    def _get_value(self, obj: Any) -> Any:
+        # Read-back is best-effort: a pre_processing transform is one-way, and
+        # special containers (object-keyed ``output_states``) are not addressable
+        # by name.  Return None rather than raise when the value can't be read.
+        if self.pre_processing is not None:
+            return None
+        try:
+            parent, leaf = _traverse(obj, self._segments)
+            return parent[leaf] if isinstance(parent, Mapping) else getattr(parent, leaf)
+        except (AttributeError, KeyError, TypeError):
+            return None
 
 
 def make_preprocessing_mapper(
