@@ -856,10 +856,22 @@ class LeastSquares(OptimizerBase):
         Tolerance for termination by the norm of the gradient. Default 1e-8.
     jac : {'2-point', '3-point', 'cs'}, optional
         Method for numerically approximating the Jacobian. Default is '2-point'.
-    diff_step : UnsignedFloat, optional
+    diff_step : float or array_like, optional
         Relative step size for the numerical approximation of the Jacobian (scipy's
         equivalent of the other adapters' `finite_diff_rel_step`). If None (default),
-        the step size is selected automatically.
+        the step size is selected automatically. Accepts either a scalar (shared by
+        all variables) or one entry per variable - useful when parameters differ
+        widely in how sensitive the residuals are to them (e.g. one entry needs a
+        larger step to clear the simulator's own numerical noise floor, another
+        needs a smaller step to stay within a narrow locally-informative region).
+    x_scale : float, array_like, or 'jac', optional
+        Characteristic scale of each variable, used to rescale the trust-region
+        step and finite-difference perturbations. Default is 1.0 (no rescaling;
+        variables are used in the transformed/normalized space as-is). Set to
+        'jac' to have scipy dynamically rescale variables based on the inverse
+        norms of the Jacobian's columns every iteration - useful when different
+        parameters' residual sensitivities differ by orders of magnitude, on top
+        of (not instead of) the OptimizationProblem's own `transform` normalization.
 
     See Also
     --------
@@ -880,7 +892,10 @@ class LeastSquares(OptimizerBase):
     xtol = UnsignedFloat(default=1e-8)
     gtol = UnsignedFloat(default=1e-8)
     jac = Switch(valid=["2-point", "3-point", "cs"], default="2-point")
-    diff_step = UnsignedFloat()
+    diff_step = None  # float or array_like (one entry per variable); not a
+                       # Structure descriptor since it can be either shape.
+    x_scale = 1.0  # float, array_like, or 'jac'; not a Structure descriptor since
+                   # it can be a plain scalar, an array, or the literal string 'jac'.
 
     x_tol = xtol  # Alias for uniform interface
     f_tol = ftol  # Alias for uniform interface
@@ -894,6 +909,7 @@ class LeastSquares(OptimizerBase):
         "gtol",
         "jac",
         "diff_step",
+        "x_scale",
     ]
 
     def _run(
@@ -951,6 +967,7 @@ class LeastSquares(OptimizerBase):
                 xtol=self.xtol,
                 gtol=self.gtol,
                 diff_step=self.diff_step,
+                x_scale=self.x_scale,
                 max_nfev=self.n_max_evals,
             )
 
