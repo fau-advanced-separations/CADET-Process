@@ -31,12 +31,24 @@ class _LogSpaceModel:
     """hopsy log-space model for parameters with nonlinear normalizers (e.g. LogNormalizer).
 
     Injects a Jacobian correction so hopsy draws are uniform in transformed space.
+
+    The polytope handed to hopsy lives in unit-box coordinates (see
+    ``HopsySampler._candidates``), so the callback first recovers the physical
+    value ``x = lb + scale * u``.  The correction is a property of the point,
+    not of the coordinates naming it: the constant scale factor cancels in the
+    normalization, so the target density is the one that would be obtained
+    sampling ``x`` directly.
     """
 
-    def __init__(self, log_indices: list[int]) -> None:
+    def __init__(
+        self, log_indices: list[int], lb: np.ndarray, scale: np.ndarray
+    ) -> None:
         self.log_space_indices = log_indices
+        self.lb = lb
+        self.scale = scale
 
-    def compute_negative_log_likelihood(self, x: np.ndarray) -> float:
+    def compute_negative_log_likelihood(self, u: np.ndarray) -> float:
+        x = self.lb + self.scale * u
         return float(np.sum(np.log(x[self.log_space_indices])))
 
 
@@ -183,6 +195,11 @@ class HopsySampler(SamplerBase):
     The only correct choice when linear inequality or equality constraints are
     present. Uses a log-space model for parameters with nonlinear normalizers.
 
+    The polytope is built in unit-box coordinates and the draws are mapped back
+    to physical units, so bounds of any magnitude sample correctly; hopsy's
+    rounding step otherwise rejects narrow-in-absolute-units spaces (e.g.
+    ``ub=1e-9``) as degenerate.
+
     Inequality constraints referencing dependent parameters are excluded from
     the polytope (a relaxation); SamplerBase enforces them by rejection.
     Equality constraints referencing dependent parameters raise, because an
@@ -220,22 +237,44 @@ class HopsySampler(SamplerBase):
             dtype=bool,
         )
 
+        lb_num = np.array([p.lb for p in numeric], dtype=float)
+        ub_num = np.array([p.ub for p in numeric], dtype=float)
+
+        # Sample in unit-box coordinates u = (x - lb) / (ub - lb) rather than in
+        # physical units.  PolyRound rejects any polytope narrower than an
+        # absolute threshold (thresh / accepted_tol_violation = 1e-9) as
+        # degenerate, so a legitimate but small-scale bound (ub=1e-9) fails to
+        # round.  The map is a shift and a per-parameter scale, so linear
+        # constraints stay linear and transform exactly; it is deliberately
+        # independent of each parameter's declared normalizer, since a
+        # nonlinear one would bend constraints into curves the polytope cannot
+        # represent.  Draws are mapped back to physical units before returning.
+        width = ub_num - lb_num
+        scale = np.where(width > 0, width, 1.0)
+        # 1.0 for a normal parameter, 0.0 for a degenerate one (lb == ub),
+        # which keeps the point-polytope a point instead of widening it.
+        ub_unit = width / scale
+
         log_indices = [
             i for i, p in enumerate(numeric) if not p.normalizer.is_linear
         ]
-        model = _LogSpaceModel(log_indices) if log_indices else None
+        model = (
+            _LogSpaceModel(log_indices, lb_num, scale) if log_indices else None
+        )
 
-        lb_num = np.array([p.lb for p in numeric], dtype=float)
-        ub_num = np.array([p.ub for p in numeric], dtype=float)
+        A = space.A_independent[independent_rows][:, numeric_idx]
         problem = hopsy.Problem(
-            space.A_independent[independent_rows][:, numeric_idx],
-            space.b[independent_rows],
+            A * scale,
+            space.b[independent_rows] - A @ lb_num,
             model,
         )
-        problem = hopsy.add_box_constraints(problem, lb_num, ub_num, simplify=False)
+        problem = hopsy.add_box_constraints(
+            problem, np.zeros_like(lb_num), ub_unit, simplify=False
+        )
         if space._linear_equality_constraints:
+            A_eq = space.A_eq_independent[:, numeric_idx]
             problem = hopsy.add_equality_constraints(
-                problem, space.A_eq_independent[:, numeric_idx], space.b_eq
+                problem, A_eq * scale, space.b_eq - A_eq @ lb_num
             )
 
         with warnings.catch_warnings():
@@ -248,7 +287,8 @@ class HopsySampler(SamplerBase):
             _, states = hopsy.sample(
                 mc, rng_hopsy, n_samples=self.pool_size, thinning=2
             )
-        return states[0]  # shape (pool_size, n_numeric)
+        # back to physical units; shape (pool_size, n_numeric)
+        return lb_num + states[0] * scale
 
 
 class LatinHypercubeSampler(SamplerBase):
