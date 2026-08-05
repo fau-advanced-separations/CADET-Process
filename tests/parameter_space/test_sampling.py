@@ -250,6 +250,100 @@ def test_sample_candidates_drawn_without_replacement(column):
     assert len(set(values)) == len(values)
 
 
+# ── extreme parameter scales ──────────────────────────────────────────────────
+
+
+def test_sample_tiny_bounds(column):
+    # hopsy's rounding step rejects polytopes narrower than an absolute
+    # threshold (1e-9) as degenerate; the sampler must build the polytope in
+    # unit-box coordinates so a legitimate small-scale bound still samples
+    space = ParameterSpace()
+    space.add_evaluation_object(column)
+    space.add_parameter(
+        RangedParameter("length", float, lb=0.0, ub=1e-9), path="length"
+    )
+    samples = space.sample(10, seed=0, pool_size=BURN_IN)
+    assert len(samples) == 10
+    assert all(0.0 <= s["length"] <= 1e-9 for s in samples)
+
+
+def test_sample_narrow_bounds_far_from_origin(column):
+    # narrow *and* offset: only rescaling by the width and shifting by the
+    # lower bound conditions this box
+    space = ParameterSpace()
+    space.add_evaluation_object(column)
+    space.add_parameter(
+        RangedParameter("length", float, lb=1e6, ub=1e6 + 1e-9), path="length"
+    )
+    samples = space.sample(10, seed=0, pool_size=BURN_IN)
+    assert all(1e6 <= s["length"] <= 1e6 + 1e-9 for s in samples)
+
+
+def test_sample_is_scale_invariant(column):
+    # the same seed must place draws at the same relative position in the box
+    # regardless of the units the bounds are expressed in
+    def relative(ub):
+        space = ParameterSpace()
+        space.add_evaluation_object(Column())
+        space.add_parameter(
+            RangedParameter("length", float, lb=0.0, ub=ub), path="length"
+        )
+        return [s["length"] / ub for s in space.sample(5, seed=7, pool_size=BURN_IN)]
+
+    np.testing.assert_allclose(relative(1e-12), relative(1.0), rtol=1e-9)
+    np.testing.assert_allclose(relative(1e12), relative(1.0), rtol=1e-9)
+
+
+def test_sample_tiny_bounds_with_linear_constraint(column):
+    # the constraint must be rescaled together with the parameters, or the
+    # unit-box polytope enforces the wrong half-space
+    space = ParameterSpace()
+    space.add_evaluation_object(column)
+    a = RangedParameter("a", float, lb=0.0, ub=1e-9)
+    b = RangedParameter("b", float, lb=0.0, ub=1e-9)
+    space.add_parameter(a, path="length")
+    space.add_parameter(b, path="diameter")
+    space.add_linear_constraint(LinearConstraint([a, b], lhs=[1.0, 1.0], b=1e-9))
+    samples = space.sample(20, seed=0, pool_size=BURN_IN)
+    assert len(samples) == 20
+    assert all(s["a"] + s["b"] <= 1e-9 * (1 + 1e-9) for s in samples)
+    # the constraint must bind, not be trivially satisfied by a collapsed box
+    assert any(s["a"] + s["b"] > 0.5e-9 for s in samples)
+
+
+def test_sample_narrow_bounds_with_equality_constraint(column):
+    space = ParameterSpace()
+    space.add_evaluation_object(column)
+    a = RangedParameter("a", float, lb=0.0, ub=1e-9)
+    b = RangedParameter("b", float, lb=0.0, ub=1e-9)
+    space.add_parameter(a, path="length")
+    space.add_parameter(b, path="diameter")
+    space.add_linear_equality_constraint(
+        LinearEqualityConstraint([a, b], lhs=[1.0, -1.0], b=0.0)
+    )
+    samples = space.sample(10, seed=0, pool_size=BURN_IN)
+    assert all(abs(s["a"] - s["b"]) <= 1e-9 * 1e-6 for s in samples)
+
+
+def test_sample_log_normalized_parameter_spreads_over_decades(column):
+    # the log-space weighting lives on the physical value, so it must survive
+    # the unit-box reparametrization: every decade keeps a comparable share of
+    # the draws.  Sampling in physical units without the weighting would put
+    # ~90% of the mass in the top decade alone.
+    space = ParameterSpace()
+    space.add_evaluation_object(column)
+    space.add_parameter(
+        RangedParameter("length", float, lb=1.0, ub=1e4, normalization="log"),
+        path="length",
+    )
+    values = np.array(
+        [s["length"] for s in space.sample(500, seed=0, pool_size=20_000)]
+    )
+    decade = np.floor(np.log10(values)).astype(int)
+    shares = [float((decade == k).mean()) for k in range(4)]
+    assert min(shares) > 0.15, shares  # uniform would be 0.25 each
+
+
 # ── linear constraints referencing dependent parameters ──────────────────────
 
 
