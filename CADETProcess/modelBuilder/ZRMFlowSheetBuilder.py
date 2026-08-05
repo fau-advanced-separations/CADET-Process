@@ -94,7 +94,7 @@ class ZRMFlowSheetBuilder:
 
         if cstr_out_volumes is None:
             cstr_out_volumes = cstr_in_volumes
-        if np.isscalar(cstr_in_volumes):
+        if np.isscalar(cstr_out_volumes):
             cstr_out_volumes = [
                 cstr_out_volumes / self.n_zones for _ in range(self.n_zones)
             ]
