@@ -741,3 +741,68 @@ class SLSQP(SciPyInterface):
         "finite_diff_rel_step",
         "iprint",
     ]
+
+
+class LBFGSB(SciPyInterface):
+    """
+    Wrapper for the L-BFGS-B optimization method from the scipy optimization suite.
+
+    It defines the solver options in the 'options' variable as a dictionary.
+
+    Supports:
+        - Bounds.
+
+    Parameters
+    ----------
+    maxcor : UnsignedInteger, optional
+        Maximum number of variable metric corrections used to define the limited
+        memory matrix. Default is 10.
+    ftol : UnsignedFloat, optional
+        Precision goal for the value of f in the stopping criterion:
+        (f^k - f^{k+1}) / max{|f^k|, |f^{k+1}|, 1} <= ftol.
+        Default is 2.220446049250313e-09.
+    gtol : UnsignedFloat, optional
+        The iteration stops when max{|proj g_i|, i = 1, ..., n} <= gtol, where
+        proj g_i is the i-th component of the projected gradient.
+        Default is 1e-5.
+    eps : UnsignedFloat, optional
+        Absolute step size used for numerical approximation of the Jacobian, if
+        no analytical Jacobian is provided. Default is 1e-8.
+    maxfun : UnsignedInteger, optional
+        Maximum number of function evaluations. Note that this limit can be
+        exceeded since the gradient is also evaluated numerically.
+        Default is 15000.
+    maxiter : UnsignedInteger, optional
+        Maximum number of iterations. Default is 15000.
+    maxls : UnsignedInteger, optional
+        Maximum number of line search steps per iteration. Default is 20.
+    """
+
+    supports_bounds = True
+
+    maxcor = UnsignedInteger(default=10)
+    ftol = UnsignedFloat(default=2.220446049250313e-09)
+    gtol = UnsignedFloat(default=1e-5)
+    eps = UnsignedFloat(default=1e-8)
+    maxfun = UnsignedInteger(default=15000)
+    maxiter = UnsignedInteger(default=15000)
+    maxls = UnsignedInteger(default=20)
+
+    f_tol = ftol            # Alias for uniform interface
+    n_max_evals = maxfun    # Alias for uniform interface
+    n_max_iter = maxiter    # Alias for uniform interface
+
+    _specific_options = [
+        "maxcor",
+        "ftol",
+        "gtol",
+        "eps",
+        "maxfun",
+        "maxiter",
+        "maxls",
+        "finite_diff_rel_step",
+    ]
+
+    def __str__(self) -> str:
+        """str: String representation."""
+        return "L-BFGS-B"
