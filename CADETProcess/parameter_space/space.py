@@ -53,6 +53,7 @@ when transformed constraint matrices are assembled by ``TransformedSpace``; see
 from __future__ import annotations
 
 import inspect
+import uuid
 import warnings
 from collections.abc import Callable, Mapping
 from functools import wraps
@@ -175,6 +176,7 @@ class ParameterSpace:
 
     def __init__(self) -> None:
         self._evaluation_objects: list[Any] = []
+        self._evaluation_object_uuids: dict[int, str] = {}  # id(obj) → stable UUID
         self._parameters: list[ParameterBase] = []
         self._mappers: dict[str, ParameterMapperBase] = {}
         self._linear_constraints: list[LinearConstraint] = []
@@ -216,11 +218,31 @@ class ParameterSpace:
         if any(obj is existing for existing in self._evaluation_objects):
             raise ValueError(f"Evaluation object {obj!r} is already registered.")
         self._evaluation_objects.append(obj)
+        self._evaluation_object_uuids[id(obj)] = str(uuid.uuid4())
 
     @property
     def evaluation_objects(self) -> list[Any]:
         """Registered evaluation objects, in insertion order."""
         return list(self._evaluation_objects)
+
+    def evaluation_object_uuid(self, obj: Any) -> str:
+        """Return the stable UUID minted for a registered evaluation object.
+
+        The UUID is a per-object identity assigned at registration.  It keys the
+        ``_EvaluationContext`` cache identity and, once mapped execution lands,
+        serves as the object-axis label; minting it here keeps one owner.
+
+        Raises
+        ------
+        ValueError
+            If *obj* is not a registered evaluation object.
+        """
+        try:
+            return self._evaluation_object_uuids[id(obj)]
+        except KeyError:
+            raise ValueError(
+                f"Evaluation object {obj!r} is not registered with this space."
+            ) from None
 
     # ── Parameters ───────────────────────────────────────────────────────────
 
