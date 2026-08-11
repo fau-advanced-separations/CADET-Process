@@ -741,3 +741,266 @@ class SLSQP(SciPyInterface):
         "finite_diff_rel_step",
         "iprint",
     ]
+
+
+class LBFGSB(SciPyInterface):
+    """
+    Wrapper for the L-BFGS-B optimization method from the scipy optimization suite.
+
+    It defines the solver options in the 'options' variable as a dictionary.
+
+    Supports:
+        - Bounds.
+
+    Parameters
+    ----------
+    maxcor : UnsignedInteger, optional
+        Maximum number of variable metric corrections used to define the limited
+        memory matrix. Default is 10.
+    ftol : UnsignedFloat, optional
+        Precision goal for the value of f in the stopping criterion:
+        (f^k - f^{k+1}) / max{|f^k|, |f^{k+1}|, 1} <= ftol.
+        Default is 2.220446049250313e-09.
+    gtol : UnsignedFloat, optional
+        The iteration stops when max{|proj g_i|, i = 1, ..., n} <= gtol, where
+        proj g_i is the i-th component of the projected gradient.
+        Default is 1e-5.
+    eps : UnsignedFloat, optional
+        Absolute step size used for numerical approximation of the Jacobian, if
+        no analytical Jacobian is provided. Default is 1e-8.
+    maxfun : UnsignedInteger, optional
+        Maximum number of function evaluations. Note that this limit can be
+        exceeded since the gradient is also evaluated numerically.
+        Default is 15000.
+    maxiter : UnsignedInteger, optional
+        Maximum number of iterations. Default is 15000.
+    maxls : UnsignedInteger, optional
+        Maximum number of line search steps per iteration. Default is 20.
+    """
+
+    supports_bounds = True
+
+    maxcor = UnsignedInteger(default=10)
+    ftol = UnsignedFloat(default=2.220446049250313e-09)
+    gtol = UnsignedFloat(default=1e-5)
+    eps = UnsignedFloat(default=1e-8)
+    maxfun = UnsignedInteger(default=15000)
+    maxiter = UnsignedInteger(default=15000)
+    maxls = UnsignedInteger(default=20)
+
+    f_tol = ftol            # Alias for uniform interface
+    n_max_evals = maxfun    # Alias for uniform interface
+    n_max_iter = maxiter    # Alias for uniform interface
+
+    _specific_options = [
+        "maxcor",
+        "ftol",
+        "gtol",
+        "eps",
+        "maxfun",
+        "maxiter",
+        "maxls",
+        "finite_diff_rel_step",
+    ]
+
+    def __str__(self) -> str:
+        """str: String representation."""
+        return "L-BFGS-B"
+
+
+class LeastSquares(OptimizerBase):
+    """
+    Wrapper for the least_squares optimization method from the scipy optimization
+    suite (Trust Region Reflective, dogbox, or Levenberg-Marquardt).
+
+    Unlike the other adapters in this module, this does not scalarize the
+    OptimizationProblem's objectives before optimizing. Instead, every objective
+    component is treated as a residual, and the solver minimizes the sum of their
+    squares directly using its own Jacobian-based (Gauss-Newton-style) steps. This
+    typically converges far more robustly than a generic quasi-Newton method on a
+    pre-summed scalar, especially when the scalarized objective is ill-conditioned.
+
+    This is only appropriate when every registered objective is itself a residual/
+    error-like quantity that should be driven toward zero (e.g. NRMSE) - not a
+    general-purpose replacement for arbitrary objectives, since least_squares
+    actively steers each component toward zero rather than merely decreasing it.
+
+    Supports:
+        - Bounds.
+
+    Does not support linear, linear equality, or nonlinear constraints; scipy's
+    least_squares has no mechanism for them.
+
+    Note, unlike the other adapters in this module, `scipy.optimize.least_squares`
+    provides no per-iteration callback hook. Intermediate iterates are therefore
+    not reported to `OptimizationResults`; only the final result is post-processed.
+
+    Parameters
+    ----------
+    method : {'trf', 'dogbox', 'lm'}, optional
+        Algorithm to execute. 'trf' (default) and 'dogbox' support bounds; 'lm'
+        (Levenberg-Marquardt) does not and raises if the problem has finite bounds.
+    loss : {'linear', 'soft_l1', 'huber', 'cauchy', 'arctan'}, optional
+        Loss function applied to the residuals. 'linear' (default) is standard
+        least squares; the others down-weight outlying residuals for robustness.
+        Only used by 'trf' and 'dogbox'.
+    f_scale : UnsignedFloat, optional
+        Soft margin between inlier and outlier residuals for the robust loss
+        functions above. Default is 1.0. Has no effect for loss='linear'.
+    ftol : UnsignedFloat, optional
+        Tolerance for termination by the change of the cost function. Default 1e-8.
+    xtol : UnsignedFloat, optional
+        Tolerance for termination by the change of the independent variables.
+        Default 1e-8.
+    gtol : UnsignedFloat, optional
+        Tolerance for termination by the norm of the gradient. Default 1e-8.
+    jac : {'2-point', '3-point', 'cs'}, optional
+        Method for numerically approximating the Jacobian. Default is '2-point'.
+    diff_step : float or array_like, optional
+        Relative step size for the numerical approximation of the Jacobian (scipy's
+        equivalent of the other adapters' `finite_diff_rel_step`). If None (default),
+        the step size is selected automatically. Accepts either a scalar (shared by
+        all variables) or one entry per variable - useful when parameters differ
+        widely in how sensitive the residuals are to them (e.g. one entry needs a
+        larger step to clear the simulator's own numerical noise floor, another
+        needs a smaller step to stay within a narrow locally-informative region).
+    x_scale : float, array_like, or 'jac', optional
+        Characteristic scale of each variable, used to rescale the trust-region
+        step and finite-difference perturbations. Default is 1.0 (no rescaling;
+        variables are used in the transformed/normalized space as-is). Set to
+        'jac' to have scipy dynamically rescale variables based on the inverse
+        norms of the Jacobian's columns every iteration - useful when different
+        parameters' residual sensitivities differ by orders of magnitude, on top
+        of (not instead of) the OptimizationProblem's own `transform` normalization.
+
+    See Also
+    --------
+    CADETProcess.optimization.OptimizationProblem.evaluate_objectives
+    scipy.optimize.least_squares
+    """
+
+    supports_single_objective = True
+    supports_multi_objective = True
+    supports_bounds = True
+
+    method = Switch(valid=["trf", "dogbox", "lm"], default="trf")
+    loss = Switch(
+        valid=["linear", "soft_l1", "huber", "cauchy", "arctan"], default="linear"
+    )
+    f_scale = UnsignedFloat(default=1.0)
+    ftol = UnsignedFloat(default=1e-8)
+    xtol = UnsignedFloat(default=1e-8)
+    gtol = UnsignedFloat(default=1e-8)
+    jac = Switch(valid=["2-point", "3-point", "cs"], default="2-point")
+    diff_step = None  # float or array_like (one entry per variable); not a
+                       # Structure descriptor since it can be either shape.
+    x_scale = 1.0  # float, array_like, or 'jac'; not a Structure descriptor since
+                   # it can be a plain scalar, an array, or the literal string 'jac'.
+
+    x_tol = xtol  # Alias for uniform interface
+    f_tol = ftol  # Alias for uniform interface
+
+    _specific_options = [
+        "method",
+        "loss",
+        "f_scale",
+        "ftol",
+        "xtol",
+        "gtol",
+        "jac",
+        "diff_step",
+        "x_scale",
+    ]
+
+    def _run(
+        self,
+        optimization_problem: OptimizationProblem,
+        x0: Optional[list] = None,
+    ) -> None:
+        """
+        Solve the optimization problem using scipy.optimize.least_squares.
+
+        Parameters
+        ----------
+        optimization_problem : OptimizationProblem
+            Optimization problem to be solved. Every registered objective
+            component is treated as a residual whose sum of squares is minimized.
+        x0 : list, optional
+            Initial values of independent variables in untransformed space.
+
+        See Also
+        --------
+        CADETProcess.optimization.OptimizationProblem.evaluate_objectives
+        scipy.optimize.least_squares
+        """
+        self.n_evals = 0
+
+        def residuals(x: npt.ArrayLike) -> np.ndarray:
+            self.n_evals += 1
+            return optimization_problem.evaluate_objectives(
+                x,
+                untransform=True,
+                ensure_minimization=True,
+            )
+
+        if x0 is None:
+            x0 = optimization_problem.create_initial_values(
+                1, include_dependent_variables=False
+            )[0]
+
+        x0_transformed = optimization_problem.transform(x0)
+
+        lb, ub = self.get_bounds(optimization_problem)
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=OptimizeWarning)
+            warnings.filterwarnings("ignore", category=RuntimeWarning)
+            scipy_results = optimize.least_squares(
+                residuals,
+                x0=x0_transformed,
+                jac=self.jac,
+                bounds=(lb, ub),
+                method=self.method,
+                loss=self.loss,
+                f_scale=self.f_scale,
+                ftol=self.ftol,
+                xtol=self.xtol,
+                gtol=self.gtol,
+                diff_step=self.diff_step,
+                x_scale=self.x_scale,
+                max_nfev=self.n_max_evals,
+            )
+
+        self.results.success = bool(scipy_results.success)
+        self.results.exit_flag = scipy_results.status
+        self.results.exit_message = scipy_results.message
+
+        self.run_post_processing(
+            [scipy_results.x],
+            [scipy_results.fun],
+            None,
+            self.n_evals,
+        )
+
+    def get_bounds(
+        self, optimization_problem: OptimizationProblem
+    ) -> tuple:
+        """
+        Configure the bound constraints of a given optimization problem.
+
+        Parameters
+        ----------
+        optimization_problem : OptimizationProblem
+            The given optimization problem.
+
+        Returns
+        -------
+        tuple[np.ndarray, np.ndarray]
+            Lower and upper bounds, as expected by scipy.optimize.least_squares.
+        """
+        ts = optimization_problem.transformed_space
+        return ts.lower_bounds, ts.upper_bounds
+
+    def __str__(self) -> str:
+        """str: String representation."""
+        return self.__class__.__name__
