@@ -48,8 +48,8 @@ class TestZRMFlowsheetBuilder(unittest.TestCase):
             configuration=simple_configuration,
             zone_template=self.zone_template,
             segments_area=simple_segmented_area,
-            cstr_in_volumes=simple_volume_in,
-            cstr_out_volumes=simple_volume_out,
+            void_in_volumes=simple_volume_in,
+            void_out_volumes=simple_volume_out,
         )
 
         # Build flow sheet with inlet/outlet
@@ -77,8 +77,8 @@ class TestZRMFlowsheetBuilder(unittest.TestCase):
             configuration=complex_configuration,
             zone_template=self.zone_template,
             segments_area=complex_segmented_area,
-            cstr_in_volumes=complex_volume_in,
-            cstr_out_volumes=complex_volume_out,
+            void_in_volumes=complex_volume_in,
+            void_out_volumes=complex_volume_out,
         )
 
         self.complex_flow_sheet = self.complex_builder.build_flow_sheet()
@@ -95,8 +95,8 @@ class TestZRMFlowsheetBuilder(unittest.TestCase):
                 configuration="axial",
                 zone_template=self.zone_template,
                 segments_area=[1.0, -1.0],
-                cstr_in_volumes=[1.0, 2.0],
-                cstr_out_volumes=[1.0, 2.0],
+                void_in_volumes=[1.0, 2.0],
+                void_out_volumes=[1.0, 2.0],
             )
 
         with self.assertRaises(ValueError):
@@ -104,8 +104,8 @@ class TestZRMFlowsheetBuilder(unittest.TestCase):
                 configuration="axial",
                 zone_template=self.zone_template,
                 segments_area=[1.0, 1.0],
-                cstr_in_volumes=[1.0, -2.0],
-                cstr_out_volumes=[1.0, 2.0],
+                void_in_volumes=[1.0, -2.0],
+                void_out_volumes=[1.0, 2.0],
             )
 
         with self.assertRaises(ValueError):
@@ -113,8 +113,8 @@ class TestZRMFlowsheetBuilder(unittest.TestCase):
                 configuration="diagonal",
                 zone_template=self.zone_template,
                 segments_area=[1.0, 1.0],
-                cstr_in_volumes=[1.0, 2.0],
-                cstr_out_volumes=[1.0, 2.0],
+                void_in_volumes=[1.0, 2.0],
+                void_out_volumes=[1.0, 2.0],
             )
 
     # --- Structural Tests ---
@@ -130,67 +130,67 @@ class TestZRMFlowsheetBuilder(unittest.TestCase):
             "inlet": {
                 "total_out": {None: [np.float64(1.0), 0.0, 0.0, 0.0]},
                 "destinations": {
-                    None: {"cstr_in_0": {None: [np.float64(1.0), 0.0, 0.0, 0.0]}}
+                    None: {"void_in_0": {None: [np.float64(1.0), 0.0, 0.0, 0.0]}}
                 },
             },
             "outlet": {
                 "total_in": {None: [np.float64(1.0), 0.0, 0.0, 0.0]},
                 "origins": {
-                    None: {"cstr_out_1": {None: [np.float64(1.0), 0.0, 0.0, 0.0]}}
+                    None: {"void_out_1": {None: [np.float64(1.0), 0.0, 0.0, 0.0]}}
                 },
             },
             "zone_0": {
                 "total_in": {None: [np.float64(0.5), 0.0, 0.0, 0.0]},
                 "total_out": {None: [np.float64(0.5), 0.0, 0.0, 0.0]},
                 "origins": {
-                    None: {"cstr_in_0": {None: [np.float64(0.5), 0.0, 0.0, 0.0]}}
+                    None: {"void_in_0": {None: [np.float64(0.5), 0.0, 0.0, 0.0]}}
                 },
                 "destinations": {
-                    None: {"cstr_out_0": {None: [np.float64(0.5), 0.0, 0.0, 0.0]}}
+                    None: {"void_out_0": {None: [np.float64(0.5), 0.0, 0.0, 0.0]}}
                 },
             },
             "zone_1": {
                 "total_in": {None: [np.float64(0.5), 0.0, 0.0, 0.0]},
                 "total_out": {None: [np.float64(0.5), 0.0, 0.0, 0.0]},
                 "origins": {
-                    None: {"cstr_in_1": {None: [np.float64(0.5), 0.0, 0.0, 0.0]}}
+                    None: {"void_in_1": {None: [np.float64(0.5), 0.0, 0.0, 0.0]}}
                 },
                 "destinations": {
-                    None: {"cstr_out_1": {None: [np.float64(0.5), 0.0, 0.0, 0.0]}}
+                    None: {"void_out_1": {None: [np.float64(0.5), 0.0, 0.0, 0.0]}}
                 },
             },
-            "cstr_in_0": {
+            "void_in_0": {
                 "total_in": {None: [np.float64(1.0), 0.0, 0.0, 0.0]},
                 "total_out": {None: [np.float64(1.0), 0.0, 0.0, 0.0]},
                 "origins": {None: {"inlet": {None: [np.float64(1.0), 0.0, 0.0, 0.0]}}},
                 "destinations": {
                     None: {
-                        "cstr_in_1": {None: [np.float64(0.5), 0.0, 0.0, 0.0]},
+                        "void_in_1": {None: [np.float64(0.5), 0.0, 0.0, 0.0]},
                         "zone_0": {None: [np.float64(0.5), 0.0, 0.0, 0.0]},
                     }
                 },
             },
-            "cstr_out_0": {
+            "void_out_0": {
                 "total_in": {None: [np.float64(0.5), 0.0, 0.0, 0.0]},
                 "total_out": {None: [np.float64(0.5), 0.0, 0.0, 0.0]},
                 "origins": {None: {"zone_0": {None: [np.float64(0.5), 0.0, 0.0, 0.0]}}},
                 "destinations": {
-                    None: {"cstr_out_1": {None: [np.float64(0.5), 0.0, 0.0, 0.0]}}
+                    None: {"void_out_1": {None: [np.float64(0.5), 0.0, 0.0, 0.0]}}
                 },
             },
-            "cstr_in_1": {
+            "void_in_1": {
                 "total_in": {None: [np.float64(0.5), 0.0, 0.0, 0.0]},
                 "total_out": {None: [np.float64(0.5), 0.0, 0.0, 0.0]},
-                "origins": {None: {"cstr_in_0": {None: [np.float64(0.5), 0.0, 0.0, 0.0]}}},
+                "origins": {None: {"void_in_0": {None: [np.float64(0.5), 0.0, 0.0, 0.0]}}},
                 "destinations": {None: {"zone_1": {None: [np.float64(0.5), 0.0, 0.0, 0.0]}}},
             },
-            "cstr_out_1": {
+            "void_out_1": {
                 "total_in": {None: [np.float64(1.0), 0.0, 0.0, 0.0]},
                 "total_out": {None: [np.float64(1.0), 0.0, 0.0, 0.0]},
                 "origins": {
                     None: {
                         "zone_1": {None: [np.float64(0.5), 0.0, 0.0, 0.0]},
-                        "cstr_out_0": {None: [np.float64(0.5), 0.0, 0.0, 0.0]},
+                        "void_out_0": {None: [np.float64(0.5), 0.0, 0.0, 0.0]},
                     }
                 },
                 "destinations": {None: {"outlet": {None: [np.float64(1.0), 0.0, 0.0, 0.0]}}},
