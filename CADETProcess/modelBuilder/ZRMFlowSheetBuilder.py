@@ -10,6 +10,7 @@ from CADETProcess.processModel import (
     FlowSheet,
 )
 
+__all__ = ["ZRMFlowSheetBuilder"]
 
 class ZRMFlowSheetBuilder:
     """

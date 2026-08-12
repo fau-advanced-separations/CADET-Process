@@ -46,6 +46,17 @@ A module for building common chromatographic processes.
    MRSSR
    SerialColumns
 
+ZRMFlowSheetBuilder
+==================
+
+A module for building Zonal Rate Model blocks.
+
+.. autosummary::
+   :toctree: generated/
+
+   ZRMFlowSheetBuilder
+
+
 """
 
 from . import carouselBuilder
