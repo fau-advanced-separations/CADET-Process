@@ -13,6 +13,7 @@ The {mod}`~CADETProcess.modelBuilder` module offers classes that simplify the se
 carousel_builder
 smb_design
 compartment_builder
+ZRMFlowSheetBuilder
 ```
 
 ## Buffer equlibria and pH
