@@ -389,6 +389,33 @@ def test_characterize_bed_bounds(pulse_process, comparator, mock_simulator):
     assert bp.ub == pytest.approx(0.6)
 
 
+def test_characterize_bed_excludes_particle_porosity(
+    pulse_process, comparator, mock_simulator
+):
+    prob = CharacterizeBed("bed", pulse_process, comparator, mock_simulator)
+    assert "particle_porosity" not in prob.variable_names
+
+
+def test_characterize_bed_particle_porosity(pulse_process, comparator, mock_simulator):
+    prob = CharacterizeBed(
+        "bed", pulse_process, comparator, mock_simulator,
+        include_particle_porosity=True,
+    )
+    assert "particle_porosity" in prob.variable_names
+
+
+def test_characterize_bed_particle_porosity_bounds(
+    pulse_process, comparator, mock_simulator
+):
+    prob = CharacterizeBed(
+        "bed", pulse_process, comparator, mock_simulator,
+        include_particle_porosity=True,
+    )
+    pp = prob.variables_dict["particle_porosity"]
+    assert pp.lb == pytest.approx(0.6)
+    assert pp.ub == pytest.approx(0.9)
+
+
 # ---------------------------------------------------------------------------
 # CharacterizeParticles
 # ---------------------------------------------------------------------------
