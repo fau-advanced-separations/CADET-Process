@@ -22,6 +22,7 @@ import numpy as np
 from CADETProcess.comparison import Comparator
 from CADETProcess.instruments import LCProcess
 from CADETProcess.optimization import OptimizationProblem
+from CADETProcess.optimization.optimization_problem import _sanitize_name
 from CADETProcess.reference import ReferenceIO
 from CADETProcess.simulator import SimulatorBase
 
@@ -188,9 +189,11 @@ class CharacterizeBase(OptimizationProblem):
         self.add_evaluator(simulator)
 
         for process, comparator in zip(processes, comparators):
+            if comparator.name is None:
+                comparator.name = process.name
             self.add_objective(
                 comparator,
-                name=process.name,
+                name=_sanitize_name(process.name),
                 n_objectives=comparator.n_metrics,
                 requires=[simulator],
                 evaluation_objects=process,

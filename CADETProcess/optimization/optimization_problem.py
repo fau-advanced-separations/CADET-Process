@@ -215,6 +215,18 @@ def _adapt_root_input(parameter_space: ParameterSpace, value: Any) -> Any:
     return value
 
 
+def _sanitize_name(name: str) -> str:
+    """Coerce *name* into a valid Python identifier.
+
+    Names that are derived on the caller's behalf rather than supplied by the
+    user still become pipeline node names, so they must be identifiers:
+    ``"pulse 30 CV"`` becomes ``"pulse_30_CV"`` and a leading digit is
+    prefixed with an underscore.  Names passed explicitly as ``name=`` are
+    validated instead of rewritten, see ``_check_metric_name``.
+    """
+    return re.sub(r"\W|^(?=\d)", "_", name)
+
+
 def _derive_name(func: Callable) -> str:
     """Derive a default node name for a callable.
 
@@ -228,7 +240,7 @@ def _derive_name(func: Callable) -> str:
         name = func.__name__
     else:
         name = type(func).__name__
-    return re.sub(r"\W|^(?=\d)", "_", name)
+    return _sanitize_name(name)
 
 
 def _approximate_jac(
