@@ -177,6 +177,27 @@ print(char.variable_names)
 # ['bed_porosity', 'axial_dispersion']
 ```
 
+Setting `include_particle_porosity=True` adds particle porosity $\varepsilon_p \in [0.6, 0.9]$ to the fit.
+This requires an experimental design that separates the two void volumes, since a single tracer run cannot resolve both porosities: a small tracer accesses the total void volume, a large one only the interstitial void volume.
+Pass one process per tracer, each with its own comparator, so that both runs constrain the same set of variables.
+
+```{code-cell} ipython3
+:tags: [skip-execution]
+
+char = CharacterizeBed(
+    "void_volume",
+    [process_small_tracer, process_large_tracer],
+    [comparator_small_tracer, comparator_large_tracer],
+    simulator,
+    include_particle_porosity=True,
+)
+print(char.variable_names)
+# ['bed_porosity', 'axial_dispersion', 'particle_porosity']
+```
+
+{class}`~CADETProcess.characterization.CharacterizeParticles` exposes a `particle_porosity` flag as well.
+Use that class when particle porosity is determined together with the particle-phase transport parameters, and this one when it follows from tracers of different size.
+
 
 ### CharacterizeParticles
 
