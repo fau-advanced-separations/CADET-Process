@@ -250,6 +250,27 @@ def test_characterize_base_mismatched_comparators_raises(
         )
 
 
+def test_characterize_base_multi_process_registers_unique_objectives(
+    pulse_process, comparator, mock_simulator
+):
+    """Two processes must not collide on the shared 'Comparator' metric name."""
+    p2 = PulseInjection(
+        "pulse2",
+        pulse_process.flow_sheet,
+        c_buffer_a=[100.0],
+        c_sample=[0.0],
+        cycle_time=600.0,
+        flow_rate=FLOW_RATE,
+    )
+    prob = CharacterizeBase(
+        "test",
+        [pulse_process, p2],
+        [comparator, comparator],
+        mock_simulator,
+    )
+    assert prob.n_objectives == 2 * comparator.n_metrics
+
+
 # ---------------------------------------------------------------------------
 # CharacterizeTubing
 # ---------------------------------------------------------------------------
