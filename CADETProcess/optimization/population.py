@@ -15,6 +15,7 @@ data.
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Iterable, Iterator, Mapping
 from typing import Any, Optional
 
@@ -54,6 +55,21 @@ def _decode(value: Any) -> Any:
     return value
 
 
+def _hash_row(row: npt.ArrayLike) -> str:
+    """Deterministic sha256 hex digest of one parameter row's values.
+
+    Numeric rows hash the raw float64 bytes; object-dtype rows (categorical
+    parameters) hash a stable text encoding instead, since ``ndarray.tobytes``
+    on an object array serializes pointers, not values.
+    """
+    row = np.asarray(row)
+    if row.dtype.kind in "fiub":
+        payload = row.astype(np.float64).tobytes()
+    else:
+        payload = repr(row.tolist()).encode()
+    return hashlib.sha256(payload).hexdigest()
+
+
 class IndividualView:
     """Row lens over canonical ``Population`` storage.
 
@@ -91,6 +107,22 @@ class IndividualView:
         if metadata is None:
             return {}
         return {name: values[self._idx] for name, values in metadata.items()}
+
+    @property
+    def id(self) -> str:
+        """Content-derived id: sha256 digest of this row's parameter values.
+
+        Identical parameter values always produce the same id, including
+        across repeated evaluations in different generations, which is what
+        lets callback output files be traced back to a row in the results
+        table.
+        """
+        return _hash_row(self._population.x[self._idx])
+
+    @property
+    def id_short(self) -> str:
+        """First seven characters of :attr:`id`, for filenames and display."""
+        return self.id[0:7]
 
     def as_record(self) -> dict[str, Any]:
         """Return this row as a ``{"X": ..., "metrics": ..., "metadata": ...}`` record."""
@@ -550,6 +582,16 @@ class Population:
         if all(col.dtype.kind in "fiub" for col in columns):
             return np.column_stack([col.astype(float) for col in columns])
         return np.column_stack([col.astype(object) for col in columns])
+
+    @property
+    def ids(self) -> list[str]:
+        """Content-derived id per row: sha256 digest of the parameter values.
+
+        Rows with identical parameter values, in this or any other
+        population, get the same id.
+        """
+        x = self.x
+        return [_hash_row(x[i]) for i in range(self._n)]
 
     def _require_parameter_space(self) -> ParameterSpace:
         if self._parameter_space is None:

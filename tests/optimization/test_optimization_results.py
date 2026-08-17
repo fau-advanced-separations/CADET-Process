@@ -1,3 +1,4 @@
+import csv
 import shutil
 import unittest
 from pathlib import Path
@@ -182,6 +183,20 @@ class TestOptimizationResults(unittest.TestCase):
                 optimization_results_new.to_dict()
             ),
         )
+
+    def test_save_results_csv_includes_id_column(self):
+        self.optimization_results.save_results("checkpoint")
+
+        csv_path = self.optimization_results.results_directory / "results_last.csv"
+        with open(csv_path) as f:
+            reader = csv.reader(f)
+            header = next(reader)
+            rows = list(reader)
+
+        self.assertEqual(header[0], "id")
+
+        expected_ids = self.optimization_results.population_last.ids
+        self.assertEqual([row[0] for row in rows], expected_ids)
 
 
 if __name__ == "__main__":

@@ -963,6 +963,7 @@ class OptimizationResults(Structure):
             Results file name without file extension.
         """
         header = [
+            "id",
             *self.optimization_problem.variable_names,
             *self.optimization_problem.objective_labels,
         ]
@@ -972,7 +973,7 @@ class OptimizationResults(Structure):
         if self.optimization_problem.n_meta_scores > 0:
             header += [*self.optimization_problem.meta_score_labels]
 
-        with open(f"{self.results_directory / file_name}.csv", "w") as csvfile:
+        with open(f"{self.results_directory / file_name}.csv", "w", newline="") as csvfile:
             writer = csv.writer(csvfile, delimiter=",")
             writer.writerow(header)
 
@@ -1003,15 +1004,16 @@ class OptimizationResults(Structure):
             self._setup_csv(file_name)
             mode = "a"
 
-        with open(f"{self.results_directory / file_name}.csv", mode) as csvfile:
+        with open(f"{self.results_directory / file_name}.csv", mode, newline="") as csvfile:
             writer = csv.writer(csvfile, delimiter=",")
 
+            ids = population.ids
             x = population.x
             f = population.f
             g = population.g
             m = population.plain_metrics
             for i in range(len(population)):
-                row = [*np.asarray(x[i]).tolist(), *f[i].tolist()]
+                row = [ids[i], *np.asarray(x[i]).tolist(), *f[i].tolist()]
                 if g.shape[1] > 0:
                     row += g[i].tolist()
                 if m.shape[1] > 0:
