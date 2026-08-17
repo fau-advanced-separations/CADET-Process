@@ -247,7 +247,8 @@ step.plot_events();
 ### LWE
 
 Load-wash-elute with a linear salt gradient.
-After the wash phase, buffer B ramps up linearly while buffer A ramps down.
+The sample loop is injected at t=0, then the wash phase runs; after it, buffer B
+ramps up linearly while buffer A ramps down.
 
 ```{code-cell} ipython3
 from CADETProcess.instruments import LWE

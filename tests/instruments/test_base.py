@@ -469,6 +469,14 @@ def test_step_elution_has_three_phase_events(step_elution):
     assert {"phase_0_A", "phase_1_B", "phase_2_A"}.issubset(event_names)
 
 
+def test_step_elution_injects_sample_loop_at_t0(step_elution):
+    inject_events = [
+        e for e in step_elution.events if e.name.endswith("_inject")
+    ]
+    assert inject_events
+    assert all(e.time == pytest.approx(0.0) for e in inject_events)
+
+
 def test_step_elution_elute_phase_is_constant(step_elution):
     # phase_1_B should be a step (scalar), not a gradient (list)
     ev = next(e for e in step_elution.events if e.name == "phase_1_B")
@@ -565,7 +573,16 @@ def test_lwe_cycle_time_is_sum_of_phases(lwe_process):
 def test_lwe_has_events_for_all_three_phases(lwe_process):
     event_names = {e.name for e in lwe_process.events}
     assert event_names == {
+        "valve_tubing_pre_injection_inject", "valve_sample_loop_inject",
         "phase_0_A", "phase_0_B",
         "phase_1_A", "phase_1_B",
         "phase_2_A", "phase_2_B",
     }
+
+
+def test_lwe_injects_sample_loop_at_t0(lwe_process):
+    inject_events = [
+        e for e in lwe_process.events if e.name.endswith("_inject")
+    ]
+    assert inject_events
+    assert all(e.time == pytest.approx(0.0) for e in inject_events)
