@@ -732,6 +732,10 @@ class Breakthrough(PhasedProcess):
     sample_buffer : str, optional
         Buffer key carrying the sample. Default ``"F"`` (feed inlet).
         Any key ``"A"``–``"D"`` or ``"F"`` is valid.
+    delta_t_equilibration : float, optional
+        Equilibration phase duration in seconds, run at ``flow_rate`` with
+        buffer A before the breakthrough phase. Default 0 omits this phase.
+        Added to ``cycle_time``.
     """
 
     def __init__(
@@ -742,8 +746,12 @@ class Breakthrough(PhasedProcess):
         flow_rate: float,
         cycle_time: float,
         sample_buffer: str = "F",
+        delta_t_equilibration: float = 0.0,
     ) -> None:
-        phases = [Phase(cycle_time, flow_rate, {sample_buffer: 1.0})]
+        phases = []
+        if delta_t_equilibration > 0:
+            phases.append(Phase(delta_t_equilibration, flow_rate, {"A": 1.0}))
+        phases.append(Phase(cycle_time, flow_rate, {sample_buffer: 1.0}))
         super().__init__(name, flow_sheet, phases)
         buf_name = _BUFFER_KEYS[sample_buffer]
         getattr(self.flow_sheet, buf_name).c = c_sample
@@ -781,6 +789,10 @@ class StepElution(PhasedProcess):
         Flow rate during elution. Defaults to ``flow_rate_wash``.
     flow_rate_final_wash : float, optional
         Flow rate during final wash. Defaults to ``flow_rate_elute``.
+    delta_t_equilibration : float, optional
+        Equilibration phase duration in seconds, run at ``flow_rate_wash``
+        with buffer A before the sample loop is injected. Default 0 omits
+        this phase. Added to ``cycle_time``.
     """
 
     def __init__(
@@ -796,6 +808,7 @@ class StepElution(PhasedProcess):
         flow_rate_wash: float,
         flow_rate_elute: float | None = None,
         flow_rate_final_wash: float | None = None,
+        delta_t_equilibration: float = 0.0,
     ) -> None:
         if not flow_sheet.has_sample_loop:
             raise ValueError(
@@ -807,7 +820,10 @@ class StepElution(PhasedProcess):
         if flow_rate_final_wash is None:
             flow_rate_final_wash = flow_rate_elute
 
-        steps = [
+        steps = []
+        if delta_t_equilibration > 0:
+            steps.append(Phase(delta_t_equilibration, flow_rate_wash, {"A": 1.0}))
+        steps += [
             ValveEvent("inject"),
             Phase(delta_t_wash, flow_rate_wash, {"A": 1.0}),
             Phase(delta_t_elute, flow_rate_elute, {"B": 1.0}),
@@ -846,6 +862,10 @@ class PulseInjection(PhasedProcess):
         Experiment duration in seconds.
     flow_rate : float
         Volumetric flow rate in m³/s.
+    delta_t_equilibration : float, optional
+        Equilibration phase duration in seconds, run at ``flow_rate`` with
+        buffer A before the sample loop is injected. Default 0 omits this
+        phase. Added to ``cycle_time``.
     """
 
     def __init__(
@@ -856,13 +876,17 @@ class PulseInjection(PhasedProcess):
         c_sample: list[float],
         cycle_time: float,
         flow_rate: float,
+        delta_t_equilibration: float = 0.0,
     ) -> None:
         if not flow_sheet.has_sample_loop:
             raise ValueError(
                 "PulseInjection requires a sample loop. "
                 "Pass sample_loop_volume to LCFlowSheet."
             )
-        steps = [ValveEvent("inject"), Phase(cycle_time, flow_rate, {"A": 1.0})]
+        steps = []
+        if delta_t_equilibration > 0:
+            steps.append(Phase(delta_t_equilibration, flow_rate, {"A": 1.0}))
+        steps += [ValveEvent("inject"), Phase(cycle_time, flow_rate, {"A": 1.0})]
         super().__init__(name, flow_sheet, steps)
 
         for unit in self.flow_sheet.units:
@@ -894,6 +918,10 @@ class Step(PhasedProcess):
         Experiment duration in seconds.
     flow_rate : float
         Volumetric flow rate in m³/s.
+    delta_t_equilibration : float, optional
+        Equilibration phase duration in seconds, run at ``flow_rate`` with
+        buffer A before the step to buffer B. Default 0 omits this phase.
+        Added to ``cycle_time``.
     """
 
     def __init__(
@@ -904,8 +932,12 @@ class Step(PhasedProcess):
         c_buffer_b: list[float],
         cycle_time: float,
         flow_rate: float,
+        delta_t_equilibration: float = 0.0,
     ) -> None:
-        phases = [Phase(cycle_time, flow_rate, {"B": 1.0})]
+        phases = []
+        if delta_t_equilibration > 0:
+            phases.append(Phase(delta_t_equilibration, flow_rate, {"A": 1.0}))
+        phases.append(Phase(cycle_time, flow_rate, {"B": 1.0}))
         super().__init__(name, flow_sheet, phases)
 
         for unit in self.flow_sheet.units:
@@ -948,6 +980,10 @@ class LWE(PhasedProcess):
         Flow rate during elution. Defaults to ``flow_rate_wash``.
     flow_rate_final_wash : float, optional
         Flow rate during final wash. Defaults to ``flow_rate_elute``.
+    delta_t_equilibration : float, optional
+        Equilibration phase duration in seconds, run at ``flow_rate_wash``
+        with buffer A before the sample loop is injected. Default 0 omits
+        this phase. Added to ``cycle_time``.
     """
 
     def __init__(
@@ -963,6 +999,7 @@ class LWE(PhasedProcess):
         flow_rate_wash: float,
         flow_rate_elute: float | None = None,
         flow_rate_final_wash: float | None = None,
+        delta_t_equilibration: float = 0.0,
     ) -> None:
         if not flow_sheet.has_sample_loop:
             raise ValueError(
@@ -974,7 +1011,10 @@ class LWE(PhasedProcess):
         if flow_rate_final_wash is None:
             flow_rate_final_wash = flow_rate_elute
 
-        steps = [
+        steps = []
+        if delta_t_equilibration > 0:
+            steps.append(Phase(delta_t_equilibration, flow_rate_wash, {"A": 1.0}))
+        steps += [
             ValveEvent("inject"),
             Phase(delta_t_wash, flow_rate_wash, {"A": 1.0}),
             Phase(delta_t_elute, flow_rate_elute, {"A": 1.0}, {"B": 1.0}),

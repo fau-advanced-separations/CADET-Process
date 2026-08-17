@@ -425,6 +425,17 @@ def test_breakthrough_cycle_time(breakthrough):
     assert breakthrough.cycle_time == pytest.approx(600.0)
 
 
+def test_breakthrough_equilibration_extends_cycle_time(no_column_fs):
+    proc = Breakthrough(
+        "bt_eq", no_column_fs,
+        c_sample=[100.0],
+        flow_rate=flow_rate,
+        cycle_time=600.0,
+        delta_t_equilibration=10.0,
+    )
+    assert proc.cycle_time == pytest.approx(610.0)
+
+
 def test_breakthrough_with_regular_buffer(salt_cs):
     fs = LCFlowSheet(
         salt_cs,
@@ -491,6 +502,24 @@ def test_step_elution_a_zero_during_elute(step_elution):
     assert v == pytest.approx(0.0)
 
 
+def test_step_elution_equilibration_delays_inject_and_extends_cycle_time(column_fs):
+    proc = StepElution(
+        "se_eq", column_fs,
+        c_buffer_a=[20.0],
+        c_buffer_b=[1000.0],
+        c_sample=[20.0],
+        delta_t_wash=200.0,
+        delta_t_elute=400.0,
+        delta_t_final_wash=100.0,
+        flow_rate_wash=flow_rate,
+        delta_t_equilibration=30.0,
+    )
+    assert proc.cycle_time == pytest.approx(730.0)
+    inject_events = [e for e in proc.events if e.name.endswith("_inject")]
+    assert inject_events
+    assert all(e.time == pytest.approx(30.0) for e in inject_events)
+
+
 # --- PulseInjection ---
 
 @pytest.fixture
@@ -525,6 +554,21 @@ def test_pulse_cycle_time(pulse_injection):
     assert pulse_injection.cycle_time == 600.0
 
 
+def test_pulse_equilibration_delays_inject_and_extends_cycle_time(no_column_fs):
+    proc = PulseInjection(
+        "pulse_eq", no_column_fs,
+        c_buffer_a=[0.0],
+        c_sample=[100.0],
+        cycle_time=600.0,
+        flow_rate=flow_rate,
+        delta_t_equilibration=50.0,
+    )
+    assert proc.cycle_time == pytest.approx(650.0)
+    inject_events = [e for e in proc.events if e.name.endswith("_inject")]
+    assert inject_events
+    assert all(e.time == pytest.approx(50.0) for e in inject_events)
+
+
 # --- Step ---
 
 @pytest.fixture
@@ -548,6 +592,20 @@ def test_step_buffer_a_has_no_flow(step_process):
 
 def test_step_buffer_b_concentration(step_process):
     assert step_process.flow_sheet.buffer_b.c[0, 0] == pytest.approx(1000.0)
+
+
+def test_step_equilibration_extends_cycle_time(no_column_fs):
+    proc = Step(
+        "step_eq", no_column_fs,
+        c_buffer_a=[0.0],
+        c_buffer_b=[1000.0],
+        cycle_time=800.0,
+        flow_rate=flow_rate,
+        delta_t_equilibration=20.0,
+    )
+    assert proc.cycle_time == pytest.approx(820.0)
+    ev = next(e for e in proc.events if e.name == "phase_1_B")
+    assert ev.time == pytest.approx(20.0)
 
 
 # --- LWE ---
@@ -586,3 +644,21 @@ def test_lwe_injects_sample_loop_at_t0(lwe_process):
     ]
     assert inject_events
     assert all(e.time == pytest.approx(0.0) for e in inject_events)
+
+
+def test_lwe_equilibration_delays_inject_and_extends_cycle_time(column_fs):
+    proc = LWE(
+        "lwe_eq", column_fs,
+        c_buffer_a=[20.0],
+        c_buffer_b=[1000.0],
+        c_sample=[20.0],
+        delta_t_wash=200.0,
+        delta_t_elute=400.0,
+        delta_t_final_wash=100.0,
+        flow_rate_wash=flow_rate,
+        delta_t_equilibration=40.0,
+    )
+    assert proc.cycle_time == pytest.approx(740.0)
+    inject_events = [e for e in proc.events if e.name.endswith("_inject")]
+    assert inject_events
+    assert all(e.time == pytest.approx(40.0) for e in inject_events)

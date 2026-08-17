@@ -209,6 +209,8 @@ Each takes a pre-constructed {class}`~CADETProcess.instruments.LCFlowSheet` as i
 
 The system is pre-equilibrated with buffer A.
 The sample loop content is injected at t=0 and washed through with buffer A.
+Pass `delta_t_equilibration` to prepend an explicit buffer-A phase before the injection instead of assuming it is already equilibrated; this pushes the inject event later by that amount and adds it to `cycle_time`.
+Every template below accepts the same parameter for the same purpose.
 
 ```{code-cell} ipython3
 from CADETProcess.instruments import PulseInjection
