@@ -753,8 +753,9 @@ class StepElution(PhasedProcess):
     """
     Load/Wash/Elute process with a step to high salt instead of a gradient.
 
-    Three phases: wash (100 % buffer A), step to elute (100 % buffer B,
-    constant), final wash (100 % buffer A).
+    The sample loop is injected at t=0, then three phases follow: wash
+    (100 % buffer A), step to elute (100 % buffer B, constant), final wash
+    (100 % buffer A).
 
     Parameters
     ----------
@@ -806,12 +807,13 @@ class StepElution(PhasedProcess):
         if flow_rate_final_wash is None:
             flow_rate_final_wash = flow_rate_elute
 
-        phases = [
+        steps = [
+            ValveEvent("inject"),
             Phase(delta_t_wash, flow_rate_wash, {"A": 1.0}),
             Phase(delta_t_elute, flow_rate_elute, {"B": 1.0}),
             Phase(delta_t_final_wash, flow_rate_final_wash, {"A": 1.0}),
         ]
-        super().__init__(name, flow_sheet, phases)
+        super().__init__(name, flow_sheet, steps)
 
         for unit in self.flow_sheet.units:
             if "c" in unit.parameters:
@@ -917,9 +919,10 @@ class LWE(PhasedProcess):
     """
     Load/Wash/Elute process on an LC system.
 
-    The system is pre-equilibrated with buffer A. After the wash phase a linear
-    salt gradient ramps buffer A down to zero while buffer B ramps up. A final
-    wash phase holds at 100 % buffer B.
+    The system is pre-equilibrated with buffer A. The sample loop is injected
+    at t=0, then the wash phase runs; after it, a linear salt gradient ramps
+    buffer A down to zero while buffer B ramps up. A final wash phase holds
+    at 100 % buffer B.
 
     Parameters
     ----------
@@ -971,12 +974,13 @@ class LWE(PhasedProcess):
         if flow_rate_final_wash is None:
             flow_rate_final_wash = flow_rate_elute
 
-        phases = [
+        steps = [
+            ValveEvent("inject"),
             Phase(delta_t_wash, flow_rate_wash, {"A": 1.0}),
             Phase(delta_t_elute, flow_rate_elute, {"A": 1.0}, {"B": 1.0}),
             Phase(delta_t_final_wash, flow_rate_final_wash, {"B": 1.0}),
         ]
-        super().__init__(name, flow_sheet, phases)
+        super().__init__(name, flow_sheet, steps)
 
         for unit in self.flow_sheet.units:
             if "c" in unit.parameters:
