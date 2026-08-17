@@ -329,6 +329,13 @@ class CharacterizeBed(CharacterizeBase):
     """
     Fit column bed porosity and axial dispersion.
 
+    Optionally also fits particle porosity.
+    A single tracer run cannot separate the two porosities, so this requires at
+    least two processes whose tracers differ in size: a small tracer accesses the
+    total void volume, a large one only the interstitial void volume.
+    Use :class:`CharacterizeParticles` instead when particle porosity is to be
+    determined together with the particle-phase transport parameters.
+
     Parameters
     ----------
     name : str
@@ -339,13 +346,33 @@ class CharacterizeBed(CharacterizeBase):
         One comparator per process.
     simulator : SimulatorBase
         Configured simulator instance.
+    include_particle_porosity : bool
+        Also fit particle porosity (scalar). Default False.
     **kwargs
         Per-variable override dicts (e.g. ``bed_porosity={"lb": 0.35, "ub": 0.45}``)
         and remaining keyword arguments forwarded to :class:`CharacterizeBase`.
     """
 
+    def __init__(
+        self,
+        name: str,
+        processes: LCProcess | list[LCProcess],
+        comparators: Comparator | list[Comparator],
+        simulator: SimulatorBase,
+        include_particle_porosity: bool = False,
+        **kwargs: object,
+    ) -> None:
+        self._include_particle_porosity = include_particle_porosity
+        super().__init__(
+            name=name,
+            processes=processes,
+            comparators=comparators,
+            simulator=simulator,
+            **kwargs,
+        )
+
     def _default_variables(self) -> list[dict]:
-        return [
+        variables = [
             {
                 "name": "bed_porosity",
                 "parameter_path": "flow_sheet.column.bed_porosity",
@@ -361,6 +388,16 @@ class CharacterizeBed(CharacterizeBase):
                 "transform": "auto",
             },
         ]
+        if self._include_particle_porosity:
+            variables.append({
+                "name": "particle_porosity",
+                "parameter_path": "flow_sheet.column.particle_porosity",
+                "lb": 0.6,
+                "ub": 0.9,
+                "transform": "auto",
+            })
+
+        return variables
 
 
 class CharacterizeParticles(CharacterizeBase):
