@@ -190,6 +190,7 @@ class CharacterizeBase(OptimizationProblem):
         for process, comparator in zip(processes, comparators):
             self.add_objective(
                 comparator,
+                name=process.name,
                 n_objectives=comparator.n_metrics,
                 requires=[simulator],
                 evaluation_objects=process,
