@@ -271,6 +271,44 @@ def test_characterize_base_multi_process_registers_unique_objectives(
     assert prob.n_objectives == 2 * comparator.n_metrics
 
 
+@pytest.mark.parametrize(
+    "process_name, expected_objective_name",
+    [
+        ("ok_name", "ok_name"),
+        ("pulse 30 CV", "pulse_30_CV"),
+        ("pulse-30", "pulse_30"),
+        ("5", "_5"),
+    ],
+)
+def test_characterize_base_sanitizes_process_name_for_objective(
+    column_fs, comparator, mock_simulator, process_name, expected_objective_name
+):
+    """Process names are free-form, but objective names must be identifiers."""
+    process = PulseInjection(
+        process_name,
+        column_fs,
+        c_buffer_a=[100.0],
+        c_sample=[0.0],
+        cycle_time=600.0,
+        flow_rate=FLOW_RATE,
+    )
+    prob = CharacterizeBase("test", process, comparator, mock_simulator)
+
+    assert prob.objective_names == [expected_objective_name]
+
+
+def test_characterize_base_names_unnamed_comparator_after_its_process(
+    pulse_process, flat_reference, mock_simulator
+):
+    comp = Comparator()
+    comp.add_reference(flat_reference)
+    comp.add_difference_metric("NRMSE", flat_reference, "column.outlet.outlet[0]")
+
+    CharacterizeBase("test", pulse_process, comp, mock_simulator)
+
+    assert comp.name == pulse_process.name
+
+
 # ---------------------------------------------------------------------------
 # CharacterizeTubing
 # ---------------------------------------------------------------------------
