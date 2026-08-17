@@ -208,7 +208,7 @@ class CharacterizeBase(OptimizationProblem):
             comparator_map[evaluation_object.name].plot_comparison(
                 simulation_results,
                 file_name=(
-                    f"{callbacks_dir}/{individual.id}"
+                    f"{callbacks_dir}/{individual.id_short}"
                     f"_{evaluation_object}_comparison.png"
                 ),
                 show=False,

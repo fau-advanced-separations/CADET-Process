@@ -309,6 +309,33 @@ def test_characterize_base_names_unnamed_comparator_after_its_process(
     assert comp.name == pulse_process.name
 
 
+def test_characterize_base_callback_writes_plot_file(
+    pulse_process, comparator, mock_simulator, tmp_path, caplog
+):
+    """Regression test: the registered callback used to reference
+    ``individual.id``, which doesn't exist on ``IndividualView``.  The
+    AttributeError was swallowed by evaluate_callbacks into a logged
+    warning, so no comparison plot was ever written and nobody noticed.
+
+    Uses CharacterizeBed (rather than a bare CharacterizeBase) because a
+    zero-variable problem can't build a one-row population: with no
+    parameter columns, Population has nothing to infer its row count from.
+    """
+    prob = CharacterizeBed("test", pulse_process, comparator, mock_simulator)
+
+    calls = []
+    comparator.plot_comparison = lambda *args, **kwargs: calls.append(kwargs)
+
+    pop = prob.create_population([[0.4, 1e-7]])
+    prob.evaluate_callbacks(pop, current_iteration=0, callbacks_dir=tmp_path)
+
+    assert "failed" not in caplog.text
+    assert len(calls) == 1
+    file_name = calls[0]["file_name"]
+    assert file_name.endswith("_pulse_comparison.png")
+    assert pop[0].id_short in file_name
+
+
 # ---------------------------------------------------------------------------
 # CharacterizeTubing
 # ---------------------------------------------------------------------------

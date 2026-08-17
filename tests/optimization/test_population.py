@@ -177,6 +177,67 @@ def test_iteration_yields_views(population):
     assert all(isinstance(v, IndividualView) for v in views)
 
 
+# ── Identity (id) ─────────────────────────────────────────────────────────────
+
+
+def test_id_matches_between_view_and_population(population):
+    """IndividualView.id and Population.ids must agree for the same row."""
+    for i, view in enumerate(population):
+        assert view.id == population.ids[i]
+
+
+def test_id_is_deterministic(objective_space):
+    """Identical parameter values, even across separate populations, share an id."""
+    pop_a = Population(
+        X={"var_0": [1.0], "var_1": [2.0]},
+        metrics={"f": [-1.0]},
+        metric_space=objective_space,
+    )
+    pop_b = Population(
+        X={"var_0": [1.0], "var_1": [2.0]},
+        metrics={"f": [-9.0]},
+        metric_space=objective_space,
+    )
+    assert pop_a[0].id == pop_b[0].id
+
+
+def test_id_differs_for_different_rows(population):
+    assert population[0].id != population[1].id
+
+
+def test_id_short_is_prefix_of_id(population):
+    view = population[0]
+    assert view.id_short == view.id[:7]
+    assert len(view.id_short) == 7
+
+
+def test_id_handles_categorical_columns(mixed_population):
+    """Object-dtype (categorical) parameter columns must not hash pointer bytes."""
+    assert mixed_population[0].id != mixed_population[1].id
+
+
+def test_id_is_deterministic_for_categorical_columns(mixed_space):
+    """Same categorical value in two independently-built populations must
+    yield the same id.
+
+    A naive ``ndarray.tobytes()`` on an object-dtype row hashes Python object
+    pointers rather than values, which would pass within a single population
+    (same underlying objects) but fail here, since the two rows are distinct
+    Python string objects with the same value.
+    """
+    pop_a = Population.from_records(
+        [{"X": {"flow": 1.2, "resin": "A"},
+          "metrics": {"yield": [0.8, 0.9], "purity": 0.97, "cost": 3.0}}],
+        metric_space=mixed_space,
+    )
+    pop_b = Population.from_records(
+        [{"X": {"flow": 1.2, "resin": "A"},
+          "metrics": {"yield": [0.1, 0.2], "purity": 0.50, "cost": 9.0}}],
+        metric_space=mixed_space,
+    )
+    assert pop_a[0].id == pop_b[0].id
+
+
 # ── Value matching ────────────────────────────────────────────────────────────
 
 
