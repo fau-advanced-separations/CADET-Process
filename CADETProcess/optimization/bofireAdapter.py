@@ -206,12 +206,23 @@ def _build_experiments(
 ) -> pd.DataFrame:
     """Assemble an experiments DataFrame for ``strategy.tell()``."""
     df = _x_to_dataframe(X_transformed, input_keys)
-    for j, key in enumerate(obj_keys):
-        df[key] = F[:, j]
+    _add_output_columns(df, F, obj_keys)
     if con_keys and CV is not None:
-        for j, key in enumerate(con_keys):
-            df[key] = CV[:, j]
+        _add_output_columns(df, CV, con_keys)
     return df
+
+
+def _add_output_columns(
+    df: pd.DataFrame,
+    values: np.ndarray,
+    keys: list[str],
+) -> None:
+    """Add BoFire output values and per-output validity columns in-place."""
+    values = np.atleast_2d(values)
+    for j, key in enumerate(keys):
+        valid = np.isfinite(values[:, j])
+        df[key] = np.where(valid, values[:, j], np.nan)
+        df[f"valid_{key}"] = valid
 
 
 def _population_to_experiments(
@@ -223,12 +234,10 @@ def _population_to_experiments(
     """Rebuild an experiments DataFrame from a saved Population."""
     df = _x_to_dataframe(pop.x_transformed, input_keys)
     F = np.atleast_2d(pop.f_minimized)
-    for j, key in enumerate(obj_keys):
-        df[key] = F[:, j]
+    _add_output_columns(df, F, obj_keys)
     if con_keys and pop.cv_nonlincon is not None:
         CV = np.atleast_2d(pop.cv_nonlincon)
-        for j, key in enumerate(con_keys):
-            df[key] = CV[:, j]
+        _add_output_columns(df, CV, con_keys)
     return df
 
 

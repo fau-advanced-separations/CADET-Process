@@ -6,16 +6,23 @@ surface inside ``_run``: the ``run_post_processing`` call shape and the
 checkpoint-restore evaluation count.
 """
 
+from types import SimpleNamespace
+
 import numpy as np
 import pytest
 
 bofire = pytest.importorskip("bofire.strategies.api")
 
+import CADETProcess.optimization.bofireAdapter as bofire_adapter
 from bofire.data_models.constraints.api import LinearInequalityConstraint
 from bofire.data_models.features.api import ContinuousInput
 from bofire.data_models.objectives.api import MinimizeSigmoidObjective
 from CADETProcess.optimization import BoFire
-from CADETProcess.optimization.bofireAdapter import _build_domain
+from CADETProcess.optimization.bofireAdapter import (
+    _build_domain,
+    _build_experiments,
+    _population_to_experiments,
+)
 
 from tests.optimization.conftest import (
     LinearConstraintsMooTestProblem,
@@ -80,7 +87,75 @@ def test_build_domain_maps_multiple_objectives():
     assert len(obj_keys) == op.n_objectives == 2
 
 
+# %% Experiment translation (fast)
+
+
+def test_build_experiments_marks_nonfinite_outputs_invalid():
+    """Non-finite objectives and constraints are excluded from BoFire fitting."""
+    experiments = _build_experiments(
+        X_transformed=np.array([[0.1], [0.2], [0.3]]),
+        input_keys=["x_var"],
+        F=np.array([[1.0, np.inf], [np.nan, 2.0], [3.0, 4.0]]),
+        obj_keys=["obj_a", "obj_b"],
+        CV=np.array([[0.0], [np.inf], [-1.0]]),
+        con_keys=["con_c"],
+    )
+
+    np.testing.assert_array_equal(
+        experiments["valid_obj_a"], [True, False, True]
+    )
+    np.testing.assert_array_equal(
+        experiments["valid_obj_b"], [False, True, True]
+    )
+    np.testing.assert_array_equal(
+        experiments["valid_con_c"], [True, False, True]
+    )
+    assert np.isnan(experiments.loc[1, "obj_a"])
+    assert np.isnan(experiments.loc[0, "obj_b"])
+    assert np.isnan(experiments.loc[1, "con_c"])
+
+
+def test_population_restore_rebuilds_output_validity_columns():
+    """Checkpoint replay preserves the validity semantics of fresh evaluations."""
+    pop = SimpleNamespace(
+        x_transformed=np.array([[0.1], [0.2]]),
+        f_minimized=np.array([[1.0], [np.inf]]),
+        cv_nonlincon=np.array([[np.nan], [-1.0]]),
+    )
+
+    experiments = _population_to_experiments(
+        pop,
+        input_keys=["x_var"],
+        obj_keys=["obj_a"],
+        con_keys=["con_c"],
+    )
+
+    np.testing.assert_array_equal(experiments["valid_obj_a"], [True, False])
+    np.testing.assert_array_equal(experiments["valid_con_c"], [False, True])
+    assert np.isnan(experiments.loc[1, "obj_a"])
+    assert np.isnan(experiments.loc[0, "con_c"])
+
+
 # %% End-to-end (exercise _run)
+
+
+def test_run_excludes_failed_initial_evaluation_from_surrogate(monkeypatch):
+    """A failed initial evaluation is recorded but not passed to the surrogate."""
+    op = Rosenbrock(use_diskcache=False)
+
+    def evaluate_batch(_opt, _X_transformed, _parallelization_backend):
+        return np.array([[1.0], [np.inf], [2.0]]), None, None
+
+    monkeypatch.setattr(bofire_adapter, "_evaluate_batch", evaluate_batch)
+
+    optimizer = BoFire()
+    optimizer.n_init = 3
+    optimizer.n_max_evals = 3
+
+    results = optimizer.optimize(op, save_results=False, log_level="ERROR")
+
+    assert results.success
+    assert np.isinf(results.populations[0].f).any()
 
 
 def test_run_records_generations_via_post_processing():
