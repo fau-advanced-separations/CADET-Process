@@ -106,13 +106,16 @@ def test_add_parameter_evaluation_objects_without_path_raises(space_with_column,
         space_with_column.add_parameter(p, evaluation_objects=[column])
 
 
-def test_add_parameter_unknown_evaluation_object_raises(column):
+def test_add_parameter_accepts_unregistered_evaluation_object(column):
+    """An explicit target need not be on the object axis (e.g. a broadcast target)."""
     space = ParameterSpace()
     space.add_evaluation_object(column)
     unregistered = Column(length=0.99)  # distinct value ensures __eq__ differs
     p = RangedParameter("length", float, lb=0.0, ub=1.0)
-    with pytest.raises(ValueError, match="not registered"):
-        space.add_parameter(p, path="length", evaluation_objects=[unregistered])
+    space.add_parameter(p, path="length", evaluation_objects=[unregistered])
+    space.set_values({"length": 0.7})
+    assert unregistered.length == 0.7
+    assert column.length != 0.7
 
 
 def test_add_parameter_subset_of_evaluation_objects(column, feed):
