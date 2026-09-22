@@ -764,6 +764,31 @@ def test_add_evaluator_duplicate_name_raises():
         op.add_evaluator(lambda x: x, name="ev1")
 
 
+class _CallableEvaluationObject:
+    """Callable so it is eligible as either an evaluator or an evaluation object."""
+
+    def __call__(self, x):
+        return x
+
+
+def test_add_evaluator_rejects_registered_evaluation_object():
+    """Invariant 8: an object is a fanned evaluation object xor an evaluator."""
+    obj = _CallableEvaluationObject()
+    op = OptimizationProblem("ev", use_diskcache=False)
+    op.add_evaluation_object(obj)
+    with pytest.raises(CADETProcessError):
+        op.add_evaluator(obj)
+
+
+def test_add_evaluation_object_rejects_registered_evaluator():
+    """Invariant 8, mirrored: registering the evaluator side first."""
+    obj = _CallableEvaluationObject()
+    op = OptimizationProblem("ev", use_diskcache=False)
+    op.add_evaluator(obj)
+    with pytest.raises(CADETProcessError):
+        op.add_evaluation_object(obj)
+
+
 def test_add_evaluator_callable_class_name():
     class MyEvaluator:
         def __call__(self, x):

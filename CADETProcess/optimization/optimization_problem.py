@@ -354,7 +354,20 @@ class OptimizationProblem(Problem):
     # ── Evaluation objects ─────────────────────────────────────────────────────
 
     def add_evaluation_object(self, obj: Any, **kwargs: Any) -> None:  # noqa: ARG002
-        """Register an evaluation object."""
+        """Register an evaluation object.
+
+        Raises
+        ------
+        CADETProcessError
+            If *obj* is already registered as an evaluator (invariant 8: an
+            object is either a fanned evaluation object or a broadcast
+            evaluator/target, never both).
+        """
+        if any(obj is evaluator for evaluator in self.evaluators):
+            raise CADETProcessError(
+                f"{obj!r} is already registered as an evaluator and cannot "
+                "also be an evaluation object."
+            )
         self._parameter_space.add_evaluation_object(obj)
 
     @property
@@ -1228,9 +1241,19 @@ class OptimizationProblem(Problem):
             If *evaluator* is not callable.
         CADETProcessError
             If an evaluator with the same name already exists.
+        CADETProcessError
+            If *evaluator* is already registered as an evaluation object
+            (invariant 8: an object is either a fanned evaluation object or a
+            broadcast evaluator/target, never both).
         """
         if not callable(evaluator):
             raise TypeError("Expected callable evaluator.")
+
+        if any(evaluator is obj for obj in self.evaluation_objects):
+            raise CADETProcessError(
+                f"{evaluator!r} is already registered as an evaluation object "
+                "and cannot also be an evaluator."
+            )
 
         if name is None:
             name = _derive_name(evaluator)
