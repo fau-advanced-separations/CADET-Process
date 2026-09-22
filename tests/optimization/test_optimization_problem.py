@@ -3,6 +3,7 @@ import warnings
 import numpy as np
 import pytest
 from CADETProcess import CADETProcessError
+from CADETProcess.dataStructure import Float, Structure
 from CADETProcess.optimization import OptimizationProblem, Population
 
 from tests.optimization.conftest import (
@@ -1526,3 +1527,63 @@ def test_output_states_variable_rejects_invalid_split():
 
     with pytest.raises(CADETProcessError):
         op.parameter_space.set_values({"output_split": 0.3})
+
+
+# ── Mapper routing: `.parameters` view that does not reach the target ─────────
+#
+# Regression: `hasattr(obj, "parameters")` alone routed writes through
+# NestedDictMapper, but a Structure's `.parameters` view only contains
+# descriptor-registered / aggregated params.  A plain `__init__`-assigned
+# sub-structure (e.g. `Cadet.time_integrator_parameters`) is invisible to it,
+# so the write silently targets nothing and `parameters.setter` raises
+# "Not a valid parameter." on the first write.  The routing must probe
+# reachability, not just presence of the property, and fall back to
+# DotPathMapper when the path is not actually in the view.
+
+
+class _ChildStructure(Structure):
+    value = Float(default=0)
+    _parameters = ["value"]
+
+
+class _ParentWithPlainSubstructure(Structure):
+    """`.parameters` view stays empty for `child`: not descriptor- or
+    aggregator-registered, just a plain `__init__`-assigned attribute."""
+
+    def __init__(self):
+        super().__init__()
+        self.child = _ChildStructure()
+
+
+def test_variable_falls_back_to_dotpath_when_parameters_view_does_not_reach_path():
+    obj = _ParentWithPlainSubstructure()
+
+    op = OptimizationProblem("t", use_diskcache=False)
+    op.add_variable(
+        "child_value",
+        evaluation_objects=obj,
+        parameter_path="child.value",
+        lb=0,
+        ub=10,
+    )
+    op.parameter_space.set_values({"child_value": 5})
+
+    assert obj.child.value == 5
+
+
+def test_variable_targets_object_not_registered_as_evaluation_object():
+    """A broadcast target (e.g. a simulator) need not sit on the object axis."""
+    target = _ParentWithPlainSubstructure()
+
+    op = OptimizationProblem("t", use_diskcache=False)
+    op.add_variable(
+        "child_value",
+        evaluation_objects=target,
+        parameter_path="child.value",
+        lb=0,
+        ub=10,
+    )
+    op.parameter_space.set_values({"child_value": 5})
+
+    assert target.child.value == 5
+    assert target not in op.evaluation_objects

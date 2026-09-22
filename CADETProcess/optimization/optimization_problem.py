@@ -22,7 +22,7 @@ import numpy.typing as npt
 
 from CADETProcess import CADETProcessError, log
 from CADETProcess.dataStructure.deprecation import deprecated, deprecated_alias
-from CADETProcess.dataStructure.nested_dict import attribute_path_exists
+from CADETProcess.dataStructure.nested_dict import attribute_path_exists, check_nested
 from CADETProcess.evaluation_pipeline import EvaluationFailure, EvaluationPipeline
 from CADETProcess.metric_space import Metric, MetricSpace
 from CADETProcess.optimization.population import Population
@@ -469,15 +469,21 @@ class OptimizationProblem(Problem):
                 key = (parameter_path, id(obj), index_key)
                 self._path_registry[key] = name
 
-        # Wire mapper.  Targets exposing a `parameters` interface are written
-        # through it (NestedDictMapper) so the value travels the same setter
-        # chain the event system uses; this is required for parameters that are
-        # not plain writable attributes (e.g. `flow_sheet.output_states`, a
-        # read-only property writable only via `set_output_state`).  A raw
-        # setattr mapper (DotPathMapper / make_preprocessing_mapper) is the
-        # fallback for objects without a `parameters` interface.
+        # Wire mapper.  Targets whose `parameters` view actually reaches
+        # `parameter_path` are written through it (NestedDictMapper) so the
+        # value travels the same setter chain the event system uses; this is
+        # required for parameters that are not plain writable attributes
+        # (e.g. `flow_sheet.output_states`, a read-only property writable only
+        # via `set_output_state`).  `hasattr(obj, "parameters")` alone is not
+        # enough: a target can expose the property while its view stays empty
+        # for a given path (e.g. a simulator's `time_integrator_parameters`,
+        # which is a plain attribute, not a registered/aggregated parameter),
+        # so the path must be probed for reachability, not just the property
+        # for existence.  A raw setattr mapper (DotPathMapper /
+        # make_preprocessing_mapper) is the fallback when it is not reachable.
         supports_parameters = eval_objs and all(
-            hasattr(obj, "parameters") for obj in eval_objs
+            hasattr(obj, "parameters") and check_nested(obj.parameters, parameter_path)
+            for obj in eval_objs
         )
         if not eval_objs:
             self._parameter_space.add_parameter(param)

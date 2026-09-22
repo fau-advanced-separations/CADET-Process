@@ -248,8 +248,11 @@ class ParameterSpace:
             automatically and targets ``evaluation_objects`` (or all registered
             objects if not specified).
         evaluation_objects : list, optional
-            Subset of evaluation objects this parameter maps to.  Only valid
-            together with *path*.
+            Objects this parameter writes to, defaulting to all registered
+            evaluation objects if not specified.  Only valid together with
+            *path*.  An object need not be registered via
+            ``add_evaluation_object``: a write target that is deliberately
+            off the object axis (e.g. a simulator) is valid here.
         mapper : ParameterMapperBase, optional
             Pre-built mapper.  Use this (or ``add_parameter_with_callable``) when
             a dot-path is insufficient.
@@ -262,8 +265,6 @@ class ParameterSpace:
             If both *path* and *mapper* are supplied.
         ValueError
             If *evaluation_objects* is given without *path*.
-        ValueError
-            If *evaluation_objects* contains objects not registered with the space.
         """
         if any(p.name == parameter.name for p in self._parameters):
             raise ValueError(
@@ -307,7 +308,15 @@ class ParameterSpace:
         self.add_parameter(parameter, mapper=CallableMapper(targets, fn))
 
     def _resolve_targets(self, evaluation_objects: Optional[Any]) -> list[Any]:
-        """Return the target list, defaulting to all registered objects."""
+        """Return the target list, defaulting to all registered objects.
+
+        An explicit *evaluation_objects* list is accepted as-is, including
+        objects never passed to ``add_evaluation_object``: a target that is
+        deliberately not on the object axis (e.g. a simulator receiving a
+        broadcast solver setting) is a legitimate case, not an oversight.
+        Only the no-argument default (defaulting to *every* registered
+        object) needs the registry to be non-empty.
+        """
         if evaluation_objects is None:
             if not self._evaluation_objects:
                 raise ValueError(
@@ -318,12 +327,6 @@ class ParameterSpace:
             return list(self._evaluation_objects)
         if not isinstance(evaluation_objects, list):
             evaluation_objects = [evaluation_objects]
-        unknown = [o for o in evaluation_objects if o not in self._evaluation_objects]
-        if unknown:
-            raise ValueError(
-                f"The following objects are not registered with this space: {unknown!r}. "
-                "Call add_evaluation_object() first."
-            )
         return list(evaluation_objects)
 
     @property
