@@ -27,7 +27,7 @@ def column():
 
 def _linear_space(column):
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     space.add_parameter(
         RangedParameter("length", float, lb=0.0, ub=10.0, normalization="linear"),
         path="length",
@@ -37,7 +37,7 @@ def _linear_space(column):
 
 def _two_param_space(column):
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     space.add_parameter(
         RangedParameter("length", float, lb=0.0, ub=10.0, normalization="linear"),
         path="length",
@@ -64,7 +64,7 @@ def test_upper_bounds_normalized(column):
 
 def test_bounds_unnormalized_parameter(column):
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     space.add_parameter(RangedParameter("length", float, lb=2.0, ub=8.0), path="length")
     ts = TransformedSpace(space)
     np.testing.assert_array_equal(ts.lower_bounds, [2.0])
@@ -169,7 +169,7 @@ def test_inequality_constraint_nonzero_lb():
     # → 6*x_norm + 2 <= 5 → 6*x_norm <= 3 → A=[6], b=[3]
     col = Column()
     space = ParameterSpace()
-    space.add_evaluation_object(col)
+    space.add_case(col)
     space.add_parameter(
         RangedParameter("length", float, lb=2.0, ub=8.0, normalization="linear"),
         path="length",
@@ -196,7 +196,7 @@ def test_equality_constraint_transformation(column):
 
 def test_nonlinear_normalizer_raises(column):
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     space.add_parameter(
         RangedParameter("length", float, lb=1.0, ub=100.0, normalization="log"),
         path="length",
@@ -332,10 +332,10 @@ def test_decode_excludes_dependent_parameters(column):
 # ── delegation ────────────────────────────────────────────────────────────────
 
 
-def test_evaluation_objects_delegates(column):
+def test_cases_delegates(column):
     space = _linear_space(column)
     ts = TransformedSpace(space)
-    assert ts.evaluation_objects == [column]
+    assert ts.cases == [column]
 
 
 def test_n_variables_delegates(column):

@@ -368,17 +368,17 @@ class OptimizationProblem(Problem):
                 f"{obj!r} is already registered as an evaluator and cannot "
                 "also be an evaluation object."
             )
-        self._parameter_space.add_evaluation_object(obj)
+        self._parameter_space.add_case(obj)
 
     @property
     def evaluation_objects(self) -> list[Any]:
         """Registered evaluation objects, in insertion order."""
-        return self._parameter_space.evaluation_objects
+        return self._parameter_space.cases
 
     @property
     def evaluation_objects_dict(self) -> dict[str, Any]:
         """Mapping of ``str(obj)`` → obj for all registered evaluation objects."""
-        return {str(obj): obj for obj in self._parameter_space.evaluation_objects}
+        return {str(obj): obj for obj in self._parameter_space.cases}
 
     # ── Variables ─────────────────────────────────────────────────────────────
 
@@ -449,7 +449,7 @@ class OptimizationProblem(Problem):
         if targets is None:
             eval_objs: list[Any] = []
         elif targets == -1:
-            eval_objs = list(self._parameter_space.evaluation_objects)
+            eval_objs = list(self._parameter_space.cases)
         elif not isinstance(targets, list):
             eval_objs = [targets]
         else:
@@ -528,7 +528,7 @@ class OptimizationProblem(Problem):
             )
         else:
             self._parameter_space.add_parameter(
-                param, path=parameter_path, evaluation_objects=eval_objs
+                param, path=parameter_path, targets=eval_objs
             )
 
         self._params[name] = param
@@ -567,7 +567,7 @@ class OptimizationProblem(Problem):
         if targets is None:
             eval_objs: list[Any] = []
         elif targets == -1:
-            eval_objs = list(self._parameter_space.evaluation_objects)
+            eval_objs = list(self._parameter_space.cases)
         elif not isinstance(targets, list):
             eval_objs = [targets]
         else:
@@ -608,7 +608,7 @@ class OptimizationProblem(Problem):
             self._parameter_space.add_parameter(param)
         else:
             self._parameter_space.add_parameter(
-                param, path=parameter_path, evaluation_objects=eval_objs
+                param, path=parameter_path, targets=eval_objs
             )
 
         self._params[name] = param
@@ -1325,9 +1325,9 @@ class OptimizationProblem(Problem):
         """Build the Metric declaration, expanding over evaluation objects.
 
         In a multi-object problem every object-bound metric carries an
-        explicit ``evaluation_object`` dimension, even when bound to a single
-        object: ``Problem.evaluate`` selects the metric's entries from the
-        backend's per-object results by these coordinates.  Labels expand
+        explicit ``case`` dimension, even when bound to a single object:
+        ``Problem.evaluate`` selects the metric's entries from the
+        backend's per-case results by these coordinates.  Labels expand
         object-major, matching the flattening order in
         ``_postprocess_row``.
         """
@@ -1341,11 +1341,11 @@ class OptimizationProblem(Problem):
         if eval_objs and len(self.evaluation_objects) > 1:
             obj_names = [str(obj) for obj in eval_objs]
             if n_per_object == 1:
-                dims = ("evaluation_object",)
-                coords = {"evaluation_object": obj_names}
+                dims = ("case",)
+                coords = {"case": obj_names}
             else:
-                dims = ("evaluation_object", "entry")
-                coords = {"evaluation_object": obj_names, "entry": base_labels}
+                dims = ("case", "entry")
+                coords = {"case": obj_names, "entry": base_labels}
             labels = [f"{obj}_{label}" for obj in obj_names for label in base_labels]
             return Metric(name, dims=dims, coords=coords, labels=labels)
         return Metric(name, n_metrics=n_per_object, labels=base_labels)
@@ -2391,7 +2391,7 @@ class OptimizationProblem(Problem):
         if population is None or not self._callbacks:
             return
         _logger = logging.getLogger(__name__)
-        eval_objs = self._parameter_space.evaluation_objects or []
+        eval_objs = self._parameter_space.cases or []
         independent_names = {
             p.name for p in self._parameter_space.independent_parameters
         }
@@ -2438,7 +2438,7 @@ class OptimizationProblem(Problem):
                         result = self._backend.evaluate(
                             assignment,
                             targets=[cb.name],
-                            evaluation_objects=(
+                            cases=(
                                 None if eval_obj is None else [eval_obj]
                             ),
                         )

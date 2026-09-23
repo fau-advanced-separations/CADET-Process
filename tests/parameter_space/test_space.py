@@ -42,31 +42,31 @@ def feed():
 @pytest.fixture
 def space_with_column(column):
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     return space
 
 
-# ── evaluation objects ────────────────────────────────────────────────────────
+# ── cases ─────────────────────────────────────────────────────────────────────
 
 
-def test_add_evaluation_object(column):
+def test_add_case(column):
     space = ParameterSpace()
-    space.add_evaluation_object(column)
-    assert column in space.evaluation_objects
+    space.add_case(column)
+    assert column in space.cases
 
 
-def test_add_duplicate_evaluation_object_raises(column):
+def test_add_duplicate_case_raises(column):
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     with pytest.raises(ValueError, match="already registered"):
-        space.add_evaluation_object(column)
+        space.add_case(column)
 
 
-def test_evaluation_objects_preserves_insertion_order(column, feed):
+def test_cases_preserve_insertion_order(column, feed):
     space = ParameterSpace()
-    space.add_evaluation_object(column)
-    space.add_evaluation_object(feed)
-    assert space.evaluation_objects == [column, feed]
+    space.add_case(column)
+    space.add_case(feed)
+    assert space.cases == [column, feed]
 
 
 # ── add_parameter ─────────────────────────────────────────────────────────────
@@ -100,39 +100,39 @@ def test_add_parameter_path_and_mapper_raises(space_with_column):
         space_with_column.add_parameter(p, path="length", mapper=mapper)
 
 
-def test_add_parameter_evaluation_objects_without_path_raises(space_with_column, column):
+def test_add_parameter_targets_without_path_raises(space_with_column, column):
     p = RangedParameter("length", float, lb=0.0, ub=1.0)
     with pytest.raises(ValueError, match="requires 'path'"):
-        space_with_column.add_parameter(p, evaluation_objects=[column])
+        space_with_column.add_parameter(p, targets=[column])
 
 
-def test_add_parameter_accepts_unregistered_evaluation_object(column):
-    """An explicit target need not be on the object axis (e.g. a broadcast target)."""
+def test_add_parameter_accepts_unregistered_target(column):
+    """An explicit target need not be a case (e.g. a broadcast target)."""
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     unregistered = Column(length=0.99)  # distinct value ensures __eq__ differs
     p = RangedParameter("length", float, lb=0.0, ub=1.0)
-    space.add_parameter(p, path="length", evaluation_objects=[unregistered])
+    space.add_parameter(p, path="length", targets=[unregistered])
     space.set_values({"length": 0.7})
     assert unregistered.length == 0.7
     assert column.length != 0.7
 
 
-def test_add_parameter_subset_of_evaluation_objects(column, feed):
+def test_add_parameter_subset_of_cases(column, feed):
     space = ParameterSpace()
-    space.add_evaluation_object(column)
-    space.add_evaluation_object(feed)
+    space.add_case(column)
+    space.add_case(feed)
     p = RangedParameter("length", float, lb=0.0, ub=1.0)
-    space.add_parameter(p, path="length", evaluation_objects=[column])
+    space.add_parameter(p, path="length", targets=[column])
     space.set_values({"length": 0.7})
     assert column.length == pytest.approx(0.7)
     assert feed.duration == pytest.approx(60.0)  # untouched
 
 
-def test_add_parameter_no_evaluation_objects_registered_raises():
+def test_add_parameter_no_cases_registered_raises():
     space = ParameterSpace()
     p = RangedParameter("length", float, lb=0.0, ub=1.0)
-    with pytest.raises(ValueError, match="No evaluation objects"):
+    with pytest.raises(ValueError, match="No cases"):
         space.add_parameter(p, path="length")
 
 
@@ -278,7 +278,7 @@ def test_normalize_denormalize_roundtrip(space_with_column):
 
 def test_normalize_choice_parameter_unchanged(column):
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     space.add_parameter(ChoiceParameter("mode", ["a", "b"]))
     x = np.array([0.0])
     np.testing.assert_array_equal(space.normalize(x), x)
@@ -286,7 +286,7 @@ def test_normalize_choice_parameter_unchanged(column):
 
 def test_normalize_integer_parameter_unchanged(column):
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     space.add_parameter(
         RangedParameter("n", int, lb=1, ub=100, normalization="linear")
     )
@@ -514,7 +514,7 @@ def test_typed_subsets_exclude_dependent():
 @pytest.fixture
 def bounded_space(column):
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     space.add_parameter(RangedParameter("a", float, lb=0.0, ub=1.0))
     return space
 
@@ -558,7 +558,7 @@ def test_evaluate_bounds_includes_dependent_variables(space_with_column, column)
 @pytest.fixture
 def space_with_lincon(column):
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     a = RangedParameter("a", float, lb=0.0, ub=1.0)
     b = RangedParameter("b", float, lb=0.0, ub=1.0)
     space.add_parameter(a)
@@ -586,7 +586,7 @@ def test_evaluate_linear_constraints_violated(space_with_lincon):
 @pytest.fixture
 def space_with_lineqcon(column):
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     a = RangedParameter("a", float, lb=0.0, ub=1.0)
     b = RangedParameter("b", float, lb=0.0, ub=1.0)
     space.add_parameter(a)
@@ -634,7 +634,7 @@ def test_evaluate_bounds_resolve_dependencies_dependent_violation(space_with_dep
 
     obj = Obj()
     space = ParameterSpace()
-    space.add_evaluation_object(obj)
+    space.add_case(obj)
     a = RangedParameter("a", float, lb=0.0, ub=10.0)
     b = RangedParameter("b", float, lb=0.0, ub=3.0)  # tight upper bound
     space.add_parameter(a)
@@ -682,7 +682,7 @@ def test_evaluate_linear_equality_constraints_resolve_dependencies_violated(spac
 @pytest.fixture
 def space_with_dependent(column):
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     a = RangedParameter("a", float, lb=0.0, ub=10.0)
     b = RangedParameter("b", float, lb=0.0, ub=5.0)
     space.add_parameter(a)
@@ -730,7 +730,7 @@ def test_check_bounds_full_vector_directly(space_with_dependent):
 @pytest.fixture
 def space_two_vars(column):
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     a = RangedParameter("a", float, lb=0.0, ub=1.0)
     b = RangedParameter("b", float, lb=0.0, ub=1.0)
     space.add_parameter(a)

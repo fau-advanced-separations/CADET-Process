@@ -160,13 +160,12 @@ class Problem:
         ``EvaluationFailure`` values pass through unvalidated; substituting
         fallback values is optimizer policy and stays out of ``Problem``.
 
-        A backend evaluating multiple evaluation objects returns per-object
-        lists (the ``EvaluationPipeline`` convention).  Such values are
-        reduced to the metric's declared shape here: the entries belonging
-        to the metric's declared ``evaluation_object`` coordinates are
-        selected and stacked object-major.  If any selected entry is an
-        ``EvaluationFailure``, the selected per-object list passes through
-        unvalidated instead.
+        A backend evaluating multiple cases returns per-case lists (the
+        ``EvaluationPipeline`` convention).  Such values are reduced to the
+        metric's declared shape here: the entries belonging to the metric's
+        declared ``case`` coordinates are selected and stacked case-major.
+        If any selected entry is an ``EvaluationFailure``, the selected
+        per-case list passes through unvalidated instead.
 
         Parameters
         ----------
@@ -181,7 +180,7 @@ class Problem:
         -------
         dict[str, Any]
             Requested metrics in registration order; values are arrays in
-            canonical shape, ``EvaluationFailure``, or a per-object list
+            canonical shape, ``EvaluationFailure``, or a per-case list
             containing at least one ``EvaluationFailure``.
 
         Raises
@@ -216,25 +215,25 @@ class Problem:
                     f"Backend result is missing declared metric {metric.name!r}."
                 )
             value = raw[metric.name]
-            has_object_dim = (
-                metric.coords is not None and "evaluation_object" in metric.coords
+            has_case_dim = (
+                metric.coords is not None and "case" in metric.coords
             )
             if isinstance(value, EvaluationFailure):
                 results[metric.name] = value
-            elif has_object_dim and isinstance(value, list):
-                results[metric.name] = self._reduce_per_object(metric, value)
+            elif has_case_dim and isinstance(value, list):
+                results[metric.name] = self._reduce_per_case(metric, value)
             elif (
                 isinstance(value, list)
                 and any(isinstance(v, EvaluationFailure) for v in value)
             ):
-                # Per-object failures for a metric that declares no
-                # evaluation_object dimension: the backend fanned out over
-                # objects the metric does not know about.
+                # Per-case failures for a metric that declares no case
+                # dimension: the backend fanned out over cases the metric
+                # does not know about.
                 raise ValueError(
-                    f"Metric {metric.name!r} declares no evaluation_object "
-                    f"dimension but the backend returned per-object results.  "
+                    f"Metric {metric.name!r} declares no case "
+                    f"dimension but the backend returned per-case results.  "
                     f"This happens for metrics registered with "
-                    f"evaluation_objects=None while evaluation objects exist; "
+                    f"evaluation_objects=None while cases exist; "
                     f"see the input-handling cleanup note in PROJECT.md."
                 )
             else:
@@ -305,20 +304,20 @@ class Problem:
             return [_evaluate_one(assignment) for assignment in assignments]
         return list(parallelization_backend.evaluate(_evaluate_one, assignments))
 
-    def _reduce_per_object(self, metric: Any, values: list[Any]) -> Any:
-        """Reduce a per-object result list to the metric's declared shape.
+    def _reduce_per_case(self, metric: Any, values: list[Any]) -> Any:
+        """Reduce a per-case result list to the metric's declared shape.
 
-        The list is indexed by the parameter space's registered evaluation
-        objects; the metric's ``evaluation_object`` coordinates select the
-        entries it covers.  Failures keep per-object granularity so the
-        optimizer layer can substitute fallbacks per object.
+        The list is indexed by the parameter space's registered cases; the
+        metric's ``case`` coordinates select the entries it covers.
+        Failures keep per-case granularity so the optimizer layer can
+        substitute fallbacks per case.
         """
-        coords = metric.coords["evaluation_object"]
-        obj_names = [str(obj) for obj in self._parameter_space.evaluation_objects]
+        coords = metric.coords["case"]
+        obj_names = [str(obj) for obj in self._parameter_space.cases]
         missing = [c for c in coords if c not in obj_names]
         if missing:
             raise ValueError(
-                f"Metric {metric.name!r}: declared evaluation object(s) "
+                f"Metric {metric.name!r}: declared case(s) "
                 f"{missing} are not registered."
             )
         selected = [values[obj_names.index(c)] for c in coords]

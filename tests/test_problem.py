@@ -12,7 +12,7 @@ from CADETProcess.problem import EvaluationBackend, Problem
 
 @dataclass
 class Model:
-    """Minimal evaluation object: a single mutable value."""
+    """Minimal case: a single mutable value."""
 
     value: float = 0.0
 
@@ -126,7 +126,7 @@ def test_evaluate_with_real_pipeline_backend():
     """End-to-end: assignment reaches the model, pipeline output is validated."""
     model = Model()
     parameter_space = ParameterSpace()
-    parameter_space.add_evaluation_object(model)
+    parameter_space.add_case(model)
     parameter_space.add_parameter(
         RangedParameter("v", float, lb=0.0, ub=1.0), path="value"
     )
@@ -203,11 +203,11 @@ def test_evaluate_passes_metric_names_as_backend_targets(yield_and_purity_space)
     assert seen_targets == [["yield", "purity"]]
 
 
-# ── per-object reduction (EvaluationPipeline multi-object convention) ────────
+# ── per-case reduction (EvaluationPipeline multi-case convention) ────────────
 
 
 class NamedModel:
-    """Evaluation object with a stable name; dataclass repr would embed values."""
+    """Case with a stable name; dataclass repr would embed values."""
 
     def __init__(self, name, value=0.0):
         self.name = name
@@ -221,13 +221,13 @@ class NamedModel:
 def two_object_setup():
     m1, m2 = NamedModel("m1", 1.0), NamedModel("m2", 2.0)
     parameter_space = ParameterSpace()
-    parameter_space.add_evaluation_object(m1)
-    parameter_space.add_evaluation_object(m2)
+    parameter_space.add_case(m1)
+    parameter_space.add_case(m2)
     pipeline = EvaluationPipeline(parameter_space)
     return m1, m2, parameter_space, pipeline
 
 
-def test_evaluate_reduces_per_object_results_object_major(two_object_setup):
+def test_evaluate_reduces_per_case_results_case_major(two_object_setup):
     m1, m2, parameter_space, pipeline = two_object_setup
     pipeline.add_evaluator(lambda m: [m.value, m.value * 10], output_name="v")
 
@@ -235,8 +235,8 @@ def test_evaluate_reduces_per_object_results_object_major(two_object_setup):
     metric_space.add_objective(
         Metric(
             "v",
-            dims=("evaluation_object", "entry"),
-            coords={"evaluation_object": ["m1", "m2"], "entry": ["a", "b"]},
+            dims=("case", "entry"),
+            coords={"case": ["m1", "m2"], "entry": ["a", "b"]},
         )
     )
     problem = Problem(parameter_space, metric_space, backend=pipeline)
@@ -247,7 +247,7 @@ def test_evaluate_reduces_per_object_results_object_major(two_object_setup):
     np.testing.assert_allclose(results["v"], [[1.0, 10.0], [2.0, 20.0]])
 
 
-def test_evaluate_selects_declared_object_subset(two_object_setup):
+def test_evaluate_selects_declared_case_subset(two_object_setup):
     m1, m2, parameter_space, pipeline = two_object_setup
     pipeline.add_evaluator(lambda m: m.value, output_name="v")
 
@@ -255,8 +255,8 @@ def test_evaluate_selects_declared_object_subset(two_object_setup):
     metric_space.add_objective(
         Metric(
             "v",
-            dims=("evaluation_object",),
-            coords={"evaluation_object": ["m2"]},
+            dims=("case",),
+            coords={"case": ["m2"]},
         )
     )
     problem = Problem(parameter_space, metric_space, backend=pipeline)
@@ -266,7 +266,7 @@ def test_evaluate_selects_declared_object_subset(two_object_setup):
     np.testing.assert_allclose(results["v"], [2.0])
 
 
-def test_evaluate_per_object_failure_passes_through_as_list(two_object_setup):
+def test_evaluate_per_case_failure_passes_through_as_list(two_object_setup):
     m1, m2, parameter_space, pipeline = two_object_setup
 
     def failing_for_m1(m):
@@ -280,8 +280,8 @@ def test_evaluate_per_object_failure_passes_through_as_list(two_object_setup):
     metric_space.add_objective(
         Metric(
             "v",
-            dims=("evaluation_object",),
-            coords={"evaluation_object": ["m1", "m2"]},
+            dims=("case",),
+            coords={"case": ["m1", "m2"]},
         )
     )
     problem = Problem(parameter_space, metric_space, backend=pipeline)
@@ -293,9 +293,9 @@ def test_evaluate_per_object_failure_passes_through_as_list(two_object_setup):
     assert results["v"][1] == pytest.approx(2.0)
 
 
-def test_evaluate_per_object_failures_without_object_dim_raise(two_object_setup):
-    """A metric that does not declare the evaluation_object dimension cannot
-    absorb per-object failure lists; see the sentinel note in PROJECT.md."""
+def test_evaluate_per_case_failures_without_case_dim_raise(two_object_setup):
+    """A metric that does not declare the case dimension cannot
+    absorb per-case failure lists; see the sentinel note in PROJECT.md."""
     m1, m2, parameter_space, pipeline = two_object_setup
 
     def always_failing(m):
@@ -307,11 +307,11 @@ def test_evaluate_per_object_failures_without_object_dim_raise(two_object_setup)
     metric_space.add_objective(Metric("v", n_metrics=2))
     problem = Problem(parameter_space, metric_space, backend=pipeline)
 
-    with pytest.raises(ValueError, match="evaluation_object"):
+    with pytest.raises(ValueError, match="case dimension"):
         problem.evaluate({})
 
 
-# ── zero evaluation objects ──────────────────────────────────────────────────
+# ── zero cases ────────────────────────────────────────────────────────────────
 
 
 def test_evaluate_objectless_problem():

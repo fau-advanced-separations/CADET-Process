@@ -34,14 +34,14 @@ BURN_IN = 2000  # small for fast tests
 
 def _space_1d(column):
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     space.add_parameter(RangedParameter("length", float, lb=1.0, ub=10.0), path="length")
     return space
 
 
 def _space_2d(column):
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     space.add_parameter(RangedParameter("length", float, lb=0.0, ub=5.0), path="length")
     space.add_parameter(RangedParameter("diameter", float, lb=0.0, ub=2.0), path="diameter")
     return space
@@ -73,7 +73,7 @@ def test_A_eq_b_eq_no_constraints(column):
 def test_A_includes_derived_parameter_column(column):
     # A has n_parameters columns (independent + derived)
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     a = RangedParameter("a", float, lb=0.0, ub=5.0)
     b = RangedParameter("b", float, lb=0.0, ub=10.0)
     space.add_parameter(a, path="length")
@@ -98,7 +98,7 @@ def test_sample_returns_independent_assignments(column):
 
 def test_sample_include_dependent_returns_full_assignments(column):
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     a = RangedParameter("a", float, lb=0.0, ub=5.0)
     b = RangedParameter("b", float, lb=0.0, ub=10.0)
     space.add_parameter(a, path="length")
@@ -135,7 +135,7 @@ def test_sample_1d_within_bounds(column):
 
 def test_sample_derived_value_correct(column):
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     a = RangedParameter("a", float, lb=0.0, ub=5.0)
     b = RangedParameter("b", float, lb=0.0, ub=10.0)
     space.add_parameter(a, path="length")
@@ -150,7 +150,7 @@ def test_sample_derived_value_correct(column):
 def test_sample_derived_infeasible_filtered(column):
     # b = a * 3, but b.ub = 6, so only a < 2 is accepted
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     a = RangedParameter("a", float, lb=0.0, ub=5.0)
     b = RangedParameter("b", float, lb=0.0, ub=6.0)
     space.add_parameter(a, path="length")
@@ -166,7 +166,7 @@ def test_sample_derived_infeasible_filtered(column):
 
 def test_sample_integer_values_are_whole_numbers(column):
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     space.add_parameter(RangedParameter("n", int, lb=1, ub=100), path="length")
     samples = space.sample(10, seed=6, pool_size=BURN_IN)
     assert all(type(s["n"]) is int for s in samples)
@@ -175,7 +175,7 @@ def test_sample_integer_values_are_whole_numbers(column):
 
 def test_sample_categorical_draws_from_valid_values(column):
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     space.add_parameter(
         RangedParameter("length", float, lb=0.0, ub=5.0), path="length"
     )
@@ -191,7 +191,7 @@ def test_sample_categorical_only_numeric_dimensions_in_polytope(column):
     # A purely categorical space has an empty numeric polytope; the draw
     # must still produce valid assignments.
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     space.add_parameter(ChoiceParameter("mode", ["a", "b"]))
     samples = space.sample(5, seed=8, pool_size=100)
     assert all(s["mode"] in ("a", "b") for s in samples)
@@ -213,7 +213,7 @@ def test_sample_same_seed_reproducible(column):
 def test_sample_exhausted_budget_raises(column):
     # Impossible constraint: b = a * 100 but b.ub = 0.01, so nothing is feasible
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     a = RangedParameter("a", float, lb=1.0, ub=5.0)
     b = RangedParameter("b", float, lb=0.0, ub=0.01)
     space.add_parameter(a, path="length")
@@ -258,7 +258,7 @@ def test_sample_tiny_bounds(column):
     # threshold (1e-9) as degenerate; the sampler must build the polytope in
     # unit-box coordinates so a legitimate small-scale bound still samples
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     space.add_parameter(
         RangedParameter("length", float, lb=0.0, ub=1e-9), path="length"
     )
@@ -271,7 +271,7 @@ def test_sample_narrow_bounds_far_from_origin(column):
     # narrow *and* offset: only rescaling by the width and shifting by the
     # lower bound conditions this box
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     space.add_parameter(
         RangedParameter("length", float, lb=1e6, ub=1e6 + 1e-9), path="length"
     )
@@ -284,7 +284,7 @@ def test_sample_is_scale_invariant(column):
     # regardless of the units the bounds are expressed in
     def relative(ub):
         space = ParameterSpace()
-        space.add_evaluation_object(Column())
+        space.add_case(Column())
         space.add_parameter(
             RangedParameter("length", float, lb=0.0, ub=ub), path="length"
         )
@@ -298,7 +298,7 @@ def test_sample_tiny_bounds_with_linear_constraint(column):
     # the constraint must be rescaled together with the parameters, or the
     # unit-box polytope enforces the wrong half-space
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     a = RangedParameter("a", float, lb=0.0, ub=1e-9)
     b = RangedParameter("b", float, lb=0.0, ub=1e-9)
     space.add_parameter(a, path="length")
@@ -313,7 +313,7 @@ def test_sample_tiny_bounds_with_linear_constraint(column):
 
 def test_sample_narrow_bounds_with_equality_constraint(column):
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     a = RangedParameter("a", float, lb=0.0, ub=1e-9)
     b = RangedParameter("b", float, lb=0.0, ub=1e-9)
     space.add_parameter(a, path="length")
@@ -331,7 +331,7 @@ def test_sample_log_normalized_parameter_spreads_over_decades(column):
     # the draws.  Sampling in physical units without the weighting would put
     # ~90% of the mass in the top decade alone.
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     space.add_parameter(
         RangedParameter("length", float, lb=1.0, ub=1e4, normalization="log"),
         path="length",
@@ -351,7 +351,7 @@ def test_sample_enforces_dependent_linear_constraint_by_rejection(column):
     # a + b <= 4 with b = a means a <= 2; the polytope only sees the
     # independent column (a <= 4), so rejection must enforce the rest
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     a = RangedParameter("a", float, lb=0.0, ub=5.0)
     b = RangedParameter("b", float, lb=0.0, ub=10.0)
     space.add_parameter(a, path="length")
@@ -366,7 +366,7 @@ def test_sample_dependent_linear_constraint_not_overtightened(column):
     # a + b <= 0 with b = -a holds everywhere; slicing the dependent column
     # away would wrongly enforce a <= 0 and reject the entire box
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     a = RangedParameter("a", float, lb=0.0, ub=5.0)
     b = RangedParameter("b", float, lb=-5.0, ub=0.0)
     space.add_parameter(a, path="length")
@@ -383,7 +383,7 @@ def test_sample_integer_rounding_cannot_violate_linear_constraint(column):
     # resolved-value re-check must reject them, since the polytope only
     # constrains the pre-rounding value
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     n = RangedParameter("n", int, lb=1, ub=10)
     space.add_parameter(n, path="length")
     space.add_linear_constraint(LinearConstraint([n], lhs=[1.0], b=3.6))
@@ -393,7 +393,7 @@ def test_sample_integer_rounding_cannot_violate_linear_constraint(column):
 
 def test_sample_raises_on_dependent_equality_constraint(column):
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     a = RangedParameter("a", float, lb=0.0, ub=5.0)
     b = RangedParameter("b", float, lb=0.0, ub=10.0)
     space.add_parameter(a, path="length")
@@ -411,7 +411,7 @@ def test_sample_raises_on_dependent_equality_constraint(column):
 
 def test_sample_raises_on_unbounded_parameter(column):
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     space.add_parameter(
         RangedParameter("length", float, lb=0.0, ub=float("inf")), path="length"
     )
@@ -424,7 +424,7 @@ def test_sample_raises_on_unbounded_parameter(column):
 
 def test_sample_significant_digits_snap(column):
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     space.add_parameter(
         RangedParameter("length", float, lb=0.001, ub=0.999, significant_digits=2),
         path="length",
@@ -471,7 +471,7 @@ def test_qmc_raises_on_linear_constraints(column, SamplerClass):
 @pytest.mark.parametrize("SamplerClass", [LatinHypercubeSampler, SobolSampler])
 def test_qmc_integer_and_categorical(column, SamplerClass):
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     space.add_parameter(RangedParameter("n", int, lb=1, ub=10), path="length")
     space.add_parameter(ChoiceParameter("mode", ["a", "b"]))
     samples = SamplerClass().sample(space, 10, seed=0)
@@ -483,7 +483,7 @@ def test_lhs_returned_set_is_stratified(column):
     # the defining LHS property: n samples, exactly one per axis-aligned
     # stratum; a random subset of a larger design would fail this
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     space.add_parameter(RangedParameter("length", float, lb=0.0, ub=8.0), path="length")
     samples = LatinHypercubeSampler().sample(space, 8, seed=3)
     strata = sorted(int(np.floor(s["length"])) for s in samples)
@@ -510,7 +510,7 @@ def test_sobol_emits_no_balance_warning(column):
 
 def _categorical_space(column, categories):
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     space.add_parameter(
         RangedParameter("length", float, lb=0.0, ub=5.0), path="length"
     )
@@ -539,7 +539,7 @@ def test_sobol_categorical_counts_balanced_over_full_block(column):
 
 def test_lhs_categorical_only_space_is_balanced(column):
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     space.add_parameter(ChoiceParameter("mode", ["a", "b", "c"]))
     samples = LatinHypercubeSampler().sample(space, 9, seed=1)
     modes = [s["mode"] for s in samples]
@@ -552,7 +552,7 @@ def test_lhs_categorical_only_space_is_balanced(column):
 
 def test_chebyshev_center_raises_on_categorical_space(column):
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     space.add_parameter(
         RangedParameter("length", float, lb=0.0, ub=5.0), path="length"
     )
@@ -565,7 +565,7 @@ def _space_with_dependent_constraint(column, b_constraint):
     # b = 2a; constraint a + b <= b_constraint means the true constraint
     # is 3a <= b_constraint, invisible to the independent-only polytope
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     a = RangedParameter("a", float, lb=0.0, ub=1.0)
     b = RangedParameter("b", float, lb=0.0, ub=10.0)
     space.add_parameter(a, path="length")
@@ -594,7 +594,7 @@ def test_chebyshev_center_raises_when_relaxed_center_infeasible(column):
 
 def test_chebyshev_center_raises_on_dependent_equality_constraint(column):
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     a = RangedParameter("a", float, lb=0.0, ub=1.0)
     b = RangedParameter("b", float, lb=0.0, ub=10.0)
     space.add_parameter(a, path="length")
@@ -609,7 +609,7 @@ def test_chebyshev_center_raises_on_dependent_equality_constraint(column):
 
 def test_chebyshev_center_raises_on_unbounded_parameter(column):
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     space.add_parameter(
         RangedParameter("length", float, lb=0.0, ub=np.inf), path="length"
     )
@@ -619,7 +619,7 @@ def test_chebyshev_center_raises_on_unbounded_parameter(column):
 
 def test_chebyshev_center_rounds_integer_parameter(column):
     space = ParameterSpace()
-    space.add_evaluation_object(column)
+    space.add_case(column)
     space.add_parameter(RangedParameter("n", int, lb=10, ub=13), path="length")
     center = chebyshev_center(space)
     assert center["n"] == 12

@@ -51,7 +51,7 @@ class Column:
 
 column = Column()
 space = ParameterSpace()
-space.add_evaluation_object(column)
+space.add_case(column)
 space.add_parameter(RangedParameter('length', float, lb=0.1, ub=1.0), path='length')
 space.add_parameter(RangedParameter('diameter', float, lb=0.01, ub=0.2), path='diameter')
 
@@ -124,5 +124,5 @@ The {ref}`optimizer_guide` documents the further accessors a `Population` expose
 
 ```{note}
 Metric names on a bare `MetricSpace` are always explicit, unlike `OptimizationProblem.add_objective`/`add_evaluator`, which derive a default name from the callable and sanitize it into a valid Python identifier (a bare `lambda` becomes `_lambda_`).
-A metric declared with an `evaluation_object` dimension carries its object name as a label suffix even when only one object is registered, since the dimension is part of the metric's shape, not a special case for multiple objects.
+A metric declared with a `case` dimension carries its object name as a label suffix even when only one case is registered, since the dimension is part of the metric's shape, not special-cased for multiple cases.
 ```

@@ -377,9 +377,9 @@ class IndexedMapper(ParameterMapperBase):
 class CallableMapper(ParameterMapperBase):
     """Write a value by delegating to a user-supplied function.
 
-    The callable receives ``(evaluation_object, value)`` and is responsible
-    for the actual write.  This is the escape hatch for any target that
-    cannot be expressed as a dot-path.
+    The callable receives ``(obj, value)`` and is responsible for the
+    actual write.  This is the escape hatch for any target that cannot be
+    expressed as a dot-path.
 
     Parameters
     ----------
