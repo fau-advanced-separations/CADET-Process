@@ -1855,18 +1855,75 @@ class SolverTimeIntegratorParameters(Structure):
     Structure
     """
 
-    abstol = UnsignedFloat(default=1e-8)
-    algtol = UnsignedFloat(default=1e-12)
-    reltol = UnsignedFloat(default=1e-6)
-    reltol_sens = UnsignedFloat(default=1e-12)
-    init_step_size = UnsignedFloat(default=1e-6)
-    max_steps = UnsignedInteger(default=1000000)
-    max_step_size = UnsignedFloat(default=0.0)
-    errortest_sens = Bool(default=False)
-    max_newton_iter = UnsignedInteger(default=1000000)
-    max_errtest_fail = UnsignedInteger(default=1000000)
-    max_convtest_fail = UnsignedInteger(default=1000000)
-    max_newton_iter_sens = UnsignedInteger(default=1000000)
+    abstol = UnsignedFloat(
+        default=1e-8,
+        unit=None,
+        description="Absolute tolerance in the solution of the original system.",
+    )
+    algtol = UnsignedFloat(
+        default=1e-12,
+        unit=None,
+        description=(
+            "Tolerance in the solution of the nonlinear consistency equations."
+        ),
+    )
+    reltol = UnsignedFloat(
+        default=1e-6,
+        unit=None,
+        description="Relative tolerance in the solution of the original system.",
+    )
+    reltol_sens = UnsignedFloat(
+        default=1e-12,
+        unit=None,
+        description=(
+            "Relative tolerance in the solution of the sensitivity systems."
+        ),
+    )
+    init_step_size = UnsignedFloat(
+        default=1e-6,
+        unit=r"\mathrm{s}",
+        description="Initial time integrator step size (0.0: IDAS default).",
+    )
+    max_steps = UnsignedInteger(
+        default=1000000,
+        unit=None,
+        description="Maximum number of timesteps taken by IDAS (0: IDAS default = 500).",
+    )
+    max_step_size = UnsignedFloat(
+        default=0.0,
+        unit=r"\mathrm{s}",
+        description="Maximum size of timesteps taken by IDAS (0.0: unlimited).",
+    )
+    errortest_sens = Bool(
+        default=False,
+        unit=None,
+        description="Whether (forward) sensitivities take part in the local error test.",
+    )
+    max_newton_iter = UnsignedInteger(
+        default=1000000,
+        unit=None,
+        description="Maximum number of Newton iterations per time step.",
+    )
+    max_errtest_fail = UnsignedInteger(
+        default=1000000,
+        unit=None,
+        description="Maximum number of local error test failures per time step.",
+    )
+    max_convtest_fail = UnsignedInteger(
+        default=1000000,
+        unit=None,
+        description=(
+            "Maximum number of Newton convergence test failures per time step."
+        ),
+    )
+    max_newton_iter_sens = UnsignedInteger(
+        default=1000000,
+        unit=None,
+        description=(
+            "Maximum number of Newton iterations in the forward sensitivity "
+            "time step."
+        ),
+    )
 
     _parameters = [
         "abstol",
