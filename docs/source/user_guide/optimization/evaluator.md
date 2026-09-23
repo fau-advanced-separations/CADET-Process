@@ -37,7 +37,9 @@ Optimization variables usually represent attributes of a {class}`~CADETProcess.p
 :name: single_evaluation_object
 ```
 
-To associate variables with an evaluation object, add it to the optimization problem first.
+Register an evaluation object to run the pipeline for that case.
+These objects are the default variable targets; explicit `targets=` may also name other objects, such as the simulator.
+The newer `ParameterSpace` API calls these registered inputs *cases*.
 
 ```{code-cell} ipython3
 :tags: [hide-cell]
@@ -261,7 +263,7 @@ len(calls)
 
 ## Standalone use
 
-Everything above goes through {class}`~CADETProcess.optimization.OptimizationProblem`'s convenience wrappers: `add_evaluator`, `add_evaluation_object`, and `add_objective` all register nodes on an internal {class}`~CADETProcess.evaluation_pipeline.EvaluationPipeline` (reachable via `backend`, as seen above).
+Everything above goes through {class}`~CADETProcess.optimization.OptimizationProblem`'s convenience wrappers: evaluators and objective functions become nodes on an internal {class}`~CADETProcess.evaluation_pipeline.EvaluationPipeline` (reachable via `backend`, as seen above).
 The pipeline is also directly usable with a bare {class}`~CADETProcess.parameter_space.ParameterSpace` (see {ref}`parameter_space_guide`), with no objectives, constraints, or optimizer involved.
 This is useful for a one-off evaluation, or for evaluating samples drawn from the space (see {ref}`problem_guide` for the batch entry point built on top of it).
 
@@ -277,7 +279,7 @@ class Column:
 
 column = Column()
 space = ParameterSpace()
-space.add_evaluation_object(column)
+space.add_case(column)
 space.add_parameter(RangedParameter('length', float, lb=0.1, ub=10.0), path='length')
 
 pipeline = EvaluationPipeline(space)

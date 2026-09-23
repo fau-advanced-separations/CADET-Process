@@ -12,7 +12,7 @@ from CADETProcess.parameter_space.space import ParameterSpace
 
 @dataclass
 class Model:
-    """Minimal evaluation object: a single mutable value."""
+    """Minimal case: a single mutable value."""
 
     value: float = 0.0
 
@@ -30,7 +30,7 @@ def two_models():
 def _make_space(*models: Model) -> ParameterSpace:
     space = ParameterSpace()
     for m in models:
-        space.add_evaluation_object(m)
+        space.add_case(m)
     return space
 
 
@@ -114,7 +114,7 @@ def test_add_evaluator_invalid_output_name_raises(single_space):
         pipeline.add_evaluator(lambda model: model.value, output_name="has space")
 
 
-# ── evaluate: single evaluation object ───────────────────────────────────────
+# ── evaluate: single case ─────────────────────────────────────────────────────
 
 
 def test_evaluate_single_object_returns_dict(single_space):
@@ -126,7 +126,7 @@ def test_evaluate_single_object_returns_dict(single_space):
 
 
 def test_evaluate_passes_set_values_to_model(single_space, model):
-    """set_values on the space must reach the evaluation object before the node runs."""
+    """set_values on the space must reach the case before the node runs."""
 
     # add a parameter that writes to model.value
     from CADETProcess.parameter_space.parameters import RangedParameter
@@ -325,7 +325,7 @@ def test_evaluate_unknown_target_raises(single_space):
         pipeline.evaluate({}, targets=["nonexistent"])
 
 
-# ── evaluate: multiple evaluation objects ────────────────────────────────────
+# ── evaluate: multiple cases ──────────────────────────────────────────────────
 
 
 def test_evaluate_multiple_objects_returns_lists(two_space, two_models):
@@ -596,7 +596,7 @@ def test_disk_cache_miss_on_different_x(tmp_path):
     model = Model()
     space = _make_space(model)
     param = RangedParameter("v", float, lb=0.0, ub=10.0)
-    space.add_parameter(param, path="value", evaluation_objects=[model])
+    space.add_parameter(param, path="value", targets=[model])
 
     def counting_evaluator(m):
         nonlocal call_count
@@ -630,12 +630,12 @@ def test_hybrid_cache_is_used_when_no_cache_dir(single_space):
     assert call_count == 1
 
 
-# ── evaluate: zero evaluation objects ─────────────────────────────────────────
+# ── evaluate: zero cases ──────────────────────────────────────────────────────
 
 
 @pytest.fixture
 def free_space():
-    """Space with one independent parameter and no evaluation objects."""
+    """Space with one independent parameter and no cases."""
     from CADETProcess.parameter_space.parameters import RangedParameter
 
     space = ParameterSpace()
@@ -675,7 +675,7 @@ def test_objectless_repeated_x_hits_cache(free_space):
     assert call_count == 2
 
 
-# ── evaluate: evaluation_objects subset ──────────────────────────────────────
+# ── evaluate: cases subset ────────────────────────────────────────────────────
 
 
 def test_subset_runs_only_selected_object(two_space, two_models):
@@ -690,7 +690,7 @@ def test_subset_runs_only_selected_object(two_space, two_models):
     pipeline = EvaluationPipeline(two_space)
     pipeline.add_evaluator(record, output_name="v")
 
-    results = pipeline.evaluate({}, evaluation_objects=[m2])
+    results = pipeline.evaluate({}, cases=[m2])
 
     assert seen == [m2]
     assert results["v"] == pytest.approx(2.0)
@@ -700,13 +700,13 @@ def test_subset_runs_only_selected_object(two_space, two_models):
 def test_subset_unknown_object_raises(two_space):
     pipeline = EvaluationPipeline(two_space)
     pipeline.add_evaluator(lambda model: model.value, output_name="v")
-    with pytest.raises(ValueError, match="Unknown evaluation object"):
+    with pytest.raises(ValueError, match="Unknown case"):
         # Distinct value: dataclass equality would match a registered model.
-        pipeline.evaluate({}, evaluation_objects=[Model(value=99.0)])
+        pipeline.evaluate({}, cases=[Model(value=99.0)])
 
 
 def test_subset_empty_list_raises(two_space):
     pipeline = EvaluationPipeline(two_space)
     pipeline.add_evaluator(lambda model: model.value, output_name="v")
     with pytest.raises(ValueError, match="must not be empty"):
-        pipeline.evaluate({}, evaluation_objects=[])
+        pipeline.evaluate({}, cases=[])

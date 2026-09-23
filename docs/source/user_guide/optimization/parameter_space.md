@@ -16,7 +16,7 @@ This guide shows how to build a space, assign values, and draw samples with diff
 
 ## Defining a Parameter Space
 
-A parameter space connects parameter declarations to attributes of one or more evaluation objects.
+A parameter space connects parameter declarations to attributes of one or more targets.
 Any Python object with writable attributes works; in practice this is usually a {class}`~CADETProcess.processModel.Process`.
 
 ```{code-cell} ipython3
@@ -34,7 +34,7 @@ class Column:
 column = Column()
 
 space = ParameterSpace()
-space.add_evaluation_object(column)
+space.add_case(column)
 space.add_parameter(
     RangedParameter("length", float, lb=0.1, ub=1.0), path="length"
 )
@@ -44,7 +44,8 @@ space.add_parameter(
 space
 ```
 
-Each {class}`~CADETProcess.parameter_space.RangedParameter` declares a name, a type, and bounds; the `path` tells the space where the value lives on the evaluation object.
+Each {class}`~CADETProcess.parameter_space.RangedParameter` declares a name, a type, and bounds; the `path` tells the space where the value lives on each target.
+Registered cases are the default targets; pass `targets=[...]` to write into other objects without registering additional cases.
 
 ## Named Assignments
 
@@ -88,7 +89,7 @@ Linear inequality constraints of the form $A x \le b$ restrict the feasible doma
 from CADETProcess.parameter_space import LinearConstraint
 
 flow = ParameterSpace()
-flow.add_evaluation_object(Column())
+flow.add_case(Column())
 q_load = RangedParameter("q_load", float, lb=0.0, ub=10.0)
 q_elute = RangedParameter("q_elute", float, lb=0.0, ub=10.0)
 flow.add_parameter(q_load, path="length")
@@ -120,7 +121,7 @@ Passing `normalization="linear"`, `"log"`, or `"auto"` to {class}`~CADETProcess.
 from CADETProcess.parameter_space import HopsySampler
 
 wide = ParameterSpace()
-wide.add_evaluation_object(Column())
+wide.add_case(Column())
 wide.add_parameter(RangedParameter("length", float, lb=0.1, ub=1.0), path="length")
 wide.add_parameter(
     RangedParameter("diameter", float, lb=1e-8, ub=1e-4, normalization="log"),
@@ -157,7 +158,7 @@ Both raise when linear constraints are present, because filtering a quasi-Monte-
 from CADETProcess.parameter_space import HopsySampler, LatinHypercubeSampler
 
 box = ParameterSpace()
-box.add_evaluation_object(Column())
+box.add_case(Column())
 box.add_parameter(RangedParameter("x_0", float, lb=0.0, ub=1.0), path="length")
 box.add_parameter(RangedParameter("x_1", float, lb=0.0, ub=1.0), path="diameter")
 
@@ -192,7 +193,7 @@ The quasi-Monte-Carlo samplers treat each categorical parameter as an extra desi
 from CADETProcess.parameter_space import ChoiceParameter
 
 mixed = ParameterSpace()
-mixed.add_evaluation_object(Column())
+mixed.add_case(Column())
 mixed.add_parameter(RangedParameter("n_plates", int, lb=10, ub=100), path="length")
 mixed.add_parameter(ChoiceParameter("resin", ["A", "B"]))
 

@@ -18,16 +18,16 @@ __all__ = ["EvaluationPipeline"]
 
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _CONTEXT_ARG = "__eval_context__"
-# Stable UUID slot for the zero-evaluation-object mode: cache entries are
-# keyed on (x_key, uuid), and without an object the x_key alone identifies
-# the evaluation.  A fixed constant keeps keys stable across processes.
-_NO_OBJECT_UUID = "__no_evaluation_object__"
+# Stable UUID slot for the zero-case mode: cache entries are keyed on
+# (x_key, uuid), and without a case the x_key alone identifies the
+# evaluation.  A fixed constant keeps keys stable across processes.
+_NO_CASE_UUID = "__no_case__"
 
 
 class _EvaluationContext:
-    """Stable, serializable cache key combining a parameter assignment and an evaluation object.
+    """Stable, serializable cache key combining a parameter assignment and a case.
 
-    Pipefunc caches by argument value.  Evaluation objects are mutable, so passing
+    Pipefunc caches by argument value.  Cases are mutable, so passing
     the raw object would produce stale cache hits whenever ``set_values`` mutates it.
     Wrapping ``(x_key, obj_uuid)`` gives a key that is:
     - correct: distinct for different x or different objects
@@ -118,11 +118,11 @@ def _make_injection_wrapper(func: Callable, requires: list[str]) -> Callable:
 
 
 def _make_context_wrapper(func: Callable) -> Callable:
-    """Wrap a root node so it receives ``_EvaluationContext`` and extracts the obj.
+    """Wrap an entry evaluator so it receives ``_EvaluationContext`` and extracts the obj.
 
     The wrapped function's signature is ``(__eval_context__,)`` so pipefunc wires
-    it to the single pipeline root arg.  The user's function is called with the
-    raw evaluation object extracted from the context.
+    it to the pipeline context argument.  The user's function is called with the
+    raw case extracted from the context.
     """
 
     def wrapper(**kwargs: Any) -> Any:
@@ -174,7 +174,8 @@ class EvaluationPipeline:
     """DAG-based evaluation engine backed by `pipefunc.Pipeline`.
 
     Parameterized by a `ParameterSpace`; cannot be constructed without one.
-    `evaluate(x)` writes `x` into the evaluation objects via `space.set_values`,
+    `evaluate(assignment)` writes parameter values into mapped targets via
+    `space.set_values`,
     then runs the registered node graph and returns all (or selected) named outputs.
 
     `pipefunc` is an internal implementation detail.  No `PipeFunc` or `Pipeline`
@@ -183,9 +184,8 @@ class EvaluationPipeline:
     Parameters
     ----------
     space : ParameterSpace
-        Owns the evaluation objects and knows how to write parameter values
-        into them.  `evaluate` decodes the vector and delegates to
-        `space.set_values`.
+        Owns the cases and parameter mappers. `evaluate` passes the named
+        assignment to `space.set_values` before running the graph.
 
     Examples
     --------
@@ -325,7 +325,7 @@ class EvaluationPipeline:
         assignment: Mapping[str, Any],
         targets: list[str] | None = None,
         bypass_cache: bool = False,
-        evaluation_objects: list[Any] | None = None,
+        cases: list[Any] | None = None,
     ) -> dict[str, Any]:
         """Set parameter values and run the evaluation graph.
 
@@ -338,10 +338,11 @@ class EvaluationPipeline:
         distinct entries too.  Intermediate nodes shared by multiple targets
         within a single call are computed only once.
 
-        When the parameter space has no evaluation objects, the assignment
-        itself becomes the root: root nodes (those without ``requires``)
-        receive the assignment mapping instead of an evaluation object, and
-        the run follows the single-result return convention.
+        When the parameter space has no registered cases, the assignment
+        itself takes the case's place: entry evaluators (those
+        without ``requires``) receive the assignment mapping directly
+        instead of a case, and the run follows the single-result return
+        convention.
 
         Parameters
         ----------
@@ -358,19 +359,18 @@ class EvaluationPipeline:
             When True, clear the pipeline cache before evaluating so all nodes
             are recomputed from scratch.  Useful for debugging to confirm that
             results are not stale.
-        evaluation_objects : list, optional
-            Restrict the run to these registered evaluation objects.  `None`
-            runs all registered objects.  The return convention follows the
-            selected subset: one object gives plain values, several give lists.
+        cases : list, optional
+            Restrict the run to these registered cases.  `None` runs all
+            registered cases.  The return convention follows the selected
+            subset: one case gives plain values, several give lists.
 
         Returns
         -------
         dict[str, Any]
-            Mapping from output name to result.  For a single evaluation object
-            (or none registered) the values are plain results (or
-            `EvaluationFailure`).  For multiple evaluation objects the values
-            are lists indexed by evaluation object.  Results may be
-            `EvaluationFailure` instances when a node failed.
+            Mapping from output name to result.  For a single case (or none
+            registered) the values are plain results (or `EvaluationFailure`).
+            For multiple cases the values are lists indexed by case.  Results
+            may be `EvaluationFailure` instances when a node failed.
         """
         if not isinstance(assignment, Mapping):
             raise TypeError(
@@ -396,19 +396,19 @@ class EvaluationPipeline:
             if unknown:
                 raise ValueError(f"Unknown target(s): {unknown}")
 
-        eval_objs = self._space.evaluation_objects
-        if evaluation_objects is not None:
-            if not evaluation_objects:
-                raise ValueError("evaluation_objects must not be empty; pass None for all.")
-            unknown_objs = [o for o in evaluation_objects if o not in eval_objs]
+        eval_objs = self._space.cases
+        if cases is not None:
+            if not cases:
+                raise ValueError("cases must not be empty; pass None for all.")
+            unknown_objs = [o for o in cases if o not in eval_objs]
             if unknown_objs:
-                raise ValueError(f"Unknown evaluation object(s): {unknown_objs}")
-            eval_objs = list(evaluation_objects)
+                raise ValueError(f"Unknown case(s): {unknown_objs}")
+            eval_objs = list(cases)
 
         pipeline = self._get_pipeline()
 
         def _run_for_ctx(ctx: _EvaluationContext) -> dict[str, Any]:
-            """Run all targets for one root context in a single pipeline call."""
+            """Run all requested outputs for one evaluation context in a single pipeline call."""
             if len(targets) == 1:
                 value = pipeline(targets[0], **{_CONTEXT_ARG: ctx})
                 return {targets[0]: value}
@@ -419,8 +419,8 @@ class EvaluationPipeline:
             return dict(zip(targets, values))
 
         if not eval_objs:
-            # Zero-evaluation-object mode: the assignment itself is the root.
-            ctx = _EvaluationContext(x_key, dict(assignment), _NO_OBJECT_UUID)
+            # Without registered cases, entry evaluators receive the assignment.
+            ctx = _EvaluationContext(x_key, dict(assignment), _NO_CASE_UUID)
             return _run_for_ctx(ctx)
 
         def _run_for(obj: Any) -> dict[str, Any]:

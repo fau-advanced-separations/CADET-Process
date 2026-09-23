@@ -77,7 +77,7 @@ class TransformedSpace:
     ::
 
         space = ParameterSpace()
-        space.add_evaluation_object(process)
+        space.add_case(process)
         space.add_parameter(
             RangedParameter("length", float, lb=0.1, ub=1.0, normalization="linear"),
             path="column.length",
@@ -98,9 +98,9 @@ class TransformedSpace:
     # ── Delegation ────────────────────────────────────────────────────────────
 
     @property
-    def evaluation_objects(self) -> list[Any]:
-        """Registered evaluation objects (delegates to the underlying space)."""
-        return self._space.evaluation_objects
+    def cases(self) -> list[Any]:
+        """Registered cases (delegates to the underlying space)."""
+        return self._space.cases
 
     @property
     def parameters(self) -> list[ParameterBase]:

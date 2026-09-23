@@ -1,7 +1,7 @@
 """
-ParameterSpace: parameter semantics, feasibility, and evaluation object ownership.
+ParameterSpace: parameter semantics, feasibility, and case ownership.
 
-``ParameterSpace`` owns the evaluation objects and parameters. Mappers are wired
+``ParameterSpace`` owns the cases and parameters. Mappers are wired
 when parameters are added and stored internally; callers interact only with the
 high-level API. ``set_values`` resolves dependent parameters, validates values,
 and writes through the wired mappers.
@@ -85,16 +85,16 @@ __all__ = ["ParameterSpace"]
 
 
 class ParameterSpace:
-    """Container for parameters, evaluation objects, constraints, and dependencies.
+    """Container for parameters, cases, constraints, and dependencies.
 
     The space is the interface between an optimizer (or sampler) and a set of model
     objects.  It has two responsibilities: defining the feasible domain and writing a
-    parameter vector *x* into the evaluation objects.
+    parameter assignment into mapped targets.
 
     Typical usage::
 
         space = ParameterSpace()
-        space.add_evaluation_object(process)
+        space.add_case(process)
         space.add_parameter(
             RangedParameter("length", float, lb=0.1, ub=1.0),
             path="column.length",
@@ -174,7 +174,7 @@ class ParameterSpace:
         return resolves_dependencies_wrapper
 
     def __init__(self) -> None:
-        self._evaluation_objects: list[Any] = []
+        self._cases: list[Any] = []
         self._parameters: list[ParameterBase] = []
         self._mappers: dict[str, ParameterMapperBase] = {}
         self._linear_constraints: list[LinearConstraint] = []
@@ -195,13 +195,14 @@ class ParameterSpace:
             self._transformed_space_cache = TransformedSpace(self)
         return self._transformed_space_cache
 
-    # ── Evaluation objects ────────────────────────────────────────────────────
+    # ── Cases ─────────────────────────────────────────────────────────────────
 
-    def add_evaluation_object(self, obj: Any) -> None:
-        """Register an evaluation object with the space.
+    def add_case(self, obj: Any) -> None:
+        """Register a case with the space.
 
-        All subsequent ``add_parameter`` calls without an explicit
-        ``evaluation_objects`` argument will target this object.
+        The pipeline uses this value as an input case. Subsequent
+        ``add_parameter`` calls with a path and no explicit ``targets``
+        include this case among their write targets.
 
         Parameters
         ----------
@@ -213,14 +214,14 @@ class ParameterSpace:
         ValueError
             If *obj* is already registered.
         """
-        if any(obj is existing for existing in self._evaluation_objects):
-            raise ValueError(f"Evaluation object {obj!r} is already registered.")
-        self._evaluation_objects.append(obj)
+        if any(obj is existing for existing in self._cases):
+            raise ValueError(f"{obj!r} is already registered as a case.")
+        self._cases.append(obj)
 
     @property
-    def evaluation_objects(self) -> list[Any]:
-        """Registered evaluation objects, in insertion order."""
-        return list(self._evaluation_objects)
+    def cases(self) -> list[Any]:
+        """Registered cases, in insertion order."""
+        return list(self._cases)
 
     # ── Parameters ───────────────────────────────────────────────────────────
 
@@ -229,7 +230,7 @@ class ParameterSpace:
         parameter: ParameterBase,
         *,
         path: Optional[str] = None,
-        evaluation_objects: Optional[list[Any]] = None,
+        targets: Optional[list[Any]] = None,
         mapper: Optional[ParameterMapperBase] = None,
     ) -> None:
         """Register a parameter and wire its mapper.
@@ -245,14 +246,13 @@ class ParameterSpace:
             The parameter to register.
         path : str, optional
             Dot-separated attribute/key path.  A ``DotPathMapper`` is created
-            automatically and targets ``evaluation_objects`` (or all registered
-            objects if not specified).
-        evaluation_objects : list, optional
+            automatically and writes to *targets* (or all registered cases
+            if not specified).
+        targets : list, optional
             Objects this parameter writes to, defaulting to all registered
-            evaluation objects if not specified.  Only valid together with
-            *path*.  An object need not be registered via
-            ``add_evaluation_object``: a write target that is deliberately
-            off the object axis (e.g. a simulator) is valid here.
+            cases if not specified.  Only valid together with *path*.  An
+            object need not be registered via ``add_case``: a write target
+            that is deliberately not a case (e.g. a simulator) is valid here.
         mapper : ParameterMapperBase, optional
             Pre-built mapper.  Use this (or ``add_parameter_with_callable``) when
             a dot-path is insufficient.
@@ -264,7 +264,7 @@ class ParameterSpace:
         ValueError
             If both *path* and *mapper* are supplied.
         ValueError
-            If *evaluation_objects* is given without *path*.
+            If *targets* is given without *path*.
         """
         if any(p.name == parameter.name for p in self._parameters):
             raise ValueError(
@@ -272,12 +272,12 @@ class ParameterSpace:
             )
         if path is not None and mapper is not None:
             raise ValueError("Supply at most one of 'path' or 'mapper', not both.")
-        if evaluation_objects is not None and path is None:
-            raise ValueError("'evaluation_objects' requires 'path'.")
+        if targets is not None and path is None:
+            raise ValueError("'targets' requires 'path'.")
 
         if path is not None:
-            targets = self._resolve_targets(evaluation_objects)
-            mapper = DotPathMapper(targets, path)
+            resolved_targets = self._resolve_targets(targets)
+            mapper = DotPathMapper(resolved_targets, path)
 
         self._parameters.append(parameter)
         if mapper is not None:
@@ -289,7 +289,7 @@ class ParameterSpace:
         parameter: ParameterBase,
         fn: Callable[[Any, Any], None],
         *,
-        evaluation_objects: Optional[list[Any]] = None,
+        targets: Optional[list[Any]] = None,
     ) -> None:
         """Register a parameter whose write is handled by a callable.
 
@@ -300,34 +300,34 @@ class ParameterSpace:
         parameter : ParameterBase
             The parameter to register.
         fn : Callable[[Any, Any], None]
-            Called as ``fn(obj, value)`` for each evaluation object.
-        evaluation_objects : list, optional
-            Subset of evaluation objects to target.
+            Called as ``fn(obj, value)`` for each target.
+        targets : list, optional
+            Subset of registered cases (or other objects) to target.
         """
-        targets = self._resolve_targets(evaluation_objects)
-        self.add_parameter(parameter, mapper=CallableMapper(targets, fn))
+        resolved_targets = self._resolve_targets(targets)
+        self.add_parameter(parameter, mapper=CallableMapper(resolved_targets, fn))
 
-    def _resolve_targets(self, evaluation_objects: Optional[Any]) -> list[Any]:
-        """Return the target list, defaulting to all registered objects.
+    def _resolve_targets(self, targets: Optional[Any]) -> list[Any]:
+        """Return the target list, defaulting to all registered cases.
 
-        An explicit *evaluation_objects* list is accepted as-is, including
-        objects never passed to ``add_evaluation_object``: a target that is
-        deliberately not on the object axis (e.g. a simulator receiving a
-        broadcast solver setting) is a legitimate case, not an oversight.
-        Only the no-argument default (defaulting to *every* registered
-        object) needs the registry to be non-empty.
+        An explicit *targets* list is accepted as-is, including objects
+        never passed to ``add_case``: a target that is deliberately not a
+        case (e.g. a simulator receiving a broadcast solver setting) is
+        intentional, not an oversight.  Only the no-argument default
+        (defaulting to *every* registered case) needs the registry to be
+        non-empty.
         """
-        if evaluation_objects is None:
-            if not self._evaluation_objects:
+        if targets is None:
+            if not self._cases:
                 raise ValueError(
-                    "No evaluation objects are registered. "
-                    "Call add_evaluation_object() before add_parameter(), "
-                    "or pass evaluation_objects explicitly."
+                    "No cases are registered. "
+                    "Call add_case() before add_parameter(), "
+                    "or pass targets explicitly."
                 )
-            return list(self._evaluation_objects)
-        if not isinstance(evaluation_objects, list):
-            evaluation_objects = [evaluation_objects]
-        return list(evaluation_objects)
+            return list(self._cases)
+        if not isinstance(targets, list):
+            targets = [targets]
+        return list(targets)
 
     @property
     def parameters(self) -> list[ParameterBase]:
@@ -888,7 +888,7 @@ class ParameterSpace:
         validate_bounds: bool = False,
         tol: float | npt.ArrayLike = 0.0,
     ) -> None:
-        """Resolve dependent parameters, validate, and write into evaluation objects.
+        """Resolve dependent parameters, validate, and write into the targets.
 
         Validates *all* parameters (including dependent) via their ``validate``
         method, so out-of-bounds dependent values raise here even though they are
@@ -945,7 +945,7 @@ class ParameterSpace:
                 self._mappers[p.name].set_value(value)
 
     def get_value(self, name: str) -> Any:
-        """Read the current value of parameter *name* from its evaluation object.
+        """Read the current value of parameter *name* from its target.
 
         Returns ``None`` when no mapper is wired or the mapper does not support
         read-back.
@@ -1037,5 +1037,5 @@ class ParameterSpace:
             f"ParameterSpace("
             f"n_variables={self.n_variables}, "
             f"n_parameters={self.n_parameters}, "
-            f"evaluation_objects={len(self._evaluation_objects)})"
+            f"cases={len(self._cases)})"
         )
