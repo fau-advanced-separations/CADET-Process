@@ -523,11 +523,30 @@ class TubularReactorBase(UnitBaseClass):
         section area are computed correctly depending on the model porosities!
     """
 
-    length = UnsignedFloat()
-    diameter = UnsignedFloat()
-    axial_dispersion = SizedUnsignedList(size="n_comp")
-    flow_direction = Switch(valid=[-1, 1], default=1)
-    c = SizedFloatList(size="n_comp", default=0)
+    length = UnsignedFloat(unit=r"\mathrm{m}", description="Column length.")
+    diameter = UnsignedFloat(
+        unit=r"\mathrm{m}",
+        description=(
+            "Column diameter (converted to cross-section area before reaching "
+            "CADET-Core)."
+        ),
+    )
+    axial_dispersion = SizedUnsignedList(
+        size="n_comp",
+        unit=r"\frac{\mathrm{m}^{2}_{\mathrm{IV}}}{\mathrm{s}}",
+        description="Axial dispersion coefficient.",
+    )
+    flow_direction = Switch(
+        valid=[-1, 1],
+        default=1,
+        description="Flow direction: 1 = forward, -1 = backward.",
+    )
+    c = SizedFloatList(
+        size="n_comp",
+        default=0,
+        unit=r"\frac{\mathrm{mol}}{\mathrm{m}^{3}_{\mathrm{IV}}}",
+        description="Initial concentration in the bulk mobile phase, per component.",
+    )
 
     _initial_state = UnitBaseClass._initial_state + ["c"]
     _parameters = [
@@ -889,10 +908,22 @@ class LumpedRateModelWithoutPores(ChromatographicColumnBase):
     supports_particle_reaction = True
     discretization_schemes = (LRMDiscretizationFV, LRMDiscretizationDG)
 
-    total_porosity = UnsignedFloat(ub=1)
+    total_porosity = UnsignedFloat(
+        ub=1,
+        unit=None,
+        description=(
+            "Total porosity (bed + particle combined into one lumped value; "
+            "there are no explicit particles in this model)."
+        ),
+    )
     _parameters = ["total_porosity"]
 
-    _q = SizedUnsignedList(size="n_bound_states", default=0)
+    _q = SizedUnsignedList(
+        size="n_bound_states",
+        default=0,
+        unit=r"\frac{\mathrm{mol}}{\mathrm{m}^{3}_{\mathrm{SP}}}",
+        description="Initial concentration in the solid (bound) phase, per component.",
+    )
 
     _initial_state = ChromatographicColumnBase._initial_state + ["q"]
     _parameters = _parameters + _initial_state
@@ -954,11 +985,33 @@ class LumpedRateModelWithPores(ChromatographicColumnBase):
     supports_particle_reaction = True
     discretization_schemes = (LRMPDiscretizationFV, LRMPDiscretizationDG)
 
-    bed_porosity = UnsignedFloat(ub=1)
-    particle_porosity = UnsignedFloat(ub=1)
-    particle_radius = UnsignedFloat()
-    film_diffusion = SizedUnsignedList(size="n_comp")
-    pore_accessibility = SizedUnsignedList(ub=1, size="n_comp", default=1)
+    bed_porosity = UnsignedFloat(
+        ub=1, unit=None, description="Interstitial (bed) porosity."
+    )
+    particle_porosity = UnsignedFloat(
+        ub=1, unit=None, description="Particle (intraparticle) porosity."
+    )
+    particle_radius = UnsignedFloat(unit=r"\mathrm{m}", description="Particle radius.")
+    film_diffusion = SizedUnsignedList(
+        size="n_comp",
+        unit=r"\frac{\mathrm{m}}{\mathrm{s}}",
+        description=(
+            "Film diffusion coefficient (mass transfer through the particle "
+            "film) per component."
+        ),
+    )
+    pore_accessibility = SizedUnsignedList(
+        ub=1,
+        size="n_comp",
+        default=1,
+        unit=None,
+        description=(
+            "Fraction of pore volume accessible to each component (defaults to "
+            "1, i.e. fully accessible). Only meaningful for models with a "
+            "particle pore phase (GRM, LRMP). Should not be used in "
+            "combination with any binding model."
+        ),
+    )
     _parameters = [
         "bed_porosity",
         "particle_porosity",
@@ -972,8 +1025,21 @@ class LumpedRateModelWithPores(ChromatographicColumnBase):
         "pore_accessibility",
     ]
 
-    _cp = SizedUnsignedList(size="n_comp")
-    _q = SizedUnsignedList(size="n_bound_states", default=0)
+    _cp = SizedUnsignedList(
+        size="n_comp",
+        unit=r"\frac{\mathrm{mol}}{\mathrm{m}^{3}_{\mathrm{MP}}}",
+        description=(
+            "Initial concentration in the particle liquid (pore) phase, per "
+            "component. Only meaningful for models with an explicit particle "
+            "pore phase (GRM, LRMP)."
+        ),
+    )
+    _q = SizedUnsignedList(
+        size="n_bound_states",
+        default=0,
+        unit=r"\frac{\mathrm{mol}}{\mathrm{m}^{3}_{\mathrm{SP}}}",
+        description="Initial concentration in the solid (bound) phase, per component.",
+    )
 
     _initial_state = ChromatographicColumnBase._initial_state + ["cp", "q"]
     _parameters = _parameters + _initial_state
@@ -1090,13 +1156,47 @@ class GeneralRateModel(ChromatographicColumnBase):
     supports_particle_reaction = True
     discretization_schemes = (GRMDiscretizationFV, GRMDiscretizationDG)
 
-    bed_porosity = UnsignedFloat(ub=1)
-    particle_porosity = UnsignedFloat(ub=1)
-    particle_radius = UnsignedFloat()
-    film_diffusion = SizedUnsignedList(size="n_comp")
-    pore_accessibility = SizedUnsignedList(ub=1, size="n_comp", default=1)
-    pore_diffusion = SizedUnsignedList(size="n_comp")
-    _surface_diffusion = SizedUnsignedList(size="n_bound_states")
+    bed_porosity = UnsignedFloat(
+        ub=1, unit=None, description="Interstitial (bed) porosity."
+    )
+    particle_porosity = UnsignedFloat(
+        ub=1, unit=None, description="Particle (intraparticle) porosity."
+    )
+    particle_radius = UnsignedFloat(unit=r"\mathrm{m}", description="Particle radius.")
+    film_diffusion = SizedUnsignedList(
+        size="n_comp",
+        unit=r"\frac{\mathrm{m}}{\mathrm{s}}",
+        description=(
+            "Film diffusion coefficient (mass transfer through the particle "
+            "film) per component."
+        ),
+    )
+    pore_accessibility = SizedUnsignedList(
+        ub=1,
+        size="n_comp",
+        default=1,
+        unit=None,
+        description=(
+            "Fraction of pore volume accessible to each component (defaults to "
+            "1, i.e. fully accessible). Only meaningful for models with a "
+            "particle pore phase (GRM, LRMP). Should not be used in "
+            "combination with any binding model."
+        ),
+    )
+    pore_diffusion = SizedUnsignedList(
+        size="n_comp",
+        unit=r"\frac{\mathrm{m}^{2}_{\mathrm{MP}}}{\mathrm{s}}",
+        description="Effective pore diffusion coefficient per component.",
+    )
+    _surface_diffusion = SizedUnsignedList(
+        size="n_bound_states",
+        unit=r"\frac{\mathrm{m}^{2}_{\mathrm{SP}}}{\mathrm{s}}",
+        description=(
+            "Particle surface diffusion coefficient per bound state of each "
+            "component. Only applied when CADET-Core's HAS_SURFACE_DIFFUSION "
+            "flag is set."
+        ),
+    )
     _parameters = [
         "bed_porosity",
         "particle_porosity",
@@ -1113,8 +1213,21 @@ class GeneralRateModel(ChromatographicColumnBase):
         "surface_diffusion",
     ]
 
-    _cp = SizedUnsignedList(size="n_comp")
-    _q = SizedUnsignedList(size="n_bound_states", default=0)
+    _cp = SizedUnsignedList(
+        size="n_comp",
+        unit=r"\frac{\mathrm{mol}}{\mathrm{m}^{3}_{\mathrm{MP}}}",
+        description=(
+            "Initial concentration in the particle liquid (pore) phase, per "
+            "component. Only meaningful for models with an explicit particle "
+            "pore phase (GRM, LRMP)."
+        ),
+    )
+    _q = SizedUnsignedList(
+        size="n_bound_states",
+        default=0,
+        unit=r"\frac{\mathrm{mol}}{\mathrm{m}^{3}_{\mathrm{SP}}}",
+        description="Initial concentration in the solid (bound) phase, per component.",
+    )
 
     _initial_state = ChromatographicColumnBase._initial_state + ["cp", "q"]
     _parameters = _parameters + _initial_state
@@ -1245,7 +1358,14 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
     supports_bulk_reaction = True
     supports_particle_reaction = False
 
-    flow_rate_filter = UnsignedFloat(default=0)
+    flow_rate_filter = UnsignedFloat(
+        default=0,
+        unit=r"\frac{\mathrm{m}^{3}}{\mathrm{s}}",
+        description=(
+            "Flow rate of pure liquid (no components) leaving through the "
+            "CSTR's filter, on top of its regular outlet flow."
+        ),
+    )
     _parameters = ["const_solid_volume", "flow_rate_filter"]
 
     _section_dependent_parameters = (
@@ -1254,10 +1374,26 @@ class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
         + ["flow_rate_filter"]
     )
 
-    c = SizedFloatList(size="n_comp", default=0)
-    _q = SizedUnsignedList(size="n_bound_states", default=0)
-    init_liquid_volume = UnsignedFloat()
-    const_solid_volume = UnsignedFloat(default=0)
+    c = SizedFloatList(
+        size="n_comp",
+        default=0,
+        unit=r"\frac{\mathrm{mol}}{\mathrm{m}^{3}_{\mathrm{IV}}}",
+        description="Initial concentration in the bulk mobile phase, per component.",
+    )
+    _q = SizedUnsignedList(
+        size="n_bound_states",
+        default=0,
+        unit=r"\frac{\mathrm{mol}}{\mathrm{m}^{3}_{\mathrm{SP}}}",
+        description="Initial concentration in the solid (bound) phase, per component.",
+    )
+    init_liquid_volume = UnsignedFloat(
+        unit=r"\mathrm{m}^{3}", description="Initial liquid volume in the tank."
+    )
+    const_solid_volume = UnsignedFloat(
+        default=0,
+        unit=r"\mathrm{m}^{3}",
+        description="Volume of the solid phase in the tank.",
+    )
     _V = UnsignedFloat()
     _initial_state = UnitBaseClass._initial_state + ["c", "q", "init_liquid_volume"]
     _parameters = _parameters + _initial_state

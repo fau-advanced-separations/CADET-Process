@@ -78,7 +78,14 @@ class BindingBaseClass(Structure):
     """
 
     name = String()
-    is_kinetic = Bool(default=True)
+    is_kinetic = Bool(
+        default=True,
+        unit=None,
+        description=(
+            "Kinetic (true) vs. quasi-stationary/rapid-equilibrium (false) "
+            "adsorption."
+        ),
+    )
 
     n_binding_sites = RangedInteger(lb=1, ub=1, default=1)
     _bound_states = SizedRangedIntegerList(
@@ -189,8 +196,16 @@ class Linear(BindingBaseClass):
         Desorption rate constants. Length depends on `n_comp`.
     """
 
-    adsorption_rate = SizedUnsignedList(size="n_comp")
-    desorption_rate = SizedUnsignedList(size="n_comp")
+    adsorption_rate = SizedUnsignedList(
+        size="n_comp",
+        unit=r"\frac{\mathrm{m}^{3}_{\mathrm{MP}}}{\mathrm{m}^{3}_{\mathrm{SP}}\cdot\mathrm{s}}",
+        description="Adsorption rate constant.",
+    )
+    desorption_rate = SizedUnsignedList(
+        size="n_comp",
+        unit=r"\frac{1}{\mathrm{s}}",
+        description="Desorption rate constant.",
+    )
 
     _parameters = [
         "adsorption_rate",
@@ -222,9 +237,23 @@ class Langmuir(BindingBaseClass):
         Maximum adsorption capacities. Length depends on `n_comp`.
     """
 
-    adsorption_rate = SizedUnsignedList(size="n_comp")
-    desorption_rate = SizedUnsignedList(size="n_comp")
-    capacity = SizedUnsignedList(size="n_comp")
+    adsorption_rate = SizedUnsignedList(
+        size="n_comp",
+        unit=r"\frac{\mathrm{m}^{3}_{\mathrm{MP}}}{\mathrm{mol}\cdot\mathrm{s}}",
+        description="Adsorption rate constant.",
+    )
+    desorption_rate = SizedUnsignedList(
+        size="n_comp",
+        unit=r"\frac{1}{\mathrm{s}}",
+        description="Desorption rate constant.",
+    )
+    capacity = SizedUnsignedList(
+        size="n_comp",
+        unit=r"\frac{\mathrm{mol}}{\mathrm{m}^{3}_{\mathrm{SP}}}",
+        description=(
+            "Maximum adsorption capacity, per component."
+        ),
+    )
 
     _parameters = [
         "adsorption_rate",
@@ -424,13 +453,58 @@ class StericMassAction(BindingBaseClass):
         The default is 1.0
     """
 
-    adsorption_rate = SizedUnsignedList(size="n_comp")
-    desorption_rate = SizedUnsignedList(size="n_comp")
-    characteristic_charge = SizedUnsignedList(size="n_comp")
-    steric_factor = SizedUnsignedList(size="n_comp")
-    capacity = UnsignedFloat()
-    reference_liquid_phase_conc = UnsignedFloat(default=1.0)
-    reference_solid_phase_conc = UnsignedFloat(default=1.0)
+    adsorption_rate = SizedUnsignedList(
+        size="n_comp",
+        unit=r"\frac{\mathrm{m}^{3}_{\mathrm{MP}}}{\mathrm{m}^{3}_{\mathrm{SP}}\cdot\mathrm{s}}",
+        description="Adsorption rate constant.",
+    )
+    desorption_rate = SizedUnsignedList(
+        size="n_comp",
+        unit=r"\frac{1}{\mathrm{s}}",
+        description="Desorption rate constant.",
+    )
+    characteristic_charge = SizedUnsignedList(
+        size="n_comp",
+        unit=None,
+        description=(
+            "Characteristic charge (nu): number of resin sites the protein "
+            "interacts with."
+        ),
+    )
+    steric_factor = SizedUnsignedList(
+        size="n_comp",
+        unit=None,
+        description=(
+            "Steric factor (sigma): number of resin sites shielded by the "
+            "bound protein."
+        ),
+    )
+    capacity = UnsignedFloat(
+        unit=r"\frac{\mathrm{mol}}{\mathrm{m}^{3}_{\mathrm{SP}}}",
+        description=(
+            "Stationary phase capacity (monovalent salt counterions): total "
+            "number of binding sites on the resin surface. A single value "
+            "shared by the whole resin, not per component."
+        ),
+    )
+    reference_liquid_phase_conc = UnsignedFloat(
+        default=1.0,
+        unit=r"\frac{\mathrm{mol}}{\mathrm{m}^{3}_{\mathrm{MP}}}",
+        description=(
+            "Reference liquid phase concentration of the mobile phase "
+            "modulator (e.g. salt); normalizes the desorption rate constant. "
+            "Recommended: average or maximum inlet modulator concentration."
+        ),
+    )
+    reference_solid_phase_conc = UnsignedFloat(
+        default=1.0,
+        unit=r"\frac{\mathrm{mol}}{\mathrm{m}^{3}_{\mathrm{SP}}}",
+        description=(
+            "Reference solid phase concentration of the mobile phase "
+            "modulator; normalizes the adsorption rate constant. "
+            "Recommended: the ionic capacity."
+        ),
+    )
 
     _parameters = [
         "adsorption_rate",
