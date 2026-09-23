@@ -94,12 +94,12 @@ optimization_problem.add_variable(
 ```
 
 Then, the independent variables $k_{eq}$ and $k_{kin}$ are added. To ensure, that CADET-Process does not try to write
-these variables into the CADET-Core model, where they do not have a place, `evaluation_objects` is set to `None`.
+these variables into the CADET-Core model, where they do not have a place, `targets` is set to `None`.
 
 ```{code-cell} ipython3
 optimization_problem.add_variable(
     name='equilibrium_constant',
-    evaluation_objects=None,
+    targets=None,
     lb=1e-4, ub=1e3,
     normalization='auto',
     indices=[1]
@@ -107,7 +107,7 @@ optimization_problem.add_variable(
 
 optimization_problem.add_variable(
     name='kinetic_constant',
-    evaluation_objects=None,
+    targets=None,
     lb=1e-4, ub=1e3,
     normalization='auto',
     indices=[1]

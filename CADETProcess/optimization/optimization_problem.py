@@ -382,11 +382,16 @@ class OptimizationProblem(Problem):
 
     # ── Variables ─────────────────────────────────────────────────────────────
 
-    @deprecated_alias(deprecated_in="0.13", removed_in="0.14", transform="normalization")
+    @deprecated_alias(
+        deprecated_in="0.13",
+        removed_in="0.14",
+        transform="normalization",
+        evaluation_objects="targets",
+    )
     def add_variable(
         self,
         name: str,
-        evaluation_objects: Any = -1,
+        targets: Any = -1,
         parameter_path: Optional[str] = None,
         lb: float = -math.inf,
         ub: float = math.inf,
@@ -402,13 +407,16 @@ class OptimizationProblem(Problem):
         ----------
         name : str
             Variable name.
-        evaluation_objects : list, object, or -1
-            Evaluation objects this variable targets.  ``-1`` (default) targets
-            all registered objects; ``None`` creates a free variable with no
-            write target.
+        targets : list, object, or -1
+            Objects this variable writes to.  ``-1`` (default) targets all
+            registered evaluation objects; ``None`` creates a free variable
+            with no write target.  A target need not be a registered
+            evaluation object: an unregistered target is written once and
+            never fanned over (e.g. a simulator's solver settings shared by
+            every process).  ``evaluation_objects`` is a deprecated alias.
         parameter_path : str, optional
-            Dot-separated path to the attribute on the evaluation object.
-            Defaults to *name* when evaluation objects are present.
+            Dot-separated path to the attribute on the target.
+            Defaults to *name* when targets are present.
         lb, ub : float
             Lower and upper bounds.
         parameter_type : {int, float}
@@ -437,29 +445,29 @@ class OptimizationProblem(Problem):
             significant_digits=significant_digits,
         )
 
-        # Resolve evaluation objects to a concrete list.
-        if evaluation_objects is None:
+        # Resolve targets to a concrete list.
+        if targets is None:
             eval_objs: list[Any] = []
-        elif evaluation_objects == -1:
+        elif targets == -1:
             eval_objs = list(self._parameter_space.evaluation_objects)
-        elif not isinstance(evaluation_objects, list):
-            eval_objs = [evaluation_objects]
+        elif not isinstance(targets, list):
+            eval_objs = [targets]
         else:
-            eval_objs = list(evaluation_objects)
+            eval_objs = list(targets)
 
         # Resolve string references.
         objs_dict = self.evaluation_objects_dict
         eval_objs = [objs_dict[o] if isinstance(o, str) else o for o in eval_objs]
 
-        # Default path to variable name when eval objects are present.
+        # Default path to variable name when targets are present.
         if parameter_path is None and eval_objs:
             parameter_path = name
         if parameter_path is not None and not eval_objs:
             raise ValueError(
-                "Cannot set parameter_path for a variable without evaluation objects."
+                "Cannot set parameter_path for a variable without targets."
             )
 
-        # Validate path exists on each evaluation object.
+        # Validate path exists on each target.
         if eval_objs and parameter_path:
             for obj in eval_objs:
                 if not attribute_path_exists(obj, parameter_path):
@@ -526,11 +534,12 @@ class OptimizationProblem(Problem):
         self._params[name] = param
         return param
 
+    @deprecated_alias(evaluation_objects="targets")
     def add_choice_variable(
         self,
         name: str,
         valid_values: list[Any],
-        evaluation_objects: Any = -1,
+        targets: Any = -1,
         parameter_path: Optional[str] = None,
     ) -> ChoiceParameter:
         """Add a categorical variable with a finite set of allowed values.
@@ -541,27 +550,28 @@ class OptimizationProblem(Problem):
             Variable name.
         valid_values : list
             Allowed choices.
-        evaluation_objects : list, object, or -1
-            Evaluation objects this variable targets.  ``-1`` (default) targets
-            all registered objects; ``None`` creates a free variable with no
-            write target.
+        targets : list, object, or -1
+            Objects this variable writes to.  ``-1`` (default) targets all
+            registered evaluation objects; ``None`` creates a free variable
+            with no write target.  ``evaluation_objects`` is a deprecated
+            alias.
         parameter_path : str, optional
-            Dot-separated path to the attribute on the evaluation object.
-            Defaults to *name* when evaluation objects are present.
+            Dot-separated path to the attribute on the target.
+            Defaults to *name* when targets are present.
         """
         if name in self._params:
             raise CADETProcessError("Variable already exists")
 
         param = ChoiceParameter(name, valid_values)
 
-        if evaluation_objects is None:
+        if targets is None:
             eval_objs: list[Any] = []
-        elif evaluation_objects == -1:
+        elif targets == -1:
             eval_objs = list(self._parameter_space.evaluation_objects)
-        elif not isinstance(evaluation_objects, list):
-            eval_objs = [evaluation_objects]
+        elif not isinstance(targets, list):
+            eval_objs = [targets]
         else:
-            eval_objs = list(evaluation_objects)
+            eval_objs = list(targets)
 
         objs_dict = self.evaluation_objects_dict
         eval_objs = [objs_dict[o] if isinstance(o, str) else o for o in eval_objs]
@@ -570,7 +580,7 @@ class OptimizationProblem(Problem):
             parameter_path = name
         if parameter_path is not None and not eval_objs:
             raise ValueError(
-                "Cannot set parameter_path for a variable without evaluation objects."
+                "Cannot set parameter_path for a variable without targets."
             )
 
         if eval_objs and parameter_path:
