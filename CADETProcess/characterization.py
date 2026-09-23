@@ -704,14 +704,14 @@ class CharacterizeAdsorptionParameters(CharacterizeBase):
                     "lb": k_eq_lb,
                     "ub": k_eq_ub,
                     "transform": "auto",
-                    "evaluation_objects": None,
+                    "targets": None,
                 },
                 {
                     "name": "kinetic_constant",
                     "lb": 1e-9,
                     "ub": 1.0,
                     "transform": "auto",
-                    "evaluation_objects": None,
+                    "targets": None,
                 },
             ]
 

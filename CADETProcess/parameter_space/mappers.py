@@ -1,10 +1,12 @@
 """Path-based and callable parameter mappers.
 
-Provides the primitive that writes a parameter value into an evaluation object.
+Provides the primitive that writes a parameter value into a target object.
 ``DotPathMapper`` traverses a dot-separated attribute/key path; ``IndexedMapper``
 extends this with a read-patch-write cycle for array elements; ``CallableMapper``
 delegates to a user-supplied function for anything else.  All mappers broadcast
-over a list of evaluation objects.
+over a list of targets.  A target need not be a registered evaluation object
+(the root/axis role); the two roles are independent, see
+``OptimizationProblem.add_variable``.
 
 The path segment parser is centralized here so that every mapper that accepts a
 string path uses identical traversal and parsing semantics.
@@ -32,6 +34,7 @@ from typing import Any
 import numpy as np
 from numpy.exceptions import VisibleDeprecationWarning
 
+from CADETProcess.dataStructure.deprecation import deprecated_alias
 from CADETProcess.dataStructure.nested_dict import generate_nested_dict
 
 __all__ = [
@@ -166,29 +169,30 @@ def _traverse(root: Any, segments: Sequence[str | int | slice]) -> tuple[Any, st
 
 
 class ParameterMapperBase(ABC):
-    """Base class: broadcasts a write over a list of evaluation objects."""
+    """Base class: broadcasts a write over a list of targets."""
 
-    def __init__(self, evaluation_objects: Sequence[Any]) -> None:
-        self.evaluation_objects = list(evaluation_objects)
+    @deprecated_alias(evaluation_objects="targets")
+    def __init__(self, targets: Sequence[Any]) -> None:
+        self.targets = list(targets)
 
     def set_value(self, value: Any) -> None:
-        """Write *value* into every object in ``evaluation_objects``."""
-        for obj in self.evaluation_objects:
+        """Write *value* into every object in ``targets``."""
+        for obj in self.targets:
             self._set_value(obj, value)
 
     @abstractmethod
     def _set_value(self, obj: Any, value: Any) -> None:
-        """Write *value* into a single evaluation object."""
+        """Write *value* into a single target."""
 
     def get_value(self) -> Any:
-        """Read the current value from the first evaluation object.
+        """Read the current value from the first target.
 
         Returns ``None`` for mappers that do not support read-back
         (e.g. ``CallableMapper``).
         """
-        if not self.evaluation_objects:
+        if not self.targets:
             return None
-        return self._get_value(self.evaluation_objects[0])
+        return self._get_value(self.targets[0])
 
     def _get_value(self, obj: Any) -> Any:  # noqa: ARG002
         """Read from a single evaluation object.  Override to support read-back."""
@@ -204,7 +208,7 @@ class DotPathMapper(ParameterMapperBase):
 
     Parameters
     ----------
-    evaluation_objects : sequence
+    targets : sequence
         Objects to write into.
     path : str
         Dot-separated path to the target attribute or dict key.  Must not
@@ -216,8 +220,9 @@ class DotPathMapper(ParameterMapperBase):
         If *path* ends with a bracket index.  Use ``IndexedMapper`` instead.
     """
 
-    def __init__(self, evaluation_objects: Sequence[Any], path: str) -> None:
-        super().__init__(evaluation_objects)
+    @deprecated_alias(evaluation_objects="targets")
+    def __init__(self, targets: Sequence[Any], path: str) -> None:
+        super().__init__(targets)
         self.path = path
         self._segments = parse_path(path)
         if isinstance(self._segments[-1], (int, slice)):
@@ -272,7 +277,7 @@ class IndexedMapper(ParameterMapperBase):
 
     Parameters
     ----------
-    evaluation_objects : sequence
+    targets : sequence
         Objects to write into.
     path : str
         Dot-separated path to the target array attribute.  May embed a
@@ -283,13 +288,14 @@ class IndexedMapper(ParameterMapperBase):
         multi-dimensional access, e.g. ``(0, 1)`` or ``np.s_[0, :]``.
     """
 
+    @deprecated_alias(evaluation_objects="targets")
     def __init__(
         self,
-        evaluation_objects: Sequence[Any],
+        targets: Sequence[Any],
         path: str,
         index: int | slice | tuple | None = None,
     ) -> None:
-        super().__init__(evaluation_objects)
+        super().__init__(targets)
         segments = parse_path(path)
 
         if isinstance(segments[-1], (int, slice)):
@@ -377,16 +383,17 @@ class CallableMapper(ParameterMapperBase):
 
     Parameters
     ----------
-    evaluation_objects : sequence
+    targets : sequence
         Objects to write into.
     fn : Callable[[Any, Any], None]
-        Function called as ``fn(obj, value)`` for each evaluation object.
+        Function called as ``fn(obj, value)`` for each target.
     """
 
+    @deprecated_alias(evaluation_objects="targets")
     def __init__(
-        self, evaluation_objects: Sequence[Any], fn: Callable[[Any, Any], None]
+        self, targets: Sequence[Any], fn: Callable[[Any, Any], None]
     ) -> None:
-        super().__init__(evaluation_objects)
+        super().__init__(targets)
         self.fn = fn
 
     def _set_value(self, obj: Any, value: Any) -> None:
@@ -409,7 +416,7 @@ class NestedDictMapper(ParameterMapperBase):
 
     Parameters
     ----------
-    evaluation_objects : sequence
+    targets : sequence
         Objects to write into.
     path : str
         Dot-separated path to the target parameter.
@@ -418,13 +425,14 @@ class NestedDictMapper(ParameterMapperBase):
         ``OptimizationProblem`` behaviour of transforming before dispatch.
     """
 
+    @deprecated_alias(evaluation_objects="targets")
     def __init__(
         self,
-        evaluation_objects: Sequence[Any],
+        targets: Sequence[Any],
         path: str,
         pre_processing: Callable[[Any], Any] | None = None,
     ) -> None:
-        super().__init__(evaluation_objects)
+        super().__init__(targets)
         self.path = path
         self._segments = path.split(".")
         self.pre_processing = pre_processing
@@ -447,8 +455,9 @@ class NestedDictMapper(ParameterMapperBase):
             return None
 
 
+@deprecated_alias(evaluation_objects="targets")
 def make_preprocessing_mapper(
-    evaluation_objects: Sequence[Any],
+    targets: Sequence[Any],
     path: str,
     pre_processing: Callable[[Any], Any],
 ) -> CallableMapper:
@@ -459,10 +468,10 @@ def make_preprocessing_mapper(
 
     Parameters
     ----------
-    evaluation_objects : sequence
+    targets : sequence
         Objects to write into.
     path : str
-        Dot-separated attribute path on each evaluation object.
+        Dot-separated attribute path on each target.
     pre_processing : callable
         Applied to the raw value before the write: ``obj.attr = pre_processing(v)``.
     """
@@ -474,4 +483,4 @@ def make_preprocessing_mapper(
             target = getattr(target, part)
         setattr(target, attr, pre_processing(v))
 
-    return CallableMapper(evaluation_objects, _write)
+    return CallableMapper(targets, _write)

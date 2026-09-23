@@ -93,7 +93,7 @@ process = setup_process()
 optimization_problem = setup_optimization_problem()
 
 optimization_problem.add_variable(
-    'film_diffusion_all', evaluation_objects=process, parameter_path='flow_sheet.column.film_diffusion'
+    'film_diffusion_all', targets=process, parameter_path='flow_sheet.column.film_diffusion'
 )
 optimization_problem.set_variables([1])
 print(process.flow_sheet.column.film_diffusion)
@@ -107,7 +107,7 @@ E.g. for the first component of the (1D) `film_diffusion` array:
 optimization_problem = setup_optimization_problem()
 
 optimization_problem.add_variable(
-    'film_diffusion_0', evaluation_objects=process, parameter_path='flow_sheet.column.film_diffusion', indices=0
+    'film_diffusion_0', targets=process, parameter_path='flow_sheet.column.film_diffusion', indices=0
 )
 optimization_problem.set_variables([2])
 print(process.flow_sheet.column.film_diffusion)
@@ -121,7 +121,7 @@ So, to add the constant term for the `inlet.flow_rate`, use:
 optimization_problem = setup_optimization_problem()
 
 optimization_problem.add_variable(
-    'flow_rate_fill', evaluation_objects=process, parameter_path='flow_sheet.inlet.flow_rate'
+    'flow_rate_fill', targets=process, parameter_path='flow_sheet.inlet.flow_rate'
 )
 optimization_problem.set_variables([1])
 print(process.flow_sheet.inlet.flow_rate)
@@ -135,7 +135,7 @@ E.g. for the linear coefficient of the `flow_rate`:
 optimization_problem = setup_optimization_problem()
 
 optimization_problem.add_variable(
-    'flow_rate_single', evaluation_objects=process, parameter_path='flow_sheet.inlet.flow_rate', indices=1
+    'flow_rate_single', targets=process, parameter_path='flow_sheet.inlet.flow_rate', indices=1
 )
 optimization_problem.set_variables([2])
 print(process.flow_sheet.inlet.flow_rate)
@@ -149,7 +149,7 @@ To set every entry of such an array to the same value, index it explicitly with 
 optimization_problem = setup_optimization_problem()
 
 optimization_problem.add_variable(
-    'exponents', evaluation_objects=process,
+    'exponents', targets=process,
     parameter_path='flow_sheet.column.bulk_reaction_model.exponents_fwd', indices=np.s_[:, :]
 )
 optimization_problem.set_variables([1])
@@ -163,7 +163,7 @@ Multidimensional parameters can also be indexed by specifying a tuple with the i
 optimization_problem = setup_optimization_problem()
 
 optimization_problem.add_variable(
-    'exponents_single', evaluation_objects=process,
+    'exponents_single', targets=process,
     parameter_path='flow_sheet.column.bulk_reaction_model.exponents_fwd', indices=(0, 0)
 )
 optimization_problem.set_variables([2])
@@ -177,7 +177,7 @@ Just as with Events, slicing notation is also supported, e.g. to set an entire r
 optimization_problem = setup_optimization_problem()
 
 optimization_problem.add_variable(
-    'exponents_slice', evaluation_objects=process,
+    'exponents_slice', targets=process,
     parameter_path='flow_sheet.column.bulk_reaction_model.exponents_fwd', indices=np.s_[0, :]
 )
 optimization_problem.set_variables([3])
@@ -192,7 +192,7 @@ For example, to optimize the constant coefficient of every component of the `inl
 optimization_problem = setup_optimization_problem()
 
 optimization_problem.add_variable(
-    'concentration_constant_all', evaluation_objects=process, parameter_path='flow_sheet.inlet.c'
+    'concentration_constant_all', targets=process, parameter_path='flow_sheet.inlet.c'
 )
 optimization_problem.set_variables([1])
 print(process.flow_sheet.inlet.c)
@@ -205,7 +205,7 @@ A bare index into a multi-dimensional polynomial parameter still applies the "co
 optimization_problem = setup_optimization_problem()
 
 optimization_problem.add_variable(
-    'concentration_fill_values_single', evaluation_objects=process, parameter_path='flow_sheet.inlet.c', indices=0
+    'concentration_fill_values_single', targets=process, parameter_path='flow_sheet.inlet.c', indices=0
 )
 optimization_problem.set_variables([2])
 print(process.flow_sheet.inlet.c)
@@ -218,7 +218,7 @@ Explicitly modify the linear coefficient of a single entry with a tuple index:
 optimization_problem = setup_optimization_problem()
 
 optimization_problem.add_variable(
-    'concentration_single_entry', evaluation_objects=process, parameter_path='flow_sheet.inlet.c', indices=(0, 1)
+    'concentration_single_entry', targets=process, parameter_path='flow_sheet.inlet.c', indices=(0, 1)
 )
 optimization_problem.set_variables([3])
 print(process.flow_sheet.inlet.c)
@@ -249,7 +249,7 @@ Instead, pass `pre_processing`, which builds the full (still-ragged) state from 
 
 ```{code-cell} ipython3
 optimization_problem.add_variable(
-    'c_poly_linear', evaluation_objects=process, parameter_path='c_poly.state',
+    'c_poly_linear', targets=process, parameter_path='c_poly.state',
     pre_processing=lambda w: [[0, w], 0]
 )
 optimization_problem.set_variables([2])

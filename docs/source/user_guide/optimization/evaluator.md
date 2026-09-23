@@ -58,7 +58,7 @@ When adding variables, specify which evaluation objects the variable targets and
 ```{code-cell} ipython3
 optimization_problem.add_variable(
     'var_0',
-    evaluation_objects=[process],
+    targets=[process],
     parameter_path='flow_sheet.column.total_porosity',
     lb=0, ub=1,
 )
@@ -101,7 +101,7 @@ process_b.name = 'process_b'
 optimization_problem.add_evaluation_object(process_a)
 optimization_problem.add_evaluation_object(process_b)
 optimization_problem.add_variable('flow_sheet.column.total_porosity')
-optimization_problem.add_variable('flow_sheet.column.length', evaluation_objects=[process_a])
+optimization_problem.add_variable('flow_sheet.column.length', targets=[process_a])
 ```
 
 (evaluators_guide)=
