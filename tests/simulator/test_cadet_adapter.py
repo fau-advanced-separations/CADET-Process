@@ -574,11 +574,11 @@ class TestProcessWithLWE:
                 "init_step_size": 1e-06,
                 "max_steps": 1000000,
                 "max_step_size": 0.0,
-                "errortest_sens": False,
-                "max_newton_iter": 1000000,
-                "max_errtest_fail": 1000000,
-                "max_convtest_fail": 1000000,
-                "max_newton_iter_sens": 1000000,
+                "errortest_sens": True,
+                "max_newton_iter": 4,
+                "max_errtest_fail": 10,
+                "max_convtest_fail": 10,
+                "max_newton_iter_sens": 4,
             },
         }
 

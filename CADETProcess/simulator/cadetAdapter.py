@@ -1848,19 +1848,19 @@ class SolverTimeIntegratorParameters(Structure):
         The default is 0.0 (unlimited).
     errortest_sens: bool, optional
         If True: Use (forward) sensitivities in local error test
-        The default is True.
+        The default is True (IDAS default).
     max_newton_iter: int, optional
         Maximum number of Newton iterations in time step.
-        The default is 3.
+        The default is 4 (IDAS default).
     max_errtest_fail: int, optional
         Maximum number of local error test failures in time step
-        The default is 7.
+        The default is 10 (IDAS default).
     max_convtest_fail: int, optional
         Maximum number of Newton convergence test failures
-        The default is 10.
+        The default is 10 (IDAS default).
     max_newton_iter_sens: int, optional
         Maximum number of Newton iterations in forward sensitivity time step
-        The default is 3.
+        The default is 4 (IDAS default).
 
     See Also
     --------
