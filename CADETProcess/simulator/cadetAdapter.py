@@ -1741,7 +1741,7 @@ inv_reaction_parameters_map = {
         "name": values["name"],
         "parameters": {v: k for k, v in values["parameters"].items()},
     }
-    for model, values in adsorption_parameters_map.items()
+    for model, values in reaction_parameters_map.items()
 }
 
 
