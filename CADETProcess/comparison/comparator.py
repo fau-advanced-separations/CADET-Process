@@ -9,7 +9,7 @@ import numpy.typing as npt
 
 from CADETProcess import CADETProcessError, plotting
 from CADETProcess.comparison import DifferenceBase
-from CADETProcess.dataStructure import String, Structure, get_nested_value
+from CADETProcess.dataStructure import String, Structure, deprecated, get_nested_value
 from CADETProcess.numerics import round_to_significant_digits
 from CADETProcess.simulationResults import SimulationResults
 from CADETProcess.solution import SolutionBase
@@ -52,6 +52,7 @@ class Comparator(Structure):
         self.references: dict[str, SolutionBase] = {}
         self.solution_paths = {}
 
+    @deprecated(deprecated_in="0.13", removed_in="1.0", use="add_difference_metric")
     def add_reference(
         self,
         reference: SolutionBase,
@@ -61,10 +62,9 @@ class Comparator(Structure):
         """
         Add reference to the Comparator.
 
-        .. deprecated::
-            Use the new API instead: construct the metric with the reference
-            directly and pass the instance to :meth:`add_difference_metric`.
-            This method will be removed in v1.0.
+        Construct the metric with the reference directly and pass the instance to
+        :meth:`add_difference_metric` instead: ``metric = SSE(reference);
+        comparator.add_difference_metric(metric, solution_path)``.
 
         Parameters
         ----------
@@ -83,13 +83,6 @@ class Comparator(Structure):
             If Reference already exists.
 
         """
-        warnings.warn(
-            "add_reference() is deprecated and will be removed in v1.0. "
-            "Pass a pre-constructed metric instance to add_difference_metric() instead: "
-            "metric = SSE(reference); comparator.add_difference_metric(metric, solution_path)",
-            DeprecationWarning,
-            stacklevel=2,
-        )
         if not isinstance(reference, SolutionBase):
             raise TypeError("Expeced SolutionBase")
 

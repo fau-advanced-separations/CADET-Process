@@ -941,7 +941,7 @@ def test_evaluate_callbacks_frequency_skip():
 def test_evaluate_callbacks_population_deprecation():
     op = OptimizationProblem("cb", use_diskcache=False)
     op.add_callback(lambda result: None, name="cb")
-    with pytest.warns(DeprecationWarning, match="evaluate_callbacks_population"):
+    with pytest.warns(DeprecationWarning, match="Deprecated since v0.13"):
         op.evaluate_callbacks_population(population=_make_dummy_population(), current_iteration=0)
 
 

@@ -38,6 +38,7 @@ dependencies = [
     "psutil>=5.9.8",
     "pymoo>=0.6",
     "scipy>=1.14,<1.18",
+    "typing_extensions>=4.12.2",
 ]
 
 [dependency-groups]

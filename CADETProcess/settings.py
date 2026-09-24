@@ -17,9 +17,8 @@ This module provides functionality for general settings.
 import os
 import shutil
 from pathlib import Path
-from warnings import warn
 
-from CADETProcess.dataStructure import Bool, Structure, Switch
+from CADETProcess.dataStructure import Bool, Structure, Switch, deprecated
 
 __all__ = ["Settings"]
 
@@ -93,13 +92,9 @@ class Settings(Structure):
     def working_directory(self, working_directory: str) -> None:
         self._working_directory = working_directory
 
+    @deprecated(deprecated_in="0.7", removed_in="0.14", use="working_directory")
     def set_working_directory(self, working_directory: str) -> None:
         """Set working directory."""
-        warn(
-            "This function is deprecated, use working_directory property.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
         self.working_directory = working_directory
 
     @property
