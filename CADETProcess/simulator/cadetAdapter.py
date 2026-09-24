@@ -1075,16 +1075,23 @@ class Cadet(SimulatorBase):
         unit_indices = []
         parameters = []
         components = []
+        partypes = []
+        boundphases = []
+        reactions = []
 
-        for param, unit, associated_model, comp, coeff in zip(
+        for param, unit, associated_model, comp, coeff, bound_state, reaction in zip(
             sens.parameters,
             sens.units,
             sens.associated_models,
             sens.components,
             sens.polynomial_coefficients,
+            sens.bound_state_indices,
+            sens.reaction_indices,
         ):
             unit_index = process.flow_sheet.get_unit_index(unit)
             unit_indices.append(unit_index)
+
+            is_binding = isinstance(associated_model, BindingBaseClass)
 
             if associated_model is None:
                 model = unit.model
@@ -1102,7 +1109,7 @@ class Cadet(SimulatorBase):
                     parameter = inv_unit_parameters_map[model]["parameters"][param]
             else:
                 model = associated_model.model
-                if isinstance(associated_model, BindingBaseClass):
+                if is_binding:
                     parameter = inv_adsorption_parameters_map[model]["parameters"][
                         param
                     ]
@@ -1111,39 +1118,44 @@ class Cadet(SimulatorBase):
             parameters.append(parameter)
 
             component_system = unit.component_system
-            comp = -1 if comp is None else component_system.indices[comp]
-            components.append(comp)
+            components.append(
+                -1 if comp is None else component_system.indices[comp][0]
+            )
+
+            # Core registers binding-model parameters at ParTypeIndep for a
+            # single particle type (GeneralRateModel.cpp, `_singleBinding`
+            # branch), but registers every other parameter (unit transport,
+            # reaction, bulk or particle-phase) at the concrete particle-type
+            # index, even when there is only one particle type.
+            partypes.append(-1 if is_binding else 0)
+
+            # Only binding-model parameters are bound-state dependent in Core
+            # (ScalarComponentDependentParameter forwards to
+            # registerComponentBoundStateDependentParam); reaction rate
+            # constants are registered as BoundStateIndep regardless of
+            # liquid/solid/cross-phase, so they keep -1 unless overridden.
+            if bound_state is not None:
+                boundphases.append(bound_state)
+            else:
+                boundphases.append(0 if is_binding else -1)
+
+            reactions.append(-1 if reaction is None else reaction)
 
         config.sens_unit = unit_indices
         config.sens_name = parameters
         config.sens_comp = components
+        config.sens_partype = partypes
+        config.sens_boundphase = boundphases
+        config.sens_reaction = reactions
 
-        config.sens_partype = -1  # !!! Check when multiple particle types enabled.
-        if not all([index is None for index in sens.bound_state_indices]):
-            config.sens_reaction = [
-                -1 if index is None else index for index in sens.bound_state_indices
-            ]
-        else:
-            config.sens_reaction = -1
-
-        if not all([index is None for index in sens.bound_state_indices]):
-            config.sens_boundphase = [
-                -1 if index is None else index for index in sens.bound_state_indices
-            ]
-        else:
-            config.sens_boundphase = -1
-
-        if not all([index is None for index in sens.section_indices]):
-            config.sens_section = [
-                -1 if index is None else index for index in sens.section_indices
-            ]
-        else:
-            config.sens_section = -1
+        config.sens_section = [
+            -1 if index is None else index for index in sens.section_indices
+        ]
 
         if not all([index is None for index in sens.abstols]):
             config.sens_abstol = sens.abstols
 
-        config.factors = sens.factors
+        config.sens_factor = sens.factors
 
         return config
 
