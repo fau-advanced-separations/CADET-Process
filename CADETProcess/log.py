@@ -21,8 +21,6 @@ from functools import wraps
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-import pathos
-
 __all__ = ["loggers", "get_logger"]
 
 
@@ -50,7 +48,7 @@ def get_logger(name: str, level: Optional[str] = None) -> logging.Logger:
     try:
         logger = loggers[name]
     except KeyError:
-        logger = pathos.logger()
+        logger = logging.getLogger(name)
         loggers[name] = logger
 
     if level is not None:
