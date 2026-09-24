@@ -7,7 +7,15 @@ import numpy as np
 import numpy.testing as npt
 import pytest
 from CADETProcess import CADETProcessError
-from CADETProcess.processModel import Process
+from CADETProcess.processModel import (
+    ComponentSystem,
+    FlowSheet,
+    Inlet,
+    Linear,
+    LumpedRateModelWithPores,
+    Outlet,
+    Process,
+)
 from CADETProcess.processModel.discretization import NoDiscretization
 from CADETProcess.simulationResults import SimulationResults
 from CADETProcess.simulator import Cadet
@@ -748,6 +756,122 @@ class TestMultiCyclePortedUnit:
 
         assert n_cycles == 2
         assert len(unit_cycles["bulk"]) == n_cycles
+
+
+def build_sensitivity_test_process(n_col: int = 20) -> Process:
+    """
+    Build a minimal LRMP + Linear binding process for sensitivity regression tests.
+
+    Linear binding keeps c = cp = q = 0 a consistent initial state (no
+    electroneutrality constraint, unlike Steric Mass Action), so the forward
+    sensitivity solve converges without the extra machinery an SMA fixture
+    would need.
+    """
+    component_system = ComponentSystem(1)
+
+    inlet = Inlet(component_system, name="inlet")
+    inlet.flow_rate = 1.2e-3
+
+    column = LumpedRateModelWithPores(component_system, name="column")
+    column.length = 0.014
+    column.diameter = 0.02
+    column.bed_porosity = 0.37
+    column.axial_dispersion = 5.75e-8
+    column.particle_radius = 4.5e-5
+    column.particle_porosity = 0.75
+    column.film_diffusion = [6.9e-6]
+    column.discretization.ncol = n_col
+
+    binding_model = Linear(component_system)
+    binding_model.is_kinetic = True
+    binding_model.adsorption_rate = [2.0]
+    binding_model.desorption_rate = [1.0]
+    column.binding_model = binding_model
+
+    outlet = Outlet(component_system, name="outlet")
+
+    flow_sheet = FlowSheet(component_system)
+    flow_sheet.add_unit(inlet)
+    flow_sheet.add_unit(column)
+    flow_sheet.add_unit(outlet)
+    flow_sheet.add_connection(inlet, column)
+    flow_sheet.add_connection(column, outlet)
+
+    process = Process(flow_sheet, "sensitivity_test")
+    process.cycle_time = 600
+    process.add_event("load", "flow_sheet.inlet.c", [1.0], 0)
+    process.add_event("wash", "flow_sheet.inlet.c", [0.0], 10)
+
+    return process
+
+
+def _set_film_diffusion(process: Process, value: float) -> None:
+    process.flow_sheet["column"].film_diffusion = [value]
+
+
+def _set_adsorption_rate(process: Process, value: float) -> None:
+    process.flow_sheet["column"].binding_model.adsorption_rate = [value]
+
+
+sensitivity_test_cases = [
+    pytest.param(
+        "column.film_diffusion",
+        "film_diffusion_0",
+        6.9e-6,
+        _set_film_diffusion,
+        id="transport-film_diffusion",
+    ),
+    pytest.param(
+        "column.binding_model.adsorption_rate",
+        "ka_0",
+        2.0,
+        _set_adsorption_rate,
+        id="binding-adsorption_rate",
+    ),
+]
+
+
+@pytest.mark.slow
+@unittest.skipIf(found_cadet is False, "Skip if CADET is not installed.")
+class TestParameterSensitivity:
+    """Forward sensitivities must agree with a central finite difference."""
+
+    @pytest.mark.parametrize(
+        "parameter_path, sens_name, nominal_value, set_parameter",
+        sensitivity_test_cases,
+    )
+    def test_matches_central_finite_difference(
+        self, parameter_path, sens_name, nominal_value, set_parameter
+    ):
+        simulator = Cadet(install_path)
+
+        process = build_sensitivity_test_process()
+        process.add_parameter_sensitivity(
+            parameter_path, name=sens_name, components="0"
+        )
+        sens_solution = (
+            simulator.simulate(process)
+            .sensitivity[sens_name]["column"]["outlet"]
+            .solution
+        )
+
+        h = 1e-2 * nominal_value
+
+        def perturbed_solution(delta: float) -> np.ndarray:
+            perturbed_process = build_sensitivity_test_process()
+            set_parameter(perturbed_process, nominal_value + delta)
+            return (
+                simulator.simulate(perturbed_process)
+                .solution["column"]["outlet"]
+                .solution
+            )
+
+        finite_difference = (perturbed_solution(h) - perturbed_solution(-h)) / (2 * h)
+
+        relative_l2_error = np.linalg.norm(
+            sens_solution - finite_difference
+        ) / np.linalg.norm(finite_difference)
+        assert relative_l2_error < 1e-3
 
 
 if __name__ == "__main__":
