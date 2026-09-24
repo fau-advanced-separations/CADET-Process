@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import warnings
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, Iterator, Optional
@@ -8,7 +7,7 @@ from typing import Any, Iterator, Optional
 from addict import Dict
 
 from CADETProcess import CADETProcessError
-from CADETProcess.dataStructure import deprecated_alias
+from CADETProcess.dataStructure import deprecated, deprecated_alias
 
 __all__ = ["ComponentSystem", "Component", "Species"]
 
@@ -36,22 +35,14 @@ class Species:
     density: Optional[float] = None
 
     @property
+    @deprecated(deprecated_in="0.13", removed_in="0.14", use="molar_mass")
     def molecular_weight(self) -> Optional[float]:
         """Deprecated. Use molar_mass."""
-        warnings.warn(
-            "`molecular_weight` is deprecated; use `molar_mass` instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
         return self.molar_mass
 
     @molecular_weight.setter
+    @deprecated(deprecated_in="0.13", removed_in="0.14", use="molar_mass")
     def molecular_weight(self, value: Optional[float]) -> None:
-        warnings.warn(
-            "`molecular_weight` is deprecated; use `molar_mass` instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
         self.molar_mass = value
 
     def __str__(self) -> str:  # noqa: D105
@@ -184,13 +175,9 @@ class Component:
         return [s.molar_mass for s in self._species]
 
     @property
+    @deprecated(deprecated_in="0.13", removed_in="0.14", use="molar_mass")
     def molecular_weight(self) -> list[float | None]:
         """Deprecated. Use molar_mass."""
-        warnings.warn(
-            "`molecular_weight` is deprecated; use `molar_mass` instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
         return self.molar_mass
 
     @property
@@ -229,7 +216,7 @@ class ComponentSystem:
     Component
     """
 
-    @deprecated_alias(molecular_weights="molar_masses")
+    @deprecated_alias(deprecated_in="0.13", removed_in="0.14", molecular_weights="molar_masses")
     def __init__(
         self,
         components: int | list[str | Component | None] = None,
@@ -390,13 +377,9 @@ class ComponentSystem:
         return [mm for comp in self._components for mm in comp.molar_mass]
 
     @property
+    @deprecated(deprecated_in="0.13", removed_in="0.14", use="molar_masses")
     def molecular_weights(self) -> list[float | None]:
         """Deprecated. Use molar_masses."""
-        warnings.warn(
-            "`molecular_weights` is deprecated; use `molar_masses` instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
         return self.molar_masses
 
     @property

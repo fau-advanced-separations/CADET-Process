@@ -21,7 +21,7 @@ import numpy as np
 import numpy.typing as npt
 
 from CADETProcess import CADETProcessError, log
-from CADETProcess.dataStructure.deprecation import deprecated_alias
+from CADETProcess.dataStructure.deprecation import deprecated, deprecated_alias
 from CADETProcess.dataStructure.nested_dict import attribute_path_exists
 from CADETProcess.evaluation_pipeline import EvaluationFailure, EvaluationPipeline
 from CADETProcess.metric_space import Metric, MetricSpace
@@ -369,7 +369,7 @@ class OptimizationProblem(Problem):
 
     # ── Variables ─────────────────────────────────────────────────────────────
 
-    @deprecated_alias(transform="normalization")
+    @deprecated_alias(deprecated_in="0.13", removed_in="0.14", transform="normalization")
     def add_variable(
         self,
         name: str,
@@ -2418,13 +2418,9 @@ class OptimizationProblem(Problem):
                     finally:
                         cb.runtime = {}
 
+    @deprecated(deprecated_in="0.13", removed_in="0.14", use="evaluate_callbacks")
     def evaluate_callbacks_population(self, *args: Any, **kwargs: Any) -> None:
         """Call ``evaluate_callbacks``; deprecated, use that method directly."""
-        warnings.warn(
-            "evaluate_callbacks_population is deprecated; use evaluate_callbacks.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
         self.evaluate_callbacks(*args, **kwargs)
 
     # ── Meta scores evaluation ────────────────────────────────────────────────

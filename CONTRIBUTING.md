@@ -164,6 +164,13 @@ sphinx-build -b html source build
 
 The output will be located in the `build` directory and can be opened with any browser.
 
+## Deprecating API
+
+Use the `@deprecated(deprecated_in, removed_in, use)` decorator from `CADETProcess.dataStructure.deprecation` to deprecate a function, method, or property.
+It emits a versioned `DeprecationWarning`, sets the PEP 702 type-checker flag, and appends a rendered `.. deprecated::` directive to the docstring, so the deprecation shows up in the API reference automatically without hand-authoring it.
+Every decorated callable is registered internally, and `tests/dataStructure/test_deprecation.py` fails once its `removed_in` version has shipped, so an overdue removal can't go unnoticed.
+To deprecate a single keyword argument rather than the whole callable, use `@deprecated_alias(deprecated_in, removed_in, old_name="new_name")` instead.
+
 ## Publish Package
 
 **CADET-Process** is automatically published to [PyPI](https://pypi.org/project/CADET-Process) when a GitHub release is created.

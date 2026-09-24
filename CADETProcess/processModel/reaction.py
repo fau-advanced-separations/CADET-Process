@@ -76,7 +76,7 @@ class Reaction(Structure):
         "exponents_bwd",
     ]
 
-    @deprecated_alias(indices="components")
+    @deprecated_alias(deprecated_in="0.11", removed_in="0.14", indices="components")
     def __init__(
         self,
         component_system: ComponentSystem,
@@ -274,7 +274,7 @@ class CrossPhaseReaction(Structure):
         "exponents_bwd_solid_modliquid",
     ]
 
-    @deprecated_alias(indices="components")
+    @deprecated_alias(deprecated_in="0.11", removed_in="0.14", indices="components")
     def __init__(
         self,
         component_system: ComponentSystem,
