@@ -569,6 +569,8 @@ class CharacterizeAdsorptionParameters(CharacterizeBase):
     is_kinetic : bool
         Use kinetic (True) or rapid-equilibrium (False) binding mode.
         Default False.
+    include_steric_factor : bool
+        Also fit the steric factor for ``component_index``. Default False.
     include_film_diffusion : bool
         Also fit film diffusion for ``component_index``. Default False.
     include_pore_diffusion : bool
@@ -587,12 +589,14 @@ class CharacterizeAdsorptionParameters(CharacterizeBase):
         comparators: Comparator | list[Comparator],
         simulator: SimulatorBase,
         is_kinetic: bool = False,
+        include_steric_factor: bool = False,
         include_film_diffusion: bool = False,
         include_pore_diffusion: bool = False,
         component_index: int = 0,
         **kwargs: object,
     ) -> None:
         self._is_kinetic = is_kinetic
+        self._include_steric_factor = include_steric_factor
         self._include_film_diffusion = include_film_diffusion
         self._include_pore_diffusion = include_pore_diffusion
         self._component_index = component_index
@@ -655,6 +659,18 @@ class CharacterizeAdsorptionParameters(CharacterizeBase):
                 "transform": "auto",
             },
         ]
+
+        if self._include_steric_factor:
+            variables.append({
+                "name": "steric_factor",
+                "parameter_path": (
+                    "flow_sheet.column.binding_model.steric_factor"
+                ),
+                "lb": 0.0,
+                "ub": 200.0,
+                "indices": [ci],
+                "transform": "auto",
+            })
 
         if not self._is_kinetic:
             variables.append({

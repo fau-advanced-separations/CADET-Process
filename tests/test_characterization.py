@@ -527,3 +527,22 @@ def test_characterize_adsorption_optional_film_diffusion(
         include_film_diffusion=True,
     )
     assert "film_diffusion" in prob.variable_names
+
+
+def test_characterize_adsorption_optional_steric_factor(
+    lwe_process, lwe_comparator, mock_simulator
+):
+    prob = CharacterizeAdsorptionParameters(
+        "ads", lwe_process, lwe_comparator, mock_simulator,
+        include_steric_factor=True,
+    )
+    assert "steric_factor" in prob.variable_names
+
+
+def test_characterize_adsorption_steric_factor_off_by_default(
+    lwe_process, lwe_comparator, mock_simulator
+):
+    prob = CharacterizeAdsorptionParameters(
+        "ads", lwe_process, lwe_comparator, mock_simulator,
+    )
+    assert "steric_factor" not in prob.variable_names
