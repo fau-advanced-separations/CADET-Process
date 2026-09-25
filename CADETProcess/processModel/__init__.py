@@ -7,6 +7,16 @@ Process Model (:mod:`CADETProcess.processModel`)
 
 Classes for modelling processes.
 
+Parameter Dependencies
+======================
+
+.. autosummary::
+    :toctree: generated/
+
+    ParameterParameterDependencyBase
+    PowerLaw
+
+
 ComponentSystem
 ===============
 
@@ -109,6 +119,9 @@ Process
     Process
 
 """
+
+from . import parameterDependency
+from .parameterDependency import *
 
 from . import componentSystem
 from .componentSystem import *

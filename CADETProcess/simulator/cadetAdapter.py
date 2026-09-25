@@ -33,6 +33,7 @@ from CADETProcess.processModel import (
     NoBinding,
     NoDiscretization,
     NoReaction,
+    ParameterParameterDependencyBase,
     Process,
     ReactionBaseClass,
     TubularReactor,
@@ -54,6 +55,7 @@ __all__ = [
     "ModelSolverParameters",
     "UnitParameters",
     "AdsorptionParameters",
+    "ParameterDependencyParameters",
     "ReactionParameters",
     "SolverParameters",
     "SolverTimeIntegratorParameters",
@@ -897,6 +899,25 @@ class Cadet(SimulatorBase):
             unit_config["sec_000"]["quad_coeff"] = unit.c[:, 2]
             unit_config["sec_000"]["cube_coeff"] = unit.c[:, 3]
 
+        # Parameter dependencies
+        # Note, this is currently a bit hacky in CADET-Core.
+        # See also https://github.com/cadet/CADET-Core/issues/504
+        for dep_name, dep in unit.parameter_dependencies.items():
+            if dep is None:
+                continue
+            dependency_parameters = ParameterDependencyParameters(dep)
+
+            if dep_name == "axial_dispersion_dependency":
+                dep_name = "col_dispersion_dependency"
+
+            parameter = dep_name[0:-11].upper()
+
+            for param, value in dependency_parameters.parameters.items():
+                if param == "DEPENDENCY_TYPE":
+                    unit_config[f"{parameter}_DEP"] = value
+                else:
+                    unit_config[f"{parameter}_{param}"] = value
+
         return unit_config
 
     def set_section_dependent_parameters(self, model_units: Dict, process: Process) -> None:
@@ -1229,6 +1250,34 @@ unit_parameters_map = {
             "PORE_ACCESSIBILITY_MULTIPLEX": 3,
         },
     },
+    "RadialGeneralRateModel": {
+        "name": "RADIAL_GENERAL_RATE_MODEL",
+        "parameters": {
+            "NCOMP": "n_comp",
+            "INIT_C": "c",
+            "INIT_Q": "q",
+            "INIT_CP": "cp",
+            "COL_DISPERSION": "axial_dispersion",
+            "COL_LENGTH": "length",
+            "COL_POROSITY": "bed_porosity",
+            "FILM_DIFFUSION": "film_diffusion",
+            "PAR_POROSITY": "particle_porosity",
+            "PAR_RADIUS": "particle_radius",
+            "PORE_ACCESSIBILITY": "pore_accessibility",
+            "PAR_DIFFUSION": "pore_diffusion",
+            "PAR_SURFDIFFUSION": "surface_diffusion",
+            "COL_RADIUS_OUTER": "outer_radius",
+            "COL_RADIUS_INNER": "inner_radius",
+            "VELOCITY": "flow_direction",
+        },
+        "fixed": {
+            "COL_DISPERSION_MULTIPLEX": 3,
+            "FILM_DIFFUSION_MULTIPLEX": 3,
+            "PAR_DIFFUSION_MULTIPLEX": 3,
+            "PAR_SURFDIFFUSION_MULTIPLEX": 3,
+            "PORE_ACCESSIBILITY_MULTIPLEX": 3,
+        },
+    },
     "LumpedRateModelWithPores": {
         "name": "LUMPED_RATE_MODEL_WITH_PORES",
         "parameters": {
@@ -1252,6 +1301,30 @@ unit_parameters_map = {
             "PORE_ACCESSIBILITY_MULTIPLEX": 3,
         },
     },
+    "RadialLumpedRateModelWithPores": {
+        "name": "RADIAL_LUMPED_RATE_MODEL_WITH_PORES",
+        "parameters": {
+            "NCOMP": "n_comp",
+            "INIT_C": "c",
+            "INIT_CP": "cp",
+            "INIT_Q": "q",
+            "COL_DISPERSION": "axial_dispersion",
+            "COL_LENGTH": "length",
+            "COL_POROSITY": "bed_porosity",
+            "FILM_DIFFUSION": "film_diffusion",
+            "PAR_POROSITY": "particle_porosity",
+            "PAR_RADIUS": "particle_radius",
+            "PORE_ACCESSIBILITY": "pore_accessibility",
+            "COL_RADIUS_OUTER": "outer_radius",
+            "COL_RADIUS_INNER": "inner_radius",
+            "VELOCITY": "flow_direction",
+        },
+        "fixed": {
+            "COL_DISPERSION_MULTIPLEX": 3,
+            "FILM_DIFFUSION_MULTIPLEX": 3,
+            "PORE_ACCESSIBILITY_MULTIPLEX": 3,
+        },
+    },
     "LumpedRateModelWithoutPores": {
         "name": "LUMPED_RATE_MODEL_WITHOUT_PORES",
         "parameters": {
@@ -1262,6 +1335,23 @@ unit_parameters_map = {
             "COL_LENGTH": "length",
             "TOTAL_POROSITY": "total_porosity",
             "CROSS_SECTION_AREA": "cross_section_area",
+            "VELOCITY": "flow_direction",
+        },
+        "fixed": {
+            "COL_DISPERSION_MULTIPLEX": 3,
+        },
+    },
+    "RadialLumpedRateModelWithoutPores": {
+        "name": "RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES",
+        "parameters": {
+            "NCOMP": "n_comp",
+            "INIT_C": "c",
+            "INIT_Q": "q",
+            "COL_DISPERSION": "axial_dispersion",
+            "COL_LENGTH": "length",
+            "TOTAL_POROSITY": "total_porosity",
+            "COL_RADIUS_OUTER": "outer_radius",
+            "COL_RADIUS_INNER": "inner_radius",
             "VELOCITY": "flow_direction",
         },
         "fixed": {
@@ -1360,6 +1450,35 @@ class UnitParameters(ParameterWrapper):
 
     _model_parameters = _unit_parameters
     _model_type = "UNIT_TYPE"
+
+
+parameter_dependency_map = {
+    "PowerLaw": {
+        "name": "POWER_LAW",
+        "parameters": {
+            "DEP_BASE": "base",
+            "DEP_EXPONENT": "exponent",
+            "DEP_ABS": "calculate_absolute_value",
+        },
+    },
+}
+
+
+class ParameterDependencyParameters(ParameterWrapper):
+    """
+    Converter for ParameterDependency parameters from CADETProcess to CADET.
+
+    See Also
+    --------
+    ParameterWrapper
+    """
+
+    _baseClass = ParameterParameterDependencyBase
+
+    _parameter_dependency_parameters = parameter_dependency_map
+
+    _model_parameters = _parameter_dependency_parameters
+    _model_type = "DEPENDENCY_TYPE"
 
 
 adsorption_parameters_map = {
