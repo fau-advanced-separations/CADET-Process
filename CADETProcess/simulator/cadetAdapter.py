@@ -25,6 +25,7 @@ from CADETProcess.dataStructure import (
     UnsignedInteger,
 )
 from CADETProcess.processModel import (
+    MCT,
     BindingBaseClass,
     Cstr,
     FlowSheet,
@@ -1122,12 +1123,7 @@ class Cadet(SimulatorBase):
                 -1 if comp is None else component_system.indices[comp][0]
             )
 
-            # Core registers binding-model parameters at ParTypeIndep for a
-            # single particle type (GeneralRateModel.cpp, `_singleBinding`
-            # branch), but registers every other parameter (unit transport,
-            # reaction, bulk or particle-phase) at the concrete particle-type
-            # index, even when there is only one particle type.
-            partypes.append(-1 if is_binding else 0)
+            partypes.append(_get_sens_partype(unit, is_binding, parameter))
 
             # Only binding-model parameters are bound-state dependent in Core
             # (ScalarComponentDependentParameter forwards to
@@ -1211,6 +1207,37 @@ class ModelSolverParameters(Structure):
         "schur_safety",
         "linear_solution_mode",
     ]
+
+
+# Parameters that Core registers per particle type, because the adapter writes
+# their ``*_MULTIPLEX`` mode as component and particle type dependent.
+_PARTYPE_DEPENDENT_PARAMETERS = {
+    "FILM_DIFFUSION",
+    "PAR_DIFFUSION",
+    "PAR_SURFDIFFUSION",
+    "PORE_ACCESSIBILITY",
+}
+
+
+def _get_sens_partype(unit: UnitBaseClass, is_binding: bool, parameter: str) -> int:
+    """
+    Return the ``SENS_PARTYPE`` index under which Core registers a parameter.
+
+    Core only uses a concrete particle type index for parameters it stores per
+    particle type. Everything else (column parameters, particle porosity and
+    radius, initial conditions, binding parameters of column models) is
+    registered as particle type independent (-1).
+    """
+    if isinstance(unit, Cstr) and (is_binding or parameter == "INIT_Q"):
+        return 0
+    if is_binding:
+        return -1
+    if parameter in _PARTYPE_DEPENDENT_PARAMETERS:
+        return 0
+    if isinstance(unit, MCT) and parameter == "COL_DISPERSION":
+        # COL_DISPERSION_MULTIPLEX = 7: the particle type slot holds the channel
+        return 0
+    return -1
 
 
 unit_parameters_map = {

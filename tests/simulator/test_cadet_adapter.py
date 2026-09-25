@@ -8,8 +8,11 @@ import numpy.testing as npt
 import pytest
 from CADETProcess import CADETProcessError
 from CADETProcess.processModel import (
+    MCT,
     ComponentSystem,
+    Cstr,
     FlowSheet,
+    GeneralRateModel,
     Inlet,
     Linear,
     LumpedRateModelWithPores,
@@ -872,6 +875,171 @@ class TestParameterSensitivity:
             sens_solution - finite_difference
         ) / np.linalg.norm(finite_difference)
         assert relative_l2_error < 1e-3
+
+
+def build_unit_sensitivity_test_process(
+    unit_type: str = "LumpedRateModelWithPores", n_col: int = 20
+) -> Process:
+    """
+    Build a minimal process for sensitivity tests across unit operations.
+
+    The unit under test is always named ``column``. The flow rate gives a
+    residence time of a few minutes, so transport parameters noticeably affect
+    the outlet and their finite differences are not dominated by solver noise. Linear binding keeps
+    c = cp = q = 0 a consistent initial state (no electroneutrality constraint,
+    unlike Steric Mass Action), so the forward sensitivity solve converges
+    without the extra machinery an SMA fixture would need.
+    """
+    component_system = ComponentSystem(1)
+
+    inlet = Inlet(component_system, name="inlet")
+    inlet.flow_rate = 1e-8
+
+    if unit_type == "Cstr":
+        column = Cstr(component_system, name="column")
+        column.init_liquid_volume = 1e-6
+        column.const_solid_volume = 1e-7
+    elif unit_type == "MCT":
+        column = MCT(component_system, nchannel=2, name="column")
+        column.length = 0.014
+        # Equal areas: CADET-Core 5 has a wrong exchange Jacobian for unequal
+        # areas (cadet/CADET-Core#537), which is unrelated to the config tested here
+        column.channel_cross_section_areas = [3e-4, 3e-4]
+        column.axial_dispersion = 5.75e-8
+        column.exchange_matrix = np.array([[[0.0], [0.1]], [[0.05], [0.0]]])
+        column.discretization.ncol = n_col
+    else:
+        column_class = {
+            "LumpedRateModelWithPores": LumpedRateModelWithPores,
+            "GeneralRateModel": GeneralRateModel,
+        }[unit_type]
+        column = column_class(component_system, name="column")
+        column.length = 0.014
+        column.diameter = 0.02
+        column.bed_porosity = 0.37
+        column.axial_dispersion = 5.75e-8
+        column.particle_radius = 4.5e-5
+        column.particle_porosity = 0.75
+        column.film_diffusion = [6.9e-6]
+        if unit_type == "GeneralRateModel":
+            column.pore_diffusion = [7e-10]
+            column.discretization.npar = 5
+        column.discretization.ncol = n_col
+
+    if unit_type != "MCT":
+        binding_model = Linear(component_system)
+        binding_model.is_kinetic = True
+        binding_model.adsorption_rate = [2.0]
+        binding_model.desorption_rate = [1.0]
+        column.binding_model = binding_model
+
+    outlet = Outlet(component_system, name="outlet")
+
+    flow_sheet = FlowSheet(component_system)
+    flow_sheet.add_unit(inlet)
+    flow_sheet.add_unit(column)
+    flow_sheet.add_unit(outlet)
+    if unit_type == "MCT":
+        flow_sheet.add_connection(inlet, column, destination_port="channel_0")
+        flow_sheet.add_connection(column, outlet, origin_port="channel_0")
+    else:
+        flow_sheet.add_connection(inlet, column)
+        flow_sheet.add_connection(column, outlet)
+
+    process = Process(flow_sheet, "sensitivity_test")
+    process.cycle_time = 600
+    process.add_event("load", "flow_sheet.inlet.c", [1.0], 0)
+    process.add_event("wash", "flow_sheet.inlet.c", [0.0], 10)
+
+    return process
+
+
+def _get_parameter(process: Process, parameter_path: str) -> float:
+    unit_name, *attributes = parameter_path.split(".")
+    obj = process.flow_sheet[unit_name]
+    for attribute in attributes:
+        obj = getattr(obj, attribute)
+    return float(np.ravel(obj)[0])
+
+
+def _set_parameter(process: Process, parameter_path: str, value: float) -> None:
+    unit_name, *attributes = parameter_path.split(".")
+    obj = process.flow_sheet[unit_name]
+    for attribute in attributes[:-1]:
+        obj = getattr(obj, attribute)
+    is_list = np.ndim(getattr(obj, attributes[-1])) > 0
+    setattr(obj, attributes[-1], [value] if is_list else value)
+
+
+def _outlet_solution(results: SimulationResults | dict) -> np.ndarray:
+    outlet = results["column"]["outlet"]
+    if isinstance(outlet, dict):
+        outlet = outlet["channel_0"]
+    return outlet.solution
+
+
+# (unit type, parameter path, components)
+unit_sensitivity_test_cases = [
+    pytest.param("LumpedRateModelWithPores", "column.length", None,
+                 id="LRMP-length"),
+    pytest.param("LumpedRateModelWithPores", "column.axial_dispersion", "0",
+                 id="LRMP-axial_dispersion"),
+    pytest.param("LumpedRateModelWithPores", "column.bed_porosity", None,
+                 id="LRMP-bed_porosity"),
+    pytest.param("LumpedRateModelWithPores", "column.particle_porosity", None,
+                 id="LRMP-particle_porosity"),
+    pytest.param("GeneralRateModel", "column.pore_diffusion", "0",
+                 id="GRM-pore_diffusion"),
+    pytest.param("Cstr", "column.binding_model.adsorption_rate", "0",
+                 id="CSTR-adsorption_rate"),
+    pytest.param("MCT", "column.length", None,
+                 id="MCT-length"),
+]
+
+
+@pytest.mark.slow
+@unittest.skipIf(found_cadet is False, "Skip if CADET is not installed.")
+class TestUnitParameterSensitivity:
+    """
+    Sensitivities of unit parameters must agree with a central finite difference.
+
+    Covers parameters that Core registers with and without a particle type
+    index, so a wrong ``SENS_PARTYPE`` shows up as a mismatch.
+    """
+
+    @pytest.mark.parametrize(
+        "unit_type, parameter_path, components", unit_sensitivity_test_cases
+    )
+    def test_matches_central_finite_difference(
+        self, unit_type, parameter_path, components
+    ):
+        simulator = Cadet(install_path)
+
+        process = build_unit_sensitivity_test_process(unit_type)
+        process.add_parameter_sensitivity(
+            parameter_path, name="sens", components=components
+        )
+        sens_solution = _outlet_solution(
+            simulator.simulate(process).sensitivity["sens"]
+        )
+
+        nominal_value = _get_parameter(process, parameter_path)
+        h = 1e-2 * nominal_value
+
+        def perturbed_solution(delta: float) -> np.ndarray:
+            perturbed_process = build_unit_sensitivity_test_process(unit_type)
+            _set_parameter(perturbed_process, parameter_path, nominal_value + delta)
+            return _outlet_solution(simulator.simulate(perturbed_process).solution)
+
+        finite_difference = (perturbed_solution(h) - perturbed_solution(-h)) / (2 * h)
+
+        assert np.linalg.norm(finite_difference) > 0
+        relative_l2_error = np.linalg.norm(
+            sens_solution - finite_difference
+        ) / np.linalg.norm(finite_difference)
+        # A parameter ID that does not match Core yields zero or unrelated
+        # sensitivities (relative error ~1); 1e-2 leaves room for FD noise.
+        assert relative_l2_error < 1e-2
 
 
 if __name__ == "__main__":
