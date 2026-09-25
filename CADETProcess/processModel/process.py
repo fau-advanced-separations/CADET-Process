@@ -13,7 +13,7 @@ from CADETProcess.dynamicEvents import EventHandler, Section, TimeLine
 
 from .componentSystem import ComponentSystem
 from .flowSheet import FlowSheet
-from .unitOperation import Inlet, Outlet
+from .unitOperation import MCT, Inlet, Outlet, UnitBaseClass
 
 __all__ = ["Process", "ProcessMeta"]
 
@@ -329,6 +329,7 @@ class Process(EventHandler):
         section_indices: Optional[int | list[int]] = None,
         abstols: Optional[float | list[float]] = None,
         factors: Optional[int | list[int]] = None,
+        channel_indices: Optional[int | tuple[int, int] | list] = None,
     ) -> None:
         """
         Add parameter sensitivty to Process.
@@ -361,6 +362,13 @@ class Process(EventHandler):
         factors : float or list of float, optional
             The factors for each parameter.
             If not provided, a default factor of 1 will be used.
+        channel_indices : int, tuple of int, or list, optional
+            The channel(s) of an MCT to which the parameter(s) belong.
+            Required for channel dependent MCT parameters: an int for
+            ``axial_dispersion``, ``channel_cross_section_areas`` and ``c``, and
+            an ``(origin, destination)`` tuple for ``exchange_matrix``.
+            Sensitivities for ``exchange_matrix`` and
+            ``channel_cross_section_areas`` require CADET-Core >= 6.
 
         Raises
         ------
@@ -373,6 +381,7 @@ class Process(EventHandler):
             - sections
             - tolerances
             - factors
+            - channels
 
             Component is not found.
             Unit is not found.
@@ -387,6 +396,8 @@ class Process(EventHandler):
         .. todo::
             - [ ] Check if compoment/reaction/polynomial index are required.
             - [ ] Specify time instead of section index;
+            - [ ] MCT sensitivities are wrong in channels that receive exchange
+                  without exchanging back, until cadet/CADET-Core#791 is released.
         """
         if not isinstance(parameter_paths, list):
             parameter_paths = [parameter_paths]
@@ -454,10 +465,17 @@ class Process(EventHandler):
         if len(factors) != n_params:
             raise CADETProcessError("Number of factor entries does not match.")
 
+        if channel_indices is None:
+            channel_indices = n_params * [None]
+        if not isinstance(channel_indices, list):
+            channel_indices = [channel_indices]
+        if len(channel_indices) != n_params:
+            raise CADETProcessError("Number of channel indices does not match.")
+
         units = []
         associated_models = []
         parameters = []
-        for param, comp, coeff, reac, state, section, tol, fac in zip(
+        for param, comp, coeff, reac, state, section, tol, fac, channel in zip(
             parameter_paths,
             components,
             polynomial_coefficients,
@@ -466,6 +484,7 @@ class Process(EventHandler):
             section_indices,
             abstols,
             factors,
+            channel_indices,
         ):
             param_parts = param.split(".")
             unit = param_parts[0]
@@ -496,7 +515,12 @@ class Process(EventHandler):
             if associated_model is None:
                 if parameter not in unit.parameters:
                     raise CADETProcessError("Not a valid parameter.")
+                _check_channel_index(unit, parameter, channel, comp)
             else:
+                if channel is not None:
+                    raise CADETProcessError(
+                        f"{param} does not depend on a channel."
+                    )
                 associated_model = getattr(unit, associated_model)
 
                 if state is not None and state > associated_model.n_binding_sites:
@@ -520,6 +544,7 @@ class Process(EventHandler):
             section_indices,
             abstols,
             factors,
+            channel_indices,
         )
         self._parameter_sensitivities.append(sens)
 
@@ -900,6 +925,58 @@ class Process(EventHandler):
         return self.name
 
 
+# MCT parameters that are specified per channel, and the one specified per
+# (origin, destination) channel pair.
+_MCT_CHANNEL_PARAMETERS = {"axial_dispersion", "channel_cross_section_areas", "c"}
+_MCT_CHANNEL_PAIR_PARAMETERS = {"exchange_matrix"}
+
+
+def _check_channel_index(
+    unit: UnitBaseClass,
+    parameter: str,
+    channel: Optional[int | tuple[int, int]],
+    component: Optional[str],
+) -> None:
+    """Check that a channel index is given exactly where a parameter needs one."""
+    is_mct = isinstance(unit, MCT)
+    needs_channel = is_mct and parameter in _MCT_CHANNEL_PARAMETERS
+    needs_pair = is_mct and parameter in _MCT_CHANNEL_PAIR_PARAMETERS
+
+    if not (needs_channel or needs_pair):
+        if channel is not None:
+            raise CADETProcessError(
+                f"{unit.name}.{parameter} does not depend on a channel."
+            )
+        return
+
+    if needs_pair:
+        if not (isinstance(channel, tuple) and len(channel) == 2):
+            raise CADETProcessError(
+                f"{unit.name}.{parameter} requires an (origin, destination) "
+                "channel tuple."
+            )
+        channels = channel
+        if channel[0] == channel[1]:
+            raise CADETProcessError(
+                "Origin and destination channel must differ."
+            )
+    else:
+        if channel is None or isinstance(channel, tuple):
+            raise CADETProcessError(
+                f"{unit.name}.{parameter} requires a channel index."
+            )
+        channels = (channel,)
+
+    for index in channels:
+        if not 0 <= index < unit.nchannel:
+            raise CADETProcessError(
+                f"Channel index {index} exceeds number of channels."
+            )
+
+    if parameter != "channel_cross_section_areas" and component is None:
+        raise CADETProcessError(f"{unit.name}.{parameter} requires a component.")
+
+
 @dataclass
 class ParameterSensitivity:
     """Class for storing parameter sensitivity parameters."""
@@ -915,6 +992,7 @@ class ParameterSensitivity:
     section_indices: list = None
     abstols: list = None
     factors: list = None
+    channel_indices: list = None
 
 
 @dataclass

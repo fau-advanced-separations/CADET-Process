@@ -1042,5 +1042,183 @@ class TestUnitParameterSensitivity:
         assert relative_l2_error < 1e-2
 
 
+def build_mct_channel_sensitivity_test_process() -> Process:
+    """
+    Build a 3-channel MCT process for channel dependent sensitivity tests.
+
+    Every channel pair exchanges in both directions, since CADET-Core drops
+    Jacobian entries of one-directional exchange (cadet/CADET-Core#790).
+    """
+    component_system = ComponentSystem(1)
+
+    inlet = Inlet(component_system, name="inlet")
+    inlet.flow_rate = 1e-8
+
+    column = MCT(component_system, nchannel=3, name="column")
+    column.length = 0.014
+    column.channel_cross_section_areas = [3e-4, 3e-4, 3e-4]
+    column.axial_dispersion = [5e-8, 7e-8, 9e-8]
+    column.exchange_matrix = np.array(
+        [
+            [[0.0], [0.01], [0.02]],
+            [[0.03], [0.0], [0.04]],
+            [[0.05], [0.06], [0.0]],
+        ]
+    )
+    column.c = [[0.1, 0.2, 0.3]]
+    column.discretization.ncol = 20
+    column.solution_recorder.write_solution_bulk = True
+    column.solution_recorder.write_sens_bulk = True
+
+    outlet = Outlet(component_system, name="outlet")
+
+    flow_sheet = FlowSheet(component_system)
+    flow_sheet.add_unit(inlet)
+    flow_sheet.add_unit(column)
+    flow_sheet.add_unit(outlet)
+    flow_sheet.add_connection(inlet, column, destination_port="channel_0")
+    flow_sheet.add_connection(column, outlet, origin_port="channel_0")
+
+    process = Process(flow_sheet, "mct_channel_sensitivity_test")
+    process.cycle_time = 600
+    process.add_event("load", "flow_sheet.inlet.c", [1.0], 0)
+    process.add_event("wash", "flow_sheet.inlet.c", [0.0], 10)
+
+    return process
+
+
+def _cadet_major_version() -> int:
+    if not found_cadet:
+        return 0
+    return int(Cadet(install_path).version.split(".")[0])
+
+
+requires_core_6 = pytest.mark.skipif(
+    _cadet_major_version() < 6,
+    reason="MCT exchange and cross section sensitivities need CADET-Core 6.",
+)
+
+# (parameter, channel_indices, components, flat index of the perturbed entry)
+mct_channel_sensitivity_test_cases = [
+    pytest.param(
+        "exchange_matrix", (1, 2), "0", 5, id="exchange_matrix", marks=requires_core_6
+    ),
+    pytest.param(
+        "channel_cross_section_areas",
+        1,
+        None,
+        1,
+        id="channel_cross_section_areas",
+        marks=requires_core_6,
+    ),
+    pytest.param("axial_dispersion", 1, "0", 1, id="axial_dispersion"),
+    pytest.param("c", 1, "0", 1, id="c"),
+]
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(not found_cadet, reason="Skip if CADET is not installed.")
+class TestMCTChannelParameterSensitivity:
+    """Sensitivities of channel dependent MCT parameters must match FD."""
+
+    @pytest.mark.parametrize(
+        "parameter, channel_indices, components, entry",
+        mct_channel_sensitivity_test_cases,
+    )
+    def test_matches_central_finite_difference(
+        self, parameter, channel_indices, components, entry
+    ):
+        simulator = Cadet(install_path)
+
+        process = build_mct_channel_sensitivity_test_process()
+        process.add_parameter_sensitivity(
+            f"column.{parameter}",
+            name="sens",
+            components=components,
+            channel_indices=channel_indices,
+        )
+        sens_solution = (
+            simulator.simulate(process).sensitivity["sens"]["column"]["bulk"].solution
+        )
+
+        nominal = np.array(getattr(process.flow_sheet["column"], parameter), dtype=float)
+        h = 1e-3 * nominal.flat[entry]
+
+        def perturbed_solution(delta: float) -> np.ndarray:
+            perturbed_process = build_mct_channel_sensitivity_test_process()
+            value = nominal.copy()
+            value.flat[entry] += delta
+            setattr(perturbed_process.flow_sheet["column"], parameter, value.tolist())
+            results = simulator.simulate(perturbed_process)
+            return results.solution["column"]["bulk"].solution
+
+        finite_difference = (perturbed_solution(h) - perturbed_solution(-h)) / (2 * h)
+
+        assert np.linalg.norm(finite_difference) > 0
+        relative_l2_error = np.linalg.norm(
+            sens_solution - finite_difference
+        ) / np.linalg.norm(finite_difference)
+        assert relative_l2_error < 1e-2
+
+
+class TestChannelIndexValidation:
+    """add_parameter_sensitivity must check channel indices without running CADET."""
+
+    @pytest.mark.parametrize(
+        "parameter, channel_indices, components",
+        [
+            pytest.param("axial_dispersion", None, "0", id="missing-channel"),
+            pytest.param("exchange_matrix", 1, "0", id="exchange-needs-pair"),
+            pytest.param("exchange_matrix", (1, 1), "0", id="same-origin-destination"),
+            pytest.param("channel_cross_section_areas", 3, None, id="out-of-range"),
+            pytest.param("length", 0, None, id="not-channel-dependent"),
+            pytest.param("exchange_matrix", (0, 1), None, id="missing-component"),
+        ],
+    )
+    def test_invalid_channel_indices(self, parameter, channel_indices, components):
+        process = build_mct_channel_sensitivity_test_process()
+        with pytest.raises(CADETProcessError):
+            process.add_parameter_sensitivity(
+                f"column.{parameter}",
+                components=components,
+                channel_indices=channel_indices,
+            )
+
+    def test_channel_index_on_column_raises(self):
+        process = build_unit_sensitivity_test_process("LumpedRateModelWithPores")
+        with pytest.raises(CADETProcessError):
+            process.add_parameter_sensitivity("column.length", channel_indices=0)
+
+    @pytest.mark.skipif(not found_cadet, reason="Skip if CADET is not installed.")
+    def test_channel_indices_are_mapped_to_core_slots(self):
+        process = build_mct_channel_sensitivity_test_process()
+        process.add_parameter_sensitivity(
+            "column.axial_dispersion", components="0", channel_indices=1
+        )
+        process.add_parameter_sensitivity("column.c", components="0", channel_indices=2)
+        simulator = Cadet(install_path)
+        dispersion, init_c = (
+            simulator.get_sensitivity_config(process, sens)
+            for sens in process.parameter_sensitivities
+        )
+        assert dispersion.sens_name == ["COL_DISPERSION"]
+        assert dispersion.sens_partype == [1]
+        assert init_c.sens_name == ["INIT_C"]
+        assert init_c.sens_reaction == [2]
+
+    @pytest.mark.skipif(not found_cadet, reason="Skip if CADET is not installed.")
+    def test_exchange_matrix_channels_are_mapped_to_core_slots(self):
+        process = build_mct_channel_sensitivity_test_process()
+        process.add_parameter_sensitivity(
+            "column.exchange_matrix", components="0", channel_indices=(1, 2)
+        )
+        config = Cadet(install_path).get_sensitivity_config(
+            process, process.parameter_sensitivities[0]
+        )
+        assert config.sens_name == ["EXCHANGE_MATRIX"]
+        assert config.sens_partype == [2]
+        assert config.sens_boundphase == [1]
+
+
 if __name__ == "__main__":
     pytest.main([__file__])
