@@ -5,6 +5,7 @@ import pytest
 from CADETProcess.optimization import (
     COBYLA,
     COBYQA,
+    LBFGSB,
     SLSQP,
     U_NSGA3,
     NelderMead,
@@ -115,6 +116,10 @@ class SLSQP(SLSQP):
     cv_lincon_tol = CV_LINCON_TOL
 
 
+class LBFGSB(LBFGSB):
+    pass
+
+
 if not skip_ipopt:
     class IPOPT(IPOPT):
         tol = 1e-8
@@ -188,6 +193,7 @@ params = [
     COBYLA,
     COBYQA,
     SLSQP,
+    LBFGSB,
     TrustConstr,
     NelderMead,
     U_NSGA3,

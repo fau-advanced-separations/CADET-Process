@@ -39,6 +39,7 @@ Scipy
    COBYQA
    NelderMead
    SLSQP
+   LBFGSB
 
 IPOPT
 -----
@@ -110,7 +111,7 @@ from .results import *
 from .optimization_problem import OptimizationProblem
 from .parallelizationBackend import *
 from .optimizer import *
-from .scipyAdapter import COBYLA, COBYQA, TrustConstr, NelderMead, SLSQP
+from .scipyAdapter import COBYLA, COBYQA, TrustConstr, NelderMead, SLSQP, LBFGSB
 from .pymooAdapter import NSGA2, U_NSGA3
 
 import importlib
