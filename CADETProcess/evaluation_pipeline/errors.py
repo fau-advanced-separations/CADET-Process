@@ -30,6 +30,13 @@ class EvaluationFailure:
     recoverable: bool = False
     exc: BaseException | None = field(default=None, repr=False, compare=False)
 
+    def __hash__(self) -> int:  # noqa: D105
+        # Hashable so a sentinel may sit in a mapped array that feeds a cached
+        # fan-in node: pipefunc builds that node's cache key from its whole
+        # input array, which throws if any element is unhashable.  Hash over the
+        # compared fields (exc is compare=False), keeping the eq/hash contract.
+        return hash((self.stage, self.reason, self.recoverable))
+
     def __str__(self) -> str:  # noqa: D105
         tag = " (recoverable)" if self.recoverable else ""
         return f"EvaluationFailure at '{self.stage}': {self.reason}{tag}"
