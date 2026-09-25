@@ -25,7 +25,6 @@ from CADETProcess.dataStructure import (
     UnsignedInteger,
 )
 from CADETProcess.processModel import (
-    MCT,
     BindingBaseClass,
     Cstr,
     FlowSheet,
@@ -1080,7 +1079,18 @@ class Cadet(SimulatorBase):
         boundphases = []
         reactions = []
 
-        for param, unit, associated_model, comp, coeff, bound_state, reaction in zip(
+        channel_indices = sens.channel_indices or len(sens.parameters) * [None]
+
+        for (
+            param,
+            unit,
+            associated_model,
+            comp,
+            coeff,
+            bound_state,
+            reaction,
+            channel,
+        ) in zip(
             sens.parameters,
             sens.units,
             sens.associated_models,
@@ -1088,6 +1098,7 @@ class Cadet(SimulatorBase):
             sens.polynomial_coefficients,
             sens.bound_state_indices,
             sens.reaction_indices,
+            channel_indices,
         ):
             unit_index = process.flow_sheet.get_unit_index(unit)
             unit_indices.append(unit_index)
@@ -1136,6 +1147,11 @@ class Cadet(SimulatorBase):
                 boundphases.append(0 if is_binding else -1)
 
             reactions.append(-1 if reaction is None else reaction)
+
+            if channel is not None:
+                _set_channel_index(
+                    parameter, channel, partypes, boundphases, reactions
+                )
 
         config.sens_unit = unit_indices
         config.sens_name = parameters
@@ -1234,10 +1250,31 @@ def _get_sens_partype(unit: UnitBaseClass, is_binding: bool, parameter: str) -> 
         return -1
     if parameter in _PARTYPE_DEPENDENT_PARAMETERS:
         return 0
-    if isinstance(unit, MCT) and parameter == "COL_DISPERSION":
-        # COL_DISPERSION_MULTIPLEX = 7: the particle type slot holds the channel
-        return 0
     return -1
+
+
+def _set_channel_index(
+    parameter: str,
+    channel: int | tuple[int, int],
+    partypes: list,
+    boundphases: list,
+    reactions: list,
+) -> None:
+    """
+    Write the channel index of an MCT parameter into the slot Core uses for it.
+
+    Core reuses the particle type, bound state and reaction slots of the
+    parameter ID for channels. The exchange matrix takes the destination
+    channel as particle type and the origin channel as bound state.
+    """
+    if parameter == "EXCHANGE_MATRIX":
+        origin, destination = channel
+        partypes[-1] = destination
+        boundphases[-1] = origin
+    elif parameter == "INIT_C":
+        reactions[-1] = channel
+    else:
+        partypes[-1] = channel
 
 
 unit_parameters_map = {

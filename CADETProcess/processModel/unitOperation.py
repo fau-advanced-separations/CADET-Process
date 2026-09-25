@@ -412,6 +412,34 @@ class UnitBaseClass(Structure):
 
         self._particle_reaction_model = particle_reaction_model
 
+    def check_sensitivity_indices(
+        self,
+        parameter: str,
+        component: Optional[str] = None,  # noqa: ARG002
+        channel: Optional[int | tuple[int, int]] = None,
+    ) -> None:
+        """
+        Check that the indices of a parameter sensitivity are valid for this unit.
+
+        Parameters
+        ----------
+        parameter : str
+            Name of the unit parameter.
+        component : str, optional
+            Component of the parameter.
+        channel : int or tuple of int, optional
+            Channel of the parameter.
+
+        Raises
+        ------
+        CADETProcessError
+            If a channel is given, since the unit has no channels.
+        """
+        if channel is not None:
+            raise CADETProcessError(
+                f"{self.name}.{parameter} does not depend on a channel."
+            )
+
     def __repr__(self) -> str:
         """str: String-representation of the object."""
         return f"{self.__class__.__name__}(n_comp={self.n_comp}, name={self.name})"
@@ -1552,6 +1580,15 @@ class MCT(UnitBaseClass):
     _initial_state = UnitBaseClass._initial_state + ["c"]
     _parameters = _parameters + _initial_state
 
+    # Parameters that are specified per channel, and per (origin, destination)
+    # channel pair.
+    _channel_dependent_parameters = [
+        "axial_dispersion",
+        "channel_cross_section_areas",
+        "c",
+    ]
+    _channel_pair_dependent_parameters = ["exchange_matrix"]
+
     def __init__(self, *args: Any, nchannel: int, **kwargs: Any) -> None:
         """Initialize MCT."""
         discretization = MCTDiscretizationFV()
@@ -1581,6 +1618,69 @@ class MCT(UnitBaseClass):
     def n_ports(self) -> int:
         """int: Number of ports (here the number of channels)."""
         return self.nchannel
+
+    def check_sensitivity_indices(
+        self,
+        parameter: str,
+        component: Optional[str] = None,
+        channel: Optional[int | tuple[int, int]] = None,
+    ) -> None:
+        """
+        Check the channel and component indices of a parameter sensitivity.
+
+        ``axial_dispersion`` and ``c`` require a channel index and a component.
+        ``channel_cross_section_areas`` requires a channel index only.
+        ``exchange_matrix`` requires an ``(origin, destination)`` tuple of two
+        different channels and a component. All channel indices must be smaller
+        than ``nchannel``. All other parameters must not be given a channel.
+
+        Parameters
+        ----------
+        parameter : str
+            Name of the unit parameter.
+        component : str, optional
+            Component of the parameter.
+        channel : int or tuple of int, optional
+            Channel of the parameter.
+
+        Raises
+        ------
+        CADETProcessError
+            If the channel is missing, has the wrong shape, or is out of range,
+            if a channel is given for a parameter that does not depend on one,
+            or if the component is missing.
+        """
+        needs_channel = parameter in self._channel_dependent_parameters
+        needs_pair = parameter in self._channel_pair_dependent_parameters
+
+        if not (needs_channel or needs_pair):
+            super().check_sensitivity_indices(parameter, component, channel)
+            return
+
+        if needs_pair:
+            if not (isinstance(channel, tuple) and len(channel) == 2):
+                raise CADETProcessError(
+                    f"{self.name}.{parameter} requires an (origin, destination) "
+                    "channel tuple."
+                )
+            channels = channel
+            if channel[0] == channel[1]:
+                raise CADETProcessError("Origin and destination channel must differ.")
+        else:
+            if channel is None or isinstance(channel, tuple):
+                raise CADETProcessError(
+                    f"{self.name}.{parameter} requires a channel index."
+                )
+            channels = (channel,)
+
+        for index in channels:
+            if not 0 <= index < self.nchannel:
+                raise CADETProcessError(
+                    f"Channel index {index} exceeds number of channels."
+                )
+
+        if parameter != "channel_cross_section_areas" and component is None:
+            raise CADETProcessError(f"{self.name}.{parameter} requires a component.")
 
     @property
     def volume(self) -> float:
