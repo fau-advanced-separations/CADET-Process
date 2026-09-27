@@ -818,6 +818,54 @@ def test_per_object_and_mapspec_exclusive_on_all_metric_kinds(
         )
 
 
+@pytest.mark.parametrize("kind", ["objective", "constraint", "meta_score", "callback"])
+def test_fan_in_rejects_evaluation_objects_subset(op_two_objects_with_evaluator, kind):
+    # A collector (per_object=False) receives every registered case's value;
+    # nothing narrows that to a declared subset before the reducer runs, so a
+    # subset restriction combined with a fan-in must raise rather than
+    # silently aggregate over every registered case instead of the subset.
+    op, simulate, obj_a, _ = op_two_objects_with_evaluator
+    register = {
+        "objective": op.add_objective,
+        "constraint": op.add_nonlinear_constraint,
+        "meta_score": op.add_meta_score,
+        "callback": op.add_callback,
+    }[kind]
+    kwargs = {"bounds": 100} if kind == "constraint" else {}
+
+    with pytest.raises(CADETProcessError, match="does not support evaluation_objects"):
+        register(
+            lambda sims: 0.0,
+            name="bad",
+            requires=simulate,
+            per_object=False,
+            evaluation_objects=[obj_a],
+            **kwargs,
+        )
+
+
+@pytest.mark.parametrize("declare_full_set", [False, True])
+def test_fan_in_accepts_full_evaluation_object_set(
+    op_two_objects_with_evaluator, declare_full_set
+):
+    # Both legitimate full-coverage spellings -- the implicit default (all
+    # registered cases) and an explicit list naming every one of them -- must
+    # keep working; only a genuine, proper subset is rejected.
+    op, simulate, obj_a, obj_b = op_two_objects_with_evaluator
+    kwargs = {"evaluation_objects": [obj_a, obj_b]} if declare_full_set else {}
+
+    op.add_objective(
+        lambda sims: float(np.mean(sims)),
+        name="mean_sim",
+        requires=simulate,
+        per_object=False,
+        **kwargs,
+    )
+
+    assert op.n_objectives == 1
+    np.testing.assert_allclose(op.evaluate_objectives([0.5]), [7.5])
+
+
 def test_add_evaluator_owns_no_evaluation_objects_declaration():
     # Domain declarations belong on the domain-owning leaves (objectives,
     # constraints, callbacks); evaluators derive their domain from demand.

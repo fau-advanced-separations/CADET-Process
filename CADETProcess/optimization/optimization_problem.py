@@ -1380,6 +1380,46 @@ class OptimizationProblem(Problem):
                 raise CADETProcessError(f"Unknown EvaluationObject: {el!r}")
         return sorted(objs, key=registered.index)
 
+    def _check_fan_in_subset_supported(
+        self, eval_objs: list[Any], per_object: Optional[bool]
+    ) -> None:
+        """Guard against a silently-wrong fan-in over a genuine case subset.
+
+        A collector node (``per_object=False``) receives every registered
+        case's value; nothing today narrows that array to
+        ``evaluation_objects=``'s declared subset before the reducer runs.
+        Per-node domain narrowing is settled design, unimplemented (see
+        PARAMETERS.md, "Subset routing is graph construction, not runtime
+        skipping"). Without this guard, a subset-scoped fan-in silently
+        includes every other registered case in its reduction instead of
+        raising -- this is a real, non-hypothetical failure mode, not a
+        precaution against a case that can't happen.
+
+        Raises
+        ------
+        CADETProcessError
+            If *per_object* is ``False`` and *eval_objs* is a genuine, proper
+            subset of the registered evaluation objects.
+        """
+        if per_object is not False or not eval_objs:
+            return
+        registered = self.evaluation_objects
+        # Identity comparison, not equality/hashing: evaluation objects (a
+        # Process, a FlowSheet, ...) are not required to be hashable, the same
+        # convention ParameterSpace.add_case/case_uuid already use.
+        is_full_set = len(eval_objs) == len(registered) and all(
+            any(a is b for b in registered) for a in eval_objs
+        )
+        if not is_full_set:
+            raise CADETProcessError(
+                "per_object=False (fan-in) does not support evaluation_objects= "
+                "restricted to a subset of registered cases: the reducer would "
+                "receive every registered case's value regardless of this "
+                "argument, not just the declared subset. Register the reducer "
+                "with evaluation_objects=-1 (all cases), or register a separate "
+                "OptimizationProblem per independent group of cases."
+            )
+
     @staticmethod
     def _check_per_object_exclusive(
         per_object: Optional[bool], mapspec: Optional[str]
@@ -1505,6 +1545,7 @@ class OptimizationProblem(Problem):
         self._check_metric_name(name)
 
         eval_objs = self._resolve_evaluation_objects(evaluation_objects)
+        self._check_fan_in_subset_supported(eval_objs, per_object)
 
         # Resolve evaluator chain and lazily register in pipeline.
         if requires is None:
@@ -1663,6 +1704,7 @@ class OptimizationProblem(Problem):
         self._check_metric_name(name)
 
         eval_objs = self._resolve_evaluation_objects(evaluation_objects)
+        self._check_fan_in_subset_supported(eval_objs, per_object)
 
         # Normalize bounds.
         if isinstance(bounds, (int, float)):
@@ -1808,6 +1850,7 @@ class OptimizationProblem(Problem):
         for el in eval_objs:
             if el not in self.evaluation_objects:
                 raise CADETProcessError(f"Unknown EvaluationObject: {el!r}")
+        self._check_fan_in_subset_supported(eval_objs, per_object)
 
         if requires is None:
             req_list: list = []
@@ -1914,6 +1957,7 @@ class OptimizationProblem(Problem):
         self._check_metric_name(name)
 
         eval_objs = self._resolve_evaluation_objects(evaluation_objects)
+        self._check_fan_in_subset_supported(eval_objs, per_object)
 
         # Resolve evaluator chain and lazily register in pipeline.
         if requires is None:
