@@ -13,6 +13,7 @@ comparison with ``SimulationResults``
 
     ReferenceBase
     ReferenceIO
+    FractionationReference
 
 """  # noqa
 

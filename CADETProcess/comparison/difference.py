@@ -42,6 +42,7 @@ __all__ = [
     "BreakthroughHeight",
     "BreakthroughPosition",
     "FractionationSSE",
+    "FractionationNRMSE",
 ]
 
 
@@ -1210,3 +1211,43 @@ class FractionationSSE(DifferenceBase):
         sse = calculate_sse(solution.solution, self.reference.solution)
 
         return sse
+
+
+class FractionationNRMSE(FractionationSSE):
+    """Normalized RMSE of flow-weighted fraction concentrations.
+
+    Each collected fraction contributes equally to the RMSE, irrespective of its
+    duration or volume. The score is computed per selected component and divided
+    by that component's maximum measured fraction concentration, as for
+    :class:`NRMSE`. Zero reference maxima retain NumPy's division-by-zero behavior.
+
+    Simulation concentrations are integrated over the reference collection
+    windows using :meth:`~CADETProcess.solution.SolutionIO.create_fraction`.
+    Restrict comparisons by constructing a reference with the desired fractions;
+    trace slicing with ``start`` or ``end`` is not supported.
+
+    Parameters
+    ----------
+    *args : Any
+        Arguments for :class:`FractionationSSE`, beginning with a
+        :class:`~CADETProcess.reference.FractionationReference`.
+    **kwargs : Any
+        Keyword arguments for :class:`FractionationSSE`, such as ``components``.
+
+    See Also
+    --------
+    FractionationSSE
+    NRMSE
+    """
+
+    @wraps(FractionationSSE.__init__)
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        if self.start is not None or self.end is not None:
+            raise ValueError(
+                "Select collection windows in FractionationReference instead of "
+                "using start or end."
+            )
+
+    def _evaluate(self, solution: SolutionIO) -> np.ndarray:
+        return NRMSE._evaluate(self, solution)

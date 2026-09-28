@@ -62,7 +62,8 @@ reference = ReferenceIO('c experiment', time_experiment, c_experiment)
 Similarly to the {class}`~CADETProcess.solution.SolutionIO` class, the {class}`~CADETProcess.reference.ReferenceIO` class also provides a plot method:
 
 ```{code-cell} ipython3
-_ = reference.plot()
+fig, axes = reference.plot()
+assert np.all(np.isfinite(reference.solution))
 ```
 
 ## Difference Metrics
@@ -119,13 +120,17 @@ simulation_results = simulator.simulate(process)
 
 ```{code-cell} ipython3
 metrics = comparator.evaluate(simulation_results)
+assert len(metrics) == comparator.n_metrics
+assert np.all(np.isfinite(metrics))
 print(metrics)
 ```
 
 The difference can also be visualized:
 
 ```{code-cell} ipython3
-_ = comparator.plot_comparison(simulation_results)
+fig, axes = comparator.plot_comparison(simulation_results)
+assert len(axes) == comparator.n_difference_metrics
+assert all(len(ax.lines) >= 2 for ax in axes)
 ```
 
 The comparison shows that there is still a large discrepancy between simulation and experiment.
@@ -136,4 +141,47 @@ For an example, see {ref}`fit_column_transport`.
 :tags: [remove-cell]
 
 shutil.rmtree('./experimental_data/', ignore_errors=True)
+```
+
+
+## Comparing collected fractions
+
+Offline measurements describe the average concentration in each collection window.
+{class}`~CADETProcess.reference.FractionationReference` stores these windows together with measured amounts and volumes.
+{class}`~CADETProcess.comparison.FractionationNRMSE` integrates the simulated outlet over the same windows and compares their flow-weighted concentrations.
+Each fraction has equal weight in the RMSE, and each component's RMSE is divided by its maximum measured fraction concentration.
+{class}`~CADETProcess.comparison.FractionationSSE` remains available when an unnormalized sum of squared errors is desired.
+
+A continuous {class}`~CADETProcess.reference.ReferenceIO` already inherits {meth}`~CADETProcess.solution.SolutionIO.create_fraction`.
+The returned fraction's `concentration` is its integrated amount divided by its collected volume, using the signal's flow rate.
+Use consistent units for measured amounts, volumes and simulated concentrations.
+Select the desired collection windows in the reference; `FractionationNRMSE` rejects trace slicing with `start` or `end`.
+Normalization follows `NRMSE`, including division by zero for an all-zero reference component; select components with a meaningful positive concentration scale.
+
+This example creates one synthetic offline measurement from the simulated outlet, with a deliberately 10 % larger measured amount.
+In practice, supply the measured amount, volume and collection times instead.
+
+```{code-cell} ipython3
+from CADETProcess.comparison import FractionationNRMSE
+from CADETProcess.fractionation import Fraction
+from CADETProcess.reference import FractionationReference
+
+outlet = simulation_results.solution.column.outlet
+collected = outlet.create_fraction(outlet.time[0], outlet.time[-1])
+measured_fraction = Fraction(
+    mass=1.1 * collected.mass,
+    volume=collected.volume,
+    start=collected.start,
+    end=collected.end,
+)
+fraction_reference = FractionationReference(
+    'offline measurement', [measured_fraction],
+    component_system=outlet.component_system,
+)
+fraction_metric = FractionationNRMSE(fraction_reference)
+fraction_comparator = Comparator()
+fraction_comparator.add_difference_metric(fraction_metric, 'column.outlet')
+fraction_scores = fraction_comparator.evaluate(simulation_results)
+np.testing.assert_allclose(fraction_scores, [1 / 11], rtol=1e-6)
+print(fraction_scores)
 ```

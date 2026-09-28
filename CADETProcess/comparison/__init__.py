@@ -17,6 +17,8 @@ Difference Metrics
     SSE
     RMSE
     NRMSE
+    FractionationSSE
+    FractionationNRMSE
     Norm
     L1
     L2
