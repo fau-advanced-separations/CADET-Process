@@ -376,10 +376,7 @@ class OptimizationProblem(Problem):
 
         ``_build_metric`` decides on a ``case`` dimension from the case
         count at the time it runs, so the idiomatic "case, then its
-        objective" loop leaves the first objective without one. Mirrors
-        ``EvaluationPipeline``'s own invalidate-on-registration pattern.
-        Rebuilds ``dims``/``coords``/labels in place; ``n_metrics`` and a
-        metric's bound objects are fixed at registration, so neither changes.
+        objective" loop leaves the first objective without one.
         """
         if len(self.evaluation_objects) <= 1:
             return
@@ -390,7 +387,7 @@ class OptimizationProblem(Problem):
                 record.name, record.n_metrics, record.metric.labels,
                 record.evaluation_objects,
             )
-            record.metric.__dict__.update(rebuilt.__dict__)
+            record.metric.redeclare(rebuilt)
 
     @property
     def evaluation_objects(self) -> list[Any]:

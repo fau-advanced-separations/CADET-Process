@@ -50,7 +50,17 @@ class Metric:
         if not isinstance(name, str) or not name:
             raise ValueError("Metric name must be a non-empty string.")
         self.name = name
+        self._declare(n_metrics, dims, coords, labels)
 
+    def _declare(
+        self,
+        n_metrics: Optional[int],
+        dims: Optional[tuple[str, ...]],
+        coords: Optional[dict[str, list[Any]]],
+        labels: Optional[list[str]],
+    ) -> None:
+        """Set shape and labels from a declaration, validating consistency."""
+        name = self.name
         if dims is not None:
             if coords is None:
                 raise ValueError(f"Metric {name!r}: dims requires coords.")
@@ -85,6 +95,28 @@ class Metric:
             self._shape = () if n == 1 else (n,)
 
         self.labels = labels
+
+    def redeclare(self, other: Metric) -> None:
+        """Adopt *other*'s dimensions, keeping identity and entry count.
+
+        Mutates in place because the declaration is shared by reference with
+        every annotation holding it.
+
+        Raises
+        ------
+        ValueError
+            If *other* has a different name or number of entries.
+        """
+        if other.name != self.name:
+            raise ValueError(
+                f"Metric {self.name!r}: cannot redeclare as {other.name!r}."
+            )
+        if other.n_metrics != self.n_metrics:
+            raise ValueError(
+                f"Metric {self.name!r}: redeclaration changes the entry count "
+                f"from {self.n_metrics} to {other.n_metrics}."
+            )
+        self._declare(other.n_metrics, other.dims, other.coords, other._labels)
 
     @property
     def shape(self) -> tuple[int, ...]:
