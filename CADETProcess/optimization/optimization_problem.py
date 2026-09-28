@@ -369,6 +369,25 @@ class OptimizationProblem(Problem):
                 "also be an evaluation object."
             )
         self._parameter_space.add_case(obj)
+        self._promote_pending_case_dims()
+
+    def _promote_pending_case_dims(self) -> None:
+        """Rebuild object-bound metrics registered before enough cases existed.
+
+        ``_build_metric`` decides on a ``case`` dimension from the case
+        count at the time it runs, so the idiomatic "case, then its
+        objective" loop leaves the first objective without one.
+        """
+        if len(self.evaluation_objects) <= 1:
+            return
+        for record in self._objectives + self._nonlinear_constraints + self._meta_scores:
+            if not record.evaluation_objects or record.metric.coords is not None:
+                continue
+            rebuilt = self._build_metric(
+                record.name, record.n_metrics, record.metric.labels,
+                record.evaluation_objects,
+            )
+            record.metric.redeclare(rebuilt)
 
     @property
     def evaluation_objects(self) -> list[Any]:

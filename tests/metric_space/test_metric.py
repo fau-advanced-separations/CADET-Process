@@ -77,6 +77,33 @@ def test_n_metrics_contradicting_dims_raises():
         Metric("yield", n_metrics=3, dims=("component",), coords={"component": ["A", "B"]})
 
 
+# ── Redeclaration ─────────────────────────────────────────────────────────────
+
+
+def test_redeclare_adopts_dims_in_place():
+    m = Metric("yield")
+    m.redeclare(
+        Metric("yield", dims=("case",), coords={"case": ["A"]}, labels=["A_yield"])
+    )
+    assert m.dims == ("case",)
+    assert m.coords == {"case": ["A"]}
+    assert m.shape == (1,)
+    assert m.labels == ["A_yield"]
+
+
+def test_redeclare_rejects_different_name():
+    m = Metric("yield")
+    with pytest.raises(ValueError, match="purity"):
+        m.redeclare(Metric("purity"))
+
+
+def test_redeclare_rejects_changed_entry_count():
+    m = Metric("yield")
+    other = Metric("yield", dims=("case",), coords={"case": ["A", "B"]})
+    with pytest.raises(ValueError, match="entry count"):
+        m.redeclare(other)
+
+
 # ── Shape validation ──────────────────────────────────────────────────────────
 
 
