@@ -348,7 +348,9 @@ class Comparator(Structure):
             )
             ax.legend(loc=1)
 
-            m = metric.evaluate(solution_sliced, slice=False)
+            # Evaluate the original trace: fraction integration and other transforms
+            # must not be applied a second time to the data prepared for plotting.
+            m = metric.evaluate(solution)
             m = round_to_significant_digits(m, digits=2)
 
             text = f"{metric}: "
