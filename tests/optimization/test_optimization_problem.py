@@ -885,6 +885,38 @@ def test_add_objective_with_eval_objects_minus_one():
     np.testing.assert_allclose(result, [1.5, 1.5])
 
 
+def test_case_dim_promoted_for_metric_registered_before_later_cases():
+    # The idiomatic "register a case, then its objective" loop means the
+    # first objective is built while only one case is registered: its
+    # Metric must still gain a case dimension once later cases follow,
+    # not stay frozen at the single-object shape it happened to see first.
+    op = OptimizationProblem("interleaved", use_diskcache=False)
+
+    def per_object_scores(eval_obj):
+        return [eval_obj.scalar_param, eval_obj.scalar_param_2]
+
+    for label in ("a", "b"):
+        eval_obj = EvaluationObject(name=label)
+        op.add_evaluation_object(eval_obj)
+        op.add_objective(
+            per_object_scores,
+            name=f"objective_{label}",
+            evaluation_objects=[eval_obj],
+            n_objectives=2,
+        )
+    op.add_variable("scalar_param", lb=0, ub=1)
+    op.add_variable("scalar_param_2", lb=0, ub=1)
+
+    metric_a = op._metric_space.metrics_dict["objective_a"]
+    metric_b = op._metric_space.metrics_dict["objective_b"]
+    assert metric_a.dims == ("case", "entry")
+    assert metric_a.coords == {"case": ["a"], "entry": ["objective_a_0", "objective_a_1"]}
+    assert metric_b.dims == ("case", "entry")
+
+    assert op.n_objectives == 4
+    np.testing.assert_allclose(op.evaluate_objectives([0.5, 0.5]), [0.5, 0.5, 0.5, 0.5])
+
+
 # ── Nonlinear constraint registration ────────────────────────────────────────
 
 
