@@ -13,7 +13,7 @@ from CADETProcess.dynamicEvents import EventHandler, Section, TimeLine
 
 from .componentSystem import ComponentSystem
 from .flowSheet import FlowSheet
-from .unitOperation import MCT, Inlet, Outlet, UnitBaseClass
+from .unitOperation import Inlet, Outlet
 
 __all__ = ["Process", "ProcessMeta"]
 
@@ -515,7 +515,7 @@ class Process(EventHandler):
             if associated_model is None:
                 if parameter not in unit.parameters:
                     raise CADETProcessError("Not a valid parameter.")
-                _check_channel_index(unit, parameter, channel, comp)
+                unit.check_sensitivity_indices(parameter, comp, channel)
             else:
                 if channel is not None:
                     raise CADETProcessError(
@@ -923,58 +923,6 @@ class Process(EventHandler):
     def __str__(self) -> str:
         """str: String representation of the process."""
         return self.name
-
-
-# MCT parameters that are specified per channel, and the one specified per
-# (origin, destination) channel pair.
-_MCT_CHANNEL_PARAMETERS = {"axial_dispersion", "channel_cross_section_areas", "c"}
-_MCT_CHANNEL_PAIR_PARAMETERS = {"exchange_matrix"}
-
-
-def _check_channel_index(
-    unit: UnitBaseClass,
-    parameter: str,
-    channel: Optional[int | tuple[int, int]],
-    component: Optional[str],
-) -> None:
-    """Check that a channel index is given exactly where a parameter needs one."""
-    is_mct = isinstance(unit, MCT)
-    needs_channel = is_mct and parameter in _MCT_CHANNEL_PARAMETERS
-    needs_pair = is_mct and parameter in _MCT_CHANNEL_PAIR_PARAMETERS
-
-    if not (needs_channel or needs_pair):
-        if channel is not None:
-            raise CADETProcessError(
-                f"{unit.name}.{parameter} does not depend on a channel."
-            )
-        return
-
-    if needs_pair:
-        if not (isinstance(channel, tuple) and len(channel) == 2):
-            raise CADETProcessError(
-                f"{unit.name}.{parameter} requires an (origin, destination) "
-                "channel tuple."
-            )
-        channels = channel
-        if channel[0] == channel[1]:
-            raise CADETProcessError(
-                "Origin and destination channel must differ."
-            )
-    else:
-        if channel is None or isinstance(channel, tuple):
-            raise CADETProcessError(
-                f"{unit.name}.{parameter} requires a channel index."
-            )
-        channels = (channel,)
-
-    for index in channels:
-        if not 0 <= index < unit.nchannel:
-            raise CADETProcessError(
-                f"Channel index {index} exceeds number of channels."
-            )
-
-    if parameter != "channel_cross_section_areas" and component is None:
-        raise CADETProcessError(f"{unit.name}.{parameter} requires a component.")
 
 
 @dataclass
