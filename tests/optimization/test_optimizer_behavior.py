@@ -116,6 +116,10 @@ class SLSQP(SLSQP):
     cv_lincon_tol = CV_LINCON_TOL
 
 
+class LBFGSB(LBFGSB):
+    pass
+
+
 if not skip_ipopt:
     class IPOPT(IPOPT):
         tol = 1e-8
