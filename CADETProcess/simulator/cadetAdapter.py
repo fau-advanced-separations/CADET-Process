@@ -1075,16 +1075,35 @@ class Cadet(SimulatorBase):
         unit_indices = []
         parameters = []
         components = []
+        partypes = []
+        boundphases = []
+        reactions = []
 
-        for param, unit, associated_model, comp, coeff in zip(
+        channel_indices = sens.channel_indices or len(sens.parameters) * [None]
+
+        for (
+            param,
+            unit,
+            associated_model,
+            comp,
+            coeff,
+            bound_state,
+            reaction,
+            channel,
+        ) in zip(
             sens.parameters,
             sens.units,
             sens.associated_models,
             sens.components,
             sens.polynomial_coefficients,
+            sens.bound_state_indices,
+            sens.reaction_indices,
+            channel_indices,
         ):
             unit_index = process.flow_sheet.get_unit_index(unit)
             unit_indices.append(unit_index)
+
+            is_binding = isinstance(associated_model, BindingBaseClass)
 
             if associated_model is None:
                 model = unit.model
@@ -1102,7 +1121,7 @@ class Cadet(SimulatorBase):
                     parameter = inv_unit_parameters_map[model]["parameters"][param]
             else:
                 model = associated_model.model
-                if isinstance(associated_model, BindingBaseClass):
+                if is_binding:
                     parameter = inv_adsorption_parameters_map[model]["parameters"][
                         param
                     ]
@@ -1111,39 +1130,44 @@ class Cadet(SimulatorBase):
             parameters.append(parameter)
 
             component_system = unit.component_system
-            comp = -1 if comp is None else component_system.indices[comp]
-            components.append(comp)
+            components.append(
+                -1 if comp is None else component_system.indices[comp][0]
+            )
+
+            partypes.append(_get_sens_partype(unit, is_binding, parameter))
+
+            # Only binding-model parameters are bound-state dependent in Core
+            # (ScalarComponentDependentParameter forwards to
+            # registerComponentBoundStateDependentParam); reaction rate
+            # constants are registered as BoundStateIndep regardless of
+            # liquid/solid/cross-phase, so they keep -1 unless overridden.
+            if bound_state is not None:
+                boundphases.append(bound_state)
+            else:
+                boundphases.append(0 if is_binding else -1)
+
+            reactions.append(-1 if reaction is None else reaction)
+
+            if channel is not None:
+                _set_channel_index(
+                    parameter, channel, partypes, boundphases, reactions
+                )
 
         config.sens_unit = unit_indices
         config.sens_name = parameters
         config.sens_comp = components
+        config.sens_partype = partypes
+        config.sens_boundphase = boundphases
+        config.sens_reaction = reactions
 
-        config.sens_partype = -1  # !!! Check when multiple particle types enabled.
-        if not all([index is None for index in sens.bound_state_indices]):
-            config.sens_reaction = [
-                -1 if index is None else index for index in sens.bound_state_indices
-            ]
-        else:
-            config.sens_reaction = -1
-
-        if not all([index is None for index in sens.bound_state_indices]):
-            config.sens_boundphase = [
-                -1 if index is None else index for index in sens.bound_state_indices
-            ]
-        else:
-            config.sens_boundphase = -1
-
-        if not all([index is None for index in sens.section_indices]):
-            config.sens_section = [
-                -1 if index is None else index for index in sens.section_indices
-            ]
-        else:
-            config.sens_section = -1
+        config.sens_section = [
+            -1 if index is None else index for index in sens.section_indices
+        ]
 
         if not all([index is None for index in sens.abstols]):
             config.sens_abstol = sens.abstols
 
-        config.factors = sens.factors
+        config.sens_factor = sens.factors
 
         return config
 
@@ -1199,6 +1223,58 @@ class ModelSolverParameters(Structure):
         "schur_safety",
         "linear_solution_mode",
     ]
+
+
+# Parameters that Core registers per particle type, because the adapter writes
+# their ``*_MULTIPLEX`` mode as component and particle type dependent.
+_PARTYPE_DEPENDENT_PARAMETERS = {
+    "FILM_DIFFUSION",
+    "PAR_DIFFUSION",
+    "PAR_SURFDIFFUSION",
+    "PORE_ACCESSIBILITY",
+}
+
+
+def _get_sens_partype(unit: UnitBaseClass, is_binding: bool, parameter: str) -> int:
+    """
+    Return the ``SENS_PARTYPE`` index under which Core registers a parameter.
+
+    Core only uses a concrete particle type index for parameters it stores per
+    particle type. Everything else (column parameters, particle porosity and
+    radius, initial conditions, binding parameters of column models) is
+    registered as particle type independent (-1).
+    """
+    if isinstance(unit, Cstr) and (is_binding or parameter == "INIT_Q"):
+        return 0
+    if is_binding:
+        return -1
+    if parameter in _PARTYPE_DEPENDENT_PARAMETERS:
+        return 0
+    return -1
+
+
+def _set_channel_index(
+    parameter: str,
+    channel: int | tuple[int, int],
+    partypes: list,
+    boundphases: list,
+    reactions: list,
+) -> None:
+    """
+    Write the channel index of an MCT parameter into the slot Core uses for it.
+
+    Core reuses the particle type, bound state and reaction slots of the
+    parameter ID for channels. The exchange matrix takes the destination
+    channel as particle type and the origin channel as bound state.
+    """
+    if parameter == "EXCHANGE_MATRIX":
+        origin, destination = channel
+        partypes[-1] = destination
+        boundphases[-1] = origin
+    elif parameter == "INIT_C":
+        reactions[-1] = channel
+    else:
+        partypes[-1] = channel
 
 
 unit_parameters_map = {
@@ -1836,19 +1912,19 @@ class SolverTimeIntegratorParameters(Structure):
         The default is 0.0 (unlimited).
     errortest_sens: bool, optional
         If True: Use (forward) sensitivities in local error test
-        The default is True.
+        The default is True (IDAS default).
     max_newton_iter: int, optional
         Maximum number of Newton iterations in time step.
-        The default is 3.
+        The default is 4 (IDAS default).
     max_errtest_fail: int, optional
         Maximum number of local error test failures in time step
-        The default is 7.
+        The default is 10 (IDAS default).
     max_convtest_fail: int, optional
         Maximum number of Newton convergence test failures
-        The default is 10.
+        The default is 10 (IDAS default).
     max_newton_iter_sens: int, optional
         Maximum number of Newton iterations in forward sensitivity time step
-        The default is 3.
+        The default is 4 (IDAS default).
 
     See Also
     --------
