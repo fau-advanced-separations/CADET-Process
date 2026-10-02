@@ -111,6 +111,27 @@ def test_crop_preserves_signal_values(flat_reference):
     np.testing.assert_allclose(result.solution, 2.0)
 
 
+@pytest.fixture
+def flow_step_reference():
+    """Unit signal over [0, 100] s whose flow rate doubles at t = 50."""
+    time = np.linspace(0, 100, 101)
+    flow_rate = np.where(time < 50, 1.0, 2.0)
+    return ReferenceIO("flow_step", time, np.ones((101, 1)), flow_rate=flow_rate)
+
+
+def test_crop_shifts_flow_rate(flow_step_reference):
+    result = crop(flow_step_reference, start=20.0, end=100.0)
+    assert result.flow_rate.value(10.0).item() == pytest.approx(1.0, rel=1e-3)
+    assert result.flow_rate.value(40.0).item() == pytest.approx(2.0, rel=1e-3)
+
+
+def test_crop_window_opening_before_data(flow_step_reference):
+    result = crop(flow_step_reference, start=-10.0, end=100.0)
+    assert result.time[0] == pytest.approx(10.0)
+    assert result.flow_rate.value(30.0).item() == pytest.approx(1.0, rel=1e-3)
+    assert result.flow_rate.value(80.0).item() == pytest.approx(2.0, rel=1e-3)
+
+
 # ---------------------------------------------------------------------------
 # correct_baseline
 # ---------------------------------------------------------------------------

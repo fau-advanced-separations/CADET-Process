@@ -42,7 +42,7 @@ def crop(
         reference.name + "_cropped",
         cropped_time,
         cropped_solution,
-        reference.flow_rate,
+        reference.flow_rate.offset(-start),
     )
 
 
