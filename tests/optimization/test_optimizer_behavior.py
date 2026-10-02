@@ -5,6 +5,7 @@ import pytest
 from CADETProcess.optimization import (
     COBYLA,
     COBYQA,
+    LBFGSB,
     SLSQP,
     U_NSGA3,
     NelderMead,
@@ -188,6 +189,7 @@ params = [
     COBYLA,
     COBYQA,
     SLSQP,
+    LBFGSB,
     TrustConstr,
     NelderMead,
     U_NSGA3,
