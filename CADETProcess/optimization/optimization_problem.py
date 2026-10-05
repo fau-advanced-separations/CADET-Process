@@ -1381,27 +1381,25 @@ class OptimizationProblem(Problem):
         return sorted(objs, key=registered.index)
 
     def _check_fan_in_subset_supported(
-        self, eval_objs: list[Any], per_object: Optional[bool]
+        self, eval_objs: list[Any], fan_in: bool
     ) -> None:
         """Guard against a silently-wrong fan-in over a genuine case subset.
 
-        A collector node (``per_object=False``) receives every registered
-        case's value; nothing today narrows that array to
-        ``evaluation_objects=``'s declared subset before the reducer runs.
-        Per-node domain narrowing is settled design, unimplemented (see
-        PARAMETERS.md, "Subset routing is graph construction, not runtime
-        skipping"). Without this guard, a subset-scoped fan-in silently
+        A fan-in leaf (declared ``per_object=False`` or downstream of a
+        collector) receives every registered case's value; nothing today
+        narrows that array to ``evaluation_objects=``'s declared subset before
+        the reducer runs, because per-node domain narrowing is not
+        implemented.  Without this guard, a subset-scoped fan-in silently
         includes every other registered case in its reduction instead of
-        raising -- this is a real, non-hypothetical failure mode, not a
-        precaution against a case that can't happen.
+        raising.
 
         Raises
         ------
         CADETProcessError
-            If *per_object* is ``False`` and *eval_objs* is a genuine, proper
-            subset of the registered evaluation objects.
+            If *fan_in* is True and *eval_objs* is a genuine, proper subset
+            of the registered evaluation objects.
         """
-        if per_object is not False or not eval_objs:
+        if not fan_in or not eval_objs:
             return
         registered = self.evaluation_objects
         # Identity comparison, not equality/hashing: evaluation objects (a
@@ -1430,6 +1428,55 @@ class OptimizationProblem(Problem):
                 "per_object and mapspec are mutually exclusive: per_object is "
                 "the normal API, mapspec the raw escape hatch; supply one."
             )
+
+    def _resolve_leaf_wiring(
+        self,
+        evaluation_objects: Any,
+        requires: Any,
+        per_object: Optional[bool],
+        mapspec: Optional[str],
+    ) -> tuple[list[Any], bool, list[str], list[str] | None]:
+        """Resolve the wiring shared by every leaf kind.
+
+        Objectives, nonlinear constraints, meta scores, and callbacks differ
+        in what their output means, not in how they are wired; this is the
+        one place their domain, evaluator chain, and per-object behavior are
+        resolved, so the kinds cannot diverge.  Whether the leaf runs per
+        object is asked of the pipeline, not re-derived here: an unset
+        *per_object* downstream of a collector makes the leaf a fan-in.
+
+        Returns
+        -------
+        eval_objs : list
+            Declared evaluation objects, in canonical order.
+        per_case : bool
+            Whether the leaf runs once per evaluation object.
+        evaluator_chain : list[str]
+            Names of the required evaluators, upstream first.
+        requires_node : list[str] or None
+            The leaf node's direct input, None for a root leaf.
+        """
+        self._check_per_object_exclusive(per_object, mapspec)
+        eval_objs = self._resolve_evaluation_objects(evaluation_objects)
+
+        # Resolve evaluator chain and lazily register in pipeline.
+        if requires is None:
+            req_list: list = []
+        elif not isinstance(requires, list):
+            req_list = [requires]
+        else:
+            req_list = list(requires)
+        evaluator_chain: list[str] = []
+        for req in req_list:
+            if req not in self._evaluator_names:
+                raise CADETProcessError(f"Unknown Evaluator: {req!r}")
+            evaluator_chain.append(self._evaluator_names[req])
+        self._register_evaluator_chain(req_list)
+
+        requires_node = [evaluator_chain[-1]] if evaluator_chain else None
+        per_case = self._backend.is_per_object(requires_node, per_object, mapspec)
+        self._check_fan_in_subset_supported(eval_objs, fan_in=not per_case)
+        return eval_objs, per_case, evaluator_chain, requires_node
 
     def _build_metric(
         self,
@@ -1513,8 +1560,10 @@ class OptimizationProblem(Problem):
             default semantic) or once over all of them (``False``), reducing
             the per-object array to *n_objectives* values, e.g. a weighted
             sum or worst case replacing a multi-objective formulation.
-            Declaring ``False`` engages mapped execution and requires
-            *requires*.  Mutually exclusive with `mapspec`.
+            Declaring ``False`` requires *requires*.  Left unset, it is
+            inferred: downstream of a ``per_object=False`` evaluator the
+            objective runs once, since there is no object axis left.
+            Mutually exclusive with `mapspec`.
         mapspec : str, optional
             Escape hatch: a raw pipefunc axis-mapping string, passed to the
             pipeline verbatim.
@@ -1544,35 +1593,21 @@ class OptimizationProblem(Problem):
             )
         self._check_metric_name(name)
 
-        eval_objs = self._resolve_evaluation_objects(evaluation_objects)
-        self._check_fan_in_subset_supported(eval_objs, per_object)
-
-        # Resolve evaluator chain and lazily register in pipeline.
-        if requires is None:
-            req_list: list = []
-        elif not isinstance(requires, list):
-            req_list = [requires]
-        else:
-            req_list = list(requires)
-        evaluator_chain: list[str] = []
-        for req in req_list:
-            if req not in self._evaluator_names:
-                raise CADETProcessError(f"Unknown Evaluator: {req!r}")
-            evaluator_chain.append(self._evaluator_names[req])
-        self._register_evaluator_chain(req_list)
+        eval_objs, per_case, evaluator_chain, requires_node = (
+            self._resolve_leaf_wiring(evaluation_objects, requires, per_object, mapspec)
+        )
 
         # Declare the metric and annotate it with the direction; raises on
-        # duplicate names (named storage requires unique metrics).  A
-        # collector reduces over objects, so its metric declares no
-        # evaluation_object dimension: it produces n_objectives values total.
+        # duplicate names (named storage requires unique metrics).  A fan-in
+        # reduces over objects, so its metric declares no evaluation_object
+        # dimension: it produces n_objectives values total.
         base_labels = labels if labels is not None else getattr(objective, "labels", None)
-        metric_objs = [] if per_object is False else eval_objs
+        metric_objs = eval_objs if per_case else []
         metric = self._build_metric(name, n_objectives, base_labels, metric_objs)
         annotation = self._metric_space.add_objective(metric, minimize=minimize)
 
         # Register the objective itself as a pipeline node: the DAG owns the
         # computation, the annotation is a view over the output.
-        requires_node = [evaluator_chain[-1]] if evaluator_chain else None
         self._backend.add_evaluator(
             self._make_metric_node(
                 objective, n_objectives, args, kwargs,
@@ -1675,7 +1710,8 @@ class OptimizationProblem(Problem):
             default) or once over all of them (``False``), reducing the
             per-object array to *n_nonlinear_constraints* values, e.g. a
             worst-case constraint across objects.  Declaring ``False`` requires
-            *requires*.  Mutually exclusive with `mapspec`.
+            *requires*.  Left unset, it is inferred as for `add_objective`.
+            Mutually exclusive with `mapspec`.
         mapspec : str, optional
             Escape hatch: a raw pipefunc axis-mapping string, passed to the
             pipeline verbatim.
@@ -1703,9 +1739,6 @@ class OptimizationProblem(Problem):
             )
         self._check_metric_name(name)
 
-        eval_objs = self._resolve_evaluation_objects(evaluation_objects)
-        self._check_fan_in_subset_supported(eval_objs, per_object)
-
         # Normalize bounds.
         if isinstance(bounds, (int, float)):
             bounds_list = n_nonlinear_constraints * [float(bounds)]
@@ -1716,25 +1749,15 @@ class OptimizationProblem(Problem):
                 f"Expected {n_nonlinear_constraints} bounds, got {len(bounds_list)}"
             )
 
-        # Resolve evaluator chain and lazily register in pipeline.
-        if requires is None:
-            req_list: list = []
-        elif not isinstance(requires, list):
-            req_list = [requires]
-        else:
-            req_list = list(requires)
-        evaluator_chain: list[str] = []
-        for req in req_list:
-            if req not in self._evaluator_names:
-                raise CADETProcessError(f"Unknown Evaluator: {req!r}")
-            evaluator_chain.append(self._evaluator_names[req])
-        self._register_evaluator_chain(req_list)
+        eval_objs, per_case, evaluator_chain, requires_node = (
+            self._resolve_leaf_wiring(evaluation_objects, requires, per_object, mapspec)
+        )
 
         # Declare the metric and annotate it with operator and bounds; raises
         # on duplicate names (named storage requires unique metrics).  Bounds
         # tile object-major across evaluation objects, matching the labels.
         base_labels = labels if labels is not None else getattr(nonlincon, "labels", None)
-        metric_objs = [] if per_object is False else eval_objs
+        metric_objs = eval_objs if per_case else []
         metric = self._build_metric(name, n_nonlinear_constraints, base_labels, metric_objs)
         bounds_total = bounds_list * max(len(metric_objs), 1)
         annotation = self._metric_space.add_constraint(
@@ -1742,7 +1765,6 @@ class OptimizationProblem(Problem):
         )
 
         # Register the constraint itself as a pipeline node.
-        requires_node = [evaluator_chain[-1]] if evaluator_chain else None
         self._backend.add_evaluator(
             self._make_metric_node(
                 nonlincon, n_nonlinear_constraints, args, kwargs,
@@ -1820,7 +1842,8 @@ class OptimizationProblem(Problem):
             Whether the callback runs once per evaluation object (the default)
             or once over all of them (``False``), receiving the complete
             per-object array, e.g. to plot all objects together.  Declaring
-            ``False`` requires *requires*.  Mutually exclusive with `mapspec`.
+            ``False`` requires *requires*.  Left unset, it is inferred as for
+            `add_objective`.  Mutually exclusive with `mapspec`.
         mapspec : str, optional
             Escape hatch: a raw pipefunc axis-mapping string, passed to the
             pipeline verbatim.
@@ -1839,31 +1862,9 @@ class OptimizationProblem(Problem):
             raise CADETProcessError("Callback with same name already exists.")
         self._check_metric_name(name)
 
-        if evaluation_objects is None:
-            eval_objs: list[Any] = []
-        elif evaluation_objects == -1:
-            eval_objs = list(self.evaluation_objects)
-        elif not isinstance(evaluation_objects, list):
-            eval_objs = [evaluation_objects]
-        else:
-            eval_objs = list(evaluation_objects)
-        for el in eval_objs:
-            if el not in self.evaluation_objects:
-                raise CADETProcessError(f"Unknown EvaluationObject: {el!r}")
-        self._check_fan_in_subset_supported(eval_objs, per_object)
-
-        if requires is None:
-            req_list: list = []
-        elif not isinstance(requires, list):
-            req_list = [requires]
-        else:
-            req_list = list(requires)
-        evaluator_chain: list[str] = []
-        for req in req_list:
-            if req not in self._evaluator_names:
-                raise CADETProcessError(f"Unknown Evaluator: {req!r}")
-            evaluator_chain.append(self._evaluator_names[req])
-        self._register_evaluator_chain(req_list)
+        eval_objs, per_case, evaluator_chain, requires_node = (
+            self._resolve_leaf_wiring(evaluation_objects, requires, per_object, mapspec)
+        )
 
         record = _CallbackRecord(
             callback,
@@ -1879,7 +1880,6 @@ class OptimizationProblem(Problem):
 
         # Register the callback itself as a pipeline node.  cache=False:
         # callbacks produce files, not values; repeated execution is the point.
-        requires_node = [evaluator_chain[-1]] if evaluator_chain else None
         self._backend.add_evaluator(
             self._make_callback_node(record, is_root=requires_node is None),
             output_name=name,
@@ -1938,8 +1938,8 @@ class OptimizationProblem(Problem):
 
         ``per_object=False`` makes the meta score a collector: it receives the
         complete per-object array and reduces it to *n_meta_scores* values
-        (e.g. aggregating a score across objects).  Mutually exclusive with
-        `mapspec`.
+        (e.g. aggregating a score across objects).  Left unset, it is
+        inferred as for `add_objective`.  Mutually exclusive with `mapspec`.
         """
         if not callable(func):
             raise TypeError("Expected callable meta-score function.")
@@ -1956,31 +1956,17 @@ class OptimizationProblem(Problem):
             )
         self._check_metric_name(name)
 
-        eval_objs = self._resolve_evaluation_objects(evaluation_objects)
-        self._check_fan_in_subset_supported(eval_objs, per_object)
-
-        # Resolve evaluator chain and lazily register in pipeline.
-        if requires is None:
-            req_list: list = []
-        elif not isinstance(requires, list):
-            req_list = [requires]
-        else:
-            req_list = list(requires)
-        evaluator_chain: list[str] = []
-        for req in req_list:
-            if req not in self._evaluator_names:
-                raise CADETProcessError(f"Unknown Evaluator: {req!r}")
-            evaluator_chain.append(self._evaluator_names[req])
-        self._register_evaluator_chain(req_list)
+        eval_objs, per_case, evaluator_chain, requires_node = (
+            self._resolve_leaf_wiring(evaluation_objects, requires, per_object, mapspec)
+        )
 
         # Declare the metric without direction or constraint annotation.
         base_labels = labels if labels is not None else getattr(func, "labels", None)
-        metric_objs = [] if per_object is False else eval_objs
+        metric_objs = eval_objs if per_case else []
         metric = self._build_metric(name, n_meta_scores, base_labels, metric_objs)
         self._metric_space.add_metric(metric)
 
         # Register the meta score itself as a pipeline node.
-        requires_node = [evaluator_chain[-1]] if evaluator_chain else None
         self._backend.add_evaluator(
             self._make_metric_node(
                 func, n_meta_scores, args, kwargs,
@@ -2107,9 +2093,9 @@ class OptimizationProblem(Problem):
     def _register_evaluator_chain(self, req_list: list[Callable]) -> None:
         """Lazily register evaluators in the pipeline with dependency edges.
 
-        Called by ``add_objective``, ``add_nonlinear_constraint``, and
-        ``add_callback``.  Evaluators that are already registered in the
-        pipeline are skipped.  The linear ordering of *req_list* implies the
+        Called by ``_resolve_leaf_wiring`` for every leaf kind.  Evaluators
+        that are already registered in the pipeline are skipped.  The linear
+        ordering of *req_list* implies the
         dependency chain: ``req_list[i]`` takes the output of
         ``req_list[i-1]`` as its single argument.
         """
@@ -2644,8 +2630,9 @@ class OptimizationProblem(Problem):
         parallelization_backend : ParallelizationBackendBase, optional
             When provided, individuals are evaluated in parallel.
         get_dependent_values : bool
-            When True, *X* is treated as a full parameter vector (independent +
-            dependent); the independent part is extracted before evaluation.
+            When True (default), *X* contains independent values only and
+            dependent values will be resolved internally.  When False, *X* is
+            a full parameter vector; the independent part is extracted first.
 
         Returns
         -------

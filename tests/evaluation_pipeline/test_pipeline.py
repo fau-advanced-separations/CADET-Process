@@ -1259,6 +1259,55 @@ def test_node_downstream_of_collector_consumes_whole_value():
     assert results["doubled_worst"] == pytest.approx(20.0)
 
 
+def test_explicit_per_object_downstream_of_collector_raises():
+    # There is no object axis left below a collector; an explicit per-object
+    # declaration there cannot be honored and must not silently run once.
+    space = _make_space(Model(value=3.0), Model(value=1.0))
+    pipeline = EvaluationPipeline(space)
+    pipeline.add_evaluator(lambda model: model.value, output_name="v")
+    pipeline.add_evaluator(
+        lambda v: float(min(v)), output_name="worst", requires=["v"], per_object=False
+    )
+    pipeline.add_evaluator(
+        lambda worst: worst, output_name="w", requires=["worst"], per_object=True
+    )
+
+    with pytest.raises(ValueError, match="no object axis left"):
+        pipeline.evaluate({}, targets=["w"])
+
+
+@pytest.mark.parametrize(
+    ("requires", "per_object", "expected"),
+    [
+        (None, None, True),
+        (["v"], None, True),
+        (["v"], False, False),
+        (["worst"], None, False),
+    ],
+)
+def test_is_per_object_matches_build_rule(requires, per_object, expected):
+    space = _make_space(Model(value=3.0), Model(value=1.0))
+    pipeline = EvaluationPipeline(space)
+    pipeline.add_evaluator(lambda model: model.value, output_name="v")
+    pipeline.add_evaluator(
+        lambda v: float(min(v)), output_name="worst", requires=["v"], per_object=False
+    )
+
+    assert pipeline.is_per_object(requires, per_object) is expected
+
+
+def test_is_per_object_rejects_explicit_per_object_below_collector():
+    space = _make_space(Model(value=3.0), Model(value=1.0))
+    pipeline = EvaluationPipeline(space)
+    pipeline.add_evaluator(lambda model: model.value, output_name="v")
+    pipeline.add_evaluator(
+        lambda v: float(min(v)), output_name="worst", requires=["v"], per_object=False
+    )
+
+    with pytest.raises(ValueError, match="no object axis left"):
+        pipeline.is_per_object(["worst"], per_object=True)
+
+
 def test_collector_registered_before_upstream_still_resolves():
     # Effective mapspecs resolve producers-first regardless of registration
     # order; a collector consuming a later-registered evaluator still works.
