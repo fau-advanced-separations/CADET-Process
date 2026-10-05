@@ -844,6 +844,78 @@ def test_fan_in_rejects_evaluation_objects_subset(op_two_objects_with_evaluator,
         )
 
 
+@pytest.fixture
+def op_with_collector_evaluator(op_two_objects_with_evaluator):
+    """Two evaluation objects and a collector evaluator reducing over them."""
+    op, simulate, obj_a, obj_b = op_two_objects_with_evaluator
+
+    def total(sims):
+        return float(np.sum(np.asarray(sims, dtype=float)))
+
+    op.add_evaluator(total, per_object=False)
+    return op, [simulate, total], obj_a, obj_b
+
+
+_LEAF_KINDS = ["objective", "constraint", "meta_score", "callback"]
+
+
+def _register_leaf(op, kind):
+    return {
+        "objective": op.add_objective,
+        "constraint": lambda *a, **kw: op.add_nonlinear_constraint(*a, bounds=100, **kw),
+        "meta_score": op.add_meta_score,
+        "callback": op.add_callback,
+    }[kind]
+
+
+@pytest.mark.parametrize(
+    ("kind", "n_metrics", "evaluate"),
+    [
+        ("objective", "n_objectives", "evaluate_objectives"),
+        ("constraint", "n_nonlinear_constraints", "evaluate_nonlinear_constraints"),
+        ("meta_score", "n_meta_scores", "evaluate_meta_scores"),
+    ],
+)
+def test_leaf_downstream_of_collector_is_inferred_fan_in(
+    op_with_collector_evaluator, kind, n_metrics, evaluate
+):
+    # A leaf whose input is a collector output has no object axis to run over;
+    # left unset, per_object is inferred and the leaf declares one metric, not
+    # one per object whose shape check would fail on every evaluation.
+    op, chain, _, _ = op_with_collector_evaluator
+    _register_leaf(op, kind)(lambda total: total, name="leaf", requires=chain)
+
+    assert getattr(op, n_metrics) == 1
+
+    # simulate -> [5.0, 10.0]; total -> 15.0
+    np.testing.assert_allclose(getattr(op, evaluate)([0.5]), [15.0])
+
+
+@pytest.mark.parametrize("kind", _LEAF_KINDS)
+def test_leaf_explicit_per_object_downstream_of_collector_raises(
+    op_with_collector_evaluator, kind
+):
+    op, chain, _, _ = op_with_collector_evaluator
+
+    with pytest.raises(ValueError, match="no object axis left"):
+        _register_leaf(op, kind)(
+            lambda total: total, name="leaf", requires=chain, per_object=True
+        )
+
+
+@pytest.mark.parametrize("kind", _LEAF_KINDS)
+def test_inferred_fan_in_rejects_evaluation_objects_subset(
+    op_with_collector_evaluator, kind
+):
+    # The subset guard applies to inferred fan-ins exactly as to declared ones.
+    op, chain, obj_a, _ = op_with_collector_evaluator
+
+    with pytest.raises(CADETProcessError, match="does not support evaluation_objects"):
+        _register_leaf(op, kind)(
+            lambda total: total, name="leaf", requires=chain, evaluation_objects=[obj_a]
+        )
+
+
 @pytest.mark.parametrize("declare_full_set", [False, True])
 def test_fan_in_accepts_full_evaluation_object_set(
     op_two_objects_with_evaluator, declare_full_set

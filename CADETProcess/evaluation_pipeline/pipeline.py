@@ -359,6 +359,71 @@ def _mapspec_output_has_axis(mapspec: str) -> bool:
     return f"[{_OBJECT_AXIS}]" in rhs
 
 
+def _check_node_options(
+    output_name: str,
+    requires: list[str] | None,
+    per_object: bool | None,
+    mapspec: str | None,
+) -> None:
+    """Reject node options that are contradictory regardless of the graph."""
+    if per_object is not None and mapspec is not None:
+        raise ValueError(
+            "per_object and mapspec are mutually exclusive: per_object is "
+            "the normal API, mapspec the raw escape hatch; supply one."
+        )
+    if per_object is False and requires is None:
+        raise ValueError(
+            f"per_object=False on root node {output_name!r}: a root has no "
+            "mapped upstream to collect. Declare requires= or drop "
+            "per_object."
+        )
+
+
+def _effective_mapspec(
+    output_name: str,
+    requires: list[str] | None,
+    per_object: bool | None,
+    mapspec: str | None,
+    axis_bearing: Mapping[str, bool],
+) -> str | None:
+    """Resolve one node's effective mapspec; ``None`` marks a whole-value node.
+
+    The single rule deciding whether a node runs once per object, shared by
+    the build (`EvaluationPipeline._resolve_mapspecs`) and the
+    registration-time query (`EvaluationPipeline.is_per_object`), so the
+    metric layout declared at registration cannot disagree with execution.
+    *axis_bearing* maps already-resolved producers to whether their output
+    carries the object axis; requires missing from it are external inputs.
+
+    Raises
+    ------
+    ValueError
+        If ``per_object=True`` is declared on a node whose inputs all come
+        from collectors: there is no axis left to run it per object.
+    """
+    if mapspec is not None:
+        return mapspec
+    if per_object is False:
+        return None
+    axis_inputs = {r for r in (requires or []) if axis_bearing.get(r, False)}
+    if requires is None or axis_inputs:
+        return _generate_mapspec(output_name, requires, axis_inputs)
+    if per_object is True:
+        raise ValueError(
+            f"per_object=True on {output_name!r}, but its inputs {requires} "
+            "are all collector (per_object=False) outputs: there is no object "
+            "axis left to run it per object. Drop per_object or declare it "
+            "False."
+        )
+    # Downstream of collectors only: no axis to fan over.
+    return None
+
+
+def _has_axis(mapspec: str | None) -> bool:
+    """Whether an effective mapspec (``None`` = whole value) carries the axis."""
+    return mapspec is not None and _mapspec_output_has_axis(mapspec)
+
+
 def _make_node(
     func: Callable,
     output_name: str,
@@ -470,8 +535,10 @@ class EvaluationPipeline:
             semantic) or once, collecting the complete per-object array of its
             inputs (``False``, a whole-value consumer that may reduce it).  The
             effective mapspec strings are generated at build time through one
-            central helper; leaving it unset keeps the per-object default.
-            Mutually exclusive with `mapspec`.
+            central helper.  Left unset, it is inferred from the graph: the
+            node runs per object unless all its inputs are collector outputs,
+            in which case it runs once.  ``True`` in that position raises at
+            build time.  Mutually exclusive with `mapspec`.
         mapspec : str, optional
             Escape hatch: a raw pipefunc axis-mapping string, e.g.
             ``"evaluation_contexts[object] -> out[object]"``, passed through
@@ -495,17 +562,7 @@ class EvaluationPipeline:
             _validate_identifier(required)
         if output_name in self._output_names:
             raise ValueError(f"output_name {output_name!r} is already registered")
-        if per_object is not None and mapspec is not None:
-            raise ValueError(
-                "per_object and mapspec are mutually exclusive: per_object is "
-                "the normal API, mapspec the raw escape hatch; supply one."
-            )
-        if per_object is False and requires is None:
-            raise ValueError(
-                f"per_object=False on root node {output_name!r}: a root has no "
-                "mapped upstream to collect. Declare requires= or drop "
-                "per_object."
-            )
+        _check_node_options(output_name, requires, per_object, mapspec)
 
         self._specs.append(
             _NodeSpec(func, output_name, requires, cache, per_object, mapspec)
@@ -543,31 +600,49 @@ class EvaluationPipeline:
                 ]
                 if any(d not in axis_bearing for d in deps):
                     continue  # a producer is not resolved yet
-                if spec.mapspec is not None:
-                    effective[spec.output_name] = spec.mapspec
-                    axis_bearing[spec.output_name] = _mapspec_output_has_axis(
-                        spec.mapspec
-                    )
-                elif spec.per_object is False:
-                    effective[spec.output_name] = None
-                    axis_bearing[spec.output_name] = False
-                else:  # per-object default (unset or explicit True)
-                    axis_inputs = {d for d in deps if axis_bearing[d]}
-                    if spec.requires is None or axis_inputs:
-                        effective[spec.output_name] = _generate_mapspec(
-                            spec.output_name, spec.requires, axis_inputs
-                        )
-                        axis_bearing[spec.output_name] = True
-                    else:
-                        # Downstream of collectors only: no axis to fan over.
-                        effective[spec.output_name] = None
-                        axis_bearing[spec.output_name] = False
+                resolved = _effective_mapspec(
+                    spec.output_name,
+                    spec.requires,
+                    spec.per_object,
+                    spec.mapspec,
+                    axis_bearing,
+                )
+                effective[spec.output_name] = resolved
+                axis_bearing[spec.output_name] = _has_axis(resolved)
                 pending.remove(spec)
                 progressed = True
             if not progressed:
                 cycle = [s.output_name for s in pending]
                 raise ValueError(f"Cyclic requires among nodes: {cycle}")
         return effective
+
+    def is_per_object(
+        self,
+        requires: list[str] | None,
+        per_object: bool | None = None,
+        mapspec: str | None = None,
+    ) -> bool:
+        """Whether a node with this wiring would run once per evaluation object.
+
+        Resolves against the nodes registered so far with the same rule the
+        build applies, so a caller can declare its output layout before
+        registering the node.  Unset *per_object* is inferred from the graph:
+        a node whose inputs are all collector outputs runs once.
+
+        Raises
+        ------
+        ValueError
+            If the options are contradictory (see `add_evaluator`), or if
+            ``per_object=True`` is declared downstream of collectors only.
+        """
+        _check_node_options("<query>", requires, per_object, mapspec)
+        axis_bearing = {
+            name: _has_axis(resolved)
+            for name, resolved in self._resolve_mapspecs().items()
+        }
+        return _has_axis(
+            _effective_mapspec("query", requires, per_object, mapspec, axis_bearing)
+        )
 
     def _graph_nodes(self) -> list[PipeFunc]:
         """Build the pipefunc nodes, prepending the ``set_values`` root.
