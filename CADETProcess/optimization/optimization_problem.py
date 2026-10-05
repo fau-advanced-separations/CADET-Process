@@ -24,6 +24,7 @@ from CADETProcess import CADETProcessError, log
 from CADETProcess.dataStructure.deprecation import deprecated, deprecated_alias
 from CADETProcess.dataStructure.nested_dict import attribute_path_exists, check_nested
 from CADETProcess.evaluation_pipeline import EvaluationFailure, EvaluationPipeline
+from CADETProcess.evaluation_pipeline.pipeline import _EVALUATION_CONTEXTS
 from CADETProcess.metric_space import Metric, MetricSpace
 from CADETProcess.optimization.population import Population
 from CADETProcess.parameter_space import ParameterSpace
@@ -82,9 +83,9 @@ class _CallbackRecord:
         self.frequency = frequency
         self.callbacks_dir = callbacks_dir
         self.keep_progress = keep_progress
-        # Per-call state (individual, evaluation_object, callbacks_dir) set by
-        # evaluate_callbacks just before triggering the pipeline node; the
-        # node reads it because these values cannot travel through the DAG.
+        # Per-call state (individual, callbacks_dir) set by evaluate_callbacks
+        # just before triggering the pipeline node; the node reads it because
+        # these values cannot travel through the DAG.
         self.runtime: dict[str, Any] = {}
 
     def cleanup(self, callbacks_dir: Any, current_iteration: int) -> None:
@@ -1880,10 +1881,21 @@ class OptimizationProblem(Problem):
 
         # Register the callback itself as a pipeline node.  cache=False:
         # callbacks produce files, not values; repeated execution is the point.
+        # A non-root callback also requires the case contexts, which follow
+        # its mode: one case per call, or all of them for a fan-in.  A root
+        # already receives its case; a raw mapspec is taken verbatim.
+        with_cases = requires_node is not None and mapspec is None
         self._backend.add_evaluator(
-            self._make_callback_node(record, is_root=requires_node is None),
+            self._make_callback_node(
+                record,
+                is_root=requires_node is None,
+                with_cases=with_cases,
+                per_case=per_case,
+            ),
             output_name=name,
-            requires=requires_node,
+            requires=(
+                [*requires_node, _EVALUATION_CONTEXTS] if with_cases else requires_node
+            ),
             cache=False,
             per_object=per_object,
             mapspec=mapspec,
@@ -2045,12 +2057,22 @@ class OptimizationProblem(Problem):
 
         return metric_node
 
-    def _make_callback_node(self, record: _CallbackRecord, is_root: bool) -> Callable:
+    def _make_callback_node(
+        self,
+        record: _CallbackRecord,
+        is_root: bool,
+        with_cases: bool,
+        per_case: bool,
+    ) -> Callable:
         """Build the pipeline node wrapping a callback callable.
 
-        Runtime-only arguments (``individual``, ``evaluation_object``,
-        ``callbacks_dir``) cannot travel through the DAG; the node reads them
-        from ``record.runtime``, set by ``evaluate_callbacks`` per call.
+        ``evaluation_object`` comes from the graph: a root receives its case
+        as its value, and a node built *with_cases* receives the case
+        contexts as a second input, one per call or all of them for a fan-in
+        (then ``evaluation_object`` is the list of cases).  It is ``None``
+        without cases.  The remaining runtime-only arguments (``individual``,
+        ``callbacks_dir``) are the same for every case of one call; the node
+        reads them from ``record.runtime``, set by ``evaluate_callbacks``.
 
         Captures the ``ParameterSpace`` and the record, never ``self`` (see
         ``_make_metric_node``).
@@ -2061,14 +2083,28 @@ class OptimizationProblem(Problem):
         except (ValueError, TypeError):
             sig_params = set()
 
-        def callback_node(value: Any) -> Any:
+        def _case(obj: Any) -> Any:
+            # Without cases, the root carries the assignment, not a case.
+            return None if isinstance(obj, Mapping) else obj
+
+        def callback_node(value: Any, contexts: Any = None) -> Any:
             if is_root:
+                evaluation_object = _case(value)
                 value = _adapt_root_input(space, value)
+            elif not with_cases:
+                evaluation_object = None
+            elif per_case:
+                evaluation_object = _case(contexts.obj)
+            else:
+                cases = [_case(ctx.obj) for ctx in contexts]
+                evaluation_object = (
+                    None if any(case is None for case in cases) else cases
+                )
             kwargs = dict(record.kwargs)
             if "individual" in sig_params:
                 kwargs["individual"] = record.runtime.get("individual")
             if "evaluation_object" in sig_params:
-                kwargs["evaluation_object"] = record.runtime.get("evaluation_object")
+                kwargs["evaluation_object"] = evaluation_object
             if "callbacks_dir" in sig_params:
                 kwargs["callbacks_dir"] = record.runtime.get("callbacks_dir")
             return record.func(value, *record.args, **kwargs)
@@ -2533,7 +2569,6 @@ class OptimizationProblem(Problem):
         if population is None or not self._callbacks:
             return
         _logger = logging.getLogger(__name__)
-        eval_objs = self._parameter_space.cases or []
         independent_names = {
             p.name for p in self._parameter_space.independent_parameters
         }
@@ -2557,47 +2592,41 @@ class OptimizationProblem(Problem):
             if _cb_dir is not None and current_iteration != "final":
                 cb.cleanup(_cb_dir, current_iteration)
 
-            cb_eval_objs = (
-                cb.evaluation_objects if cb.evaluation_objects else eval_objs or [None]
-            )
             for individual in population:
                 assignment = {
                     name: value
                     for name, value in individual.X.items()
                     if name in independent_names
                 }
-                # The callback is a pipeline node (cache=False): triggering it
-                # per evaluation object reuses chain results cached during
-                # objective/constraint evaluation and never runs the side
-                # effect for objects outside the callback's subset.
-                for eval_obj in cb_eval_objs:
-                    cb.runtime = {
-                        "individual": individual,
-                        "evaluation_object": eval_obj,
-                        "callbacks_dir": _cb_dir,
-                    }
-                    try:
-                        result = self._backend.evaluate(
-                            assignment,
-                            targets=[cb.name],
-                            cases=(
-                                None if eval_obj is None else [eval_obj]
-                            ),
-                        )
-                        value = result[cb.name]
+                # One call per individual, like every other leaf kind: the
+                # pipeline runs the callback once per case or once over all
+                # of them, reusing chain results cached during objective and
+                # constraint evaluation.  Restricting the call to the
+                # callback's cases never runs its side effect outside them.
+                cb.runtime = {"individual": individual, "callbacks_dir": _cb_dir}
+                try:
+                    result = self._backend.evaluate(
+                        assignment,
+                        targets=[cb.name],
+                        cases=cb.evaluation_objects or None,
+                    )
+                    values = result[cb.name]
+                    if not isinstance(values, list):
+                        values = [values]
+                    for value in values:
                         if isinstance(value, EvaluationFailure):
                             _logger.warning(
                                 f"Callback {cb.name!r} failed at iteration"
                                 f" {current_iteration}: {value.reason}"
                             )
-                    except Exception as exc:
-                        _logger.warning(
-                            f"Callback {cb.name!r} failed at iteration"
-                            f" {current_iteration}: {exc}",
-                            exc_info=True,
-                        )
-                    finally:
-                        cb.runtime = {}
+                except Exception as exc:
+                    _logger.warning(
+                        f"Callback {cb.name!r} failed at iteration"
+                        f" {current_iteration}: {exc}",
+                        exc_info=True,
+                    )
+                finally:
+                    cb.runtime = {}
 
     @deprecated(deprecated_in="0.13", removed_in="0.14", use="evaluate_callbacks")
     def evaluate_callbacks_population(self, *args: Any, **kwargs: Any) -> None:
