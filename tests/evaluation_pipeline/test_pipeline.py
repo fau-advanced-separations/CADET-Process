@@ -917,6 +917,22 @@ def test_mapped_graph_fans_undeclared_root_per_object():
     assert results["plain"] == [1.0, 2.0]
 
 
+def test_pickled_pipeline_evaluates_after_a_prior_build():
+    # Parallel backends pickle the pipeline after it may already have been
+    # built by a sequential call.  pipefunc pickles each node function in its
+    # own pass, so a built pipeline's set_values node would come back holding
+    # a private copy of the space and reject the clone's own cases.
+    cloudpickle = pytest.importorskip("cloudpickle")
+    space = _make_space(Model(value=1.0), Model(value=2.0))
+    pipeline = EvaluationPipeline(space)
+    pipeline.add_evaluator(lambda model: model.value, output_name="plain")
+    pipeline.evaluate({})
+
+    clone = cloudpickle.loads(cloudpickle.dumps(pipeline))
+
+    assert clone.evaluate({})["plain"] == [1.0, 2.0]
+
+
 # ── mapped subset, bypass_cache, and caching ──────────────────────────────────
 # A per-call cases= restriction narrows the object axis at the root
 # so excluded objects never run; bypass_cache appends a nonce so every node

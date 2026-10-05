@@ -497,6 +497,18 @@ class EvaluationPipeline:
         # build time; None entries are whole-value consumers.
         self._effective_mapspecs: dict[str, str | None] = {}
 
+    def __getstate__(self) -> dict[str, Any]:
+        """Drop the built pipeline; it is rebuilt lazily after unpickling.
+
+        pipefunc pickles each node function in its own cloudpickle pass, so
+        an unpickled built pipeline's ``set_values`` node would hold a private
+        copy of the space, distinct from ``self._space`` and from the cases
+        callers pass in.  Rebuilding from ``_specs`` binds it to the one copy.
+        """
+        state = self.__dict__.copy()
+        state["_pipeline"] = None
+        return state
+
     # ------------------------------------------------------------------
     # Registration
 
