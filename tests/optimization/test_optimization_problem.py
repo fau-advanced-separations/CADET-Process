@@ -1831,6 +1831,70 @@ def test_callback_subset_side_effect_only_for_bound_object():
     assert seen == ["foo"]
 
 
+def test_per_case_callback_receives_each_case_with_its_result(
+    op_two_objects_with_evaluator,
+):
+    op, simulate, obj_a, obj_b = op_two_objects_with_evaluator
+    calls = []
+    op.add_callback(
+        lambda sim, evaluation_object: calls.append((float(sim), evaluation_object)),
+        name="cb",
+        requires=simulate,
+    )
+
+    op.evaluate_callbacks(op.create_population([[0.5]]), current_iteration=0)
+
+    # simulate -> a: 5.0, bb: 10.0
+    assert calls == [(5.0, obj_a), (10.0, obj_b)]
+
+
+def test_chained_callback_subset_runs_only_for_bound_object(
+    op_two_objects_with_evaluator,
+):
+    op, simulate, obj_a, _ = op_two_objects_with_evaluator
+    calls = []
+    op.add_callback(
+        lambda sim, evaluation_object: calls.append(evaluation_object),
+        name="cb",
+        requires=simulate,
+        evaluation_objects=[obj_a],
+    )
+
+    op.evaluate_callbacks(op.create_population([[0.5]]), current_iteration=0)
+
+    assert calls == [obj_a]
+
+
+def test_fan_in_callback_receives_all_cases_in_one_call(op_two_objects_with_evaluator):
+    # A fan-in callback runs once per individual over every case, exactly like
+    # a fan-in objective; evaluation_object is then the list of cases.
+    op, simulate, obj_a, obj_b = op_two_objects_with_evaluator
+    calls = []
+    op.add_callback(
+        lambda sims, evaluation_object: calls.append(
+            (np.asarray(sims, dtype=float).tolist(), evaluation_object)
+        ),
+        name="cb",
+        requires=simulate,
+        per_object=False,
+    )
+
+    op.evaluate_callbacks(op.create_population([[0.5], [0.1]]), current_iteration=0)
+
+    assert calls == [([5.0, 10.0], [obj_a, obj_b]), ([1.0, 2.0], [obj_a, obj_b])]
+
+
+def test_callback_downstream_of_collector_runs_once(op_with_collector_evaluator):
+    op, chain, _, _ = op_with_collector_evaluator
+    calls = []
+    op.add_callback(lambda total: calls.append(float(total)), name="cb", requires=chain)
+
+    op.evaluate_callbacks(op.create_population([[0.5]]), current_iteration=0)
+
+    # simulate -> [5.0, 10.0]; total -> 15.0
+    assert calls == [15.0]
+
+
 # ── Special-container parameter paths (output_states) ─────────────────────────
 #
 # Regression: `flow_sheet.output_states` is a read-only computed property backed

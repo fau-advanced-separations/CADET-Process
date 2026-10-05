@@ -407,6 +407,10 @@ def _effective_mapspec(
         return None
     axis_inputs = {r for r in (requires or []) if axis_bearing.get(r, False)}
     if requires is None or axis_inputs:
+        # Requiring the case contexts never decides the mode, it follows it:
+        # a per-object node receives its own case, a whole-value node all.
+        if requires is not None and _EVALUATION_CONTEXTS in requires:
+            axis_inputs = axis_inputs | {_EVALUATION_CONTEXTS}
         return _generate_mapspec(output_name, requires, axis_inputs)
     if per_object is True:
         raise ValueError(
