@@ -921,7 +921,11 @@ class OptimizationResults(Structure):
         metric_space = getattr(problem, "metric_space", None)
         parameter_space = getattr(problem, "parameter_space", None)
 
-        for pop_dict in data["populations"].values():
+        def generations(group: dict) -> list:
+            # HDF5 returns keys alphabetically, so "10" would precede "2".
+            return [group[key] for key in sorted(group, key=int)]
+
+        for pop_dict in generations(data["populations"]):
             pop = Population.from_dict(
                 pop_dict,
                 metric_space=metric_space,
@@ -933,14 +937,14 @@ class OptimizationResults(Structure):
             ParetoFront.from_dict(
                 d, metric_space=metric_space, parameter_space=parameter_space
             )
-            for d in data["pareto_fronts"].values()
+            for d in generations(data["pareto_fronts"])
         ]
         if self._meta_fronts is not None:
             self._meta_fronts = [
                 Population.from_dict(
                     d, metric_space=metric_space, parameter_space=parameter_space
                 )
-                for d in data["meta_fronts"].values()
+                for d in generations(data["meta_fronts"])
             ]
         self.time_elapsed = data.get("time_elapsed")
         self.cpu_time = data.get("cpu_time")
