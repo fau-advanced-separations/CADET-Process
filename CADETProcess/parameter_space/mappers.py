@@ -264,6 +264,11 @@ class IndexedMapper(ParameterMapperBase):
         IndexedMapper(objs, path="exponents_fwd", index=(0, 1))
         IndexedMapper(objs, path="c", index=np.s_[0, :])
 
+    A list names several entries that all receive the same value, following
+    the ``indices`` convention of events::
+
+        IndexedMapper(objs, path="exchange_matrix", index=[(0, 1, 0), (1, 0, 0)])
+
     Genuinely inhomogeneous (ragged) arrays raise ``NotImplementedError``.
     Use a ``CallableMapper`` for those.
 
@@ -282,10 +287,11 @@ class IndexedMapper(ParameterMapperBase):
     path : str
         Dot-separated path to the target array attribute.  May embed a
         scalar index as bracket notation: ``"film_diffusion[2]"``.
-    index : int, slice, or tuple of (int | slice), optional
+    index : int, slice, tuple of (int | slice), or list thereof, optional
         Index into the array.  Required when *path* does not embed an index;
         must be omitted when *path* already contains one.  Pass a tuple for
-        multi-dimensional access, e.g. ``(0, 1)`` or ``np.s_[0, :]``.
+        multi-dimensional access, e.g. ``(0, 1)`` or ``np.s_[0, :]``, and a
+        list to write the same value into several entries.
     """
 
     @deprecated_alias(evaluation_objects="targets")
@@ -343,10 +349,19 @@ class IndexedMapper(ParameterMapperBase):
             arr = parent[leaf]
         else:
             arr = getattr(parent, leaf)
-        return np.asarray(arr)[self._index]
+        # Every entry of a list index holds the same value, so the first one
+        # is representative.
+        return np.asarray(arr)[self._entries[0]]
+
+    @property
+    def _entries(self) -> list:
+        """List of individual indices; a list ``index`` names several entries."""
+        if isinstance(self._index, list):
+            return self._index
+        return [self._index]
 
     def _patch(self, current: Any, value: Any, descriptor: Any = None) -> Any:
-        """Return a copy of *current* with ``self._index`` set to *value*."""
+        """Return a copy of *current* with every entry of ``self._index`` set to *value*."""
         was_list = isinstance(current, list)
         with warnings.catch_warnings():
             warnings.simplefilter("error", VisibleDeprecationWarning)
@@ -362,15 +377,18 @@ class IndexedMapper(ParameterMapperBase):
                 "Object-type arrays are not supported by IndexedMapper."
             )
 
-        target = arr[self._index]
         fill_values = getattr(descriptor, "fill_values", None)
-        if fill_values is not None and isinstance(target, np.ndarray):
-            # Bare index into a polynomial parameter: reuse the descriptor's own
-            # "constant coefficient, zero the rest" convention for the row
-            # instead of broadcasting the scalar across every coefficient.
-            arr[self._index] = fill_values(target.shape, value)
-        else:
-            arr[self._index] = value
+        # Patch entry by entry rather than with numpy's list (fancy) indexing,
+        # which would index the first axis and bypass the polynomial rule below.
+        for entry in self._entries:
+            target = arr[entry]
+            if fill_values is not None and isinstance(target, np.ndarray):
+                # Bare index into a polynomial parameter: reuse the descriptor's
+                # own "constant coefficient, zero the rest" convention for the
+                # row instead of broadcasting the scalar across every coefficient.
+                arr[entry] = fill_values(target.shape, value)
+            else:
+                arr[entry] = value
         return arr.tolist() if was_list else arr
 
 

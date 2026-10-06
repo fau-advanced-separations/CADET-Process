@@ -424,6 +424,32 @@ def test_indexed_tuple_index_into_real_polynomial_descriptor_sets_single_cell():
     assert obj.c[1] == pytest.approx([0.0, 0.0, 0.0, 0.0])
 
 
+def test_indexed_list_of_tuples_sets_only_listed_entries():
+    """A list names entries, not rows; numpy fancy indexing would select
+    rows 0, 1, 0 for ``[(0, 1, 0)]`` and overwrite the whole array (#445)."""
+    obj = TwoDHolder()
+    mapper = IndexedMapper([obj], path="exponents", index=[(0, 1)])
+    mapper.set_value(5.0)
+    assert obj.exponents == [[1.0, 5.0], [1.0, 1.0]]
+
+
+def test_indexed_list_sets_every_listed_entry():
+    obj = TwoDHolder()
+    mapper = IndexedMapper([obj], path="exponents", index=[(0, 1), (1, 0)])
+    mapper.set_value(5.0)
+    assert obj.exponents == [[1.0, 5.0], [5.0, 1.0]]
+    assert mapper.get_value() == pytest.approx(5.0)
+
+
+def test_indexed_list_applies_polynomial_rule_per_entry():
+    """Each bare entry into a polynomial parameter fills its own row."""
+    obj = NdPolynomialHolder()
+    mapper = IndexedMapper([obj], path="c", index=[0, 1])
+    mapper.set_value(2.0)
+    assert obj.c[0] == pytest.approx([2.0, 0.0, 0.0, 0.0])
+    assert obj.c[1] == pytest.approx([2.0, 0.0, 0.0, 0.0])
+
+
 def test_indexed_2d_list_written_back_as_list():
     """A list-backed 2-D array is written back as a list, not ndarray."""
     obj = TwoDHolder()
