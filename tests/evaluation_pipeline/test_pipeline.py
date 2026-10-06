@@ -1075,8 +1075,8 @@ def test_fan_in_reduces_object_axis_to_scalar():
 
 def test_fan_in_worst_case_over_objects():
     # np.min (not the Python builtin) exercises a numpy reduction on the
-    # collector input: the fan-in axis arrives as a MaskedArray, and numpy's
-    # masked reductions crash on it unless the wrapper hands over a plain array.
+    # collector input: pipefunc delivers the fan-in axis as a MaskedArray, and
+    # numpy's masked reductions crash on it unless the wrapper converts it.
     space = _make_space(Model(value=3.0), Model(value=1.0), Model(value=2.0))
     pipeline = EvaluationPipeline(space)
     _mapped_scaled(pipeline)  # scaled = [30.0, 10.0, 20.0]
@@ -1090,6 +1090,29 @@ def test_fan_in_worst_case_over_objects():
     results = pipeline.evaluate({}, targets=["worst"])
 
     assert results["worst"] == pytest.approx(10.0)
+
+
+def test_fan_in_receives_a_list_numpy_ufuncs_accept():
+    # pipefunc's object-dtype array rejects ufuncs such as np.log; a list of
+    # floats is converted to a numeric array by numpy itself.
+    space = _make_space(Model(value=1.0), Model(value=2.0))
+    pipeline = EvaluationPipeline(space)
+    _mapped_scaled(pipeline)  # scaled = [10.0, 20.0]
+    received = []
+
+    def log_sum(scaled):
+        received.append(scaled)
+        return float(np.sum(np.log(scaled)))
+
+    pipeline.add_evaluator(
+        log_sum, output_name="log_sum", requires=["scaled"], per_object=False
+    )
+
+    results = pipeline.evaluate({}, targets=["log_sum"])
+
+    assert received == [[10.0, 20.0]]
+    assert isinstance(received[0], list)
+    assert results["log_sum"] == pytest.approx(np.log(10.0) + np.log(20.0))
 
 
 def test_mixed_mapped_and_fan_in_targets_in_one_call():

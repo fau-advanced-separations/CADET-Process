@@ -1273,9 +1273,14 @@ class OptimizationProblem(Problem):
             Fixed keyword arguments passed to the evaluator.
         per_object : bool, optional
             Whether the evaluator runs once per evaluation object (the
-            default semantic) or once, collecting the complete per-object
-            array of its input (``False``).  Declaring ``False`` engages
-            mapped execution.  Mutually exclusive with `mapspec`.
+            default semantic) or once, collecting the per-object results of
+            its input as a list with one entry per object (``False``).
+            Declaring ``False`` engages mapped execution.  A per-object
+            evaluator feeding a ``False`` node must not return a ``list``,
+            ``ndarray`` or ``dict``: pipefunc cannot cache such outputs on the
+            mapped axis (pipefunc/pipefunc#987), so the collector fails on
+            every call; return a ``tuple`` instead.  Mutually exclusive with
+            `mapspec`.
             ``evaluation_objects`` cannot be declared here: domain
             declarations belong on the metric leaves (objectives,
             constraints, callbacks), from which each evaluator's domain is
@@ -1559,7 +1564,7 @@ class OptimizationProblem(Problem):
         per_object : bool, optional
             Whether the objective runs once per evaluation object (the
             default semantic) or once over all of them (``False``), reducing
-            the per-object array to *n_objectives* values, e.g. a weighted
+            the per-object list to *n_objectives* values, e.g. a weighted
             sum or worst case replacing a multi-objective formulation.
             Declaring ``False`` requires *requires*.  Left unset, it is
             inferred: downstream of a ``per_object=False`` evaluator the
@@ -1709,7 +1714,7 @@ class OptimizationProblem(Problem):
         per_object : bool, optional
             Whether the constraint runs once per evaluation object (the
             default) or once over all of them (``False``), reducing the
-            per-object array to *n_nonlinear_constraints* values, e.g. a
+            per-object list to *n_nonlinear_constraints* values, e.g. a
             worst-case constraint across objects.  Declaring ``False`` requires
             *requires*.  Left unset, it is inferred as for `add_objective`.
             Mutually exclusive with `mapspec`.
@@ -1841,8 +1846,8 @@ class OptimizationProblem(Problem):
             Retain progress files between calls.
         per_object : bool, optional
             Whether the callback runs once per evaluation object (the default)
-            or once over all of them (``False``), receiving the complete
-            per-object array, e.g. to plot all objects together.  Declaring
+            or once over all of them (``False``), receiving the per-object
+            results as a list, e.g. to plot all objects together.  Declaring
             ``False`` requires *requires*.  Left unset, it is inferred as for
             `add_objective`.  Mutually exclusive with `mapspec`.
         mapspec : str, optional
@@ -1949,7 +1954,7 @@ class OptimizationProblem(Problem):
         but carries no minimize/maximize or bound semantics.
 
         ``per_object=False`` makes the meta score a collector: it receives the
-        complete per-object array and reduces it to *n_meta_scores* values
+        per-object results as a list and reduces it to *n_meta_scores* values
         (e.g. aggregating a score across objects).  Left unset, it is
         inferred as for `add_objective`.  Mutually exclusive with `mapspec`.
         """
