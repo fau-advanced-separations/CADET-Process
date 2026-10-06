@@ -55,6 +55,15 @@ def _decode(value: Any) -> Any:
     return value
 
 
+def _ordered(columns: dict[str, Any], order: list[str]) -> dict[str, Any]:
+    """Reorder *columns* to follow *order*; names not in *order* go last."""
+    rank = {name: i for i, name in enumerate(order)}
+    return {
+        name: columns[name]
+        for name in sorted(columns, key=lambda name: rank.get(name, len(rank)))
+    }
+
+
 def _hash_row(row: npt.ArrayLike) -> str:
     """Deterministic sha256 hex digest of one parameter row's values.
 
@@ -1337,6 +1346,11 @@ class Population:
             _decode(name): np.asarray(values)
             for name, values in data.get("metadata", {}).items()
         } or None
+        # HDF5 returns group members alphabetically; restore the declared
+        # column order so names, ``x`` and ``concat`` agree with live data.
+        if parameter_space is not None:
+            X = _ordered(X, [p.name for p in parameter_space.parameters])
+        metrics = _ordered(metrics, metric_space.metric_names)
         return cls(
             X=X,
             metrics=metrics,

@@ -3,6 +3,7 @@ import pytest
 from CADETProcess import CADETProcessError
 from CADETProcess.metric_space import Metric, MetricSpace
 from CADETProcess.optimization import IndividualView, ParetoFront, Population
+from CADETProcess.parameter_space import ParameterSpace, RangedParameter
 
 
 @pytest.fixture
@@ -522,6 +523,28 @@ def test_from_dict_with_existing_metric_space(mixed_space, mixed_population):
         mixed_population.to_dict(), metric_space=mixed_space
     )
     assert rebuilt.metric_space is mixed_space
+
+
+def test_from_dict_restores_declared_column_order(objective_space):
+    """HDF5 hands columns back alphabetically; the spaces restore the order."""
+    parameter_space = ParameterSpace()
+    for name in ("var_1", "var_0"):
+        parameter_space.add_parameter(RangedParameter(name, lb=0, ub=10))
+    metric_space = MetricSpace()
+    metric_space.add_objective(Metric("f"))
+    metric_space.add_metric(Metric("cost"))
+    data = {
+        "X": {"var_0": [1.0], "var_1": [2.0]},
+        "metrics": {"cost": [3.0], "f": [4.0]},
+    }
+
+    rebuilt = Population.from_dict(
+        data, metric_space=metric_space, parameter_space=parameter_space
+    )
+
+    assert rebuilt.variable_names == ["var_1", "var_0"]
+    np.testing.assert_allclose(rebuilt.x, [[2.0, 1.0]])
+    assert list(rebuilt.metrics) == ["f", "cost"]
 
 
 def test_from_dict_rejects_legacy_format(objective_space):
