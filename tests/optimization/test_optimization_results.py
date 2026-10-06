@@ -184,6 +184,27 @@ class TestOptimizationResults(unittest.TestCase):
             ),
         )
 
+    def test_io_serialization_keeps_generation_order(self):
+        """HDF5 sorts keys alphabetically, so generation "10" precedes "2"."""
+        optimization_problem, optimization_results = (
+            setup_optimization_problem_and_results(n_gen=11)
+        )
+        optimization_results.save_results("checkpoint")
+
+        optimization_results_new = U_NSGA3().load_results(
+            checkpoint_path=optimization_results.results_directory / "checkpoint.h5",
+            optimization_problem=optimization_problem,
+        )
+
+        np.testing.assert_equal(
+            optimization_results_new.population_last.x,
+            optimization_results.population_last.x,
+        )
+        np.testing.assert_equal(
+            optimization_results_new.pareto_front.x,
+            optimization_results.pareto_front.x,
+        )
+
     def test_save_results_csv_includes_id_column(self):
         self.optimization_results.save_results("checkpoint")
 
