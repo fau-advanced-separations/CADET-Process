@@ -666,8 +666,8 @@ def test_aggregating_objective_reduces_moo_to_soo(op_two_objects_with_evaluator)
 
 def test_worst_case_objective_uses_numpy_reduction(op_two_objects_with_evaluator):
     # The canonical worst-case aggregation uses np.max on the collector input.
-    # The input arrives as a MaskedArray; without demasking, np.max crashes and
-    # the failure is swallowed into bad_metrics (inf) instead of the real max.
+    # pipefunc delivers the input as a MaskedArray; unconverted, np.max crashes
+    # and the failure is swallowed into bad_metrics (inf) instead of the max.
     op, simulate, _, _ = op_two_objects_with_evaluator
     op.add_objective(
         lambda sims: float(np.max(sims)),

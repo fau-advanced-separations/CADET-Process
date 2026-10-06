@@ -115,18 +115,21 @@ def _find_failure(value: Any, collects: bool) -> EvaluationFailure | None:
     return None
 
 
-def _demask(value: Any) -> Any:
-    """Strip the mask from a `MaskedArray` collector input, else pass through.
+def _to_case_list(value: Any) -> Any:
+    """Hand a `MaskedArray` collector input over as a list, else pass through.
 
-    A `collects` fan-in receives its mapped axis as a ``MaskedArray``; by the
-    time the reducer runs, ``_find_failure`` has guaranteed no element is masked
-    (a failed object was propagated already).  Hand the reducer a plain
-    ``ndarray``: numpy's masked-array reductions (``np.max``/``np.min``) crash on
-    an all-unmasked array via a scalar ``.view``, silently turning a legitimate
-    worst-case reducer into a ``bad_metrics`` result.
+    A `collects` fan-in receives its mapped axis as an object-dtype
+    ``MaskedArray``; by the time the reducer runs, ``_find_failure`` has
+    guaranteed no element is masked (a failed object was propagated already).
+    Hand the reducer a plain list with one entry per case, the same type
+    `EvaluationPipeline.evaluate` returns for a per-object target.  Neither
+    the mask nor the object dtype is meaningful to the reducer: numpy's
+    masked reductions (``np.max``/``np.min``) crash on an all-unmasked array,
+    and ufuncs such as ``np.log`` reject object arrays, while numpy converts
+    a list of floats to a numeric array on its own.
     """
     if isinstance(value, np.ma.MaskedArray):
-        return np.asarray(value)
+        return list(np.asarray(value))
     return value
 
 
@@ -155,8 +158,8 @@ def _wrap_with_failure_propagation(
             if failure is not None:
                 return failure
         if collects:
-            args = tuple(_demask(a) for a in args)
-            kwargs = {k: _demask(v) for k, v in kwargs.items()}
+            args = tuple(_to_case_list(a) for a in args)
+            kwargs = {k: _to_case_list(v) for k, v in kwargs.items()}
         try:
             return func(*args, **kwargs)
         except Exception as e:
@@ -548,13 +551,17 @@ class EvaluationPipeline:
             repeated execution is intentional and results need not be stored.
         per_object : bool, optional
             Whether this node runs once per evaluation object (the default
-            semantic) or once, collecting the complete per-object array of its
-            inputs (``False``, a whole-value consumer that may reduce it).  The
-            effective mapspec strings are generated at build time through one
-            central helper.  Left unset, it is inferred from the graph: the
-            node runs per object unless all its inputs are collector outputs,
-            in which case it runs once.  ``True`` in that position raises at
-            build time.  Mutually exclusive with `mapspec`.
+            semantic) or once, collecting the per-object results of its inputs
+            as a list with one entry per object (``False``, a whole-value
+            consumer that may reduce it).  The effective mapspec strings are
+            generated at build time through one central helper.  Left unset,
+            it is inferred from the graph: the node runs per object unless all
+            its inputs are collector outputs, in which case it runs once.
+            ``True`` in that position raises at build time.  A per-object node
+            feeding a collector must not return a ``list``, ``ndarray`` or
+            ``dict``: pipefunc cannot cache such outputs on the mapped axis
+            (pipefunc/pipefunc#987), so the collector fails on every call;
+            return a ``tuple`` instead.  Mutually exclusive with `mapspec`.
         mapspec : str, optional
             Escape hatch: a raw pipefunc axis-mapping string, e.g.
             ``"evaluation_contexts[object] -> out[object]"``, passed through
