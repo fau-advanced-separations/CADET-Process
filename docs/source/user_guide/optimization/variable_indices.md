@@ -171,6 +171,21 @@ print(process.flow_sheet.column.bulk_reaction_model.exponents_fwd)
 assert np.allclose(process.flow_sheet.column.bulk_reaction_model.exponents_fwd, [[2, 1], [1, 1]])
 ```
 
+As with events, a list names several entries; they all receive the value of the one variable.
+E.g. to keep the two off-diagonal exponents equal:
+
+```{code-cell} ipython3
+optimization_problem = setup_optimization_problem()
+
+optimization_problem.add_variable(
+    'exponents_off_diagonal', targets=process,
+    parameter_path='flow_sheet.column.bulk_reaction_model.exponents_fwd', indices=[(0, 1), (1, 0)]
+)
+optimization_problem.set_variables([4])
+print(process.flow_sheet.column.bulk_reaction_model.exponents_fwd)
+assert np.allclose(process.flow_sheet.column.bulk_reaction_model.exponents_fwd, [[2, 4], [4, 1]])
+```
+
 Just as with Events, slicing notation is also supported, e.g. to set an entire row:
 
 ```{code-cell} ipython3

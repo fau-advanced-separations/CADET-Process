@@ -442,8 +442,10 @@ class OptimizationProblem(Problem):
             Scalar domain.  ``int`` restricts the variable to integral values.
         normalization : {'auto', 'log', 'linear', None}
             Normalization scheme applied to this variable.
-        indices : int, tuple, or numpy index expression, optional
+        indices : int, tuple, numpy index expression, or list thereof, optional
             Target specific array entries; an ``IndexedMapper`` is used.
+            A list names several entries that all receive the variable's
+            value, e.g. ``[(0, 1, 0), (1, 0, 0)]``.
         significant_digits : int, optional
             Round the value to this many significant digits before writing.
         pre_processing : callable, optional
