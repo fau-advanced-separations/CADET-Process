@@ -96,22 +96,31 @@ class Metric:
 
         self.labels = labels
 
-    def redeclare(self, other: Metric) -> None:
-        """Adopt *other*'s dimensions, keeping identity and entry count.
+    def redeclare(self, other: Metric, *, allow_resize: bool = False) -> None:
+        """Adopt *other*'s dimensions, keeping identity.
 
         Mutates in place because the declaration is shared by reference with
-        every annotation holding it.
+        every annotation holding it. Resizing is opt-in during problem setup;
+        the caller must update any entry-wise annotations such as bounds.
+
+        Parameters
+        ----------
+        other : Metric
+            Replacement declaration with the same name.
+        allow_resize : bool, optional
+            Permit a changed entry count, default False.
 
         Raises
         ------
         ValueError
-            If *other* has a different name or number of entries.
+            If *other* has a different name, or changes the number of entries
+            without *allow_resize*.
         """
         if other.name != self.name:
             raise ValueError(
                 f"Metric {self.name!r}: cannot redeclare as {other.name!r}."
             )
-        if other.n_metrics != self.n_metrics:
+        if other.n_metrics != self.n_metrics and not allow_resize:
             raise ValueError(
                 f"Metric {self.name!r}: redeclaration changes the entry count "
                 f"from {self.n_metrics} to {other.n_metrics}."

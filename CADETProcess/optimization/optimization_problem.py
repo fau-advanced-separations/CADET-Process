@@ -33,8 +33,10 @@ from CADETProcess.parameter_space.constraints import (
     LinearEqualityConstraint,
 )
 from CADETProcess.parameter_space.mappers import (
+    DotPathMapper,
     IndexedMapper,
     NestedDictMapper,
+    ParameterMapperBase,
     make_preprocessing_mapper,
 )
 from CADETProcess.parameter_space.parameters import (
@@ -67,6 +69,8 @@ class _CallbackRecord:
         func: Callable,
         name: str,
         evaluation_objects: list | None = None,
+        all_cases: bool = False,
+        per_case: bool = True,
         evaluator_chain: list[str] | None = None,
         args: tuple = (),
         kwargs: dict | None = None,
@@ -77,6 +81,8 @@ class _CallbackRecord:
         self.func = func
         self.name = name
         self.evaluation_objects: list = list(evaluation_objects) if evaluation_objects else []
+        self.all_cases = all_cases
+        self.per_case = per_case
         self.evaluator_chain: list[str] = list(evaluator_chain) if evaluator_chain else []
         self.args = args if args else ()
         self.kwargs = kwargs if kwargs is not None else {}
@@ -136,8 +142,11 @@ class _MetricRecord:
         metric: Metric,
         annotation: Any,
         n_per_object: int,
+        base_labels: list[str] | None = None,
         bad_metrics: float | npt.ArrayLike | None = None,
         evaluation_objects: list | None = None,
+        all_cases: bool = False,
+        per_case: bool = True,
         evaluator_chain: list[str] | None = None,
         args: tuple = (),
         kwargs: dict | None = None,
@@ -146,6 +155,7 @@ class _MetricRecord:
         self.metric = metric
         self.annotation = annotation
         self.n_metrics = n_per_object
+        self.base_labels = list(base_labels) if base_labels is not None else None
         if bad_metrics is None:
             self.bad_metrics = np.full(n_per_object, np.inf)
         elif np.isscalar(bad_metrics):
@@ -153,6 +163,8 @@ class _MetricRecord:
         else:
             self.bad_metrics = np.asarray(bad_metrics, dtype=float)
         self.evaluation_objects: list = list(evaluation_objects) if evaluation_objects else []
+        self.all_cases = all_cases
+        self.per_case = per_case
         self.evaluator_chain: list[str] = list(evaluator_chain) if evaluator_chain else []
         self.args = args if args else ()
         self.kwargs = kwargs if kwargs is not None else {}
@@ -349,6 +361,8 @@ class OptimizationProblem(Problem):
         # the evaluator is lazily registered by _register_evaluator_chain.
         self._evaluator_node_options: dict[str, tuple[bool | None, str | None]] = {}
 
+        self._all_case_variables: dict[str, tuple[str, Any, Callable | None]] = {}
+
         self._objectives: list[_MetricRecord] = []
         self._nonlinear_constraints: list[_MetricRecord] = []
         self._callbacks: list[_CallbackRecord] = []
@@ -358,40 +372,90 @@ class OptimizationProblem(Problem):
     # ── Evaluation objects ─────────────────────────────────────────────────────
 
     def add_evaluation_object(self, obj: Any, **kwargs: Any) -> None:  # noqa: ARG002
-        """Register an evaluation object.
+        """Register an evaluation object and expand all-case registrations.
+
+        Variables and leaves registered with ``-1`` include the new case.
+        Metric counts and labels therefore grow during problem construction.
 
         Raises
         ------
         CADETProcessError
             If *obj* is already registered as an evaluator (invariant 8: an
             object is either a fanned evaluation object or a broadcast
-            evaluator/target, never both).
+            evaluator/target, never both), a new variable target has an invalid
+            or conflicting path, or an explicit fan-in domain becomes a subset.
         """
         if any(obj is evaluator for evaluator in self.evaluators):
             raise CADETProcessError(
                 f"{obj!r} is already registered as an evaluator and cannot "
                 "also be an evaluation object."
             )
+        # Validate every new binding before changing the case list or mappers.
+        cases = [*self.evaluation_objects, obj]
+        mappers = {}
+        # Integer object IDs do not survive pickling. Recover current target
+        # identities from the mappers before checking the new bindings.
+        path_registry = {}
+        for (path, _, index_key), name in self._path_registry.items():
+            mapper = self._parameter_space._mappers.get(name)
+            if mapper is not None:
+                for target in mapper.targets:
+                    path_registry[(path, id(target), index_key)] = name
+        for name, (path, indices, pre_processing) in self._all_case_variables.items():
+            if not attribute_path_exists(obj, path):
+                raise CADETProcessError(
+                    f"'{path}' is not a valid parameter on {obj!r}"
+                )
+            key = (path, id(obj), repr(indices) if indices is not None else None)
+            if key in path_registry and path_registry[key] != name:
+                raise CADETProcessError(
+                    f"Path '{path}' is already registered as variable "
+                    f"'{path_registry[key]}'"
+                )
+            path_registry[key] = name
+            if isinstance(self._params[name], ChoiceParameter):
+                mappers[name] = DotPathMapper(cases, path)
+            else:
+                mappers[name] = self._make_variable_mapper(
+                    cases, path, indices, pre_processing
+                )
+        records = (
+            self._objectives + self._nonlinear_constraints
+            + self._meta_scores + self._callbacks
+        )
+        for record in records:
+            if not record.per_case and not record.all_cases and record.evaluation_objects:
+                raise CADETProcessError(
+                    f"Adding a case would restrict fan-in {record.name!r} to a subset. "
+                    "Register the reducer with evaluation_objects=-1 (all cases)."
+                )
+
         self._parameter_space.add_case(obj)
+        self._parameter_space._mappers.update(mappers)
+        self._path_registry = path_registry
+        for record in records:
+            if record.all_cases:
+                record.evaluation_objects = list(cases)
         self._promote_pending_case_dims()
 
     def _promote_pending_case_dims(self) -> None:
-        """Rebuild object-bound metrics registered before enough cases existed.
-
-        ``_build_metric`` decides on a ``case`` dimension from the case
-        count at the time it runs, so the idiomatic "case, then its
-        objective" loop leaves the first objective without one.
-        """
-        if len(self.evaluation_objects) <= 1:
-            return
+        """Refresh case dimensions and all-case metric layouts during setup."""
         for record in self._objectives + self._nonlinear_constraints + self._meta_scores:
-            if not record.evaluation_objects or record.metric.coords is not None:
+            if not record.per_case or not record.evaluation_objects:
+                continue
+            if not record.all_cases and record.metric.coords is not None:
                 continue
             rebuilt = self._build_metric(
-                record.name, record.n_metrics, record.metric.labels,
+                record.name, record.n_metrics, record.base_labels,
                 record.evaluation_objects,
             )
-            record.metric.redeclare(rebuilt)
+            if record in self._nonlinear_constraints:
+                bounds = np.tile(
+                    record.annotation.bounds[:record.n_metrics],
+                    max(len(record.evaluation_objects), 1),
+                )
+                record.annotation.bounds = bounds
+            record.metric.redeclare(rebuilt, allow_resize=record.all_cases)
 
     @property
     def evaluation_objects(self) -> list[Any]:
@@ -432,14 +496,14 @@ class OptimizationProblem(Problem):
             Variable name.
         targets : list, object, or -1
             Objects this variable writes to.  ``-1`` (default) targets all
-            registered evaluation objects; ``None`` creates a free variable
+            evaluation objects, including those added later; ``None`` creates a free variable
             with no write target.  A target need not be a registered
             evaluation object: an unregistered target is written once and
             never fanned over (e.g. a simulator's solver settings shared by
             every process).  ``evaluation_objects`` is a deprecated alias.
         parameter_path : str, optional
             Dot-separated path to the attribute on the target.
-            Defaults to *name* when targets are present.
+            Defaults to *name* when targets are present or *targets* is ``-1``.
         lb, ub : float
             Lower and upper bounds.
         parameter_type : {int, float}
@@ -470,7 +534,7 @@ class OptimizationProblem(Problem):
             significant_digits=significant_digits,
         )
 
-        # Resolve targets to a concrete list.
+        # Resolve current targets; retain all-case intent for later additions.
         if targets is None:
             eval_objs: list[Any] = []
         elif targets == -1:
@@ -484,10 +548,10 @@ class OptimizationProblem(Problem):
         objs_dict = self.evaluation_objects_dict
         eval_objs = [objs_dict[o] if isinstance(o, str) else o for o in eval_objs]
 
-        # Default path to variable name when targets are present.
-        if parameter_path is None and eval_objs:
+        # An all-case binding can precede its first target.
+        if parameter_path is None and (eval_objs or targets == -1):
             parameter_path = name
-        if parameter_path is not None and not eval_objs:
+        if parameter_path is not None and not eval_objs and targets != -1:
             raise ValueError(
                 "Cannot set parameter_path for a variable without targets."
             )
@@ -515,46 +579,15 @@ class OptimizationProblem(Problem):
                 key = (parameter_path, id(obj), index_key)
                 self._path_registry[key] = name
 
-        # Wire mapper.  Targets whose `parameters` view actually reaches
-        # `parameter_path` are written through it (NestedDictMapper) so the
-        # value travels the same setter chain the event system uses; this is
-        # required for parameters that are not plain writable attributes
-        # (e.g. `flow_sheet.output_states`, a read-only property writable only
-        # via `set_output_state`).  `hasattr(obj, "parameters")` alone is not
-        # enough: a target can expose the property while its view stays empty
-        # for a given path (e.g. a simulator's `time_integrator_parameters`,
-        # which is a plain attribute, not a registered/aggregated parameter),
-        # so the path must be probed for reachability, not just the property
-        # for existence.  A raw setattr mapper (DotPathMapper /
-        # make_preprocessing_mapper) is the fallback when it is not reachable.
-        supports_parameters = eval_objs and all(
-            hasattr(obj, "parameters") and check_nested(obj.parameters, parameter_path)
-            for obj in eval_objs
-        )
-        if not eval_objs:
+        if parameter_path is None:
             self._parameter_space.add_parameter(param)
-        elif pre_processing is not None:
-            if supports_parameters:
-                mapper = NestedDictMapper(
-                    eval_objs, parameter_path, pre_processing=pre_processing
-                )
-            else:
-                mapper = make_preprocessing_mapper(
-                    eval_objs, parameter_path, pre_processing
-                )
-            self._parameter_space.add_parameter(param, mapper=mapper)
-        elif indices is not None:
-            self._parameter_space.add_parameter(
-                param, mapper=IndexedMapper(eval_objs, parameter_path, indices)
-            )
-        elif supports_parameters:
-            self._parameter_space.add_parameter(
-                param, mapper=NestedDictMapper(eval_objs, parameter_path)
-            )
         else:
-            self._parameter_space.add_parameter(
-                param, path=parameter_path, targets=eval_objs
+            mapper = self._make_variable_mapper(
+                eval_objs, parameter_path, indices, pre_processing
             )
+            self._parameter_space.add_parameter(param, mapper=mapper)
+        if targets == -1:
+            self._all_case_variables[name] = (parameter_path, indices, pre_processing)
 
         self._params[name] = param
         return param
@@ -577,12 +610,12 @@ class OptimizationProblem(Problem):
             Allowed choices.
         targets : list, object, or -1
             Objects this variable writes to.  ``-1`` (default) targets all
-            registered evaluation objects; ``None`` creates a free variable
+            evaluation objects, including those added later; ``None`` creates a free variable
             with no write target.  ``evaluation_objects`` is a deprecated
             alias.
         parameter_path : str, optional
             Dot-separated path to the attribute on the target.
-            Defaults to *name* when targets are present.
+            Defaults to *name* when targets are present or *targets* is ``-1``.
         """
         if name in self._params:
             raise CADETProcessError("Variable already exists")
@@ -601,9 +634,9 @@ class OptimizationProblem(Problem):
         objs_dict = self.evaluation_objects_dict
         eval_objs = [objs_dict[o] if isinstance(o, str) else o for o in eval_objs]
 
-        if parameter_path is None and eval_objs:
+        if parameter_path is None and (eval_objs or targets == -1):
             parameter_path = name
-        if parameter_path is not None and not eval_objs:
+        if parameter_path is not None and not eval_objs and targets != -1:
             raise ValueError(
                 "Cannot set parameter_path for a variable without targets."
             )
@@ -629,15 +662,41 @@ class OptimizationProblem(Problem):
                 key = (parameter_path, id(obj), index_key)
                 self._path_registry[key] = name
 
-        if not eval_objs:
+        if parameter_path is None:
             self._parameter_space.add_parameter(param)
         else:
             self._parameter_space.add_parameter(
                 param, path=parameter_path, targets=eval_objs
             )
+        if targets == -1:
+            self._all_case_variables[name] = (parameter_path, None, None)
 
         self._params[name] = param
         return param
+
+    @staticmethod
+    def _make_variable_mapper(
+        targets: list[Any],
+        path: str,
+        indices: Any = None,
+        pre_processing: Callable | None = None,
+    ) -> ParameterMapperBase:
+        """Build the same write strategy at registration and on case expansion."""
+        # Use the model's parameters setter when its nested view reaches the
+        # path (e.g. flow_sheet.output_states is otherwise read-only).
+        supports_parameters = targets and all(
+            hasattr(obj, "parameters") and check_nested(obj.parameters, path)
+            for obj in targets
+        )
+        if pre_processing is not None:
+            if supports_parameters:
+                return NestedDictMapper(targets, path, pre_processing=pre_processing)
+            return make_preprocessing_mapper(targets, path, pre_processing)
+        if indices is not None:
+            return IndexedMapper(targets, path, indices)
+        if supports_parameters:
+            return NestedDictMapper(targets, path)
+        return DotPathMapper(targets, path)
 
     def check_duplicate_variables(self) -> bool:
         """Return True. Duplicates are rejected eagerly at add_variable time."""
@@ -1366,7 +1425,7 @@ class OptimizationProblem(Problem):
     def _resolve_evaluation_objects(self, evaluation_objects: Any) -> list[Any]:
         """Resolve an ``evaluation_objects`` declaration to a canonical list.
 
-        ``-1`` means all registered objects; ``None`` means none (the metric
+        ``-1`` means all current and future objects; ``None`` means none (the metric
         operates on *x*).  The result is normalized to ``ParameterSpace``
         registration order regardless of declaration order: canonical order
         is a pure function of domain membership, so ``[B, A]`` and ``[A, B]``
@@ -1559,7 +1618,7 @@ class OptimizationProblem(Problem):
             Fallback values returned on evaluation failure.
         evaluation_objects : {-1, None, object, list}
             Which evaluation objects to use.  ``-1`` (default) uses all
-            registered objects; ``None`` passes *x* directly.  Declaration
+            current and future objects; ``None`` passes *x* directly. Declaration
             order carries no meaning: the domain is normalized to
             registration order.
         labels : list[str], optional
@@ -1637,8 +1696,11 @@ class OptimizationProblem(Problem):
             metric,
             annotation,
             n_per_object=n_objectives,
+            base_labels=base_labels,
             bad_metrics=bad_metrics,
             evaluation_objects=eval_objs,
+            all_cases=evaluation_objects == -1,
+            per_case=per_case,
             evaluator_chain=evaluator_chain,
             args=args,
             kwargs=kwargs if kwargs else None,
@@ -1709,7 +1771,7 @@ class OptimizationProblem(Problem):
         bad_metrics : float or list of floats, optional
             Fallback values on failure.
         evaluation_objects : {-1, None, object, list}
-            Evaluation objects to use.
+            Evaluation objects to use. ``-1`` includes objects added later.
         bounds : float or list of floats
             Per-metric upper limits (for ``le``) or lower limits (for ``ge``).
         comparison_operator : {'le', 'ge'}
@@ -1796,8 +1858,11 @@ class OptimizationProblem(Problem):
             metric,
             annotation,
             n_per_object=n_nonlinear_constraints,
+            base_labels=base_labels,
             bad_metrics=bad_metrics,
             evaluation_objects=eval_objs,
+            all_cases=evaluation_objects == -1,
+            per_case=per_case,
             evaluator_chain=evaluator_chain,
             args=args,
             kwargs=kwargs if kwargs else None,
@@ -1844,7 +1909,7 @@ class OptimizationProblem(Problem):
         name : str, optional
             Name; defaults to ``callback.__name__``.
         evaluation_objects : {-1, None, object, list}
-            Evaluation objects to use.
+            Evaluation objects to use. ``-1`` includes objects added later.
         requires : callable or list of callables, optional
             Upstream evaluators.
         frequency : int
@@ -1887,6 +1952,8 @@ class OptimizationProblem(Problem):
             callback,
             name,
             evaluation_objects=eval_objs,
+            all_cases=evaluation_objects == -1,
+            per_case=per_case,
             evaluator_chain=evaluator_chain,
             args=args,
             kwargs=kwargs if kwargs else None,
@@ -2013,8 +2080,11 @@ class OptimizationProblem(Problem):
             metric,
             annotation=None,
             n_per_object=n_meta_scores,
+            base_labels=base_labels,
             bad_metrics=bad_metrics,
             evaluation_objects=eval_objs,
+            all_cases=evaluation_objects == -1,
+            per_case=per_case,
             evaluator_chain=evaluator_chain,
             args=args,
             kwargs=kwargs if kwargs else None,
