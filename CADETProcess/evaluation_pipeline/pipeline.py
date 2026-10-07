@@ -644,6 +644,7 @@ class EvaluationPipeline:
         requires: list[str] | None,
         per_object: bool | None = None,
         mapspec: str | None = None,
+        output_name: str = "query",
     ) -> bool:
         """Whether a node with this wiring would run once per evaluation object.
 
@@ -651,6 +652,8 @@ class EvaluationPipeline:
         build applies, so a caller can declare its output layout before
         registering the node.  Unset *per_object* is inferred from the graph:
         a node whose inputs are all collector outputs runs once.
+        *output_name* only labels error messages; it is the name of the node
+        the caller is about to register.
 
         Raises
         ------
@@ -658,13 +661,15 @@ class EvaluationPipeline:
             If the options are contradictory (see `add_evaluator`), or if
             ``per_object=True`` is declared downstream of collectors only.
         """
-        _check_node_options("<query>", requires, per_object, mapspec)
+        _check_node_options(output_name, requires, per_object, mapspec)
         axis_bearing = {
             name: _has_axis(resolved)
             for name, resolved in self._resolve_mapspecs().items()
         }
         return _has_axis(
-            _effective_mapspec("query", requires, per_object, mapspec, axis_bearing)
+            _effective_mapspec(
+                output_name, requires, per_object, mapspec, axis_bearing
+            )
         )
 
     def _graph_nodes(self) -> list[PipeFunc]:

@@ -1437,12 +1437,15 @@ class OptimizationProblem(Problem):
 
     def _resolve_leaf_wiring(
         self,
+        name: str,
         evaluation_objects: Any,
         requires: Any,
         per_object: Optional[bool],
         mapspec: Optional[str],
     ) -> tuple[list[Any], bool, list[str], list[str] | None]:
         """Resolve the wiring shared by every leaf kind.
+
+        *name* is the leaf's registration name, used to label wiring errors.
 
         Objectives, nonlinear constraints, meta scores, and callbacks differ
         in what their output means, not in how they are wired; this is the
@@ -1480,7 +1483,9 @@ class OptimizationProblem(Problem):
         self._register_evaluator_chain(req_list)
 
         requires_node = [evaluator_chain[-1]] if evaluator_chain else None
-        per_case = self._backend.is_per_object(requires_node, per_object, mapspec)
+        per_case = self._backend.is_per_object(
+            requires_node, per_object, mapspec, output_name=name
+        )
         self._check_fan_in_subset_supported(eval_objs, fan_in=not per_case)
         return eval_objs, per_case, evaluator_chain, requires_node
 
@@ -1600,7 +1605,9 @@ class OptimizationProblem(Problem):
         self._check_metric_name(name)
 
         eval_objs, per_case, evaluator_chain, requires_node = (
-            self._resolve_leaf_wiring(evaluation_objects, requires, per_object, mapspec)
+            self._resolve_leaf_wiring(
+                name, evaluation_objects, requires, per_object, mapspec
+            )
         )
 
         # Declare the metric and annotate it with the direction; raises on
@@ -1756,7 +1763,9 @@ class OptimizationProblem(Problem):
             )
 
         eval_objs, per_case, evaluator_chain, requires_node = (
-            self._resolve_leaf_wiring(evaluation_objects, requires, per_object, mapspec)
+            self._resolve_leaf_wiring(
+                name, evaluation_objects, requires, per_object, mapspec
+            )
         )
 
         # Declare the metric and annotate it with operator and bounds; raises
@@ -1869,7 +1878,9 @@ class OptimizationProblem(Problem):
         self._check_metric_name(name)
 
         eval_objs, per_case, evaluator_chain, requires_node = (
-            self._resolve_leaf_wiring(evaluation_objects, requires, per_object, mapspec)
+            self._resolve_leaf_wiring(
+                name, evaluation_objects, requires, per_object, mapspec
+            )
         )
 
         record = _CallbackRecord(
@@ -1974,7 +1985,9 @@ class OptimizationProblem(Problem):
         self._check_metric_name(name)
 
         eval_objs, per_case, evaluator_chain, requires_node = (
-            self._resolve_leaf_wiring(evaluation_objects, requires, per_object, mapspec)
+            self._resolve_leaf_wiring(
+                name, evaluation_objects, requires, per_object, mapspec
+            )
         )
 
         # Declare the metric without direction or constraint annotation.

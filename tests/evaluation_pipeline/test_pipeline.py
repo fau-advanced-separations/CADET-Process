@@ -1347,6 +1347,22 @@ def test_is_per_object_rejects_explicit_per_object_below_collector():
         pipeline.is_per_object(["worst"], per_object=True)
 
 
+def test_is_per_object_errors_name_the_node_being_registered():
+    space = _make_space(Model(value=3.0), Model(value=1.0))
+    pipeline = EvaluationPipeline(space)
+    pipeline.add_evaluator(lambda model: model.value, output_name="v")
+    pipeline.add_evaluator(
+        lambda v: float(min(v)), output_name="worst", requires=["v"], per_object=False
+    )
+
+    with pytest.raises(ValueError, match="'my_objective'"):
+        pipeline.is_per_object(None, per_object=False, output_name="my_objective")
+    with pytest.raises(ValueError, match="'my_objective'"):
+        pipeline.is_per_object(
+            ["worst"], per_object=True, output_name="my_objective"
+        )
+
+
 def test_collector_registered_before_upstream_still_resolves():
     # Effective mapspecs resolve producers-first regardless of registration
     # order; a collector consuming a later-registered evaluator still works.
