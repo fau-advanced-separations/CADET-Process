@@ -736,6 +736,15 @@ def test_per_object_and_mapspec_exclusive_on_facade(op_two_objects_with_evaluato
         )
 
 
+def test_root_per_object_false_error_names_the_objective(
+    op_two_objects_with_evaluator,
+):
+    op, _, _, _ = op_two_objects_with_evaluator
+
+    with pytest.raises(ValueError, match="'my_objective'"):
+        op.add_objective(lambda eval_obj: 0.0, name="my_objective", per_object=False)
+
+
 def test_aggregating_nonlinear_constraint_reduces_to_one(
     op_two_objects_with_evaluator,
 ):
