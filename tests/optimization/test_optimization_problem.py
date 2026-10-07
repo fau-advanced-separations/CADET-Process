@@ -1946,11 +1946,13 @@ def _split_process():
     return process, flow_sheet, cstr
 
 
-def test_output_states_variable_writes_split_through_flow_sheet():
+@pytest.mark.parametrize("register_case_first", [False, True])
+def test_output_states_variable_writes_split_through_flow_sheet(register_case_first):
     process, flow_sheet, cstr = _split_process()
 
     op = OptimizationProblem("output_split", use_diskcache=False)
-    op.add_evaluation_object(process)
+    if register_case_first:
+        op.add_evaluation_object(process)
     op.add_variable(
         "output_split",
         parameter_path="flow_sheet.output_states.cstr",
@@ -1959,6 +1961,8 @@ def test_output_states_variable_writes_split_through_flow_sheet():
         transform=None,
         pre_processing=lambda x: [1 - float(x), float(x)],
     )
+    if not register_case_first:
+        op.add_evaluation_object(process)
 
     op.parameter_space.set_values({"output_split": 0.3})
 

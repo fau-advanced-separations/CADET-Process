@@ -104,6 +104,18 @@ def test_redeclare_rejects_changed_entry_count():
         m.redeclare(other)
 
 
+def test_redeclare_can_explicitly_resize_during_setup():
+    m = Metric("yield")
+    m.redeclare(
+        Metric("yield", dims=("case",), coords={"case": ["A", "B"]}),
+        allow_resize=True,
+    )
+    assert m.shape == (2,)
+    assert m.n_metrics == 2
+    assert m.labels == ["yield_A", "yield_B"]
+    np.testing.assert_allclose(m.validate([0.2, 0.8]), [0.2, 0.8])
+
+
 # ── Shape validation ──────────────────────────────────────────────────────────
 
 

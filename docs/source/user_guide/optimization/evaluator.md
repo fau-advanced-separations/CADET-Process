@@ -66,8 +66,11 @@ optimization_problem.add_variable(
 )
 ```
 
-By default, a variable targets all evaluation objects.
+By default (`targets=-1`), a variable targets all evaluation objects, including objects added later with `add_evaluation_object`.
 If no path is provided, the variable name is used as the path.
+The same all-case meaning applies to `evaluation_objects=-1` on objectives, nonlinear constraints, meta scores, and callbacks.
+Explicit lists keep their selected objects when more cases are added.
+Adding cases updates metric counts, labels, and constraint bounds during setup; finish registering cases before constructing populations or starting an optimizer.
 
 ```{code-cell} ipython3
 :tags: [hide-cell]
