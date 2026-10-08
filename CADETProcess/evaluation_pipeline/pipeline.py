@@ -19,12 +19,12 @@ __all__ = ["EvaluationPipeline"]
 
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 # Output name of the ``set_values`` root node and the axis input name a mapped
-# node consumes: ``evaluation_contexts[object] -> output[object]``.
+# node consumes: ``evaluation_contexts[case] -> output[case]``.
 _EVALUATION_CONTEXTS = "evaluation_contexts"
 # The one mapped axis name.  All mapspec strings are generated through
 # ``_generate_mapspec`` so the string form cannot drift; user-supplied
 # ``mapspec=`` strings are the escape hatch and pass through verbatim.
-_OBJECT_AXIS = "object"
+_CASE_AXIS = "case"
 # Stable UUID slot for the zero-case mode: cache entries are keyed on
 # (x_key, uuid), and without a case the x_key alone identifies the
 # evaluation.  A fixed constant keeps keys stable across processes.
@@ -103,7 +103,7 @@ def _find_failure(value: Any, collects: bool) -> EvaluationFailure | None:
     A fan-in node (`collects`) also fails when any element of its mapped input
     array is one: a failed object must fail the aggregate (the `bad_metrics`
     default) rather than reach the user reducer as a sentinel among floats.
-    The array scan is gated on `collects` so per-object nodes never iterate a
+    The array scan is gated on `collects` so per-case nodes never iterate a
     large numeric data array looking for sentinels that cannot be there.
     """
     if isinstance(value, EvaluationFailure):
@@ -122,7 +122,7 @@ def _to_case_list(value: Any) -> Any:
     ``MaskedArray``; by the time the reducer runs, ``_find_failure`` has
     guaranteed no element is masked (a failed object was propagated already).
     Hand the reducer a plain list with one entry per case, the same type
-    `EvaluationPipeline.evaluate` returns for a per-object target.  Neither
+    `EvaluationPipeline.evaluate` returns for a per-case target.  Neither
     the mask nor the object dtype is meaningful to the reducer: numpy's
     masked reductions (``np.max``/``np.min``) crash on an all-unmasked array,
     and ufuncs such as ``np.log`` reject object arrays, while numpy converts
@@ -198,7 +198,7 @@ def _make_root_wrapper(func: Callable, arg_name: str) -> Callable:
     """Wrap a root node so it receives a ``_EvaluationContext`` and extracts the obj.
 
     The wrapper's single argument is named *arg_name* so pipefunc wires it to the
-    graph root: ``_EVALUATION_CONTEXTS`` (one context element per object axis
+    graph root: ``_EVALUATION_CONTEXTS`` (one context element per case axis
     iteration).  The user's function is called with the raw evaluation object
     extracted from the context.
     """
@@ -239,12 +239,12 @@ def _make_set_values_node(space: ParameterSpace) -> PipeFunc:
     The node takes the assignment mapping ``x`` (the genuine graph root), writes
     it into every evaluation object via ``space.set_values``, and returns an
     ordered ``list[_EvaluationContext]`` carrying the live configured objects.
-    Downstream mapped nodes introduce the ``object`` axis by indexing this
+    Downstream mapped nodes introduce the ``case`` axis by indexing this
     sequence; the node itself is unmapped, so ``set_values`` runs once per call,
-    not once per object (the single-write-path invariant).
+    not once per case (the single-write-path invariant).
 
     The closure captures only *space*, never the pipeline or ``OptimizationProblem``
-    (the anti-recursion invariant), which is what the space-owned per-object UUID
+    (the anti-recursion invariant), which is what the space-owned per-case UUID
     makes possible.
 
     ``cache=False``: the node mutates shared objects, so a cache hit would return
@@ -290,7 +290,7 @@ def _make_set_values_node(space: ParameterSpace) -> PipeFunc:
         ]
     )
     # Declare the axis-source mapspec explicitly (empty input axes, one
-    # ``object`` output axis: ``set_values`` produces the whole sequence in one
+    # ``case`` output axis: ``set_values`` produces the whole sequence in one
     # call).  This is byte-for-byte what pipefunc would otherwise autogenerate,
     # but autogeneration fires a bare ``print`` on every pipeline build; setting
     # it here keeps the now-unconditional mapped path quiet.
@@ -298,21 +298,21 @@ def _make_set_values_node(space: ParameterSpace) -> PipeFunc:
         set_values,
         output_name=_EVALUATION_CONTEXTS,
         cache=False,
-        mapspec=f"... -> {_EVALUATION_CONTEXTS}[{_OBJECT_AXIS}]",
+        mapspec=f"... -> {_EVALUATION_CONTEXTS}[{_CASE_AXIS}]",
     )
 
 
 class _NodeSpec:
     """Registration record for one evaluator; the PipeFunc is built later.
 
-    Node construction is deferred to ``_get_pipeline`` because per-object
+    Node construction is deferred to ``_get_pipeline`` because per-case
     semantics resolve against the whole graph: a collector
-    (``per_object=False``) registered last leaves its downstream nodes without
+    (``per_case=False``) registered last leaves its downstream nodes without
     an axis to fan over, so effective mapspecs cannot be finalized at
     registration time.
     """
 
-    __slots__ = ("func", "output_name", "requires", "cache", "per_object", "mapspec")
+    __slots__ = ("func", "output_name", "requires", "cache", "per_case", "mapspec")
 
     def __init__(
         self,
@@ -320,14 +320,14 @@ class _NodeSpec:
         output_name: str,
         requires: list[str] | None,
         cache: bool,
-        per_object: bool | None,
+        per_case: bool | None,
         mapspec: str | None,
     ) -> None:
         self.func = func
         self.output_name = output_name
         self.requires = requires
         self.cache = cache
-        self.per_object = per_object
+        self.per_case = per_case
         self.mapspec = mapspec
 
 
@@ -336,11 +336,11 @@ def _generate_mapspec(
     requires: list[str] | None,
     axis_inputs: set[str],
 ) -> str:
-    """Generate the mapspec string for a per-object node.
+    """Generate the mapspec string for a per-case node.
 
     The single point where mapspec strings are written, so the string form
     cannot drift as signatures evolve.  Inputs in *axis_inputs* carry the
-    object axis and are indexed; other inputs (outputs of collectors) are
+    case axis and are indexed; other inputs (outputs of collectors) are
     consumed whole.  A root node (``requires is None``) fans over the
     ``evaluation_contexts`` sequence.
     """
@@ -350,76 +350,76 @@ def _generate_mapspec(
     else:
         input_names = requires
     inputs = ", ".join(
-        f"{name}[{_OBJECT_AXIS}]" if name in axis_inputs else name
+        f"{name}[{_CASE_AXIS}]" if name in axis_inputs else name
         for name in input_names
     )
-    return f"{inputs} -> {output_name}[{_OBJECT_AXIS}]"
+    return f"{inputs} -> {output_name}[{_CASE_AXIS}]"
 
 
 def _mapspec_output_has_axis(mapspec: str) -> bool:
     """Whether an explicit mapspec string produces an axis-bearing output."""
     _, _, rhs = mapspec.partition("->")
-    return f"[{_OBJECT_AXIS}]" in rhs
+    return f"[{_CASE_AXIS}]" in rhs
 
 
 def _check_node_options(
     output_name: str,
     requires: list[str] | None,
-    per_object: bool | None,
+    per_case: bool | None,
     mapspec: str | None,
 ) -> None:
     """Reject node options that are contradictory regardless of the graph."""
-    if per_object is not None and mapspec is not None:
+    if per_case is not None and mapspec is not None:
         raise ValueError(
-            "per_object and mapspec are mutually exclusive: per_object is "
+            "per_case and mapspec are mutually exclusive: per_case is "
             "the normal API, mapspec the raw escape hatch; supply one."
         )
-    if per_object is False and requires is None:
+    if per_case is False and requires is None:
         raise ValueError(
-            f"per_object=False on root node {output_name!r}: a root has no "
+            f"per_case=False on root node {output_name!r}: a root has no "
             "mapped upstream to collect. Declare requires= or drop "
-            "per_object."
+            "per_case."
         )
 
 
 def _effective_mapspec(
     output_name: str,
     requires: list[str] | None,
-    per_object: bool | None,
+    per_case: bool | None,
     mapspec: str | None,
     axis_bearing: Mapping[str, bool],
 ) -> str | None:
     """Resolve one node's effective mapspec; ``None`` marks a whole-value node.
 
-    The single rule deciding whether a node runs once per object, shared by
+    The single rule deciding whether a node runs once per case, shared by
     the build (`EvaluationPipeline._resolve_mapspecs`) and the
-    registration-time query (`EvaluationPipeline.is_per_object`), so the
+    registration-time query (`EvaluationPipeline.is_per_case`), so the
     metric layout declared at registration cannot disagree with execution.
     *axis_bearing* maps already-resolved producers to whether their output
-    carries the object axis; requires missing from it are external inputs.
+    carries the case axis; requires missing from it are external inputs.
 
     Raises
     ------
     ValueError
-        If ``per_object=True`` is declared on a node whose inputs all come
-        from collectors: there is no axis left to run it per object.
+        If ``per_case=True`` is declared on a node whose inputs all come
+        from collectors: there is no axis left to run it per case.
     """
     if mapspec is not None:
         return mapspec
-    if per_object is False:
+    if per_case is False:
         return None
     axis_inputs = {r for r in (requires or []) if axis_bearing.get(r, False)}
     if requires is None or axis_inputs:
         # Requiring the case contexts never decides the mode, it follows it:
-        # a per-object node receives its own case, a whole-value node all.
+        # a per-case node receives its own case, a whole-value node all.
         if requires is not None and _EVALUATION_CONTEXTS in requires:
             axis_inputs = axis_inputs | {_EVALUATION_CONTEXTS}
         return _generate_mapspec(output_name, requires, axis_inputs)
-    if per_object is True:
+    if per_case is True:
         raise ValueError(
-            f"per_object=True on {output_name!r}, but its inputs {requires} "
-            "are all collector (per_object=False) outputs: there is no object "
-            "axis left to run it per object. Drop per_object or declare it "
+            f"per_case=True on {output_name!r}, but its inputs {requires} "
+            "are all collector (per_case=False) outputs: there is no case "
+            "axis left to run it per case. Drop per_case or declare it "
             "False."
         )
     # Downstream of collectors only: no axis to fan over.
@@ -444,11 +444,11 @@ def _make_node(
     A node with ``requires`` receives its named upstream outputs (single elements
     under a mapspec, whole values otherwise).  A root node (``requires is None``)
     consumes the ``evaluation_contexts`` axis; every root carries a mapspec, since
-    ``per_object=False`` roots are rejected at registration.
+    ``per_case=False`` roots are rejected at registration.
 
     ``collects`` marks a mapped fan-in node (whole-value consumer of a mapped
     axis): its wrapper scans its input array and propagates a failure if any
-    object failed, so a failed object fails the aggregate rather than reaching
+    case failed, so a failed case fails the aggregate rather than reaching
     the user reducer as a sentinel among floats.
     """
     safe = _wrap_with_failure_propagation(func, stage=output_name, collects=collects)
@@ -525,7 +525,7 @@ class EvaluationPipeline:
         output_name: str,
         requires: list[str] | None = None,
         cache: bool = True,
-        per_object: bool | None = None,
+        per_case: bool | None = None,
         mapspec: str | None = None,
     ) -> None:
         """Register a callable as a named node in the evaluation DAG.
@@ -549,24 +549,24 @@ class EvaluationPipeline:
             Whether to cache the output of this node.  Defaults to True.
             Pass False for nodes with side effects (e.g. callbacks) where
             repeated execution is intentional and results need not be stored.
-        per_object : bool, optional
-            Whether this node runs once per evaluation object (the default
-            semantic) or once, collecting the per-object results of its inputs
-            as a list with one entry per object (``False``, a whole-value
+        per_case : bool, optional
+            Whether this node runs once per case (the default
+            semantic) or once, collecting the per-case results of its inputs
+            as a list with one entry per case (``False``, a whole-value
             consumer that may reduce it).  The effective mapspec strings are
             generated at build time through one central helper.  Left unset,
-            it is inferred from the graph: the node runs per object unless all
+            it is inferred from the graph: the node runs per case unless all
             its inputs are collector outputs, in which case it runs once.
-            ``True`` in that position raises at build time.  A per-object node
+            ``True`` in that position raises at build time.  A per-case node
             feeding a collector must not return a ``list``, ``ndarray`` or
             ``dict``: pipefunc cannot cache such outputs on the mapped axis
             (pipefunc/pipefunc#987), so the collector fails on every call;
             return a ``tuple`` instead.  Mutually exclusive with `mapspec`.
         mapspec : str, optional
             Escape hatch: a raw pipefunc axis-mapping string, e.g.
-            ``"evaluation_contexts[object] -> out[object]"``, passed through
+            ``"evaluation_contexts[case] -> out[case]"``, passed through
             verbatim.  The graph always executes once via ``pipeline.map`` over
-            the whole object axis.
+            the whole case axis.
 
         Raises
         ------
@@ -575,7 +575,7 @@ class EvaluationPipeline:
         ValueError
             If `output_name` is already registered or is not a valid identifier,
             if any entry in `requires` is not a valid identifier, if both
-            `per_object` and `mapspec` are supplied, or if ``per_object=False``
+            `per_case` and `mapspec` are supplied, or if ``per_case=False``
             is declared on a root node (nothing to collect).
         """
         if not callable(func):
@@ -585,10 +585,10 @@ class EvaluationPipeline:
             _validate_identifier(required)
         if output_name in self._output_names:
             raise ValueError(f"output_name {output_name!r} is already registered")
-        _check_node_options(output_name, requires, per_object, mapspec)
+        _check_node_options(output_name, requires, per_case, mapspec)
 
         self._specs.append(
-            _NodeSpec(func, output_name, requires, cache, per_object, mapspec)
+            _NodeSpec(func, output_name, requires, cache, per_case, mapspec)
         )
         self._output_names.append(output_name)
         self._pipeline = None  # invalidate cached pipeline
@@ -604,7 +604,7 @@ class EvaluationPipeline:
     def _resolve_mapspecs(self) -> dict[str, str | None]:
         """Finalize the effective mapspec for every node.
 
-        Default (``per_object`` unset or True) nodes get generated mapspecs:
+        Default (``per_case`` unset or True) nodes get generated mapspecs:
         roots fan over ``evaluation_contexts``; downstream nodes fan over
         whichever of their inputs carry the axis.  A node whose inputs all come
         from collectors has no axis to fan over and stays a whole-value node.
@@ -626,7 +626,7 @@ class EvaluationPipeline:
                 resolved = _effective_mapspec(
                     spec.output_name,
                     spec.requires,
-                    spec.per_object,
+                    spec.per_case,
                     spec.mapspec,
                     axis_bearing,
                 )
@@ -639,18 +639,18 @@ class EvaluationPipeline:
                 raise ValueError(f"Cyclic requires among nodes: {cycle}")
         return effective
 
-    def is_per_object(
+    def is_per_case(
         self,
         requires: list[str] | None,
-        per_object: bool | None = None,
+        per_case: bool | None = None,
         mapspec: str | None = None,
         output_name: str = "query",
     ) -> bool:
-        """Whether a node with this wiring would run once per evaluation object.
+        """Whether a node with this wiring would run once per case.
 
         Resolves against the nodes registered so far with the same rule the
         build applies, so a caller can declare its output layout before
-        registering the node.  Unset *per_object* is inferred from the graph:
+        registering the node.  Unset *per_case* is inferred from the graph:
         a node whose inputs are all collector outputs runs once.
         *output_name* only labels error messages; it is the name of the node
         the caller is about to register.
@@ -659,23 +659,23 @@ class EvaluationPipeline:
         ------
         ValueError
             If the options are contradictory (see `add_evaluator`), or if
-            ``per_object=True`` is declared downstream of collectors only.
+            ``per_case=True`` is declared downstream of collectors only.
         """
-        _check_node_options(output_name, requires, per_object, mapspec)
+        _check_node_options(output_name, requires, per_case, mapspec)
         axis_bearing = {
             name: _has_axis(resolved)
             for name, resolved in self._resolve_mapspecs().items()
         }
         return _has_axis(
             _effective_mapspec(
-                output_name, requires, per_object, mapspec, axis_bearing
+                output_name, requires, per_case, mapspec, axis_bearing
             )
         )
 
     def _graph_nodes(self) -> list[PipeFunc]:
         """Build the pipefunc nodes, prepending the ``set_values`` root.
 
-        The graph roots on ``x`` and fans the object axis off the
+        The graph roots on ``x`` and fans the case axis off the
         ``evaluation_contexts`` sequence, so the ``set_values`` node must exist.
         """
         self._effective_mapspecs = self._resolve_mapspecs()
@@ -817,28 +817,28 @@ class EvaluationPipeline:
         bypass_cache: bool,
         cases: list[Any] | None,
     ) -> dict[str, Any]:
-        """Run a mapped graph once via ``pipeline.map`` over the object axis.
+        """Run a mapped graph once via ``pipeline.map`` over the case axis.
 
         The ``set_values`` node writes ``x`` and emits the ordered
         ``evaluation_contexts`` sequence; ``pipeline.map`` fans every mapped node
         over that axis.  Two kinds of target are reshaped differently:
 
-        - A mapped target yields one value per object; it follows the loop's
-          convention (one object, or objectless, unwraps to a plain value;
+        - A mapped target yields one value per case; it follows the loop's
+          convention (one case, or none, unwraps to a plain value;
           several give a list).
         - An unmapped target is a whole-value consumer (fan-in): it received the
-          full per-object array and reduced it to a single value, which is
-          returned as-is.  Roots without an explicit declaration fan per object
-          (the per-object default); ``per_object=False`` roots are rejected at
+          full per-case array and reduced it to a single value, which is
+          returned as-is.  Roots without an explicit declaration fan per case
+          (the per-case default); ``per_case=False`` roots are rejected at
           registration.
 
-        A failed object propagates its ``EvaluationFailure`` sentinel in the
+        A failed case propagates its ``EvaluationFailure`` sentinel in the
         mapped array, and a fan-in node fails the aggregate rather than reducing
         over it (see ``_find_failure``); no ``MaskedArray`` is involved.
 
         Per-call control reaches the baked ``set_values`` root through two
         whole-value ``pipeline.map`` inputs: the resolved run subset restricts
-        the object axis, and a cache nonce (set only when ``bypass_cache``)
+        the case axis, and a cache nonce (set only when ``bypass_cache``)
         forces every node to miss this run.
 
         Sequential (``parallel=False``) is deliberate for the first increment;
@@ -863,7 +863,7 @@ class EvaluationPipeline:
         )
 
         mapspec_by_name = self._effective_mapspecs
-        # Objectless (0) and single-object (1) both unwrap to a plain value;
+        # Zero and one effective case both unwrap to a plain value;
         # base this on the effective (restricted) cases, not the full space.
         single = len(effective_cases) <= 1
         out: dict[str, Any] = {}
