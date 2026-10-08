@@ -307,8 +307,8 @@ def test_parameters(unit_operation, expected_parameters, request):
     [
         ("tubular_reactor", 2, 2),
         ("lrmp", 2, 4),
-        ("tubular_reactor", 0, ZeroDivisionError),
-        ("lrmp", 0, ZeroDivisionError),
+        ("tubular_reactor", 0, 0),
+        ("lrmp", 0, 0),
     ],
 )
 def test_interstitial_velocity(unit_operation, flow_rate, expected_velocity, request):
@@ -320,13 +320,9 @@ def test_interstitial_velocity(unit_operation, flow_rate, expected_velocity, req
     if unit_operation == "lrmp":
         unit.bed_porosity = 0.5
 
-    if expected_velocity is ZeroDivisionError:
-        with pytest.raises(ZeroDivisionError):
-            unit.calculate_interstitial_velocity(flow_rate)
-    else:
-        assert np.isclose(
-            unit.calculate_interstitial_velocity(flow_rate), expected_velocity
-        )
+    assert np.isclose(
+        unit.calculate_interstitial_velocity(flow_rate), expected_velocity
+    )
 
 
 @pytest.mark.parametrize(
@@ -334,8 +330,8 @@ def test_interstitial_velocity(unit_operation, flow_rate, expected_velocity, req
     [
         ("tubular_reactor", 2, 2),
         ("lrmp", 2, 2),
-        ("tubular_reactor", 0, ZeroDivisionError),
-        ("lrmp", 0, ZeroDivisionError),
+        ("tubular_reactor", 0, 0),
+        ("lrmp", 0, 0),
     ],
 )
 def test_superficial_velocity(unit_operation, flow_rate, expected_velocity, request):
@@ -346,20 +342,16 @@ def test_superficial_velocity(unit_operation, flow_rate, expected_velocity, requ
     if unit_operation == "lrmp":
         unit.bed_porosity = 0.5
 
-    if expected_velocity is ZeroDivisionError:
-        with pytest.raises(ZeroDivisionError):
-            unit.calculate_superficial_velocity(flow_rate)
-    else:
-        assert np.isclose(
-            unit.calculate_superficial_velocity(flow_rate), expected_velocity
-        )
+    assert np.isclose(
+        unit.calculate_superficial_velocity(flow_rate), expected_velocity
+    )
 
 
 @pytest.mark.parametrize(
     "unit_operation, flow_rate, expected_ntp",
     [
         ("tubular_reactor", 2, [1 / 3, 1 / 3]),
-        ("tubular_reactor", 0, ZeroDivisionError),
+        ("tubular_reactor", 0, [0, 0]),
     ],
 )
 def test_ntp(unit_operation, flow_rate, expected_ntp, request):
@@ -368,11 +360,7 @@ def test_ntp(unit_operation, flow_rate, expected_ntp, request):
     unit.cross_section_area = 1
     unit.axial_dispersion = 3
 
-    if expected_ntp is ZeroDivisionError:
-        with pytest.raises(ZeroDivisionError):
-            unit.NTP(flow_rate)
-    else:
-        np.testing.assert_almost_equal(unit.NTP(flow_rate), expected_ntp)
+    np.testing.assert_almost_equal(unit.NTP(flow_rate), expected_ntp)
 
 
 @pytest.mark.parametrize(
