@@ -1357,6 +1357,9 @@ class OptimizationProblem(Problem):
         CADETProcessError
             If an evaluator with the same name already exists.
         CADETProcessError
+            If *name* is not a valid Python identifier or is already registered
+            as a metric.
+        CADETProcessError
             If *evaluator* is already registered as an evaluation object
             (invariant 8: an object is either a fanned evaluation object or a
             broadcast evaluator/target, never both).
@@ -1376,6 +1379,7 @@ class OptimizationProblem(Problem):
 
         if name in self.evaluators_dict:
             raise CADETProcessError("Evaluator with same name already exists.")
+        self._check_metric_name(name)
 
         # Build a wrapped callable that bakes in fixed args/kwargs.
         _args = args if args is not None else ()

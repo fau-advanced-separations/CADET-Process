@@ -1097,6 +1097,21 @@ def test_add_evaluator_duplicate_name_raises():
         op.add_evaluator(lambda x: x, name="ev1")
 
 
+def test_add_evaluator_invalid_name_raises_at_registration():
+    """Rejected like a metric name, not later by the pipeline."""
+    op = OptimizationProblem("ev", use_diskcache=False)
+    with pytest.raises(CADETProcessError, match="pass name="):
+        op.add_evaluator(lambda x: x, name="my ev")
+
+
+def test_add_evaluator_name_shared_with_metric_raises():
+    op = OptimizationProblem("ev", use_diskcache=False)
+    op.add_variable("x", lb=0, ub=1)
+    op.add_objective(lambda x: x, name="f")
+    with pytest.raises(CADETProcessError, match="share one namespace"):
+        op.add_evaluator(lambda x: x, name="f")
+
+
 class _CallableEvaluationObject:
     """Callable so it is eligible as either an evaluator or an evaluation object."""
 
