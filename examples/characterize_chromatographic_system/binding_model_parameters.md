@@ -232,7 +232,7 @@ if __name__ == '__main__':
 
         optimization_problem.add_objective(
             comparator,
-            name=f"Objective {comparator.name}",
+            name=f"objective_{cv}_cv",
             evaluation_objects=[process],  # limit this comparator to be applied to only this one process
             n_objectives=comparator.n_metrics,
             requires=[simulator]
@@ -302,8 +302,8 @@ if __name__ == '__main__':
 
     print(optimization_problem.variable_names)
     x0 = [1, 1, 1e-2, 1e-3, 10]
-    ind = optimization_problem.create_individual(x0)
-    optimization_problem.evaluate_callbacks(ind)
+    population = optimization_problem.create_population(x0)
+    optimization_problem.evaluate_callbacks(population, callbacks_dir="./")
 ```
 
 ```{note}
