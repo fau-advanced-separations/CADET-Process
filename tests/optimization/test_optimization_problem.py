@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import Float, Structure
-from CADETProcess.optimization import OptimizationProblem, Population
+from CADETProcess.optimization import SLSQP, U_NSGA3, OptimizationProblem, Population
 
 from tests.optimization.conftest import (
     EvaluationObject,
@@ -333,6 +333,34 @@ def test_check_linear_constraints_full_vector_matches_independent(op_with_depend
     assert op.check_linear_constraints(x_ind) == op.check_linear_constraints(
         x_full, get_dependent_values=False
     )
+
+
+def test_check_config_rejects_linear_constraints_on_dependent_variables(
+    op_with_dependent_variable,
+):
+    """The optimizer-facing matrices would drop 'spam' and relax its constraints."""
+    op = op_with_dependent_variable
+    with pytest.warns(UserWarning, match="'spam' is not an independent variable"):
+        assert not op.check_config()
+    assert op.check_config(ignore_linear_constraints=True)
+
+
+@pytest.mark.parametrize(
+    "optimizer_class, expected",
+    [
+        # Consumes the relaxed matrices.
+        (SLSQP, False),
+        # Repairs against the full constraint set.
+        (U_NSGA3, True),
+    ],
+)
+def test_optimizer_check_linear_constraints_on_dependent_variables(
+    op_with_dependent_variable, optimizer_class, expected
+):
+    optimizer = optimizer_class()
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        assert optimizer.check_optimization_problem(op_with_dependent_variable) is expected
 
 
 # ── evaluation failure handling ───────────────────────────────────────────────
