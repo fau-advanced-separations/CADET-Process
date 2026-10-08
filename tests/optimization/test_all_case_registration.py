@@ -119,7 +119,7 @@ def test_collectors_keep_one_output_when_cases_are_added(kind):
         sum,
         name="total",
         requires=evaluator,
-        per_object=False,
+        per_case=False,
         evaluation_objects=-1,
     )
     np.testing.assert_allclose(getattr(op, f"evaluate_{kind}s")([2]), [2])
@@ -189,7 +189,7 @@ def test_new_case_cannot_turn_explicit_collector_domain_into_subset():
         sum,
         name="total",
         requires=evaluator,
-        per_object=False,
+        per_case=False,
         evaluation_objects=[first],
     )
     with pytest.raises(CADETProcessError, match="subset"):
@@ -220,7 +220,7 @@ def test_all_case_callback_downstream_of_collector_includes_later_cases():
     op.add_variable("scalar_param", targets=-1)
     read = lambda case: case.scalar_param
     op.add_evaluator(read, name="read")
-    op.add_evaluator(sum, name="total", per_object=False)
+    op.add_evaluator(sum, name="total", per_case=False)
     calls = []
     op.add_callback(
         lambda total: calls.append(total),

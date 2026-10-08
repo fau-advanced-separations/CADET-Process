@@ -623,12 +623,12 @@ def test_multi_eval_obj_labels(op_with_multiple_eval_objects):
     assert op_with_multiple_eval_objects.objective_labels == expected
 
 
-# ── per_object facade: aggregation and domain normalization ───────────────────
+# ── per_case facade: aggregation and domain normalization ───────────────────
 
 
 @pytest.fixture
 def op_two_objects_with_evaluator():
-    """Two evaluation objects and a per-object evaluator distinguishing them."""
+    """Two evaluation objects and a per-case evaluator distinguishing them."""
     obj_a = EvaluationObject(name="a")
     obj_b = EvaluationObject(name="bb")
     op = OptimizationProblem("aggregating", use_diskcache=False)
@@ -652,7 +652,7 @@ def test_aggregating_objective_reduces_moo_to_soo(op_two_objects_with_evaluator)
         lambda sims: float(np.mean(sims)),
         name="mean_sim",
         requires=simulate,
-        per_object=False,
+        per_case=False,
     )
 
     assert op.n_objectives == 1
@@ -673,7 +673,7 @@ def test_worst_case_objective_uses_numpy_reduction(op_two_objects_with_evaluator
         lambda sims: float(np.max(sims)),
         name="worst_sim",
         requires=simulate,
-        per_object=False,
+        per_case=False,
     )
 
     assert op.n_objectives == 1
@@ -683,7 +683,7 @@ def test_worst_case_objective_uses_numpy_reduction(op_two_objects_with_evaluator
     np.testing.assert_allclose(f, [10.0])
 
 
-def test_per_object_objective_default_matches_legacy(op_two_objects_with_evaluator):
+def test_per_case_objective_default_matches_legacy(op_two_objects_with_evaluator):
     op, simulate, _, _ = op_two_objects_with_evaluator
     op.add_objective(lambda sim: sim, name="sim_value", requires=simulate)
 
@@ -716,7 +716,7 @@ def test_evaluation_objects_declaration_order_is_normalized():
     assert reversed_decl.objectives[0].evaluation_objects == [obj_a, obj_b]
 
 
-def test_per_object_and_mapspec_exclusive_on_facade(op_two_objects_with_evaluator):
+def test_per_case_and_mapspec_exclusive_on_facade(op_two_objects_with_evaluator):
     op, simulate, _, _ = op_two_objects_with_evaluator
 
     with pytest.raises(ValueError, match="mutually exclusive"):
@@ -724,31 +724,31 @@ def test_per_object_and_mapspec_exclusive_on_facade(op_two_objects_with_evaluato
             lambda sims: 0.0,
             name="bad",
             requires=simulate,
-            per_object=False,
-            mapspec="simulate[object] -> bad[object]",
+            per_case=False,
+            mapspec="simulate[case] -> bad[case]",
         )
     with pytest.raises(ValueError, match="mutually exclusive"):
         op.add_evaluator(
             lambda eval_obj: 0.0,
             name="bad_ev",
-            per_object=True,
-            mapspec="evaluation_contexts[object] -> bad_ev[object]",
+            per_case=True,
+            mapspec="evaluation_contexts[case] -> bad_ev[case]",
         )
 
 
-def test_root_per_object_false_error_names_the_objective(
+def test_root_per_case_false_error_names_the_objective(
     op_two_objects_with_evaluator,
 ):
     op, _, _, _ = op_two_objects_with_evaluator
 
     with pytest.raises(ValueError, match="'my_objective'"):
-        op.add_objective(lambda eval_obj: 0.0, name="my_objective", per_object=False)
+        op.add_objective(lambda eval_obj: 0.0, name="my_objective", per_case=False)
 
 
 def test_aggregating_nonlinear_constraint_reduces_to_one(
     op_two_objects_with_evaluator,
 ):
-    # A collector constraint reduces the per-object array to one value: one
+    # A collector constraint reduces the per-case array to one value: one
     # aggregated constraint across objects instead of one per object.
     op, simulate, _, _ = op_two_objects_with_evaluator
     op.add_nonlinear_constraint(
@@ -756,7 +756,7 @@ def test_aggregating_nonlinear_constraint_reduces_to_one(
         name="agg_sim",
         requires=simulate,
         bounds=100,
-        per_object=False,
+        per_case=False,
     )
 
     assert op.n_nonlinear_constraints == 1
@@ -767,7 +767,7 @@ def test_aggregating_nonlinear_constraint_reduces_to_one(
     np.testing.assert_allclose(g, [7.5])
 
 
-def test_per_object_nonlinear_constraint_default_stays_per_object(
+def test_per_case_nonlinear_constraint_default_stays_per_case(
     op_two_objects_with_evaluator,
 ):
     op, simulate, _, _ = op_two_objects_with_evaluator
@@ -787,7 +787,7 @@ def test_aggregating_meta_score_reduces_to_one(op_two_objects_with_evaluator):
         lambda sims: float(np.mean(sims)),
         name="mean_meta",
         requires=simulate,
-        per_object=False,
+        per_case=False,
     )
 
     assert op.n_meta_scores == 1
@@ -797,17 +797,17 @@ def test_aggregating_meta_score_reduces_to_one(op_two_objects_with_evaluator):
 
 
 def test_collector_callback_registers(op_two_objects_with_evaluator):
-    # A collector callback (per_object=False) receives the whole per-object
+    # A collector callback (per_case=False) receives the whole per-case
     # array; assert it registers through the same threading as the metrics.
     op, simulate, _, _ = op_two_objects_with_evaluator
     op.add_callback(
-        lambda sims: None, name="cb", requires=simulate, per_object=False,
+        lambda sims: None, name="cb", requires=simulate, per_case=False,
     )
     assert op.n_callbacks == 1
 
 
 @pytest.mark.parametrize("kind", ["constraint", "meta_score", "callback"])
-def test_per_object_and_mapspec_exclusive_on_all_metric_kinds(
+def test_per_case_and_mapspec_exclusive_on_all_metric_kinds(
     op_two_objects_with_evaluator, kind
 ):
     op, simulate, _, _ = op_two_objects_with_evaluator
@@ -822,14 +822,14 @@ def test_per_object_and_mapspec_exclusive_on_all_metric_kinds(
             lambda sims: 0.0,
             name="bad",
             requires=simulate,
-            per_object=False,
-            mapspec="simulate[object] -> bad[object]",
+            per_case=False,
+            mapspec="simulate[case] -> bad[case]",
         )
 
 
 @pytest.mark.parametrize("kind", ["objective", "constraint", "meta_score", "callback"])
 def test_fan_in_rejects_evaluation_objects_subset(op_two_objects_with_evaluator, kind):
-    # A collector (per_object=False) receives every registered case's value;
+    # A collector (per_case=False) receives every registered case's value;
     # nothing narrows that to a declared subset before the reducer runs, so a
     # subset restriction combined with a fan-in must raise rather than
     # silently aggregate over every registered case instead of the subset.
@@ -847,7 +847,7 @@ def test_fan_in_rejects_evaluation_objects_subset(op_two_objects_with_evaluator,
             lambda sims: 0.0,
             name="bad",
             requires=simulate,
-            per_object=False,
+            per_case=False,
             evaluation_objects=[obj_a],
             **kwargs,
         )
@@ -861,7 +861,7 @@ def op_with_collector_evaluator(op_two_objects_with_evaluator):
     def total(sims):
         return float(np.sum(np.asarray(sims, dtype=float)))
 
-    op.add_evaluator(total, per_object=False)
+    op.add_evaluator(total, per_case=False)
     return op, [simulate, total], obj_a, obj_b
 
 
@@ -888,8 +888,8 @@ def _register_leaf(op, kind):
 def test_leaf_downstream_of_collector_is_inferred_fan_in(
     op_with_collector_evaluator, kind, n_metrics, evaluate
 ):
-    # A leaf whose input is a collector output has no object axis to run over;
-    # left unset, per_object is inferred and the leaf declares one metric, not
+    # A leaf whose input is a collector output has no case axis to run over;
+    # left unset, per_case is inferred and the leaf declares one metric, not
     # one per object whose shape check would fail on every evaluation.
     op, chain, _, _ = op_with_collector_evaluator
     _register_leaf(op, kind)(lambda total: total, name="leaf", requires=chain)
@@ -901,14 +901,14 @@ def test_leaf_downstream_of_collector_is_inferred_fan_in(
 
 
 @pytest.mark.parametrize("kind", _LEAF_KINDS)
-def test_leaf_explicit_per_object_downstream_of_collector_raises(
+def test_leaf_explicit_per_case_downstream_of_collector_raises(
     op_with_collector_evaluator, kind
 ):
     op, chain, _, _ = op_with_collector_evaluator
 
-    with pytest.raises(ValueError, match="no object axis left"):
+    with pytest.raises(ValueError, match="no case axis left"):
         _register_leaf(op, kind)(
-            lambda total: total, name="leaf", requires=chain, per_object=True
+            lambda total: total, name="leaf", requires=chain, per_case=True
         )
 
 
@@ -939,7 +939,7 @@ def test_fan_in_accepts_full_evaluation_object_set(
         lambda sims: float(np.mean(sims)),
         name="mean_sim",
         requires=simulate,
-        per_object=False,
+        per_case=False,
         **kwargs,
     )
 
@@ -1225,14 +1225,14 @@ def test_case_dim_promoted_for_metric_registered_before_later_cases():
     # not stay frozen at the single-object shape it happened to see first.
     op = OptimizationProblem("interleaved", use_diskcache=False)
 
-    def per_object_scores(eval_obj):
+    def per_case_scores(eval_obj):
         return [eval_obj.scalar_param, eval_obj.scalar_param_2]
 
     for label in ("a", "b"):
         eval_obj = EvaluationObject(name=label)
         op.add_evaluation_object(eval_obj)
         op.add_objective(
-            per_object_scores,
+            per_case_scores,
             name=f"objective_{label}",
             evaluation_objects=[eval_obj],
             n_objectives=2,
@@ -1885,7 +1885,7 @@ def test_fan_in_callback_receives_all_cases_in_one_call(op_two_objects_with_eval
         ),
         name="cb",
         requires=simulate,
-        per_object=False,
+        per_case=False,
     )
 
     op.evaluate_callbacks(op.create_population([[0.5], [0.1]]), current_iteration=0)
@@ -2030,7 +2030,7 @@ def test_variable_falls_back_to_dotpath_when_parameters_view_does_not_reach_path
 
 
 def test_variable_targets_object_not_registered_as_evaluation_object():
-    """A broadcast target (e.g. a simulator) need not sit on the object axis."""
+    """A broadcast target (e.g. a simulator) need not sit on the case axis."""
     target = _ParentWithPlainSubstructure()
 
     op = OptimizationProblem("t", use_diskcache=False)

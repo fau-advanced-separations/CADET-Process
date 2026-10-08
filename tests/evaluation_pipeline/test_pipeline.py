@@ -736,7 +736,7 @@ def test_set_values_node_output_name_and_uncached(single_space):
     assert node.cache is False
 
 
-def test_set_values_node_emits_context_per_object_in_order(two_space, two_models):
+def test_set_values_node_emits_context_per_case_in_order(two_space, two_models):
     from CADETProcess.evaluation_pipeline.pipeline import (
         _EvaluationContext,
         _make_set_values_node,
@@ -806,16 +806,16 @@ def test_set_values_node_objectless_is_single_sentinel_context():
     assert contexts[0].obj == {}
 
 
-# ── mapped execution (object axis) ────────────────────────────────────────────
-# A node with a mapspec fans over the object axis; the graph then runs once via
-# pipeline.map instead of the per-object loop.
+# ── mapped execution (case axis) ────────────────────────────────────────────
+# A node with a mapspec fans over the case axis; the graph then runs once via
+# pipeline.map instead of the per-case loop.
 
 
 def _mapped_scaled(pipeline: EvaluationPipeline) -> None:
     pipeline.add_evaluator(
         lambda model: model.value * 10,
         output_name="scaled",
-        mapspec="evaluation_contexts[object] -> scaled[object]",
+        mapspec="evaluation_contexts[case] -> scaled[case]",
     )
 
 
@@ -861,7 +861,7 @@ def test_mapped_chain_fans_each_stage_over_objects():
         lambda scaled: scaled + 1,
         output_name="refined",
         requires=["scaled"],
-        mapspec="scaled[object] -> refined[object]",
+        mapspec="scaled[case] -> refined[case]",
     )
 
     results = pipeline.evaluate({}, targets=["refined"])
@@ -877,7 +877,7 @@ def test_mapped_applies_set_values_to_each_object():
     pipeline.add_evaluator(
         lambda model: model.value,
         output_name="v",
-        mapspec="evaluation_contexts[object] -> v[object]",
+        mapspec="evaluation_contexts[case] -> v[case]",
     )
 
     results = pipeline.evaluate({"v": 0.5})
@@ -895,7 +895,7 @@ def test_mapped_objectless_returns_single_result():
     pipeline.add_evaluator(
         lambda x: x["a"] * 2,
         output_name="doubled",
-        mapspec="evaluation_contexts[object] -> doubled[object]",
+        mapspec="evaluation_contexts[case] -> doubled[case]",
     )
 
     results = pipeline.evaluate({"a": 0.3})
@@ -904,9 +904,9 @@ def test_mapped_objectless_returns_single_result():
     assert not isinstance(results["doubled"], list)
 
 
-def test_mapped_graph_fans_undeclared_root_per_object():
+def test_mapped_graph_fans_undeclared_root_per_case():
     # Per-object is the default semantic: a root without any declaration fans
-    # over the object axis, one result per object.
+    # over the case axis, one result per object.
     space = _make_space(Model(value=1.0), Model(value=2.0))
     pipeline = EvaluationPipeline(space)
     _mapped_scaled(pipeline)
@@ -934,7 +934,7 @@ def test_pickled_pipeline_evaluates_after_a_prior_build():
 
 
 # ── mapped subset, bypass_cache, and caching ──────────────────────────────────
-# A per-call cases= restriction narrows the object axis at the root
+# A per-call cases= restriction narrows the case axis at the root
 # so excluded objects never run; bypass_cache appends a nonce so every node
 # misses; and repeated calls reuse a kept subpipeline whose cache persists.
 
@@ -947,7 +947,7 @@ def test_mapped_subset_restricts_object_axis():
     pipeline.add_evaluator(
         lambda model: seen.append(model.value) or model.value * 10,
         output_name="scaled",
-        mapspec="evaluation_contexts[object] -> scaled[object]",
+        mapspec="evaluation_contexts[case] -> scaled[case]",
     )
 
     results = pipeline.evaluate({}, cases=[m1, m3])
@@ -993,7 +993,7 @@ def test_mapped_repeated_call_hits_cache():
     pipeline.add_evaluator(
         lambda model: calls.append(model.value) or model.value * 10,
         output_name="scaled",
-        mapspec="evaluation_contexts[object] -> scaled[object]",
+        mapspec="evaluation_contexts[case] -> scaled[case]",
     )
 
     pipeline.evaluate({}, targets=["scaled"])
@@ -1009,7 +1009,7 @@ def test_mapped_bypass_cache_forces_recompute():
     pipeline.add_evaluator(
         lambda model: calls.append(model.value) or model.value * 10,
         output_name="scaled",
-        mapspec="evaluation_contexts[object] -> scaled[object]",
+        mapspec="evaluation_contexts[case] -> scaled[case]",
     )
 
     pipeline.evaluate({}, targets=["scaled"])
@@ -1027,19 +1027,19 @@ def test_mapped_shared_upstream_reused_across_requests():
     pipeline.add_evaluator(
         lambda model: sim_calls.append(model.value) or model.value * 10,
         output_name="simulation",
-        mapspec="evaluation_contexts[object] -> simulation[object]",
+        mapspec="evaluation_contexts[case] -> simulation[case]",
     )
     pipeline.add_evaluator(
         lambda simulation: simulation,
         output_name="metric",
         requires=["simulation"],
-        mapspec="simulation[object] -> metric[object]",
+        mapspec="simulation[case] -> metric[case]",
     )
     pipeline.add_evaluator(
         lambda simulation: cb_calls.append(simulation) or simulation,
         output_name="callback",
         requires=["simulation"],
-        mapspec="simulation[object] -> callback[object]",
+        mapspec="simulation[case] -> callback[case]",
         cache=False,
     )
 
@@ -1050,8 +1050,8 @@ def test_mapped_shared_upstream_reused_across_requests():
     assert len(sim_calls) == 2 and len(cb_calls) == 2
 
 
-# ── whole-value fan-in (reduction over the object axis) ───────────────────────
-# A collector (per_object=False) runs once and receives the full per-object
+# ── whole-value fan-in (reduction over the case axis) ───────────────────────
+# A collector (per_case=False) runs once and receives the full per-case
 # array.  Collecting must be declared: an undeclared node runs per object (the
 # default), which is what forecloses the silent-fan-in trap.
 
@@ -1064,7 +1064,7 @@ def test_fan_in_reduces_object_axis_to_scalar():
         lambda scaled: float(sum(scaled)) / len(scaled),
         output_name="mean_scaled",
         requires=["scaled"],
-        per_object=False,  # collector: receives the whole array
+        per_case=False,  # collector: receives the whole array
     )
 
     results = pipeline.evaluate({}, targets=["mean_scaled"])
@@ -1084,7 +1084,7 @@ def test_fan_in_worst_case_over_objects():
         lambda scaled: float(np.min(scaled)),
         output_name="worst",
         requires=["scaled"],
-        per_object=False,
+        per_case=False,
     )
 
     results = pipeline.evaluate({}, targets=["worst"])
@@ -1105,7 +1105,7 @@ def test_fan_in_receives_a_list_numpy_ufuncs_accept():
         return float(np.sum(np.log(scaled)))
 
     pipeline.add_evaluator(
-        log_sum, output_name="log_sum", requires=["scaled"], per_object=False
+        log_sum, output_name="log_sum", requires=["scaled"], per_case=False
     )
 
     results = pipeline.evaluate({}, targets=["log_sum"])
@@ -1123,12 +1123,12 @@ def test_mixed_mapped_and_fan_in_targets_in_one_call():
         lambda scaled: float(sum(scaled)),
         output_name="total",
         requires=["scaled"],
-        per_object=False,
+        per_case=False,
     )
 
     results = pipeline.evaluate({}, targets=["scaled", "total"])
 
-    # The mapped target keeps its per-object list; the fan-in collapses to a scalar.
+    # The mapped target keeps its per-case list; the fan-in collapses to a scalar.
     assert results["scaled"] == [10.0, 20.0]
     assert results["total"] == pytest.approx(30.0)
 
@@ -1151,7 +1151,7 @@ def _mapped_scaled_failing(pipeline: EvaluationPipeline) -> None:
     pipeline.add_evaluator(
         scale,
         output_name="scaled",
-        mapspec="evaluation_contexts[object] -> scaled[object]",
+        mapspec="evaluation_contexts[case] -> scaled[case]",
     )
 
 
@@ -1172,7 +1172,7 @@ def test_fan_in_propagates_failure_of_one_object():
         lambda scaled: float(min(scaled)),
         output_name="worst",
         requires=["scaled"],
-        per_object=False,
+        per_case=False,
     )
 
     results = pipeline.evaluate({}, targets=["worst"])
@@ -1195,7 +1195,7 @@ def test_fan_in_reducer_not_called_when_an_object_failed():
         return float(min(scaled))
 
     pipeline.add_evaluator(
-        reduce, output_name="worst", requires=["scaled"], per_object=False
+        reduce, output_name="worst", requires=["scaled"], per_case=False
     )
 
     results = pipeline.evaluate({}, targets=["worst"])
@@ -1213,7 +1213,7 @@ def test_fan_in_all_objects_succeed_still_reduces():
         lambda scaled: float(min(scaled)),
         output_name="worst",
         requires=["scaled"],
-        per_object=False,
+        per_case=False,
     )
 
     results = pipeline.evaluate({}, targets=["worst"])
@@ -1221,8 +1221,8 @@ def test_fan_in_all_objects_succeed_still_reduces():
     assert results["worst"] == pytest.approx(10.0)
 
 
-# ── per_object facade semantics ───────────────────────────────────────────────
-# per_object=False declares a collector; effective mapspec strings are then
+# ── per_case facade semantics ───────────────────────────────────────────────
+# per_case=False declares a collector; effective mapspec strings are then
 # generated centrally at build time, so no node needs a hand-written string.
 
 
@@ -1235,7 +1235,7 @@ def test_collector_engages_mapped_execution_without_any_mapspec():
         lambda metric: float(sum(metric)) / len(metric),
         output_name="mean_metric",
         requires=["metric"],
-        per_object=False,
+        per_case=False,
     )
 
     results = pipeline.evaluate({}, targets=["mean_metric", "metric"])
@@ -1244,15 +1244,15 @@ def test_collector_engages_mapped_execution_without_any_mapspec():
     assert results["metric"] == [11.0, 41.0]
 
 
-def test_per_object_and_mapspec_are_mutually_exclusive(single_space):
+def test_per_case_and_mapspec_are_mutually_exclusive(single_space):
     pipeline = EvaluationPipeline(single_space)
 
     with pytest.raises(ValueError, match="mutually exclusive"):
         pipeline.add_evaluator(
             lambda model: model.value,
             output_name="v",
-            per_object=True,
-            mapspec="evaluation_contexts[object] -> v[object]",
+            per_case=True,
+            mapspec="evaluation_contexts[case] -> v[case]",
         )
 
 
@@ -1261,18 +1261,18 @@ def test_collector_on_root_raises(single_space):
 
     with pytest.raises(ValueError, match="root"):
         pipeline.add_evaluator(
-            lambda model: model.value, output_name="v", per_object=False
+            lambda model: model.value, output_name="v", per_case=False
         )
 
 
-def test_plain_per_object_graph_supports_subset_on_one_engine():
-    # A plain per-object graph (no collector, no explicit mapspec) runs through
+def test_plain_per_case_graph_supports_subset_on_one_engine():
+    # A plain per-case graph (no collector, no explicit mapspec) runs through
     # the same mapped engine as every other graph: there is no separate legacy
     # loop.  Per-call subset, once a legacy-only feature, works here too.
     m1, m2 = Model(value=1.0), Model(value=2.0)
     space = _make_space(m1, m2)
     pipeline = EvaluationPipeline(space)
-    pipeline.add_evaluator(lambda model: model.value, output_name="v", per_object=True)
+    pipeline.add_evaluator(lambda model: model.value, output_name="v", per_case=True)
 
     assert pipeline.evaluate({}, cases=[m1]) == {"v": 1.0}
 
@@ -1287,7 +1287,7 @@ def test_node_downstream_of_collector_consumes_whole_value():
         lambda scaled: float(min(scaled)),
         output_name="worst",
         requires=["scaled"],
-        per_object=False,
+        per_case=False,
     )
     pipeline.add_evaluator(
         lambda worst: worst * 2, output_name="doubled_worst", requires=["worst"]
@@ -1298,25 +1298,25 @@ def test_node_downstream_of_collector_consumes_whole_value():
     assert results["doubled_worst"] == pytest.approx(20.0)
 
 
-def test_explicit_per_object_downstream_of_collector_raises():
-    # There is no object axis left below a collector; an explicit per-object
+def test_explicit_per_case_downstream_of_collector_raises():
+    # There is no case axis left below a collector; an explicit per-case
     # declaration there cannot be honored and must not silently run once.
     space = _make_space(Model(value=3.0), Model(value=1.0))
     pipeline = EvaluationPipeline(space)
     pipeline.add_evaluator(lambda model: model.value, output_name="v")
     pipeline.add_evaluator(
-        lambda v: float(min(v)), output_name="worst", requires=["v"], per_object=False
+        lambda v: float(min(v)), output_name="worst", requires=["v"], per_case=False
     )
     pipeline.add_evaluator(
-        lambda worst: worst, output_name="w", requires=["worst"], per_object=True
+        lambda worst: worst, output_name="w", requires=["worst"], per_case=True
     )
 
-    with pytest.raises(ValueError, match="no object axis left"):
+    with pytest.raises(ValueError, match="no case axis left"):
         pipeline.evaluate({}, targets=["w"])
 
 
 @pytest.mark.parametrize(
-    ("requires", "per_object", "expected"),
+    ("requires", "per_case", "expected"),
     [
         (None, None, True),
         (["v"], None, True),
@@ -1324,42 +1324,42 @@ def test_explicit_per_object_downstream_of_collector_raises():
         (["worst"], None, False),
     ],
 )
-def test_is_per_object_matches_build_rule(requires, per_object, expected):
+def test_is_per_case_matches_build_rule(requires, per_case, expected):
     space = _make_space(Model(value=3.0), Model(value=1.0))
     pipeline = EvaluationPipeline(space)
     pipeline.add_evaluator(lambda model: model.value, output_name="v")
     pipeline.add_evaluator(
-        lambda v: float(min(v)), output_name="worst", requires=["v"], per_object=False
+        lambda v: float(min(v)), output_name="worst", requires=["v"], per_case=False
     )
 
-    assert pipeline.is_per_object(requires, per_object) is expected
+    assert pipeline.is_per_case(requires, per_case) is expected
 
 
-def test_is_per_object_rejects_explicit_per_object_below_collector():
+def test_is_per_case_rejects_explicit_per_case_below_collector():
     space = _make_space(Model(value=3.0), Model(value=1.0))
     pipeline = EvaluationPipeline(space)
     pipeline.add_evaluator(lambda model: model.value, output_name="v")
     pipeline.add_evaluator(
-        lambda v: float(min(v)), output_name="worst", requires=["v"], per_object=False
+        lambda v: float(min(v)), output_name="worst", requires=["v"], per_case=False
     )
 
-    with pytest.raises(ValueError, match="no object axis left"):
-        pipeline.is_per_object(["worst"], per_object=True)
+    with pytest.raises(ValueError, match="no case axis left"):
+        pipeline.is_per_case(["worst"], per_case=True)
 
 
-def test_is_per_object_errors_name_the_node_being_registered():
+def test_is_per_case_errors_name_the_node_being_registered():
     space = _make_space(Model(value=3.0), Model(value=1.0))
     pipeline = EvaluationPipeline(space)
     pipeline.add_evaluator(lambda model: model.value, output_name="v")
     pipeline.add_evaluator(
-        lambda v: float(min(v)), output_name="worst", requires=["v"], per_object=False
+        lambda v: float(min(v)), output_name="worst", requires=["v"], per_case=False
     )
 
     with pytest.raises(ValueError, match="'my_objective'"):
-        pipeline.is_per_object(None, per_object=False, output_name="my_objective")
+        pipeline.is_per_case(None, per_case=False, output_name="my_objective")
     with pytest.raises(ValueError, match="'my_objective'"):
-        pipeline.is_per_object(
-            ["worst"], per_object=True, output_name="my_objective"
+        pipeline.is_per_case(
+            ["worst"], per_case=True, output_name="my_objective"
         )
 
 
@@ -1372,7 +1372,7 @@ def test_collector_registered_before_upstream_still_resolves():
         lambda scaled: float(sum(scaled)),
         output_name="total",
         requires=["scaled"],
-        per_object=False,
+        per_case=False,
     )
     pipeline.add_evaluator(lambda model: model.value * 10, output_name="scaled")
 
@@ -1386,11 +1386,11 @@ def test_generated_mapspec_string_form():
 
     assert (
         _generate_mapspec("sim", None, set())
-        == "evaluation_contexts[object] -> sim[object]"
+        == "evaluation_contexts[case] -> sim[case]"
     )
-    assert _generate_mapspec("m", ["sim"], {"sim"}) == "sim[object] -> m[object]"
+    assert _generate_mapspec("m", ["sim"], {"sim"}) == "sim[case] -> m[case]"
     # An input produced by a collector carries no axis and is consumed whole.
     assert (
         _generate_mapspec("m", ["agg", "sim"], {"sim"})
-        == "agg, sim[object] -> m[object]"
+        == "agg, sim[case] -> m[case]"
     )
