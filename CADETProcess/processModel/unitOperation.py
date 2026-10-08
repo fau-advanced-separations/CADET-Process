@@ -741,7 +741,7 @@ class TubularReactorBase(UnitBaseClass):
         calculate_interstitial_rt
         calculate_superficial_velocity
         """
-        return self.length / self.calculate_interstitial_rt(flow_rate)
+        return flow_rate / self.cross_section_area_interstitial
 
     def calculate_superficial_velocity(self, flow_rate: float) -> float:
         """
@@ -763,7 +763,7 @@ class TubularReactorBase(UnitBaseClass):
         calculate_interstitial_velocity
         NTP
         """
-        return self.length / self.calculate_superficial_rt(flow_rate)
+        return flow_rate / self.cross_section_area
 
     def calculate_flow_rate_from_velocity(self, u0: float) -> float:
         """
