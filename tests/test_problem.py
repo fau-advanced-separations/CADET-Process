@@ -23,7 +23,7 @@ class StubBackend:
     def __init__(self, results):
         self.results = results
 
-    def evaluate(self, assignment, targets=None):
+    def evaluate(self, assignment, output_names=None):
         return dict(self.results)
 
 
@@ -176,7 +176,7 @@ def test_with_evaluator_always_returns_plain_problem(yield_and_purity_space):
 def test_evaluate_targets_returns_requested_subset(yield_and_purity_space):
     backend = StubBackend({"yield": [0.8, 0.9], "purity": 0.99})
     problem = Problem(metric_space=yield_and_purity_space, backend=backend)
-    results = problem.evaluate({}, targets=["purity"])
+    results = problem.evaluate({}, output_names=["purity"])
     assert list(results) == ["purity"]
 
 
@@ -184,23 +184,23 @@ def test_evaluate_unknown_target_raises(yield_and_purity_space):
     problem = Problem(
         metric_space=yield_and_purity_space, backend=StubBackend({})
     )
-    with pytest.raises(ValueError, match="Unknown metric target"):
-        problem.evaluate({}, targets=["nope"])
+    with pytest.raises(ValueError, match="Unknown output name"):
+        problem.evaluate({}, output_names=["nope"])
 
 
-def test_evaluate_passes_metric_names_as_backend_targets(yield_and_purity_space):
+def test_evaluate_passes_metric_names_as_backend_output_names(yield_and_purity_space):
     """Side-effect nodes not declared as metrics must never execute."""
-    seen_targets = []
+    seen_output_names = []
 
     class RecordingBackend(StubBackend):
-        def evaluate(self, assignment, targets=None):
-            seen_targets.append(targets)
+        def evaluate(self, assignment, output_names=None):
+            seen_output_names.append(output_names)
             return dict(self.results)
 
     backend = RecordingBackend({"yield": [0.8, 0.9], "purity": 0.99})
     problem = Problem(metric_space=yield_and_purity_space, backend=backend)
     problem.evaluate({})
-    assert seen_targets == [["yield", "purity"]]
+    assert seen_output_names == [["yield", "purity"]]
 
 
 # ── per-case reduction (EvaluationPipeline multi-case convention) ────────────
@@ -370,7 +370,7 @@ def test_evaluate_batch_returns_one_result_per_assignment_in_order(
 
 def test_evaluate_batch_failing_row_does_not_abort_batch(yield_and_purity_space):
     class ExplodingBackend:
-        def evaluate(self, assignment, targets=None):
+        def evaluate(self, assignment, output_names=None):
             if assignment.get("explode"):
                 raise RuntimeError("boom")
             return {"yield": [0.8, 0.9], "purity": 0.99}
@@ -391,13 +391,13 @@ def test_evaluate_batch_failing_row_reports_requested_targets_only(
     yield_and_purity_space,
 ):
     class ExplodingBackend:
-        def evaluate(self, assignment, targets=None):
+        def evaluate(self, assignment, output_names=None):
             raise RuntimeError("boom")
 
     problem = Problem(
         metric_space=yield_and_purity_space, backend=ExplodingBackend()
     )
-    results = problem.evaluate_batch([{}], targets=["purity"])
+    results = problem.evaluate_batch([{}], output_names=["purity"])
     assert list(results[0]) == ["purity"]
 
 
@@ -449,8 +449,8 @@ def test_evaluate_batch_unknown_target_raises_before_dispatch(
     problem = Problem(
         metric_space=yield_and_purity_space, backend=StubBackend({})
     )
-    with pytest.raises(ValueError, match="Unknown metric target"):
-        problem.evaluate_batch([{}], targets=["nope"])
+    with pytest.raises(ValueError, match="Unknown output name"):
+        problem.evaluate_batch([{}], output_names=["nope"])
 
 
 def test_evaluate_batch_without_backend_raises(yield_and_purity_space):

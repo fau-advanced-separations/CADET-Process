@@ -51,11 +51,11 @@ class EvaluationBackend(Protocol):
     def evaluate(
         self,
         assignment: Mapping[str, Any],
-        targets: list[str] | None = None,
+        output_names: list[str] | None = None,
     ) -> dict[str, Any]:
         """Compute named outputs for a named parameter assignment.
 
-        Backends may ignore *targets* and compute everything;
+        Backends may ignore *output_names* and compute everything;
         ``Problem.evaluate`` filters the result either way.
         """
         ...
@@ -148,14 +148,14 @@ class Problem:
     def evaluate(
         self,
         assignment: Mapping[str, Any],
-        targets: list[str] | None = None,
+        output_names: list[str] | None = None,
     ) -> dict[str, Any]:
         """Evaluate the declared metrics for a named parameter assignment.
 
         Delegates to the backend, then validates each declared metric
         against its declared shape.  Backend outputs that are not declared
         in the metric space (pipeline intermediates) are dropped; declared
-        metric names are always passed to the backend as its targets, so
+        metric names are always passed to the backend as its output_names, so
         undeclared side-effect nodes (callbacks) never execute.
         ``EvaluationFailure`` values pass through unvalidated; substituting
         fallback values is optimizer policy and stays out of ``Problem``.
@@ -171,7 +171,7 @@ class Problem:
         ----------
         assignment : Mapping
             Values for the independent parameters by name, in physical units.
-        targets : list[str], optional
+        output_names : list[str], optional
             Declared metric names to evaluate.  `None` evaluates all
             declared metrics.  A pipeline backend only executes the
             subgraph the requested metrics need.
@@ -188,7 +188,7 @@ class Problem:
         RuntimeError
             If no backend is set.
         ValueError
-            If *targets* contains an undeclared name, the backend result
+            If *output_names* contains an undeclared name, the backend result
             misses a declared metric, or a value does not match its
             declared shape.
         """
@@ -198,16 +198,16 @@ class Problem:
                 "or use with_evaluator."
             )
         metrics = self._metric_space.metrics
-        if targets is not None:
+        if output_names is not None:
             declared = {m.name for m in metrics}
-            unknown = [t for t in targets if t not in declared]
+            unknown = [t for t in output_names if t not in declared]
             if unknown:
-                raise ValueError(f"Unknown metric target(s): {unknown}")
-            requested = set(targets)
+                raise ValueError(f"Unknown output name(s): {unknown}")
+            requested = set(output_names)
             metrics = [m for m in metrics if m.name in requested]
         if not metrics:
             return {}
-        raw = self._backend.evaluate(assignment, targets=[m.name for m in metrics])
+        raw = self._backend.evaluate(assignment, output_names=[m.name for m in metrics])
         results: dict[str, Any] = {}
         for metric in metrics:
             if metric.name not in raw:
@@ -243,7 +243,7 @@ class Problem:
     def evaluate_batch(
         self,
         assignments: Sequence[Mapping[str, Any]],
-        targets: list[str] | None = None,
+        output_names: list[str] | None = None,
         parallelization_backend: Any = None,
     ) -> list[dict[str, Any]]:
         """Evaluate the declared metrics for a batch of named assignments.
@@ -259,7 +259,7 @@ class Problem:
         ----------
         assignments : Sequence[Mapping]
             One named parameter assignment per row, in physical units.
-        targets : list[str], optional
+        output_names : list[str], optional
             Declared metric names to evaluate.  `None` evaluates all
             declared metrics.
         parallelization_backend : ParallelizationBackendBase, optional
@@ -276,7 +276,7 @@ class Problem:
         RuntimeError
             If no backend is set.
         ValueError
-            If *targets* contains an undeclared name.
+            If *output_names* contains an undeclared name.
         """
         if self._backend is None:
             raise RuntimeError(
@@ -284,15 +284,15 @@ class Problem:
                 "or use with_evaluator."
             )
         declared = [m.name for m in self._metric_space.metrics]
-        if targets is not None:
-            unknown = [t for t in targets if t not in declared]
+        if output_names is not None:
+            unknown = [t for t in output_names if t not in declared]
             if unknown:
-                raise ValueError(f"Unknown metric target(s): {unknown}")
-        names = targets if targets is not None else declared
+                raise ValueError(f"Unknown output name(s): {unknown}")
+        names = output_names if output_names is not None else declared
 
         def _evaluate_one(assignment: Mapping[str, Any]) -> dict[str, Any]:
             try:
-                return self.evaluate(assignment, targets=targets)
+                return self.evaluate(assignment, output_names=output_names)
             except Exception as e:
                 return {
                     name: EvaluationFailure(stage=name, reason=str(e), exc=e)

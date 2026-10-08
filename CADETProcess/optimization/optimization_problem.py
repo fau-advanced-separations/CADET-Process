@@ -141,7 +141,7 @@ class _MetricRecord:
         func: Callable,
         metric: Metric,
         annotation: Any,
-        n_per_object: int,
+        n_per_case: int,
         base_labels: list[str] | None = None,
         bad_metrics: float | npt.ArrayLike | None = None,
         evaluation_objects: list | None = None,
@@ -154,12 +154,12 @@ class _MetricRecord:
         self.func = func
         self.metric = metric
         self.annotation = annotation
-        self.n_metrics = n_per_object
+        self.n_metrics = n_per_case
         self.base_labels = list(base_labels) if base_labels is not None else None
         if bad_metrics is None:
-            self.bad_metrics = np.full(n_per_object, np.inf)
+            self.bad_metrics = np.full(n_per_case, np.inf)
         elif np.isscalar(bad_metrics):
-            self.bad_metrics = np.full(n_per_object, float(bad_metrics))
+            self.bad_metrics = np.full(n_per_case, float(bad_metrics))
         else:
             self.bad_metrics = np.asarray(bad_metrics, dtype=float)
         self.evaluation_objects: list = list(evaluation_objects) if evaluation_objects else []
@@ -357,7 +357,7 @@ class OptimizationProblem(Problem):
         self._evaluator_names: dict[Callable, str] = {}        # func → output_name
         self._evaluator_func_by_name: dict[str, Callable] = {}  # output_name → wrapped callable
         self._evaluator_registry: list[tuple[str, Callable]] = []  # ordered (name, func)
-        # output_name → (per_object, mapspec), forwarded to the pipeline when
+        # output_name → (per_case, mapspec), forwarded to the pipeline when
         # the evaluator is lazily registered by _register_evaluator_chain.
         self._evaluator_node_options: dict[str, tuple[bool | None, str | None]] = {}
 
@@ -1315,7 +1315,7 @@ class OptimizationProblem(Problem):
         name: Optional[str] = None,
         args: Optional[tuple] = None,
         kwargs: Optional[dict] = None,
-        per_object: Optional[bool] = None,
+        per_case: Optional[bool] = None,
         mapspec: Optional[str] = None,
     ) -> None:
         """Register a callable as a named evaluator for use in objective chains.
@@ -1330,11 +1330,11 @@ class OptimizationProblem(Problem):
             Fixed positional arguments appended after the request argument.
         kwargs : dict, optional
             Fixed keyword arguments passed to the evaluator.
-        per_object : bool, optional
+        per_case : bool, optional
             Whether the evaluator runs once per evaluation object (the
-            default semantic) or once, collecting the per-object results of
+            default semantic) or once, collecting the per-case results of
             its input as a list with one entry per object (``False``).
-            Declaring ``False`` engages mapped execution.  A per-object
+            Declaring ``False`` engages mapped execution.  A per-case
             evaluator feeding a ``False`` node must not return a ``list``,
             ``ndarray`` or ``dict``: pipefunc cannot cache such outputs on the
             mapped axis (pipefunc/pipefunc#987), so the collector fails on
@@ -1353,7 +1353,7 @@ class OptimizationProblem(Problem):
         TypeError
             If *evaluator* is not callable.
         ValueError
-            If both *per_object* and *mapspec* are supplied.
+            If both *per_case* and *mapspec* are supplied.
         CADETProcessError
             If an evaluator with the same name already exists.
         CADETProcessError
@@ -1363,7 +1363,7 @@ class OptimizationProblem(Problem):
         """
         if not callable(evaluator):
             raise TypeError("Expected callable evaluator.")
-        self._check_per_object_exclusive(per_object, mapspec)
+        self._check_per_case_exclusive(per_case, mapspec)
 
         if any(evaluator is obj for obj in self.evaluation_objects):
             raise CADETProcessError(
@@ -1394,7 +1394,7 @@ class OptimizationProblem(Problem):
         self._evaluator_registry.append((name, evaluator))
         self._evaluator_names[evaluator] = name
         self._evaluator_func_by_name[name] = _wrapped
-        self._evaluator_node_options[name] = (per_object, mapspec)
+        self._evaluator_node_options[name] = (per_case, mapspec)
 
     # ── Objectives ────────────────────────────────────────────────────────────
 
@@ -1450,7 +1450,7 @@ class OptimizationProblem(Problem):
     ) -> None:
         """Guard against a silently-wrong fan-in over a genuine case subset.
 
-        A fan-in leaf (declared ``per_object=False`` or downstream of a
+        A fan-in leaf (declared ``per_case=False`` or downstream of a
         collector) receives every registered case's value; nothing today
         narrows that array to ``evaluation_objects=``'s declared subset before
         the reducer runs, because per-node domain narrowing is not
@@ -1475,7 +1475,7 @@ class OptimizationProblem(Problem):
         )
         if not is_full_set:
             raise CADETProcessError(
-                "per_object=False (fan-in) does not support evaluation_objects= "
+                "per_case=False (fan-in) does not support evaluation_objects= "
                 "restricted to a subset of registered cases: the reducer would "
                 "receive every registered case's value regardless of this "
                 "argument, not just the declared subset. Register the reducer "
@@ -1484,13 +1484,13 @@ class OptimizationProblem(Problem):
             )
 
     @staticmethod
-    def _check_per_object_exclusive(
-        per_object: Optional[bool], mapspec: Optional[str]
+    def _check_per_case_exclusive(
+        per_case: Optional[bool], mapspec: Optional[str]
     ) -> None:
         """Reject supplying both the normal API and the escape hatch."""
-        if per_object is not None and mapspec is not None:
+        if per_case is not None and mapspec is not None:
             raise ValueError(
-                "per_object and mapspec are mutually exclusive: per_object is "
+                "per_case and mapspec are mutually exclusive: per_case is "
                 "the normal API, mapspec the raw escape hatch; supply one."
             )
 
@@ -1499,7 +1499,7 @@ class OptimizationProblem(Problem):
         name: str,
         evaluation_objects: Any,
         requires: Any,
-        per_object: Optional[bool],
+        per_case: Optional[bool],
         mapspec: Optional[str],
     ) -> tuple[list[Any], bool, list[str], list[str] | None]:
         """Resolve the wiring shared by every leaf kind.
@@ -1508,10 +1508,10 @@ class OptimizationProblem(Problem):
 
         Objectives, nonlinear constraints, meta scores, and callbacks differ
         in what their output means, not in how they are wired; this is the
-        one place their domain, evaluator chain, and per-object behavior are
+        one place their domain, evaluator chain, and per-case behavior are
         resolved, so the kinds cannot diverge.  Whether the leaf runs per
         object is asked of the pipeline, not re-derived here: an unset
-        *per_object* downstream of a collector makes the leaf a fan-in.
+        *per_case* downstream of a collector makes the leaf a fan-in.
 
         Returns
         -------
@@ -1524,7 +1524,7 @@ class OptimizationProblem(Problem):
         requires_node : list[str] or None
             The leaf node's direct input, None for a root leaf.
         """
-        self._check_per_object_exclusive(per_object, mapspec)
+        self._check_per_case_exclusive(per_case, mapspec)
         eval_objs = self._resolve_evaluation_objects(evaluation_objects)
 
         # Resolve evaluator chain and lazily register in pipeline.
@@ -1542,16 +1542,16 @@ class OptimizationProblem(Problem):
         self._register_evaluator_chain(req_list)
 
         requires_node = [evaluator_chain[-1]] if evaluator_chain else None
-        per_case = self._backend.is_per_object(
-            requires_node, per_object, mapspec, output_name=name
+        resolved_per_case = self._backend.is_per_case(
+            requires_node, per_case, mapspec, output_name=name
         )
-        self._check_fan_in_subset_supported(eval_objs, fan_in=not per_case)
-        return eval_objs, per_case, evaluator_chain, requires_node
+        self._check_fan_in_subset_supported(eval_objs, fan_in=not resolved_per_case)
+        return eval_objs, resolved_per_case, evaluator_chain, requires_node
 
     def _build_metric(
         self,
         name: str,
-        n_per_object: int,
+        n_per_case: int,
         base_labels: list[str] | None,
         eval_objs: list,
     ) -> Metric:
@@ -1564,16 +1564,16 @@ class OptimizationProblem(Problem):
         object-major, matching the flattening order in
         ``_postprocess_row``.
         """
-        if base_labels is not None and len(base_labels) != n_per_object:
-            raise CADETProcessError(f"Expected {n_per_object} labels.")
+        if base_labels is not None and len(base_labels) != n_per_case:
+            raise CADETProcessError(f"Expected {n_per_case} labels.")
         if base_labels is None:
-            if n_per_object == 1:
+            if n_per_case == 1:
                 base_labels = [name]
             else:
-                base_labels = [f"{name}_{i}" for i in range(n_per_object)]
+                base_labels = [f"{name}_{i}" for i in range(n_per_case)]
         if eval_objs and len(self.evaluation_objects) > 1:
             obj_names = [str(obj) for obj in eval_objs]
-            if n_per_object == 1:
+            if n_per_case == 1:
                 dims = ("case",)
                 coords = {"case": obj_names}
             else:
@@ -1581,7 +1581,7 @@ class OptimizationProblem(Problem):
                 coords = {"case": obj_names, "entry": base_labels}
             labels = [f"{obj}_{label}" for obj in obj_names for label in base_labels]
             return Metric(name, dims=dims, coords=coords, labels=labels)
-        return Metric(name, n_metrics=n_per_object, labels=base_labels)
+        return Metric(name, n_metrics=n_per_case, labels=base_labels)
 
     def add_objective(
         self,
@@ -1593,7 +1593,7 @@ class OptimizationProblem(Problem):
         evaluation_objects: Any = -1,
         labels: Optional[list[str]] = None,
         requires: Any = None,
-        per_object: Optional[bool] = None,
+        per_case: Optional[bool] = None,
         mapspec: Optional[str] = None,
         *args: Any,
         **kwargs: Any,
@@ -1606,7 +1606,7 @@ class OptimizationProblem(Problem):
             Objective function.  Receives an evaluation object (or *x* when
             no evaluation objects are registered) and must return a scalar or
             1-D array of length *n_objectives*.  A collector
-            (``per_object=False``) instead receives the complete per-object
+            (``per_case=False``) instead receives the complete per-case
             array of its upstream evaluator's results.
         name : str, optional
             Name; defaults to ``objective.__name__``.
@@ -1625,14 +1625,14 @@ class OptimizationProblem(Problem):
             Metric labels; length must equal *n_objectives*.
         requires : callable or list of callables, optional
             Upstream evaluators whose output feeds this function.
-        per_object : bool, optional
+        per_case : bool, optional
             Whether the objective runs once per evaluation object (the
             default semantic) or once over all of them (``False``), reducing
-            the per-object list to *n_objectives* values, e.g. a weighted
+            the per-case list to *n_objectives* values, e.g. a weighted
             sum or worst case replacing a multi-objective formulation.
             Declaring ``False`` requires *requires*.  Left unset, it is
-            inferred: downstream of a ``per_object=False`` evaluator the
-            objective runs once, since there is no object axis left.
+            inferred: downstream of a ``per_case=False`` evaluator the
+            objective runs once, since there is no case axis left.
             Mutually exclusive with `mapspec`.
         mapspec : str, optional
             Escape hatch: a raw pipefunc axis-mapping string, passed to the
@@ -1643,14 +1643,14 @@ class OptimizationProblem(Problem):
         TypeError
             If *objective* is not callable.
         ValueError
-            If both *per_object* and *mapspec* are supplied, or if
-            ``per_object=False`` is declared without *requires*.
+            If both *per_case* and *mapspec* are supplied, or if
+            ``per_case=False`` is declared without *requires*.
         CADETProcessError
             If a referenced evaluation object or evaluator is not registered.
         """
         if not callable(objective):
             raise TypeError("Expected callable objective.")
-        self._check_per_object_exclusive(per_object, mapspec)
+        self._check_per_case_exclusive(per_case, mapspec)
 
         if name is None:
             name = _derive_name(objective)
@@ -1665,7 +1665,7 @@ class OptimizationProblem(Problem):
 
         eval_objs, per_case, evaluator_chain, requires_node = (
             self._resolve_leaf_wiring(
-                name, evaluation_objects, requires, per_object, mapspec
+                name, evaluation_objects, requires, per_case, mapspec
             )
         )
 
@@ -1687,7 +1687,7 @@ class OptimizationProblem(Problem):
             ),
             output_name=name,
             requires=requires_node,
-            per_object=per_object,
+            per_case=per_case,
             mapspec=mapspec,
         )
 
@@ -1695,7 +1695,7 @@ class OptimizationProblem(Problem):
             objective,
             metric,
             annotation,
-            n_per_object=n_objectives,
+            n_per_case=n_objectives,
             base_labels=base_labels,
             bad_metrics=bad_metrics,
             evaluation_objects=eval_objs,
@@ -1753,7 +1753,7 @@ class OptimizationProblem(Problem):
         comparison_operator: str = "le",
         labels: Optional[list[str]] = None,
         requires: Any = None,
-        per_object: Optional[bool] = None,
+        per_case: Optional[bool] = None,
         mapspec: Optional[str] = None,
         *args: Any,
         **kwargs: Any,
@@ -1780,10 +1780,10 @@ class OptimizationProblem(Problem):
             Metric labels.
         requires : callable or list of callables, optional
             Upstream evaluators.
-        per_object : bool, optional
+        per_case : bool, optional
             Whether the constraint runs once per evaluation object (the
             default) or once over all of them (``False``), reducing the
-            per-object list to *n_nonlinear_constraints* values, e.g. a
+            per-case list to *n_nonlinear_constraints* values, e.g. a
             worst-case constraint across objects.  Declaring ``False`` requires
             *requires*.  Left unset, it is inferred as for `add_objective`.
             Mutually exclusive with `mapspec`.
@@ -1801,7 +1801,7 @@ class OptimizationProblem(Problem):
         """
         if not callable(nonlincon):
             raise TypeError("Expected callable constraint function.")
-        self._check_per_object_exclusive(per_object, mapspec)
+        self._check_per_case_exclusive(per_case, mapspec)
 
         if name is None:
             name = _derive_name(nonlincon)
@@ -1826,7 +1826,7 @@ class OptimizationProblem(Problem):
 
         eval_objs, per_case, evaluator_chain, requires_node = (
             self._resolve_leaf_wiring(
-                name, evaluation_objects, requires, per_object, mapspec
+                name, evaluation_objects, requires, per_case, mapspec
             )
         )
 
@@ -1849,7 +1849,7 @@ class OptimizationProblem(Problem):
             ),
             output_name=name,
             requires=requires_node,
-            per_object=per_object,
+            per_case=per_case,
             mapspec=mapspec,
         )
 
@@ -1857,7 +1857,7 @@ class OptimizationProblem(Problem):
             nonlincon,
             metric,
             annotation,
-            n_per_object=n_nonlinear_constraints,
+            n_per_case=n_nonlinear_constraints,
             base_labels=base_labels,
             bad_metrics=bad_metrics,
             evaluation_objects=eval_objs,
@@ -1895,7 +1895,7 @@ class OptimizationProblem(Problem):
         frequency: int = 1,
         callbacks_dir: Optional[str] = None,
         keep_progress: bool = False,
-        per_object: Optional[bool] = None,
+        per_case: Optional[bool] = None,
         mapspec: Optional[str] = None,
         *args: Any,
         **kwargs: Any,
@@ -1918,9 +1918,9 @@ class OptimizationProblem(Problem):
             Directory to store callback output.
         keep_progress : bool
             Retain progress files between calls.
-        per_object : bool, optional
+        per_case : bool, optional
             Whether the callback runs once per evaluation object (the default)
-            or once over all of them (``False``), receiving the per-object
+            or once over all of them (``False``), receiving the per-case
             results as a list, e.g. to plot all objects together.  Declaring
             ``False`` requires *requires*.  Left unset, it is inferred as for
             `add_objective`.  Mutually exclusive with `mapspec`.
@@ -1932,7 +1932,7 @@ class OptimizationProblem(Problem):
             raise TypeError("Expected callable callback.")
         if frequency < 1:
             raise ValueError(f"frequency must be a positive integer, got {frequency!r}")
-        self._check_per_object_exclusive(per_object, mapspec)
+        self._check_per_case_exclusive(per_case, mapspec)
 
         if name is None:
             name = _derive_name(callback)
@@ -1944,7 +1944,7 @@ class OptimizationProblem(Problem):
 
         eval_objs, per_case, evaluator_chain, requires_node = (
             self._resolve_leaf_wiring(
-                name, evaluation_objects, requires, per_object, mapspec
+                name, evaluation_objects, requires, per_case, mapspec
             )
         )
 
@@ -1980,7 +1980,7 @@ class OptimizationProblem(Problem):
                 [*requires_node, _EVALUATION_CONTEXTS] if with_cases else requires_node
             ),
             cache=False,
-            per_object=per_object,
+            per_case=per_case,
             mapspec=mapspec,
         )
 
@@ -2020,7 +2020,7 @@ class OptimizationProblem(Problem):
         bad_metrics: Any = None,
         evaluation_objects: Any = -1,
         requires: Any = None,
-        per_object: Optional[bool] = None,
+        per_case: Optional[bool] = None,
         mapspec: Optional[str] = None,
         *args: Any,
         **kwargs: Any,
@@ -2031,14 +2031,14 @@ class OptimizationProblem(Problem):
         declared on the ``MetricSpace`` like objectives and constraints,
         but carries no minimize/maximize or bound semantics.
 
-        ``per_object=False`` makes the meta score a collector: it receives the
-        per-object results as a list and reduces it to *n_meta_scores* values
+        ``per_case=False`` makes the meta score a collector: it receives the
+        per-case results as a list and reduces it to *n_meta_scores* values
         (e.g. aggregating a score across objects).  Left unset, it is
         inferred as for `add_objective`.  Mutually exclusive with `mapspec`.
         """
         if not callable(func):
             raise TypeError("Expected callable meta-score function.")
-        self._check_per_object_exclusive(per_object, mapspec)
+        self._check_per_case_exclusive(per_case, mapspec)
 
         if name is None:
             name = _derive_name(func)
@@ -2053,7 +2053,7 @@ class OptimizationProblem(Problem):
 
         eval_objs, per_case, evaluator_chain, requires_node = (
             self._resolve_leaf_wiring(
-                name, evaluation_objects, requires, per_object, mapspec
+                name, evaluation_objects, requires, per_case, mapspec
             )
         )
 
@@ -2071,7 +2071,7 @@ class OptimizationProblem(Problem):
             ),
             output_name=name,
             requires=requires_node,
-            per_object=per_object,
+            per_case=per_case,
             mapspec=mapspec,
         )
 
@@ -2079,7 +2079,7 @@ class OptimizationProblem(Problem):
             func,
             metric,
             annotation=None,
-            n_per_object=n_meta_scores,
+            n_per_case=n_meta_scores,
             base_labels=base_labels,
             bad_metrics=bad_metrics,
             evaluation_objects=eval_objs,
@@ -2112,7 +2112,7 @@ class OptimizationProblem(Problem):
     def _make_metric_node(
         self,
         func: Callable,
-        n_per_object: int,
+        n_per_case: int,
         args: tuple,
         kwargs: dict,
         is_root: bool,
@@ -2137,9 +2137,9 @@ class OptimizationProblem(Problem):
             result = np.atleast_1d(
                 np.asarray(func(value, *args, **kwargs), dtype=float)
             )
-            if len(result) != n_per_object:
+            if len(result) != n_per_case:
                 raise CADETProcessError(
-                    f"Expected {n_per_object} values, got {len(result)}."
+                    f"Expected {n_per_case} values, got {len(result)}."
                 )
             return result
 
@@ -2239,14 +2239,14 @@ class OptimizationProblem(Problem):
                         _space: ParameterSpace = self._parameter_space,
                     ) -> Any:
                         return _fn(_adapt_root_input(_space, value))
-                per_object, mapspec = self._evaluator_node_options.get(
+                per_case, mapspec = self._evaluator_node_options.get(
                     ev_name, (None, None)
                 )
                 self._backend.add_evaluator(
                     func,
                     output_name=ev_name,
                     requires=prev,
-                    per_object=per_object,
+                    per_case=per_case,
                     mapspec=mapspec,
                 )
 
@@ -2264,7 +2264,7 @@ class OptimizationProblem(Problem):
         """
 
         def _bad_for(metric: _MetricRecord) -> np.ndarray:
-            # Declaration-driven: total declared entries over per-object entries.
+            # Declaration-driven: total declared entries over per-case entries.
             return np.tile(metric.bad_metrics, metric.n_total_metrics // metric.n_metrics)
 
         rows = []
@@ -2343,7 +2343,7 @@ class OptimizationProblem(Problem):
                 }
         batch = self.evaluate_batch(
             assignments,
-            targets=names,
+            output_names=names,
             parallelization_backend=parallelization_backend,
         )
         for i, results in zip(valid, batch):
@@ -2695,7 +2695,7 @@ class OptimizationProblem(Problem):
                 try:
                     result = self._backend.evaluate(
                         assignment,
-                        targets=[cb.name],
+                        output_names=[cb.name],
                         cases=cb.evaluation_objects or None,
                     )
                     values = result[cb.name]
