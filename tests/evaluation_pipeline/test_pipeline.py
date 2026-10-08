@@ -164,7 +164,7 @@ def test_evaluate_shared_intermediate_computed_once(single_space):
         requires=["intermediate"],
     )
 
-    pipeline.evaluate({}, targets=["doubled", "shifted"])
+    pipeline.evaluate({}, output_names=["doubled", "shifted"])
     assert call_count == 1
 
 
@@ -315,7 +315,7 @@ def test_evaluate_partial_targets_skips_unneeded_nodes(single_space):
     pipeline.add_evaluator(lambda model: model.value, output_name="a")
     pipeline.add_evaluator(side_branch, output_name="b")
 
-    pipeline.evaluate({}, targets=["a"])
+    pipeline.evaluate({}, output_names=["a"])
     assert not side_branch_called
 
 
@@ -323,7 +323,7 @@ def test_evaluate_unknown_target_raises(single_space):
     pipeline = EvaluationPipeline(single_space)
     pipeline.add_evaluator(lambda model: model.value, output_name="a")
     with pytest.raises(ValueError, match="Unknown target"):
-        pipeline.evaluate({}, targets=["nonexistent"])
+        pipeline.evaluate({}, output_names=["nonexistent"])
 
 
 # ── evaluate: multiple cases ──────────────────────────────────────────────────
@@ -864,7 +864,7 @@ def test_mapped_chain_fans_each_stage_over_objects():
         mapspec="scaled[case] -> refined[case]",
     )
 
-    results = pipeline.evaluate({}, targets=["refined"])
+    results = pipeline.evaluate({}, output_names=["refined"])
 
     assert results["refined"] == [11.0, 21.0]
 
@@ -996,8 +996,8 @@ def test_mapped_repeated_call_hits_cache():
         mapspec="evaluation_contexts[case] -> scaled[case]",
     )
 
-    pipeline.evaluate({}, targets=["scaled"])
-    pipeline.evaluate({}, targets=["scaled"])  # same x: cached, no recompute
+    pipeline.evaluate({}, output_names=["scaled"])
+    pipeline.evaluate({}, output_names=["scaled"])  # same x: cached, no recompute
 
     assert len(calls) == 2  # once per object, not four times
 
@@ -1012,8 +1012,8 @@ def test_mapped_bypass_cache_forces_recompute():
         mapspec="evaluation_contexts[case] -> scaled[case]",
     )
 
-    pipeline.evaluate({}, targets=["scaled"])
-    pipeline.evaluate({}, targets=["scaled"], bypass_cache=True)
+    pipeline.evaluate({}, output_names=["scaled"])
+    pipeline.evaluate({}, output_names=["scaled"], bypass_cache=True)
 
     assert len(calls) == 4  # bypass busts the cache for every object
 
@@ -1043,9 +1043,9 @@ def test_mapped_shared_upstream_reused_across_requests():
         cache=False,
     )
 
-    pipeline.evaluate({}, targets=["metric"])
+    pipeline.evaluate({}, output_names=["metric"])
     assert len(sim_calls) == 2 and cb_calls == []  # callback did not fire
-    pipeline.evaluate({}, targets=["callback"])
+    pipeline.evaluate({}, output_names=["callback"])
     # Simulation reused from the shared cache; callback fires only now.
     assert len(sim_calls) == 2 and len(cb_calls) == 2
 
@@ -1067,7 +1067,7 @@ def test_fan_in_reduces_object_axis_to_scalar():
         per_case=False,  # collector: receives the whole array
     )
 
-    results = pipeline.evaluate({}, targets=["mean_scaled"])
+    results = pipeline.evaluate({}, output_names=["mean_scaled"])
 
     assert results["mean_scaled"] == pytest.approx(15.0)
     assert not isinstance(results["mean_scaled"], list)
@@ -1087,7 +1087,7 @@ def test_fan_in_worst_case_over_objects():
         per_case=False,
     )
 
-    results = pipeline.evaluate({}, targets=["worst"])
+    results = pipeline.evaluate({}, output_names=["worst"])
 
     assert results["worst"] == pytest.approx(10.0)
 
@@ -1108,7 +1108,7 @@ def test_fan_in_receives_a_list_numpy_ufuncs_accept():
         log_sum, output_name="log_sum", requires=["scaled"], per_case=False
     )
 
-    results = pipeline.evaluate({}, targets=["log_sum"])
+    results = pipeline.evaluate({}, output_names=["log_sum"])
 
     assert received == [[10.0, 20.0]]
     assert isinstance(received[0], list)
@@ -1126,7 +1126,7 @@ def test_mixed_mapped_and_fan_in_targets_in_one_call():
         per_case=False,
     )
 
-    results = pipeline.evaluate({}, targets=["scaled", "total"])
+    results = pipeline.evaluate({}, output_names=["scaled", "total"])
 
     # The mapped target keeps its per-case list; the fan-in collapses to a scalar.
     assert results["scaled"] == [10.0, 20.0]
@@ -1175,7 +1175,7 @@ def test_fan_in_propagates_failure_of_one_object():
         per_case=False,
     )
 
-    results = pipeline.evaluate({}, targets=["worst"])
+    results = pipeline.evaluate({}, output_names=["worst"])
 
     # A failed object fails the aggregate, carrying the original failure stage.
     assert isinstance(results["worst"], EvaluationFailure)
@@ -1198,7 +1198,7 @@ def test_fan_in_reducer_not_called_when_an_object_failed():
         reduce, output_name="worst", requires=["scaled"], per_case=False
     )
 
-    results = pipeline.evaluate({}, targets=["worst"])
+    results = pipeline.evaluate({}, output_names=["worst"])
 
     assert isinstance(results["worst"], EvaluationFailure)
     assert reducer_calls == []
@@ -1216,7 +1216,7 @@ def test_fan_in_all_objects_succeed_still_reduces():
         per_case=False,
     )
 
-    results = pipeline.evaluate({}, targets=["worst"])
+    results = pipeline.evaluate({}, output_names=["worst"])
 
     assert results["worst"] == pytest.approx(10.0)
 
@@ -1238,7 +1238,7 @@ def test_collector_engages_mapped_execution_without_any_mapspec():
         per_case=False,
     )
 
-    results = pipeline.evaluate({}, targets=["mean_metric", "metric"])
+    results = pipeline.evaluate({}, output_names=["mean_metric", "metric"])
 
     assert results["mean_metric"] == pytest.approx(26.0)
     assert results["metric"] == [11.0, 41.0]
@@ -1293,7 +1293,7 @@ def test_node_downstream_of_collector_consumes_whole_value():
         lambda worst: worst * 2, output_name="doubled_worst", requires=["worst"]
     )
 
-    results = pipeline.evaluate({}, targets=["doubled_worst"])
+    results = pipeline.evaluate({}, output_names=["doubled_worst"])
 
     assert results["doubled_worst"] == pytest.approx(20.0)
 
@@ -1312,7 +1312,7 @@ def test_explicit_per_case_downstream_of_collector_raises():
     )
 
     with pytest.raises(ValueError, match="no case axis left"):
-        pipeline.evaluate({}, targets=["w"])
+        pipeline.evaluate({}, output_names=["w"])
 
 
 @pytest.mark.parametrize(
@@ -1376,7 +1376,7 @@ def test_collector_registered_before_upstream_still_resolves():
     )
     pipeline.add_evaluator(lambda model: model.value * 10, output_name="scaled")
 
-    results = pipeline.evaluate({}, targets=["total"])
+    results = pipeline.evaluate({}, output_names=["total"])
 
     assert results["total"] == pytest.approx(30.0)
 

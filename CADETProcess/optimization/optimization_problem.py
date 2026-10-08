@@ -2343,7 +2343,7 @@ class OptimizationProblem(Problem):
                 }
         batch = self.evaluate_batch(
             assignments,
-            targets=names,
+            output_names=names,
             parallelization_backend=parallelization_backend,
         )
         for i, results in zip(valid, batch):
@@ -2695,7 +2695,7 @@ class OptimizationProblem(Problem):
                 try:
                     result = self._backend.evaluate(
                         assignment,
-                        targets=[cb.name],
+                        output_names=[cb.name],
                         cases=cb.evaluation_objects or None,
                     )
                     values = result[cb.name]
