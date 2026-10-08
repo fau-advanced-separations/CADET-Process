@@ -742,7 +742,7 @@ class EvaluationPipeline:
     def evaluate(
         self,
         assignment: Mapping[str, Any],
-        targets: list[str] | None = None,
+        output_names: list[str] | None = None,
         bypass_cache: bool = False,
         cases: list[Any] | None = None,
     ) -> dict[str, Any]:
@@ -754,7 +754,7 @@ class EvaluationPipeline:
         ``(name, value)`` tuple of the independent assignment.  Results for
         different assignments are naturally distinct cache entries without manual
         cache clearing; assignments that only differ in a categorical value are
-        distinct entries too.  Intermediate nodes shared by multiple targets
+        distinct entries too.  Intermediate nodes shared by multiple requested outputs
         within a single call are computed only once.
 
         When the parameter space has no registered cases, the assignment
@@ -770,7 +770,7 @@ class EvaluationPipeline:
             Order-insensitive.  Numeric vectors are an encoding owned by
             ``TransformedSpace``; decode first:
             ``pipeline.evaluate(space.transformed_space.decode(x))``.
-        targets : list[str], optional
+        output_names : list[str], optional
             Output names to compute.  `None` computes all registered outputs.
             Requesting a subset exploits pipefunc's lazy evaluation: only the
             subgraph needed for the requested outputs is executed.
@@ -799,21 +799,21 @@ class EvaluationPipeline:
                 "pipeline.evaluate(space.transformed_space.decode(x))."
             )
 
-        if targets is None:
-            targets = self._output_names
+        if output_names is None:
+            output_names = self._output_names
         else:
-            unknown = [t for t in targets if t not in self._output_names]
+            unknown = [t for t in output_names if t not in self._output_names]
             if unknown:
                 raise ValueError(f"Unknown target(s): {unknown}")
 
         return self._evaluate_mapped(
-            assignment, targets, bypass_cache, cases
+            assignment, output_names, bypass_cache, cases
         )
 
     def _evaluate_mapped(
         self,
         assignment: Mapping[str, Any],
-        targets: list[str],
+        output_names: list[str],
         bypass_cache: bool,
         cases: list[Any] | None,
     ) -> dict[str, Any]:
@@ -846,7 +846,7 @@ class EvaluationPipeline:
         """
         effective_cases = _resolve_cases(self._space.cases, cases)
         cache_nonce = _uuid_mod.uuid4().hex if bypass_cache else None
-        # ``output_names`` trims the run to the requested targets (unrequested
+        # ``output_names`` trims the run to the requested outputs (unrequested
         # callbacks never fire).  pipefunc builds the trimmed subpipeline over
         # the main pipeline's (failure-guarded) cache, so cache entries persist
         # across calls and shared upstream work is reused across target sets
@@ -858,7 +858,7 @@ class EvaluationPipeline:
                 _RUN_CASES_ARG: effective_cases,
                 _CACHE_NONCE_ARG: cache_nonce,
             },
-            output_names=set(targets),
+            output_names=set(output_names),
             parallel=False,
         )
 
@@ -867,7 +867,7 @@ class EvaluationPipeline:
         # base this on the effective (restricted) cases, not the full space.
         single = len(effective_cases) <= 1
         out: dict[str, Any] = {}
-        for t in targets:
+        for t in output_names:
             if mapspec_by_name[t] is None:
                 # Whole-value fan-in: the node already reduced to one value.
                 out[t] = result[t].output
