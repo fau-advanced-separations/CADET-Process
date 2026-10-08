@@ -214,10 +214,10 @@ optimization_problem.evaluate_objectives(3)
 (aggregation_guide)=
 ## Aggregating over evaluation objects
 
-With multiple evaluation objects, every evaluator and objective runs once per object by default: an objective declared on two processes contributes two entries to the objective vector, and the problem is multi-objective.
+With multiple evaluation objects, every evaluator and objective runs once per case by default: an objective declared on two processes contributes two entries to the objective vector, and the problem is multi-objective.
 
 Sometimes the individual values are not the point and only a combination matters, such as the mean, a weighted sum, or the worst case across operating conditions.
-Declaring an objective with `per_object=False` turns it into a collector: it runs once, receives its upstream evaluator's per-object results as a list with one entry per object, and reduces it.
+Declaring an objective with `per_case=False` turns it into a collector: it runs once, receives its upstream evaluator's per-case results as a list with one entry per case, and reduces it.
 The problem then stays single-objective, so cheaper single-objective optimizers apply where a multi-objective formulation would otherwise be needed.
 
 ```{code-cell} ipython3
@@ -253,11 +253,11 @@ def worst_yield(yields):
     return min(yields)
 
 optimization_problem.add_objective(
-    worst_yield, requires=[simulate], minimize=False, per_object=False,
+    worst_yield, requires=[simulate], minimize=False, per_case=False,
 )
 ```
 
-`simulate` still runs once per evaluation object; only the objective collects.
+`simulate` still runs once per case; only the objective collects.
 Despite two evaluation objects, the problem has a single objective:
 
 ```{code-cell} ipython3
@@ -268,12 +268,12 @@ optimization_problem.n_objectives
 optimization_problem.evaluate_objectives(1.0)
 ```
 
-A collector needs an upstream evaluator to collect from, so `requires` is mandatory with `per_object=False`.
-The upstream evaluator must not return a `list`, `ndarray` or `dict`: the pipeline cannot cache such per-object outputs (pipefunc issue [#987](https://github.com/pipefunc/pipefunc/issues/987)), so the collector fails on every evaluation.
+A collector needs an upstream evaluator to collect from, so `requires` is mandatory with `per_case=False`.
+The upstream evaluator must not return a `list`, `ndarray` or `dict`: the pipeline cannot cache such per-case outputs (pipefunc issue [#987](https://github.com/pipefunc/pipefunc/issues/987)), so the collector fails on every evaluation.
 Return a `tuple` instead.
 
 ```{note}
-When the evaluation of one object fails, the aggregated objective currently fails as a whole; the per-object fallback (`bad_metrics`) policy for aggregated objectives follows in a later release.
+When the evaluation of one case fails, the aggregated objective currently fails as a whole; the per-case fallback (`bad_metrics`) policy for aggregated objectives follows in a later release.
 ```
 
 ## Caching
