@@ -1,3 +1,4 @@
+import operator
 from typing import Any, Optional
 
 import numpy as np
@@ -6,6 +7,8 @@ from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import (
     Bool,
     DependentlyModulatedUnsignedList,
+    FloatList,
+    RangedFloat,
     RangedInteger,
     SizedFloatList,
     SizedRangedIntegerList,
@@ -46,6 +49,7 @@ __all__ = [
     "HICWaterOnHydrophobicSurfaces",
     "MultiComponentColloidal",
     "AffinityComplexTitration",
+    "ColloidalParticleAdsorption",
 ]
 
 
@@ -1445,3 +1449,95 @@ class AffinityComplexTitration(BindingBaseClass):
         "pka_a",
         "pka_g",
     ]
+
+
+class ColloidalParticleAdsorption(BindingBaseClass):
+    """
+    Colloidal particle adsorption with a non-binding proton component.
+
+    The proton concentration determines pH. Effective charge coefficients are
+    ordered by increasing polynomial power, with one entry per component in
+    each row, including non-binding components.
+
+    Attributes
+    ----------
+    temperature : unsigned float
+        Absolute temperature in K.
+    ionic_strength : unsigned float
+        Ionic strength in mol/m³; ignored when `ionic_valence` is set.
+    permittivity : unsigned float
+        Relative permittivity of the solvent.
+    ligand_density : unsigned float
+        Ligand surface density in mol/m².
+    ligand_charge_full : unsigned float
+        Charge of the fully protonated ligand.
+    ligand_pk : unsigned float
+        Ligand dissociation constant.
+    specific_surface_area : list of unsigned floats
+        Adsorber surface per skeleton volume in 1/m. Length is `n_comp`.
+    protein_radius : list of unsigned floats
+        Protein radius in m. Length is `n_comp`.
+    effective_charge_coefficients : list of floats
+        Polynomial-order-row-major protein charge coefficients. Length is a
+        positive multiple of `n_comp`.
+    lateral_charge : list of floats
+        Lateral protein charge. Length is `n_comp`.
+    reference_ph : unsigned float
+        Reference pH for the protein charge polynomial.
+    delta_ref : list of unsigned floats
+        Reference interaction layer parameter. Length is `n_comp`.
+    delta_linear : list of unsigned floats
+        Slope of log10(delta) with surface charge density. Length is `n_comp`.
+    kinetic_prefactor : list of unsigned floats
+        Kinetic prefactor in 1/s. Length is `n_comp`.
+    proton_index : unsigned integer
+        Index of the non-binding proton component. Defaults to 0.
+    ionic_valence : list of integers, optional
+        Component valences used to calculate ionic strength from concentrations.
+        Length is `n_comp`.
+    max_iterations : unsigned integer
+        Maximum adsorber surface potential iterations. Defaults to 100.
+    """
+
+    temperature = RangedFloat(lb=0, lb_op=operator.le)
+    ionic_strength = RangedFloat(lb=0, lb_op=operator.le)
+    permittivity = RangedFloat(lb=0, lb_op=operator.le)
+    ligand_density = UnsignedFloat()
+    ligand_charge_full = UnsignedFloat()
+    ligand_pk = RangedFloat(lb=0, lb_op=operator.le)
+    specific_surface_area = SizedUnsignedList(size="n_comp")
+    protein_radius = SizedUnsignedList(size="n_comp")
+    effective_charge_coefficients = FloatList()
+    lateral_charge = SizedFloatList(size="n_comp")
+    reference_ph = UnsignedFloat()
+    delta_ref = SizedUnsignedList(size="n_comp")
+    delta_linear = SizedUnsignedList(size="n_comp")
+    kinetic_prefactor = SizedUnsignedList(size="n_comp")
+    proton_index = UnsignedInteger(default=0)
+    ionic_valence = SizedRangedIntegerList(size="n_comp", is_optional=True)
+    max_iterations = RangedInteger(lb=1, default=100)
+
+    _parameters = [
+        "temperature",
+        "ionic_strength",
+        "permittivity",
+        "ligand_density",
+        "ligand_charge_full",
+        "ligand_pk",
+        "specific_surface_area",
+        "protein_radius",
+        "effective_charge_coefficients",
+        "lateral_charge",
+        "reference_ph",
+        "delta_ref",
+        "delta_linear",
+        "kinetic_prefactor",
+        "proton_index",
+        "ionic_valence",
+        "max_iterations",
+    ]
+
+    @property
+    def non_binding_component_indices(self) -> list[int]:
+        """list[int]: Index of the non-binding proton component."""
+        return [self.proton_index]
