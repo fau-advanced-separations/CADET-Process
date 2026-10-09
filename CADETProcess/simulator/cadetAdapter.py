@@ -1745,6 +1745,29 @@ adsorption_parameters_map = {
             "ACT_PKAG": "pka_g",
         },
     },
+    "ColloidalParticleAdsorption": {
+        "name": "COLLOIDAL_PARTICLE_ADSORPTION",
+        "parameters": {
+            "IS_KINETIC": "is_kinetic",
+            "CPA_TEMPERATURE": "temperature",
+            "CPA_IONIC_STRENGTH": "ionic_strength",
+            "CPA_PERMITTIVITY": "permittivity",
+            "CPA_LIGAND_DENSITY": "ligand_density",
+            "CPA_LIGAND_CHARGE_FULL": "ligand_charge_full",
+            "CPA_LIGAND_PK": "ligand_pk",
+            "CPA_SPECIFIC_SURFACE_AREA": "specific_surface_area",
+            "CPA_RADIUS": "protein_radius",
+            "CPA_EFFECTIVE_CHARGE_COEF": "effective_charge_coefficients",
+            "CPA_LAT_CHARGE": "lateral_charge",
+            "CPA_PH_REF": "reference_ph",
+            "CPA_DELTA_REF": "delta_ref",
+            "CPA_DELTA_LIN": "delta_linear",
+            "CPA_KKIN": "kinetic_prefactor",
+            "CPA_PROTON_IDX": "proton_index",
+            "CPA_IONIC_VALENCE": "ionic_valence",
+            "CPA_MAXITER": "max_iterations",
+        },
+    },
 }
 
 inv_adsorption_parameters_map = {

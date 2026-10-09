@@ -1,3 +1,4 @@
+import operator
 from typing import Any, Optional
 
 import numpy as np
@@ -6,6 +7,8 @@ from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import (
     Bool,
     DependentlyModulatedUnsignedList,
+    FloatList,
+    RangedFloat,
     RangedInteger,
     SizedFloatList,
     SizedRangedIntegerList,
@@ -46,6 +49,7 @@ __all__ = [
     "HICWaterOnHydrophobicSurfaces",
     "MultiComponentColloidal",
     "AffinityComplexTitration",
+    "ColloidalParticleAdsorption",
 ]
 
 
@@ -1445,3 +1449,173 @@ class AffinityComplexTitration(BindingBaseClass):
         "pka_a",
         "pka_g",
     ]
+
+
+class ColloidalParticleAdsorption(BindingBaseClass):
+    """
+    Colloidal particle adsorption with a non-binding proton component.
+
+    The proton concentration determines pH. Effective charge coefficients are
+    ordered by increasing polynomial power, with one entry per component in
+    each row, including non-binding components. Set
+    `effective_charge_polynomial_degree` and then assign each row through
+    `effective_charge_coefficient_0`, `effective_charge_coefficient_1`, etc.
+    Order 0 is constant, order 1 is linear, and order 2 is quadratic.
+
+    Attributes
+    ----------
+    temperature : unsigned float
+        Absolute temperature in K.
+    ionic_strength : unsigned float
+        Ionic strength in mol/m³; ignored when `ionic_valence` is set.
+    permittivity : unsigned float
+        Relative permittivity of the solvent.
+    ligand_density : unsigned float
+        Ligand surface density in mol/m².
+    ligand_charge_full : unsigned float
+        Charge of the fully protonated ligand.
+    ligand_pk : unsigned float
+        Ligand dissociation constant.
+    specific_surface_area : list of unsigned floats
+        Adsorber surface per skeleton volume in 1/m. Length is `n_comp`.
+    protein_radius : list of unsigned floats
+        Protein radius in m. Length is `n_comp`.
+    effective_charge_coefficients : list of floats
+        Polynomial-order-row-major protein charge coefficients. Length is a
+        positive multiple of `n_comp`.
+    effective_charge_polynomial_degree : unsigned integer
+        Highest polynomial power. Inferred from the coefficients when set.
+    lateral_charge : list of floats
+        Lateral protein charge. Length is `n_comp`.
+    reference_ph : unsigned float
+        Reference pH for the protein charge polynomial.
+    delta_ref : list of unsigned floats
+        Reference interaction layer parameter. Length is `n_comp`.
+    delta_linear : list of unsigned floats
+        Slope of log10(delta) with surface charge density. Length is `n_comp`.
+    kinetic_prefactor : list of unsigned floats
+        Kinetic prefactor in 1/s. Length is `n_comp`.
+    proton_index : unsigned integer
+        Index of the non-binding proton component. Defaults to 0.
+    ionic_valence : list of integers, optional
+        Component valences used to calculate ionic strength from concentrations.
+        Length is `n_comp`.
+    max_iterations : unsigned integer
+        Maximum adsorber surface potential iterations. Defaults to 100.
+    """
+
+    temperature = RangedFloat(lb=0, lb_op=operator.le)
+    ionic_strength = RangedFloat(lb=0, lb_op=operator.le)
+    permittivity = RangedFloat(lb=0, lb_op=operator.le)
+    ligand_density = UnsignedFloat()
+    ligand_charge_full = UnsignedFloat()
+    ligand_pk = RangedFloat(lb=0, lb_op=operator.le)
+    specific_surface_area = SizedUnsignedList(size="n_comp")
+    protein_radius = SizedUnsignedList(size="n_comp")
+    effective_charge_coefficients = FloatList()
+    lateral_charge = SizedFloatList(size="n_comp")
+    reference_ph = UnsignedFloat()
+    delta_ref = SizedUnsignedList(size="n_comp")
+    delta_linear = SizedUnsignedList(size="n_comp")
+    kinetic_prefactor = SizedUnsignedList(size="n_comp")
+    proton_index = UnsignedInteger(default=0)
+    ionic_valence = SizedRangedIntegerList(size="n_comp", is_optional=True)
+    max_iterations = RangedInteger(lb=1, default=100)
+
+    _parameters = [
+        "temperature",
+        "ionic_strength",
+        "permittivity",
+        "ligand_density",
+        "ligand_charge_full",
+        "ligand_pk",
+        "specific_surface_area",
+        "protein_radius",
+        "effective_charge_coefficients",
+        "lateral_charge",
+        "reference_ph",
+        "delta_ref",
+        "delta_linear",
+        "kinetic_prefactor",
+        "proton_index",
+        "ionic_valence",
+        "max_iterations",
+    ]
+
+    def __init__(
+        self,
+        component_system: ComponentSystem,
+        name: Optional[str] = None,
+        *args: Any,
+        effective_charge_polynomial_degree: Optional[int] = None,
+        **kwargs: Any,
+    ) -> None:
+        """Initialize the CPA model and its optional charge polynomial degree."""
+        super().__init__(component_system, name, *args, **kwargs)
+        if effective_charge_polynomial_degree is not None:
+            self.effective_charge_polynomial_degree = effective_charge_polynomial_degree
+
+    @property
+    def effective_charge_polynomial_degree(self) -> Optional[int]:
+        """int: Highest power of the effective charge polynomial, if configured."""
+        coefficients = self.effective_charge_coefficients
+        if coefficients is None:
+            return None
+        if len(coefficients) < self.n_comp or len(coefficients) % self.n_comp != 0:
+            raise ValueError("Effective charge coefficients must contain complete rows.")
+        return len(coefficients) // self.n_comp - 1
+
+    @effective_charge_polynomial_degree.setter
+    def effective_charge_polynomial_degree(self, degree: int) -> None:
+        if not isinstance(degree, int) or degree < 0:
+            raise ValueError("Effective charge polynomial degree must be non-negative.")
+        size = (degree + 1) * self.n_comp
+        coefficients = (self.effective_charge_coefficients or [])[:size]
+        self.effective_charge_coefficients = coefficients + [0.0] * (size - len(coefficients))
+
+    def get_effective_charge_coefficient(self, order: int) -> list[float]:
+        """Return one component vector of the charge polynomial."""
+        degree = self.effective_charge_polynomial_degree
+        if degree is None or not isinstance(order, int) or not 0 <= order <= degree:
+            raise ValueError("Effective charge order is outside the configured degree.")
+        start = order * self.n_comp
+        return self.effective_charge_coefficients[start:start + self.n_comp]
+
+    def set_effective_charge_coefficient(self, order: int, values: list[float]) -> None:
+        """Set one component vector of the charge polynomial."""
+        degree = self.effective_charge_polynomial_degree
+        if degree is None or not isinstance(order, int) or not 0 <= order <= degree:
+            raise ValueError("Effective charge order is outside the configured degree.")
+        values = np.asarray(values, dtype=float)
+        if values.shape != (self.n_comp,):
+            raise ValueError(f"Expected {self.n_comp} effective charge coefficients.")
+        start = order * self.n_comp
+        coefficients = self.effective_charge_coefficients.copy()
+        coefficients[start:start + self.n_comp] = values.tolist()
+        self.effective_charge_coefficients = coefficients
+
+    def __getattr__(self, name: str) -> list[float]:
+        """Return a charge coefficient vector by its numbered attribute name."""
+        prefix = "effective_charge_coefficient_"
+        if name.startswith(prefix):
+            order = name[len(prefix):]
+            if order.isdecimal() and str(int(order)) == order:
+                degree = self.effective_charge_polynomial_degree
+                if degree is not None and int(order) <= degree:
+                    return self.get_effective_charge_coefficient(int(order))
+        raise AttributeError(f"{type(self).__name__} object has no attribute {name}")
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Set a charge coefficient vector by its numbered attribute name."""
+        prefix = "effective_charge_coefficient_"
+        if name.startswith(prefix):
+            order = name[len(prefix):]
+            if order.isdecimal() and str(int(order)) == order:
+                self.set_effective_charge_coefficient(int(order), value)
+                return
+        super().__setattr__(name, value)
+
+    @property
+    def non_binding_component_indices(self) -> list[int]:
+        """list[int]: Index of the non-binding proton component."""
+        return [self.proton_index]
