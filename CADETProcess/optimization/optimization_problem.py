@@ -329,6 +329,9 @@ class OptimizationProblem(Problem):
         When not set, an in-memory LRU cache is used.
     log_level : str
         Logging level for this problem's logger (e.g. ``"DEBUG"``, ``"INFO"``).
+    show_progress : bool, optional
+        Display progress for internal evaluation steps. Defaults to False.
+        Does not affect the optimizer's progress reporting.
     """
 
     def __init__(
@@ -337,6 +340,7 @@ class OptimizationProblem(Problem):
         use_diskcache: bool = True,
         cache_directory: Optional[str] = None,
         log_level: str = "INFO",
+        show_progress: bool = False,
     ) -> None:
         self.logger = log.get_logger(name, level=log_level)
 
@@ -347,7 +351,9 @@ class OptimizationProblem(Problem):
         super().__init__(
             parameter_space=parameter_space,
             metric_space=MetricSpace(),
-            backend=EvaluationPipeline(parameter_space, cache_dir=effective_cache_dir),
+            backend=EvaluationPipeline(
+                parameter_space, cache_dir=effective_cache_dir, show_progress=show_progress
+            ),
             name=name,
         )
         self._params: dict[str, ParameterBase] = {}
