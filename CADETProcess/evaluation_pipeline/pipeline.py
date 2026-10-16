@@ -475,6 +475,8 @@ class EvaluationPipeline:
     space : ParameterSpace
         Owns the cases and parameter mappers. `evaluate` passes the named
         assignment to `space.set_values` before running the graph.
+    show_progress : bool, optional
+        Display progress for internal evaluation steps. Defaults to False.
 
     Examples
     --------
@@ -492,10 +494,12 @@ class EvaluationPipeline:
         self,
         space: ParameterSpace,
         cache_dir: str | Path | None = None,
+        show_progress: bool = False,
     ) -> None:
         if not isinstance(space, ParameterSpace):
             raise TypeError(f"Expected ParameterSpace, got {type(space).__name__}")
         self._space = space
+        self.show_progress = show_progress
         self._cache_dir: Path | None = Path(cache_dir) if cache_dir is not None else None
         self._specs: list[_NodeSpec] = []
         self._output_names: list[str] = []
@@ -860,6 +864,7 @@ class EvaluationPipeline:
             },
             output_names=set(output_names),
             parallel=False,
+            show_progress=self.show_progress,
         )
 
         mapspec_by_name = self._effective_mapspecs
