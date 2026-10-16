@@ -710,6 +710,12 @@ class Fractionator(EventHandler):
                         on_indices = np.array([0])
                         off_indices = np.array([purity_min.shape[0] - 1])
 
+                    # Pair each start with the next end around the cycle.
+                    if len(on_indices) and on_indices[0] > off_indices[0]:
+                        off_indices = np.roll(off_indices, -1)
+                    # A transition at time zero ends at the final sample.
+                    off_indices %= purity_min.shape[0]
+
                     # Ensure regions with a single value are ignored
                     valid_regions = [
                         (on, off)
