@@ -1494,6 +1494,17 @@ class OptimizationProblem(Problem):
                 "the normal API, mapspec the raw escape hatch; supply one."
             )
 
+    @staticmethod
+    def _reject_per_object(kwargs: dict) -> None:
+        """Reject the pre-release spelling of *per_case*.
+
+        Leaf registration forwards unknown keywords to the leaf callable, so
+        ``per_object`` would otherwise register silently and fail at every
+        evaluation.
+        """
+        if "per_object" in kwargs:
+            raise TypeError("per_object was renamed to per_case.")
+
     def _resolve_leaf_wiring(
         self,
         name: str,
@@ -1651,6 +1662,7 @@ class OptimizationProblem(Problem):
         if not callable(objective):
             raise TypeError("Expected callable objective.")
         self._check_per_case_exclusive(per_case, mapspec)
+        self._reject_per_object(kwargs)
 
         if name is None:
             name = _derive_name(objective)
@@ -1802,6 +1814,7 @@ class OptimizationProblem(Problem):
         if not callable(nonlincon):
             raise TypeError("Expected callable constraint function.")
         self._check_per_case_exclusive(per_case, mapspec)
+        self._reject_per_object(kwargs)
 
         if name is None:
             name = _derive_name(nonlincon)
@@ -1933,6 +1946,7 @@ class OptimizationProblem(Problem):
         if frequency < 1:
             raise ValueError(f"frequency must be a positive integer, got {frequency!r}")
         self._check_per_case_exclusive(per_case, mapspec)
+        self._reject_per_object(kwargs)
 
         if name is None:
             name = _derive_name(callback)
@@ -2039,6 +2053,7 @@ class OptimizationProblem(Problem):
         if not callable(func):
             raise TypeError("Expected callable meta-score function.")
         self._check_per_case_exclusive(per_case, mapspec)
+        self._reject_per_object(kwargs)
 
         if name is None:
             name = _derive_name(func)
