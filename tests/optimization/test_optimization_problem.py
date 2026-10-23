@@ -736,6 +736,48 @@ def test_per_case_and_mapspec_exclusive_on_facade(op_two_objects_with_evaluator)
         )
 
 
+@pytest.mark.parametrize("kind", ["objective", "constraint", "meta_score", "callback"])
+@pytest.mark.parametrize("mapping", ["root", "per_case"])
+def test_explicit_mapspec_evaluates_on_all_leaf_kinds(
+    op_two_objects_with_evaluator, kind, mapping
+):
+    op, simulate, _, _ = op_two_objects_with_evaluator
+    calls = []
+
+    def score(value):
+        if mapping == "root":
+            value = value.scalar_param * 10 * len(value.name)
+        result = float(np.mean(value))
+        calls.append(result)
+        return result
+
+    register = {
+        "objective": op.add_objective,
+        "constraint": op.add_nonlinear_constraint,
+        "meta_score": op.add_meta_score,
+        "callback": op.add_callback,
+    }[kind]
+    if mapping == "root":
+        requires = None
+        mapspec = "evaluation_contexts[case] -> score[case]"
+    else:
+        requires = simulate
+        mapspec = "simulate[case] -> score[case]"
+    register(score, name="score", requires=requires, mapspec=mapspec)
+
+    expected = [5.0, 10.0]
+    if kind == "callback":
+        op.evaluate_callbacks(op.create_population([[0.5]]), current_iteration=0)
+    else:
+        evaluate = {
+            "objective": op.evaluate_objectives,
+            "constraint": op.evaluate_nonlinear_constraints,
+            "meta_score": op.evaluate_meta_scores,
+        }[kind]
+        np.testing.assert_allclose(evaluate([0.5]), expected)
+    np.testing.assert_allclose(calls, expected)
+
+
 def test_root_per_case_false_error_names_the_objective(
     op_two_objects_with_evaluator,
 ):

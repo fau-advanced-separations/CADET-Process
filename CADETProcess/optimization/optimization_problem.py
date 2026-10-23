@@ -1675,7 +1675,7 @@ class OptimizationProblem(Problem):
             )
         self._check_metric_name(name)
 
-        eval_objs, per_case, evaluator_chain, requires_node = (
+        eval_objs, resolved_per_case, evaluator_chain, requires_node = (
             self._resolve_leaf_wiring(
                 name, evaluation_objects, requires, per_case, mapspec
             )
@@ -1686,7 +1686,7 @@ class OptimizationProblem(Problem):
         # reduces over objects, so its metric declares no evaluation_object
         # dimension: it produces n_objectives values total.
         base_labels = labels if labels is not None else getattr(objective, "labels", None)
-        metric_objs = eval_objs if per_case else []
+        metric_objs = eval_objs if resolved_per_case else []
         metric = self._build_metric(name, n_objectives, base_labels, metric_objs)
         annotation = self._metric_space.add_objective(metric, minimize=minimize)
 
@@ -1712,7 +1712,7 @@ class OptimizationProblem(Problem):
             bad_metrics=bad_metrics,
             evaluation_objects=eval_objs,
             all_cases=evaluation_objects == -1,
-            per_case=per_case,
+            per_case=resolved_per_case,
             evaluator_chain=evaluator_chain,
             args=args,
             kwargs=kwargs if kwargs else None,
@@ -1837,7 +1837,7 @@ class OptimizationProblem(Problem):
                 f"Expected {n_nonlinear_constraints} bounds, got {len(bounds_list)}"
             )
 
-        eval_objs, per_case, evaluator_chain, requires_node = (
+        eval_objs, resolved_per_case, evaluator_chain, requires_node = (
             self._resolve_leaf_wiring(
                 name, evaluation_objects, requires, per_case, mapspec
             )
@@ -1847,7 +1847,7 @@ class OptimizationProblem(Problem):
         # on duplicate names (named storage requires unique metrics).  Bounds
         # tile object-major across evaluation objects, matching the labels.
         base_labels = labels if labels is not None else getattr(nonlincon, "labels", None)
-        metric_objs = eval_objs if per_case else []
+        metric_objs = eval_objs if resolved_per_case else []
         metric = self._build_metric(name, n_nonlinear_constraints, base_labels, metric_objs)
         bounds_total = bounds_list * max(len(metric_objs), 1)
         annotation = self._metric_space.add_constraint(
@@ -1875,7 +1875,7 @@ class OptimizationProblem(Problem):
             bad_metrics=bad_metrics,
             evaluation_objects=eval_objs,
             all_cases=evaluation_objects == -1,
-            per_case=per_case,
+            per_case=resolved_per_case,
             evaluator_chain=evaluator_chain,
             args=args,
             kwargs=kwargs if kwargs else None,
@@ -1956,7 +1956,7 @@ class OptimizationProblem(Problem):
             raise CADETProcessError("Callback with same name already exists.")
         self._check_metric_name(name)
 
-        eval_objs, per_case, evaluator_chain, requires_node = (
+        eval_objs, resolved_per_case, evaluator_chain, requires_node = (
             self._resolve_leaf_wiring(
                 name, evaluation_objects, requires, per_case, mapspec
             )
@@ -1967,7 +1967,7 @@ class OptimizationProblem(Problem):
             name,
             evaluation_objects=eval_objs,
             all_cases=evaluation_objects == -1,
-            per_case=per_case,
+            per_case=resolved_per_case,
             evaluator_chain=evaluator_chain,
             args=args,
             kwargs=kwargs if kwargs else None,
@@ -1987,7 +1987,7 @@ class OptimizationProblem(Problem):
                 record,
                 is_root=requires_node is None,
                 with_cases=with_cases,
-                per_case=per_case,
+                per_case=resolved_per_case,
             ),
             output_name=name,
             requires=(
@@ -2066,7 +2066,7 @@ class OptimizationProblem(Problem):
             )
         self._check_metric_name(name)
 
-        eval_objs, per_case, evaluator_chain, requires_node = (
+        eval_objs, resolved_per_case, evaluator_chain, requires_node = (
             self._resolve_leaf_wiring(
                 name, evaluation_objects, requires, per_case, mapspec
             )
@@ -2074,7 +2074,7 @@ class OptimizationProblem(Problem):
 
         # Declare the metric without direction or constraint annotation.
         base_labels = labels if labels is not None else getattr(func, "labels", None)
-        metric_objs = eval_objs if per_case else []
+        metric_objs = eval_objs if resolved_per_case else []
         metric = self._build_metric(name, n_meta_scores, base_labels, metric_objs)
         self._metric_space.add_metric(metric)
 
@@ -2099,7 +2099,7 @@ class OptimizationProblem(Problem):
             bad_metrics=bad_metrics,
             evaluation_objects=eval_objs,
             all_cases=evaluation_objects == -1,
-            per_case=per_case,
+            per_case=resolved_per_case,
             evaluator_chain=evaluator_chain,
             args=args,
             kwargs=kwargs if kwargs else None,
