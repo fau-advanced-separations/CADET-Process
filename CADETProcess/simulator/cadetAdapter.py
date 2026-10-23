@@ -1971,29 +1971,29 @@ class SolverTimeIntegratorParameters(Structure):
         description="Maximum size of timesteps taken by IDAS (0.0: unlimited).",
     )
     errortest_sens = Bool(
-        default=False,
+        default=True,
         unit=None,
         description="Whether (forward) sensitivities take part in the local error test.",
     )
     max_newton_iter = UnsignedInteger(
-        default=1000000,
+        default=4,
         unit=None,
         description="Maximum number of Newton iterations per time step.",
     )
     max_errtest_fail = UnsignedInteger(
-        default=1000000,
+        default=10,
         unit=None,
         description="Maximum number of local error test failures per time step.",
     )
     max_convtest_fail = UnsignedInteger(
-        default=1000000,
+        default=10,
         unit=None,
         description=(
             "Maximum number of Newton convergence test failures per time step."
         ),
     )
     max_newton_iter_sens = UnsignedInteger(
-        default=1000000,
+        default=4,
         unit=None,
         description=(
             "Maximum number of Newton iterations in the forward sensitivity "
