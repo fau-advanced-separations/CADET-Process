@@ -828,6 +828,22 @@ def test_per_case_and_mapspec_exclusive_on_all_metric_kinds(
 
 
 @pytest.mark.parametrize("kind", ["objective", "constraint", "meta_score", "callback"])
+def test_per_object_rejected_on_all_metric_kinds(op_two_objects_with_evaluator, kind):
+    # Unknown keywords are forwarded to the leaf callable, so the old
+    # spelling would otherwise register and fail at every evaluation.
+    op, simulate, _, _ = op_two_objects_with_evaluator
+    register = {
+        "objective": op.add_objective,
+        "constraint": op.add_nonlinear_constraint,
+        "meta_score": op.add_meta_score,
+        "callback": op.add_callback,
+    }[kind]
+
+    with pytest.raises(TypeError, match="per_case"):
+        register(lambda sims: 0.0, name="bad", requires=simulate, per_object=False)
+
+
+@pytest.mark.parametrize("kind", ["objective", "constraint", "meta_score", "callback"])
 def test_fan_in_rejects_evaluation_objects_subset(op_two_objects_with_evaluator, kind):
     # A collector (per_case=False) receives every registered case's value;
     # nothing narrows that to a declared subset before the reducer runs, so a
