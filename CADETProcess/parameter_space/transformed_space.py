@@ -26,8 +26,10 @@ Linear constraint transformation
 ---------------------------------
 Constraints are defined over the optimizer basis (independent parameters only).
 Dependent parameters are excluded: lifting constraints through the dependency embedding
-is not defined in the linear constraint formalism.  Feasibility of dependent parameters
-is enforced after embedding in ``ParameterSpace.set_values`` via parameter validation.
+is not defined in the linear constraint formalism, so their coefficients are dropped
+and the constraint is relaxed.  Optimizers that consume these matrices therefore reject
+such constraints (``OptimizationProblem.check_config``), while samplers and optimizers
+that validate against the full constraint set may still use them.
 
 The affine transform ``x_phys = lb + span * x_norm`` (where ``span = ub - lb``) holds
 only for parameters with an active affine normalizer.  Parameters without normalization
@@ -303,7 +305,7 @@ class TransformedSpace:
             for p, coeff in zip(constraint.parameters, constraint.lhs):
                 if p.name not in param_index:
                     # Dependent parameters are not part of the optimizer basis;
-                    # feasibility is enforced after embedding in set_values.
+                    # the constraint is relaxed (see module docstring).
                     continue
                 i = param_index[p.name]
                 p_lb = lb_phys[i]

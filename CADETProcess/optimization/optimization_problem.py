@@ -1288,9 +1288,66 @@ class OptimizationProblem(Problem):
                 return False
         return True
 
-    def check_config(self, ignore_linear_constraints: bool = False) -> bool:  # noqa: ARG002
-        """Return True if the problem is properly configured."""
-        return True
+    def check_config(self, ignore_linear_constraints: bool = False) -> bool:
+        """
+        Check if the OptimizationProblem is configured correctly.
+
+        Parameters
+        ----------
+        ignore_linear_constraints : bool, optional
+            If True, linear constraint checks are skipped. The default is False.
+
+        Returns
+        -------
+        bool
+            True if the OptimizationProblem is configured correctly, False otherwise.
+        """
+        flag = True
+
+        if not ignore_linear_constraints:
+            if not self.check_linear_constraints_dependency():
+                flag = False
+
+        return flag
+
+    def check_linear_constraints_dependency(self) -> bool:
+        """
+        Check that variables used in linear constraints are independent.
+
+        The optimizer-facing constraint matrices only span independent variables,
+        so a dependent variable's coefficient would be dropped and the constraint
+        silently relaxed.
+
+        Returns
+        -------
+        bool
+            True if all variables used in linear constraints are independent,
+            False otherwise.
+
+        Warns
+        -----
+        UserWarning
+            If variables used in linear constraints are not independent.
+        """
+        flag = True
+
+        dependent = {p.name for p in self._parameter_space.dependent_parameters}
+        constraints = (
+            self._parameter_space.linear_constraints
+            + self._parameter_space.linear_equality_constraints
+        )
+        for constraint in constraints:
+            for p in constraint.parameters:
+                if p.name in dependent:
+                    flag = False
+                    warnings.warn(
+                        f"'{p.name}' is not an independent variable and is used in "
+                        f"a linear constraint. This is currently not supported; "
+                        "express the constraint over independent variables or as "
+                        "a nonlinear constraint."
+                    )
+
+        return flag
 
     # ── Evaluators ────────────────────────────────────────────────────────────
 
