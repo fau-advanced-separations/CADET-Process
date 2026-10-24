@@ -185,7 +185,8 @@ Note that `simulate` is called once: both the objective and the constraint recei
 ### Chaining evaluators
 
 Evaluators can be chained: the output of one feeds into the next.
-Only declare the immediate upstream dependency; transitive dependencies are resolved automatically.
+Pass the complete evaluator chain in `requires`, ordered from the first evaluator to the last.
+Each evaluator receives the output of the preceding entry; listing only the last evaluator does not register its upstream dependencies.
 
 ```{code-cell} ipython3
 :tags: [hide-cell]
@@ -273,7 +274,9 @@ The upstream evaluator must not return a `list`, `ndarray` or `dict`: the pipeli
 Return a `tuple` instead.
 
 ```{note}
-When the evaluation of one case fails, the aggregated objective currently fails as a whole; the per-case fallback (`bad_metrics`) policy for aggregated objectives follows in a later release.
+When an upstream case fails, the collector propagates that failure instead of running the aggregation callable.
+`OptimizationProblem` substitutes the aggregated objective's `bad_metrics` for the failed aggregate.
+It does not substitute individual case values before aggregation.
 ```
 
 ## Caching

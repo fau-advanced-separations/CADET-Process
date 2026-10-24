@@ -294,8 +294,7 @@ def test_evaluate_per_case_failure_passes_through_as_list(two_object_setup):
 
 
 def test_evaluate_per_case_failures_without_case_dim_raise(two_object_setup):
-    """A metric that does not declare the case dimension cannot
-    absorb per-case failure lists; see the sentinel note in PROJECT.md."""
+    """A metric without a case dimension rejects per-case failure lists."""
     m1, m2, parameter_space, pipeline = two_object_setup
 
     def always_failing(m):

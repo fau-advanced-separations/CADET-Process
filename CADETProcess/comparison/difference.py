@@ -546,7 +546,7 @@ class Shape(DifferenceBase):
     Shape similarity difference metric.
 
     The similarity is calculated using the Pearson correlation between the reference
-    and solution profiles, as well as the time offset between their peak positions, and
+    and solution profiles, as well as the time shift that maximizes that correlation, and
     the peak height of the solution profile. Additionally, if `use_derivative` is set to
     True, the similarity is also calculated using the Pearson correlation of the derivative
     profiles, and the minimum and maximum peak heights of the derivative profile.
