@@ -51,6 +51,18 @@ To install Ax as an optional dependency of CADET-Process, use the following comm
 pip install cadet-process[ax]
 ```
 
+### BoFire
+
+BoFire provides Bayesian optimization through {class}`~CADETProcess.optimization.BoFire`, with single-objective and multi-objective strategies.
+Install it with:
+
+```bash
+pip install cadet-process[bofire]
+```
+
+The `ax` and `bofire` extras have incompatible BoTorch requirements and must be installed in separate environments.
+BoFire is therefore not included in the `all` extra.
+
 ## Configuring OptimizationProblem
 
 Further optimizer-facing options: multi-objective handling and parallel batch evaluation.

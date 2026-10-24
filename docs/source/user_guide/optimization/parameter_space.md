@@ -99,7 +99,7 @@ flow.add_parameter(q_elute, path="diameter")
 flow.add_linear_constraint(LinearConstraint([q_load, q_elute], lhs=[1, -1], b=0))
 ```
 
-The combined coefficient matrix is available as {attr}`~CADETProcess.parameter_space.ParameterSpace.A`, the right-hand side as {attr}`~CADETProcess.parameter_space.ParameterSpace.b`; column order follows the order parameters were passed to `LinearConstraint`, and each added constraint contributes one row.
+The combined coefficient matrix is available as {attr}`~CADETProcess.parameter_space.ParameterSpace.A`, the right-hand side as {attr}`~CADETProcess.parameter_space.ParameterSpace.b`; column order follows parameter registration order on the space, and each added constraint contributes one row.
 
 ```{code-cell} ipython3
 flow.A, flow.b
