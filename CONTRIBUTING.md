@@ -133,12 +133,14 @@ Please use an appropriate provided template and ensure your description and inst
 **Pull Requests** should be submitted after your changes are complete and tested.
 Make sure your PR addresses one issue or feature to keep reviews manageable.
 Reference related issues in your PR description.
+Add an entry to the release notes of the upcoming version (`docs/source/release_notes/<version>.md`) for every user-visible change: new features, bug fixes, behavior changes, and deprecations.
+Describe the change from the user's perspective and link the pull request or issue.
 
 ## Branch Policy
 
 We use the [conventional branch](https://conventional-branch.github.io/) name convention to keep contributions organized:
 
-- `master`: The main development branch
+- `dev`: The main development branch
 - `feature/`: For new features (e.g., `feature/add-new-binding-model`)
 - `fix/`: For bug fixes (e.g., `fix/fix-header-bug`, `fix/header-bug`)
 - `hotfix/`: For urgent fixes (e.g., `hotfix/security-patch)`

@@ -6,6 +6,7 @@
 - [ ] Ensure you are making a pull request against the `dev` branch. Your branch should be based off our `dev` branch.
 - [ ] Verify that the commit message(s) match our requested structure.
 - [ ] Confirm that your code additions will pass both code linting checks and unit tests.
+- [ ] Add an entry to the release notes of the upcoming version for user-visible changes.
 
 ## Description
 
