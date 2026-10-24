@@ -164,6 +164,21 @@ sphinx-build -b html source build
 
 The output will be located in the `build` directory and can be opened with any browser.
 
+### Documentation consistency
+
+For each changed public behavior, search the user guide, API docstrings, examples, and release notes for descriptions of that behavior, including its old names and defaults.
+Update all affected passages in the same change, even when the implementation did not edit those files.
+Check commands and signatures against the implementation; replace superseded claims rather than adding a correction beside them.
+
+Execute the affected notebook pages when a public workflow changes.
+Use CI checks and their logs to report automated validation; keep local execution evidence in the project's validation records.
+If execution is deferred because of runtime or unavailable dependencies, name the unverified pages and the follow-up; a rendering-only build does not validate their code.
+Check prose separately: successful execution cannot verify claims about defaults, dependency resolution, or failure handling.
+
+Before requesting review, check the changed behavior against all affected guide and API descriptions.
+Keep the pull request description focused on the problem, resulting behavior, and remaining follow-up; validation status belongs in CI checks.
+Do not describe an unexecuted example or an unresolved documentation claim as verified.
+
 ## Deprecating API
 
 Use the `@deprecated(deprecated_in, removed_in, use)` decorator from `CADETProcess.dataStructure.deprecation` to deprecate a function, method, or property.
