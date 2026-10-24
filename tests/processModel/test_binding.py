@@ -1,9 +1,11 @@
 import unittest
 
 import numpy
+from CADETProcess import CADETProcessError
 from CADETProcess.processModel import (
     BiLangmuir,
     BindingBaseClass,
+    ColloidalParticleAdsorption,
     ComponentSystem,
     Langmuir,
     MobilePhaseModulator,
@@ -11,7 +13,10 @@ from CADETProcess.processModel import (
     StericMassAction,
     binding,
 )
-from CADETProcess.simulator.cadetAdapter import adsorption_parameters_map
+from CADETProcess.simulator.cadetAdapter import (
+    AdsorptionParameters,
+    adsorption_parameters_map,
+)
 
 
 class Test_Binding(unittest.TestCase):
@@ -105,6 +110,63 @@ class Test_Binding(unittest.TestCase):
                     "and these parameters in binding.py missing: "
                     f"{set(map['parameters'].values()) - set(cls._parameters)}"
                 )
+
+    def test_colloidal_particle_adsorption_config(self):
+        model = ColloidalParticleAdsorption(
+            ComponentSystem(3), proton_index=1, effective_charge_polynomial_degree=1
+        )
+        model.temperature = 298.15
+        model.ionic_strength = 100
+        model.permittivity = 78.5
+        model.ligand_density = 1e-6
+        model.ligand_charge_full = 1
+        model.ligand_pk = 7
+        model.specific_surface_area = [1e7, 0, 1e7]
+        model.protein_radius = [3e-9, 0, 4e-9]
+        model.effective_charge_coefficient_0 = [5, 0, 6]
+        model.effective_charge_coefficient_1 = [-1, 0, -2]
+        model.lateral_charge = [5, 0, 6]
+        model.reference_ph = 7
+        model.delta_ref = [0.1, 0, 0.2]
+        model.delta_linear = [1, 0, 2]
+        model.kinetic_prefactor = [1, 0, 2]
+
+        config = AdsorptionParameters(model).parameters
+
+        self.assertEqual(model.bound_states, [1, 0, 1])
+        self.assertEqual(config["ADSORPTION_MODEL"], "COLLOIDAL_PARTICLE_ADSORPTION")
+        self.assertEqual(config["CPA_PROTON_IDX"], 1)
+        self.assertEqual(config["CPA_EFFECTIVE_CHARGE_COEF"], [5, 0, 6, -1, 0, -2])
+        self.assertNotIn("CPA_IONIC_VALENCE", config)
+        self.assertEqual(model.get_effective_charge_coefficient(1), [-1, 0, -2])
+        self.assertEqual(model.effective_charge_coefficient_0, [5, 0, 6])
+        self.assertFalse(hasattr(model, "effective_charge_coefficient_2"))
+
+        model.effective_charge_polynomial_degree = 4
+        model.effective_charge_coefficient_4 = [0.5, 0, -0.5]
+        self.assertEqual(model.get_effective_charge_coefficient(2), [0, 0, 0])
+        self.assertEqual(
+            AdsorptionParameters(model).parameters["CPA_EFFECTIVE_CHARGE_COEF"],
+            [5, 0, 6, -1, 0, -2, 0, 0, 0, 0, 0, 0, 0.5, 0, -0.5],
+        )
+
+        with self.assertRaises(ValueError):
+            model.set_effective_charge_coefficient(5, [1, 2, 3])
+
+        with self.assertRaises(ValueError):
+            model.set_effective_charge_coefficient(2, [1, 2])
+
+        model.ionic_valence = [2, 1, -1]
+        self.assertEqual(AdsorptionParameters(model).parameters["CPA_IONIC_VALENCE"], [2, 1, -1])
+
+        with self.assertRaises(ValueError):
+            model.ionic_valence = [2, 1]
+
+        with self.assertRaises(ValueError):
+            model.temperature = 0
+
+        with self.assertRaises(CADETProcessError):
+            model.bound_states = [1, 1, 1]
 
     def test_get_parameters(self):
         parameters_expected = {
