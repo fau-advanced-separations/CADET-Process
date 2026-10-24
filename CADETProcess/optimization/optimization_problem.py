@@ -323,10 +323,10 @@ class OptimizationProblem(Problem):
     use_diskcache : bool
         When True (default) and *cache_directory* is set, evaluation results are
         cached to disk via pipefunc's disk backend and survive process restarts.
-        When False, an in-memory LRU cache is used regardless of *cache_directory*.
+        When False, an in-memory hybrid cache is used regardless of *cache_directory*.
     cache_directory : str, optional
         Directory for the disk cache.  Has no effect when ``use_diskcache=False``.
-        When not set, an in-memory LRU cache is used.
+        When not set, an in-memory hybrid cache is used.
     log_level : str
         Logging level for this problem's logger (e.g. ``"DEBUG"``, ``"INFO"``).
     """
@@ -380,9 +380,8 @@ class OptimizationProblem(Problem):
         Raises
         ------
         CADETProcessError
-            If *obj* is already registered as an evaluator (invariant 8: an
-            object is either a fanned evaluation object or a broadcast
-            evaluator/target, never both), a new variable target has an invalid
+            If *obj* is already registered as an evaluator (a case cannot
+            also be an evaluator), a new variable target has an invalid
             or conflicting path, or an explicit fan-in domain becomes a subset.
         """
         if any(obj is evaluator for evaluator in self.evaluators):
@@ -1358,8 +1357,7 @@ class OptimizationProblem(Problem):
             If an evaluator with the same name already exists.
         CADETProcessError
             If *evaluator* is already registered as an evaluation object
-            (invariant 8: an object is either a fanned evaluation object or a
-            broadcast evaluator/target, never both).
+            (a case cannot also be an evaluator).
         """
         if not callable(evaluator):
             raise TypeError("Expected callable evaluator.")

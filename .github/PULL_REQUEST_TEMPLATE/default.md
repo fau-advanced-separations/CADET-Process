@@ -6,7 +6,12 @@
 - [ ] Ensure you are making a pull request against the `dev` branch. Your branch should be based off our `dev` branch.
 - [ ] Verify that the commit message(s) match our requested structure.
 - [ ] Confirm that your code additions will pass both code linting checks and unit tests.
+- [ ] Check affected user guides, API docstrings, examples, and release notes for changed behavior, names, and defaults.
+- [ ] Identify unverified affected notebook pages and document any follow-up.
 
 ## Description
 
-Please provide a detailed description of your pull request. Include the purpose of the changes, any issues addressed, and other relevant information that will help reviewers understand your modifications.
+Please describe the problem and resulting behavior, and reference the relevant issues.
+
+CI checks report validation status.
+Describe any remaining follow-up without repeating that status here.
