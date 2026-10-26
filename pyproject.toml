@@ -61,7 +61,7 @@ dev = [
     {include-group = "testing"},
     "certifi", # tries to prevent certificate problems on windows
     "pre-commit",
-    "ruff<=0.17.1",
+    "ruff<=0.17.2",
 ]
 
 [project.optional-dependencies]
