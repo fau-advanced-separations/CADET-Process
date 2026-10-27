@@ -1635,7 +1635,7 @@ def test_property_accessors(op_scalar):
 # ── Callbacks ────────────────────────────────────────────────────────────────
 
 
-def test_evaluate_callbacks_called_per_individual(eval_obj):
+def test_evaluate_callbacks_called_per_individual(eval_obj, tmp_path):
     """evaluate_callbacks must call the callback once per individual per eval object.
 
     Before the fix, evaluate_callbacks passed the whole population as the first
@@ -1660,13 +1660,13 @@ def test_evaluate_callbacks_called_per_individual(eval_obj):
 
     pop = op.create_population([[0.5]])
 
-    op.evaluate_callbacks(pop, current_iteration=0)
+    op.evaluate_callbacks(pop, current_iteration=0, callbacks_dir=tmp_path)
 
     assert len(calls) == 1
     result, called_ind, called_eval_obj, called_dir = calls[0]
     np.testing.assert_allclose(called_ind.X["scalar_param"], 0.5)
     assert called_eval_obj is eval_obj
-    assert called_dir is None
+    assert called_dir == tmp_path
     np.testing.assert_allclose(result, 1.0)
 
 
@@ -1739,6 +1739,30 @@ def test_evaluate_callbacks_callbacks_dir_passthrough(eval_obj, tmp_path):
 
     assert len(received_dirs) == 1
     assert received_dirs[0] == tmp_path
+
+
+def test_evaluate_callbacks_without_dir_keeps_callback_default(eval_obj):
+    """Without a callbacks directory, the callback's own default must apply.
+
+    Regression: evaluate_callbacks passed callbacks_dir=None, overriding the
+    default, so callbacks wrote to paths like ``None/plot.png``.
+    """
+    op = OptimizationProblem("cb_no_dir", use_diskcache=False)
+    op.add_evaluation_object(eval_obj)
+    op.add_variable("scalar_param", lb=0, ub=1)
+
+    received_dirs = []
+
+    def callback(result, callbacks_dir="./"):
+        received_dirs.append(callbacks_dir)
+
+    op.add_callback(callback)
+
+    pop = op.create_population([[0.5]])
+
+    op.evaluate_callbacks(pop, current_iteration=0)
+
+    assert received_dirs == ["./"]
 
 
 def test_evaluate_callbacks_pipeline_cache_reuse(eval_obj):
