@@ -305,7 +305,7 @@ if __name__ == '__main__':
     print(optimization_problem.variable_names)
     x0 = [1, 1, 1e-2, 1e-3, 10]
     population = optimization_problem.create_population(x0)
-    optimization_problem.evaluate_callbacks(population, callbacks_dir="./")
+    optimization_problem.evaluate_callbacks(population)
 
 # %% [markdown]
 # ```{note}
