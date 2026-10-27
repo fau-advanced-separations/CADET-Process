@@ -5,7 +5,7 @@ Instruments (:mod:`CADETProcess.instruments`)
 
 .. currentmodule:: CADETProcess.instruments
 
-Templates for common LC instrument configurations.
+Templates for common LC instrument configurations and experimental data loaders.
 
 LC System Base
 ==============
@@ -25,6 +25,14 @@ LC System Base
     Step
     LWE
 
+Knauer
+======
+
+.. autosummary::
+    :toctree: generated/
+
+    KnauerExperimentalData
+
 """  # noqa
 
 from .base import (
@@ -40,6 +48,8 @@ from .base import (
     Step,
     LWE,
 )
+from .knauer import KnauerExperimentalData
+
 __all__ = [
     "LCFlowSheet",
     "LCProcess",
@@ -52,4 +62,5 @@ __all__ = [
     "PulseInjection",
     "Step",
     "LWE",
+    "KnauerExperimentalData",
 ]
