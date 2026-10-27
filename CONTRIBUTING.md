@@ -140,6 +140,7 @@ Describe the change from the user's perspective and link the pull request or iss
 
 We use the [conventional branch](https://conventional-branch.github.io/) name convention to keep contributions organized:
 
+- `master`: The release branch, updated only when a version is tagged
 - `dev`: The main development branch
 - `feature/`: For new features (e.g., `feature/add-new-binding-model`)
 - `fix/`: For bug fixes (e.g., `fix/fix-header-bug`, `fix/header-bug`)
