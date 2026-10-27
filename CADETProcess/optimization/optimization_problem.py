@@ -2208,8 +2208,11 @@ class OptimizationProblem(Problem):
                 kwargs["individual"] = record.runtime.get("individual")
             if "evaluation_object" in sig_params:
                 kwargs["evaluation_object"] = evaluation_object
-            if "callbacks_dir" in sig_params:
-                kwargs["callbacks_dir"] = record.runtime.get("callbacks_dir")
+            # Without a directory, omit the argument so the callback's own
+            # default applies instead of being overridden with None.
+            callbacks_dir = record.runtime.get("callbacks_dir")
+            if "callbacks_dir" in sig_params and callbacks_dir is not None:
+                kwargs["callbacks_dir"] = callbacks_dir
             return record.func(value, *record.args, **kwargs)
 
         return callback_node
