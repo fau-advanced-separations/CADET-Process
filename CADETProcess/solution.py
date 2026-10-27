@@ -321,9 +321,14 @@ class SolutionIO(SolutionBase):
 
     def update_transform(self) -> None:
         """Update the Transformer."""
+        lb = np.min(self.solution, axis=0)
+        ub = np.max(self.solution, axis=0)
+        # A flat component (e.g. a protein that never elutes) has no span;
+        # use a unit span so it normalizes to zero instead of 0/0 = NaN.
+        ub = np.where(ub > lb, ub, lb + 1)
         self.transform = transform.NormLinearTransformer(
-            np.min(self.solution, axis=0),
-            np.max(self.solution, axis=0),
+            lb,
+            ub,
             allow_extended_input=True,
             allow_extended_output=True,
         )

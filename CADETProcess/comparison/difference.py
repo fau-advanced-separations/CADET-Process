@@ -110,7 +110,9 @@ class DifferenceBase(MetricBase):
     smooth : bool, optional
         If True, smooth data. The default is False.
     normalize : bool, optional
-        If True, normalize data. The default is False.
+        If True, min-max scale reference and solution per component before
+        comparing them, so only shape and position count, not the amount
+        eluted. A flat component normalizes to zero. The default is False.
     """
 
     _valid_references: tuple[type] = ()
@@ -156,7 +158,9 @@ class DifferenceBase(MetricBase):
         smooth : bool, optional
             If True, smooth data. The default is False.
         normalize : bool, optional
-            If True, normalize data. The default is False.
+            If True, min-max scale reference and solution per component before
+            comparing them, so only shape and position count, not the amount
+            eluted. A flat component normalizes to zero. The default is False.
         """
         self.components = components
         self.use_total_concentration = use_total_concentration

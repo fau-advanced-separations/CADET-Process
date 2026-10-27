@@ -114,6 +114,35 @@ class TestNRMSE(unittest.TestCase):
         np.testing.assert_almost_equal(metrics, metrics_expected)
 
 
+class TestNormalizeFlatTrace(unittest.TestCase):
+    def test_flat_solution_normalizes_to_zero(self):
+        """A flat solution (e.g. protein never elutes) must not produce NaN.
+
+        Min-max normalization divided by a zero span; the flat trace now
+        normalizes to zero, so the metric compares the normalized reference
+        against zero.
+        """
+        component_system = ComponentSystem(1)
+        reference = ReferenceIO(
+            "simple",
+            time,
+            solution_2_gaussian[:, [0]],
+            component_system=component_system,
+        )
+        flat = ReferenceIO(
+            "flat",
+            time,
+            np.zeros((len(time), 1)),
+            component_system=component_system,
+        )
+
+        metrics = SSE(reference, normalize=True).evaluate(flat)
+        metrics_expected = SSE(reference.normalize()).evaluate(flat)
+
+        assert np.all(np.isfinite(metrics))
+        np.testing.assert_almost_equal(metrics, metrics_expected)
+
+
 from CADETProcess.comparison import PeakHeight
 
 
