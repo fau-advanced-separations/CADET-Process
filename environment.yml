@@ -2,7 +2,8 @@ name: cadet-process
 channels:
   - conda-forge
 dependencies:
-  - python>=3.12.*
+  # Review this range with the CI versions; see CONTRIBUTING.md.
+  - python>=3.12,<3.15
   - cadet>=5.1.0
   - cyipopt
   - pip

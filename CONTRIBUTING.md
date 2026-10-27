@@ -44,6 +44,32 @@ pip install -e . --group dev
 
 Note: The `dev` group installs additional dependencies required for linting, formatting, testing, and building the documentation (as described below).
 
+
+### Updating Python Versions
+
+The shared Conda environment allows Python 3.12 through 3.14 (`>=3.12,<3.15`).
+Read the Docs uses this range and may select its newest available version, so keep an explicit upper bound to prevent an untested Python release from breaking dependency installation.
+The package's `requires-python` setting is a separate compatibility declaration; it currently permits Python 3.10 and newer, while CI tests 3.12 through 3.14.
+
+When changing the Python versions, review these settings together:
+
+| File | Setting and purpose |
+| --- | --- |
+| `environment.yml` | Python range for the shared Conda environment, including Read the Docs and test CI. |
+| `.readthedocs.yaml` | Selects Miniforge, loads `environment.yml`, and installs the `all` extra and `docs` dependency group. The Python interpreter range comes from `environment.yml`. |
+| `pyproject.toml` | `project.requires-python` declares package compatibility; dependency constraints and optional extras must work on the intended versions. |
+| `.github/workflows/pipeline.yml` and `.github/workflows/scheduled-tests.yml` | Python test matrices, including the Windows and macOS entries. Each job pins its matrix version before loading `environment.yml`. |
+| `.github/workflows/docs.yml` | Explicit Python version for the GitHub documentation build. |
+| `.github/workflows/coverage.yml` | Python version used for coverage. |
+| `.github/workflows/publish-to-pypi.yml` | Interpreter used to build release distributions; currently follows the latest Python 3 via `3.x`. |
+| `CONTRIBUTING.md` | Recommended development environment above and this version-maintenance note. The example may use one version within the shared range. |
+
+Before raising the upper bound, verify that required dependencies, optional extras, and CADET-Core are available for the new Python version on the relevant platforms.
+Check binary wheel availability for compiled pip dependencies, since a missing wheel can trigger a source build requiring additional compilers and libraries.
+Run the test matrices and both documentation builds before treating the new version as validated.
+The GitHub documentation job disables notebook execution, while Read the Docs uses cached execution, so a passing GitHub build alone does not validate the Read the Docs environment.
+Change `requires-python` only when the package's compatibility policy changes, rather than automatically copying the documentation environment range into it.
+
 ## Code Requirements
 
 The **CADET-Process** codebase maintains a high standard for code quality, which we enforce via GitHub Actions.
