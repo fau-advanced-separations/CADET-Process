@@ -175,13 +175,13 @@ optimization_problem.add_evaluation_object(process)
 optimization_problem.add_variable(
     name='bed_porosity', parameter_path='flow_sheet.column.bed_porosity',
     lb=0.1, ub=0.6,
-    transform='auto'
+    normalization='auto'
 )
 
 optimization_problem.add_variable(
     name='axial_dispersion', parameter_path='flow_sheet.column.axial_dispersion',
     lb=1e-10, ub=0.1,
-    transform='auto'
+    normalization='auto'
 )
 
 optimization_problem.add_evaluator(simulator)
@@ -196,8 +196,7 @@ optimization_problem.add_objective(
 def callback(simulation_results, individual, evaluation_object, callbacks_dir='./'):
     comparator.plot_comparison(
         simulation_results,
-        file_name=f'{callbacks_dir}/{individual.id}_{evaluation_object}_comparison.png',
-        show=False
+        file_name=f'{callbacks_dir}/{individual.id}_{evaluation_object}_comparison.png'
     )
 
 

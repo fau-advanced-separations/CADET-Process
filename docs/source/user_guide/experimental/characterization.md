@@ -19,7 +19,7 @@ sys.path.append('../../../../../')
 # LC System Characterization
 
 The {mod}`~CADETProcess.characterization` module sets up parameter estimation problems for LC systems.
-Each {class}`~CADETProcess.characterization.CharacterizeBase` subclass is an {class}`~CADETProcess.optimization.OptimizationProblem` specialized for a particular experiment type, encoding which parameters are fitted, their default bounds and transforms, and any experiment-specific constraints or parameter couplings.
+Each {class}`~CADETProcess.characterization.CharacterizeBase` subclass is an {class}`~CADETProcess.optimization.OptimizationProblem` specialized for a particular experiment type, encoding which parameters are fitted, their default bounds and normalization, and any experiment-specific constraints or parameter couplings.
 Users supply the process, the simulator, and the comparator; the class wires them into a ready-to-optimize problem.
 
 **Choosing a subclass:**
@@ -117,7 +117,7 @@ optimizer.optimize(char)
 
 Every `Characterize*` instance is an ordinary {class}`~CADETProcess.optimization.OptimizationProblem`.
 
-- **Variables** correspond to the selected physical parameters with predefined bounds and transforms.
+- **Variables** correspond to the selected physical parameters with predefined bounds and normalization.
 - **Objectives** are provided by the comparator metrics; each comparator contributes its own objective (or objectives if the comparator has multiple metrics).
 - **Multi-process characterization** creates one objective per process while all processes share the same variable set.
 Each evaluation automatically generates comparison plots in the optimizer callback directory.
