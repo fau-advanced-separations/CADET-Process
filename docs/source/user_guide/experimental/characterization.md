@@ -37,7 +37,7 @@ from CADETProcess.processModel import (
     ComponentSystem, LumpedRateModelWithPores, StericMassAction,
 )
 from CADETProcess.instruments import LCFlowSheet, PulseInjection, LWE
-from CADETProcess.comparison import Comparator
+from CADETProcess.comparison import Comparator, Shape
 from CADETProcess.reference import ReferenceIO
 from CADETProcess.characterization import (
     setup_comparators,
@@ -91,12 +91,7 @@ reference.component_system = cs
 
 ```{code-cell} ipython3
 comparator = Comparator("bed_characterization")
-comparator.add_reference(reference)
-comparator.add_difference_metric(
-    "Shape",
-    reference,
-    solution_path="column.outlet.outlet[0]",
-)
+comparator.add_difference_metric(Shape(reference), "column.outlet.outlet[0]")
 ```
 
 **3. Create the characterization problem and optimize.**
