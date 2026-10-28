@@ -36,7 +36,7 @@ import numpy as np
 from CADETProcess.processModel import ComponentSystem, FlowSheet, Process, Inlet, Outlet, LumpedRateModelWithPores
 from CADETProcess.processModel import StericMassAction
 from CADETProcess.reference import ReferenceIO
-from CADETProcess.comparison import Comparator
+from CADETProcess.comparison import Comparator, PeakHeight, PeakPosition
 from CADETProcess.simulator import Cadet
 from CADETProcess.optimization import OptimizationProblem
 ```
@@ -194,14 +194,11 @@ def load_reference(file_name, component_index=2):
 
 def create_comparator(reference):
     comparator = Comparator(name=f"Comp {reference.name}")
-    comparator.add_reference(reference)
     comparator.add_difference_metric(
-        'PeakPosition', reference,
-        'outlet.outlet', components=["A"]
+        PeakPosition(reference, components=["A"]), 'outlet.outlet'
     )
     comparator.add_difference_metric(
-        'PeakHeight', reference,
-        'outlet.outlet', components=["A"]
+        PeakHeight(reference, components=["A"]), 'outlet.outlet'
     )
     return comparator
 ```

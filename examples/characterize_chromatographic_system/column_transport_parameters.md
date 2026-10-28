@@ -155,13 +155,10 @@ if __name__ == '__main__':
 ### Comparator
 
 ```{code-cell}
-from CADETProcess.comparison import Comparator
+from CADETProcess.comparison import NRMSE, Comparator
 
 comparator = Comparator()
-comparator.add_reference(tracer_peak)
-comparator.add_difference_metric(
-    'NRMSE', tracer_peak, 'outlet.outlet',
-)
+comparator.add_difference_metric(NRMSE(tracer_peak), 'outlet.outlet')
 
 if __name__ == '__main__':
     comparator.plot_comparison(simulation_results)
