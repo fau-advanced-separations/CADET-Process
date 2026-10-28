@@ -241,7 +241,7 @@ if __name__ == '__main__':
         name='adsorption_rate',
         parameter_path='flow_sheet.column.binding_model.adsorption_rate',
         lb=1e-3, ub=1e3,
-        transform='auto',
+        normalization='auto',
         indices=[1]  # modify only the protein (component index 1) parameter
     )
 
@@ -249,23 +249,23 @@ if __name__ == '__main__':
         name='desorption_rate',
         parameter_path='flow_sheet.column.binding_model.desorption_rate',
         lb=1e-3, ub=1e3,
-        transform='auto',
+        normalization='auto',
         indices=[1]  # modify only the protein (component index 1) parameter
     )
 
     optimization_problem.add_variable(
         name='equilibrium_constant',
-        evaluation_objects=None,
+        targets=None,
         lb=1e-4, ub=1e3,
-        transform='auto',
+        normalization='auto',
         indices=[1]  # modify only the protein (component index 1) parameter
     )
 
     optimization_problem.add_variable(
         name='kinetic_constant',
-        evaluation_objects=None,
+        targets=None,
         lb=1e-4, ub=1e3,
-        transform='auto',
+        normalization='auto',
         indices=[1]  # modify only the protein (component index 1) parameter
     )
 
@@ -273,7 +273,7 @@ if __name__ == '__main__':
         name='characteristic_charge',
         parameter_path='flow_sheet.column.binding_model.characteristic_charge',
         lb=1, ub=50,
-        transform='auto',
+        normalization='auto',
         indices=[1]  # modify only the protein (component index 1) parameter
     )
 
@@ -293,8 +293,7 @@ if __name__ == '__main__':
         comparator = comparators[evaluation_object.name]
         comparator.plot_comparison(
             simulation_results,
-            file_name=f'{callbacks_dir}/{individual.id}_{evaluation_object}_comparison.png',
-            show=False
+            file_name=f'{callbacks_dir}/{individual.id}_{evaluation_object}_comparison.png'
         )
 
     optimization_problem.add_callback(callback, requires=[simulator])
