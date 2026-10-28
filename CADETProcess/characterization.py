@@ -19,7 +19,7 @@ from typing import Optional
 
 import numpy as np
 
-from CADETProcess.comparison import Comparator
+from CADETProcess.comparison import Comparator, DifferenceBase
 from CADETProcess.instruments import LCProcess
 from CADETProcess.optimization import OptimizationProblem
 from CADETProcess.optimization.optimization_problem import _sanitize_name
@@ -31,7 +31,7 @@ def setup_comparators(
     processes: LCProcess | list[LCProcess],
     references: ReferenceIO | list[ReferenceIO],
     solution_path: str,
-    metrics: list[str],
+    metrics: list[type[DifferenceBase]],
     components: list[str] | None = None,
     start: float | list[float | None] | None = None,
     end: float | list[float | None] | None = None,
@@ -48,8 +48,9 @@ def setup_comparators(
     solution_path : str
         Path into ``SimulationResults.solution_cycles`` used by every metric,
         e.g. ``"column.outlet.outlet[0]"``.
-    metrics : list[str]
-        Difference metric class names, e.g. ``["Shape"]`` or ``["NRMSE"]``.
+    metrics : list[type[DifferenceBase]]
+        Difference metric classes, e.g. ``[Shape]`` or ``[NRMSE]``.
+        Each is instantiated once per reference.
     components : list[str], optional
         Component names passed to each metric.
     start : float or list[float or None], optional
@@ -66,10 +67,18 @@ def setup_comparators(
 
     Raises
     ------
+    TypeError
+        If an entry of `metrics` is not a ``DifferenceBase`` subclass.
     ValueError
         If the number of references does not match the number of processes,
         or if ``start``/``end`` lists have the wrong length.
     """
+    for metric in metrics:
+        if not (isinstance(metric, type) and issubclass(metric, DifferenceBase)):
+            raise TypeError(
+                f"Expected a DifferenceBase subclass in `metrics`, got {metric!r}."
+            )
+
     if not isinstance(processes, list):
         processes = [processes]
     if not isinstance(references, list):
@@ -98,15 +107,10 @@ def setup_comparators(
     comparators = []
     for process, reference, t0, t1 in zip(processes, references, starts, ends):
         comp = Comparator(process.name)
-        comp.add_reference(reference)
         for metric in metrics:
             comp.add_difference_metric(
-                metric,
-                reference,
+                metric(reference, components=components, start=t0, end=t1),
                 solution_path,
-                components=components,
-                start=t0,
-                end=t1,
             )
         comparators.append(comp)
 
