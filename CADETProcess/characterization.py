@@ -129,9 +129,9 @@ class CharacterizeBase(OptimizationProblem):
 
     Subclasses define their default variable specifications by overriding
     :meth:`_default_variables`.
-    Users can override bounds or transforms for individual variables by passing
+    Users can override bounds or normalization for individual variables by passing
     the variable name as a keyword argument with a dict of overrides, e.g.
-    ``bed_porosity={"lb": 0.35, "ub": 0.45, "transform": "auto"}``.
+    ``bed_porosity={"lb": 0.35, "ub": 0.45, "normalization": "auto"}``.
 
     Parameters
     ----------
@@ -225,7 +225,7 @@ class CharacterizeBase(OptimizationProblem):
         Return the default variable specifications for this characterization type.
 
         Subclasses override this method to define the parameters to fit,
-        their parameter paths, and default bounds or transforms.
+        their parameter paths, and default bounds or normalization.
         The base implementation returns an empty list.
         """
         return []
@@ -279,14 +279,14 @@ class CharacterizeTubing(CharacterizeBase):
                 "parameter_path": f"flow_sheet.{t}.length",
                 "lb": 1e-2,
                 "ub": 2.0,
-                "transform": "auto",
+                "normalization": "auto",
             },
             {
                 "name": f"{t}_axial_dispersion",
                 "parameter_path": f"flow_sheet.{t}.axial_dispersion",
                 "lb": 1e-9,
                 "ub": 1e-2,
-                "transform": "auto",
+                "normalization": "auto",
             },
         ]
 
@@ -317,14 +317,14 @@ class CharacterizePreInjection(CharacterizeBase):
                 "parameter_path": "flow_sheet.tubing_pre_injection.length",
                 "lb": 1e-2,
                 "ub": 2.0,
-                "transform": "auto",
+                "normalization": "auto",
             },
             {
                 "name": "mixer_volume",
                 "parameter_path": "flow_sheet.mixer.init_liquid_volume",
                 "lb": 1e-8,
                 "ub": 1e-5,
-                "transform": "auto",
+                "normalization": "auto",
             },
         ]
 
@@ -382,14 +382,14 @@ class CharacterizeBed(CharacterizeBase):
                 "parameter_path": "flow_sheet.column.bed_porosity",
                 "lb": 0.2,
                 "ub": 0.6,
-                "transform": "auto",
+                "normalization": "auto",
             },
             {
                 "name": "axial_dispersion",
                 "parameter_path": "flow_sheet.column.axial_dispersion",
                 "lb": 1e-11,
                 "ub": 1e-3,
-                "transform": "auto",
+                "normalization": "auto",
             },
         ]
         if self._include_particle_porosity:
@@ -398,7 +398,7 @@ class CharacterizeBed(CharacterizeBase):
                 "parameter_path": "flow_sheet.column.particle_porosity",
                 "lb": 0.6,
                 "ub": 0.9,
-                "transform": "auto",
+                "normalization": "auto",
             })
 
         return variables
@@ -477,7 +477,7 @@ class CharacterizeParticles(CharacterizeBase):
                 "lb": 1e-9,
                 "ub": 1e-5,
                 "indices": [ci],
-                "transform": "auto",
+                "normalization": "auto",
             })
         if self._include_particle_porosity:
             variables.append({
@@ -485,7 +485,7 @@ class CharacterizeParticles(CharacterizeBase):
                 "parameter_path": "flow_sheet.column.particle_porosity",
                 "lb": 0.6,
                 "ub": 0.9,
-                "transform": "auto",
+                "normalization": "auto",
             })
         if self._include_film_diffusion:
             variables.append({
@@ -494,7 +494,7 @@ class CharacterizeParticles(CharacterizeBase):
                 "lb": 1e-7,
                 "ub": 1e-3,
                 "indices": [ci],
-                "transform": "auto",
+                "normalization": "auto",
             })
         if self._include_pore_diffusion:
             variables.append({
@@ -503,7 +503,7 @@ class CharacterizeParticles(CharacterizeBase):
                 "lb": 1e-12,
                 "ub": 1e-6,
                 "indices": [ci],
-                "transform": "auto",
+                "normalization": "auto",
             })
 
         if not variables:
@@ -542,7 +542,7 @@ class CharacterizeCapacity(CharacterizeBase):
                 "parameter_path": "flow_sheet.column.binding_model.capacity",
                 "lb": 1e-2,
                 "ub": 2.0,
-                "transform": "auto",
+                "normalization": "auto",
             },
         ]
 
@@ -660,7 +660,7 @@ class CharacterizeAdsorptionParameters(CharacterizeBase):
                 "lb": 4,
                 "ub": 9,
                 "indices": [ci],
-                "transform": "auto",
+                "normalization": "auto",
             },
         ]
 
@@ -673,7 +673,7 @@ class CharacterizeAdsorptionParameters(CharacterizeBase):
                 "lb": 0.0,
                 "ub": 200.0,
                 "indices": [ci],
-                "transform": "auto",
+                "normalization": "auto",
             })
 
         if not self._is_kinetic:
@@ -685,7 +685,7 @@ class CharacterizeAdsorptionParameters(CharacterizeBase):
                 "lb": k_eq_lb,
                 "ub": k_eq_ub,
                 "indices": [ci],
-                "transform": "auto",
+                "normalization": "auto",
             })
         else:
             variables += [
@@ -707,14 +707,14 @@ class CharacterizeAdsorptionParameters(CharacterizeBase):
                     "name": "equilibrium_constant",
                     "lb": k_eq_lb,
                     "ub": k_eq_ub,
-                    "transform": "auto",
+                    "normalization": "auto",
                     "targets": None,
                 },
                 {
                     "name": "kinetic_constant",
                     "lb": 1e-9,
                     "ub": 1.0,
-                    "transform": "auto",
+                    "normalization": "auto",
                     "targets": None,
                 },
             ]
@@ -726,7 +726,7 @@ class CharacterizeAdsorptionParameters(CharacterizeBase):
                 "lb": 1e-7,
                 "ub": 1e-4,
                 "indices": [ci],
-                "transform": "auto",
+                "normalization": "auto",
             })
         if self._include_pore_diffusion:
             variables.append({
@@ -735,7 +735,7 @@ class CharacterizeAdsorptionParameters(CharacterizeBase):
                 "lb": 1e-12,
                 "ub": 1e-6,
                 "indices": [ci],
-                "transform": "auto",
+                "normalization": "auto",
             })
 
         return variables
