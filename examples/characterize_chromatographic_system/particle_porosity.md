@@ -135,13 +135,10 @@ if __name__ == '__main__':
 ## Comparator
 
 ```{code-cell}
-from CADETProcess.comparison import Comparator
+from CADETProcess.comparison import NRMSE, Comparator
 
 comparator = Comparator()
-comparator.add_reference(tracer_peak)
-comparator.add_difference_metric(
-    'NRMSE', tracer_peak, 'outlet.outlet',
-)
+comparator.add_difference_metric(NRMSE(tracer_peak), 'outlet.outlet')
 
 if __name__ == '__main__':
     comparator.plot_comparison(simulation_results)
@@ -160,7 +157,7 @@ optimization_problem.add_variable(
     name='particle_porosity',
     parameter_path='flow_sheet.column.particle_porosity',
     lb=0.5, ub=0.99,
-    transform='auto'
+    normalization='auto'
 )
 
 optimization_problem.add_evaluator(simulator)
@@ -175,8 +172,7 @@ optimization_problem.add_objective(
 def callback(simulation_results, individual, evaluation_object, callbacks_dir='./'):
     comparator.plot_comparison(
         simulation_results,
-        file_name=f'{callbacks_dir}/{individual.id}_{evaluation_object}_comparison.png',
-        show=False
+        file_name=f'{callbacks_dir}/{individual.id}_{evaluation_object}_comparison.png'
     )
 
 

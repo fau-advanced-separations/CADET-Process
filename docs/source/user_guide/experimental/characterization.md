@@ -19,7 +19,7 @@ sys.path.append('../../../../../')
 # LC System Characterization
 
 The {mod}`~CADETProcess.characterization` module sets up parameter estimation problems for LC systems.
-Each {class}`~CADETProcess.characterization.CharacterizeBase` subclass is an {class}`~CADETProcess.optimization.OptimizationProblem` specialized for a particular experiment type, encoding which parameters are fitted, their default bounds and transforms, and any experiment-specific constraints or parameter couplings.
+Each {class}`~CADETProcess.characterization.CharacterizeBase` subclass is an {class}`~CADETProcess.optimization.OptimizationProblem` specialized for a particular experiment type, encoding which parameters are fitted, their default bounds and normalization, and any experiment-specific constraints or parameter couplings.
 Users supply the process, the simulator, and the comparator; the class wires them into a ready-to-optimize problem.
 
 **Choosing a subclass:**
@@ -37,7 +37,7 @@ from CADETProcess.processModel import (
     ComponentSystem, LumpedRateModelWithPores, StericMassAction,
 )
 from CADETProcess.instruments import LCFlowSheet, PulseInjection, LWE
-from CADETProcess.comparison import Comparator
+from CADETProcess.comparison import Comparator, Shape
 from CADETProcess.reference import ReferenceIO
 from CADETProcess.characterization import (
     setup_comparators,
@@ -91,12 +91,7 @@ reference.component_system = cs
 
 ```{code-cell} ipython3
 comparator = Comparator("bed_characterization")
-comparator.add_reference(reference)
-comparator.add_difference_metric(
-    "Shape",
-    reference,
-    solution_path="column.outlet.outlet[0]",
-)
+comparator.add_difference_metric(Shape(reference), "column.outlet.outlet[0]")
 ```
 
 **3. Create the characterization problem and optimize.**
@@ -122,7 +117,7 @@ optimizer.optimize(char)
 
 Every `Characterize*` instance is an ordinary {class}`~CADETProcess.optimization.OptimizationProblem`.
 
-- **Variables** correspond to the selected physical parameters with predefined bounds and transforms.
+- **Variables** correspond to the selected physical parameters with predefined bounds and normalization.
 - **Objectives** are provided by the comparator metrics; each comparator contributes its own objective (or objectives if the comparator has multiple metrics).
 - **Multi-process characterization** creates one objective per process while all processes share the same variable set.
 Each evaluation automatically generates comparison plots in the optimizer callback directory.
@@ -303,7 +298,7 @@ end_times   = [peak_end[cv]   for cv in [4, 8, 12, 16]]
 comparators = setup_comparators(
     processes, references,
     solution_path="tubing_post_column.outlet",
-    metrics=["Shape"],
+    metrics=[Shape],
     components=["Protein"],
     start=start_times,
     end=end_times,
