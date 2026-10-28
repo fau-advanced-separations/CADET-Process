@@ -10,7 +10,7 @@ from CADETProcess.characterization import (
     CharacterizeTubing,
     setup_comparators,
 )
-from CADETProcess.comparison import Comparator
+from CADETProcess.comparison import NRMSE, Comparator
 from CADETProcess.instruments import LWE, LCFlowSheet, PulseInjection
 from CADETProcess.processModel import (
     ComponentSystem,
@@ -97,8 +97,7 @@ def flat_reference(salt_cs):
 @pytest.fixture
 def comparator(flat_reference):
     comp = Comparator("pulse")
-    comp.add_reference(flat_reference)
-    comp.add_difference_metric("NRMSE", flat_reference, "column.outlet.outlet[0]")
+    comp.add_difference_metric(NRMSE(flat_reference), "column.outlet.outlet[0]")
     return comp
 
 
@@ -118,7 +117,7 @@ def mock_simulator():
 
 def test_setup_comparators_returns_list(pulse_process, flat_reference):
     result = setup_comparators(
-        pulse_process, flat_reference, "column.outlet.outlet[0]", ["NRMSE"]
+        pulse_process, flat_reference, "column.outlet.outlet[0]", [NRMSE]
     )
     assert isinstance(result, list)
     assert len(result) == 1
@@ -126,14 +125,14 @@ def test_setup_comparators_returns_list(pulse_process, flat_reference):
 
 def test_setup_comparators_comparator_name(pulse_process, flat_reference):
     result = setup_comparators(
-        pulse_process, flat_reference, "column.outlet.outlet[0]", ["NRMSE"]
+        pulse_process, flat_reference, "column.outlet.outlet[0]", [NRMSE]
     )
     assert result[0].name == pulse_process.name
 
 
 def test_setup_comparators_n_metrics(pulse_process, flat_reference):
     result = setup_comparators(
-        pulse_process, flat_reference, "column.outlet.outlet[0]", ["NRMSE"]
+        pulse_process, flat_reference, "column.outlet.outlet[0]", [NRMSE]
     )
     assert result[0].n_metrics == 1
 
@@ -151,7 +150,7 @@ def test_setup_comparators_multi_process(pulse_process, flat_reference):
         [pulse_process, p2],
         [flat_reference, flat_reference],
         "column.outlet.outlet[0]",
-        ["NRMSE"],
+        [NRMSE],
     )
     assert len(result) == 2
     assert result[0].name == "pulse"
@@ -172,7 +171,7 @@ def test_setup_comparators_per_process_start_end(pulse_process, flat_reference):
         [pulse_process, p2],
         [flat_reference, flat_reference],
         "column.outlet.outlet[0]",
-        ["NRMSE"],
+        [NRMSE],
         start=[100.0, 200.0],
         end=[500.0, 550.0],
     )
@@ -185,7 +184,7 @@ def test_setup_comparators_wrong_reference_count_raises(pulse_process, flat_refe
             [pulse_process],
             [flat_reference, flat_reference],
             "column.outlet.outlet[0]",
-            ["NRMSE"],
+            [NRMSE],
         )
 
 
@@ -203,8 +202,20 @@ def test_setup_comparators_wrong_start_list_length_raises(pulse_process, flat_re
             [pulse_process, p2],
             [flat_reference, flat_reference],
             "column.outlet.outlet[0]",
-            ["NRMSE"],
+            [NRMSE],
             start=[100.0],
+        )
+
+
+@pytest.mark.parametrize("metric", ["NRMSE", "instance"])
+def test_setup_comparators_rejects_non_class_metric(
+    pulse_process, flat_reference, metric
+):
+    if metric == "instance":
+        metric = NRMSE(flat_reference)
+    with pytest.raises(TypeError, match="DifferenceBase subclass"):
+        setup_comparators(
+            pulse_process, flat_reference, "column.outlet.outlet[0]", [metric]
         )
 
 
@@ -301,8 +312,7 @@ def test_characterize_base_names_unnamed_comparator_after_its_process(
     pulse_process, flat_reference, mock_simulator
 ):
     comp = Comparator()
-    comp.add_reference(flat_reference)
-    comp.add_difference_metric("NRMSE", flat_reference, "column.outlet.outlet[0]")
+    comp.add_difference_metric(NRMSE(flat_reference), "column.outlet.outlet[0]")
 
     CharacterizeBase("test", pulse_process, comp, mock_simulator)
 
@@ -470,8 +480,7 @@ def lwe_comparator(lwe_process, flat_reference):
     ref = ReferenceIO("lwe_ref", time, sol, flow_rate=FLOW_RATE)
     ref.component_system = cs
     comp = Comparator("lwe")
-    comp.add_reference(ref)
-    comp.add_difference_metric("NRMSE", ref, "column.outlet.outlet[0]")
+    comp.add_difference_metric(NRMSE(ref), "column.outlet.outlet[0]")
     return comp
 
 

@@ -298,7 +298,7 @@ end_times   = [peak_end[cv]   for cv in [4, 8, 12, 16]]
 comparators = setup_comparators(
     processes, references,
     solution_path="tubing_post_column.outlet",
-    metrics=["Shape"],
+    metrics=[Shape],
     components=["Protein"],
     start=start_times,
     end=end_times,
