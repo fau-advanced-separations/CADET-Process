@@ -1535,10 +1535,17 @@ class GeneralRateModel2D(ChromatographicColumnBase):
     """
     Parameters for the 2D general rate model.
 
+    The column is resolved in axial and radial direction.
+    The number of radial cells `nrad` is set at construction and determines the
+    ports (one per radial cell) and the length of the radially resolved
+    parameters.
+    It must not be changed after the unit is added to a flow sheet, since the
+    flow sheet creates its connections per port when the unit is added.
+
     Attributes
     ----------
-    bed_porosity : UnsignedFloat between 0 and 1.
-        Porosity of the bed
+    bed_porosity : List of unsigned floats between 0 and 1. Length depends on nrad.
+        Porosity of the bed in each radial cell.
     particle_porosity : UnsignedFloat between 0 and 1.
         Porosity of particles.
     particle_radius : UnsignedFloat
@@ -1625,27 +1632,51 @@ class GeneralRateModel2D(ChromatographicColumnBase):
         )
 
     @property
+    def _radial_cell_areas(self) -> np.ndarray:
+        """np.ndarray: Cross section areas of the radial discretization cells.
+
+        Follows CADET-Core: equidistant cells have equally spaced edges,
+        equivolume cells have equal areas, and user-defined cells take the
+        absolute radii in `discretization.radial_compartments` as edges.
+        """
+        radial_disc_type = self.discretization.radial_disc_type
+
+        if radial_disc_type == "EQUIVOLUME":
+            return np.full(self.nrad, self.cross_section_area / self.nrad)
+
+        if radial_disc_type == "USER_DEFINED":
+            edges = np.asarray(self.discretization.radial_compartments)
+        else:
+            edges = np.linspace(0, self.diameter / 2, self.nrad + 1)
+
+        return np.pi * np.diff(edges**2)
+
+    @property
+    def _bed_porosity_mean(self) -> float:
+        """float: Bed porosity averaged over the radial cells, weighted by area."""
+        return float(np.average(self.bed_porosity, weights=self._radial_cell_areas))
+
+    @property
     def total_porosity(self) -> float:
-        """float: Total porosity of the column."""
-        return self.bed_porosity + (1 - self.bed_porosity) * self.particle_porosity
+        """float: Total porosity of the column, averaged over the radial cells."""
+        bed_porosity = self._bed_porosity_mean
+        return bed_porosity + (1 - bed_porosity) * self.particle_porosity
 
     @property
     def cross_section_area_interstitial(self) -> float:
-        """float: Interstitial area between particles.
+        """float: Interstitial area between particles, summed over the radial cells.
 
         See Also
         --------
         cross_section_area
 
         """
-        return self.bed_porosity * self.cross_section_area
+        return self._bed_porosity_mean * self.cross_section_area
 
-    def set_diameter_from_interstitial_velocity(self, Q: float, u0: float) -> None:
-        """Set diameter from flow rate and interstitial velocity.
-
-        In literature, often only the interstitial velocity is given.
-        This method, the diameter / cross section area can be inferred from
-        the flow rate, velocity, and bed porosity.
+    def set_diameter_from_interstitial_velocity(
+        self, Q: float, u0: float  # noqa: ARG002
+    ) -> None:
+        """Reject setting the diameter from velocity for a 2D column.
 
         Parameters
         ----------
@@ -1654,12 +1685,15 @@ class GeneralRateModel2D(ChromatographicColumnBase):
         u0 : float
             Interstitial velocity.
 
-        Notes
-        -----
-            Overwrites parent method.
-
+        Raises
+        ------
+        CADETProcessError
+            Always, since setting the diameter from interstitial velocity is
+            not supported for a column with 2D resolution.
         """
-        self.cross_section_area = Q / (u0 * self.bed_porosity)
+        raise CADETProcessError(
+            "Cannot set diameter from interstitial velocity for a 2D column."
+        )
 
     @property
     def nrad(self) -> int:
@@ -1717,6 +1751,7 @@ class GeneralRateModel2D(ChromatographicColumnBase):
         self._surface_diffusion = surface_diffusion
 
         self.parameters["surface_diffusion"] = surface_diffusion
+
 
 class MCT(UnitBaseClass):
     """

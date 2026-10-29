@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+from CADETProcess import CADETProcessError
 
 length = 0.6
 diameter = 0.024
@@ -69,6 +70,17 @@ flow_direction = 1
                 "volume": length * sum(channel_cross_section_areas),
             },
         ),
+        (
+            "grm2d",
+            {
+                "cross_section_area": cross_section_area,
+                "total_porosity": total_porosity,
+                "volume": volume,
+                "volume_interstitial": bed_porosity * volume,
+                "volume_liquid": total_porosity * volume,
+                "volume_solid": (1 - total_porosity) * volume,
+            },
+        ),
     ],
 )
 def test_geometry(unit_operation, expected_geometry, request):
@@ -96,6 +108,52 @@ def test_geometry(unit_operation, expected_geometry, request):
 
         unit.cross_section_area = cross_section_area / 2
         assert np.isclose(unit.diameter, diameter / (2**0.5))
+
+
+radius = diameter / 2
+
+
+@pytest.mark.parametrize(
+    "radial_disc_type, radial_compartments, expected_bed_porosity",
+    [
+        # Cell areas scale with 1, 3, 5, 7, 9 (out of 25)
+        ("EQUIDISTANT", None, 0.48),
+        # Equal cell areas
+        ("EQUIVOLUME", None, 0.4),
+        # Cell areas 0.25, 0.11, 0.13, 0.15, 0.36 of the cross section
+        ("USER_DEFINED", [0, 0.5, 0.6, 0.7, 0.8, 1.0], 0.426),
+    ],
+)
+def test_grm2d_radially_varying_porosity(
+    grm2d, radial_disc_type, radial_compartments, expected_bed_porosity
+):
+    grm2d.discretization.radial_disc_type = radial_disc_type
+    if radial_compartments is not None:
+        grm2d.discretization.radial_compartments = [
+            r * radius for r in radial_compartments
+        ]
+    grm2d.bed_porosity = [0.2, 0.3, 0.4, 0.5, 0.6]
+
+    expected_total_porosity = (
+        expected_bed_porosity + (1 - expected_bed_porosity) * particle_porosity
+    )
+
+    assert np.isclose(grm2d.total_porosity, expected_total_porosity)
+    assert np.isclose(
+        grm2d.cross_section_area_interstitial,
+        expected_bed_porosity * cross_section_area,
+    )
+    assert np.isclose(grm2d.volume_interstitial, expected_bed_porosity * volume)
+    assert np.isclose(grm2d.volume_solid, (1 - expected_total_porosity) * volume)
+
+
+@pytest.mark.parametrize("porosity", [0.3, [0.2, 0.3, 0.4, 0.5, 0.6]])
+def test_grm2d_rejects_diameter_from_interstitial_velocity(grm2d, porosity):
+    grm2d.bed_porosity = porosity
+    diameter_before = grm2d.diameter
+    with pytest.raises(CADETProcessError, match="for a 2D column"):
+        grm2d.set_diameter_from_interstitial_velocity(Q=1e-6, u0=1e-3)
+    assert grm2d.diameter == diameter_before
 
 
 @pytest.mark.parametrize(
