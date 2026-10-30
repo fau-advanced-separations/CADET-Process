@@ -26,6 +26,7 @@ from CADETProcess.dataStructure import (
 )
 from CADETProcess.processModel import (
     BindingBaseClass,
+    ColloidalParticleAdsorption,
     Cstr,
     FlowSheet,
     Inlet,
@@ -1796,6 +1797,15 @@ class AdsorptionParameters(ParameterWrapper):
 
     _model_parameters = _adsorption_parameters
     _model_type = "ADSORPTION_MODEL"
+
+    @property
+    def parameters(self) -> dict:
+        """Return parameters after validating the ionic strength source."""
+        model = self._wrapped_object
+        if isinstance(model, ColloidalParticleAdsorption):
+            if model.ionic_strength is None and model.ionic_valence is None:
+                raise ValueError("Set ionic_strength or ionic_valence before exporting parameters.")
+        return super().parameters
 
 
 reaction_parameters_map = {

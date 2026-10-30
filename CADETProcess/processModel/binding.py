@@ -1467,7 +1467,7 @@ class ColloidalParticleAdsorption(BindingBaseClass):
     temperature : unsigned float
         Absolute temperature in K.
     ionic_strength : unsigned float
-        Ionic strength in mol/m^3; (optional) only when `ionic_valence` is not set.
+        Ionic strength in mol/m^3; optional if `ionic_valence` is set.
     permittivity : unsigned float
         Relative permittivity of the solvent.
     ligand_density : unsigned float
@@ -1554,12 +1554,6 @@ class ColloidalParticleAdsorption(BindingBaseClass):
         super().__init__(component_system, name, *args, **kwargs)
         if effective_charge_polynomial_degree is not None:
             self.effective_charge_polynomial_degree = effective_charge_polynomial_degree
-
-        if self.ionic_strength is None and self.ionic_valence is None:
-            raise ValueError("Set either ionic_strength or ionic_valence.")
-
-        if self.ionic_strength is not None and self.ionic_strength is not None:
-            raise ValueError("Set either ionic_strength or ionic_valence, not both.")
 
     @property
     def effective_charge_polynomial_degree(self) -> Optional[int]:

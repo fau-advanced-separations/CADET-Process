@@ -168,6 +168,17 @@ class Test_Binding(unittest.TestCase):
         with self.assertRaises(CADETProcessError):
             model.bound_states = [1, 1, 1]
 
+    def test_colloidal_particle_adsorption_ionic_parameters(self):
+        model = ColloidalParticleAdsorption(ComponentSystem(3))
+
+        with self.assertRaisesRegex(ValueError, "ionic_strength or ionic_valence"):
+            _ = AdsorptionParameters(model).parameters
+
+        model.ionic_valence = [2, 1, -1]
+        self.assertEqual(
+            AdsorptionParameters(model).parameters["CPA_IONIC_VALENCE"], [2, 1, -1]
+        )
+
     def test_get_parameters(self):
         parameters_expected = {
             "is_kinetic": True,
