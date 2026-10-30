@@ -1803,8 +1803,9 @@ class AdsorptionParameters(ParameterWrapper):
         """dict: Validated adsorption parameters."""
         model = self._wrapped_object
         if isinstance(model, ColloidalParticleAdsorption):
-            if model.ionic_strength is None and model.ionic_valence is None:
-                raise ValueError("Set ionic_strength or ionic_valence before exporting parameters.")
+            parameter = "ionic_valence" if model.use_ionic_valence else "ionic_strength"
+            if getattr(model, parameter) is None:
+                raise ValueError(f"Set {parameter} before exporting parameters.")
         return super().parameters
 
 

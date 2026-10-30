@@ -113,7 +113,10 @@ class Test_Binding(unittest.TestCase):
 
     def test_colloidal_particle_adsorption_config(self):
         model = ColloidalParticleAdsorption(
-            ComponentSystem(3), proton_index=1, effective_charge_polynomial_degree=1
+            ComponentSystem(3),
+            proton_index=1,
+            use_ionic_valence=False,
+            effective_charge_polynomial_degree=1,
         )
         model.temperature = 298.15
         model.ionic_strength = 100
@@ -156,11 +159,8 @@ class Test_Binding(unittest.TestCase):
         with self.assertRaises(ValueError):
             model.set_effective_charge_coefficient(2, [1, 2])
 
-        model.ionic_valence = [2, 1, -1]
-        self.assertEqual(AdsorptionParameters(model).parameters["CPA_IONIC_VALENCE"], [2, 1, -1])
-
-        with self.assertRaises(ValueError):
-            model.ionic_valence = [2, 1]
+        with self.assertRaisesRegex(ValueError, "ionic_valence"):
+            model.ionic_valence = [2, 1, -1]
 
         with self.assertRaises(ValueError):
             model.temperature = 0
@@ -169,15 +169,52 @@ class Test_Binding(unittest.TestCase):
             model.bound_states = [1, 1, 1]
 
     def test_colloidal_particle_adsorption_ionic_parameters(self):
-        model = ColloidalParticleAdsorption(ComponentSystem(3))
+        component_system = ComponentSystem(3)
 
-        with self.assertRaisesRegex(ValueError, "ionic_strength or ionic_valence"):
+        with self.assertRaises(TypeError):
+            ColloidalParticleAdsorption(component_system)
+
+        with self.assertRaisesRegex(ValueError, "ionic_strength"):
+            ColloidalParticleAdsorption(
+                component_system, use_ionic_valence=True, ionic_strength=100
+            )
+
+        with self.assertRaisesRegex(ValueError, "ionic_valence"):
+            ColloidalParticleAdsorption(
+                component_system, use_ionic_valence=False, ionic_valence=[2, 1, -1]
+            )
+
+        fixed_model = ColloidalParticleAdsorption(
+            component_system, use_ionic_valence=False
+        )
+        with self.assertRaisesRegex(ValueError, "Set ionic_strength"):
+            _ = AdsorptionParameters(fixed_model).parameters
+
+        fixed_model.ionic_strength = 100
+        self.assertEqual(
+            AdsorptionParameters(fixed_model).parameters["CPA_IONIC_STRENGTH"], 100
+        )
+
+        model = ColloidalParticleAdsorption(component_system, use_ionic_valence=True)
+        self.assertTrue(model.use_ionic_valence)
+
+        with self.assertRaisesRegex(ValueError, "Set ionic_valence"):
             _ = AdsorptionParameters(model).parameters
 
+        with self.assertRaisesRegex(ValueError, "ionic_strength"):
+            model.ionic_strength = 100
+
+        with self.assertRaisesRegex(ValueError, "ionic_strength"):
+            model.parameters = {"ionic_strength": 100}
+
         model.ionic_valence = [2, 1, -1]
+        self.assertNotIn("CPA_IONIC_STRENGTH", AdsorptionParameters(model).parameters)
         self.assertEqual(
             AdsorptionParameters(model).parameters["CPA_IONIC_VALENCE"], [2, 1, -1]
         )
+
+        with self.assertRaises(ValueError):
+            model.ionic_valence = [2, 1]
 
     def test_get_parameters(self):
         parameters_expected = {

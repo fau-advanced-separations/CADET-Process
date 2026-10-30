@@ -1466,8 +1466,10 @@ class ColloidalParticleAdsorption(BindingBaseClass):
     ----------
     temperature : unsigned float
         Absolute temperature in K.
+    use_ionic_valence : bool
+        Whether to calculate ionic strength from component valences.
     ionic_strength : unsigned float
-        Ionic strength in mol/m^3; optional if `ionic_valence` is set.
+        Fixed ionic strength in mol/m^3 when `use_ionic_valence` is False.
     permittivity : unsigned float
         Relative permittivity of the solvent.
     ligand_density : unsigned float
@@ -1498,8 +1500,7 @@ class ColloidalParticleAdsorption(BindingBaseClass):
     proton_index : unsigned integer
         Index of the non-binding proton component. Defaults to 0.
     ionic_valence : list of integers, optional
-        Component valences used to calculate ionic strength from concentrations.
-        Length is `n_comp`.
+        Component valences used when `use_ionic_valence` is True. Length is `n_comp`.
     max_iterations : unsigned integer
         Maximum adsorber surface potential iterations. Defaults to 100.
     """
@@ -1547,13 +1548,22 @@ class ColloidalParticleAdsorption(BindingBaseClass):
         component_system: ComponentSystem,
         name: Optional[str] = None,
         *args: Any,
+        use_ionic_valence: bool,
         effective_charge_polynomial_degree: Optional[int] = None,
         **kwargs: Any,
     ) -> None:
-        """Initialize the CPA model and its optional charge polynomial degree."""
+        """Initialize the CPA model with the selected ionic strength source."""
+        if not isinstance(use_ionic_valence, bool):
+            raise TypeError("use_ionic_valence must be a bool.")
+        self._use_ionic_valence = use_ionic_valence
         super().__init__(component_system, name, *args, **kwargs)
         if effective_charge_polynomial_degree is not None:
             self.effective_charge_polynomial_degree = effective_charge_polynomial_degree
+
+    @property
+    def use_ionic_valence(self) -> bool:
+        """bool: Whether ionic strength is calculated from component valences."""
+        return self._use_ionic_valence
 
     @property
     def effective_charge_polynomial_degree(self) -> Optional[int]:
@@ -1606,7 +1616,11 @@ class ColloidalParticleAdsorption(BindingBaseClass):
         raise AttributeError(f"{type(self).__name__} object has no attribute {name}")
 
     def __setattr__(self, name: str, value: Any) -> None:
-        """Set a charge coefficient vector by its numbered attribute name."""
+        """Set parameters permitted by the selected ionic strength source."""
+        if name == "ionic_strength" and self.use_ionic_valence:
+            raise ValueError("ionic_strength requires use_ionic_valence=False.")
+        if name == "ionic_valence" and not self.use_ionic_valence:
+            raise ValueError("ionic_valence requires use_ionic_valence=True.")
         prefix = "effective_charge_coefficient_"
         if name.startswith(prefix):
             order = name[len(prefix):]
