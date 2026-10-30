@@ -1800,7 +1800,7 @@ class AdsorptionParameters(ParameterWrapper):
 
     @property
     def parameters(self) -> dict:
-        """Return parameters after validating the ionic strength source."""
+        """dict: Validated adsorption parameters."""
         model = self._wrapped_object
         if isinstance(model, ColloidalParticleAdsorption):
             if model.ionic_strength is None and model.ionic_valence is None:
