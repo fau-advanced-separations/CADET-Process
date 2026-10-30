@@ -5,6 +5,7 @@ from CADETProcess.processModel import (
     ComponentSystem,
     Cstr,
     GeneralRateModel,
+    GeneralRateModel2D,
     Inlet,
     LumpedRateModelWithoutPores,
     LumpedRateModelWithPores,
@@ -101,6 +102,21 @@ def grm(component_system):
     unit.length = length
     unit.diameter = diameter
     unit.axial_dispersion = axial_dispersion
+    unit.bed_porosity = bed_porosity
+    unit.particle_radius = particle_radius
+    unit.particle_porosity = particle_porosity
+    unit.film_diffusion = film_diffusion
+    unit.pore_diffusion = pore_diffusion
+    return unit
+
+
+@pytest.fixture
+def grm2d(component_system):
+    unit = GeneralRateModel2D(component_system, nrad=5, name="test_grm2d")
+    unit.length = length
+    unit.diameter = diameter
+    unit.axial_dispersion = axial_dispersion
+    unit.col_dispersion_radial = [1e-10] * 5 * 2
     unit.bed_porosity = bed_porosity
     unit.particle_radius = particle_radius
     unit.particle_porosity = particle_porosity

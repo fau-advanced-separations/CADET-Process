@@ -325,6 +325,32 @@ class GRMRecorder(
     pass
 
 
+class GRM2DRecorder(
+    SolutionRecorderBase,
+    BaseMixin,
+    IOMixin,
+    BulkMixin,
+    FluxMixin,
+    ParticleMixin,
+    SolidMixin,
+):
+    """Recorder for TubularReactor.
+
+    See Also
+    --------
+    BaseMixin
+    IOMixin
+    BulkMixin
+    FluxMixin
+    ParticleMixin
+    SolidMixin
+    CADETProcess.processModel.GeneralRateModel2D
+
+    """
+
+    pass
+
+
 class CSTRRecorder(
     SolutionRecorderBase, BaseMixin, IOMixin, BulkMixin, SolidMixin, VolumeMixin
 ):

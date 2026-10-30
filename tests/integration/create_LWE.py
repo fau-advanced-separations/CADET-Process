@@ -5,6 +5,7 @@ from CADETProcess.processModel import (
     Cstr,
     FlowSheet,
     GeneralRateModel,
+    GeneralRateModel2D,
     Inlet,
     LumpedRateModelWithoutPores,
     LumpedRateModelWithPores,
@@ -38,6 +39,8 @@ def create_lwe(unit_type: str = "GeneralRateModel", **kwargs) -> Process:
         unit = configure_cstr(component_system, **kwargs)
     elif unit_type == "GeneralRateModel":
         unit = configure_general_rate_model(component_system, **kwargs)
+    elif unit_type == "GeneralRateModel2D":
+        unit = configure_general_rate_model_2d(component_system, **kwargs)
     elif unit_type == "TubularReactor":
         unit = configure_tubular_reactor(component_system, **kwargs)
     elif unit_type == "LumpedRateModelWithoutPores":
@@ -95,9 +98,16 @@ def setup_flow_sheet(unit, component_system: ComponentSystem) -> FlowSheet:
     flow_sheet.add_unit(unit)
     flow_sheet.add_unit(outlet)
 
-    if unit.has_ports:
+    if unit.has_ports and "nchannel" in unit.parameters:
         flow_sheet.add_connection(inlet, unit, destination_port="channel_0")
         flow_sheet.add_connection(unit, outlet, origin_port="channel_0")
+    elif unit.has_ports and "nrad" in unit.discretization.parameters:
+        flow_sheet.add_connection(inlet, unit, destination_port="radial_cell_0")
+        flow_sheet.add_connection(unit, outlet, origin_port="radial_cell_0")
+        flow_sheet.add_connection(inlet, unit, destination_port="radial_cell_1")
+        flow_sheet.add_connection(unit, outlet, origin_port="radial_cell_1")
+        flow_sheet.add_connection(inlet, unit, destination_port="radial_cell_2")
+        flow_sheet.add_connection(unit, outlet, origin_port="radial_cell_2")
     else:
         flow_sheet.add_connection(inlet, unit)
         flow_sheet.add_connection(unit, outlet)
@@ -168,6 +178,46 @@ def configure_general_rate_model(
     configure_flow_direction(grm, **kwargs)
 
     return grm
+
+
+def configure_general_rate_model_2d(
+    component_system: ComponentSystem, **kwargs
+) -> GeneralRateModel2D:
+    """
+    Configure a 2D general rate model.
+
+    Parameters
+    ----------
+    component_system : ComponentSystem
+        The component system of the process.
+    **kwargs : dict
+        Additional parameters for configuring the general rate model.
+
+    Returns
+    -------
+    GeneralRateModel
+        The configured general rate model.
+    """
+
+    n_rad: int = kwargs.get("n_rad", 3)
+
+    grm2d = GeneralRateModel2D(component_system, nrad=n_rad, name="GeneralRateModel2D")
+
+    grm2d.length = 0.014
+    grm2d.diameter = 0.01 * 2
+    grm2d.bed_porosity = [0.37] * 3
+    grm2d.axial_dispersion = [5.75e-8] * 3 * 4
+    grm2d.col_dispersion_radial = [5.75e-8] * 3 * 4
+    grm2d.pore_diffusion = [7e-10, 6.07e-11, 6.07e-11, 6.07e-11]
+
+    configure_solution_recorder(grm2d, **kwargs)
+    configure_discretization(grm2d, **kwargs)
+    configure_particles(grm2d)
+    configure_steric_mass_action(grm2d, component_system, **kwargs)
+    configure_film_diffusion(grm2d, component_system.n_comp)
+    configure_flow_direction(grm2d, **kwargs)
+
+    return grm2d
 
 
 def configure_tubular_reactor(
@@ -323,13 +373,22 @@ def configure_discretization(unit_operation, **kwargs) -> None:
     **kwargs : dict
         Additional parameters for configuring the discretization.
     """
-    n_col: int = kwargs.get("n_col", 100)
+    n_col: int = kwargs.get("n_col", 20)
     n_par: int = kwargs.get("n_par", 2)
     ad_jacobian: bool = kwargs.get("ad_jacobian", False)
 
     if "npar" in unit_operation.discretization.parameters:
         unit_operation.discretization.npar = n_par
         unit_operation.discretization.par_disc_type = "EQUIDISTANT_PAR"
+
+    if "nrad" in unit_operation.discretization.parameters:
+        unit_operation.discretization.radial_disc_type = "EQUIDISTANT"
+
+    if "nrad" in unit_operation.discretization.parameters:
+        unit_operation.discretization.radial_disc_type = "EQUIDISTANT"
+
+    if "nrad" in unit_operation.discretization.parameters:
+        unit_operation.discretization.radial_disc_type = "EQUIDISTANT"
 
     unit_operation.discretization.ncol = n_col
     unit_operation.discretization.use_analytic_jacobian = not ad_jacobian
