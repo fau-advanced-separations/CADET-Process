@@ -885,7 +885,7 @@ class PeakHeight(DifferenceBase):
                 for ref, sol, factor in zip(
                     self.reference_peaks[i],
                     solution_peaks[i],
-                    self.normalization_factor,
+                    self.normalization_factor[i],
                 )
             ]
         else:
@@ -900,14 +900,14 @@ class PeakHeight(DifferenceBase):
 
 class PeakPosition(DifferenceBase):
     """
-    Absolute difference in peak peak position difference metric.
+    Absolute difference in peak position.
 
     Attributes
     ----------
     reference_peaks : list of tuple
         Contains the peaks found in the reference.
     normalize_metrics : bool
-        Indicates whether normalization is applied to the peak height difference scores.
+        Indicates whether normalization is applied to the peak position difference scores.
     normalization_factor : list of list
         Contains the normalization factors for each peak in each component.
     """
@@ -919,7 +919,7 @@ class PeakPosition(DifferenceBase):
         self,
         *args: Any,
         normalize_metrics: bool = True,
-        normalization_factor: Optional[float] = None,
+        normalization_factor: float | list[float] | None = None,
         **kwargs: Any,
     ) -> None:
         """
@@ -950,8 +950,14 @@ class PeakPosition(DifferenceBase):
                 for i in range(self.reference.n_comp)
             ]
         else:
+            if np.isscalar(normalization_factor):
+                normalization_factor = [normalization_factor] * self.reference.n_comp
+            if len(normalization_factor) != self.reference.n_comp:
+                raise ValueError(
+                    "normalization_factor must have one value per reference component."
+                )
             normalization_factor = [
-                len(self.reference_peaks[i]) * [normalization_factor]
+                len(self.reference_peaks[i]) * [normalization_factor[i]]
                 for i in range(self.reference.n_comp)
             ]
 
