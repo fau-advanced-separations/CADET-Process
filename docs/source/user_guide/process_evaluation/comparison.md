@@ -96,6 +96,22 @@ metric = SSE(reference, start=3*60, end=6*60)
 comparator.add_difference_metric(metric, 'column.outlet')
 ```
 
+### Peak position and height
+
+{class}`~CADETProcess.comparison.PeakPosition` compares peak times, and {class}`~CADETProcess.comparison.PeakHeight` compares peak concentrations.
+Both detect peaks separately for each selected component after windowing and component summation.
+By default, detection min-max normalizes each trace and requires a prominence of 0.5; if no peak qualifies, it uses the trace's maximum, including for a flat trace.
+`PeakHeight(find_minima=True)` detects minima instead and falls back to the trace's minimum.
+The metrics pair detected peaks chronologically within each component.
+They currently compare only as many pairs as the smaller peak count allows, so missing or additional peaks can change correspondence or produce fewer scores than `n_metrics`.
+Use these metrics only where the detected peaks have a known correspondence; component selection and time windows can help isolate the intended peak.
+
+By default, both metrics apply a bounded sigmoid distance, using each reference peak's time or height as its normalization factor.
+For `PeakPosition`, `normalization_factor` accepts either a scalar for all peaks or a list with one factor per selected reference component; each component's factor applies to all its detected peaks.
+For `PeakHeight`, an explicit scalar factor applies to all peaks.
+These score factors are separate from `DifferenceBase(normalize=True)`, which scales the concentration traces before comparison.
+Setting `normalize_metrics=False` returns unbounded absolute differences in the original time or concentration units, provided the traces have not otherwise been scaled or transformed.
+
 ## Reference Model
 Next to the experimental data, a reference model needs to be configured.
 It must include relevant details s.t. it is capable of accurately predicting the experimental system (e.g. tubing, valves etc.).
