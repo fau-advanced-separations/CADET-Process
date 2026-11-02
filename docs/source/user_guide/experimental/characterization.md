@@ -263,8 +263,8 @@ The same named selection is available in `CharacterizeParticles`; its particle p
 Selected species must have the same names and array positions in every process; incompatible layouts raise `ValueError` instead of fitting the wrong entries.
 Empty, duplicate and unknown component selections also raise `ValueError`.
 
-Legacy `component_index=1` calls retain their unprefixed names, and omitting both arguments retains index 0.
-Passing both `components` and `component_index` raises `ValueError`.
+Both experimental helpers require an explicit `components` selection.
+The earlier `component_index` argument and implicit index-0 selection are removed; a single selected component also uses species-prefixed variable names.
 
 ```{code-cell} ipython3
 from CADETProcess.processModel import StericMassAction

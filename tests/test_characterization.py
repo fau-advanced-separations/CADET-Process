@@ -424,30 +424,44 @@ def test_characterize_bed_particle_porosity_bounds(
 # ---------------------------------------------------------------------------
 
 
-def test_characterize_particles_no_flags_raises(pulse_process, comparator, mock_simulator):
+def test_characterize_particles_no_flags_raises(
+    pulse_process, comparator, mock_simulator
+):
     with pytest.raises(ValueError, match="at least one"):
-        CharacterizeParticles("p", pulse_process, comparator, mock_simulator)
+        CharacterizeParticles(
+            "p", pulse_process, comparator, mock_simulator, components=["Salt"]
+        )
 
 
-def test_characterize_particles_film_diffusion(pulse_process, comparator, mock_simulator):
+def test_characterize_particles_film_diffusion(
+    pulse_process, comparator, mock_simulator
+):
     prob = CharacterizeParticles(
-        "p", pulse_process, comparator, mock_simulator,
+        "p",
+        pulse_process,
+        comparator,
+        mock_simulator,
+        components=["Salt"],
         include_film_diffusion=True,
     )
-    assert "film_diffusion" in prob.variable_names
+    assert "Salt_film_diffusion" in prob.variable_names
 
 
 def test_characterize_particles_lrmp_flags(pulse_process, comparator, mock_simulator):
     """LRMP supports axial_dispersion, particle_porosity, film_diffusion (not pore_diffusion)."""
     prob = CharacterizeParticles(
-        "p", pulse_process, comparator, mock_simulator,
+        "p",
+        pulse_process,
+        comparator,
+        mock_simulator,
+        components=["Salt"],
         include_axial_dispersion=True,
         include_particle_porosity=True,
         include_film_diffusion=True,
     )
-    assert "axial_dispersion" in prob.variable_names
+    assert "Salt_axial_dispersion" in prob.variable_names
     assert "particle_porosity" in prob.variable_names
-    assert "film_diffusion" in prob.variable_names
+    assert "Salt_film_diffusion" in prob.variable_names
 
 
 # ---------------------------------------------------------------------------
@@ -482,40 +496,60 @@ def test_characterize_adsorption_equilibrium_variables(
     lwe_process, lwe_comparator, mock_simulator
 ):
     prob = CharacterizeAdsorptionParameters(
-        "ads", lwe_process, lwe_comparator, mock_simulator, is_kinetic=False
+        "ads",
+        lwe_process,
+        lwe_comparator,
+        mock_simulator,
+        components=["Protein"],
+        is_kinetic=False,
     )
-    assert "characteristic_charge" in prob.variable_names
-    assert "adsorption_rate" in prob.variable_names
-    assert "equilibrium_constant" not in prob.variable_names
+    assert "Protein_characteristic_charge" in prob.variable_names
+    assert "Protein_adsorption_rate" in prob.variable_names
+    assert "Protein_equilibrium_constant" not in prob.variable_names
 
 
 def test_characterize_adsorption_kinetic_variables(
     lwe_process, lwe_comparator, mock_simulator
 ):
     prob = CharacterizeAdsorptionParameters(
-        "ads", lwe_process, lwe_comparator, mock_simulator, is_kinetic=True
+        "ads",
+        lwe_process,
+        lwe_comparator,
+        mock_simulator,
+        components=["Protein"],
+        is_kinetic=True,
     )
-    assert "characteristic_charge" in prob.variable_names
-    assert "equilibrium_constant" in prob.variable_names
-    assert "kinetic_constant" in prob.variable_names
+    assert "Protein_characteristic_charge" in prob.variable_names
+    assert "Protein_equilibrium_constant" in prob.variable_names
+    assert "Protein_kinetic_constant" in prob.variable_names
 
 
 def test_characterize_adsorption_kinetic_has_dependencies(
     lwe_process, lwe_comparator, mock_simulator
 ):
     prob = CharacterizeAdsorptionParameters(
-        "ads", lwe_process, lwe_comparator, mock_simulator, is_kinetic=True
+        "ads",
+        lwe_process,
+        lwe_comparator,
+        mock_simulator,
+        components=["Protein"],
+        is_kinetic=True,
     )
     dep_names = [v.name for v in prob.dependent_variables]
-    assert "adsorption_rate" in dep_names
-    assert "desorption_rate" in dep_names
+    assert "Protein_adsorption_rate" in dep_names
+    assert "Protein_desorption_rate" in dep_names
 
 
 def test_characterize_adsorption_equilibrium_sets_desorption_rate(
     lwe_process, lwe_comparator, mock_simulator
 ):
     CharacterizeAdsorptionParameters(
-        "ads", lwe_process, lwe_comparator, mock_simulator, is_kinetic=False
+        "ads",
+        lwe_process,
+        lwe_comparator,
+        mock_simulator,
+        components=["Protein"],
+        is_kinetic=False,
     )
     bm = lwe_process.flow_sheet.column.binding_model
     assert np.all(np.asarray(bm.desorption_rate) == pytest.approx(1.0))
@@ -526,29 +560,41 @@ def test_characterize_adsorption_optional_film_diffusion(
 ):
     """film_diffusion is available in LRMP; pore_diffusion requires GRM."""
     prob = CharacterizeAdsorptionParameters(
-        "ads", lwe_process, lwe_comparator, mock_simulator,
+        "ads",
+        lwe_process,
+        lwe_comparator,
+        mock_simulator,
+        components=["Protein"],
         include_film_diffusion=True,
     )
-    assert "film_diffusion" in prob.variable_names
+    assert "Protein_film_diffusion" in prob.variable_names
 
 
 def test_characterize_adsorption_optional_steric_factor(
     lwe_process, lwe_comparator, mock_simulator
 ):
     prob = CharacterizeAdsorptionParameters(
-        "ads", lwe_process, lwe_comparator, mock_simulator,
+        "ads",
+        lwe_process,
+        lwe_comparator,
+        mock_simulator,
+        components=["Protein"],
         include_steric_factor=True,
     )
-    assert "steric_factor" in prob.variable_names
+    assert "Protein_steric_factor" in prob.variable_names
 
 
 def test_characterize_adsorption_steric_factor_off_by_default(
     lwe_process, lwe_comparator, mock_simulator
 ):
     prob = CharacterizeAdsorptionParameters(
-        "ads", lwe_process, lwe_comparator, mock_simulator,
+        "ads",
+        lwe_process,
+        lwe_comparator,
+        mock_simulator,
+        components=["Protein"],
     )
-    assert "steric_factor" not in prob.variable_names
+    assert "Protein_steric_factor" not in prob.variable_names
 
 
 def test_characterize_adsorption_kinetic_preserves_capacity_reference(
@@ -556,7 +602,12 @@ def test_characterize_adsorption_kinetic_preserves_capacity_reference(
 ):
     lwe_process.flow_sheet.column.binding_model.capacity = 540.0
     CharacterizeAdsorptionParameters(
-        "ads", lwe_process, lwe_comparator, mock_simulator, is_kinetic=True
+        "ads",
+        lwe_process,
+        lwe_comparator,
+        mock_simulator,
+        components=["Protein"],
+        is_kinetic=True,
     )
     bm = lwe_process.flow_sheet.column.binding_model
     assert bm.reference_liquid_phase_conc == pytest.approx(bm.capacity)
@@ -771,6 +822,7 @@ def test_component_name_expands_to_its_species(
 @pytest.mark.parametrize(
     "components, message",
     [
+        (None, "distinct"),
         ([], "distinct"),
         (["Protein", "Protein"], "distinct"),
         (["Missing"], "Unknown components"),
@@ -794,10 +846,10 @@ def test_invalid_component_selection_is_rejected(
 @pytest.mark.parametrize(
     "helper", [CharacterizeAdsorptionParameters, CharacterizeParticles]
 )
-def test_selection_arguments_are_mutually_exclusive(
+def test_public_index_selection_is_rejected(
     helper, grouped_lwe_process, lwe_comparator, mock_simulator
 ):
-    with pytest.raises(ValueError, match="not both"):
+    with pytest.raises(TypeError, match="component_index"):
         helper(
             "invalid",
             grouped_lwe_process,
@@ -839,26 +891,42 @@ def test_named_selection_rejects_misaligned_process_species(
 @pytest.mark.parametrize(
     "helper", [CharacterizeAdsorptionParameters, CharacterizeParticles]
 )
-def test_legacy_index_selection_keeps_unprefixed_names_and_target(
+def test_named_selection_writes_only_the_selected_component(
     helper, grouped_lwe_process, lwe_comparator, mock_simulator
 ):
     prob = helper(
-        "legacy",
+        "selected",
         grouped_lwe_process,
         lwe_comparator,
         mock_simulator,
-        component_index=3,
+        components=["HMW"],
         include_film_diffusion=True,
     )
-    assert "film_diffusion" in prob.variable_names
-    assert not any(name.startswith("HMW_") for name in prob.variable_names)
+    assert "HMW_film_diffusion" in prob.variable_names
+    assert all(name.startswith("HMW_") for name in prob.variable_names)
     values = {
-        name: 5.0 if name == "characteristic_charge" else 0.1
+        name: 5.0 if name == "HMW_characteristic_charge" else 0.1
         for name in prob.independent_variable_names
     }
-    values["film_diffusion"] = 4e-6
+    values["HMW_film_diffusion"] = 4e-6
     before = list(grouped_lwe_process.flow_sheet.column.film_diffusion)
     prob.set_variables([values[name] for name in prob.independent_variable_names])
     actual = grouped_lwe_process.flow_sheet.column.film_diffusion
     assert list(actual[:3]) == before[:3]
     assert actual[3] == 4e-6
+
+
+@pytest.mark.parametrize(
+    "helper", [CharacterizeAdsorptionParameters, CharacterizeParticles]
+)
+def test_component_selection_is_required(
+    helper, grouped_lwe_process, lwe_comparator, mock_simulator
+):
+    with pytest.raises(TypeError, match="components"):
+        helper(
+            "missing_selection",
+            grouped_lwe_process,
+            lwe_comparator,
+            mock_simulator,
+            include_film_diffusion=True,
+        )

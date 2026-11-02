@@ -115,16 +115,11 @@ def setup_comparators(
 
 def _component_selection(
     processes: list[LCProcess],
-    components: str | list[str] | None,
-    component_index: int | None,
+    components: str | list[str],
 ) -> dict[str, int]:
     """Resolve component groups to species prefixes and shared array positions."""
     if not processes:
         raise ValueError("Supply at least one process.")
-    if components is None:
-        return {"": 0 if component_index is None else component_index}
-    if component_index is not None:
-        raise ValueError("Specify either components or component_index, not both.")
     if isinstance(components, str):
         components = [components]
     if not components or len(set(components)) != len(components):
@@ -456,6 +451,13 @@ class CharacterizeParticles(CharacterizeBase):
         One comparator per process.
     simulator : SimulatorBase
         Configured simulator instance.
+    components : str or list[str]
+        Component names to fit. Includes every species of each component,
+        in component-system order, with species-prefixed variable names.
+        Per-variable overrides use those names, e.g. ``Protein_film_diffusion``.
+        Particle porosity remains one shared, unprefixed variable.
+        Selected species must have the same names and array positions in every
+        process. Empty, duplicate or unknown component selections raise ValueError.
     include_axial_dispersion : bool
         Fit axial dispersion for each selected species.
     include_particle_porosity : bool
@@ -464,17 +466,6 @@ class CharacterizeParticles(CharacterizeBase):
         Fit film diffusion coefficient for each selected species.
     include_pore_diffusion : bool
         Fit pore diffusion coefficient for each selected species.
-    component_index : int, optional
-        Legacy selection of one array index with unprefixed variable names.
-        Defaults to index 0 when neither selection argument is given.
-        Cannot be combined with ``components``.
-    components : str or list[str], optional
-        Component names to fit. Includes every species of each component,
-        in component-system order, with species-prefixed variable names.
-        Per-variable overrides use those names, e.g. ``Protein_film_diffusion``.
-        Particle porosity remains one shared, unprefixed variable.
-        Selected species must have the same names and array positions in every
-        process. Empty, duplicate or unknown component selections raise ValueError.
     **kwargs
         Per-variable override dicts and remaining keyword arguments forwarded
         to :class:`CharacterizeBase`.
@@ -491,12 +482,11 @@ class CharacterizeParticles(CharacterizeBase):
         processes: LCProcess | list[LCProcess],
         comparators: Comparator | list[Comparator],
         simulator: SimulatorBase,
+        components: str | list[str],
         include_axial_dispersion: bool = False,
         include_particle_porosity: bool = False,
         include_film_diffusion: bool = False,
         include_pore_diffusion: bool = False,
-        component_index: int | None = None,
-        components: str | list[str] | None = None,
         **kwargs: object,
     ) -> None:
         self._include_axial_dispersion = include_axial_dispersion
@@ -505,7 +495,7 @@ class CharacterizeParticles(CharacterizeBase):
         self._include_pore_diffusion = include_pore_diffusion
         if not isinstance(processes, list):
             processes = [processes]
-        self._components = _component_selection(processes, components, component_index)
+        self._components = _component_selection(processes, components)
         super().__init__(
             name=name,
             processes=processes,
@@ -519,7 +509,7 @@ class CharacterizeParticles(CharacterizeBase):
         for prefix, ci in self._components.items():
             variables.extend(
                 {**variable, "name": f"{prefix}{variable['name']}"}
-                for variable in self._component_variables(ci)
+                for variable in self._component_variable_specs(ci)
             )
         if self._include_particle_porosity:
             porosity = {
@@ -529,8 +519,7 @@ class CharacterizeParticles(CharacterizeBase):
                 "ub": 0.9,
                 "transform": "auto",
             }
-            # Preserve the legacy order: dispersion, porosity, then diffusion.
-            variables.insert(int(self._include_axial_dispersion), porosity)
+            variables.insert(0, porosity)
         if not variables:
             raise ValueError(
                 "Specify at least one of: include_axial_dispersion, "
@@ -539,7 +528,7 @@ class CharacterizeParticles(CharacterizeBase):
             )
         return variables
 
-    def _component_variables(self, ci: int) -> list[dict]:
+    def _component_variable_specs(self, ci: int) -> list[dict]:
         """Return transport variable specifications for one species."""
         variables = []
         if self._include_axial_dispersion:
@@ -633,6 +622,12 @@ class CharacterizeAdsorptionParameters(CharacterizeBase):
         One comparator per process.
     simulator : SimulatorBase
         Configured simulator instance.
+    components : str or list[str]
+        Component names to fit. Includes every species of each component,
+        in component-system order, with species-prefixed variable names.
+        Per-variable overrides use those names, e.g. ``Protein_characteristic_charge``.
+        Selected species must have the same names and array positions in every
+        process. Empty, duplicate or unknown component selections raise ValueError.
     is_kinetic : bool
         Use kinetic (True) or rapid-equilibrium (False) binding mode.
         Default False.
@@ -642,16 +637,6 @@ class CharacterizeAdsorptionParameters(CharacterizeBase):
         Also fit film diffusion of each fitted species. Default False.
     include_pore_diffusion : bool
         Also fit pore diffusion of each fitted species. Default False.
-    component_index : int, optional
-        Legacy selection of one array index with unprefixed variable names.
-        Defaults to index 0 when neither selection argument is given.
-        Cannot be combined with ``components``.
-    components : str or list[str], optional
-        Component names to fit. Includes every species of each component,
-        in component-system order, with species-prefixed variable names.
-        Per-variable overrides use those names, e.g. ``Protein_characteristic_charge``.
-        Selected species must have the same names and array positions in every
-        process. Empty, duplicate or unknown component selections raise ValueError.
     **kwargs
         Per-variable override dicts and remaining keyword arguments forwarded
         to :class:`CharacterizeBase`.
@@ -663,12 +648,11 @@ class CharacterizeAdsorptionParameters(CharacterizeBase):
         processes: LCProcess | list[LCProcess],
         comparators: Comparator | list[Comparator],
         simulator: SimulatorBase,
+        components: str | list[str],
         is_kinetic: bool = False,
         include_steric_factor: bool = False,
         include_film_diffusion: bool = False,
         include_pore_diffusion: bool = False,
-        component_index: int | None = None,
-        components: str | list[str] | None = None,
         **kwargs: object,
     ) -> None:
         self._is_kinetic = is_kinetic
@@ -679,7 +663,7 @@ class CharacterizeAdsorptionParameters(CharacterizeBase):
         if not isinstance(processes, list):
             processes = [processes]
 
-        self._components = _component_selection(processes, components, component_index)
+        self._components = _component_selection(processes, components)
         capacity = processes[0].flow_sheet.column.binding_model.capacity
 
         for process in processes:
@@ -727,11 +711,11 @@ class CharacterizeAdsorptionParameters(CharacterizeBase):
         for prefix, ci in self._components.items():
             variables += [
                 {**variable, "name": f"{prefix}{variable['name']}"}
-                for variable in self._component_variables(ci)
+                for variable in self._component_variable_specs(ci)
             ]
         return variables
 
-    def _component_variables(self, ci: int) -> list[dict]:
+    def _component_variable_specs(self, ci: int) -> list[dict]:
         """Return the variable specifications for one fitted species."""
         k_eq_lb, k_eq_ub = 1e-3, 1.0
 
