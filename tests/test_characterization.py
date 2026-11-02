@@ -1,3 +1,5 @@
+import copy
+
 import numpy as np
 import pytest
 from CADETProcess.characterization import (
@@ -14,6 +16,7 @@ from CADETProcess.comparison import Comparator
 from CADETProcess.instruments import LWE, LCFlowSheet, PulseInjection
 from CADETProcess.processModel import (
     ComponentSystem,
+    GeneralRateModel,
     Linear,
     LumpedRateModelWithPores,
     StericMassAction,
@@ -546,3 +549,316 @@ def test_characterize_adsorption_steric_factor_off_by_default(
         "ads", lwe_process, lwe_comparator, mock_simulator,
     )
     assert "steric_factor" not in prob.variable_names
+
+
+def test_characterize_adsorption_kinetic_preserves_capacity_reference(
+    lwe_process, lwe_comparator, mock_simulator
+):
+    lwe_process.flow_sheet.column.binding_model.capacity = 540.0
+    CharacterizeAdsorptionParameters(
+        "ads", lwe_process, lwe_comparator, mock_simulator, is_kinetic=True
+    )
+    bm = lwe_process.flow_sheet.column.binding_model
+    assert bm.reference_liquid_phase_conc == pytest.approx(bm.capacity)
+    assert bm.reference_solid_phase_conc == pytest.approx(bm.capacity)
+
+
+@pytest.fixture
+def three_component_lwe_process():
+    cs = ComponentSystem(["Salt", "Monomer", "HMW"])
+    flow_sheet = LCFlowSheet(
+        cs,
+        sample_loop_volume=LOOP_VOLUME,
+        ColumnModel=LumpedRateModelWithPores,
+        BindingModel=StericMassAction,
+    )
+    bm = flow_sheet.column.binding_model
+    bm.characteristic_charge = [0.0, 5.0, 10.0]
+    bm.adsorption_rate = [0.0, 0.1, 0.1]
+    return LWE(
+        "lwe",
+        flow_sheet,
+        c_buffer_a=[20.0, 0.0, 0.0],
+        c_buffer_b=[1000.0, 0.0, 0.0],
+        c_sample=[20.0, 0.5, 0.05],
+        delta_t_wash=120.0,
+        delta_t_elute=600.0,
+        delta_t_final_wash=120.0,
+        flow_rate_wash=FLOW_RATE,
+    )
+
+
+@pytest.fixture
+def three_component_lwe_comparator(three_component_lwe_process):
+    cs = three_component_lwe_process.flow_sheet.component_system
+    time = np.linspace(0, 840, 841)
+    ref = ReferenceIO("lwe_ref", time, np.ones((841, len(cs))), flow_rate=FLOW_RATE)
+    ref.component_system = cs
+    comp = Comparator("lwe")
+    comp.add_reference(ref)
+    comp.add_difference_metric("NRMSE", ref, "column.outlet.outlet[0]")
+    return comp
+
+
+def test_characterize_adsorption_multiple_components_prefix_variables(
+    three_component_lwe_process, three_component_lwe_comparator, mock_simulator
+):
+    prob = CharacterizeAdsorptionParameters(
+        "ads",
+        three_component_lwe_process,
+        three_component_lwe_comparator,
+        mock_simulator,
+        components=["Monomer", "HMW"],
+        HMW_characteristic_charge={"ub": 40},
+    )
+    assert prob.variable_names == [
+        "Monomer_characteristic_charge",
+        "Monomer_adsorption_rate",
+        "HMW_characteristic_charge",
+        "HMW_adsorption_rate",
+    ]
+    variables = {v.name: v for v in prob.variables}
+    assert variables["HMW_characteristic_charge"].ub == 40
+    assert variables["Monomer_characteristic_charge"].ub == 9
+
+    prob.set_variables([6.0, 0.01, 30.0, 0.5])
+    bm = three_component_lwe_process.flow_sheet.column.binding_model
+    assert list(bm.characteristic_charge[1:]) == pytest.approx([6.0, 30.0])
+    assert list(bm.adsorption_rate[1:]) == pytest.approx([0.01, 0.5])
+
+
+def test_characterize_adsorption_multiple_components_kinetic_dependencies(
+    three_component_lwe_process, three_component_lwe_comparator, mock_simulator
+):
+    prob = CharacterizeAdsorptionParameters(
+        "ads",
+        three_component_lwe_process,
+        three_component_lwe_comparator,
+        mock_simulator,
+        is_kinetic=True,
+        components=["Monomer", "HMW"],
+    )
+    dep_names = {v.name for v in prob.dependent_variables}
+    assert dep_names == {
+        "Monomer_adsorption_rate",
+        "Monomer_desorption_rate",
+        "HMW_adsorption_rate",
+        "HMW_desorption_rate",
+    }
+
+
+@pytest.fixture
+def grouped_lwe_process():
+    cs = ComponentSystem(["Salt"])
+    cs.add_component("Protein", species=["Monomer", "Fragment"])
+    cs.add_component("HMW")
+    fs = LCFlowSheet(
+        cs,
+        sample_loop_volume=LOOP_VOLUME,
+        ColumnModel=GeneralRateModel,
+        BindingModel=StericMassAction,
+    )
+    bm = fs.column.binding_model
+    fs.column.film_diffusion = [7e-6] * 4
+    fs.column.pore_diffusion = [4e-10] * 4
+    fs.column.axial_dispersion = [8e-7] * 4
+    bm.capacity = 540.0
+    bm.steric_factor = [0.0] * 4
+    bm.characteristic_charge = [0.0, 5.0, 6.0, 10.0]
+    bm.adsorption_rate = [0.0, 0.1, 0.2, 0.3]
+    bm.desorption_rate = [1.0, 1.0, 1.0, 1.0]
+    return LWE(
+        "grouped_lwe",
+        fs,
+        c_buffer_a=[20.0, 0.0, 0.0, 0.0],
+        c_buffer_b=[1000.0, 0.0, 0.0, 0.0],
+        c_sample=[20.0, 0.4, 0.1, 0.05],
+        delta_t_wash=120.0,
+        delta_t_elute=600.0,
+        delta_t_final_wash=120.0,
+        flow_rate_wash=FLOW_RATE,
+    )
+
+
+@pytest.mark.parametrize(
+    "helper", [CharacterizeAdsorptionParameters, CharacterizeParticles]
+)
+def test_component_groups_fit_every_species_on_every_process(
+    helper, grouped_lwe_process, lwe_comparator, mock_simulator
+):
+    other = copy.deepcopy(grouped_lwe_process)
+    other.name = "other"
+    processes = [grouped_lwe_process, other]
+    kwargs = dict(include_film_diffusion=True, include_pore_diffusion=True)
+    if helper is CharacterizeParticles:
+        kwargs.update(include_axial_dispersion=True, include_particle_porosity=True)
+    else:
+        kwargs.update(include_steric_factor=True, is_kinetic=True)
+    prob = helper(
+        "joint",
+        processes,
+        [lwe_comparator, lwe_comparator],
+        mock_simulator,
+        components=["HMW", "Protein"],
+        Fragment_film_diffusion={"ub": 2e-4},
+        **kwargs,
+    )
+    species = ["Monomer", "Fragment", "HMW"]
+    assert prob.variables_dict["Fragment_film_diffusion"].ub == 2e-4
+    values = {}
+    for i, name in enumerate(species, start=1):
+        values[f"{name}_film_diffusion"] = i * 1e-6
+        values[f"{name}_pore_diffusion"] = i * 1e-10
+        if helper is CharacterizeParticles:
+            values[f"{name}_axial_dispersion"] = i * 1e-7
+        else:
+            values[f"{name}_characteristic_charge"] = 4.0 + i
+            values[f"{name}_steric_factor"] = 10.0 * i
+            values[f"{name}_equilibrium_constant"] = 0.1 * i
+            values[f"{name}_kinetic_constant"] = 0.01 * i
+    if helper is CharacterizeParticles:
+        assert prob.variable_names.count("particle_porosity") == 1
+        values["particle_porosity"] = 0.75
+    assert set(prob.independent_variable_names) == set(values)
+    # Selection follows component-system order, like slice_solution.
+    per_species_names = [
+        n for n in prob.independent_variable_names if n != "particle_porosity"
+    ]
+    assert per_species_names[0].startswith("Monomer_")
+    prob.set_variables([values[n] for n in prob.independent_variable_names])
+    for process in processes:
+        column = process.flow_sheet.column
+        assert list(column.film_diffusion[1:]) == pytest.approx([1e-6, 2e-6, 3e-6])
+        assert list(column.pore_diffusion[1:]) == pytest.approx([1e-10, 2e-10, 3e-10])
+        if helper is CharacterizeParticles:
+            assert list(column.axial_dispersion[1:]) == pytest.approx(
+                [1e-7, 2e-7, 3e-7]
+            )
+            assert column.particle_porosity == 0.75
+        else:
+            bm = column.binding_model
+            assert list(bm.characteristic_charge) == pytest.approx([0, 5, 6, 7])
+            assert list(bm.steric_factor[1:]) == pytest.approx([10, 20, 30])
+            assert list(bm.adsorption_rate) == pytest.approx([0, 10, 10, 10])
+            assert list(bm.desorption_rate[1:]) == pytest.approx([100, 50, 100 / 3])
+            assert bm.reference_liquid_phase_conc == 540.0
+            assert bm.reference_solid_phase_conc == 540.0
+
+
+@pytest.mark.parametrize(
+    "helper", [CharacterizeAdsorptionParameters, CharacterizeParticles]
+)
+@pytest.mark.parametrize("components", ["Protein", ["Protein"]])
+def test_component_name_expands_to_its_species(
+    helper, components, grouped_lwe_process, lwe_comparator, mock_simulator
+):
+    prob = helper(
+        "group",
+        grouped_lwe_process,
+        lwe_comparator,
+        mock_simulator,
+        components=components,
+        include_film_diffusion=True,
+    )
+    assert "Monomer_film_diffusion" in prob.variable_names
+    assert "Fragment_film_diffusion" in prob.variable_names
+    assert not any(n.startswith("HMW_") for n in prob.variable_names)
+
+
+@pytest.mark.parametrize(
+    "helper", [CharacterizeAdsorptionParameters, CharacterizeParticles]
+)
+@pytest.mark.parametrize(
+    "components, message",
+    [
+        ([], "distinct"),
+        (["Protein", "Protein"], "distinct"),
+        (["Missing"], "Unknown components"),
+        (["Monomer"], "Unknown components"),
+    ],
+)
+def test_invalid_component_selection_is_rejected(
+    helper, components, message, grouped_lwe_process, lwe_comparator, mock_simulator
+):
+    with pytest.raises(ValueError, match=message):
+        helper(
+            "invalid",
+            grouped_lwe_process,
+            lwe_comparator,
+            mock_simulator,
+            components=components,
+            include_film_diffusion=True,
+        )
+
+
+@pytest.mark.parametrize(
+    "helper", [CharacterizeAdsorptionParameters, CharacterizeParticles]
+)
+def test_selection_arguments_are_mutually_exclusive(
+    helper, grouped_lwe_process, lwe_comparator, mock_simulator
+):
+    with pytest.raises(ValueError, match="not both"):
+        helper(
+            "invalid",
+            grouped_lwe_process,
+            lwe_comparator,
+            mock_simulator,
+            components=["Protein"],
+            component_index=1,
+            include_film_diffusion=True,
+        )
+
+
+@pytest.mark.parametrize(
+    "helper", [CharacterizeAdsorptionParameters, CharacterizeParticles]
+)
+@pytest.mark.parametrize("mismatch", ["names", "indices"])
+def test_named_selection_rejects_misaligned_process_species(
+    helper, mismatch, grouped_lwe_process, lwe_comparator, mock_simulator
+):
+    other = copy.deepcopy(grouped_lwe_process)
+    other.name = "other"
+    if mismatch == "names":
+        other.component_system.components_dict["Protein"].species[
+            0
+        ].name = "OtherMonomer"
+    else:
+        other.component_system.remove_component("Salt")
+        other.component_system.add_component("Salt")
+    with pytest.raises(ValueError, match="same names and indices"):
+        helper(
+            "invalid",
+            [grouped_lwe_process, other],
+            [lwe_comparator, lwe_comparator],
+            mock_simulator,
+            components=["Protein"],
+            include_film_diffusion=True,
+        )
+
+
+@pytest.mark.parametrize(
+    "helper", [CharacterizeAdsorptionParameters, CharacterizeParticles]
+)
+def test_legacy_index_selection_keeps_unprefixed_names_and_target(
+    helper, grouped_lwe_process, lwe_comparator, mock_simulator
+):
+    prob = helper(
+        "legacy",
+        grouped_lwe_process,
+        lwe_comparator,
+        mock_simulator,
+        component_index=3,
+        include_film_diffusion=True,
+    )
+    assert "film_diffusion" in prob.variable_names
+    assert not any(name.startswith("HMW_") for name in prob.variable_names)
+    values = {
+        name: 5.0 if name == "characteristic_charge" else 0.1
+        for name in prob.independent_variable_names
+    }
+    values["film_diffusion"] = 4e-6
+    before = list(grouped_lwe_process.flow_sheet.column.film_diffusion)
+    prob.set_variables([values[name] for name in prob.independent_variable_names])
+    actual = grouped_lwe_process.flow_sheet.column.film_diffusion
+    assert list(actual[:3]) == before[:3]
+    assert actual[3] == 4e-6

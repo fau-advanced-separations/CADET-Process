@@ -207,18 +207,18 @@ In practice, fitting many transport parameters simultaneously requires sufficien
 `pore_diffusion` is only meaningful for {class}`~CADETProcess.processModel.GeneralRateModel` columns; for {class}`~CADETProcess.processModel.LumpedRateModelWithPores`, only the remaining parameters should be fitted.
 
 ```{code-cell} ipython3
-:tags: [skip-execution]
-
 from CADETProcess.characterization import CharacterizeParticles
+from CADETProcess.simulator import Cadet
+
+simulator = Cadet()
 
 char = CharacterizeParticles(
     "particles", process, comparator, simulator,
     include_particle_porosity=True,
     include_film_diffusion=True,
-    component_index=0,
+    components=["Salt"],
 )
-print(char.variable_names)
-# ['particle_porosity', 'film_diffusion']
+assert char.variable_names == ["particle_porosity", "Salt_film_diffusion"]
 ```
 
 
@@ -253,11 +253,20 @@ two optimization variables (`equilibrium_constant` and `kinetic_constant`) drive
 and `desorption_rate` as dependent variables through the relations
 $k_\text{ads} = K_\text{eq} / k_\text{kin}$ and $k_\text{des} = 1 / k_\text{kin}$,
 which enforces $K_\text{eq} = k_\text{ads} / k_\text{des}$ by construction.
+Kinetic mode sets both SMA reference concentrations to the capacity of the first process, preserving the existing meaning of the kinetic constant.
 A Pareto-front selector picks the best individual by summing objectives.
 
-```{code-cell} ipython3
-:tags: [skip-execution]
+Pass `components=["Protein"]` to fit named components.
+Every species belonging to a selected component receives separate fitting variables, in component-system order, even when the comparator sums those species into one measured signal.
+Variable names are prefixed with the species name, and per-variable overrides such as `Protein_characteristic_charge={"ub": 12}` set bounds per species.
+The same named selection is available in `CharacterizeParticles`; its particle porosity remains one shared variable.
+Selected species must have the same names and array positions in every process; incompatible layouts raise `ValueError` instead of fitting the wrong entries.
+Empty, duplicate and unknown component selections also raise `ValueError`.
 
+Legacy `component_index=1` calls retain their unprefixed names, and omitting both arguments retains index 0.
+Passing both `components` and `component_index` raises `ValueError`.
+
+```{code-cell} ipython3
 from CADETProcess.processModel import StericMassAction
 from CADETProcess.characterization import CharacterizeAdsorptionParameters
 
@@ -278,10 +287,9 @@ lwe = LWE(
 char = CharacterizeAdsorptionParameters(
     "sma", lwe, comparator, simulator,
     is_kinetic=False,
-    component_index=1,
+    components=["Protein"],
 )
-print(char.variable_names)
-# ['characteristic_charge', 'adsorption_rate']
+assert char.variable_names == ["Protein_characteristic_charge", "Protein_adsorption_rate"]
 ```
 
 
@@ -311,7 +319,7 @@ comparators = setup_comparators(
 
 char = CharacterizeAdsorptionParameters(
     "sma_multi", processes, comparators, simulator,
-    component_index=1,
+    components=["Protein"],
 )
 ```
 

@@ -113,6 +113,46 @@ def setup_comparators(
     return comparators
 
 
+def _component_selection(
+    processes: list[LCProcess],
+    components: str | list[str] | None,
+    component_index: int | None,
+) -> dict[str, int]:
+    """Resolve component groups to species prefixes and shared array positions."""
+    if not processes:
+        raise ValueError("Supply at least one process.")
+    if components is None:
+        return {"": 0 if component_index is None else component_index}
+    if component_index is not None:
+        raise ValueError("Specify either components or component_index, not both.")
+    if isinstance(components, str):
+        components = [components]
+    if not components or len(set(components)) != len(components):
+        raise ValueError("components must contain distinct component names.")
+
+    selections = []
+    for process in processes:
+        cs = process.component_system
+        unknown = set(components) - set(cs.names)
+        if unknown:
+            raise ValueError(f"Unknown components in {process.name}: {sorted(unknown)}")
+        indices = [
+            index
+            for name, positions in cs.indices.items()
+            if name in components
+            for index in positions
+        ]
+        prefixes = [f"{cs.species[index]}_" for index in indices]
+        if len(set(prefixes)) != len(prefixes):
+            raise ValueError("Selected species must have unique names.")
+        selections.append(dict(zip(prefixes, indices)))
+    if any(selection != selections[0] for selection in selections[1:]):
+        raise ValueError(
+            "Selected species must have the same names and indices in every process."
+        )
+    return selections[0]
+
+
 class CharacterizeBase(OptimizationProblem):
     """
     Base class for LC system characterization optimization problems.
@@ -417,16 +457,24 @@ class CharacterizeParticles(CharacterizeBase):
     simulator : SimulatorBase
         Configured simulator instance.
     include_axial_dispersion : bool
-        Fit axial dispersion for ``component_index``.
+        Fit axial dispersion for each selected species.
     include_particle_porosity : bool
         Fit particle porosity (scalar).
     include_film_diffusion : bool
-        Fit film diffusion coefficient for ``component_index``.
+        Fit film diffusion coefficient for each selected species.
     include_pore_diffusion : bool
-        Fit pore diffusion coefficient for ``component_index``.
-    component_index : int
-        Column index in parameter arrays for per-component transport parameters.
-        Default 0.
+        Fit pore diffusion coefficient for each selected species.
+    component_index : int, optional
+        Legacy selection of one array index with unprefixed variable names.
+        Defaults to index 0 when neither selection argument is given.
+        Cannot be combined with ``components``.
+    components : str or list[str], optional
+        Component names to fit. Includes every species of each component,
+        in component-system order, with species-prefixed variable names.
+        Per-variable overrides use those names, e.g. ``Protein_film_diffusion``.
+        Particle porosity remains one shared, unprefixed variable.
+        Selected species must have the same names and array positions in every
+        process. Empty, duplicate or unknown component selections raise ValueError.
     **kwargs
         Per-variable override dicts and remaining keyword arguments forwarded
         to :class:`CharacterizeBase`.
@@ -447,14 +495,17 @@ class CharacterizeParticles(CharacterizeBase):
         include_particle_porosity: bool = False,
         include_film_diffusion: bool = False,
         include_pore_diffusion: bool = False,
-        component_index: int = 0,
+        component_index: int | None = None,
+        components: str | list[str] | None = None,
         **kwargs: object,
     ) -> None:
         self._include_axial_dispersion = include_axial_dispersion
         self._include_particle_porosity = include_particle_porosity
         self._include_film_diffusion = include_film_diffusion
         self._include_pore_diffusion = include_pore_diffusion
-        self._component_index = component_index
+        if not isinstance(processes, list):
+            processes = [processes]
+        self._components = _component_selection(processes, components, component_index)
         super().__init__(
             name=name,
             processes=processes,
@@ -464,49 +515,65 @@ class CharacterizeParticles(CharacterizeBase):
         )
 
     def _default_variables(self) -> list[dict]:
-        ci = self._component_index
         variables = []
-        if self._include_axial_dispersion:
-            variables.append({
-                "name": "axial_dispersion",
-                "parameter_path": "flow_sheet.column.axial_dispersion",
-                "lb": 1e-9,
-                "ub": 1e-5,
-                "indices": [ci],
-                "transform": "auto",
-            })
+        for prefix, ci in self._components.items():
+            variables.extend(
+                {**variable, "name": f"{prefix}{variable['name']}"}
+                for variable in self._component_variables(ci)
+            )
         if self._include_particle_porosity:
-            variables.append({
+            porosity = {
                 "name": "particle_porosity",
                 "parameter_path": "flow_sheet.column.particle_porosity",
                 "lb": 0.6,
                 "ub": 0.9,
                 "transform": "auto",
-            })
-        if self._include_film_diffusion:
-            variables.append({
-                "name": "film_diffusion",
-                "parameter_path": "flow_sheet.column.film_diffusion",
-                "lb": 1e-7,
-                "ub": 1e-3,
-                "indices": [ci],
-                "transform": "auto",
-            })
-        if self._include_pore_diffusion:
-            variables.append({
-                "name": "pore_diffusion",
-                "parameter_path": "flow_sheet.column.pore_diffusion",
-                "lb": 1e-12,
-                "ub": 1e-6,
-                "indices": [ci],
-                "transform": "auto",
-            })
-
+            }
+            # Preserve the legacy order: dispersion, porosity, then diffusion.
+            variables.insert(int(self._include_axial_dispersion), porosity)
         if not variables:
             raise ValueError(
                 "Specify at least one of: include_axial_dispersion, "
                 "include_particle_porosity, include_film_diffusion, "
                 "include_pore_diffusion."
+            )
+        return variables
+
+    def _component_variables(self, ci: int) -> list[dict]:
+        """Return transport variable specifications for one species."""
+        variables = []
+        if self._include_axial_dispersion:
+            variables.append(
+                {
+                    "name": "axial_dispersion",
+                    "parameter_path": "flow_sheet.column.axial_dispersion",
+                    "lb": 1e-9,
+                    "ub": 1e-5,
+                    "indices": [ci],
+                    "transform": "auto",
+                }
+            )
+        if self._include_film_diffusion:
+            variables.append(
+                {
+                    "name": "film_diffusion",
+                    "parameter_path": "flow_sheet.column.film_diffusion",
+                    "lb": 1e-7,
+                    "ub": 1e-3,
+                    "indices": [ci],
+                    "transform": "auto",
+                }
+            )
+        if self._include_pore_diffusion:
+            variables.append(
+                {
+                    "name": "pore_diffusion",
+                    "parameter_path": "flow_sheet.column.pore_diffusion",
+                    "lb": 1e-12,
+                    "ub": 1e-6,
+                    "indices": [ci],
+                    "transform": "auto",
+                }
             )
 
         return variables
@@ -570,13 +637,21 @@ class CharacterizeAdsorptionParameters(CharacterizeBase):
         Use kinetic (True) or rapid-equilibrium (False) binding mode.
         Default False.
     include_steric_factor : bool
-        Also fit the steric factor for ``component_index``. Default False.
+        Also fit the steric factor of each fitted species. Default False.
     include_film_diffusion : bool
-        Also fit film diffusion for ``component_index``. Default False.
+        Also fit film diffusion of each fitted species. Default False.
     include_pore_diffusion : bool
-        Also fit pore diffusion for ``component_index``. Default False.
-    component_index : int
-        Column index in parameter arrays. Default 0.
+        Also fit pore diffusion of each fitted species. Default False.
+    component_index : int, optional
+        Legacy selection of one array index with unprefixed variable names.
+        Defaults to index 0 when neither selection argument is given.
+        Cannot be combined with ``components``.
+    components : str or list[str], optional
+        Component names to fit. Includes every species of each component,
+        in component-system order, with species-prefixed variable names.
+        Per-variable overrides use those names, e.g. ``Protein_characteristic_charge``.
+        Selected species must have the same names and array positions in every
+        process. Empty, duplicate or unknown component selections raise ValueError.
     **kwargs
         Per-variable override dicts and remaining keyword arguments forwarded
         to :class:`CharacterizeBase`.
@@ -592,27 +667,27 @@ class CharacterizeAdsorptionParameters(CharacterizeBase):
         include_steric_factor: bool = False,
         include_film_diffusion: bool = False,
         include_pore_diffusion: bool = False,
-        component_index: int = 0,
+        component_index: int | None = None,
+        components: str | list[str] | None = None,
         **kwargs: object,
     ) -> None:
         self._is_kinetic = is_kinetic
         self._include_steric_factor = include_steric_factor
         self._include_film_diffusion = include_film_diffusion
         self._include_pore_diffusion = include_pore_diffusion
-        self._component_index = component_index
 
         if not isinstance(processes, list):
             processes = [processes]
 
-        binding_model = processes[0].flow_sheet.column.binding_model
-        lambda_ = binding_model.capacity
+        self._components = _component_selection(processes, components, component_index)
+        capacity = processes[0].flow_sheet.column.binding_model.capacity
 
         for process in processes:
             bm = process.flow_sheet.column.binding_model
             bm.is_kinetic = is_kinetic
             if is_kinetic:
-                bm.reference_liquid_phase_conc = lambda_
-                bm.reference_solid_phase_conc = lambda_
+                bm.reference_liquid_phase_conc = capacity
+                bm.reference_solid_phase_conc = capacity
             else:
                 bm.desorption_rate = 1
 
@@ -625,16 +700,20 @@ class CharacterizeAdsorptionParameters(CharacterizeBase):
         )
 
         if is_kinetic:
-            self.add_variable_dependency(
-                dependent_variable="desorption_rate",
-                independent_variables=["kinetic_constant"],
-                transform=lambda k_kin: 1 / k_kin,
-            )
-            self.add_variable_dependency(
-                dependent_variable="adsorption_rate",
-                independent_variables=["kinetic_constant", "equilibrium_constant"],
-                transform=lambda k_kin, k_eq: k_eq / k_kin,
-            )
+            for prefix in self._components:
+                self.add_variable_dependency(
+                    dependent_variable=f"{prefix}desorption_rate",
+                    independent_variables=[f"{prefix}kinetic_constant"],
+                    transform=lambda k_kin: 1 / k_kin,
+                )
+                self.add_variable_dependency(
+                    dependent_variable=f"{prefix}adsorption_rate",
+                    independent_variables=[
+                        f"{prefix}kinetic_constant",
+                        f"{prefix}equilibrium_constant",
+                    ],
+                    transform=lambda k_kin, k_eq: k_eq / k_kin,
+                )
 
             def _select_best(pareto_population: object) -> object:
                 f_sum = np.sum(pareto_population.f_minimized, axis=1)
@@ -644,7 +723,16 @@ class CharacterizeAdsorptionParameters(CharacterizeBase):
             self.add_multi_criteria_decision_function(_select_best)
 
     def _default_variables(self) -> list[dict]:
-        ci = self._component_index
+        variables = []
+        for prefix, ci in self._components.items():
+            variables += [
+                {**variable, "name": f"{prefix}{variable['name']}"}
+                for variable in self._component_variables(ci)
+            ]
+        return variables
+
+    def _component_variables(self, ci: int) -> list[dict]:
+        """Return the variable specifications for one fitted species."""
         k_eq_lb, k_eq_ub = 1e-3, 1.0
 
         variables = [
@@ -661,28 +749,30 @@ class CharacterizeAdsorptionParameters(CharacterizeBase):
         ]
 
         if self._include_steric_factor:
-            variables.append({
-                "name": "steric_factor",
-                "parameter_path": (
-                    "flow_sheet.column.binding_model.steric_factor"
-                ),
-                "lb": 0.0,
-                "ub": 200.0,
-                "indices": [ci],
-                "transform": "auto",
-            })
+            variables.append(
+                {
+                    "name": "steric_factor",
+                    "parameter_path": ("flow_sheet.column.binding_model.steric_factor"),
+                    "lb": 0.0,
+                    "ub": 200.0,
+                    "indices": [ci],
+                    "transform": "auto",
+                }
+            )
 
         if not self._is_kinetic:
-            variables.append({
-                "name": "adsorption_rate",
-                "parameter_path": (
-                    "flow_sheet.column.binding_model.adsorption_rate"
-                ),
-                "lb": k_eq_lb,
-                "ub": k_eq_ub,
-                "indices": [ci],
-                "transform": "auto",
-            })
+            variables.append(
+                {
+                    "name": "adsorption_rate",
+                    "parameter_path": (
+                        "flow_sheet.column.binding_model.adsorption_rate"
+                    ),
+                    "lb": k_eq_lb,
+                    "ub": k_eq_ub,
+                    "indices": [ci],
+                    "transform": "auto",
+                }
+            )
         else:
             variables += [
                 {
@@ -716,22 +806,26 @@ class CharacterizeAdsorptionParameters(CharacterizeBase):
             ]
 
         if self._include_film_diffusion:
-            variables.append({
-                "name": "film_diffusion",
-                "parameter_path": "flow_sheet.column.film_diffusion",
-                "lb": 1e-7,
-                "ub": 1e-4,
-                "indices": [ci],
-                "transform": "auto",
-            })
+            variables.append(
+                {
+                    "name": "film_diffusion",
+                    "parameter_path": "flow_sheet.column.film_diffusion",
+                    "lb": 1e-7,
+                    "ub": 1e-4,
+                    "indices": [ci],
+                    "transform": "auto",
+                }
+            )
         if self._include_pore_diffusion:
-            variables.append({
-                "name": "pore_diffusion",
-                "parameter_path": "flow_sheet.column.pore_diffusion",
-                "lb": 1e-12,
-                "ub": 1e-6,
-                "indices": [ci],
-                "transform": "auto",
-            })
+            variables.append(
+                {
+                    "name": "pore_diffusion",
+                    "parameter_path": "flow_sheet.column.pore_diffusion",
+                    "lb": 1e-12,
+                    "ub": 1e-6,
+                    "indices": [ci],
+                    "transform": "auto",
+                }
+            )
 
         return variables
