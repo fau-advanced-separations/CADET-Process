@@ -78,6 +78,19 @@ class TestAddDifferenceMetric:
             comparator.add_difference_metric(42, SOLUTION_PATH)
 
 
+def test_add_reference_stores_smoothed_reference(comparator):
+    rng = np.random.default_rng(0)
+    noisy = _signal + 0.002 * rng.standard_normal(_signal.shape)
+    reference = ReferenceIO("noisy", _time, noisy, component_system=_component_system)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        comparator.add_reference(reference, smooth=True)
+
+    stored = comparator.references["noisy"].solution
+    assert np.abs(stored - _signal).max() < np.abs(noisy - _signal).max()
+
+
 class TestEvaluate:
     def test_sse_identical_signals_is_zero(self, comparator, metric, simulation_results):
         comparator.add_difference_metric(metric, SOLUTION_PATH)

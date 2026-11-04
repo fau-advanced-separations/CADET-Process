@@ -91,7 +91,7 @@ class Comparator(Structure):
 
         reference = copy.deepcopy(reference)
         if smooth:
-            reference.smooth_data()
+            reference = reference.smooth_data()
 
         self.references[reference.name] = reference
 
