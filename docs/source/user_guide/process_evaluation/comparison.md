@@ -103,7 +103,10 @@ Both detect peaks separately for each selected component after windowing and com
 By default, detection min-max normalizes each trace and requires a prominence of 0.5; if no peak qualifies, it uses the trace's maximum, including for a flat trace.
 `PeakHeight(find_minima=True)` detects minima instead and falls back to the trace's minimum.
 The metrics pair detected peaks chronologically within each component.
-They currently compare only as many pairs as the smaller peak count allows, so missing or additional peaks can change correspondence or produce fewer scores than `n_metrics`.
+If the reference and simulation have different detected peak counts in any selected component, evaluation raises `CADETProcessError` with the component and both counts.
+This check applies to normalized and unnormalized scores, and {class}`~CADETProcess.comparison.Comparator` propagates the error.
+When used as an optimization objective, the failed evaluation receives the objective's configured `bad_metrics` with its declared dimension.
+Equal detected counts still do not establish that the paired peaks have the same physical identity.
 Use these metrics only where the detected peaks have a known correspondence; component selection and time windows can help isolate the intended peak.
 
 By default, both metrics apply a bounded sigmoid distance, using each reference peak's time or height as its normalization factor.

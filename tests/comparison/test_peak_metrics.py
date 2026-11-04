@@ -2,7 +2,10 @@
 
 import numpy as np
 import pytest
+from CADETProcess import CADETProcessError
 from CADETProcess.comparison import Comparator, PeakHeight, PeakPosition
+from CADETProcess.evaluation_pipeline import EvaluationFailure
+from CADETProcess.optimization import OptimizationProblem
 from CADETProcess.processModel import ComponentSystem, FlowSheet, Outlet, Process
 from CADETProcess.reference import ReferenceIO
 from CADETProcess.simulationResults import SimulationResults
@@ -30,6 +33,107 @@ def unequal_peak_components():
         ReferenceIO("reference", time, reference, component_system=components),
         ReferenceIO("simulation", time, simulation, component_system=components),
     )
+
+
+@pytest.fixture(params=["missing_first", "missing_last", "extra", "same_total"])
+def mismatched_peak_components(request, unequal_peak_components):
+    reference, _ = unequal_peak_components
+    time = reference.time
+    values = reference.solution.copy()
+    if request.param == "missing_first":
+        values[time < 40, 0] = 0
+    elif request.param == "missing_last":
+        values[time > 50, 0] = 0
+    elif request.param == "extra":
+        values[:, 0] += 2 * np.maximum(1 - np.abs(time - 90) / 2, 0)
+    else:
+        # Total counts still agree: A loses a peak while B gains one.
+        values[time < 40, 0] = 0
+        values[:, 1] += 4 * np.maximum(1 - np.abs(time - 80) / 2, 0)
+    simulation = ReferenceIO(
+        "mismatched", time, values, component_system=reference.component_system
+    )
+    return reference, simulation, 3 if request.param == "extra" else 1
+
+
+@pytest.fixture
+def peak_simulation_results(unequal_peak_components):
+    _, simulation = unequal_peak_components
+    flow_sheet = FlowSheet(simulation.component_system)
+    flow_sheet.add_unit(Outlet(simulation.component_system, "outlet"))
+    process = Process(flow_sheet, "synthetic")
+    process.cycle_time = 100
+    return SimulationResults(
+        "synthetic",
+        {},
+        0,
+        "",
+        0,
+        process,
+        {"outlet": {"outlet": [simulation]}},
+        {},
+        {},
+        [],
+    )
+
+
+@pytest.mark.parametrize("metric_type", [PeakPosition, PeakHeight])
+@pytest.mark.parametrize("normalize_metrics", [False, True])
+def test_unequal_peak_counts_raise_with_component_and_counts(
+    mismatched_peak_components, metric_type, normalize_metrics
+):
+    reference, simulation, count = mismatched_peak_components
+    metric = metric_type(reference, resample=False, normalize_metrics=normalize_metrics)
+
+    with pytest.raises(CADETProcessError) as error:
+        metric.evaluate(simulation)
+
+    assert str(error.value) == (
+        f"Peak count mismatch for component 0 ('A'): reference=2, simulation={count}."
+    )
+
+
+@pytest.mark.parametrize("metric_type", [PeakPosition, PeakHeight])
+def test_peak_count_check_includes_later_components(
+    unequal_peak_components, metric_type
+):
+    reference, _ = unequal_peak_components
+    values = reference.solution.copy()
+    values[:, 1] += 4 * np.maximum(1 - np.abs(reference.time - 80) / 2, 0)
+    simulation = ReferenceIO(
+        "extra B peak",
+        reference.time,
+        values,
+        component_system=reference.component_system,
+    )
+
+    with pytest.raises(CADETProcessError) as error:
+        metric_type(reference, resample=False).evaluate(simulation)
+
+    assert str(error.value) == (
+        "Peak count mismatch for component 1 ('B'): reference=1, simulation=2."
+    )
+
+
+@pytest.mark.parametrize("metric_type", [PeakPosition, PeakHeight])
+def test_windowed_peak_counts_ignore_unmatched_peaks_outside_the_window(
+    unequal_peak_components, metric_type
+):
+    reference, _ = unequal_peak_components
+    values = reference.solution.copy()
+    values[reference.time < 40, 0] = 0
+    simulation = ReferenceIO(
+        "late peak only",
+        reference.time,
+        values,
+        component_system=reference.component_system,
+    )
+    metric = metric_type(reference, components=["A"], start=50, end=90, resample=False)
+
+    scores = metric.evaluate(simulation)
+
+    assert scores.shape == (metric.n_metrics,) == (1,)
+    np.testing.assert_allclose(scores, [0])
 
 
 @pytest.mark.parametrize(
@@ -145,30 +249,47 @@ def test_position_factors_follow_selected_reference_components(
     ],
 )
 def test_comparator_retains_peak_score_values_and_declared_layout(
-    unequal_peak_components, metric_type, factors, expected
+    unequal_peak_components, peak_simulation_results, metric_type, factors, expected
 ):
-    reference, simulation = unequal_peak_components
-    flow_sheet = FlowSheet(simulation.component_system)
-    flow_sheet.add_unit(Outlet(simulation.component_system, "outlet"))
-    process = Process(flow_sheet, "synthetic")
-    process.cycle_time = 100
-    results = SimulationResults(
-        "synthetic",
-        {},
-        0,
-        "",
-        0,
-        process,
-        {"outlet": {"outlet": [simulation]}},
-        {},
-        {},
-        [],
-    )
+    reference, _ = unequal_peak_components
     metric = metric_type(reference, normalization_factor=factors, resample=False)
     comparator = Comparator()
     comparator.add_difference_metric(metric, "outlet.outlet")
 
-    scores = comparator.evaluate(results)
+    scores = comparator.evaluate(peak_simulation_results)
 
     assert len(scores) == comparator.n_metrics == 3
     np.testing.assert_allclose(scores, expected)
+
+
+@pytest.mark.parametrize("metric_type", [PeakPosition, PeakHeight])
+def test_peak_count_failure_propagates_through_comparator_and_optimizer(
+    mismatched_peak_components, peak_simulation_results, metric_type
+):
+    reference, simulation, count = mismatched_peak_components
+    peak_simulation_results.solution_cycles["outlet"]["outlet"] = [simulation]
+    metric = metric_type(reference, resample=False)
+    comparator = Comparator()
+    comparator.add_difference_metric(metric, "outlet.outlet")
+
+    with pytest.raises(CADETProcessError, match="Peak count mismatch"):
+        comparator.evaluate(peak_simulation_results)
+
+    problem = OptimizationProblem("peak_counts", use_diskcache=False)
+    problem.add_evaluation_object(peak_simulation_results)
+    problem.add_variable("x", targets=None, lb=0, ub=1)
+    # Distinct finite fallback scores make dimension and ordering observable.
+    bad_metrics = [101, 102, 103]
+    problem.add_objective(
+        comparator,
+        name="peaks",
+        n_objectives=comparator.n_metrics,
+        bad_metrics=bad_metrics,
+    )
+
+    failure = problem.evaluate({"x": 0.5})["peaks"]
+    assert isinstance(failure, EvaluationFailure)
+    assert f"reference=2, simulation={count}" in failure.reason
+    scores = problem.evaluate_objectives([0.5])
+    assert np.asarray(scores).size == comparator.n_metrics == 3
+    np.testing.assert_allclose(np.asarray(scores).ravel(), bad_metrics)
