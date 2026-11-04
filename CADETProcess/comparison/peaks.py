@@ -92,11 +92,12 @@ def find_breakthroughs(
     for i in range(solution.component_system.n_comp):
         sol = solution.solution[:, i].copy()
 
-        breakthrough_indices = np.where(sol > threshold * np.max(sol))[0][0]
+        breakthrough_indices = np.where(sol > threshold * np.max(sol))[0]
         if len(breakthrough_indices) == 0:
             breakthrough_indices = [np.argmax(sol)]
-        time = solution.time[breakthrough_indices]
-        breakthrough_height = solution_original.solution[breakthrough_indices, i]
+        breakthrough_index = breakthrough_indices[0]
+        time = solution.time[breakthrough_index]
+        breakthrough_height = solution_original.solution[breakthrough_index, i]
 
         breakthrough.append((time, breakthrough_height))
 
