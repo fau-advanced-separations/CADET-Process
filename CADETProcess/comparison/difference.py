@@ -797,6 +797,10 @@ class PeakHeight(DifferenceBase):
     """
     Absolute difference in peak height difference metric.
 
+    Peaks are paired chronologically within each component.
+    Evaluation raises ``CADETProcessError`` if the reference and simulation have
+    different detected peak counts for any selected component.
+
     Attributes
     ----------
     find_minima : bool
@@ -878,6 +882,16 @@ class PeakHeight(DifferenceBase):
         """
         solution_peaks = find_peaks(solution, find_minima=self.find_minima)
 
+        for i in range(self.reference.n_comp):
+            reference_count = len(self.reference_peaks[i])
+            solution_count = len(solution_peaks[i])
+            if reference_count != solution_count:
+                component = self.reference.component_system.species[i]
+                raise CADETProcessError(
+                    f"Peak count mismatch for component {i} ({component!r}): "
+                    f"reference={reference_count}, simulation={solution_count}."
+                )
+
         if self.normalize_metrics:
             score = [
                 sigmoid_distance(sol[1], ref[1], factor)
@@ -901,6 +915,10 @@ class PeakHeight(DifferenceBase):
 class PeakPosition(DifferenceBase):
     """
     Absolute difference in peak position.
+
+    Peaks are paired chronologically within each component.
+    Evaluation raises ``CADETProcessError`` if the reference and simulation have
+    different detected peak counts for any selected component.
 
     Attributes
     ----------
@@ -983,6 +1001,16 @@ class PeakPosition(DifferenceBase):
             The difference in peak position.
         """
         solution_peaks = find_peaks(solution)
+
+        for i in range(self.reference.n_comp):
+            reference_count = len(self.reference_peaks[i])
+            solution_count = len(solution_peaks[i])
+            if reference_count != solution_count:
+                component = self.reference.component_system.species[i]
+                raise CADETProcessError(
+                    f"Peak count mismatch for component {i} ({component!r}): "
+                    f"reference={reference_count}, simulation={solution_count}."
+                )
 
         if self.normalize_metrics:
             score = [
