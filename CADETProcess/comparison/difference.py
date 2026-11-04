@@ -455,9 +455,9 @@ class Norm(DifferenceBase):
 
     order = UnsignedInteger()
 
-    def _evaluate(self, solution: SolutionBase) -> float:
+    def _evaluate(self, solution: SolutionBase) -> np.ndarray:
         norm = np.linalg.norm(
-            (solution.solution - self.reference.solution), ord=self.order
+            (solution.solution - self.reference.solution), ord=self.order, axis=0
         )
 
         return norm
