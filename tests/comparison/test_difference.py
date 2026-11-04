@@ -1,6 +1,7 @@
 import unittest
 
 import numpy as np
+import pytest
 from CADETProcess import CADETProcessError
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess.reference import ReferenceIO
@@ -112,6 +113,28 @@ class TestNRMSE(unittest.TestCase):
         metrics_expected = [0.33469097]
         metrics = difference.evaluate(solution)
         np.testing.assert_almost_equal(metrics, metrics_expected)
+
+
+from CADETProcess.comparison import L1, L2
+
+
+@pytest.mark.parametrize("metric_type, expected", [(L1, [5, 2]), (L2, [np.sqrt(5), 2])])
+def test_norm_scores_each_component(metric_type, expected):
+    """Component A differs by 1 at every point, B by 2 at a single point."""
+    norm_time = np.linspace(0, 4, 5)
+    reference = ReferenceIO(
+        "reference", norm_time, np.zeros((norm_time.size, 2)), component_system=comp_2
+    )
+    values = np.zeros((norm_time.size, 2))
+    values[:, 0] = 1
+    values[1, 1] = 2
+    simulation = ReferenceIO("simulation", norm_time, values, component_system=comp_2)
+    metric = metric_type(reference, resample=False)
+
+    scores = metric.evaluate(simulation)
+
+    assert metric.n_metrics == 2
+    np.testing.assert_allclose(scores, expected)
 
 
 class TestNormalizeFlatTrace(unittest.TestCase):
