@@ -137,6 +137,15 @@ def test_norm_scores_each_component(metric_type, expected):
     np.testing.assert_allclose(scores, expected)
 
 
+def test_smoothed_sse_scores_zero_against_itself():
+    reference = ReferenceIO(
+        "reference", time, solution_2_gaussian, component_system=comp_2
+    )
+    metric = SSE(reference, smooth=True)
+
+    np.testing.assert_allclose(metric.evaluate(reference), [0, 0], atol=1e-12)
+
+
 class TestNormalizeFlatTrace(unittest.TestCase):
     def test_flat_solution_normalizes_to_zero(self):
         """A flat solution (e.g. protein never elutes) must not produce NaN.

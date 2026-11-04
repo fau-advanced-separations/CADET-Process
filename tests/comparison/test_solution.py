@@ -335,7 +335,17 @@ class TestSolution(unittest.TestCase):
         pass
 
     def test_smoothing(self):
-        pass
+        rng = np.random.default_rng(0)
+        noise = 0.002 * rng.standard_normal(solution_2_gaussian.shape)
+        noisy = SolutionIO("noisy", comp_2, time, solution_2_gaussian + noise, q_const)
+
+        smoothed = noisy.smooth_data()
+
+        self.assertIsInstance(smoothed, SolutionIO)
+        np.testing.assert_array_equal(noisy.solution, solution_2_gaussian + noise)
+        error_noisy = np.abs(noisy.solution - solution_2_gaussian).max(axis=0)
+        error_smoothed = np.abs(smoothed.solution - solution_2_gaussian).max(axis=0)
+        np.testing.assert_array_less(error_smoothed, error_noisy)
 
     def test_fraction_volume(self):
         volume_expected = 0
