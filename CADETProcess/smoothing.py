@@ -55,7 +55,7 @@ class TargetProblem(ElementwiseProblem):
         *args: Optional[tuple],
         **kwargs: Optional[dict],
     ) -> None:
-        crit_fs = 10**crit_fs
+        crit_fs = 10.0 ** crit_fs[0]
         try:
             sos = self.func(crit_fs, self.fs)
             low_passed = scipy.signal.sosfiltfilt(sos, self.values)
@@ -115,9 +115,9 @@ class MaxDistance(ElementwiseProblem):
 
         pT = np.array([crit_fs - self.x_min, np.log(sse) - self.y_min]).T / self.factor
 
-        d = np.cross(self.p2 - self.p1, self.p1 - pT) / np.linalg.norm(
-            self.p2 - self.p1
-        )
+        # z-component of the 2D cross product; np.cross rejects 2D vectors.
+        a, b = self.p2 - self.p1, self.p1 - pT
+        d = (a[0] * b[..., 1] - a[1] * b[..., 0]) / np.linalg.norm(a)
         out["F"] = -d
 
 
@@ -190,7 +190,9 @@ def find_L(x: npt.ArrayLike, y: npt.ArrayLike) -> tuple[float, float]:
     # otherwise return none to just turn off butter filter
     x, x_min, y, y_min, p1, p2, p3, factor = get_p(x, y)
 
-    d = np.cross(p2 - p1, p1 - p3) / np.linalg.norm(p2 - p1)
+    # z-component of the 2D cross product; np.cross rejects 2D vectors.
+    a, b = p2 - p1, p1 - p3
+    d = (a[0] * b[..., 1] - a[1] * b[..., 0]) / np.linalg.norm(a)
 
     max_idx = np.argmax(d)
     max_d = d[max_idx]

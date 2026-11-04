@@ -457,14 +457,14 @@ class SolutionIO(SolutionBase):
         elif len(crit_fs_der) == 1:
             crit_fs_der = self.n_comp * crit_fs_der
 
-        solution = np.zeros((self.solution.shape))
+        smoothed = np.zeros((self.solution.shape))
         for i, (s, crit_fs, crit_fs_der) in enumerate(zip(s, crit_fs, crit_fs_der)):
             smooth, smooth_der = smoothing.full_smooth(
                 self.time, self.solution[..., i], crit_fs, s, crit_fs_der
             )
-            solution[..., i] = smooth
+            smoothed[..., i] = smooth
 
-        solution.solution = solution
+        solution.solution = smoothed
         solution.update_solution()
 
         return solution
