@@ -1095,7 +1095,9 @@ class BreakthroughHeight(DifferenceBase):
                 for ref, sol in zip(self.reference_bt, solution_bt)
             ]
         else:
-            score = [ref[1] - sol[1] for ref, sol in zip(self.solution_bt, solution_bt)]
+            score = [
+                ref[1] - sol[1] for ref, sol in zip(self.reference_bt, solution_bt)
+            ]
 
         return np.abs(score)
 
@@ -1123,10 +1125,10 @@ class BreakthroughPosition(DifferenceBase):
         normalize_metrics : bool, optional
             Whether to normalize the metrics. Default is True.
         normalization_factor : float, optional
-            Factor to use for normalization.
-            If None, it is set to the maximum of the difference between the reference
-            breakthrough and the start time, and the difference between the end time and
-            the reference breakthrough.
+            Factor to use for normalization of every component.
+            If None, it is set per component to the maximum of the difference between
+            the reference breakthrough and the start time, and the difference between
+            the end time and the reference breakthrough.
         **kwargs : dict
             Keyword arguments passed to the base class constructor.
         """
@@ -1139,9 +1141,11 @@ class BreakthroughPosition(DifferenceBase):
 
         self.normalize_metrics = normalize_metrics
         if normalization_factor is None:
-            normalization_factor = max(
-                self.reference_bt[0] - t_min, t_max - self.reference_bt[0]
-            )
+            normalization_factor = [
+                max(bt[0] - t_min, t_max - bt[0]) for bt in self.reference_bt
+            ]
+        else:
+            normalization_factor = len(self.reference_bt) * [normalization_factor]
         self.normalization_factor = normalization_factor
 
     @property
@@ -1167,11 +1171,15 @@ class BreakthroughPosition(DifferenceBase):
 
         if self.normalize_metrics:
             score = [
-                sigmoid_distance(sol[0], ref[0], self.normalization_factor)
-                for ref, sol in zip(self.reference_bt, solution_bt)
+                sigmoid_distance(sol[0], ref[0], factor)
+                for ref, sol, factor in zip(
+                    self.reference_bt, solution_bt, self.normalization_factor
+                )
             ]
         else:
-            score = [ref[0] - sol[0] for ref, sol in zip(self.solution_bt, solution_bt)]
+            score = [
+                ref[0] - sol[0] for ref, sol in zip(self.reference_bt, solution_bt)
+            ]
 
         return np.abs(score)
 

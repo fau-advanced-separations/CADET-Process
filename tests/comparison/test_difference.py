@@ -502,6 +502,75 @@ class TestShapeFront(unittest.TestCase):
             metrics = difference.evaluate(self.reference)
 
 
+from CADETProcess.comparison import BreakthroughHeight, BreakthroughPosition
+from scipy.special import expit
+
+
+@pytest.fixture
+def breakthrough_steps():
+    """A breaks through at 30 (height 1), B at 60 (height 2).
+
+    The simulation shifts A by 5 and raises it to 1.5, and shifts B by 10.
+    """
+    reference = np.zeros((len(time), 2))
+    reference[time >= 30, 0] = 1
+    reference[time >= 60, 1] = 2
+    simulation = np.zeros((len(time), 2))
+    simulation[time >= 35, 0] = 1.5
+    simulation[time >= 70, 1] = 2
+    return (
+        ReferenceIO("reference", time, reference, component_system=comp_2),
+        ReferenceIO("simulation", time, simulation, component_system=comp_2),
+    )
+
+
+def sigmoid(difference, factor=1):
+    return np.abs(2 * expit(difference / factor) - 1)
+
+
+@pytest.mark.parametrize("metric_type", [BreakthroughHeight, BreakthroughPosition])
+@pytest.mark.parametrize("normalize_metrics", [False, True])
+def test_breakthrough_scores_zero_against_itself(
+    metric_type, normalize_metrics, breakthrough_steps
+):
+    reference, _ = breakthrough_steps
+    metric = metric_type(reference, normalize_metrics=normalize_metrics, resample=False)
+
+    assert metric.n_metrics == 2
+    np.testing.assert_allclose(metric.evaluate(reference), [0, 0])
+
+
+@pytest.mark.parametrize(
+    "metric_type, normalize_metrics, expected",
+    [
+        (BreakthroughHeight, False, [0.5, 0]),
+        (BreakthroughHeight, True, [sigmoid(0.5), 0]),
+        (BreakthroughPosition, False, [5, 10]),
+        # Default factor: distance from the reference breakthrough to the farther
+        # end of the time range, per component (70 for A, 60 for B).
+        (BreakthroughPosition, True, [sigmoid(5, 70), sigmoid(10, 60)]),
+    ],
+)
+def test_breakthrough_scores_each_component(
+    metric_type, normalize_metrics, expected, breakthrough_steps
+):
+    reference, simulation = breakthrough_steps
+    metric = metric_type(reference, normalize_metrics=normalize_metrics, resample=False)
+
+    np.testing.assert_allclose(metric.evaluate(simulation), expected)
+
+
+def test_breakthrough_position_applies_scalar_factor_to_every_component(
+    breakthrough_steps,
+):
+    reference, simulation = breakthrough_steps
+    metric = BreakthroughPosition(reference, normalization_factor=10, resample=False)
+
+    np.testing.assert_allclose(
+        metric.evaluate(simulation), [sigmoid(5, 10), sigmoid(10, 10)]
+    )
+
+
 from CADETProcess.comparison import FractionationSSE
 from CADETProcess.fractionation import Fraction
 from CADETProcess.reference import FractionationReference
