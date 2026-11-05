@@ -1146,6 +1146,8 @@ class HICConstantWaterActivity(BindingBaseClass):
     beta_1 : unsigned float.
         Parameter describing the change in the number of highly ordered water molecules that
         stabilize the hydrophobic surfaces with respect to changes in the salt concentration.
+    water_activity : unsigned float.
+        Constant water activity (optional, default value = 0.1).
     """
 
     adsorption_rate = SizedFloatList(size="n_comp")
@@ -1155,6 +1157,7 @@ class HICConstantWaterActivity(BindingBaseClass):
 
     beta_0 = UnsignedFloat()
     beta_1 = UnsignedFloat()
+    water_activity = UnsignedFloat(default=0.1)
 
     _parameters = [
         "adsorption_rate",
@@ -1163,6 +1166,7 @@ class HICConstantWaterActivity(BindingBaseClass):
         "capacity",
         "beta_0",
         "beta_1",
+        "water_activity",
     ]
 
 

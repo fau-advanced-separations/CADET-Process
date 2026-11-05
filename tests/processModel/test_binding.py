@@ -1,11 +1,13 @@
 import unittest
 
 import numpy
+import pytest
 from CADETProcess.processModel import (
     BiLangmuir,
     BindingBaseClass,
     ComponentSystem,
     GeneralizedIonExchange,
+    HICConstantWaterActivity,
     Langmuir,
     MobilePhaseModulator,
     MultistateStericMassAction,
@@ -166,6 +168,17 @@ def test_giex_config_omits_fields_the_engine_does_not_read():
 
     unread = {"GIEX_KA_CUBE", "GIEX_KD_CUBE", "GIEX_NU_CUBE", "GIEX_NU_BREAKS"}
     assert unread.isdisjoint(config)
+
+
+def test_hic_constant_water_activity_writes_water_activity():
+    binding_model = HICConstantWaterActivity(ComponentSystem(2), name="test")
+
+    assert binding_model.water_activity == pytest.approx(0.1)  # engine default
+
+    binding_model.water_activity = 0.5
+    config = AdsorptionParameters(binding_model).parameters
+
+    assert config["HICCWA_WATER_ACTIVITY"] == pytest.approx(0.5)
 
 
 if __name__ == "__main__":

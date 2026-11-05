@@ -1670,6 +1670,7 @@ adsorption_parameters_map = {
             "HICCWA_QMAX": "capacity",
             "HICCWA_BETA0": "beta_0",
             "HICCWA_BETA1": "beta_1",
+            "HICCWA_WATER_ACTIVITY": "water_activity",
         },
     },
     "HICWaterOnHydrophobicSurfaces": {
