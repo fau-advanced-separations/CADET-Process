@@ -59,6 +59,35 @@ def test_fraction_nrmse_uses_flow_weighting_and_equal_fraction_weights(
     np.testing.assert_array_equal(unequal_volume_reference.solution, [[1, 4], [2, 8]])
 
 
+def test_fraction_sse_sums_squared_errors_of_averaged_concentrations(
+    varying_flow_solution, unequal_volume_reference
+):
+    # Flow-weighted averages as in the NRMSE test above.
+    averaged = np.array([[5 / 9, 10 / 9], [19 / 9, 38 / 9]])
+    measured = np.array([[1, 4], [2, 8]])
+    metric = FractionationSSE(unequal_volume_reference)
+
+    np.testing.assert_allclose(
+        metric.evaluate(varying_flow_solution),
+        np.sum((averaged - measured) ** 2, axis=0),
+    )
+
+
+@pytest.mark.parametrize(
+    "kwargs", [{"normalize_metrics": False}, {"normalization_factor": 10}]
+)
+def test_fraction_sse_ignores_score_normalization_keywords(
+    varying_flow_solution, unequal_volume_reference, kwargs
+):
+    """Documented as without effect; FractionationNRMSE provides a normalized score."""
+    default = FractionationSSE(unequal_volume_reference)
+    metric = FractionationSSE(unequal_volume_reference, **kwargs)
+
+    np.testing.assert_allclose(
+        metric.evaluate(varying_flow_solution), default.evaluate(varying_flow_solution)
+    )
+
+
 def test_single_component_reference_selects_matching_named_simulation_component(
     varying_flow_solution,
 ):
