@@ -914,7 +914,7 @@ class SimplifiedMultistateStericMassAction(BindingBaseClass):
     characteristic_charge_last : list of unsigned floats.
         Characteristic charges of the components in the last (strongest) bound state.
         Length depends on `n_comp`.
-    quadratic_modifiers_charge : list of unsigned floats.
+    quadratic_modifiers_charge : list of floats.
         Quadratic modifiers of the characteristic charges of the different components
         depending on the index of the bound state.
         Length depends on `n_comp`.
@@ -924,7 +924,7 @@ class SimplifiedMultistateStericMassAction(BindingBaseClass):
     steric_factor_last : list of unsigned floats.
         Steric factor of the components in the last (strongest) bound state.
         Length depends on `n_comp`.
-    quadratic_modifiers_steric : list of unsigned floats.
+    quadratic_modifiers_steric : list of floats.
         Quadratic modifiers of the sterif factors of the different components depending
         on the index of the bound state.
         Length depends on `n_comp`.
@@ -933,11 +933,11 @@ class SimplifiedMultistateStericMassAction(BindingBaseClass):
         binding sites available on the resin surface.
     exchange_from_weak_stronger : list of unsigned floats.
         Exchangde rated from a weakly bound state to the next stronger bound state.
-    linear_exchange_ws : list of unsigned floats.
+    linear_exchange_ws : list of floats.
         Linear exchange rate coefficients from a weakly bound state to the next stronger
         bound state.
         Length depends on `n_comp`.
-    quadratic_exchange_ws : list of unsigned floats.
+    quadratic_exchange_ws : list of floats.
         Quadratic exchange rate coefficients from a weakly bound state to the next
         stronger bound state.
         Length depends on `n_comp`.
@@ -945,11 +945,11 @@ class SimplifiedMultistateStericMassAction(BindingBaseClass):
         Exchange rate coefficients from a strongly bound state to the next weaker bound
         state.
         Length depends on `n_comp`.
-    linear_exchange_sw : list of unsigned floats.
+    linear_exchange_sw : list of floats.
         Linear exchange rate coefficients from a strongly bound state to the next weaker
         bound state.
         Length depends on `n_comp`.
-    quadratic_exchange_sw : list of unsigned floats.
+    quadratic_exchange_sw : list of floats.
         Quadratic exchange rate coefficients from a strongly bound state to the next
         weaker bound state.
         Length depends on `n_comp`.
@@ -967,17 +967,17 @@ class SimplifiedMultistateStericMassAction(BindingBaseClass):
     desorption_rate = SizedUnsignedList(size="n_bound_states")
     characteristic_charge_first = SizedUnsignedList(size="n_comp")
     characteristic_charge_last = SizedUnsignedList(size="n_comp")
-    quadratic_modifiers_charge = SizedUnsignedList(size="n_comp")
+    quadratic_modifiers_charge = SizedFloatList(size="n_comp")
     steric_factor_first = SizedUnsignedList(size="n_comp")
     steric_factor_last = SizedUnsignedList(size="n_comp")
-    quadratic_modifiers_steric = SizedUnsignedList(size="n_comp")
+    quadratic_modifiers_steric = SizedFloatList(size="n_comp")
     capacity = UnsignedFloat()
     exchange_from_weak_stronger = SizedUnsignedList(size="n_comp")
-    linear_exchange_ws = SizedUnsignedList(size="n_comp")
-    quadratic_exchange_ws = SizedUnsignedList(size="n_comp")
+    linear_exchange_ws = SizedFloatList(size="n_comp")
+    quadratic_exchange_ws = SizedFloatList(size="n_comp")
     exchange_from_stronger_weak = SizedUnsignedList(size="n_comp")
-    linear_exchange_sw = SizedUnsignedList(size="n_comp")
-    quadratic_exchange_sw = SizedUnsignedList(size="n_comp")
+    linear_exchange_sw = SizedFloatList(size="n_comp")
+    quadratic_exchange_sw = SizedFloatList(size="n_comp")
     reference_liquid_phase_conc = UnsignedFloat(default=1)
     reference_solid_phase_conc = UnsignedFloat(default=1)
 

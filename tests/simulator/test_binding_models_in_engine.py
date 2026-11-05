@@ -70,13 +70,13 @@ SIMPLIFIED_MSSMA_PARAMETERS = {
     "quadratic_modifiers_charge": [0, 0.1],
     "steric_factor_first": [0, 10.6],
     "steric_factor_last": [0, 11.83],
-    "quadratic_modifiers_steric": [0, 0],
+    "quadratic_modifiers_steric": [0, -0.1],
     "exchange_from_weak_stronger": [0, 0.8],
     "linear_exchange_ws": [0, 0.2],
-    "quadratic_exchange_ws": [0, 0],
+    "quadratic_exchange_ws": [0, -0.1],
     "exchange_from_stronger_weak": [0, 0.9],
     "linear_exchange_sw": [0, 0.1],
-    "quadratic_exchange_sw": [0, 0],
+    "quadratic_exchange_sw": [0, -0.2],
     "capacity": 100,
 }
 REFERENCE_PARAMETERS = {
