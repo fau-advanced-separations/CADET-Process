@@ -222,5 +222,18 @@ def test_simplified_mssma_accepts_negative_modifiers(parameter):
     assert getattr(binding_model, parameter) == pytest.approx([0, -0.1])
 
 
+def test_simplified_mssma_writes_salt_characteristic_charge():
+    binding_model = SimplifiedMultistateStericMassAction(
+        ComponentSystem(2), name="test"
+    )
+
+    assert binding_model.characteristic_charge_salt == pytest.approx(1)  # engine default
+
+    binding_model.characteristic_charge_salt = 2
+    config = AdsorptionParameters(binding_model).parameters
+
+    assert config["SMSSMA_NU_SALT"] == pytest.approx(2)
+
+
 if __name__ == "__main__":
     unittest.main()
