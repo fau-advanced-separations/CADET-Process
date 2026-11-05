@@ -1,8 +1,27 @@
-"""Every difference metric honors the contract the optimization relies on.
+"""
+Requirements for every difference metric in `CADETProcess.comparison`.
 
-A metric declares `n_metrics` scores and as many `bad_metrics`; it returns that many
-finite scores, scores zero against its own reference, and keeps its scores unchanged
-inside a `Comparator`.
+1. It returns `n_metrics` finite scores and declares as many `bad_metrics`.
+2. It scores zero against its own reference.
+3. Its scores are unchanged inside a `Comparator`.
+4. Its score matches a hand-computed value on more than one component.
+5. Every keyword it accepts changes the score as documented, or is rejected with a
+   clear error.
+6. A flat simulated trace (nothing elutes) gives a finite score or a clear error.
+
+This file checks 1 to 3 for every metric at its defaults, `Shape` and `ShapeFront` on
+the single component they support; the other files in this package check 4 to 6.
+
+Not yet covered
+---------------
+4. `FractionationSSE`.
+5. `transform` and `start`/`end` for `SSE`; the keywords of the base class for `RMSE`,
+   `NRMSE`, `L1`, `L2`, `AbsoluteArea`, `RelativeArea` and the breakthrough metrics.
+   `normalize_metrics` and `normalization_factor` are documented as without effect on
+   `FractionationSSE`, but not tested. The fractionation metrics reject `start`/`end`,
+   `normalize` and `smooth` with errors that do not name the keyword.
+6. Only `SSE` with `normalize` and `FractionationNRMSE` are tested; `Shape` raises
+   instead.
 """
 
 import types
