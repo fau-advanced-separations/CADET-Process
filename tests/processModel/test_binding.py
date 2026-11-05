@@ -10,6 +10,7 @@ from CADETProcess.processModel import (
     HICConstantWaterActivity,
     Langmuir,
     MobilePhaseModulator,
+    MultiComponentColloidal,
     MultistateStericMassAction,
     SimplifiedMultistateStericMassAction,
     StericMassAction,
@@ -179,6 +180,24 @@ def test_hic_constant_water_activity_writes_water_activity():
     config = AdsorptionParameters(binding_model).parameters
 
     assert config["HICCWA_WATER_ACTIVITY"] == pytest.approx(0.5)
+
+
+def test_colloidal_accepts_negative_kappa_exponent():
+    binding_model = MultiComponentColloidal(ComponentSystem(2), name="test")
+
+    # The Debye length scales with ionic strength to the power of -1/2.
+    binding_model.kappa_exponential = -0.5
+
+    assert binding_model.kappa_exponential == pytest.approx(-0.5)
+
+
+@pytest.mark.parametrize("coordination_number", [6.0, 4.5])
+def test_colloidal_accepts_real_coordination_number(coordination_number):
+    binding_model = MultiComponentColloidal(ComponentSystem(2), name="test")
+
+    binding_model.coordination_number = coordination_number
+
+    assert binding_model.coordination_number == pytest.approx(coordination_number)
 
 
 if __name__ == "__main__":

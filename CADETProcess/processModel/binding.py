@@ -5,6 +5,7 @@ import numpy as np
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import (
     Bool,
+    Float,
     RangedInteger,
     SizedFloatList,
     SizedRangedIntegerList,
@@ -1280,13 +1281,14 @@ class MultiComponentColloidal(BindingBaseClass):
     ----------
     phase_ratio : unsigned float.
         Phase ratio.
-    kappa_exponential : unsigned float.
+    kappa_exponential : float.
         Screening term exponential factor.
+        The Debye form of the screening length uses -0.5.
     kappa_factor : unsigned float.
         Screening term factor.
     kappa_constant : unsigned float.
         Screening term constant.
-    coordination_number : unsigned integer.
+    coordination_number : unsigned float.
         Coordination number.
     logkeq_ph_exponent : list of unsigned floats.
         Equilibrium constant factor exponent term for pH. Size depends on `n_comp`.
@@ -1323,10 +1325,10 @@ class MultiComponentColloidal(BindingBaseClass):
     )
 
     phase_ratio = UnsignedFloat()
-    kappa_exponential = UnsignedFloat()
+    kappa_exponential = Float()
     kappa_factor = UnsignedFloat()
     kappa_constant = UnsignedFloat()
-    coordination_number = UnsignedInteger()
+    coordination_number = UnsignedFloat()
     logkeq_ph_exponent = SizedFloatList(size="n_comp")
     logkeq_power_exponent = SizedFloatList(size="n_comp")
     logkeq_power_factor = SizedFloatList(size="n_comp")
