@@ -137,6 +137,39 @@ def test_norm_scores_each_component(metric_type, expected):
     np.testing.assert_allclose(scores, expected)
 
 
+from CADETProcess.comparison import RMSE, AbsoluteArea, RelativeArea
+
+
+@pytest.mark.parametrize(
+    "metric_type, expected",
+    [
+        (SSE, [5, 4]),
+        (RMSE, [1, np.sqrt(4 / 5)]),
+        # Divided by the reference maximum, 1 for A and 2 for B.
+        (NRMSE, [1, np.sqrt(4 / 5) / 2]),
+        # Simpson weights on five unit-spaced points are [1, 4, 2, 4, 1] / 3, so
+        # the reference areas are 4 and 8 and B gains 2 * 4/3 from its one point.
+        (AbsoluteArea, [4, 8 / 3]),
+        (RelativeArea, [1, 1 / 3]),
+    ],
+)
+def test_difference_scores_each_component(metric_type, expected):
+    """Component A differs by 1 at every point, B by 2 at a single point."""
+    norm_time = np.linspace(0, 4, 5)
+    reference_values = np.ones((norm_time.size, 2))
+    reference_values[:, 1] = 2
+    reference = ReferenceIO(
+        "reference", norm_time, reference_values, component_system=comp_2
+    )
+    values = reference_values.copy()
+    values[:, 0] += 1
+    values[1, 1] += 2
+    simulation = ReferenceIO("simulation", norm_time, values, component_system=comp_2)
+    metric = metric_type(reference, resample=False)
+
+    np.testing.assert_allclose(metric.evaluate(simulation), expected)
+
+
 def test_smoothed_sse_scores_zero_against_itself():
     reference = ReferenceIO(
         "reference", time, solution_2_gaussian, component_system=comp_2
