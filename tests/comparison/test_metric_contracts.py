@@ -9,25 +9,25 @@ Requirements for every difference metric in `CADETProcess.comparison`.
    clear error.
 6. A flat simulated trace (nothing elutes) gives a finite score or a clear error.
 
-This file checks 1 to 3 for every metric at its defaults, `Shape` and `ShapeFront` on
-the single component they support; the other files in this package check 4 to 6.
+This file checks 1 to 3 and 6 for every metric at its defaults, `Shape` and
+`ShapeFront` on the single component they support, and the keywords of the base class;
+the other files in this package check 4 and the metric-specific keywords.
+Keywords of the base class share one code path for every metric that only overrides
+`_evaluate`, so `SSE` stands for those metrics.
 
 Not yet covered
 ---------------
-4. `FractionationSSE`.
-5. `transform` and `start`/`end` for `SSE`; the keywords of the base class for `RMSE`,
-   `NRMSE`, `L1`, `L2`, `AbsoluteArea`, `RelativeArea` and the breakthrough metrics.
-   `normalize_metrics` and `normalization_factor` are documented as without effect on
-   `FractionationSSE`, but not tested. The fractionation metrics reject `start`/`end`,
-   `normalize` and `smooth` with errors that do not name the keyword.
-6. Only `SSE` with `normalize` and `FractionationNRMSE` are tested; `Shape` raises
-   instead.
+5. `use_total_concentration` for every metric; `smooth` for the breakthrough metrics.
+   The fractionation metrics reject `start`/`end`, `normalize` and `smooth` with errors
+   that do not name the keyword.
+6. `Shape` and `ShapeFront` raise on a flat trace instead.
 """
 
 import types
 
 import numpy as np
 import pytest
+from CADETProcess import CADETProcessError
 from CADETProcess.comparison import (
     L1,
     L2,
@@ -48,6 +48,7 @@ from CADETProcess.comparison import (
 from CADETProcess.comparison.difference import ShapeFront
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess.reference import FractionationReference, ReferenceIO
+from CADETProcess.solution import slice_solution
 
 time = np.linspace(0, 100, 1001)
 
@@ -161,3 +162,86 @@ def test_comparator_keeps_metric_scores(metric_setup):
 
     assert len(scores) == comparator.n_metrics == len(comparator.bad_metrics)
     np.testing.assert_allclose(scores, metric.evaluate(simulation))
+
+
+def test_flat_simulation_scores_finite_or_raises(metric_setup):
+    """A simulation in which nothing elutes must not produce NaN scores."""
+    metric, reference, _ = metric_setup
+    if isinstance(metric, Shape):
+        pytest.skip("Shape raises on a flat trace, a known defect")
+    flat = ReferenceIO(
+        "flat",
+        time,
+        np.zeros_like(reference.solution),
+        component_system=reference.component_system,
+    )
+
+    try:
+        scores = np.atleast_1d(metric.evaluate(flat))
+    except CADETProcessError:
+        return
+    assert scores.shape == (metric.n_metrics,)
+    assert np.all(np.isfinite(scores))
+
+
+def _slice(solution, start, end):
+    return slice_solution(solution, coordinates={"time": (start, end)})
+
+
+# Each keyword is checked against applying the same operation to both traces before
+# evaluating without it. Resampling is disabled because it changes the time grid.
+keyword_cases = {
+    "components": (
+        {"components": ["A"]},
+        lambda reference, simulation: (
+            slice_solution(reference, components=["A"]),
+            slice_solution(simulation, components=["A"]),
+        ),
+    ),
+    "start_end": (
+        {"start": 10, "end": 90},
+        lambda reference, simulation: (
+            _slice(reference, 10, 90),
+            _slice(simulation, 10, 90),
+        ),
+    ),
+    "normalize": (
+        {"normalize": True},
+        lambda reference, simulation: (reference.normalize(), simulation.normalize()),
+    ),
+    "transform": (
+        {"transform": lambda values: 2 * values},
+        lambda reference, simulation: (
+            reference,
+            ReferenceIO(
+                "doubled",
+                simulation.time,
+                2 * simulation.solution,
+                component_system=simulation.component_system,
+            ),
+        ),
+    ),
+}
+
+
+# Keywords handled by `DifferenceBase` share one code path for every metric that only
+# overrides `_evaluate`, so `SSE` stands for those; the breakthrough metrics derive
+# their reference in the constructor and are checked separately.
+@pytest.mark.parametrize("metric_type", [SSE, BreakthroughHeight, BreakthroughPosition])
+@pytest.mark.parametrize("keyword", keyword_cases)
+def test_keyword_equals_preprocessing_both_traces(metric_type, keyword):
+    kwargs, preprocess = keyword_cases[keyword]
+    kind = "peaks" if metric_type is SSE else "steps"
+    component_system = ComponentSystem(["A", "B"])
+    reference, simulation = (
+        ReferenceIO(name, time, values, component_system=component_system)
+        for name, values in zip(["reference", "simulation"], traces[kind])
+    )
+    expected_reference, expected_simulation = preprocess(reference, simulation)
+
+    scores = metric_type(reference, resample=False, **kwargs).evaluate(simulation)
+
+    np.testing.assert_allclose(
+        scores,
+        metric_type(expected_reference, resample=False).evaluate(expected_simulation),
+    )
