@@ -14,9 +14,9 @@ To do
 - [x] Fraction Mass
 - [x] Fraction Volume
 - [ ] Interpolation
-- [ ] Resampling
-- [ ] Normalization
-- [ ] Smoothing
+- [x] Resampling
+- [x] Normalization
+- [x] Smoothing
 - [ ] Derivative
 - [ ] plotting?
 
@@ -328,11 +328,46 @@ class TestSolution(unittest.TestCase):
             local_purity_species_actual, local_purity_species_expected
         )
 
-    def test_resampling(self):
-        pass
+    def test_resampling_keeps_original_points_and_area(self):
+        # Doubling the resolution keeps every original time point.
+        resampled = self.solution_gaussian.resample(nt=2 * len(time) - 1)
 
-    def test_normalization(self):
-        pass
+        np.testing.assert_allclose(resampled.time[::2], time)
+        np.testing.assert_allclose(resampled.solution[::2], solution_2_gaussian)
+        np.testing.assert_allclose(
+            np.trapezoid(resampled.solution, resampled.time, axis=0),
+            np.trapezoid(solution_2_gaussian, time, axis=0),
+            rtol=1e-6,
+        )
+
+    def test_resampling_reproduces_linear_trace(self):
+        ramp = np.column_stack([time, 100 - 2 * time])
+        solution = SolutionIO("ramp", comp_2, time, ramp, q_const)
+
+        resampled = solution.resample(10, 50, 33)
+
+        np.testing.assert_allclose(resampled.time, np.linspace(10, 50, 33))
+        np.testing.assert_allclose(
+            resampled.solution,
+            np.column_stack([resampled.time, 100 - 2 * resampled.time]),
+        )
+
+    def test_normalization_scales_each_component_to_unit_range(self):
+        # Component B is a shifted and scaled copy of A's peak, so both normalize
+        # to the same unit-height peak.
+        values = np.column_stack(
+            [solution_2_gaussian[:, 0], 5 + 3 * solution_2_gaussian[:, 0]]
+        )
+        solution = SolutionIO("scaled", comp_2, time, values, q_const)
+
+        normalized = solution.normalize()
+
+        np.testing.assert_allclose(normalized.solution.min(axis=0), [0, 0])
+        np.testing.assert_allclose(normalized.solution.max(axis=0), [1, 1])
+        np.testing.assert_allclose(
+            normalized.solution[:, 0], normalized.solution[:, 1], atol=1e-12
+        )
+        np.testing.assert_array_equal(solution.solution, values)
 
     def test_smoothing(self):
         rng = np.random.default_rng(0)
