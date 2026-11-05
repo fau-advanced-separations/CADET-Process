@@ -200,5 +200,27 @@ def test_colloidal_accepts_real_coordination_number(coordination_number):
     assert binding_model.coordination_number == pytest.approx(coordination_number)
 
 
+@pytest.mark.parametrize(
+    "parameter",
+    [
+        "quadratic_modifiers_charge",
+        "quadratic_modifiers_steric",
+        "linear_exchange_ws",
+        "quadratic_exchange_ws",
+        "linear_exchange_sw",
+        "quadratic_exchange_sw",
+    ],
+)
+def test_simplified_mssma_accepts_negative_modifiers(parameter):
+    binding_model = SimplifiedMultistateStericMassAction(
+        ComponentSystem(2), name="test"
+    )
+
+    # The engine only requires the resulting values to be non-negative in every state.
+    setattr(binding_model, parameter, [0, -0.1])
+
+    assert getattr(binding_model, parameter) == pytest.approx([0, -0.1])
+
+
 if __name__ == "__main__":
     unittest.main()
