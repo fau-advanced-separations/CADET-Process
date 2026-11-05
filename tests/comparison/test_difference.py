@@ -613,6 +613,65 @@ def test_breakthrough_position_applies_scalar_factor_to_every_component(
     )
 
 
+@pytest.fixture
+def translated_peak():
+    """The simulation is the reference peak, shifted by 10 and tripled in height."""
+    component_system = ComponentSystem(1)
+    return (
+        ReferenceIO(
+            "reference",
+            time,
+            solution_2_gaussian[:, [0]],
+            component_system=component_system,
+        ),
+        ReferenceIO(
+            "simulation",
+            time,
+            3 * stats.norm.pdf(time, mu_0 + 10, sigma_0)[:, None],
+            component_system=component_system,
+        ),
+    )
+
+
+@pytest.mark.parametrize("metric_type", [Shape, ShapeFront])
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {},
+        {"start": 10, "end": 90},
+        {"resample": False},
+        {"normalize": True},
+        {"smooth": True},
+        {"transform": lambda values: 2 * values},
+    ],
+    ids=["default", "start_end", "no_resample", "normalize", "smooth", "transform"],
+)
+def test_shape_reports_pure_translation_as_offset(metric_type, kwargs, translated_peak):
+    """Shape is unchanged by a translation, so only the offset scores."""
+    reference, simulation = translated_peak
+    metric = metric_type(reference, normalize_metrics=False, **kwargs)
+
+    # The offset is resolved to about one step of the time grid, 0.1.
+    np.testing.assert_allclose(metric.evaluate(simulation), [0, 10, 0], atol=0.1)
+
+
+@pytest.mark.parametrize("metric_type", [Shape, ShapeFront])
+@pytest.mark.parametrize(
+    "normalization_factor, expected_offset",
+    # The default factor is a tenth of the reference's end time.
+    [(None, sigmoid(10, 10)), (20, sigmoid(10, 20))],
+)
+def test_shape_scales_offset_by_normalization_factor(
+    metric_type, normalization_factor, expected_offset, translated_peak
+):
+    reference, simulation = translated_peak
+    metric = metric_type(reference, normalization_factor=normalization_factor)
+
+    np.testing.assert_allclose(
+        metric.evaluate(simulation), [0, expected_offset, 0], atol=1e-2
+    )
+
+
 from CADETProcess.comparison import FractionationSSE
 from CADETProcess.fractionation import Fraction
 from CADETProcess.reference import FractionationReference
