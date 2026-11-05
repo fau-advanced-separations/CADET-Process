@@ -5,7 +5,6 @@ import numpy as np
 from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import (
     Bool,
-    DependentlyModulatedUnsignedList,
     RangedInteger,
     SizedFloatList,
     SizedRangedIntegerList,
@@ -1037,9 +1036,6 @@ class GeneralizedIonExchange(BindingBaseClass):
     adsorption_rate_quadratic : list of unsigned floats.
         Quadratic dependence coefficient of adsorption rate on modifier component.
         Length depends on `n_comp`.
-    adsorption_rate_cubic : list of unsigned floats.
-        Cubic dependence coefficient of adsorption rate on modifier component.
-        Length depends on `n_comp`.
     adsorption_rate_salt : list of unsigned floats.
         Salt coefficient of adsorption rate;
         difference of water-protein and salt-protein interactions.
@@ -1056,9 +1052,6 @@ class GeneralizedIonExchange(BindingBaseClass):
     desorption_rate_quadratic : list of unsigned floats.
         Quadratic dependence coefficient of desorption rate on modifier component.
         Length depends on `n_comp`.
-    desorption_rate_cubic : list of unsigned floats.
-        Cubic dependence coefficient of desorption rate on modifier component.
-        Length depends on `n_comp`.
     desorption_rate_salt : list of unsigned floats.
         Salt coefficient of desorption rate;
         difference of water-protein and salt-protein interactions.
@@ -1067,23 +1060,16 @@ class GeneralizedIonExchange(BindingBaseClass):
         Protein coefficient of desorption rate;
         difference of water-protein and protein-protein interactions
         Length depends on `n_comp`.
-    characteristic_charge_breaks : list of unsigned floats, optional
-        Breaks of the characteristic charge pieces in component-major ordering.
-        Optional, only required if a piecewise cubic polynomial is used for $\nu$.
-        Length must be a multiple of `n_comp`.
     characteristic_charge : list of unsigned floats.
         Base value for characteristic charges of the protein; The number of sites $\nu$
         that the protein interacts with on the resin surface.
-        Length depends on `n_comp` * `n_pieces`.
+        Length depends on `n_comp`.
     characteristic_charge_linear : list of unsigned floats.
         Linear dependence coefficient of characteristic charge on modifier component.
-        Length depends on `n_comp` * `n_pieces`.
+        Length depends on `n_comp`.
     characteristic_charge_quadratic : list of unsigned floats.
         Quadratic dependence coefficient of characteristic charge on modifier component.
-        Length depends on `n_comp` * `n_pieces`.
-    characteristic_charge_cubic : list of unsigned floats.
-        Cubic dependence coefficient of characteristic charge on modifier component.
-        Length depends on `n_comp` * `n_pieces`.
+        Length depends on `n_comp`.
     steric_factor : list of unsigned floats.
         Steric factors of the protein: The number of sites $\sigma$ on the surface that
         are shielded by the protein and prevented from exchange with salt counterions in
@@ -1103,28 +1089,16 @@ class GeneralizedIonExchange(BindingBaseClass):
     adsorption_rate = SizedFloatList(size="n_comp")
     adsorption_rate_linear = SizedFloatList(size="n_comp", default=0)
     adsorption_rate_quadratic = SizedFloatList(size="n_comp", default=0)
-    adsorption_rate_cubic = SizedFloatList(size="n_comp", default=0)
     adsorption_rate_salt = SizedFloatList(size="n_comp", default=0)
     adsorption_rate_protein = SizedFloatList(size="n_comp", default=0)
     desorption_rate = SizedFloatList(size="n_comp")
     desorption_rate_linear = SizedFloatList(size="n_comp", default=0)
     desorption_rate_quadratic = SizedFloatList(size="n_comp", default=0)
-    desorption_rate_cubic = SizedFloatList(size="n_comp", default=0)
     desorption_rate_salt = SizedFloatList(size="n_comp", default=0)
     desorption_rate_protein = SizedFloatList(size="n_comp", default=0)
-    characteristic_charge_breaks = DependentlyModulatedUnsignedList(
-        size="n_comp", is_optional=True
-    )
-    characteristic_charge = SizedFloatList(
-        size=("n_pieces", "n_comp"),
-    )
-    characteristic_charge_linear = SizedFloatList(
-        size=("n_pieces", "n_comp"), default=0
-    )
-    characteristic_charge_quadratic = SizedFloatList(
-        size=("n_pieces", "n_comp"), default=0
-    )
-    characteristic_charge_cubic = SizedFloatList(size=("n_pieces", "n_comp"), default=0)
+    characteristic_charge = SizedFloatList(size="n_comp")
+    characteristic_charge_linear = SizedFloatList(size="n_comp", default=0)
+    characteristic_charge_quadratic = SizedFloatList(size="n_comp", default=0)
     steric_factor = SizedUnsignedList(size="n_comp")
     capacity = UnsignedFloat()
     reference_liquid_phase_conc = UnsignedFloat(default=1)
@@ -1134,36 +1108,21 @@ class GeneralizedIonExchange(BindingBaseClass):
         "adsorption_rate",
         "adsorption_rate_linear",
         "adsorption_rate_quadratic",
-        "adsorption_rate_cubic",
         "adsorption_rate_salt",
         "adsorption_rate_protein",
         "desorption_rate",
         "desorption_rate_linear",
         "desorption_rate_quadratic",
-        "desorption_rate_cubic",
         "desorption_rate_salt",
         "desorption_rate_protein",
-        "characteristic_charge_breaks",
         "characteristic_charge",
         "characteristic_charge_linear",
         "characteristic_charge_quadratic",
-        "characteristic_charge_cubic",
         "steric_factor",
         "capacity",
         "reference_liquid_phase_conc",
         "reference_solid_phase_conc",
     ]
-
-    @property
-    def n_pieces(self) -> int:
-        """int: Number of pieces for cubic polynomial description of nu."""
-        if self.characteristic_charge_breaks is None:
-            return 1
-
-        n_pieces_all = len(self.characteristic_charge_breaks) - self.n_comp
-        n_pieces_comp = int(n_pieces_all / self.n_comp)
-
-        return n_pieces_comp
 
 
 class HICConstantWaterActivity(BindingBaseClass):

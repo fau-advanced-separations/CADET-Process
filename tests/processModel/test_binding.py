@@ -5,6 +5,7 @@ from CADETProcess.processModel import (
     BiLangmuir,
     BindingBaseClass,
     ComponentSystem,
+    GeneralizedIonExchange,
     Langmuir,
     MobilePhaseModulator,
     MultistateStericMassAction,
@@ -156,6 +157,15 @@ def test_simplified_mssma_is_written_under_its_own_model_name():
     config = AdsorptionParameters(binding_model).parameters
 
     assert config["ADSORPTION_MODEL"] == "SIMPLIFIED_MULTISTATE_STERIC_MASS_ACTION"
+
+
+def test_giex_config_omits_fields_the_engine_does_not_read():
+    binding_model = GeneralizedIonExchange(ComponentSystem(3), name="test")
+
+    config = AdsorptionParameters(binding_model).parameters
+
+    unread = {"GIEX_KA_CUBE", "GIEX_KD_CUBE", "GIEX_NU_CUBE", "GIEX_NU_BREAKS"}
+    assert unread.isdisjoint(config)
 
 
 if __name__ == "__main__":
