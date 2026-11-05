@@ -1625,6 +1625,7 @@ adsorption_parameters_map = {
             "SMSSMA_KSW": "exchange_from_stronger_weak",
             "SMSSMA_KSW_LIN": "linear_exchange_sw",
             "SMSSMA_KSW_QUAD": "quadratic_exchange_sw",
+            "SMSSMA_NU_SALT": "characteristic_charge_salt",
             "SMSSMA_REFC0": "reference_liquid_phase_conc",
             "SMSSMA_REFQ": "reference_solid_phase_conc",
         },

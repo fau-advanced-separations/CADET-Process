@@ -953,6 +953,8 @@ class SimplifiedMultistateStericMassAction(BindingBaseClass):
         Quadratic exchange rate coefficients from a strongly bound state to the next
         weaker bound state.
         Length depends on `n_comp`.
+    characteristic_charge_salt : unsigned float.
+        Characteristic charge of the salt component (optional, default value = 1.0).
     reference_liquid_phase_conc : list of unsigned floats.
         Reference liquid phase concentration (optional, default value = 1.0).
     reference_solid_phase_conc : list of unsigned floats.
@@ -978,6 +980,7 @@ class SimplifiedMultistateStericMassAction(BindingBaseClass):
     exchange_from_stronger_weak = SizedUnsignedList(size="n_comp")
     linear_exchange_sw = SizedFloatList(size="n_comp")
     quadratic_exchange_sw = SizedFloatList(size="n_comp")
+    characteristic_charge_salt = UnsignedFloat(default=1)
     reference_liquid_phase_conc = UnsignedFloat(default=1)
     reference_solid_phase_conc = UnsignedFloat(default=1)
 
@@ -997,6 +1000,7 @@ class SimplifiedMultistateStericMassAction(BindingBaseClass):
         "exchange_from_stronger_weak",
         "linear_exchange_sw",
         "quadratic_exchange_sw",
+        "characteristic_charge_salt",
         "reference_liquid_phase_conc",
         "reference_solid_phase_conc",
     ]
