@@ -19,6 +19,7 @@ from CADETProcess import CADETProcessError, settings
 from CADETProcess.dataStructure import (
     Bool,
     ParameterWrapper,
+    PositiveFloat,
     Structure,
     Switch,
     UnsignedFloat,
@@ -1929,7 +1930,7 @@ class SolverTimeIntegratorParameters(Structure):
     Structure
     """
 
-    abstol = UnsignedFloat(
+    abstol = PositiveFloat(
         default=1e-8,
         unit=None,
         description="Absolute tolerance in the solution of the original system.",

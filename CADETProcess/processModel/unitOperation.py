@@ -10,8 +10,10 @@ from CADETProcess.dataStructure import (
     Constant,
     NdPolynomial,
     Polynomial,
+    PositiveFloat,
     SizedFloatList,
     SizedNdArray,
+    SizedPositiveList,
     SizedUnsignedList,
     String,
     Structure,
@@ -936,7 +938,7 @@ class LumpedRateModelWithoutPores(ChromatographicColumnBase):
     supports_particle_reaction = True
     discretization_schemes = (LRMDiscretizationFV, LRMDiscretizationDG)
 
-    total_porosity = UnsignedFloat(
+    total_porosity = PositiveFloat(
         ub=1,
         unit=None,
         description=(
@@ -1013,13 +1015,13 @@ class LumpedRateModelWithPores(ChromatographicColumnBase):
     supports_particle_reaction = True
     discretization_schemes = (LRMPDiscretizationFV, LRMPDiscretizationDG)
 
-    bed_porosity = UnsignedFloat(
+    bed_porosity = PositiveFloat(
         ub=1, unit=None, description="Interstitial (bed) porosity."
     )
-    particle_porosity = UnsignedFloat(
+    particle_porosity = PositiveFloat(
         ub=1, unit=None, description="Particle (intraparticle) porosity."
     )
-    particle_radius = UnsignedFloat(unit=r"\mathrm{m}", description="Particle radius.")
+    particle_radius = PositiveFloat(unit=r"\mathrm{m}", description="Particle radius.")
     film_diffusion = SizedUnsignedList(
         size="n_comp",
         unit=r"\frac{\mathrm{m}}{\mathrm{s}}",
@@ -1028,7 +1030,7 @@ class LumpedRateModelWithPores(ChromatographicColumnBase):
             "film) per component."
         ),
     )
-    pore_accessibility = SizedUnsignedList(
+    pore_accessibility = SizedPositiveList(
         ub=1,
         size="n_comp",
         default=1,
@@ -1184,13 +1186,13 @@ class GeneralRateModel(ChromatographicColumnBase):
     supports_particle_reaction = True
     discretization_schemes = (GRMDiscretizationFV, GRMDiscretizationDG)
 
-    bed_porosity = UnsignedFloat(
+    bed_porosity = PositiveFloat(
         ub=1, unit=None, description="Interstitial (bed) porosity."
     )
-    particle_porosity = UnsignedFloat(
+    particle_porosity = PositiveFloat(
         ub=1, unit=None, description="Particle (intraparticle) porosity."
     )
-    particle_radius = UnsignedFloat(unit=r"\mathrm{m}", description="Particle radius.")
+    particle_radius = PositiveFloat(unit=r"\mathrm{m}", description="Particle radius.")
     film_diffusion = SizedUnsignedList(
         size="n_comp",
         unit=r"\frac{\mathrm{m}}{\mathrm{s}}",
@@ -1199,7 +1201,7 @@ class GeneralRateModel(ChromatographicColumnBase):
             "film) per component."
         ),
     )
-    pore_accessibility = SizedUnsignedList(
+    pore_accessibility = SizedPositiveList(
         ub=1,
         size="n_comp",
         default=1,

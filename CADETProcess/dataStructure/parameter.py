@@ -939,9 +939,9 @@ class Ranged(ParameterBase):
             If the value is outside the specified bounds.
         """
         if self.lb_op(value, self.lb):
-            raise ValueError(f"Value {value} is below the lower bound of {self.lb}")
+            raise ValueError(f"Value {value} violates the lower bound of {self.lb}")
         elif self.ub_op(value, self.ub):
-            raise ValueError(f"Value {value} is above the upper bound of {self.ub}")
+            raise ValueError(f"Value {value} violates the upper bound of {self.ub}")
 
     def _check(self, instance: Any, value: Any, recursive: bool = False) -> None:
         """
@@ -1027,13 +1027,13 @@ class RangedArray(Ranged):
         if np.any(self.lb_op(value_array, self.lb)):
             idx = np.where(self.lb_op(value_array, self.lb))[0]
             raise ValueError(
-                f"Element(s) at index/indices {idx} below the lower bound of {self.lb}"
+                f"Element(s) at index/indices {idx} violate the lower bound of {self.lb}"
             )
 
         elif np.any(self.ub_op(value_array, self.ub)):
             idx = np.where(self.ub_op(value_array, self.ub))[0]
             raise ValueError(
-                f"Element(s) at index/indices {idx} above the upper bound of {self.ub}"
+                f"Element(s) at index/indices {idx} violate the upper bound of {self.ub}"
             )
 
 
@@ -1085,6 +1085,34 @@ class UnsignedList(List, UnsignedArray):
 
 class UnsignedNdArray(NdArray, UnsignedArray):
     """Parameter descriptor for numpy arrays with non-negative elements."""
+
+    pass
+
+
+# Positive scalar parameters
+class Positive(Ranged):
+    """Parameter descriptor for strictly positive parameters."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize positive parameter."""
+        super().__init__(*args, lb=0, lb_op=operator.le, **kwargs)
+
+
+class PositiveFloat(Float, Positive):
+    """Parameter descriptor for strictly positive floating-point parameters."""
+
+    pass
+
+
+# Positive list / array parameters
+class PositiveArray(Positive, RangedArray):
+    """Parameter descriptor for arrays with strictly positive elements."""
+
+    pass
+
+
+class PositiveList(List, PositiveArray):
+    """Parameter descriptor for lists with strictly positive elements."""
 
     pass
 
@@ -1426,6 +1454,12 @@ class SizedRangedList(RangedList, SizedList):
 
 class SizedUnsignedList(UnsignedList, SizedList):
     """Descriptor for unsigned lists whose size depends on other instance attributes."""
+
+    pass
+
+
+class SizedPositiveList(PositiveList, SizedList):
+    """Descriptor for positive lists whose size depends on other instance attributes."""
 
     pass
 
