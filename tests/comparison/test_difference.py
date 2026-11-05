@@ -170,6 +170,58 @@ def test_difference_scores_each_component(metric_type, expected):
     np.testing.assert_allclose(metric.evaluate(simulation), expected)
 
 
+# Gaussians of width sigma, areas a and b and shift d; squared difference integrates to
+# (a^2 + b^2 - 2ab exp(-d^2 / 4 sigma^2)) / (2 sigma sqrt(pi)). A is shifted by 10 and
+# grows from area 1 to 1.5, B doubles its area in place.
+_areas_reference = np.array([1, 1])
+_areas_simulation = np.array([1.5, 2])
+_shifts = np.array([10, 0])
+_squared_difference = (
+    _areas_reference**2
+    + _areas_simulation**2
+    - 2
+    * _areas_reference
+    * _areas_simulation
+    * np.exp(-(_shifts**2) / (4 * sigma_0**2))
+) / (2 * sigma_0 * np.sqrt(np.pi))
+_dt = time[1] - time[0]
+_rmse = np.sqrt(_squared_difference / _dt / len(time))
+_area_difference = np.abs(_areas_simulation - _areas_reference)
+
+
+@pytest.mark.parametrize(
+    "metric_type, expected",
+    [
+        # On a uniform grid the sum is the integral divided by the time step.
+        (SSE, _squared_difference / _dt),
+        (RMSE, _rmse),
+        # Divided by the reference maximum, the height of a unit-area Gaussian.
+        (NRMSE, _rmse * sigma_0 * np.sqrt(2 * np.pi)),
+        (AbsoluteArea, _area_difference),
+        (RelativeArea, _area_difference / _areas_reference),
+    ],
+)
+def test_difference_scores_match_analytic_gaussian_values(metric_type, expected):
+    reference_values = np.column_stack(
+        [stats.norm.pdf(time, position, sigma_0) for position in (mu_0, mu_1)]
+    )
+    simulation_values = np.column_stack(
+        [
+            area * stats.norm.pdf(time, position + shift, sigma_0)
+            for area, position, shift in zip(_areas_simulation, (mu_0, mu_1), _shifts)
+        ]
+    )
+    reference = ReferenceIO(
+        "reference", time, reference_values, component_system=comp_2
+    )
+    simulation = ReferenceIO(
+        "simulation", time, simulation_values, component_system=comp_2
+    )
+    metric = metric_type(reference, resample=False)
+
+    np.testing.assert_allclose(metric.evaluate(simulation), expected, rtol=1e-6)
+
+
 def test_smoothed_sse_scores_zero_against_itself():
     reference = ReferenceIO(
         "reference", time, solution_2_gaussian, component_system=comp_2
