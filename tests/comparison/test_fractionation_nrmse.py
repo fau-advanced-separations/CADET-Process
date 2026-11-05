@@ -1,5 +1,7 @@
 """Fraction scores compare flow-weighted concentrations with equal fraction weights."""
 
+import copy
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
@@ -97,6 +99,50 @@ def test_zero_reference_maximum_retains_trace_nrmse_division_behavior(
     with pytest.warns(RuntimeWarning, match="divide by zero"):
         score = FractionationNRMSE(reference, components=["A"])(varying_flow_solution)
     assert np.isinf(score[0])
+
+
+@pytest.mark.parametrize("metric_type", [FractionationSSE, FractionationNRMSE])
+@pytest.mark.parametrize("transform", [lambda c: 2 * c, np.square])
+def test_user_transform_applies_to_the_trace_before_fraction_averaging(
+    varying_flow_solution,
+    unequal_volume_reference,
+    metric_type,
+    transform,
+):
+    transformed_solution = copy.deepcopy(varying_flow_solution)
+    transformed_solution.solution = transform(varying_flow_solution.solution)
+    untransformed_metric = metric_type(unequal_volume_reference)
+    metric = metric_type(unequal_volume_reference, transform=transform)
+
+    np.testing.assert_allclose(
+        metric.evaluate(varying_flow_solution),
+        untransformed_metric.evaluate(transformed_solution),
+    )
+    np.testing.assert_allclose(
+        metric.slice_and_transform(varying_flow_solution).solution,
+        untransformed_metric.slice_and_transform(transformed_solution).solution,
+    )
+    assert not np.allclose(
+        metric.evaluate(varying_flow_solution),
+        untransformed_metric.evaluate(varying_flow_solution),
+    )
+
+
+@pytest.mark.parametrize("metric_type", [FractionationSSE, FractionationNRMSE])
+@pytest.mark.parametrize("resample", [True, False])
+def test_fraction_metrics_reject_resampling(
+    unequal_volume_reference, metric_type, resample
+):
+    with pytest.raises(TypeError, match="do not support resampling"):
+        metric_type(unequal_volume_reference, resample=resample)
+
+
+@pytest.mark.parametrize("keyword", ["normalize_metrics", "normalization_factor"])
+def test_fraction_nrmse_rejects_score_normalization_keywords(
+    unequal_volume_reference, keyword
+):
+    with pytest.raises(TypeError, match=keyword):
+        FractionationNRMSE(unequal_volume_reference, **{keyword: 1.0})
 
 
 @pytest.mark.parametrize("metric_type", [FractionationSSE, FractionationNRMSE])

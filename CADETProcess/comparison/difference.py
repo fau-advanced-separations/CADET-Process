@@ -309,10 +309,31 @@ class DifferenceBase(MetricBase):
                 else:
                     solution = self.transform(solution)
 
+            solution = self._project_onto_reference(solution)
+
             value = func(self, solution, *args, **kwargs)
             return value
 
         return wrapper
+
+    def _project_onto_reference(self, solution: SolutionBase) -> SolutionBase:
+        """
+        Bring the solution into the layout of the reference.
+
+        Applied after the user transform, both when evaluating and when slicing for
+        plots. The default returns the solution unchanged.
+
+        Parameters
+        ----------
+        solution : SolutionBase
+            The sliced and transformed solution.
+
+        Returns
+        -------
+        SolutionBase
+            The solution in the layout of the reference.
+        """
+        return solution
 
     @abstractmethod
     def _evaluate(self) -> np.ndarray:
@@ -1205,40 +1226,42 @@ class FractionationSSE(DifferenceBase):
         *args :
             Positional arguments for DifferenceBase.
         normalize_metrics : bool, optional
-            Whether to normalize the metrics. Default is True.
+            Has no effect. For a normalized score, use :class:`FractionationNRMSE`.
         normalization_factor : float, optional
-            Factor to use for normalization.
-            If None, it is set to the maximum of the difference between the reference
-            breakthrough and the start time, and the difference between the end time and
-            the reference breakthrough.
+            Has no effect. For a normalized score, use :class:`FractionationNRMSE`.
         **kwargs : dict
             Keyword arguments passed to the base class constructor.
+            Resampling is not supported, since fractions are averages over
+            collection windows, not samples of a trace.
         """
-        super().__init__(*args, resample=False, only_transforms_array=False, **kwargs)
+        if "resample" in kwargs:
+            raise TypeError(
+                "Fractionation metrics do not support resampling; fractions are "
+                "averages over collection windows, not samples of a trace."
+            )
+        super().__init__(*args, resample=False, **kwargs)
 
         if not isinstance(self.reference, FractionationReference):
             raise TypeError(
                 "FractionationSSE can only work with FractionationReference"
             )
 
-        def transform(solution: SolutionIO) -> SolutionIO:
-            """Transform solution."""
-            solution = copy.deepcopy(solution)
-            solution_fractions = [
-                solution.create_fraction(frac.start, frac.end)
-                for frac in self.reference.fractions
-            ]
+    def _project_onto_reference(self, solution: SolutionIO) -> SolutionIO:
+        """Average the solution over the collection windows of the reference."""
+        solution = copy.deepcopy(solution)
+        solution_fractions = [
+            solution.create_fraction(frac.start, frac.end)
+            for frac in self.reference.fractions
+        ]
 
-            solution.time = np.array(
-                [(frac.start + frac.end) / 2 for frac in solution_fractions]
-            )
-            solution.solution = np.array(
-                [frac.concentration for frac in solution_fractions]
-            )
+        solution.time = np.array(
+            [(frac.start + frac.end) / 2 for frac in solution_fractions]
+        )
+        solution.solution = np.array(
+            [frac.concentration for frac in solution_fractions]
+        )
 
-            return solution
-
-        self.transform = transform
+        return solution
 
     def _evaluate(self, solution: SolutionIO) -> np.ndarray:
         """
@@ -1286,8 +1309,13 @@ class FractionationNRMSE(FractionationSSE):
     NRMSE
     """
 
-    @wraps(FractionationSSE.__init__)
     def __init__(self, *args: Any, **kwargs: Any) -> None:
+        for keyword in ("normalize_metrics", "normalization_factor"):
+            if keyword in kwargs:
+                raise TypeError(
+                    f"FractionationNRMSE got an unexpected keyword argument "
+                    f"'{keyword}'; the score is already normalized."
+                )
         super().__init__(*args, **kwargs)
         if self.start is not None or self.end is not None:
             raise ValueError(
