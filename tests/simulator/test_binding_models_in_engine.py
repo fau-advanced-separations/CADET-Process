@@ -41,6 +41,17 @@ BOUND_STATES = {
     "SimplifiedMultistateStericMassAction": [1, 2],
 }
 
+# Salt binds in the leading bound states, one per binding site; start them at the ionic
+# capacity of their site.
+SALT_CAPACITY_MODELS = {
+    "StericMassAction",
+    "BiStericMassAction",
+    "MultistateStericMassAction",
+    "SimplifiedMultistateStericMassAction",
+    "GeneralizedIonExchange",
+    "SelfAssociation",
+}
+
 # Models that placeholder values of 1 make invalid or too stiff to integrate get the
 # protein values of CADET-Core's binding model tests instead; salt entries are zero.
 COLLOIDAL_PARAMETERS = {
@@ -117,13 +128,16 @@ def make_cstr_process(
     inlet.c = feed
 
     # Start filled with the feed, as from an equilibrated buffer; at zero salt, fractional
-    # charges make salt-dependent rates non-differentiable. Consistent initialization
-    # sets the bound state.
+    # charges make salt-dependent rates non-differentiable.
     cstr = Cstr(component_system, name="cstr")
     cstr.c = feed
     cstr.init_liquid_volume = 1e-3
     cstr.const_solid_volume = 1e-4
     cstr.binding_model = binding_model
+    if type(binding_model).__name__ in SALT_CAPACITY_MODELS:
+        capacity = binding_model.capacity
+        q_salt = capacity if isinstance(capacity, list) else [capacity]
+        cstr.q = q_salt + [0] * (binding_model.n_bound_states - len(q_salt))
 
     outlet = Outlet(component_system, name="outlet")
 
