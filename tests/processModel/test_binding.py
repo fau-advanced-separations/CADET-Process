@@ -8,10 +8,14 @@ from CADETProcess.processModel import (
     Langmuir,
     MobilePhaseModulator,
     MultistateStericMassAction,
+    SimplifiedMultistateStericMassAction,
     StericMassAction,
     binding,
 )
-from CADETProcess.simulator.cadetAdapter import adsorption_parameters_map
+from CADETProcess.simulator.cadetAdapter import (
+    AdsorptionParameters,
+    adsorption_parameters_map,
+)
 
 
 class Test_Binding(unittest.TestCase):
@@ -138,6 +142,20 @@ class Test_Binding(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             self.langmuir.bound_states = [2, 2]
+
+
+# Expected field names below are taken from the CADET-Core v5.1.2 sources, not from
+# `adsorption_parameters_map`, so that a wrong map entry cannot confirm itself.
+
+
+def test_simplified_mssma_is_written_under_its_own_model_name():
+    binding_model = SimplifiedMultistateStericMassAction(
+        ComponentSystem(2), name="test"
+    )
+
+    config = AdsorptionParameters(binding_model).parameters
+
+    assert config["ADSORPTION_MODEL"] == "SIMPLIFIED_MULTISTATE_STERIC_MASS_ACTION"
 
 
 if __name__ == "__main__":
