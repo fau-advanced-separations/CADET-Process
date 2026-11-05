@@ -20,6 +20,7 @@ from CADETProcess.dataStructure import (
     SizedRangedList,
     Structure,
     Switch,
+    SwitchList,
     UnsignedFloat,
     UnsignedInteger,
     frozen_attributes,
@@ -576,11 +577,13 @@ class ConsistencySolverParameters(Structure):
         The minimum damping parameter. Default is 0.0001.
     max_iterations : UnsignedFloat, optional
         The maximum number of iterations. Default is 50.
-    subsolvers : Switch, optional
-        Vector with names of solvers for the composite solver
-        (only required for composite solver).
-        Valid values are 'LEVMAR', 'ATRN_RES', 'ATRN_ERR', and 'COMPOSITE'.
-        The default is 'LEVMAR'
+    subsolvers : SwitchList, optional
+        Names of the solvers the composite solver runs in sequence, each starting from
+        the result of the previous one; names may repeat.
+        Only used if `solver_name` is 'COMPOSITE'.
+        Valid values are 'LEVMAR', 'ATRN_RES', and 'ATRN_ERR'.
+        The default is ['ATRN_ERR', 'LEVMAR'], the composite CADET-Core uses when no
+        consistency solver is configured.
 
     See Also
     --------
@@ -588,12 +591,14 @@ class ConsistencySolverParameters(Structure):
     """
 
     solver_name = Switch(
-        default="LEVMAR", valid=["LEVMAR", "ATRN_RES", "ARTN_ERR", "COMPOSITE"]
+        default="LEVMAR", valid=["LEVMAR", "ATRN_RES", "ATRN_ERR", "COMPOSITE"]
     )
     init_damping = UnsignedFloat(default=0.01)
     min_damping = UnsignedFloat(default=0.0001)
     max_iterations = UnsignedInteger(default=50)
-    subsolvers = Switch(default="LEVMAR", valid=["LEVMAR", "ATRN_RES", "ARTN_ERR"])
+    subsolvers = SwitchList(
+        default=["ATRN_ERR", "LEVMAR"], valid=["LEVMAR", "ATRN_RES", "ATRN_ERR"]
+    )
 
     _parameters = [
         "solver_name",
