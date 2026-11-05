@@ -6,8 +6,10 @@ from CADETProcess import CADETProcessError
 from CADETProcess.dataStructure import (
     Bool,
     Float,
+    PositiveFloat,
     RangedInteger,
     SizedFloatList,
+    SizedPositiveList,
     SizedRangedIntegerList,
     SizedUnsignedIntegerList,
     SizedUnsignedList,
@@ -487,7 +489,7 @@ class StericMassAction(BindingBaseClass):
             "shared by the whole resin, not per component."
         ),
     )
-    reference_liquid_phase_conc = UnsignedFloat(
+    reference_liquid_phase_conc = PositiveFloat(
         default=1.0,
         unit=r"\frac{\mathrm{mol}}{\mathrm{m}^{3}_{\mathrm{MP}}}",
         description=(
@@ -496,7 +498,7 @@ class StericMassAction(BindingBaseClass):
             "Recommended: average or maximum inlet modulator concentration."
         ),
     )
-    reference_solid_phase_conc = UnsignedFloat(
+    reference_solid_phase_conc = PositiveFloat(
         default=1.0,
         unit=r"\frac{\mathrm{mol}}{\mathrm{m}^{3}_{\mathrm{SP}}}",
         description=(
@@ -748,8 +750,8 @@ class SelfAssociation(BindingBaseClass):
     characteristic_charge = SizedUnsignedList(size="n_comp")
     steric_factor = SizedUnsignedList(size="n_comp")
     capacity = UnsignedFloat()
-    reference_liquid_phase_conc = UnsignedFloat(default=1.0)
-    reference_solid_phase_conc = UnsignedFloat(default=1.0)
+    reference_liquid_phase_conc = PositiveFloat(default=1.0)
+    reference_solid_phase_conc = PositiveFloat(default=1.0)
 
     _parameters = [
         "adsorption_rate",
@@ -805,8 +807,8 @@ class BiStericMassAction(BindingBaseClass):
     characteristic_charge = SizedUnsignedList(size="n_bound_states")
     steric_factor = SizedUnsignedList(size="n_bound_states")
     capacity = SizedUnsignedList(size="n_binding_sites")
-    reference_liquid_phase_conc = SizedUnsignedList(size="n_binding_sites", default=1)
-    reference_solid_phase_conc = SizedUnsignedList(size="n_binding_sites", default=1)
+    reference_liquid_phase_conc = SizedPositiveList(size="n_binding_sites", default=1)
+    reference_solid_phase_conc = SizedPositiveList(size="n_binding_sites", default=1)
 
     _parameters = [
         "adsorption_rate",
@@ -871,8 +873,8 @@ class MultistateStericMassAction(BindingBaseClass):
     steric_factor = SizedUnsignedList(size="n_bound_states")
     conversion_rate = SizedUnsignedList(size="_conversion_entries")
     capacity = UnsignedFloat()
-    reference_liquid_phase_conc = UnsignedFloat(default=1)
-    reference_solid_phase_conc = UnsignedFloat(default=1)
+    reference_liquid_phase_conc = PositiveFloat(default=1)
+    reference_solid_phase_conc = PositiveFloat(default=1)
 
     _parameters = [
         "adsorption_rate",
@@ -980,9 +982,9 @@ class SimplifiedMultistateStericMassAction(BindingBaseClass):
     exchange_from_stronger_weak = SizedUnsignedList(size="n_comp")
     linear_exchange_sw = SizedFloatList(size="n_comp")
     quadratic_exchange_sw = SizedFloatList(size="n_comp")
-    characteristic_charge_salt = UnsignedFloat(default=1)
-    reference_liquid_phase_conc = UnsignedFloat(default=1)
-    reference_solid_phase_conc = UnsignedFloat(default=1)
+    characteristic_charge_salt = PositiveFloat(default=1)
+    reference_liquid_phase_conc = PositiveFloat(default=1)
+    reference_solid_phase_conc = PositiveFloat(default=1)
 
     _parameters = [
         "adsorption_rate",
@@ -1106,8 +1108,8 @@ class GeneralizedIonExchange(BindingBaseClass):
     characteristic_charge_quadratic = SizedFloatList(size="n_comp", default=0)
     steric_factor = SizedUnsignedList(size="n_comp")
     capacity = UnsignedFloat()
-    reference_liquid_phase_conc = UnsignedFloat(default=1)
-    reference_solid_phase_conc = UnsignedFloat(default=1)
+    reference_liquid_phase_conc = PositiveFloat(default=1)
+    reference_solid_phase_conc = PositiveFloat(default=1)
 
     _parameters = [
         "adsorption_rate",
