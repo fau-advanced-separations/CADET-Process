@@ -1607,7 +1607,7 @@ adsorption_parameters_map = {
         },
     },
     "SimplifiedMultistateStericMassAction": {
-        "name": "MULTISTATE_STERIC_MASS_ACTION",
+        "name": "SIMPLIFIED_MULTISTATE_STERIC_MASS_ACTION",
         "parameters": {
             "IS_KINETIC": "is_kinetic",
             "SMSSMA_KA": "adsorption_rate",
