@@ -770,6 +770,76 @@ class FloatList(TypedList):
     dtype = float
 
 
+class SwitchList(List):
+    """
+    List whose entries are each one of several predefined options.
+
+    Entries may repeat.
+
+    Attributes
+    ----------
+    valid : list
+        List of valid options for each entry.
+
+    See Also
+    --------
+    Switch
+    """
+
+    def __init__(self, *args: Any, valid: list, **kwargs: Any) -> None:
+        """
+        Initialize a SwitchList instance.
+
+        Parameters
+        ----------
+        *args : Any
+            Variable length argument list.
+        valid : list
+            List of valid options for each entry.
+        **kwargs : Any
+            Arbitrary keyword arguments.
+
+        Raises
+        ------
+        TypeError
+            If `valid` is not a list.
+        ValueError
+            If the `valid` list is empty.
+        """
+        if not isinstance(valid, list):
+            raise TypeError("Expected a list for valid entries")
+        if not valid:
+            raise ValueError("The valid options list cannot be empty.")
+        self.valid = valid
+
+        super().__init__(*args, **kwargs)
+
+    def _check(self, instance: Any, value: Any, recursive: bool = False) -> None:
+        """
+        Verify that every entry belongs to the valid options.
+
+        Parameters
+        ----------
+        instance : Any
+            Instance to retrieve the descriptor value for.
+        value : Any
+            The value to check.
+        recursive : bool, optional
+            If True, perform the check recursively. Defaults to False.
+
+        Raises
+        ------
+        ValueError
+            If an entry isn't one of the valid options.
+        """
+        if recursive:
+            super()._check(instance, value, recursive)
+
+        invalid = [entry for entry in value if entry not in self.valid]
+        if invalid:
+            raise ValueError(f"Entries must be one of {self.valid}, got {invalid}")
+
+
 # %% Ranged Parameters
 
 

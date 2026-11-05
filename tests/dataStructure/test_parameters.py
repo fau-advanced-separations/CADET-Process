@@ -1,6 +1,7 @@
 import unittest
 
 import numpy as np
+import pytest
 from CADETProcess.dataStructure import (
     Aggregator,
     Callable,
@@ -23,6 +24,7 @@ from CADETProcess.dataStructure import (
     String,
     Structure,
     Switch,
+    SwitchList,
     Typed,
     UnsignedInteger,
     Vector,
@@ -142,6 +144,38 @@ class TestSwitch(unittest.TestCase):
 
             class InvalidDefault(Structure):
                 switch = Switch(valid=["foo", "bar"], default="spam")
+
+
+class TestSwitchList:
+    @pytest.fixture
+    def model(self):
+        class Model(Structure):
+            switches = SwitchList(valid=["foo", "bar"], default=["foo"])
+
+        return Model()
+
+    def test_default(self, model):
+        assert model.switches == ["foo"]
+
+    def test_accepts_valid_options_in_any_order(self, model):
+        model.switches = ["bar", "foo"]
+
+        assert model.switches == ["bar", "foo"]
+
+    def test_accepts_repeated_options(self, model):
+        model.switches = ["foo", "foo"]
+
+        assert model.switches == ["foo", "foo"]
+
+    def test_rejects_invalid_option(self, model):
+        with pytest.raises(ValueError):
+            model.switches = ["foo", "spam"]
+
+    def test_rejects_invalid_default(self):
+        with pytest.raises(ValueError):
+
+            class InvalidDefault(Structure):
+                switches = SwitchList(valid=["foo", "bar"], default=["spam"])
 
 
 class TestTyped(unittest.TestCase):

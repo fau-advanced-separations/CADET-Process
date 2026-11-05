@@ -541,7 +541,7 @@ class TestProcessWithLWE:
                 "init_damping": 0.01,
                 "min_damping": 0.0001,
                 "max_iterations": 50,
-                "subsolvers": "LEVMAR",
+                "subsolvers": ["ATRN_ERR", "LEVMAR"],
             },
         )
 
