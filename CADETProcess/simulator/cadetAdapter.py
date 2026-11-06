@@ -29,6 +29,7 @@ from CADETProcess.processModel import (
     BindingBaseClass,
     Cstr,
     FlowSheet,
+    GeneralRateModel,
     Inlet,
     LumpedRateModelWithoutPores,
     NoBinding,
@@ -846,6 +847,17 @@ class Cadet(SimulatorBase):
 
         unit_config = Dict(unit_parameters.parameters)
 
+        # Export only the factors the selected surface diffusion dependence reads.
+        if isinstance(unit, GeneralRateModel):
+            used = unit._surface_diffusion_dependence_factors[
+                unit.surface_diffusion_dependence
+            ]
+            for key, name in unit_parameters.model_parameters["parameters"].items():
+                if name.startswith("surface_diffusion_") and (
+                    name != "surface_diffusion_dependence" and name not in used
+                ):
+                    unit_config.pop(key, None)
+
         if not isinstance(unit.binding_model, NoBinding):
             if unit.binding_model.n_binding_sites > 1:
                 n_bound = \
@@ -1295,6 +1307,14 @@ unit_parameters_map = {
             "PORE_ACCESSIBILITY": "pore_accessibility",
             "PAR_DIFFUSION": "pore_diffusion",
             "PAR_SURFDIFFUSION": "surface_diffusion",
+            "PAR_SURFDIFFUSION_DEP": "surface_diffusion_dependence",
+            "PAR_SURFDIFFUSION_EXPFACTOR": "surface_diffusion_exponent_factor",
+            "PAR_SURFDIFFUSION_EXPARGMULT": "surface_diffusion_exponent_multiplier",
+            "PAR_SURFDIFFUSION_POWFACTOR": "surface_diffusion_power_factor",
+            "PAR_SURFDIFFUSION_POWEXP": "surface_diffusion_power_exponent",
+            "PAR_SURFDIFFUSION_LOGKEQFACTOR": "surface_diffusion_logkeq_factor",
+            "PAR_SURFDIFFUSION_LOGKEQEXP": "surface_diffusion_logkeq_exponent",
+            "PAR_SURFDIFFUSION_LOGKEQCONST": "surface_diffusion_logkeq_constant",
             "CROSS_SECTION_AREA": "cross_section_area",
             "VELOCITY": "flow_direction",
         },

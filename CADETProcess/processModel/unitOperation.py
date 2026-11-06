@@ -1156,7 +1156,7 @@ class LumpedRateModelWithPores(ChromatographicColumnBase):
 
 
 class GeneralRateModel(ChromatographicColumnBase):
-    """
+    r"""
     Parameters for the general rate model.
 
     Attributes
@@ -1175,6 +1175,32 @@ class GeneralRateModel(ChromatographicColumnBase):
         Diffusion rate for components in pore volume.
     surface_diffusion : List of unsigned floats. Length depends on n_comp.
         Diffusion rate for components in adsorbed state.
+    surface_diffusion_dependence : str
+        Dependence of the surface diffusion on the salt concentration in the
+        particle liquid phase (component 0). Must be one of 'NONE',
+        'LIQUID_SALT_EXPONENTIAL', 'LIQUID_SALT_POWER', or
+        'LIQUID_SALT_COLLOIDAL_AFFINITY'.
+    surface_diffusion_exponent_factor : List of floats. Length depends on n_bound_states.
+        Factor of the exponential law. Used by 'LIQUID_SALT_EXPONENTIAL' and
+        'LIQUID_SALT_COLLOIDAL_AFFINITY'.
+    surface_diffusion_exponent_multiplier : List of floats. Length depends on n_bound_states.
+        Multiplier of the exponential argument. Used by
+        'LIQUID_SALT_EXPONENTIAL' and 'LIQUID_SALT_COLLOIDAL_AFFINITY'.
+    surface_diffusion_power_factor : List of floats. Length depends on n_bound_states.
+        Factor of the power law. Used by 'LIQUID_SALT_POWER' and
+        'LIQUID_SALT_COLLOIDAL_AFFINITY'.
+    surface_diffusion_power_exponent : List of floats. Length depends on n_bound_states.
+        Exponent of the power law. Used by 'LIQUID_SALT_POWER' and
+        'LIQUID_SALT_COLLOIDAL_AFFINITY'.
+    surface_diffusion_logkeq_factor : List of floats. Length depends on n_bound_states.
+        Factor of the salt-dependent affinity. Used by
+        'LIQUID_SALT_COLLOIDAL_AFFINITY'.
+    surface_diffusion_logkeq_exponent : List of floats. Length depends on n_bound_states.
+        Exponent of the salt-dependent affinity. Used by
+        'LIQUID_SALT_COLLOIDAL_AFFINITY'.
+    surface_diffusion_logkeq_constant : List of floats. Length depends on n_bound_states.
+        Constant of the salt-dependent affinity. Used by
+        'LIQUID_SALT_COLLOIDAL_AFFINITY'.
     c : List of unsigned floats. Length depends on n_comp
         Initial concentration in the mobile phase.
     cp : List of unsigned floats. Length depends on n_comp
@@ -1183,6 +1209,28 @@ class GeneralRateModel(ChromatographicColumnBase):
         Initial concentration of the bound phase.
     solution_recorder : GRMRecorder
         Solution recorder for the unit operation.
+
+    Notes
+    -----
+    With a surface diffusion dependence, CADET-Core scales the surface diffusion
+    :math:`\tilde{D}_{s,i,m}` of bound state :math:`m` of component :math:`i`
+    with the salt concentration :math:`c^p_0` in the particle liquid phase:
+
+    - ``LIQUID_SALT_EXPONENTIAL``:
+      :math:`D_{s,i,m} = \tilde{D}_{s,i,m} p_1 \exp(p_2 c^p_0)`,
+      with :math:`p_1` the exponent factor and :math:`p_2` the exponent multiplier.
+    - ``LIQUID_SALT_POWER``:
+      :math:`D_{s,i,m} = \tilde{D}_{s,i,m} p_1 (c^p_0)^{p_2}`,
+      with :math:`p_1` the power factor and :math:`p_2` the power exponent.
+    - ``LIQUID_SALT_COLLOIDAL_AFFINITY``:
+      :math:`D_{s,i,m} = \tilde{D}_{s,i,m} \left(p_4 k^{p_5} + p_6 \exp(p_7 k)\right)`,
+      with :math:`k = p_1 (c^p_0)^{p_2} + p_3` from the three logkeq parameters,
+      :math:`p_4, p_5` the power factor and exponent, and :math:`p_6, p_7` the
+      exponent factor and multiplier.
+
+    The colloidal affinity law does not depend on the binding model; all seven
+    factors are set here. The dependence parameters are constant over all
+    sections.
     """
 
     supports_binding = True
@@ -1231,6 +1279,88 @@ class GeneralRateModel(ChromatographicColumnBase):
             "flag is set."
         ),
     )
+    _surface_diffusion_dependence = Switch(
+        valid=[
+            "NONE",
+            "LIQUID_SALT_EXPONENTIAL",
+            "LIQUID_SALT_POWER",
+            "LIQUID_SALT_COLLOIDAL_AFFINITY",
+        ],
+        default="NONE",
+        description=(
+            "Dependence of the surface diffusion on the salt concentration in "
+            "the particle liquid phase."
+        ),
+    )
+    surface_diffusion_exponent_factor = SizedFloatList(
+        size="n_bound_states",
+        is_optional=True,
+        description="Factor of the exponential law of the surface diffusion dependence.",
+    )
+    surface_diffusion_exponent_multiplier = SizedFloatList(
+        size="n_bound_states",
+        is_optional=True,
+        description=(
+            "Multiplier of the exponential argument of the surface diffusion "
+            "dependence."
+        ),
+    )
+    surface_diffusion_power_factor = SizedFloatList(
+        size="n_bound_states",
+        is_optional=True,
+        description="Factor of the power law of the surface diffusion dependence.",
+    )
+    surface_diffusion_power_exponent = SizedFloatList(
+        size="n_bound_states",
+        is_optional=True,
+        description="Exponent of the power law of the surface diffusion dependence.",
+    )
+    surface_diffusion_logkeq_factor = SizedFloatList(
+        size="n_bound_states",
+        is_optional=True,
+        description=(
+            "Factor of the salt-dependent affinity in the colloidal affinity law "
+            "of the surface diffusion dependence."
+        ),
+    )
+    surface_diffusion_logkeq_exponent = SizedFloatList(
+        size="n_bound_states",
+        is_optional=True,
+        description=(
+            "Exponent of the salt-dependent affinity in the colloidal affinity "
+            "law of the surface diffusion dependence."
+        ),
+    )
+    surface_diffusion_logkeq_constant = SizedFloatList(
+        size="n_bound_states",
+        is_optional=True,
+        description=(
+            "Constant of the salt-dependent affinity in the colloidal affinity "
+            "law of the surface diffusion dependence."
+        ),
+    )
+    # Factors each surface diffusion dependence reads; the colloidal affinity law
+    # reuses the exponential and power factors.
+    _surface_diffusion_dependence_factors = {
+        "NONE": [],
+        "LIQUID_SALT_EXPONENTIAL": [
+            "surface_diffusion_exponent_factor",
+            "surface_diffusion_exponent_multiplier",
+        ],
+        "LIQUID_SALT_POWER": [
+            "surface_diffusion_power_factor",
+            "surface_diffusion_power_exponent",
+        ],
+        "LIQUID_SALT_COLLOIDAL_AFFINITY": [
+            "surface_diffusion_logkeq_factor",
+            "surface_diffusion_logkeq_exponent",
+            "surface_diffusion_logkeq_constant",
+            "surface_diffusion_power_factor",
+            "surface_diffusion_power_exponent",
+            "surface_diffusion_exponent_factor",
+            "surface_diffusion_exponent_multiplier",
+        ],
+    }
     _parameters = [
         "bed_porosity",
         "particle_porosity",
@@ -1239,6 +1369,14 @@ class GeneralRateModel(ChromatographicColumnBase):
         "pore_accessibility",
         "pore_diffusion",
         "surface_diffusion",
+        "surface_diffusion_dependence",
+        "surface_diffusion_exponent_factor",
+        "surface_diffusion_exponent_multiplier",
+        "surface_diffusion_power_factor",
+        "surface_diffusion_power_exponent",
+        "surface_diffusion_logkeq_factor",
+        "surface_diffusion_logkeq_exponent",
+        "surface_diffusion_logkeq_constant",
     ]
     _section_dependent_parameters = TubularReactorBase._section_dependent_parameters + [
         "film_diffusion",
@@ -1357,6 +1495,37 @@ class GeneralRateModel(ChromatographicColumnBase):
         self._surface_diffusion = surface_diffusion
 
         self.parameters["surface_diffusion"] = surface_diffusion
+
+    @property
+    def surface_diffusion_dependence(self) -> str:
+        """str: Dependence of the surface diffusion on the salt concentration."""
+        return self._surface_diffusion_dependence
+
+    @surface_diffusion_dependence.setter
+    def surface_diffusion_dependence(self, surface_diffusion_dependence: str) -> None:
+        if surface_diffusion_dependence != "NONE" and isinstance(
+            self.binding_model, NoBinding
+        ):
+            raise CADETProcessError(
+                "Cannot set surface diffusion dependence without binding model."
+            )
+        self._surface_diffusion_dependence = surface_diffusion_dependence
+
+        self.parameters["surface_diffusion_dependence"] = surface_diffusion_dependence
+
+    @property
+    def missing_parameters(self) -> list:
+        """list: Missing parameters, including factors of the selected dependence."""
+        missing_parameters = super().missing_parameters
+
+        factors = self._surface_diffusion_dependence_factors[
+            self.surface_diffusion_dependence
+        ]
+        missing_parameters += [
+            factor for factor in factors if getattr(self, factor) is None
+        ]
+
+        return missing_parameters
 
 
 class Cstr(UnitBaseClass, SourceMixin, SinkMixin):
