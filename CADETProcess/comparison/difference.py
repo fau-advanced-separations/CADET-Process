@@ -649,7 +649,19 @@ class Shape(DifferenceBase):
         -------
         np.ndarray
             Array of similarity metrics.
+
+        Raises
+        ------
+        CADETProcessError
+            If the simulated trace is flat, since the Pearson correlation of a
+            constant is undefined.
         """
+        if np.ptp(solution.solution) == 0:
+            raise CADETProcessError(
+                "Shape cannot score a flat simulated trace; the Pearson "
+                "correlation of a constant is undefined."
+            )
+
         corr, offset_original = determine_optimal_offset(
             self.reference.time,
             self.reference.solution_interpolated.solutions[0],

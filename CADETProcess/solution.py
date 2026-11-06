@@ -2275,6 +2275,11 @@ def slice_solution_front(
     SolutionIO or tuple[SolutionIO, int, int]
         The sliced `SolutionIO` object. If `return_indices` is True, also returns the
         start and end indices of the slice.
+
+    Raises
+    ------
+    CADETProcessError
+        If the solution has no front, e.g. if it is flat or starts at its maximum.
     """
     solution = copy.deepcopy(solution_original)
 
@@ -2295,8 +2300,15 @@ def slice_solution_front(
     select_max = max_percent * max_value
 
     # Find the indices for slicing using logical indexing
-    idx_min = np.where(solution_array[:max_index] <= select_min)[0][-1]
-    idx_max = np.where(solution_array[:max_index] >= select_max)[0][0]
+    below_min = np.where(solution_array[:max_index] <= select_min)[0]
+    above_max = np.where(solution_array[:max_index] >= select_max)[0]
+    if len(below_min) == 0 or len(above_max) == 0:
+        raise CADETProcessError(
+            f"No front found: the solution does not rise from {min_percent:.0%} "
+            f"to {max_percent:.0%} of its maximum before reaching it."
+        )
+    idx_min = below_min[-1]
+    idx_max = above_max[0]
 
     # Slice the sequence
     solution.solution[idx_min : idx_max + 1] = \
