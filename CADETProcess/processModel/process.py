@@ -577,6 +577,8 @@ class Process(EventHandler):
 
     @parameters.setter
     def parameters(self, parameters: dict) -> None:
+        # Pop from a copy; the caller's dict may be another object's parameters.
+        parameters = dict(parameters)
         try:
             self.flow_sheet.parameters = parameters.pop("flow_sheet")
         except KeyError:

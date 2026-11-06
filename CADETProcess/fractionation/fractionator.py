@@ -765,6 +765,8 @@ class Fractionator(EventHandler):
 
     @parameters.setter
     def parameters(self, parameters: Dict) -> None:
+        # Pop from a copy; the caller's dict may be another object's parameters.
+        parameters = dict(parameters)
         try:
             fractionation_states = parameters.pop("fractionation_states")
             for chrom, state in fractionation_states.items():

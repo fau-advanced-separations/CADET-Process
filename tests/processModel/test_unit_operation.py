@@ -614,5 +614,19 @@ def test_surface_diffusion_export_contains_only_used_factors(
     assert unit_config["PAR_SURFDIFFUSION_DEP"] == dependence
 
 
+@pytest.mark.parametrize("unit_operation", ["lrmp", "grm"])
+def test_setting_parameters_leaves_input_unchanged(unit_operation, request):
+    import copy
+
+    unit = request.getfixturevalue(unit_operation)
+    parameters = copy.deepcopy(dict(unit.parameters))
+    expected = copy.deepcopy(parameters)
+
+    target = type(unit)(unit.component_system, name="target")
+    target.parameters = parameters
+
+    np.testing.assert_equal(parameters, expected)
+
+
 if __name__ == "__main__":
     pytest.main([__file__])

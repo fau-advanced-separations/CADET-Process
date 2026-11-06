@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import os
 import re
 import subprocess
@@ -872,7 +873,8 @@ class Cadet(SimulatorBase):
             n_bound = unit.n_comp * [0]
 
         if not isinstance(unit.discretization, NoDiscretization):
-            unit_config["discretization"] = unit.discretization.parameters
+            # Copy: the keys added below must not reach the unit's own parameters.
+            unit_config["discretization"] = copy.deepcopy(unit.discretization.parameters)
             unit_config["discretization"]["spatial_method"] = \
                 unit.discretization.spatial_method
 

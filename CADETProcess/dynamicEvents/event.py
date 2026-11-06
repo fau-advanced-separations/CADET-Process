@@ -690,6 +690,8 @@ class EventHandler(CachedPropertiesMixin, Structure):
     @parameters.setter
     def parameters(self, parameters: dict) -> None:
         """Set event parameters based on provided dictionary."""
+        # Pop from a copy; the caller's dict may be another object's parameters.
+        parameters = dict(parameters)
         try:
             self.cycle_time = parameters.pop("cycle_time")
         except KeyError:

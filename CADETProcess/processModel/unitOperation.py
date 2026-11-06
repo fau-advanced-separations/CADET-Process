@@ -243,6 +243,8 @@ class UnitBaseClass(Structure):
 
     @parameters.setter
     def parameters(self, parameters: dict) -> None:
+        # Pop from a copy; the caller's dict may be another object's parameters.
+        parameters = dict(parameters)
         try:
             self.binding_model.parameters = parameters.pop("binding_model")
         except KeyError:

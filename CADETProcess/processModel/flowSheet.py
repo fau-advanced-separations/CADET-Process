@@ -1228,6 +1228,8 @@ class FlowSheet(Structure):
 
     @parameters.setter
     def parameters(self, parameters: dict) -> None:
+        # Pop from a copy; the caller's dict may be another object's parameters.
+        parameters = dict(parameters)
         try:
             output_states = parameters.pop("output_states")
             for unit, state in output_states.items():
