@@ -102,12 +102,14 @@ def setup_flow_sheet(unit, component_system: ComponentSystem) -> FlowSheet:
         flow_sheet.add_connection(inlet, unit, destination_port="channel_0")
         flow_sheet.add_connection(unit, outlet, origin_port="channel_0")
     elif unit.has_ports and "nrad" in unit.discretization.parameters:
-        flow_sheet.add_connection(inlet, unit, destination_port="radial_cell_0")
-        flow_sheet.add_connection(unit, outlet, origin_port="radial_cell_0")
-        flow_sheet.add_connection(inlet, unit, destination_port="radial_cell_1")
-        flow_sheet.add_connection(unit, outlet, origin_port="radial_cell_1")
-        flow_sheet.add_connection(inlet, unit, destination_port="radial_cell_2")
-        flow_sheet.add_connection(unit, outlet, origin_port="radial_cell_2")
+        for port in unit.ports:
+            flow_sheet.add_connection(inlet, unit, destination_port=port)
+            flow_sheet.add_connection(unit, outlet, origin_port=port)
+
+        # Split the inflow in proportion to the areas of the equidistant
+        # radial cells, as CADET-Core's own LWE setup does.
+        relative_edges = np.linspace(0, 1, unit.nrad + 1)
+        flow_sheet.set_output_state(inlet, np.diff(relative_edges**2))
     else:
         flow_sheet.add_connection(inlet, unit)
         flow_sheet.add_connection(unit, outlet)
@@ -205,9 +207,9 @@ def configure_general_rate_model_2d(
 
     grm2d.length = 0.014
     grm2d.diameter = 0.01 * 2
-    grm2d.bed_porosity = [0.37] * 3
-    grm2d.axial_dispersion = [5.75e-8] * 3 * 4
-    grm2d.col_dispersion_radial = [5.75e-8] * 3 * 4
+    grm2d.bed_porosity = [0.37] * n_rad
+    grm2d.axial_dispersion = [5.75e-8] * n_rad * 4
+    grm2d.col_dispersion_radial = [5.75e-8] * n_rad * 4
     grm2d.pore_diffusion = [7e-10, 6.07e-11, 6.07e-11, 6.07e-11]
 
     configure_solution_recorder(grm2d, **kwargs)
@@ -380,12 +382,6 @@ def configure_discretization(unit_operation, **kwargs) -> None:
     if "npar" in unit_operation.discretization.parameters:
         unit_operation.discretization.npar = n_par
         unit_operation.discretization.par_disc_type = "EQUIDISTANT_PAR"
-
-    if "nrad" in unit_operation.discretization.parameters:
-        unit_operation.discretization.radial_disc_type = "EQUIDISTANT"
-
-    if "nrad" in unit_operation.discretization.parameters:
-        unit_operation.discretization.radial_disc_type = "EQUIDISTANT"
 
     if "nrad" in unit_operation.discretization.parameters:
         unit_operation.discretization.radial_disc_type = "EQUIDISTANT"
