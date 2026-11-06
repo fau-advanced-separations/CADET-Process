@@ -14,6 +14,7 @@ from CADETProcess.processModel import (
     FlowSheet,
     GeneralRateModel,
     Inlet,
+    Langmuir,
     Linear,
     LumpedRateModelWithPores,
     Outlet,
@@ -1289,6 +1290,118 @@ class TestChannelIndexValidation:
         assert config.sens_name == ["EXCHANGE_MATRIX"]
         assert config.sens_partype == [2]
         assert config.sens_boundphase == [1]
+
+
+# Salt does not bind and enters at the concentration the column starts with, so the pore
+# salt concentration stays constant and every surface diffusion dependence law reduces to
+# a constant factor on the surface diffusion. A run with the dependence must then match a
+# run without it whose surface diffusion is scaled by that factor, computed here from the
+# law. Unlike a check that the dependence changes the result, this also catches factors
+# mapped to the wrong CADET-Core key.
+SURFDIFF_C_SALT = 2.0
+# Small enough that surface diffusion still limits uptake; from about 1e-10 on, the outlet
+# no longer changes with it.
+SURFDIFF_D = 1e-12
+
+SURFACE_DIFFUSION_LAWS = {
+    "LIQUID_SALT_EXPONENTIAL": (
+        {
+            "surface_diffusion_exponent_factor": [0.8],
+            "surface_diffusion_exponent_multiplier": [0.6],
+        },
+        0.8 * np.exp(0.6 * SURFDIFF_C_SALT),
+    ),
+    "LIQUID_SALT_POWER": (
+        {
+            "surface_diffusion_power_factor": [1.5],
+            "surface_diffusion_power_exponent": [1.2],
+        },
+        1.5 * SURFDIFF_C_SALT**1.2,
+    ),
+    "LIQUID_SALT_COLLOIDAL_AFFINITY": (
+        {
+            "surface_diffusion_logkeq_factor": [0.5],
+            "surface_diffusion_logkeq_exponent": [1.5],
+            "surface_diffusion_logkeq_constant": [0.2],
+            "surface_diffusion_power_factor": [0.7],
+            "surface_diffusion_power_exponent": [2.0],
+            "surface_diffusion_exponent_factor": [0.3],
+            "surface_diffusion_exponent_multiplier": [0.9],
+        },
+        # Sum of the power and exponential terms, as CADET-Core computes it.
+        0.7 * (0.5 * SURFDIFF_C_SALT**1.5 + 0.2) ** 2.0
+        + 0.3 * np.exp(0.9 * (0.5 * SURFDIFF_C_SALT**1.5 + 0.2)),
+    ),
+}
+
+
+def simulate_protein_outlet(
+    surface_diffusion: float,
+    dependence: str = "NONE",
+    factors: dict | None = None,
+) -> np.ndarray:
+    """Simulate a protein pulse at constant salt and return the protein outlet trace."""
+    component_system = ComponentSystem(["Salt", "Protein"])
+
+    binding_model = Langmuir(component_system, name="langmuir")
+    binding_model.bound_states = [0, 1]
+    binding_model.is_kinetic = True
+    binding_model.adsorption_rate = [0, 2]
+    binding_model.desorption_rate = [0, 1]
+    binding_model.capacity = [0, 10]
+
+    inlet = Inlet(component_system, name="inlet")
+    inlet.flow_rate = 1e-7
+
+    column = GeneralRateModel(component_system, name="column")
+    column.binding_model = binding_model
+    column.length = 0.05
+    column.diameter = 0.01
+    column.bed_porosity = 0.37
+    column.particle_porosity = 0.5
+    column.particle_radius = 5e-5
+    column.axial_dispersion = 1e-7
+    column.film_diffusion = [1e-5, 1e-5]
+    column.pore_diffusion = [1e-10, 1e-11]
+    column.surface_diffusion = [surface_diffusion]
+    column.surface_diffusion_dependence = dependence
+    if factors:
+        column.parameters = factors
+    column.c = [SURFDIFF_C_SALT, 0]
+    column.discretization.ncol = 20
+    column.discretization.npar = 5
+
+    outlet = Outlet(component_system, name="outlet")
+
+    flow_sheet = FlowSheet(component_system, name="flow_sheet")
+    flow_sheet.add_unit(inlet)
+    flow_sheet.add_unit(column)
+    flow_sheet.add_unit(outlet)
+    flow_sheet.add_connection(inlet, column)
+    flow_sheet.add_connection(column, outlet)
+
+    process = Process(flow_sheet, name="process")
+    process.cycle_time = 600
+    process.add_event("load", "flow_sheet.inlet.c", [SURFDIFF_C_SALT, 1], 0)
+    process.add_event("wash", "flow_sheet.inlet.c", [SURFDIFF_C_SALT, 0], 60)
+
+    results = Cadet(install_path).simulate(process)
+
+    return results.solution.outlet.outlet.solution[:, 1]
+
+
+@pytest.mark.skipif(not found_cadet, reason="Skip if CADET is not installed.")
+@pytest.mark.parametrize("dependence", SURFACE_DIFFUSION_LAWS)
+def test_surface_diffusion_dependence_reaches_cadet_core(dependence):
+    factors, scale = SURFACE_DIFFUSION_LAWS[dependence]
+
+    with_dependence = simulate_protein_outlet(SURFDIFF_D, dependence, factors)
+    scaled = simulate_protein_outlet(SURFDIFF_D * scale)
+    unscaled = simulate_protein_outlet(SURFDIFF_D)
+
+    # Control: the scale must visibly change the outlet, or the match proves nothing.
+    assert not np.allclose(unscaled, scaled, rtol=1e-2, atol=1e-4)
+    np.testing.assert_allclose(with_dependence, scaled, rtol=1e-5, atol=1e-8)
 
 
 if __name__ == "__main__":

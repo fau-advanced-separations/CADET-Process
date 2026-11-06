@@ -300,6 +300,7 @@ def test_polynomial_flow_rate(
                 "particle_porosity": particle_porosity,
                 "pore_diffusion": [pore_diffusion_0, pore_diffusion_1],
                 "surface_diffusion": None,
+                "surface_diffusion_dependence": "NONE",
                 "flow_direction": flow_direction,
                 "c": [0, 0],
                 "cp": [0, 0],
@@ -487,6 +488,130 @@ def test_bodenstein_number(
     np.testing.assert_almost_equal(
         unit.calculate_bodenstein_number(flow_rate), expected_bodenstein
     )
+
+
+# Factors each surface diffusion dependence law uses; the colloidal affinity law reuses
+# the exponential and power factors.
+SURFACE_DIFFUSION_FACTORS = {
+    "LIQUID_SALT_EXPONENTIAL": [
+        "surface_diffusion_exponent_factor",
+        "surface_diffusion_exponent_multiplier",
+    ],
+    "LIQUID_SALT_POWER": [
+        "surface_diffusion_power_factor",
+        "surface_diffusion_power_exponent",
+    ],
+    "LIQUID_SALT_COLLOIDAL_AFFINITY": [
+        "surface_diffusion_exponent_factor",
+        "surface_diffusion_exponent_multiplier",
+        "surface_diffusion_power_factor",
+        "surface_diffusion_power_exponent",
+        "surface_diffusion_logkeq_factor",
+        "surface_diffusion_logkeq_exponent",
+        "surface_diffusion_logkeq_constant",
+    ],
+}
+ALL_SURFACE_DIFFUSION_FACTORS = SURFACE_DIFFUSION_FACTORS[
+    "LIQUID_SALT_COLLOIDAL_AFFINITY"
+]
+
+
+@pytest.fixture
+def grm_with_binding(grm):
+    from CADETProcess.processModel import Langmuir
+
+    grm.binding_model = Langmuir(grm.component_system)
+    return grm
+
+
+def test_surface_diffusion_dependence_requires_binding_model(grm):
+    grm.surface_diffusion_dependence = "NONE"
+
+    with pytest.raises(CADETProcessError, match="without binding model"):
+        grm.surface_diffusion_dependence = "LIQUID_SALT_POWER"
+
+
+@pytest.mark.parametrize("dependence", SURFACE_DIFFUSION_FACTORS)
+def test_surface_diffusion_dependence_requires_its_factors(
+    grm_with_binding, dependence
+):
+    factors = SURFACE_DIFFUSION_FACTORS[dependence]
+    # A factor of another law does not count towards the selected one.
+    unused = [f for f in ALL_SURFACE_DIFFUSION_FACTORS if f not in factors]
+    for factor in unused:
+        setattr(grm_with_binding, factor, [1.0, 1.0])
+
+    grm_with_binding.surface_diffusion_dependence = dependence
+    assert set(factors) <= set(grm_with_binding.missing_parameters)
+
+    for factor in factors:
+        setattr(grm_with_binding, factor, [-0.5, 2.0])
+    assert not set(ALL_SURFACE_DIFFUSION_FACTORS) & set(
+        grm_with_binding.missing_parameters
+    )
+
+
+def test_surface_diffusion_factors_not_required_without_dependence(grm_with_binding):
+    assert not set(ALL_SURFACE_DIFFUSION_FACTORS) & set(
+        grm_with_binding.missing_parameters
+    )
+
+
+@pytest.mark.parametrize("dependence", SURFACE_DIFFUSION_FACTORS)
+def test_surface_diffusion_dependence_round_trips_through_parameters(
+    grm_with_binding, dependence
+):
+    grm_with_binding.surface_diffusion_dependence = dependence
+    for value, factor in enumerate(ALL_SURFACE_DIFFUSION_FACTORS):
+        setattr(grm_with_binding, factor, [value, -value])
+
+    copy = type(grm_with_binding)(grm_with_binding.component_system, name="copy")
+    copy.binding_model = grm_with_binding.binding_model
+    copy.parameters = grm_with_binding.parameters
+
+    assert copy.surface_diffusion_dependence == dependence
+    for value, factor in enumerate(ALL_SURFACE_DIFFUSION_FACTORS):
+        assert getattr(copy, factor) == [value, -value]
+
+
+@pytest.mark.parametrize("dependence", ["NONE", *SURFACE_DIFFUSION_FACTORS])
+def test_surface_diffusion_export_contains_only_used_factors(
+    grm_with_binding, dependence
+):
+    from CADETProcess.simulator import Cadet
+
+    try:
+        simulator = Cadet()
+    except FileNotFoundError:
+        pytest.skip("CADET-Core is not installed.")
+
+    if dependence != "NONE":
+        grm_with_binding.surface_diffusion_dependence = dependence
+    for factor in ALL_SURFACE_DIFFUSION_FACTORS:
+        setattr(grm_with_binding, factor, [1.0, 1.0])
+
+    unit_config = simulator.get_unit_config(grm_with_binding)
+
+    exported = {
+        key for key in unit_config if key.startswith("PAR_SURFDIFFUSION_")
+    } - {"PAR_SURFDIFFUSION_MULTIPLEX"}
+    expected_keys = {
+        "LIQUID_SALT_EXPONENTIAL": {"EXPFACTOR", "EXPARGMULT"},
+        "LIQUID_SALT_POWER": {"POWFACTOR", "POWEXP"},
+        "LIQUID_SALT_COLLOIDAL_AFFINITY": {
+            "EXPFACTOR",
+            "EXPARGMULT",
+            "POWFACTOR",
+            "POWEXP",
+            "LOGKEQFACTOR",
+            "LOGKEQEXP",
+            "LOGKEQCONST",
+        },
+    }.get(dependence, set())
+    assert exported == {"PAR_SURFDIFFUSION_DEP"} | {
+        f"PAR_SURFDIFFUSION_{key}" for key in expected_keys
+    }
+    assert unit_config["PAR_SURFDIFFUSION_DEP"] == dependence
 
 
 if __name__ == "__main__":
