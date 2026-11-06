@@ -90,6 +90,8 @@ class DiscretizationParametersBase(Structure):
 
     @parameters.setter
     def parameters(self, parameters: dict) -> None:
+        # Pop from a copy; the caller's dict may be another object's parameters.
+        parameters = dict(parameters)
         try:
             self.weno_parameters.parameters = parameters.pop("weno")
         except KeyError:

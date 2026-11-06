@@ -579,11 +579,12 @@ class TestProcessWithLWE:
             },
         )
 
-        if "spatial_method" in unit.discretization.parameters:
-            assert (
-                unit_config.discretization.spatial_method
-                == unit.discretization.spatial_method
-            )
+        # spatial_method is a constant of the discretization class, not one of its
+        # parameters, so it reaches the config only through the export.
+        assert (
+            unit_config.discretization.spatial_method
+            == unit.discretization.spatial_method
+        )
 
         if "npar" in unit.discretization.parameters:
             assert unit_config.discretization.npar == unit.discretization.npar
@@ -1402,6 +1403,21 @@ def test_surface_diffusion_dependence_reaches_cadet_core(dependence):
     # Control: the scale must visibly change the outlet, or the match proves nothing.
     assert not np.allclose(unscaled, scaled, rtol=1e-2, atol=1e-4)
     np.testing.assert_allclose(with_dependence, scaled, rtol=1e-5, atol=1e-8)
+
+
+@pytest.mark.skipif(not found_cadet, reason="Skip if CADET is not installed.")
+def test_unit_config_leaves_unit_parameters_unchanged():
+    component_system = ComponentSystem(2)
+    unit = LumpedRateModelWithPores(component_system, name="unit")
+    discretization_before = set(unit.discretization.parameters)
+
+    Cadet(install_path).get_unit_config(unit)
+
+    # Exporting adds CADET-Core keys (spatial_method, nbound) to the config; they must
+    # not reach the unit, which would reject them when its parameters are copied.
+    assert set(unit.discretization.parameters) == discretization_before
+    copy = LumpedRateModelWithPores(component_system, name="copy")
+    copy.parameters = unit.parameters
 
 
 if __name__ == "__main__":
