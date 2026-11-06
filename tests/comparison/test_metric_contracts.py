@@ -18,8 +18,6 @@ Keywords of the base class share one code path for every metric that only overri
 Not yet covered
 ---------------
 5. `use_total_concentration` for every metric; `smooth` for the breakthrough metrics.
-   The fractionation metrics reject `start`/`end`, `normalize` and `smooth` with errors
-   that do not name the keyword.
 """
 
 import types
