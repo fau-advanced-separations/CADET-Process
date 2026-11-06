@@ -103,13 +103,15 @@ def test_single_component_reference_selects_matching_named_simulation_component(
     np.testing.assert_allclose(metric(varying_flow_solution), [0], atol=1e-12)
 
 
+@pytest.mark.parametrize("metric_type", [FractionationSSE, FractionationNRMSE])
 @pytest.mark.parametrize("bound", ["start", "end"])
-def test_fraction_nrmse_requires_collection_windows_instead_of_trace_slicing(
+def test_fraction_metrics_require_collection_windows_instead_of_trace_slicing(
     unequal_volume_reference,
+    metric_type,
     bound,
 ):
     with pytest.raises(ValueError, match="collection windows"):
-        FractionationNRMSE(unequal_volume_reference, **{bound: 1.0})
+        metric_type(unequal_volume_reference, **{bound: 1.0})
 
 
 def test_fraction_nrmse_requires_a_fraction_reference(varying_flow_solution):
@@ -158,12 +160,13 @@ def test_user_transform_applies_to_the_trace_before_fraction_averaging(
 
 
 @pytest.mark.parametrize("metric_type", [FractionationSSE, FractionationNRMSE])
-@pytest.mark.parametrize("resample", [True, False])
-def test_fraction_metrics_reject_resampling(
-    unequal_volume_reference, metric_type, resample
+@pytest.mark.parametrize("keyword", ["resample", "normalize", "smooth"])
+@pytest.mark.parametrize("value", [True, False])
+def test_fraction_metrics_reject_trace_preprocessing(
+    unequal_volume_reference, metric_type, keyword, value
 ):
-    with pytest.raises(TypeError, match="do not support resampling"):
-        metric_type(unequal_volume_reference, resample=resample)
+    with pytest.raises(TypeError, match=f"do not support '{keyword}'"):
+        metric_type(unequal_volume_reference, **{keyword: value})
 
 
 @pytest.mark.parametrize("keyword", ["normalize_metrics", "normalization_factor"])

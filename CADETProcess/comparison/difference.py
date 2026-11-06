@@ -1243,19 +1243,27 @@ class FractionationSSE(DifferenceBase):
             Has no effect. For a normalized score, use :class:`FractionationNRMSE`.
         **kwargs : dict
             Keyword arguments passed to the base class constructor.
-            Resampling is not supported, since fractions are averages over
-            collection windows, not samples of a trace.
+            Resampling, normalization and smoothing are not supported, since
+            fractions are averages over collection windows, not samples of a trace.
+            Neither is trace slicing with ``start`` or ``end``; restrict comparisons
+            by constructing a reference with the desired fractions.
         """
-        if "resample" in kwargs:
-            raise TypeError(
-                "Fractionation metrics do not support resampling; fractions are "
-                "averages over collection windows, not samples of a trace."
-            )
+        for keyword in ("resample", "normalize", "smooth"):
+            if keyword in kwargs:
+                raise TypeError(
+                    f"Fractionation metrics do not support '{keyword}'; fractions "
+                    "are averages over collection windows, not samples of a trace."
+                )
         super().__init__(*args, resample=False, **kwargs)
 
         if not isinstance(self.reference, FractionationReference):
             raise TypeError(
                 "FractionationSSE can only work with FractionationReference"
+            )
+        if self.start is not None or self.end is not None:
+            raise ValueError(
+                "Select collection windows in FractionationReference instead of "
+                "using start or end."
             )
 
     def _project_onto_reference(self, solution: SolutionIO) -> SolutionIO:
@@ -1329,11 +1337,6 @@ class FractionationNRMSE(FractionationSSE):
                     f"'{keyword}'; the score is already normalized."
                 )
         super().__init__(*args, **kwargs)
-        if self.start is not None or self.end is not None:
-            raise ValueError(
-                "Select collection windows in FractionationReference instead of "
-                "using start or end."
-            )
 
     def _evaluate(self, solution: SolutionIO) -> np.ndarray:
         return NRMSE._evaluate(self, solution)
