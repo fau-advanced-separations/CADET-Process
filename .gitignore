@@ -6,6 +6,7 @@ docs/source/reference/generated/*
 docs/build/*
 docs/jupyter_execute/*
 docs/source/jupyter_execute/
+docs/.jupyter_cache/
 docs/source/reference/generated/*
 docs/source/examples/
 debug*
