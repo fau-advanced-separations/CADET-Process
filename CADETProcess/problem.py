@@ -231,10 +231,9 @@ class Problem:
                 # does not know about.
                 raise ValueError(
                     f"Metric {metric.name!r} declares no case "
-                    f"dimension but the backend returned per-case results.  "
-                    f"This happens for metrics registered with "
-                    f"evaluation_objects=None while cases exist; "
-                    f"see the input-handling cleanup note in PROJECT.md."
+                    f"dimension but the backend returned per-case results. "
+                    f"Declare a case dimension on the metric to represent "
+                    f"per-case failures."
                 )
             else:
                 results[metric.name] = metric.validate(value)

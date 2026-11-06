@@ -26,7 +26,7 @@ from CADETProcess.optimization import OptimizationProblem
 optimization_problem = OptimizationProblem('single_objective')
 ```
 
-By default, the {class}`~CADETProcess.optimization.OptimizationProblem` uses an in-memory LRU cache to store intermediate evaluation results.
+By default, the {class}`~CADETProcess.optimization.OptimizationProblem` uses an in-memory hybrid cache to store intermediate evaluation results.
 Pass a ``cache_directory`` to persist results to disk across runs, which also enables multi-core parallelization via a shared cache.
 
 (optimization_variables_guide)=
@@ -54,7 +54,7 @@ print(optimization_problem.variable_names)
 In order to reduce the complexity of the optimization problem, dependencies between individual variables can be defined.
 For more information, refer to {ref}`variable_dependencies_guide`.
 
-For more information on how to configure optimization variables of multi-dimensional parameters, refer to {ref}`variable_indices_gude.
+For more information on how to configure optimization variables of multi-dimensional parameters, refer to {ref}`variable_indices_guide`.
 
 (objectives_guide)=
 ## Objectives

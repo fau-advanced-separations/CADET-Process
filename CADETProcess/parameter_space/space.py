@@ -229,9 +229,9 @@ class ParameterSpace:
     def case_uuid(self, obj: Any) -> str:
         """Return the stable UUID minted for a registered case.
 
-        The UUID is a per-object identity assigned at registration.  It keys the
-        ``_EvaluationContext`` cache identity and, once mapped execution lands,
-        serves as the object-axis label; minting it here keeps one owner.
+        The UUID is a per-case identity assigned at registration.
+        It keys the ``_EvaluationContext`` cache identity; registering it here
+        keeps the space as its single owner.
 
         Looked up by identity scan against ``_cases``, not by ``id(obj)``: an
         ``id()``-keyed dict breaks across any pickle round trip (an unpickled
