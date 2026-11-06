@@ -20,7 +20,6 @@ Not yet covered
 5. `use_total_concentration` for every metric; `smooth` for the breakthrough metrics.
    The fractionation metrics reject `start`/`end`, `normalize` and `smooth` with errors
    that do not name the keyword.
-6. `Shape` and `ShapeFront` raise on a flat trace instead.
 """
 
 import types
@@ -167,8 +166,6 @@ def test_comparator_keeps_metric_scores(metric_setup):
 def test_flat_simulation_scores_finite_or_raises(metric_setup):
     """A simulation in which nothing elutes must not produce NaN scores."""
     metric, reference, _ = metric_setup
-    if isinstance(metric, Shape):
-        pytest.skip("Shape raises on a flat trace, a known defect")
     flat = ReferenceIO(
         "flat",
         time,
