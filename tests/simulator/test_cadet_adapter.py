@@ -1421,6 +1421,22 @@ def test_unit_config_leaves_unit_parameters_unchanged():
 
 
 @pytest.mark.skipif(not found_cadet, reason="Skip if CADET is not installed.")
+def test_return_config_leaves_recorder_parameters_unchanged():
+    process = create_lwe("LumpedRateModelWithPores")
+    unit = process.flow_sheet["LumpedRateModelWithPores"]
+    recorder_before = dict(unit.solution_recorder.parameters)
+
+    config = Cadet(install_path).get_process_config(process)
+    unit_index = process.flow_sheet.get_unit_index(unit)
+    config.input["return"][f"unit_{unit_index:03d}"]["write_solution_bulk"] = (
+        not recorder_before["write_solution_bulk"]
+    )
+    config.input["return"][f"unit_{unit_index:03d}"]["extra_key"] = 1
+
+    assert unit.solution_recorder.parameters == recorder_before
+
+
+@pytest.mark.skipif(not found_cadet, reason="Skip if CADET is not installed.")
 def test_mct_section_dependent_parameters_reach_config():
     process = create_lwe("MCT")
     mct = process.flow_sheet["MCT"]

@@ -1062,7 +1062,10 @@ class Cadet(SimulatorBase):
         unit_return_parameters = Dict()
         for unit in process.flow_sheet.units:
             unit_index = self.get_unit_index(process, unit)
-            unit_return_parameters[unit_index] = unit.solution_recorder.parameters
+            # Copy: the config must not alias the recorder's own parameters.
+            unit_return_parameters[unit_index] = copy.deepcopy(
+                unit.solution_recorder.parameters
+            )
 
         return unit_return_parameters
 
