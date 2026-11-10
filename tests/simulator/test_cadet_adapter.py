@@ -1420,5 +1420,29 @@ def test_unit_config_leaves_unit_parameters_unchanged():
     copy.parameters = unit.parameters
 
 
+@pytest.mark.skipif(not found_cadet, reason="Skip if CADET is not installed.")
+def test_mct_section_dependent_parameters_reach_config():
+    process = create_lwe("MCT")
+    mct = process.flow_sheet["MCT"]
+    n_entries = mct.component_system.n_comp * mct.nchannel
+    process.add_event("dispersion_low", "flow_sheet.MCT.axial_dispersion", 1e-7, 0)
+    process.add_event("dispersion_high", "flow_sheet.MCT.axial_dispersion", 2e-7, 10)
+    process.add_event("forward", "flow_sheet.MCT.flow_direction", 1, 0)
+    process.add_event("backward", "flow_sheet.MCT.flow_direction", -1, 10)
+
+    config = Cadet(install_path).get_process_config(process)
+    unit_config = config.input.model.unit_001
+
+    section_starts = process.section_times[:-1]
+    expected_dispersion = [
+        value
+        for start in section_starts
+        for value in n_entries * [1e-7 if start < 10 else 2e-7]
+    ]
+    expected_velocity = [1 if start < 10 else -1 for start in section_starts]
+    npt.assert_allclose(unit_config.COL_DISPERSION, expected_dispersion)
+    npt.assert_equal(unit_config.VELOCITY, expected_velocity)
+
+
 if __name__ == "__main__":
     pytest.main([__file__])

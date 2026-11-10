@@ -1973,8 +1973,6 @@ class MCT(UnitBaseClass):
         "flow_direction",
     ]
 
-    _section_dependent_parameters = UnitBaseClass._section_dependent_parameters + []
-
     c = SizedNdArray(size=("n_comp", "nchannel"), default=0)
     _initial_state = UnitBaseClass._initial_state + ["c"]
     _parameters = _parameters + _initial_state
