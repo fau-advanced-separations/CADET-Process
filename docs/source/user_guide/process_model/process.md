@@ -442,7 +442,8 @@ process.add_parameter_sensitivity(
 ```
 
 Multiple parameters can also be linearly combined.
-For each of the arguments, a list of parameter needs to be passed.
+Pass a list of parameter paths and matching lists for any per-parameter arguments that are provided.
+Optional indices can be omitted when they do not apply, such as polynomial coefficient indices for non-polynomial parameters.
 In this case, a `name` also must be provided.
 
 For more information on the computed sensitivities, refer to {ref}`simulation_results_guide`.

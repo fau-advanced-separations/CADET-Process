@@ -1234,6 +1234,40 @@ class TestMCTChannelParameterSensitivity:
         assert relative_l2_error < 1e-2
 
 
+class TestMultiPathParameterSensitivity:
+    """Non-polynomial parameters can share one sensitivity direction."""
+
+    @staticmethod
+    def add_shared_charge_sensitivity(process):
+        process.add_parameter_sensitivity(
+            2 * ["LumpedRateModelWithPores.binding_model.characteristic_charge"],
+            name="shared_charge",
+            components=["1", "2"],
+        )
+        return process.parameter_sensitivities[0]
+
+    def test_omitted_coefficients_default_for_each_parameter(self):
+        process = create_lwe("LumpedRateModelWithPores")
+        sensitivity = self.add_shared_charge_sensitivity(process)
+
+        assert len(process.parameter_sensitivities) == 1
+        assert sensitivity.name == "shared_charge"
+        assert sensitivity.parameters == 2 * ["characteristic_charge"]
+        assert sensitivity.components == ["1", "2"]
+        assert sensitivity.polynomial_coefficients == [None, None]
+        assert sensitivity.factors == [1, 1]
+
+    @pytest.mark.skipif(not found_cadet, reason="Skip if CADET is not installed.")
+    def test_combined_parameters_are_mapped_to_core_slots(self):
+        process = create_lwe("LumpedRateModelWithPores")
+        sensitivity = self.add_shared_charge_sensitivity(process)
+
+        config = Cadet(install_path).get_sensitivity_config(process, sensitivity)
+        assert config.sens_comp == [1, 2]
+        assert config.sens_name == ["SMA_NU", "SMA_NU"]
+        assert config.sens_factor == [1, 1]
+
+
 class TestChannelIndexValidation:
     """add_parameter_sensitivity must check channel indices without running CADET."""
 

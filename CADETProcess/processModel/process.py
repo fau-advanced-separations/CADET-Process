@@ -344,7 +344,7 @@ class Process(EventHandler):
         components : str or list of str, optional
             The component(s) to which the parameter(s) belong.
             Must only be provided if parameter is specific to a certain compoment.
-        polynomial_coefficients: str or list of str, optional
+        polynomial_coefficients : int or list of int, optional
             The polynomial coefficients(s) to which the parameter(s) belong.
             Must only be provided if parameter is specific to a certain coefficient.
         reaction_indices : int or list of int, optional
@@ -422,9 +422,9 @@ class Process(EventHandler):
             components = [components]
         if len(components) != n_params:
             raise CADETProcessError("Number of component indices does not match.")
-        if components is None:
-            components = n_params * [None]
 
+        if polynomial_coefficients is None:
+            polynomial_coefficients = n_params * [None]
         if not isinstance(polynomial_coefficients, list):
             polynomial_coefficients = [polynomial_coefficients]
         if len(polynomial_coefficients) != n_params:
