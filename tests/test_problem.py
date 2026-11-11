@@ -236,7 +236,7 @@ def test_evaluate_reduces_per_case_results_case_major(two_object_setup):
         Metric(
             "v",
             dims=("case", "entry"),
-            coords={"case": ["m1", "m2"], "entry": ["a", "b"]},
+            coords={"case": [m1, m2], "entry": ["a", "b"]},
         )
     )
     problem = Problem(parameter_space, metric_space, backend=pipeline)
@@ -256,7 +256,7 @@ def test_evaluate_selects_declared_case_subset(two_object_setup):
         Metric(
             "v",
             dims=("case",),
-            coords={"case": ["m2"]},
+            coords={"case": [m2]},
         )
     )
     problem = Problem(parameter_space, metric_space, backend=pipeline)
@@ -281,7 +281,7 @@ def test_evaluate_per_case_failure_passes_through_as_list(two_object_setup):
         Metric(
             "v",
             dims=("case",),
-            coords={"case": ["m1", "m2"]},
+            coords={"case": [m1, m2]},
         )
     )
     problem = Problem(parameter_space, metric_space, backend=pipeline)
@@ -456,3 +456,143 @@ def test_evaluate_batch_without_backend_raises(yield_and_purity_space):
     problem = Problem(metric_space=yield_and_purity_space)
     with pytest.raises(RuntimeError, match="backend"):
         problem.evaluate_batch([{}])
+
+
+# ── case identity in per-case metrics ───────────────────────────────────────
+
+
+class ValueEqCase:
+    """Case whose ``==`` compares values, so ``==`` cannot tell cases apart."""
+
+    def __init__(self, name, value):
+        self.name = name
+        self.value = value
+
+    def __eq__(self, other):
+        return isinstance(other, ValueEqCase) and self.value == other.value
+
+    __hash__ = None
+
+    def __str__(self):
+        return self.name
+
+
+def _case_value(case):
+    """Module-level so that the standard ``pickle`` can serialize it."""
+    return case.value
+
+
+def _case_problem(cases, coords, evaluator=_case_value):
+    """Problem with the given cases and one metric ``v`` over ``coords``."""
+    parameter_space = ParameterSpace()
+    for case in cases:
+        parameter_space.add_case(case)
+    pipeline = EvaluationPipeline(parameter_space)
+    pipeline.add_evaluator(evaluator, output_name="v")
+    metric_space = MetricSpace()
+    metric_space.add_objective(Metric("v", dims=("case",), coords={"case": coords}))
+    return Problem(parameter_space, metric_space, backend=pipeline)
+
+
+def test_same_named_cases_select_their_own_values():
+    a1, a2 = NamedModel("a", 1.0), NamedModel("a", 2.0)
+    problem = _case_problem([a1, a2], [a1, a2])
+    np.testing.assert_allclose(problem.evaluate({})["v"], [1.0, 2.0])
+
+
+def test_rename_after_registration_keeps_selection():
+    m1, m2 = NamedModel("m1", 1.0), NamedModel("m2", 2.0)
+    problem = _case_problem([m1, m2], [m1, m2])
+    m1.name = "renamed"
+    np.testing.assert_allclose(problem.evaluate({})["v"], [1.0, 2.0])
+
+
+def test_rename_onto_another_cases_name_keeps_selection():
+    m1, m2 = NamedModel("m1", 1.0), NamedModel("m2", 2.0)
+    problem = _case_problem([m1, m2], [m1, m2])
+    m1.name = "m2"
+    np.testing.assert_allclose(problem.evaluate({})["v"], [1.0, 2.0])
+
+
+def test_value_equal_cases_are_told_apart_by_identity():
+    c1, c2 = ValueEqCase("c1", 1.0), ValueEqCase("c2", 1.0)
+    assert c1 == c2
+    problem = _case_problem([c1, c2], [c2])
+    # Evaluate with different values to see which case was selected.
+    c2.value = 5.0
+    assert c1 != c2
+    np.testing.assert_allclose(problem.evaluate({})["v"], [5.0])
+
+
+def test_subset_in_reversed_order():
+    m1, m2, m3 = (NamedModel(f"m{i}", float(i)) for i in (1, 2, 3))
+    problem = _case_problem([m1, m2, m3], [m3, m1])
+    np.testing.assert_allclose(problem.evaluate({})["v"], [3.0, 1.0])
+
+
+def test_unregistered_case_is_rejected():
+    m1, m2 = NamedModel("m1", 1.0), NamedModel("m2", 2.0)
+    problem = _case_problem([m1, m2], [m1, NamedModel("m1", 1.0)])
+    with pytest.raises(ValueError, match="not registered"):
+        problem.evaluate({})
+
+
+def test_repeated_case_is_rejected():
+    m1, m2 = NamedModel("m1", 1.0), NamedModel("m2", 2.0)
+    problem = _case_problem([m1, m2], [m1, m1])
+    with pytest.raises(ValueError, match="more than once"):
+        problem.evaluate({})
+
+
+def test_wrong_length_backend_result_is_rejected():
+    m1, m2 = NamedModel("m1", 1.0), NamedModel("m2", 2.0)
+    problem = _case_problem([m1, m2], [m1, m2])
+    metric = problem._metric_space.metrics[0]
+    with pytest.raises(ValueError, match="per-case result"):
+        problem._reduce_per_case(metric, [1.0])
+
+
+def test_single_registered_case_is_checked_like_any_other():
+    m1 = NamedModel("m1", 1.0)
+    problem = _case_problem([m1], [m1])
+    np.testing.assert_allclose(problem.evaluate({})["v"], [1.0])
+
+    problem = _case_problem([m1], [NamedModel("m1", 1.0)])
+    with pytest.raises(ValueError, match="not registered"):
+        problem.evaluate({})
+
+
+def test_single_registered_case_with_vector_value():
+    m1 = NamedModel("m1", 1.0)
+    parameter_space = ParameterSpace()
+    parameter_space.add_case(m1)
+    pipeline = EvaluationPipeline(parameter_space)
+    pipeline.add_evaluator(lambda case: [case.value, 10 * case.value], output_name="v")
+    metric_space = MetricSpace()
+    metric_space.add_objective(
+        Metric(
+            "v", dims=("case", "entry"), coords={"case": [m1], "entry": ["a", "b"]}
+        )
+    )
+    problem = Problem(parameter_space, metric_space, backend=pipeline)
+    np.testing.assert_allclose(problem.evaluate({})["v"], [[1.0, 10.0]])
+
+
+def test_problem_pickles_with_case_identity():
+    import pickle
+
+    a1, a2 = NamedModel("a", 1.0), NamedModel("a", 2.0)
+    problem = pickle.loads(pickle.dumps(_case_problem([a1, a2], [a2, a1])))
+    np.testing.assert_allclose(problem.evaluate({})["v"], [2.0, 1.0])
+
+
+def test_process_backend_keeps_case_identity():
+    from CADETProcess.optimization import Joblib
+
+    a1, a2 = NamedModel("a", 1.0), NamedModel("a", 2.0)
+    problem = _case_problem([a1, a2], [a2, a1])
+    results = problem.evaluate_batch(
+        [{}, {}], parallelization_backend=Joblib(n_cores=2)
+    )
+    for result in results:
+        np.testing.assert_allclose(result["v"], [2.0, 1.0])

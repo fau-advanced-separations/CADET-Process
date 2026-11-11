@@ -220,6 +220,10 @@ class Problem:
             )
             if isinstance(value, EvaluationFailure):
                 results[metric.name] = value
+            elif has_case_dim and len(self._parameter_space.cases) == 1:
+                # A single registered case returns its value unwrapped, so a
+                # per-case vector is indistinguishable from a list of cases.
+                results[metric.name] = self._reduce_per_case(metric, [value])
             elif has_case_dim and isinstance(value, list):
                 results[metric.name] = self._reduce_per_case(metric, value)
             elif (
@@ -307,19 +311,38 @@ class Problem:
         """Reduce a per-case result list to the metric's declared shape.
 
         The list is indexed by the parameter space's registered cases; the
-        metric's ``case`` coordinates select the entries it covers.
+        metric's ``case`` coordinates are case objects and select the entries
+        it covers.  Cases are matched by identity (``is``), never by name or
+        equality, since names repeat and change after registration.
         Failures keep per-case granularity so the optimizer layer can
         substitute fallbacks per case.
+
+        Raises
+        ------
+        ValueError
+            If a declared case is not registered, a case is declared twice, or
+            *values* does not hold one entry per registered case.
         """
-        coords = metric.coords["case"]
-        obj_names = [str(obj) for obj in self._parameter_space.cases]
-        missing = [c for c in coords if c not in obj_names]
-        if missing:
+        cases = self._parameter_space.cases
+        if len(values) != len(cases):
             raise ValueError(
-                f"Metric {metric.name!r}: declared case(s) "
-                f"{missing} are not registered."
+                f"Metric {metric.name!r}: backend returned {len(values)} "
+                f"per-case result(s) for {len(cases)} registered case(s)."
             )
-        selected = [values[obj_names.index(c)] for c in coords]
+        positions = []
+        for coord in metric.coords["case"]:
+            matches = [i for i, case in enumerate(cases) if case is coord]
+            if not matches:
+                raise ValueError(
+                    f"Metric {metric.name!r}: declared case {str(coord)!r} "
+                    f"({type(coord).__name__}) is not registered."
+                )
+            positions.append(matches[0])
+        if len(set(positions)) != len(positions):
+            raise ValueError(
+                f"Metric {metric.name!r}: a case is declared more than once."
+            )
+        selected = [values[i] for i in positions]
         if any(isinstance(v, EvaluationFailure) for v in selected):
             return selected
         flat = np.concatenate([
