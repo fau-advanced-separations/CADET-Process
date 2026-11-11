@@ -1329,8 +1329,10 @@ def test_case_dim_promoted_for_metric_registered_before_later_cases():
     def per_case_scores(eval_obj):
         return [eval_obj.scalar_param, eval_obj.scalar_param_2]
 
+    eval_objs = []
     for label in ("a", "b"):
         eval_obj = EvaluationObject(name=label)
+        eval_objs.append(eval_obj)
         op.add_evaluation_object(eval_obj)
         op.add_objective(
             per_case_scores,
@@ -1344,7 +1346,10 @@ def test_case_dim_promoted_for_metric_registered_before_later_cases():
     metric_a = op._metric_space.metrics_dict["objective_a"]
     metric_b = op._metric_space.metrics_dict["objective_b"]
     assert metric_a.dims == ("case", "entry")
-    assert metric_a.coords == {"case": ["a"], "entry": ["objective_a_0", "objective_a_1"]}
+    assert metric_a.coords == {
+        "case": [eval_objs[0]],
+        "entry": ["objective_a_0", "objective_a_1"],
+    }
     assert metric_b.dims == ("case", "entry")
 
     assert op.n_objectives == 4
@@ -2170,3 +2175,37 @@ def test_variable_targets_object_not_registered_as_evaluation_object():
 
     assert target.child.value == 5
     assert target not in op.evaluation_objects
+
+
+def test_duplicate_evaluation_object_name_warns():
+    op = OptimizationProblem("duplicates", use_diskcache=False)
+    op.add_evaluation_object(EvaluationObject(name="a"))
+    with pytest.warns(UserWarning, match="named 'a' is already registered"):
+        op.add_evaluation_object(EvaluationObject(name="a"))
+
+
+def test_ambiguous_string_reference_raises():
+    op = OptimizationProblem("ambiguous", use_diskcache=False)
+    op.add_evaluation_object(EvaluationObject(name="a"))
+    with pytest.warns(UserWarning):
+        op.add_evaluation_object(EvaluationObject(name="a"))
+    with pytest.raises(CADETProcessError, match="2 evaluation objects are named 'a'"):
+        op.add_variable("scalar_param", targets="a", lb=0, ub=1)
+
+
+def test_same_named_evaluation_objects_stay_distinct_in_metric_coordinates():
+    op = OptimizationProblem("same names", use_diskcache=False)
+    first, second = EvaluationObject(name="a"), EvaluationObject(name="a")
+    with pytest.warns(UserWarning):
+        op.add_evaluation_object(first)
+        op.add_evaluation_object(second)
+    op.add_variable("scalar_param", targets=[first, second], lb=0, ub=1)
+    op.add_objective(
+        lambda eval_obj: eval_obj.scalar_param,
+        name="objective",
+        evaluation_objects=[second, first],
+    )
+    metric = op._metric_space.metrics_dict["objective"]
+    # Canonical order is registration order, whatever the declaration order.
+    assert metric.coords["case"][0] is first
+    assert metric.coords["case"][1] is second

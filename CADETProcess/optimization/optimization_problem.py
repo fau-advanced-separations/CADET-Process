@@ -396,6 +396,13 @@ class OptimizationProblem(Problem):
                 f"{obj!r} is already registered as an evaluator and cannot "
                 "also be an evaluation object."
             )
+        if any(str(obj) == str(case) for case in self.evaluation_objects):
+            warnings.warn(
+                f"An evaluation object named {str(obj)!r} is already registered; "
+                "metric labels will repeat and the name cannot select either, "
+                "so refer to them by object.",
+                stacklevel=2,
+            )
         # Validate every new binding before changing the case list or mappers.
         cases = [*self.evaluation_objects, obj]
         mappers = {}
@@ -472,6 +479,26 @@ class OptimizationProblem(Problem):
     def evaluation_objects_dict(self) -> dict[str, Any]:
         """Mapping of ``str(obj)`` → obj for all registered evaluation objects."""
         return {str(obj): obj for obj in self._parameter_space.cases}
+
+    def _resolve_case_reference(self, ref: Any) -> Any:
+        """Return the case a string reference names; objects pass through.
+
+        Raises
+        ------
+        CADETProcessError
+            If more than one registered case has that name.
+        KeyError
+            If no registered case has that name.
+        """
+        if not isinstance(ref, str):
+            return ref
+        matches = [case for case in self._parameter_space.cases if str(case) == ref]
+        if len(matches) > 1:
+            raise CADETProcessError(
+                f"{len(matches)} evaluation objects are named {ref!r}; "
+                "refer to the one you mean by object."
+            )
+        return self.evaluation_objects_dict[ref]
 
     # ── Variables ─────────────────────────────────────────────────────────────
 
@@ -551,8 +578,7 @@ class OptimizationProblem(Problem):
             eval_objs = list(targets)
 
         # Resolve string references.
-        objs_dict = self.evaluation_objects_dict
-        eval_objs = [objs_dict[o] if isinstance(o, str) else o for o in eval_objs]
+        eval_objs = [self._resolve_case_reference(o) for o in eval_objs]
 
         # An all-case binding can precede its first target.
         if parameter_path is None and (eval_objs or targets == -1):
@@ -637,8 +663,7 @@ class OptimizationProblem(Problem):
         else:
             eval_objs = list(targets)
 
-        objs_dict = self.evaluation_objects_dict
-        eval_objs = [objs_dict[o] if isinstance(o, str) else o for o in eval_objs]
+        eval_objs = [self._resolve_case_reference(o) for o in eval_objs]
 
         if parameter_path is None and (eval_objs or targets == -1):
             parameter_path = name
@@ -1507,10 +1532,14 @@ class OptimizationProblem(Problem):
             objs = [evaluation_objects]
         else:
             objs = list(evaluation_objects)
+        # Identity, not equality: value-equal cases must stay distinct.
+        positions = []
         for el in objs:
-            if el not in registered:
+            matches = [i for i, case in enumerate(registered) if case is el]
+            if not matches:
                 raise CADETProcessError(f"Unknown EvaluationObject: {el!r}")
-        return sorted(objs, key=registered.index)
+            positions.append(matches[0])
+        return [objs[i] for i in sorted(range(len(objs)), key=positions.__getitem__)]
 
     def _check_fan_in_subset_supported(
         self, eval_objs: list[Any], fan_in: bool
@@ -1650,14 +1679,15 @@ class OptimizationProblem(Problem):
             else:
                 base_labels = [f"{name}_{i}" for i in range(n_per_case)]
         if eval_objs and len(self.evaluation_objects) > 1:
-            obj_names = [str(obj) for obj in eval_objs]
+            # Cases are declared as objects; names only label them for display,
+            # since they can repeat and change after registration.
             if n_per_case == 1:
                 dims = ("case",)
-                coords = {"case": obj_names}
+                coords = {"case": list(eval_objs)}
             else:
                 dims = ("case", "entry")
-                coords = {"case": obj_names, "entry": base_labels}
-            labels = [f"{obj}_{label}" for obj in obj_names for label in base_labels]
+                coords = {"case": list(eval_objs), "entry": base_labels}
+            labels = [f"{obj}_{label}" for obj in eval_objs for label in base_labels]
             return Metric(name, dims=dims, coords=coords, labels=labels)
         return Metric(name, n_metrics=n_per_case, labels=base_labels)
 
