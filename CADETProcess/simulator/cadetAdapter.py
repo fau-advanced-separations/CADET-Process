@@ -1129,7 +1129,7 @@ class Cadet(SimulatorBase):
                     if coeff == 0:
                         coeff = "CONST_COEFF"
                     elif coeff == 1:
-                        coeff = "CONST_COEFF"
+                        coeff = "LIN_COEFF"
                     elif coeff == 2:
                         coeff = "QUAD_COEFF"
                     elif coeff == 3:
