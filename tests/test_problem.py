@@ -235,7 +235,7 @@ def test_evaluate_reduces_per_case_results_case_major(two_object_setup):
     metric_space.add_objective(
         Metric(
             "v",
-            dims=("case", "entry"),
+
             coords={"case": [m1, m2], "entry": ["a", "b"]},
         )
     )
@@ -255,7 +255,6 @@ def test_evaluate_selects_declared_case_subset(two_object_setup):
     metric_space.add_objective(
         Metric(
             "v",
-            dims=("case",),
             coords={"case": [m2]},
         )
     )
@@ -280,7 +279,6 @@ def test_evaluate_per_case_failure_passes_through_as_list(two_object_setup):
     metric_space.add_objective(
         Metric(
             "v",
-            dims=("case",),
             coords={"case": [m1, m2]},
         )
     )
@@ -490,7 +488,7 @@ def _case_problem(cases, coords, evaluator=_case_value):
     pipeline = EvaluationPipeline(parameter_space)
     pipeline.add_evaluator(evaluator, output_name="v")
     metric_space = MetricSpace()
-    metric_space.add_objective(Metric("v", dims=("case",), coords={"case": coords}))
+    metric_space.add_objective(Metric("v", coords={"case": coords}))
     return Problem(parameter_space, metric_space, backend=pipeline)
 
 
@@ -571,7 +569,7 @@ def test_single_registered_case_with_vector_value():
     metric_space = MetricSpace()
     metric_space.add_objective(
         Metric(
-            "v", dims=("case", "entry"), coords={"case": [m1], "entry": ["a", "b"]}
+            "v", coords={"case": [m1], "entry": ["a", "b"]}
         )
     )
     problem = Problem(parameter_space, metric_space, backend=pipeline)

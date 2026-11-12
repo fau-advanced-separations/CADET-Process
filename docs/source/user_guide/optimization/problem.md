@@ -124,7 +124,7 @@ The {ref}`optimizer_guide` documents the further accessors a `Population` expose
 
 ```{note}
 Metric names on a bare `MetricSpace` are always explicit, unlike `OptimizationProblem.add_objective`/`add_evaluator`, which derive a default name from the callable and sanitize it into a valid Python identifier (a bare `lambda` becomes `_lambda_`).
-A metric declared with a `case` dimension lists the registered case objects as its `case` coordinates, for example `Metric("v", dims=("case",), coords={"case": [case_a, case_b]})`.
+A metric declared with a `case` dimension lists the registered case objects as its `case` coordinates, for example `Metric("v", coords={"case": [case_a, case_b]})`.
 Cases are matched by identity, so two cases may share a name and a case may be renamed after registration; a case that is not registered, or listed twice, raises an error.
 Each entry is labelled `<name>_<case>` from the case's `str()` for display only; with a single case it has one entry and is labelled by its name alone.
 ```
