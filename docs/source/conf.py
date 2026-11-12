@@ -37,6 +37,10 @@ extensions = []
 ## MyST-NB
 extensions.append("myst_nb")
 nb_execution_mode = "cache"
+# The lexer is read from the language_info that notebook execution writes.
+# Builds with execution switched off (-D nb_execution_mode=off) have none and
+# would warn once per code cell; the notebooks are Python throughout.
+suppress_warnings = ["myst-nb.lexer"]
 source_suffix = {
     '.rst': 'restructuredtext',
     '.ipynb': 'myst-nb',
