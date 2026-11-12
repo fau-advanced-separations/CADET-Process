@@ -1268,6 +1268,83 @@ class TestMultiPathParameterSensitivity:
         assert config.sens_factor == [1, 1]
 
 
+def build_inlet_polynomial_sensitivity_test_process(
+    c_coefficients: tuple[float, float, float, float] = (1.0, 1e-2, 1e-4, 1e-6),
+) -> Process:
+    """Build an inlet with a cubic concentration profile feeding a column."""
+    component_system = ComponentSystem(1)
+
+    inlet = Inlet(component_system, name="inlet")
+    inlet.flow_rate = 1e-8
+
+    column = LumpedRateModelWithPores(component_system, name="column")
+    column.length = 0.01
+    column.diameter = 0.01
+    column.bed_porosity = 0.4
+    column.particle_porosity = 0.5
+    column.particle_radius = 1e-5
+    column.film_diffusion = [1e-5]
+    column.axial_dispersion = 1e-7
+    column.discretization.ncol = 20
+
+    outlet = Outlet(component_system, name="outlet")
+
+    flow_sheet = FlowSheet(component_system)
+    flow_sheet.add_unit(inlet)
+    flow_sheet.add_unit(column)
+    flow_sheet.add_unit(outlet)
+    flow_sheet.add_connection(inlet, column)
+    flow_sheet.add_connection(column, outlet)
+
+    process = Process(flow_sheet, "inlet_polynomial_sensitivity_test")
+    process.cycle_time = 300
+    process.add_event("load", "flow_sheet.inlet.c", [list(c_coefficients)], 0)
+    process.add_event("wash", "flow_sheet.inlet.c", [[0.0, 0.0, 0.0, 0.0]], 50)
+
+    return process
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(not found_cadet, reason="Skip if CADET is not installed.")
+@pytest.mark.parametrize("coefficient", [0, 1, 2, 3])
+def test_inlet_polynomial_sensitivity_matches_central_finite_difference(coefficient):
+    simulator = Cadet(install_path)
+
+    process = build_inlet_polynomial_sensitivity_test_process()
+    process.add_parameter_sensitivity(
+        "inlet.c",
+        name="sens",
+        components="0",
+        polynomial_coefficients=coefficient,
+        section_indices=0,
+    )
+    sens_solution = (
+        simulator.simulate(process).sensitivity["sens"]["column"]["outlet"].solution
+    )
+
+    # All terms are of similar size at the end of the load section (t = 50).
+    nominal = np.array([1.0, 1e-2, 1e-4, 1e-6])
+    h = 1e-2 * nominal[coefficient]
+
+    def perturbed_solution(delta: float) -> np.ndarray:
+        coefficients = nominal.copy()
+        coefficients[coefficient] += delta
+        perturbed_process = build_inlet_polynomial_sensitivity_test_process(
+            tuple(coefficients)
+        )
+        results = simulator.simulate(perturbed_process)
+        return results.solution["column"]["outlet"].solution
+
+    finite_difference = (perturbed_solution(h) - perturbed_solution(-h)) / (2 * h)
+
+    assert np.linalg.norm(finite_difference) > 0
+    relative_l2_error = np.linalg.norm(
+        sens_solution - finite_difference
+    ) / np.linalg.norm(finite_difference)
+    # The sensitivity of a different coefficient is off by far more than 1e-2.
+    assert relative_l2_error < 1e-2
+
+
 class TestChannelIndexValidation:
     """add_parameter_sensitivity must check channel indices without running CADET."""
 
