@@ -12,7 +12,7 @@ kernelspec:
   name: python3
 ---
 
-(lwe_example_concentration)=
+(lwe_example_hic)=
 # Concentration Gradients
 
 ```{figure} ./figures/flow_sheet_concentration.svg

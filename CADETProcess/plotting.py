@@ -16,6 +16,7 @@ General Utils
     get_fig_size
     setup_figure
     get_all_twin_handles_labels
+
 Secondary Axis
 ==============
 
@@ -554,8 +555,8 @@ def annotate(
         The point (x, y) to annotate.
     xytext : tuple[float, float]
         The position (x, y) of the annotation text.
-    arrowstyle : str, default="-|>"
-        Style of the arrow connecting `xy` and `xytext`.
+    arrowstyle : str
+        Style of the arrow connecting `xy` and `xytext`. The default is ``"-|>"``.
     **kwargs
         Additional keyword arguments for `ax.annotate`.
     """

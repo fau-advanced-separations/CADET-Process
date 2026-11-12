@@ -44,9 +44,10 @@ class ParameterBase(Descriptor):
     -----
     1. Supports deep copying of default values, allowing mutable defaults without side effects.
     2. Subclasses can further specify type constraints (like `Typed`).
-    3. They can also define
-      - immutable parameters (like `Constant`) and
-      - options-based parameters (`Switch`).
+    3. They can also define:
+
+       - immutable parameters (like `Constant`) and
+       - options-based parameters (`Switch`).
     """
 
     def __init__(

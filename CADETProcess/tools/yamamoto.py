@@ -225,9 +225,9 @@ def yamamoto_equation(
     where:
         - GH: Normalized gradient slope (logarithmic scale)
         - I_R: Salt concentration at the protein peak maximum (in M)
-        - ν (nu): Characteristic charge of the protein
-        - k_eq: Equilibrium constant (binding affinity)
-        - λ (lambda_): Resin capacity in mM
+        - ν (``nu``): Characteristic charge of the protein
+        - ``k_eq``: Equilibrium constant (binding affinity)
+        - λ (``lambda_``): Resin capacity in mM
 
     Parameters
     ----------

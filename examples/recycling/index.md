@@ -13,7 +13,5 @@ In the following different recycling concepts are introduced.
 :maxdepth: 1
 
 clr_process
-clr_optimization
 mrssr_process
-mrssr_optimization
 ```
