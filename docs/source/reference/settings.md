@@ -1,6 +1,6 @@
 ```{eval-rst}
 .. automodule:: CADETProcess.settings
-   :no-members:
+   :members:
    :no-inherited-members:
    :no-special-members:
 ```
