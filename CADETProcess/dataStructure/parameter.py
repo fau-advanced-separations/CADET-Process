@@ -344,15 +344,10 @@ class Typed(ParameterBase):
     Mixin for parameters constrained to a specific type.
 
     `Typed` extends the base `Parameter` class with type constraints. When instantiated
-    with a specific type (`ty`), it ensures values are of that type or can be cast
-    to that type. If `ty` is not specified during instantiation and is not predefined
+    with a specific type (``ty``), it ensures values are of that type or can be cast
+    to that type. If ``ty`` is not specified during instantiation and is not predefined
     by a subclass, an error is raised.
-
-    Attributes
-    ----------
-    ty : type
-        Desired type for the parameter. Defaults to accepting any type. Subclasses
-        can directly set this attribute.
+    Subclasses can set the desired type directly as the class attribute ``ty``.
 
     Methods
     -------
@@ -363,7 +358,7 @@ class Typed(ParameterBase):
         Prepares and optionally type-casts the value before checking its type. This
         method uses `cast_value` to attempt to cast the value to the required type.
     _check(instance, value, recursive=False) -> bool:
-        Validates if the value matches the desired type (`ty`). Raises a TypeError if
+        Validates if the value matches the desired type (``ty``). Raises a TypeError if
         validation fails.
 
     See Also
@@ -378,11 +373,11 @@ class Typed(ParameterBase):
 
     Notes
     -----
-    - If `ty` is specified during instantiation, any value assigned to this parameter
+    - If ``ty`` is specified during instantiation, any value assigned to this parameter
       undergoes validation against this type.
     - Override `cast_value` in subclasses for custom casting logic.
     - Assigning `None` to the parameter removes its current value from the instance.
-    - An error is raised during instantiation if `ty` is neither provided nor predefined
+    - An error is raised during instantiation if ``ty`` is neither provided nor predefined
       by a subclass.
     """
 
@@ -458,7 +453,7 @@ class Typed(ParameterBase):
 
     def _check(self, instance: Any, value: Any, recursive: bool = False) -> None:
         """
-        Validate the value's type against `ty`.
+        Validate the value's type against ``ty``.
 
         Parameters
         ----------
@@ -472,7 +467,7 @@ class Typed(ParameterBase):
         Raises
         ------
         TypeError
-            If the value's type doesn't match `ty`.
+            If the value's type doesn't match ``ty``.
         """
         if not isinstance(value, self.ty):
             raise TypeError(f"Expected type {self.ty}, got {type(value)}")
@@ -1265,7 +1260,7 @@ class Sized(ParameterBase):
         Prepare the value by typecasting and adjusting its size.
 
         This method handles typecasting of the provided value to the expected type
-        (`self.ty`) and potentially adjusts its size. If the size of the parameter
+        (``self.ty``) and potentially adjusts its size. If the size of the parameter
         depends on other instance attributes, it will retrieve that expected size and
         adjust the value accordingly.
 
