@@ -622,16 +622,17 @@ class FlowSheet(Structure):
         """
         Validate that units are connected correctly.
 
-        Warning:
-        -------
-            If Inlets have ingoing streams.
-            If Outlets have outgoing streams.
-            If Units (other than Cstr) are not fully connected.
-
         Returns
         -------
         flag : bool
             True if all units are connected correctly. False otherwise.
+
+        Warns
+        -----
+        UserWarning
+            If Inlets have ingoing streams.
+            If Outlets have outgoing streams.
+            If Units (other than Cstr) are not fully connected.
         """
         flag = True
         for unit, connections in self.connections.items():

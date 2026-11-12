@@ -759,11 +759,11 @@ class LBFGSB(SciPyInterface):
         memory matrix. Default is 10.
     ftol : UnsignedFloat, optional
         Precision goal for the value of f in the stopping criterion:
-        (f^k - f^{k+1}) / max{|f^k|, |f^{k+1}|, 1} <= ftol.
+        ``(f^k - f^{k+1}) / max{|f^k|, |f^{k+1}|, 1} <= ftol``.
         Default is 2.220446049250313e-09.
     gtol : UnsignedFloat, optional
-        The iteration stops when max{|proj g_i|, i = 1, ..., n} <= gtol, where
-        proj g_i is the i-th component of the projected gradient.
+        The iteration stops when ``max{|proj g_i|, i = 1, ..., n} <= gtol``, where
+        ``proj g_i`` is the i-th component of the projected gradient.
         Default is 1e-5.
     eps : UnsignedFloat, optional
         Absolute step size used for numerical approximation of the Jacobian, if

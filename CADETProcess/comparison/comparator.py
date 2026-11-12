@@ -307,6 +307,7 @@ class Comparator(Structure):
         -------
         tuple
             A tuple containing:
+
             - list[plt.Figure]: A list of Matplotlib Figure objects.
             - npt.NDArray[plt.Axes]: An array of Axes objects with one Axes per
               difference metric.
