@@ -3,14 +3,7 @@
 Settings (:mod:`CADETProcess.settings`)
 =======================================
 
-.. currentmodule:: CADETProcess.settings
-
 This module provides functionality for general settings.
-
-.. autosummary::
-    :toctree: generated/
-
-    Settings
 
 """  # noqa
 
