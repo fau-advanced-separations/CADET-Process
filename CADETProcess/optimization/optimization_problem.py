@@ -344,7 +344,7 @@ class OptimizationProblem(Problem):
     ) -> None:
         self.logger = log.get_logger(name, level=log_level)
 
-        # Disk cache when requested: use_diskcache=True OR an explicit directory.
+        # Disk cache requires use_diskcache=True and an explicit directory.
         effective_cache_dir = cache_directory if use_diskcache else None
 
         parameter_space = ParameterSpace()
