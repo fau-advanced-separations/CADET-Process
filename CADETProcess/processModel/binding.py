@@ -75,8 +75,6 @@ class BindingBaseClass(Structure):
     is_kinetic : bool
         If False, adsorption is assumed to be in rapid equilibriu.
         The default is True.
-    parameters : dict
-        dict with parameter values.
     """
 
     name = String()

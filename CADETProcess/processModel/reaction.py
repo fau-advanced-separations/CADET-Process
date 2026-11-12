@@ -460,8 +460,6 @@ class ReactionBaseClass(Structure):
 
     Attributes
     ----------
-    parameters : dict
-        dict with parameter values.
     name : String
         name of the reaction model.
     """

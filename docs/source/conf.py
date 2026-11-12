@@ -110,7 +110,17 @@ templates_path = ["_templates"]
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+exclude_patterns = [
+    "_build",
+    "Thumbs.db",
+    ".DS_Store",
+    # GitHub landing page of the examples folder, not part of the docs.
+    "examples/README.md",
+    # Template for new release notes.
+    "release_notes/template.md",
+    # Draft HIC example, a copy of the concentration gradient page.
+    "examples/load_wash_elute/lwe_hic.md",
+]
 
 # -- Extension options -------------------------------------------------------
 

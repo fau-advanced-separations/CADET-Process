@@ -21,7 +21,7 @@ root_dir = Path('../../../../').resolve()
 sys.path.append(root_dir.as_posix())
 
 # %% [markdown]
-# ## Fit Binding Model Parameters
+# # Fit Binding Model Parameters
 #
 # This example demonstrates how to estimate SMA binding parameters based on multiple gradient elution chromatograms.
 # It assumes familiarity with the `CADETProcess` process models, as introduced in the
