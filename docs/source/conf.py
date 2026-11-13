@@ -111,8 +111,6 @@ exclude_patterns = [
     "examples/README.md",
     # Template for new release notes.
     "release_notes/template.md",
-    # Draft HIC example, a copy of the concentration gradient page.
-    "examples/load_wash_elute/lwe_hic.md",
 ]
 
 # -- Extension options -------------------------------------------------------

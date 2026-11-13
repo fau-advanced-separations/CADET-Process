@@ -55,5 +55,6 @@ In the following, both approaches are presented.
 :maxdepth: 1
 
 lwe_concentration
+lwe_hic
 lwe_flow_rate
 ```

@@ -13,7 +13,7 @@ kernelspec:
 ---
 
 (lwe_example_hic)=
-# Concentration Gradients
+# Gradient Elution with a HIC Binding Model
 
 ```{figure} ./figures/flow_sheet_concentration.svg
 Flow sheet for load-wash-elute process using a single inlet.
@@ -21,9 +21,6 @@ Flow sheet for load-wash-elute process using a single inlet.
 
 ```{code-cell}
 import numpy as np
-
-import matplotlib
-matplotlib.use("TkAgg")
 
 from CADETProcess.processModel import ComponentSystem, HICConstantWaterActivity
 from CADETProcess.processModel import Inlet, GeneralRateModel, Outlet
@@ -120,9 +117,7 @@ if __name__ == '__main__':
 
     from CADETProcess.plotting import SecondaryAxis
 
-    sec = SecondaryAxis()
-    sec.components = ['Salt']
-    sec.y_label = '$c_{salt}$'
+    sec = SecondaryAxis(components=['Salt'], ylabel='$c_{salt}$')
 
-    simulation_results.solution.column.outlet.plot(secondary_axis=sec)
+    simulation_results.solution.column.outlet.plot(secondary_axes=[sec])
 ```
