@@ -1680,13 +1680,11 @@ class OptimizationProblem(Problem):
             # Cases are declared as objects; names only label them for display,
             # since they can repeat and change after registration.
             if n_per_case == 1:
-                dims = ("case",)
                 coords = {"case": list(eval_objs)}
             else:
-                dims = ("case", "entry")
                 coords = {"case": list(eval_objs), "entry": base_labels}
             labels = [f"{obj}_{label}" for obj in eval_objs for label in base_labels]
-            return Metric(name, dims=dims, coords=coords, labels=labels)
+            return Metric(name, coords=coords, labels=labels)
         return Metric(name, n_metrics=n_per_case, labels=base_labels)
 
     def add_objective(
