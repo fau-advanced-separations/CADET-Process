@@ -23,7 +23,7 @@ Rather than manually assembling a {class}`~CADETProcess.processModel.FlowSheet` 
 
 The design follows the same two-step pattern as plain CADET-Process objects: construct the flow sheet first, then pass it to the process.
 This chapter builds up in that order: the flow sheet topology, then the valve positions and phase primitives, then {class}`~CADETProcess.instruments.PhasedProcess`, which composes them, and finally the protocol templates that specialize it.
-To run a standard protocol without the underlying details, skip ahead to [Process templates](#process-templates).
+To run a standard protocol without the underlying details, skip ahead to {ref}`instruments_process_templates`.
 
 ## LC system topology
 
@@ -200,6 +200,7 @@ pulse_proc.plot_events();
 The declarative form derives each valve event's time from the phase durations that precede it, so resizing or reordering phases shifts the events automatically.
 The imperative `add_valve_event` form is the escape hatch when events must sit at explicit, protocol-independent times.
 
+(instruments_process_templates)=
 ## Process templates
 
 The templates below are `PhasedProcess` subclasses that fill in the step sequence for a standard protocol.

@@ -10,16 +10,21 @@ on:
 jobs:
   docs-build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
 
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v6
+      - uses: conda-incubator/setup-miniconda@v4
         with:
-          python-version: "3.14"
+          miniforge-version: latest
+          environment-file: environment.yml
+          activate-environment: cadet-process
 
       - name: Install
-        run: pip install -e . --group docs
+        run: pip install '.[all]' --group docs
 
       - name: Build
         run: sphinx-build -b html source build -D nb_execution_mode=off --keep-going
