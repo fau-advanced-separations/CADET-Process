@@ -1,4 +1,5 @@
 import functools
+import inspect
 import warnings
 from typing import Any, Callable
 
@@ -48,8 +49,11 @@ def deprecated(deprecated_in: str, removed_in: str, use: str | None = None) -> C
     def decorator(f: Callable) -> Callable:
         _DEPRECATIONS.append((f.__qualname__, deprecated_in, removed_in))
         wrapped = _te_deprecated(message)(f)
+        # Dedent first: the directive below starts at column 0, which would
+        # otherwise make Sphinx treat the indented docstring as a block quote.
+        doc = inspect.cleandoc(wrapped.__doc__ or "")
         wrapped.__doc__ = (
-            f"{wrapped.__doc__ or ''}\n\n.. deprecated:: {deprecated_in}\n    {message}\n"
+            f"{doc}\n\n.. deprecated:: {deprecated_in}\n    {message}\n"
         )
         return wrapped
 
