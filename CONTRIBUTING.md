@@ -59,7 +59,7 @@ When changing the Python versions, review these settings together:
 | `.readthedocs.yaml` | Selects Miniforge, loads `environment.yml`, and installs the `all` extra and `docs` dependency group. The Python interpreter range comes from `environment.yml`. |
 | `pyproject.toml` | `project.requires-python` declares package compatibility; dependency constraints and optional extras must work on the intended versions. |
 | `.github/workflows/pipeline.yml` and `.github/workflows/scheduled-tests.yml` | Python test matrices, including the Windows and macOS entries. Each job pins its matrix version before loading `environment.yml`. |
-| `.github/workflows/docs.yml` | Explicit Python version for the GitHub documentation build. |
+| `.github/workflows/docs.yml` | Builds the documentation with the Conda environment from `environment.yml`, the same set Read the Docs uses. Python comes from that range. |
 | `.github/workflows/coverage.yml` | Python version used for coverage. |
 | `.github/workflows/publish-to-pypi.yml` | Interpreter used to build release distributions; currently follows the latest Python 3 via `3.x`. |
 | `CONTRIBUTING.md` | Recommended development environment above and this version-maintenance note. The example may use one version within the shared range. |
