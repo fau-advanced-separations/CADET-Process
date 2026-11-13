@@ -1442,11 +1442,28 @@ def test_evaluate_callbacks_population_deprecation():
         op.evaluate_callbacks_population(population=_make_dummy_population(), current_iteration=0)
 
 
-def test_evaluate_callbacks_exception_logged(caplog):
+def test_evaluate_callbacks_cadet_error_logged(caplog):
+    def callback(result):
+        raise CADETProcessError("plot failed")
+
     op = OptimizationProblem("cb", use_diskcache=False)
-    op.add_callback(lambda result: 1 / 0, name="boom")
+    op.add_callback(callback, name="boom")
     op.evaluate_callbacks(population=_make_dummy_population(), current_iteration=0)
     assert "boom" in caplog.text
+
+
+def test_evaluate_callbacks_programming_error_raises():
+    op = OptimizationProblem("cb", use_diskcache=False)
+    op.add_callback(lambda result: 1 / 0, name="boom")
+    with pytest.raises(ZeroDivisionError):
+        op.evaluate_callbacks(population=_make_dummy_population(), current_iteration=0)
+
+
+def test_evaluate_callbacks_wrong_signature_raises():
+    op = OptimizationProblem("cb", use_diskcache=False)
+    op.add_callback(lambda: None, name="sig")
+    with pytest.raises(TypeError):
+        op.evaluate_callbacks(population=_make_dummy_population(), current_iteration=0)
 
 
 # ── Evaluator chain failure handling ─────────────────────────────────────────

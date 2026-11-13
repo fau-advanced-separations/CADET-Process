@@ -2816,11 +2816,19 @@ class OptimizationProblem(Problem):
                         values = [values]
                     for value in values:
                         if isinstance(value, EvaluationFailure):
+                            # The pipeline turns every node exception into a
+                            # failure; only a CADETProcessError is an expected
+                            # callback failure, anything else is a bug in the
+                            # callback and must surface.
+                            if value.exc is not None and not isinstance(
+                                value.exc, CADETProcessError
+                            ):
+                                raise value.exc
                             _logger.warning(
                                 f"Callback {cb.name!r} failed at iteration"
                                 f" {current_iteration}: {value.reason}"
                             )
-                except Exception as exc:
+                except CADETProcessError as exc:
                     _logger.warning(
                         f"Callback {cb.name!r} failed at iteration"
                         f" {current_iteration}: {exc}",
