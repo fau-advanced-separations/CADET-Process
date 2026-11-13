@@ -182,8 +182,11 @@ We use the [Numpy style](https://numpydoc.readthedocs.io/en/latest/format.html) 
 To build the documentation locally, install the necessary dependencies:
 
 ```bash
-pip install -e . --group docs
+pip install -e '.[all]' --group docs
 ```
+
+The `all` extra matters: the API reference imports the optional optimizer packages (Ax, IPOPT), and the docs build no longer mocks them.
+Read the Docs and the GitHub docs check use the same set, via `environment.yml`.
 
 Then, in the `docs` directory, run:
 
