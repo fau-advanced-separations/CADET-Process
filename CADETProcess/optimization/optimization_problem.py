@@ -2376,6 +2376,15 @@ class OptimizationProblem(Problem):
         batch dispatch; *x* is only used for log context.
         """
 
+        def _raise_unexpected(failure: EvaluationFailure) -> None:
+            # The pipeline turns every node exception into a failure value.
+            # Only a CADETProcessError is an expected failure that earns
+            # bad_metrics; anything else is a bug and must surface.
+            if failure.exc is not None and not isinstance(
+                failure.exc, CADETProcessError
+            ):
+                raise failure.exc
+
         def _bad_for(metric: _MetricRecord) -> np.ndarray:
             # Declaration-driven: total declared entries over per-case entries.
             return np.tile(metric.bad_metrics, metric.n_total_metrics // metric.n_metrics)
@@ -2384,6 +2393,7 @@ class OptimizationProblem(Problem):
         for metric in target_functions:
             raw = results[metric.name]
             if isinstance(raw, EvaluationFailure):
+                _raise_unexpected(raw)
                 self.logger.warning(
                     "Metric '%s' failed at x=%s: %s.", metric.name, x, raw.reason
                 )
@@ -2393,6 +2403,7 @@ class OptimizationProblem(Problem):
                 blocks = []
                 for value in raw:
                     if isinstance(value, EvaluationFailure):
+                        _raise_unexpected(value)
                         self.logger.warning(
                             "Metric '%s' failed at x=%s: %s.",
                             metric.name, x, value.reason,

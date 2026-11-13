@@ -372,11 +372,24 @@ def test_evaluate_objectives_metric_exception_returns_bad_metrics(caplog):
 
     op = OptimizationProblem("err", use_diskcache=False)
     op.add_variable("x", lb=0, ub=1, evaluation_objects=None)
-    op.add_objective(lambda x: 1 / 0, n_objectives=1)  # ZeroDivisionError
+
+    def objective(x):
+        raise CADETProcessError("solver failed")
+
+    op.add_objective(objective, n_objectives=1)
     with caplog.at_level(logging.WARNING):
         f = op.evaluate_objectives([0.5])
     assert not np.all(np.isfinite(f))
     assert any("Metric" in r.message or "failed" in r.message for r in caplog.records)
+
+
+def test_evaluate_objectives_programming_error_raises():
+    """An unexpected exception in an objective surfaces instead of scoring bad."""
+    op = OptimizationProblem("err", use_diskcache=False)
+    op.add_variable("x", lb=0, ub=1, evaluation_objects=None)
+    op.add_objective(lambda x: 1 / 0, n_objectives=1)
+    with pytest.raises(ZeroDivisionError):
+        op.evaluate_objectives([0.5])
 
 
 def test_evaluate_objectives_decode_failure_returns_bad_metrics(caplog):
@@ -1476,7 +1489,7 @@ def test_evaluate_objectives_returns_bad_on_evaluator_failure():
     op.add_variable("scalar_param", lb=0, ub=2)
 
     def bad_evaluator(eval_obj):
-        raise RuntimeError("boom")
+        raise CADETProcessError("boom")
 
     op.add_evaluator(bad_evaluator)
     op.add_objective(
@@ -1484,6 +1497,21 @@ def test_evaluate_objectives_returns_bad_on_evaluator_failure():
     )
     result = op.evaluate_objectives([1.0])
     np.testing.assert_allclose(result, [999])
+
+
+def test_evaluate_objectives_raises_on_evaluator_programming_error():
+    obj = EvaluationObject()
+    op = OptimizationProblem("fail", use_diskcache=False)
+    op.add_evaluation_object(obj)
+    op.add_variable("scalar_param", lb=0, ub=2)
+
+    def bad_evaluator(eval_obj):
+        raise RuntimeError("boom")
+
+    op.add_evaluator(bad_evaluator)
+    op.add_objective(lambda res: res, requires=bad_evaluator, bad_metrics=999)
+    with pytest.raises(RuntimeError):
+        op.evaluate_objectives([1.0])
 
 
 def test_evaluate_objectives_inline_no_chain():
