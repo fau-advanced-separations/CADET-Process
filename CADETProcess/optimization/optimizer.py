@@ -667,6 +667,12 @@ class OptimizerBase(Structure):
         if meta_front is not None:
             self.results.update_meta(meta_front)
 
+        # Save before plots and callbacks: an error in either must not cost
+        # the results of the generation that was just evaluated.
+        self.results.save_results("checkpoint")
+
+        self._log_results(current_generation)
+
         if (
             self.progress_frequency is not None
             and current_generation % self.progress_frequency == 0
@@ -675,16 +681,13 @@ class OptimizerBase(Structure):
 
         self._evaluate_callbacks(current_generation)
 
-        self.results.save_results("checkpoint")
-
-        self._log_results(current_generation)
-
     def run_final_processing(self) -> None:
         """Run post processing at the end of the optimization."""
+        # Save before plots and callbacks, see `run_post_processing`.
+        self.results.save_results("final")
         self.results.plot_figures()
         if self.optimization_problem.n_callbacks > 0:
             self._evaluate_callbacks(0, "final")
-        self.results.save_results("final")
 
     @property
     def options(self) -> dict:

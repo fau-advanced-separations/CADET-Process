@@ -68,6 +68,34 @@ def test_resume_feeds_transformed_independent_coordinates(tmp_path):
     assert np.all(results_resumed.population_all.cv_bounds <= 1e-9)
 
 
+def test_failing_callback_keeps_checkpoint(tmp_path):
+    """A callback error surfaces, but the generation it failed in stays saved."""
+    import pytest
+
+    op = OptimizationProblem("cb_checkpoint", use_diskcache=False)
+    op.add_variable("x0", lb=0, ub=1, evaluation_objects=None)
+    op.add_objective(lambda x: [x[0]], name="f", minimize=True)
+
+    def callback(population):
+        raise RuntimeError("broken callback")
+
+    op.add_callback(callback)
+
+    optimizer = U_NSGA3()
+    optimizer.pop_size = 4
+    optimizer.n_max_gen = 2
+    with pytest.raises(RuntimeError, match="broken callback"):
+        optimizer.optimize(
+            op,
+            save_results=True,
+            results_directory=tmp_path,
+            use_checkpoint=False,
+            log_level="ERROR",
+        )
+
+    assert (tmp_path / "checkpoint.h5").is_file()
+
+
 class Test_OptimizationProblemSimple(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree("./results_simple", ignore_errors=True)
