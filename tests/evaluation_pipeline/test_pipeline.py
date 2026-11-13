@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 import numpy as np
 import pytest
+from CADETProcess.CADETProcessError import CADETProcessError
 from CADETProcess.evaluation_pipeline import EvaluationFailure, EvaluationPipeline
 from CADETProcess.parameter_space.space import ParameterSpace
 
@@ -548,6 +549,25 @@ def test_deterministic_failure_is_cached(single_space):
 
     pipeline.evaluate({})
     pipeline.evaluate({})
+    assert call_count == 1
+
+
+def test_cadet_process_error_is_cached(single_space):
+    """A CADETProcessError is an expected, deterministic failure: a duplicate x
+    must not repeat the computation."""
+    call_count = 0
+
+    def solver(model):
+        nonlocal call_count
+        call_count += 1
+        raise CADETProcessError("solver did not converge")
+
+    pipeline = EvaluationPipeline(single_space)
+    pipeline.add_evaluator(solver, output_name="result")
+
+    first = pipeline.evaluate({})
+    pipeline.evaluate({})
+    assert first["result"].recoverable is False
     assert call_count == 1
 
 

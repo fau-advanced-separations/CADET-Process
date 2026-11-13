@@ -11,6 +11,7 @@ from typing import Any
 import numpy as np
 from pipefunc import PipeFunc, Pipeline
 
+from CADETProcess.CADETProcessError import CADETProcessError
 from CADETProcess.parameter_space.space import ParameterSpace
 
 from .errors import EvaluationFailure
@@ -143,12 +144,13 @@ def _wrap_with_failure_propagation(
     without calling `func`.  Otherwise `func` is called normally; any exception
     is caught and returned as a new `EvaluationFailure`.
 
-    Unclassified exceptions default to `recoverable=True` (transient: do not
-    cache), since a misclassified transient failure permanently poisons a
-    legitimately good x, while the opposite mistake only costs an occasional
-    re-crash at a duplicate x.  A node author who knows a failure is
-    deterministic (CADET solver failure, validation rejection) classifies it
-    explicitly by setting `recoverable = False` on the raised exception.
+    A `CADETProcessError` is an expected failure (solver failure, validation
+    rejection) and counts as deterministic (`recoverable=False`): it is cached,
+    so a duplicate x does not repeat a simulation known to fail.  Any other
+    exception defaults to `recoverable=True` (transient: do not cache), since a
+    misclassified transient failure permanently poisons a legitimately good x,
+    while the opposite mistake only costs an occasional re-crash at a duplicate
+    x.  An exception can override either default by setting `recoverable`.
     """
 
     @wraps(func)
@@ -163,7 +165,9 @@ def _wrap_with_failure_propagation(
         try:
             return func(*args, **kwargs)
         except Exception as e:
-            recoverable = getattr(e, "recoverable", True)
+            recoverable = getattr(
+                e, "recoverable", not isinstance(e, CADETProcessError)
+            )
             return EvaluationFailure(stage=stage, reason=str(e), exc=e, recoverable=recoverable)
 
     return wrapper
