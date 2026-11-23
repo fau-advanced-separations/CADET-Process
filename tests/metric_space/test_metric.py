@@ -18,8 +18,20 @@ def test_vector_metric_shape_follows_n_metrics():
     assert m.labels == ["yield_0", "yield_1", "yield_2"]
 
 
-def test_dims_derive_shape_and_coord_labels():
-    m = Metric("yield", dims=("component",), coords={"component": ["A", "B"]})
+def test_axes_follow_coords_order():
+    m = Metric("conc", coords={"stage": [1, 2, 3], "component": ["A", "B"]})
+    assert m.dims == ("stage", "component")
+    assert m.shape == (3, 2)
+    assert m.n_metrics == 6
+
+
+def test_dims_keyword_is_not_accepted():
+    with pytest.raises(TypeError, match="dims"):
+        Metric("yield", dims=("component",), coords={"component": ["A"]})
+
+
+def test_coords_derive_shape_and_coord_labels():
+    m = Metric("yield", coords={"component": ["A", "B"]})
     assert m.shape == (2,)
     assert m.n_metrics == 2
     assert m.labels == ["yield_A", "yield_B"]
@@ -28,7 +40,6 @@ def test_dims_derive_shape_and_coord_labels():
 def test_multidim_metric_flattens_entry_count():
     m = Metric(
         "conc",
-        dims=("component", "stage"),
         coords={"component": ["A", "B"], "stage": [1, 2, 3]},
     )
     assert m.shape == (2, 3)
@@ -57,34 +68,17 @@ def test_label_count_mismatch_raises():
         Metric("yield", n_metrics=2, labels=["only_one"])
 
 
-def test_dims_without_coords_raises():
-    with pytest.raises(ValueError, match="coords"):
-        Metric("yield", dims=("component",))
-
-
-def test_coords_without_dims_raises():
-    with pytest.raises(ValueError, match="dims"):
-        Metric("yield", coords={"component": ["A"]})
-
-
-def test_missing_coordinates_for_dimension_raises():
-    with pytest.raises(ValueError, match="component"):
-        Metric("yield", dims=("component",), coords={"stage": [1]})
-
-
-def test_n_metrics_contradicting_dims_raises():
+def test_n_metrics_contradicting_coords_raises():
     with pytest.raises(ValueError, match="contradicts"):
-        Metric("yield", n_metrics=3, dims=("component",), coords={"component": ["A", "B"]})
+        Metric("yield", n_metrics=3, coords={"component": ["A", "B"]})
 
 
 # ── Redeclaration ─────────────────────────────────────────────────────────────
 
 
-def test_redeclare_adopts_dims_in_place():
+def test_redeclare_adopts_coords_in_place():
     m = Metric("yield")
-    m.redeclare(
-        Metric("yield", dims=("case",), coords={"case": ["A"]}, labels=["A_yield"])
-    )
+    m.redeclare(Metric("yield", coords={"case": ["A"]}, labels=["A_yield"]))
     assert m.dims == ("case",)
     assert m.coords == {"case": ["A"]}
     assert m.shape == (1,)
@@ -99,7 +93,7 @@ def test_redeclare_rejects_different_name():
 
 def test_redeclare_rejects_changed_entry_count():
     m = Metric("yield")
-    other = Metric("yield", dims=("case",), coords={"case": ["A", "B"]})
+    other = Metric("yield", coords={"case": ["A", "B"]})
     with pytest.raises(ValueError, match="entry count"):
         m.redeclare(other)
 
@@ -107,7 +101,7 @@ def test_redeclare_rejects_changed_entry_count():
 def test_redeclare_can_explicitly_resize_during_setup():
     m = Metric("yield")
     m.redeclare(
-        Metric("yield", dims=("case",), coords={"case": ["A", "B"]}),
+        Metric("yield", coords={"case": ["A", "B"]}),
         allow_resize=True,
     )
     assert m.shape == (2,)
@@ -149,7 +143,6 @@ def test_scalar_rejects_vector():
 def test_multidim_rejects_flat_vector():
     m = Metric(
         "conc",
-        dims=("component", "stage"),
         coords={"component": ["A", "B"], "stage": [1, 2]},
     )
     with pytest.raises(ValueError, match="shape"):

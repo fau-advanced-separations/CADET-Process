@@ -579,3 +579,17 @@ def test_plot_pairwise_all_nonfinite_does_not_raise():
 
     data = np.full((4, 2), np.inf)
     plot_pairwise(data, variable_names=["f0", "f1"])
+
+
+def test_metric_space_spec_restores_axis_order_from_sorted_coords():
+    """HDF5 stores groups sorted by key; the stored dims restore the axis order."""
+    space = MetricSpace()
+    space.add_metric(Metric("v", coords={"stage": ["1", "2", "3"], "case": ["a", "b"]}))
+    spec = Population._metric_space_spec(Population.empty(metric_space=space))
+    metric = spec["metrics"]["0"]
+    metric["coords"] = dict(sorted(metric["coords"].items()))
+
+    restored = Population._metric_space_from_spec(spec)
+
+    assert restored.metrics_dict["v"].dims == ("stage", "case")
+    assert restored.metrics_dict["v"].shape == (3, 2)

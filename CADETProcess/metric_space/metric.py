@@ -26,13 +26,12 @@ class Metric:
     name : str
         Unique name identifying this metric within a ``MetricSpace``.
     n_metrics : int, optional
-        Number of scalar entries.  Derived from *dims*/*coords* when named
+        Number of scalar entries.  Derived from *coords* when named
         dimensions are declared; defaults to 1 (scalar).
-    dims : tuple of str, optional
-        Named dimensions, e.g. ``("component",)``.  Requires *coords*.
     coords : dict, optional
-        Coordinate values per dimension, e.g. ``{"component": ["A", "B"]}``.
-        Every entry in *dims* must have coordinates.
+        Coordinate values per named dimension, e.g.
+        ``{"component": ["A", "B"]}``.  The keys are the dimensions and their
+        order is the order of the axes.
     labels : list of str, optional
         One label per scalar entry.  Defaults to *name* for scalars, to
         ``{name}_{coord}`` for one-dimensional named metrics, and to
@@ -43,50 +42,36 @@ class Metric:
         self,
         name: str,
         n_metrics: Optional[int] = None,
-        dims: Optional[tuple[str, ...]] = None,
         coords: Optional[dict[str, list[Any]]] = None,
         labels: Optional[list[str]] = None,
     ) -> None:
         if not isinstance(name, str) or not name:
             raise ValueError("Metric name must be a non-empty string.")
         self.name = name
-        self._declare(n_metrics, dims, coords, labels)
+        self._declare(n_metrics, coords, labels)
 
     def _declare(
         self,
         n_metrics: Optional[int],
-        dims: Optional[tuple[str, ...]],
         coords: Optional[dict[str, list[Any]]],
         labels: Optional[list[str]],
     ) -> None:
         """Set shape and labels from a declaration, validating consistency."""
         name = self.name
-        if dims is not None:
-            if coords is None:
-                raise ValueError(f"Metric {name!r}: dims requires coords.")
-            dims = tuple(dims)
-            missing = [d for d in dims if d not in coords]
-            if missing:
-                raise ValueError(
-                    f"Metric {name!r}: missing coordinates for dimensions {missing}."
-                )
-            self.dims: Optional[tuple[str, ...]] = dims
+        if coords is not None:
             self.coords: Optional[dict[str, list[Any]]] = {
-                d: list(coords[d]) for d in dims
+                d: list(values) for d, values in coords.items()
             }
-            shape = tuple(len(self.coords[d]) for d in dims)
+            shape = tuple(len(values) for values in self.coords.values())
             derived = math.prod(shape)
             if n_metrics is not None and n_metrics != derived:
                 raise ValueError(
                     f"Metric {name!r}: n_metrics={n_metrics} contradicts shape "
-                    f"{shape} declared via dims/coords."
+                    f"{shape} declared via coords."
                 )
             self._shape = shape
             self.n_metrics = derived
         else:
-            if coords is not None:
-                raise ValueError(f"Metric {name!r}: coords requires dims.")
-            self.dims = None
             self.coords = None
             n = 1 if n_metrics is None else int(n_metrics)
             if n < 1:
@@ -125,7 +110,7 @@ class Metric:
                 f"Metric {self.name!r}: redeclaration changes the entry count "
                 f"from {self.n_metrics} to {other.n_metrics}."
             )
-        self._declare(other.n_metrics, other.dims, other.coords, other._labels)
+        self._declare(other.n_metrics, other.coords, other._labels)
 
     @property
     def shape(self) -> tuple[int, ...]:
@@ -139,8 +124,9 @@ class Metric:
             return list(self._labels)
         if self.n_metrics == 1:
             return [self.name]
-        if self.dims is not None and len(self.dims) == 1:
-            return [f"{self.name}_{c}" for c in self.coords[self.dims[0]]]
+        if self.coords is not None and len(self.coords) == 1:
+            (values,) = self.coords.values()
+            return [f"{self.name}_{c}" for c in values]
         return [f"{self.name}_{i}" for i in range(self.n_metrics)]
 
     @labels.setter
@@ -172,6 +158,11 @@ class Metric:
         raise ValueError(
             f"Metric {self.name!r}: expected shape {self._shape}, got {arr.shape}."
         )
+
+    @property
+    def dims(self) -> Optional[tuple[str, ...]]:
+        """Names of the dimensions, in axis order; ``None`` without coordinates."""
+        return None if self.coords is None else tuple(self.coords)
 
     def __repr__(self) -> str:
         """Return a readable representation."""

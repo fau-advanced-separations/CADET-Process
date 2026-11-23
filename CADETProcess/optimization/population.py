@@ -1265,14 +1265,13 @@ class Population:
             labels = [_decode(label) for label in entry.get("labels", [])] or None
             dims = entry.get("dims")
             if dims is not None:
-                dims = tuple(_decode(d) for d in dims)
+                # HDF5 stores groups sorted by key, so the stored order of the
+                # dimensions restores the axis order.
                 coords = {
-                    _decode(dim): [_decode(c) for c in coords]
-                    for dim, coords in entry["coords"].items()
+                    _decode(dim): [_decode(c) for c in entry["coords"][_decode(dim)]]
+                    for dim in dims
                 }
-                space.add_metric(
-                    Metric(name, dims=dims, coords=coords, labels=labels)
-                )
+                space.add_metric(Metric(name, coords=coords, labels=labels))
             else:
                 space.add_metric(
                     Metric(name, n_metrics=int(entry["n_metrics"]), labels=labels)
